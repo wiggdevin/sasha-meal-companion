@@ -9,7 +9,10 @@
  * Sprout re-drawn per outfit (Astra §5): `places` are its boxes in that art's pixels.
  */
 
-export type Slot = "head" | "eyes" | "hands" | "legs" | "pin";
+export type Slot = "head" | "eyes" | "hands" | "legs" | "pin" | "care";
+
+/** A care scene: something done for Sprout, not worn; it plays, and plays again whenever asked. */
+export type CareScene = "massage";
 
 /** One painted part: its centre and width in the 768 px art, a turn in degrees, and a mirror. */
 export type Place = { x: number; y: number; w: number; rotate?: number; mirror?: boolean };
@@ -30,6 +33,8 @@ export type ShopItem = {
   clipToBody?: boolean;
   /** A plural noun ("the mittens are"), for the words said about it. */
   plural?: boolean;
+  /** A care item (slot "care"): the scene it plays. It has no places; it is never worn. */
+  scene?: CareScene;
 };
 
 /** The order parts are drawn in, back to front; the leaf goes over the head slot. */
@@ -59,6 +64,8 @@ export const SHOP_ITEMS: readonly ShopItem[] = [
     places: [{ x: 420, y: 362, w: 310 }] },
   { id: "shorts", name: "Shorts", plural: true, slot: "legs", price: 40, art: "/pet/shop/shorts.webp", aspect: 1.6,
     places: [{ x: 386, y: 668, w: 520 }], clipToBody: true },
+  { id: "massage", name: "Massage", slot: "care", price: 30, art: "/pet/care/massage-1.webp", aspect: 1.286,
+    places: [], scene: "massage" },
 ];
 
 export const itemById = (id: string): ShopItem | undefined => SHOP_ITEMS.find((item) => item.id === id);

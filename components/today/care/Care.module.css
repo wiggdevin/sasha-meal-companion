@@ -1,0 +1,35 @@
+/* A care scene (CareScenePlayer.tsx) over the award player's dim room: the spa table, steam and hearts.
+   Only transform and opacity animate. */
+.stage {
+  position: absolute;
+  inset: 0;
+}
+.frame {
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  width: 88%;
+  aspect-ratio: 720 / 560;
+  translate: -50% 0;
+  transform-origin: 50% 80%;
+}
+.art { object-fit: contain; }
+/* Steam off the warm stones: soft blurred wisps that rise and fade. */
+.wisp {
+  position: absolute;
+  top: 28%;
+  width: 22%;
+  aspect-ratio: 1.3;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--color-on-olive) 28%, transparent), transparent);
+  filter: blur(8px);
+  pointer-events: none;
+}
+.heart {
+  position: absolute;
+  top: 26%;
+  width: 18px;
+  height: 18px;
+  fill: var(--color-gauge-calories-end);
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--color-gauge-calories-end) 60%, transparent));
+}

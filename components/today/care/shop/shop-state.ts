@@ -43,7 +43,7 @@ export function purchase(state: ShopState, itemId: string, actionId: string, loc
   };
 }
 
-export type EquipOutcome = { ok: true; state: ShopState } | { ok: false; code: "not_owned" | "wrong_slot" };
+export type EquipOutcome = { ok: true; state: ShopState } | { ok: false; code: "not_owned" | "wrong_slot" | "not_wearable" };
 
 /** Wears an owned item in its slot, or clears the slot with `null`. */
 export function equip(state: ShopState, slot: Slot, itemId: string | null): EquipOutcome {
@@ -55,6 +55,8 @@ export function equip(state: ShopState, slot: Slot, itemId: string | null): Equi
   }
   const item = itemById(itemId);
   if (!item || !state.owned.includes(itemId)) return { ok: false, code: "not_owned" };
+  // A care scene is done for Sprout, never worn.
+  if (item.slot === "care" || slot === "care") return { ok: false, code: "not_wearable" };
   if (item.slot !== slot) return { ok: false, code: "wrong_slot" };
   if (state.equipped[slot] === itemId) return { ok: true, state };
   return { ok: true, state: { ...state, equipped: { ...state.equipped, [slot]: itemId }, rev: state.rev + 1 } };
