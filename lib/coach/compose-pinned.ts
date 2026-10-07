@@ -53,8 +53,12 @@ function hitToFood(hit: FoodHit): Food {
   };
 }
 
-/** A pool-filled row's per-100 g rates, for the card's existing per-100g fields. Unknown stays unknown. */
-function per100gOf(food: Food): Pick<ComposedItem, "kcalPer100g" | "proteinPer100g" | "carbsPer100g" | "fatPer100g"> {
+/**
+ * A pool-filled row's per-100 g rates, for the card's existing per-100g fields. Unknown stays
+ * unknown. Exported (Phase 18 W10): `lib/coach/suggest-pool.ts` builds suggestion cards from the
+ * same pool-filled rows and needs the same conversion.
+ */
+export function per100gOf(food: Food): Pick<ComposedItem, "kcalPer100g" | "proteinPer100g" | "carbsPer100g" | "fatPer100g"> {
   const gramsPerUnit = food.nutritionUnknown ? null : accountUnitGrams(food);
   if (!gramsPerUnit) return { kcalPer100g: null, proteinPer100g: null, carbsPer100g: null, fatPer100g: null };
   const scale = 100 / gramsPerUnit;

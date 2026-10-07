@@ -9,7 +9,7 @@ vi.mock("@/lib/ai/typesafe", () => ({
 
 import { suggestOptions, type SuggestPorts } from "@/lib/coach/suggest";
 import { collectComposed } from "@/lib/coach/turn";
-import { NO_MEAL_FIT_MESSAGE, NO_SNACK_FIT_MESSAGE } from "@/lib/coach/suggest-messages";
+import { NO_MEAL_FIT_MESSAGE } from "@/lib/coach/suggest-messages";
 import { suggestionFoodIdentity } from "@/lib/coach/suggest-policy";
 import type { FoodHit } from "@/lib/coach/executors";
 import { TEST_PROFILE as DEFAULT_PROFILE } from "@/tests/helpers/constraint-profile";
@@ -226,15 +226,19 @@ describe("suggestOptions", () => {
     expect(cards[0].fitNote).toBeNull();
   });
 
-  it("says why when Jev rejects every built candidate, instead of returning a bare empty list", async () => {
+  // Phase 18 W10, D9 item 4 / §5: shadow mode — a veto (every candidate scored "not a snack"/
+  // "not a meal") never changes the output until its precision gate passes (SUGGEST_VETO_LIVE
+  // unset in every test here). The formula order stands and the policy-clean cards are returned,
+  // each carrying the rejected label as its rank note rather than disappearing.
+  it("keeps policy-clean cards in shadow mode even when Jev rejects every one of them", async () => {
     const rejectAll = async (_state: unknown, questions: Record<string, unknown>) =>
       Object.fromEntries(Object.keys(questions).map((key) => [key, answer(0)]));
     const snack = await suggestOptions({ kind: "snack", count: 3 }, fixture({ jev: rejectAll }));
-    expect([...snack]).toEqual([]);
-    expect(snack.message).toBe(NO_SNACK_FIT_MESSAGE);
-    expect(JSON.parse(JSON.stringify(snack))).toEqual({ cards: [], message: NO_SNACK_FIT_MESSAGE });
+    expect(snack.length).toBeGreaterThanOrEqual(3);
+    expect(snack.every((card) => card.rankNote?.includes("not a snack"))).toBe(true);
     const meal = await suggestOptions({ kind: "meal", count: 3 }, fixture({ jev: rejectAll }));
-    expect(meal.message).toBe(NO_MEAL_FIT_MESSAGE);
+    expect(meal.length).toBeGreaterThanOrEqual(3);
+    expect(meal.every((card) => card.rankNote?.includes("not a meal"))).toBe(true);
   });
 
   // 2026-10-02 DeepSeek audit (MED, finding #3): every candidate blocked by the account's own

@@ -69,6 +69,12 @@ export type SuggestPorts = ComposePorts & MealClockPorts & {
 
 export const SUGGEST_BUDGET_MS = 8_000;
 /**
+ * D9 item 4 / W10 acceptance 2: the formulas pick the top 5 to 8 admitted plates before the one
+ * optional Jev call — never the whole candidate list. A candidate past this cap keeps its formula
+ * order (acceptance 5) but is never sent to, or reordered by, Jev.
+ */
+export const SUGGEST_SHORTLIST_MAX = 8;
+/**
  * Candidate building stops here and keeps what it has, leaving the rest of the budget for the
  * evidence check and the Jev ranking. Before this, a long Eats list spent all 8 s searching and
  * the cards it had already built were dropped with the retry line (production, 2026-09-29/30).
@@ -107,13 +113,19 @@ export async function suggestOptions<T extends SuggestPorts>(
     if (built === NO_TARGET) return messageResult(NO_TARGET_SUGGEST_MESSAGE);
     const { requested, pendingSlots } = built;
     const needsNoCook = asksForNoCook(input.wish);
-    const evidencePort = ports.suggestionEvidence ?? loadSuggestionEvidence;
-    const evidence = await abortable(evidencePort(ports.userId,
-      built.candidates.flatMap((candidate) => candidate.meal.items),
-      { needsNoCook, facets: profileRuleFacets(ports.profile.profileRules) }), signal);
-    const filtered = filterSuggestionCandidates(
-      built.candidates, evidence, ports.profile, needsNoCook,
-    );
+    // Phase 18 W10: a pool-sourced candidate already passed a fresh admission read (D11) —
+    // `lib/coach/suggest-pool.ts`'s own doc comment. The Eats-era allergen/evidence recheck below
+    // reads `food_refs` by id, which a universe pool id is not one of, so it is skipped here
+    // rather than misjudging every such item "unverified".
+    const filtered = built.openWorld
+      ? { candidates: built.candidates, blocked: 0, unverified: 0, requiresPreparation: 0 }
+      : filterSuggestionCandidates(
+        built.candidates,
+        await abortable((ports.suggestionEvidence ?? loadSuggestionEvidence)(ports.userId,
+          built.candidates.flatMap((candidate) => candidate.meal.items),
+          { needsNoCook, facets: profileRuleFacets(ports.profile.profileRules) }), signal),
+        ports.profile, needsNoCook,
+      );
     const candidates = filtered.candidates;
     const withSlots = (meal: ComposedMeal): ComposedMeal => ({
       ...meal,
@@ -141,19 +153,31 @@ export async function suggestOptions<T extends SuggestPorts>(
       return messageResult(input.kind === "snack" ? NO_SNACK_FIT_MESSAGE : NO_MEAL_FIT_MESSAGE);
     }
 
-    const state = rankingState(input, candidates, pendingSlots);
+    // D9 item 4 / acceptance 2: the top 5-8 admitted plates only, formula order first
+    // (acceptance 5's fit-first order). A candidate past the cap keeps its formula slot below —
+    // it is never sent to Jev and never reordered by it.
+    const ordered = formulaOrder(candidates);
+    const shortlist = ordered.slice(0, SUGGEST_SHORTLIST_MAX);
+    const overflow = ordered.slice(shortlist.length);
+    const state = rankingState(input, shortlist, pendingSlots);
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
     const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
     let answers: JevAnswers | null = null;
     try {
       answers = await abortable(ask(suggestPayload(state, input.kind), {
-        userId: ports.userId, deadlineMs: remainingMs, signal,
+        userId: ports.userId, deadlineMs: remainingMs, signal, noRetry: true,
       }), signal);
     } catch (error) {
       if (!isAbort(error)) throw error;
     }
     if (timedOut) return partialResult(fitOrdered);
-    const selected = rankCandidates(candidates, answers, input.kind)
+    const rankedShortlist = rankCandidates(shortlist, answers, input.kind);
+    // The overflow (beyond the Jev-visible shortlist) keeps its formula order and provenance —
+    // it was never added, reordered or vetoed; it simply was not among the top 5-8 offered to Jev.
+    const rankedOverflow = overflow.map((candidate) => ({
+      candidate, reason: `fits ${Math.round(candidate.fit * 100)} %`, jevRanked: false,
+    }));
+    const selected = [...rankedShortlist, ...rankedOverflow]
       .slice(0, requested).map(({ candidate, reason, jevRanked }) => ({
         ...withSlots(candidate.meal),
         rankNote: reason,
@@ -184,13 +208,22 @@ export async function suggestOptions<T extends SuggestPorts>(
   }
 }
 
+/**
+ * The formula's own order: acceptance 5 — a plate that misses the slot's fit never ranks ahead of
+ * one that fits — then the fit score, then a stable tie-break. Every fallback (a timeout, Jev
+ * down, too many vetoes) and the Jev shortlist cap both read this same order.
+ */
+function formulaOrder(candidates: readonly SuggestionCandidate[]): SuggestionCandidate[] {
+  return [...candidates].sort((a, b) => Number(b.meal.fitsTarget) - Number(a.meal.fitsTarget)
+    || b.fit - a.fit || a.index - b.index);
+}
+
 function fallbackCards(
   candidates: readonly SuggestionCandidate[],
   requested: number,
   withSlots: (meal: ComposedMeal) => ComposedMeal,
 ): ComposedMeal[] {
-  return [...candidates]
-    .sort((a, b) => b.fit - a.fit || a.index - b.index)
+  return formulaOrder(candidates)
     .slice(0, requested)
     .map(({ meal, fit }) => ({ ...withSlots(meal), rankNote: `fits ${Math.round(fit * 100)} %`,
       provenance: BY_APP }));

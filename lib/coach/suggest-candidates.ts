@@ -12,6 +12,7 @@ import type { FoodHit, SuggestInput } from "@/lib/coach/executors";
 import { checkItem, allergenFacts } from "@/lib/coach/policy";
 import type { SuggestPorts } from "@/lib/coach/suggest";
 import { fitNamedMealPortions } from "@/lib/coach/fit-portions";
+import { buildPoolCandidates } from "@/lib/coach/suggest-pool";
 
 export { fitNamedMealPortions } from "@/lib/coach/fit-portions";
 
@@ -46,6 +47,14 @@ export type CandidateBuild = {
   hiddenUnverified: number;
   /** The build budget ran out before every Eats food was tried; `candidates` is what was built. */
   interrupted: boolean;
+  /**
+   * Phase 18 W10: these candidates came from the open-world admitted pool
+   * (`lib/coach/suggest-pool.ts`), already policy-clean from D11's fresh admission read. The
+   * caller (`lib/coach/suggest.ts`) skips the Eats-era allergen/evidence recheck
+   * (`lib/coach/suggest-policy.ts`) for them — that check reads `food_refs` rows a universe pool
+   * id is not one of.
+   */
+  openWorld?: boolean;
 };
 /**
  * A card anchors on a name from the Eats list, so an account with none has nothing to build from,
@@ -74,6 +83,11 @@ export async function buildCandidates(
 ): Promise<CandidateBuild | typeof NOTHING_LEFT | typeof NO_SAVED_FOODS | typeof NO_TARGET> {
   const requested = Math.max(1, Math.min(5, Math.trunc(input.count ?? 3)));
   const cap = snackCap(input);
+  // Phase 18 W10, acceptance 1: an open food-world account's admitted pool (D1) can build cards
+  // even with 0 Favored foods — checked first, before the Eats-emptiness answer below would
+  // otherwise end the request on a brand-new open account.
+  const open = await abortable(ports.openWorld?.(ports.userId) ?? Promise.resolve(null), signal);
+  if (open) return buildPoolCandidates(input, ports, open, requested, cap, signal, abortable);
   // The Eats list first: an account with nothing saved is answered before the day's target is even
   // read, so a missing target cannot become an error on a brand-new account.
   const names = await abortable(ports.eatsNames?.(ports.userId) ?? Promise.resolve([]), signal);
