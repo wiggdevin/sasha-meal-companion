@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchWithDeadline } from "@/lib/fetch-with-deadline";
+import { accountFetch, accountHandle, accountJson } from "@/lib/device/account";
 import { SHOP_ITEMS, itemById, type LedgerRow, type Slot } from "@/components/today/care/shop/catalog";
 import type { EquipOutcome, PurchaseOutcome, ShopState } from "@/components/today/care/shop/shop-state";
 
@@ -40,24 +40,24 @@ const messagesBody = z.object({ messages: z.array(z.object({
 export type CareShopSnapshot = { state: ShopState; prices: Record<string, number> };
 export type CareMessageRow = z.infer<typeof messagesBody>["messages"][number];
 
-async function getJson<T>(url: string, schema: z.ZodType<T>): Promise<T | "failed"> {
+/**
+ * Every call goes through accountFetch (the one way client code calls an app route: it names the
+ * account and refuses an answer meant for an account this device has since left). No bound account,
+ * a switch mid-call, a non-2xx answer or a body that fails its schema are all "failed".
+ */
+async function call<T>(url: string, init: RequestInit, budget: "prefs" | "commit", schema: z.ZodType<T>): Promise<T | "failed"> {
   try {
-    const res = await fetchWithDeadline("prefs", url, { headers: { accept: "application/json" }, cache: "no-store" });
+    const h = accountHandle();
+    const res = await accountFetch(h, url, init, { budget });
     if (!res.ok) return "failed";
-    const parsed = schema.safeParse(await res.json());
+    const parsed = schema.safeParse(await accountJson(h, res));
     return parsed.success ? parsed.data : "failed";
   } catch { return "failed"; }
 }
-
-async function postJson<T>(url: string, body: unknown, schema: z.ZodType<T>): Promise<T | "failed"> {
-  try {
-    const res = await fetchWithDeadline("commit", url, { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify(body) });
-    if (!res.ok) return "failed";
-    const parsed = schema.safeParse(await res.json());
-    return parsed.success ? parsed.data : "failed";
-  } catch { return "failed"; }
-}
+const getJson = <T,>(url: string, schema: z.ZodType<T>) =>
+  call(url, { headers: { accept: "application/json" }, cache: "no-store" }, "prefs", schema);
+const postJson = <T,>(url: string, body: unknown, schema: z.ZodType<T>) =>
+  call(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, "commit", schema);
 
 /** Equipped slots the phone knows, holding items it owns art for. */
 function knownEquipped(equipped: Record<string, string>): Partial<Record<Slot, string>> {

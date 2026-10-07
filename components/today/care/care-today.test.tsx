@@ -11,6 +11,12 @@ import { equipCareItem, offeredItems, purchaseCareItem, readCareShop } from "./c
 import { noteOf } from "./useCare";
 import type { ShopState } from "./shop/shop-state";
 
+// A bound account; the calls go straight to the stubbed fetch with the account header.
+vi.mock("@/lib/device/account", () => ({
+  accountHandle: () => ({ userId: "u1", epoch: 1 }),
+  accountFetch: (_h: unknown, url: string, init: RequestInit = {}) => fetch(url, init),
+  accountJson: (_h: unknown, res: Response) => res.json(),
+}));
 vi.mock("@/components/today/care/sound", () => ({
   play: vi.fn(), unlockAudio: vi.fn(), readMuted: () => true, silence: vi.fn(), writeMuted: vi.fn(),
 }));
