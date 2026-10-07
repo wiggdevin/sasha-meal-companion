@@ -127,7 +127,7 @@ export default function SettingsPage() {
 
       <CuisinesSection settings={settings} />
 
-      <CompanionSection settings={settings} />
+      <CompanionSection />
 
       <ScheduleSection shiftMinutes={settings.shiftMinutes} slotTimes={settings.slotTimes}
         mealsPerDay={settings.mealsPerDay} activeTargetProfile={settings.activeTargetProfile}

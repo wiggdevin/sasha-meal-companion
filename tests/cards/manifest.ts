@@ -192,7 +192,7 @@ export const CARD_MANIFEST: CardManifestEntry[] = [
     states: ["nothing chosen", "six chosen", "a country chosen"],
     renderTest: "tests/settings/cuisines-section.test.tsx" },
   { path: "components/settings/CompanionSection.tsx", card: "CompanionSection",
-    states: ["a companion chosen", "a save that fails goes back"],
+    states: ["a companion chosen", "a save that fails goes back", "a pull moves the picker"],
     renderTest: "components/today/island/companion-today.test.tsx" },
   { path: "components/settings/SignOutCard.tsx", card: "SignOutCard",
     states: ["default", "unsent notice"],

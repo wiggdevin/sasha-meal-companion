@@ -8,15 +8,20 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-li
 import { MotionConfig } from "motion/react";
 import SproutStage from "./Sprout";
 import { MASCOT_EVENT, useMascot, wellArt, wellPet } from "./well-pet";
+import { SYNCED_EVENT } from "@/lib/sync/client";
 
 const store = vi.hoisted(() => ({ settings: { mascot: "sprout" } as Record<string, unknown> }));
 vi.mock("@/lib/store", () => ({
   loadStore: () => ({ settings: { ...store.settings } }),
   saveStore: (next: { settings: Record<string, unknown> }) => { store.settings = { ...next.settings }; },
 }));
-const sync = vi.hoisted(() => ({ calls: [] as unknown[][], fail: false }));
+const sync = vi.hoisted(() => ({ calls: [] as unknown[][], fail: false, gate: null as null | ((n: number) => Promise<void>) }));
 vi.mock("@/lib/coach/apply-profile", () => ({
-  syncProfileSettings: async (...args: unknown[]) => { sync.calls.push(args); if (sync.fail) throw new Error("offline"); },
+  syncProfileSettings: async (...args: unknown[]) => {
+    sync.calls.push(args);
+    if (sync.gate) await sync.gate(sync.calls.length);
+    if (sync.fail) throw new Error("offline");
+  },
 }));
 vi.mock("@/components/settings/use-settings-write", () => ({
   useSettingsWrite: (send: (p: unknown) => Promise<unknown>) => ({
@@ -25,7 +30,7 @@ vi.mock("@/components/settings/use-settings-write", () => ({
   }),
 }));
 
-beforeEach(() => { store.settings = { mascot: "sprout" }; sync.calls = []; sync.fail = false; });
+beforeEach(() => { store.settings = { mascot: "sprout" }; sync.calls = []; sync.fail = false; sync.gate = null; });
 afterEach(cleanup);
 
 const DAY = { targets: { kcal: 2000, protein: 150, carbs: 200, fat: 70 },
@@ -66,7 +71,7 @@ describe("Settings › Your companion", () => {
     const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
     const told = vi.fn();
     window.addEventListener(MASCOT_EVENT, told);
-    render(<MotionConfig reducedMotion="always"><CompanionSection settings={{ mascot: "sprout" } as never} /></MotionConfig>);
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
     expect(screen.getByRole("button", { name: "Sprout" }).getAttribute("aria-pressed")).toBe("true");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Button" })); });
     expect(sync.calls[0][2]).toEqual(["mascot"]);
@@ -79,9 +84,34 @@ describe("Settings › Your companion", () => {
   it("a save that fails goes back to the companion the account still has", async () => {
     const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
     sync.fail = true;
-    render(<MotionConfig reducedMotion="always"><CompanionSection settings={{ mascot: "sprout" } as never} /></MotionConfig>);
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Blu" })); });
     expect(screen.getByRole("button", { name: "Sprout" }).getAttribute("aria-pressed")).toBe("true");
     expect(store.settings.mascot).toBe("sprout");
+  });
+
+  it("a pull moves the picker while nothing is being saved", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    store.settings = { mascot: "peapod" };
+    act(() => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
+    expect(screen.getByRole("button", { name: "Pod" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("sends two quick choices in tap order, and an older one failing late leaves the newer one shown", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    const release: Array<{ go: () => void; fail: () => void }> = [];
+    sync.gate = () => new Promise<void>((go, fail) => { release.push({ go: () => go(), fail: () => fail(new Error("offline")) }); });
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Blu" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Button" })); });
+    expect(sync.calls).toHaveLength(1);
+    await act(async () => { release[0].fail(); });
+    expect(screen.getByRole("button", { name: "Button" }).getAttribute("aria-pressed")).toBe("true");
+    expect(sync.calls).toHaveLength(2);
+    expect((sync.calls[1][0] as { mascot: string }).mascot).toBe("mushroom");
+    await act(async () => { release[1].go(); });
+    expect(store.settings.mascot).toBe("mushroom");
+    expect(screen.getByRole("button", { name: "Button" }).getAttribute("aria-pressed")).toBe("true");
   });
 });
