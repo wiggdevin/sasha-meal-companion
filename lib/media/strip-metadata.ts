@@ -92,9 +92,16 @@ const PNG_KEEP_CHUNKS = new Set(["IHDR", "PLTE", "IDAT", "IEND", "tRNS", "gAMA",
 /**
  * Keeps only `PNG_KEEP_CHUNKS`, dropping every other chunk (including its own CRC) whole —
  * removing a chunk never invalidates another chunk's CRC. Refuses a file whose first chunk is not
- * IHDR, that carries no IDAT, that never reaches IEND, or whose chunk lengths run past the
- * buffer — a structurally incomplete "image" (no pixel data at all) is exactly the shape Sol's
- * review reproduced getting past the old chunk-drop-list and forwarded to the provider.
+ * IHDR, whose IHDR does not declare a real nonzero width and height, that carries no IDAT bytes,
+ * that never reaches IEND, or whose chunk lengths run past the buffer.
+ *
+ * This checks PNG container structure, not pixel content: it does not inflate the IDAT stream
+ * (that would need a zlib decoder, well past what a metadata-privacy gate needs). A second Sol
+ * review round reproduced a structurally "complete" PNG — valid IHDR/IDAT/IEND chunks, syntactically
+ * well-formed — whose IHDR declared a zero width/height, or whose only IDAT chunk carried zero
+ * bytes: both are degenerate, pixel-free "images" rather than a metadata leak, so they are refused
+ * here on the same cheap, header-only checks (IHDR's declared dimensions, IDAT's total byte count)
+ * rather than by decoding the compressed stream.
  */
 function stripPngMetadata(bytes: Uint8Array): Uint8Array {
   if (bytes.length < 8 || !PNG_SIGNATURE.every((b, idx) => bytes[idx] === b)) {
@@ -103,7 +110,7 @@ function stripPngMetadata(bytes: Uint8Array): Uint8Array {
   const out: number[] = [...PNG_SIGNATURE];
   let i = 8;
   let sawEnd = false;
-  let sawIdat = false;
+  let idatBytes = 0;
   let chunkCount = 0;
   while (i < bytes.length) {
     if (i + 8 > bytes.length) throw new UnparseableImage("truncated PNG chunk header");
@@ -113,13 +120,19 @@ function stripPngMetadata(bytes: Uint8Array): Uint8Array {
     chunkCount += 1;
     const total = 8 + length + 4; // length field + type + data + crc
     if (length < 0 || i + total > bytes.length) throw new UnparseableImage("truncated PNG chunk data");
-    if (type === "IDAT") sawIdat = true;
+    if (type === "IHDR") {
+      if (length !== 13) throw new UnparseableImage("malformed PNG: IHDR is not 13 bytes");
+      const width = u32(bytes, i + 8);
+      const height = u32(bytes, i + 12);
+      if (width === 0 || height === 0) throw new UnparseableImage("malformed PNG: zero width or height");
+    }
+    if (type === "IDAT") idatBytes += length;
     if (PNG_KEEP_CHUNKS.has(type)) for (let k = i; k < i + total; k++) out.push(bytes[k]);
     i += total;
     if (type === "IEND") { sawEnd = true; break; }
   }
   if (!sawEnd) throw new UnparseableImage("malformed PNG: no IEND found");
-  if (!sawIdat) throw new UnparseableImage("malformed PNG: no IDAT (no image data) found");
+  if (idatBytes === 0) throw new UnparseableImage("malformed PNG: no image data in any IDAT chunk");
   return Uint8Array.from(out);
 }
 

@@ -119,3 +119,25 @@ export function syntheticPngWithNoImageData(): Uint8Array {
   const iend = pngChunk("IEND", []);
   return new Uint8Array([...sig, ...iend]);
 }
+
+/** A PNG with a syntactically valid (13-byte) IHDR declaring zero width and height, a real IDAT
+ *  and a real IEND — structurally "complete" but a degenerate, pixel-free image (second Sol
+ *  review round). */
+export function syntheticPngWithZeroDimensions(): Uint8Array {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const ihdr = pngChunk("IHDR", [...u32be(0), ...u32be(0), 8, 2, 0, 0, 0]);
+  const idat = pngChunk("IDAT", [0x01]);
+  const iend = pngChunk("IEND", []);
+  return new Uint8Array([...sig, ...ihdr, ...idat, ...iend]);
+}
+
+/** A PNG with a normal, nonzero-dimension IHDR but a zero-length IDAT chunk (and only that one
+ *  IDAT) — syntactically valid chunks, real IEND, but zero bytes of actual image data (second Sol
+ *  review round). */
+export function syntheticPngWithEmptyIdat(): Uint8Array {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const ihdr = pngChunk("IHDR", [...u32be(1), ...u32be(1), 8, 2, 0, 0, 0]);
+  const idat = pngChunk("IDAT", []);
+  const iend = pngChunk("IEND", []);
+  return new Uint8Array([...sig, ...ihdr, ...idat, ...iend]);
+}

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata";
 import { syntheticJpeg, syntheticJpegWithExif, syntheticJpegWithStuffedScan, syntheticPng,
-  syntheticPngWithIccProfile, syntheticPngWithMetadata, syntheticPngWithNoImageData,
-  syntheticPngWithTrailingMetadataAfterIdat }
+  syntheticPngWithEmptyIdat, syntheticPngWithIccProfile, syntheticPngWithMetadata,
+  syntheticPngWithNoImageData, syntheticPngWithTrailingMetadataAfterIdat,
+  syntheticPngWithZeroDimensions }
   from "../helpers/synthetic-images";
 
 describe("stripImageMetadata (JPEG)", () => {
@@ -121,6 +122,20 @@ describe("stripImageMetadata (PNG)", () => {
     // Reproduces Sol's finding: a signature-to-IEND "image" with no pixel data at all must not
     // pass the pre-provider gate just because it technically reaches IEND.
     expect(() => stripImageMetadata(syntheticPngWithNoImageData(), "image/png"))
+      .toThrow(UnparseableImage);
+  });
+
+  it("refuses a PNG whose IHDR declares zero width or height (second Sol review round, BLOCK)", () => {
+    // Syntactically valid IHDR/IDAT/IEND chunks, but IHDR says the image is 0x0 — a degenerate,
+    // pixel-free "image" the chunk-presence check alone would let through.
+    expect(() => stripImageMetadata(syntheticPngWithZeroDimensions(), "image/png"))
+      .toThrow(UnparseableImage);
+  });
+
+  it("refuses a PNG whose only IDAT chunk carries zero bytes (second Sol review round, BLOCK)", () => {
+    // A normal, nonzero-dimension IHDR, a real IEND, but the one IDAT chunk is empty — no actual
+    // image data despite every required chunk type being present.
+    expect(() => stripImageMetadata(syntheticPngWithEmptyIdat(), "image/png"))
       .toThrow(UnparseableImage);
   });
 });
