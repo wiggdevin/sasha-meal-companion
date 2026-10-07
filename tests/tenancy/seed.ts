@@ -29,10 +29,13 @@ export async function find(f: Fixture): Promise<Row | null> {
 
 /**
  * Tables no API role may delete from (immutable coach Undo receipts, 20261216090000; taste-chip
- * receipts, 20261220090000): the test
- * removes their rows as the database owner, as the account cascade does.
+ * receipts, 20261220090000; UI-NEEDS SPROUT-CARE's care_* tables, 20261225090100-090400 -- every
+ * write to them goes through a SECURITY DEFINER function, and none of those grants DELETE): the
+ * test removes their rows as the database owner, as the account cascade does.
  */
-const OWNER_DELETE = new Set(["coach_action_receipts", "taste_chip_receipts", "taste_chip_holds"]);
+const OWNER_DELETE = new Set(["coach_action_receipts", "taste_chip_receipts", "taste_chip_holds",
+  "care_points_ledger", "care_inventory", "care_equipped", "care_purchase_receipts",
+  "care_accolades", "care_messages"]);
 const literal = (value: unknown) => `'${String(value).replaceAll("'", "''")}'`;
 
 async function deleteMatching(table: string, match: Row): Promise<void> {

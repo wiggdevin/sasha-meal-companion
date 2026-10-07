@@ -121,6 +121,8 @@ const CASE_NAMES = {
   target_revision: 1, compute_item_snapshot: 1,
   recipe_accept: 1, recipe_consumed: 1, recipe_undo: 1, shopping_window: 1,
   coach_undo_record: 1, coach_undo_perform: 1, food_signals: 1, taste_confirm: 1, taste_undo: 1,
+  care_points_sync: 1, care_purchase: 1, care_equip: 1, care_accolades_sync: 1,
+  care_accolades_seen: 1, care_message_mark: 1, care_log_grew: 1,
 } as const;
 type CaseName = keyof typeof CASE_NAMES;
 
@@ -397,6 +399,85 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
       expect(result.error).toBeNull();
       expect(result.data).toMatchObject({ status: "not_found" });
       expect(await rowsOf("shopping_purchase_windows", b.id)).toEqual(before);
+    },
+    care_points_sync: async () => {
+      const before = await rowsOf("care_points_ledger", b.id);
+      const { error } = await asA.rpc("care_points_sync",
+        { p_user_id: b.id, p_local_date: day(2041), p_zone: "UTC" });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("care_points_ledger", b.id)).toEqual(before);
+      // care_points_sync refuses a future local_date (real wall-clock, unlike the other cases'
+      // synthetic 2041 dates), so the control call needs today's own real date.
+      const today = new Date().toISOString().slice(0, 10);
+      const control = await asB.rpc("care_points_sync",
+        { p_user_id: b.id, p_local_date: today, p_zone: "UTC" });
+      expect(control.error).toBeNull();
+      expect(control.data).toMatchObject({ balance: expect.any(Number) });
+    },
+    care_purchase: async () => {
+      const before = [await rowsOf("care_inventory", b.id), await rowsOf("care_purchase_receipts", b.id)];
+      const { error } = await asA.rpc("care_purchase", { p_user_id: b.id, p_item_id: "leaf-pin",
+        p_action_id: crypto.randomUUID(), p_local_date: day(2041), p_zone: "UTC" });
+      expect(error?.message).toContain("forbidden");
+      expect([await rowsOf("care_inventory", b.id), await rowsOf("care_purchase_receipts", b.id)]).toEqual(before);
+      const control = await asB.rpc("care_purchase", { p_user_id: b.id, p_item_id: "leaf-pin",
+        p_action_id: crypto.randomUUID(), p_local_date: day(2041), p_zone: "UTC" });
+      expect(control.error).toBeNull();
+      expect(control.data).toMatchObject({ status: expect.any(String) });
+    },
+    care_equip: async () => {
+      const before = await rowsOf("care_equipped", b.id);
+      const { error } = await asA.rpc("care_equip",
+        { p_user_id: b.id, p_slot: "pin", p_item_id: null, p_rev: null });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("care_equipped", b.id)).toEqual(before);
+      const control = await asB.rpc("care_equip",
+        { p_user_id: b.id, p_slot: "pin", p_item_id: null, p_rev: null });
+      expect(control.error).toBeNull();
+      expect(control.data).toMatchObject({ status: "ok" });
+    },
+    care_accolades_sync: async () => {
+      const before = await rowsOf("care_accolades", b.id);
+      const { error } = await asA.rpc("care_accolades_sync",
+        { p_user_id: b.id, p_local_date: day(2041), p_zone: "UTC" });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("care_accolades", b.id)).toEqual(before);
+      const control = await asB.rpc("care_accolades_sync",
+        { p_user_id: b.id, p_local_date: day(2041), p_zone: "UTC" });
+      expect(control.error).toBeNull();
+      expect(control.data).toMatchObject({ granted: expect.any(Array) });
+    },
+    care_accolades_seen: async () => {
+      const grant = await seed("care_accolades", b.id);
+      const before = await rowsOf("care_accolades", b.id);
+      const { error } = await asA.rpc("care_accolades_seen", { p_user_id: b.id, p_keys: ["first-meal"] });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("care_accolades", b.id)).toEqual(before);
+      const control = await asB.rpc("care_accolades_seen", { p_user_id: b.id, p_keys: ["first-meal"] });
+      expect(control.error).toBeNull();
+      expect(control.data).toBe(1);
+      expect((await row("care_accolades", grant.match))?.seen_at).not.toBeNull();
+    },
+    care_message_mark: async () => {
+      const message = await seed("care_messages", b.id);
+      const before = await rowsOf("care_messages", b.id);
+      const { error } = await asA.rpc("care_message_mark",
+        { p_user_id: b.id, p_id: message.match.id, p_action: "read" });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("care_messages", b.id)).toEqual(before);
+      const control = await asB.rpc("care_message_mark",
+        { p_user_id: b.id, p_id: message.match.id, p_action: "read" });
+      expect(control.error).toBeNull();
+      expect(control.data).toBe(true);
+    },
+    care_log_grew: async () => {
+      const { error } = await asA.rpc("care_log_grew",
+        { p_user_id: b.id, p_op_id: crypto.randomUUID(), p_zone: "UTC" });
+      expect(error?.message).toContain("forbidden");
+      const control = await asB.rpc("care_log_grew",
+        { p_user_id: b.id, p_op_id: crypto.randomUUID(), p_zone: "UTC" });
+      expect(control.error).toBeNull();
+      expect(control.data).toMatchObject({ grew: false });
     },
   };
 
