@@ -74,8 +74,12 @@ function knownEquipped(equipped: Record<string, string>): Partial<Record<Slot, s
 
 /** The shop and recent Seeds as the phone draws them, or "failed". */
 export async function readCareShop(): Promise<CareShopSnapshot | "failed"> {
-  const [shop, points] = await Promise.all([getJson("/api/care/shop", shopBody), getJson(`/api/care/points?date=${today()}`, pointsBody)]);
-  if (shop === "failed" || points === "failed") return "failed";
+  // Points first: that route settles newly earned Seeds before it answers, so the shop read after it
+  // carries the settled balance (read together, the shop could show the balance from before).
+  const points = await getJson(`/api/care/points?date=${today()}`, pointsBody);
+  if (points === "failed") return "failed";
+  const shop = await getJson("/api/care/shop", shopBody);
+  if (shop === "failed") return "failed";
   const prices = Object.fromEntries(shop.items.filter((item) => itemById(item.id)?.slot === item.slot)
     .map((item) => [item.id, item.price]));
   const ledger: LedgerRow[] = points.recent.map((row) => ({ id: row.id, kind: row.kind, delta: row.delta,

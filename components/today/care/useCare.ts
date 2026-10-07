@@ -71,10 +71,17 @@ export function useCare(active: boolean): CareData {
     if (!active) return;
     let live = true;
     void readCareMessages().then((answer) => {
-      if (!live || answer === "failed") return;
-      setNotes(answer.map(noteOf).filter((note): note is CareNote => note !== null));
+      if (!live) return;
+      // A failed read shows no notes rather than the last visit's.
+      setNotes(answer === "failed" ? [] : answer.map(noteOf).filter((note): note is CareNote => note !== null));
     });
     return () => { live = false; };
+  }, [active]);
+  // The well folded or left today: forget what it showed, so a reopening never shows an old balance
+  // or note while the new read is out (or when it fails).
+  useEffect(() => {
+    if (!active) return;
+    return () => { setShop(null); setNotes([]); };
   }, [active]);
   const refresh = useCallback(() => setReads((n) => n + 1), []);
   const drop = useCallback((id: string) => setNotes((list) => list.filter((note) => note.id !== id)), []);

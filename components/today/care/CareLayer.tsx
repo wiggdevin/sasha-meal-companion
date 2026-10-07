@@ -37,7 +37,19 @@ export default function CareLayer({ active }: { active: boolean }) {
     // Focus moves into the shop (the chip goes inert under it), and straight back to the chip on close.
     const opener = chip.current;
     panel.current?.focus({ preventScroll: true });
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); } };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); return; }
+      // A modal panel: Tab and Shift+Tab wrap inside the shop, never reaching the well behind it.
+      const box = panel.current;
+      if (event.key !== "Tab" || !box) return;
+      const stops = [...box.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input, [tabindex]:not([tabindex='-1'])")]
+        .filter((el) => !el.closest("[inert]"));
+      if (!stops.length) { event.preventDefault(); return; }
+      const first = stops[0]; const last = stops[stops.length - 1];
+      const at = document.activeElement;
+      if (event.shiftKey && (at === first || at === box || !box.contains(at))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (at === last || !box.contains(at))) { event.preventDefault(); first.focus(); }
+    };
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("keydown", onKey); opener?.focus({ preventScroll: true }); };
   }, [shopOpen]);
@@ -69,7 +81,7 @@ export default function CareLayer({ active }: { active: boolean }) {
       <span>{shop.state.balance.toLocaleString("en-US")}</span>
     </button>}
     <AnimatePresence>
-      {shop && shopOpen && <motion.div ref={panel} key="shop" role="dialog" aria-label="Sprout's shop" tabIndex={-1}
+      {shop && shopOpen && <motion.div ref={panel} key="shop" role="dialog" aria-modal="true" aria-label="Sprout's shop" tabIndex={-1}
         className={`matte ${styles.panel}`}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
         <CareShop state={shop.state} today={localIsoDate(new Date())} rules={SERVER} items={offeredItems(shop.prices)}

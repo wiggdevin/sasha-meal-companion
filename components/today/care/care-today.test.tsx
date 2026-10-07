@@ -100,9 +100,37 @@ describe("CareLayer", () => {
     expect(document.activeElement).toBe(screen.getByRole("dialog", { name: "Sprout's shop" }));
     expect(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Jetpack/ })).toBeNull();
+    // Tab wraps inside the shop (Sol r1): from its last stop to its first, and back with Shift.
+    const dialog = screen.getByRole("dialog", { name: "Sprout's shop" });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    const stops = [...dialog.querySelectorAll<HTMLElement>("button:not([disabled])")];
+    stops[stops.length - 1].focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(stops[0]);
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(stops[stops.length - 1]);
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sprout's shop" })).toBeNull());
     expect(document.activeElement).toBe(chip);
+  });
+
+  it("reads points before the shop, so the shop carries the settled balance (Sol r1)", async () => {
+    layer();
+    await screen.findByRole("button", { name: /Open Sprout's shop/ });
+    const order = calls.map((c) => c.url).filter((u) => u.startsWith("/api/care/points") || u === "/api/care/shop");
+    expect(order[0]).toMatch(/^\/api\/care\/points/);
+    expect(order[1]).toBe("/api/care/shop");
+  });
+
+  it("forgets the last visit when the well folds, and shows no old note if the inbox then fails", async () => {
+    const view = render(<MotionConfig reducedMotion="always"><CareLayer active /></MotionConfig>);
+    await screen.findByRole("button", { name: "Watch" });
+    view.rerender(<MotionConfig reducedMotion="always"><CareLayer active={false} /></MotionConfig>);
+    serve(() => undefined);
+    view.rerender(<MotionConfig reducedMotion="always"><CareLayer active /></MotionConfig>);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.queryByRole("button", { name: "Watch" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Open Sprout's shop/ })).toBeNull();
   });
 
   it("plays an award from its note and marks it seen and read", async () => {
