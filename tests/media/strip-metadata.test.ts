@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata";
-import { syntheticJpeg, syntheticJpegWithExif, syntheticPng, syntheticPngWithMetadata }
+import { syntheticJpeg, syntheticJpegWithExif, syntheticJpegWithStuffedScan, syntheticPng,
+  syntheticPngWithMetadata, syntheticPngWithTrailingMetadataAfterIdat }
   from "../helpers/synthetic-images";
 
 describe("stripImageMetadata (JPEG)", () => {
@@ -40,6 +41,13 @@ describe("stripImageMetadata (JPEG)", () => {
     const truncated = syntheticJpegWithExif().slice(0, 10);
     expect(() => stripImageMetadata(truncated, "image/jpeg")).toThrow(UnparseableImage);
   });
+
+  it("round-trips a scan with a byte-stuffed 0xFF and a restart marker, byte for byte", () => {
+    const plain = syntheticJpegWithStuffedScan();
+    // Neither the stuffed FF 00 nor the RST0 marker is the real EOI, and copyScanToEoi must not
+    // mistake either for one or drop/alter a byte while walking past them.
+    expect([...stripImageMetadata(plain, "image/jpeg")]).toEqual([...plain]);
+  });
 });
 
 describe("stripImageMetadata (PNG)", () => {
@@ -67,5 +75,22 @@ describe("stripImageMetadata (PNG)", () => {
   it("refuses a PNG with no IEND", () => {
     const withoutEnd = syntheticPng().slice(0, 16); // signature + partial IHDR, no IDAT/IEND
     expect(() => stripImageMetadata(withoutEnd, "image/png")).toThrow(UnparseableImage);
+  });
+
+  it("drops a tEXt chunk that comes after two IDAT chunks, not just before the first one", () => {
+    const stripped = stripImageMetadata(syntheticPngWithTrailingMetadataAfterIdat(), "image/png");
+    const text = Buffer.from(stripped).toString("latin1");
+    // A walk that stopped looking for metadata once it saw the first IDAT would miss this.
+    expect(text).not.toContain("trailing");
+    expect(text).toContain("IHDR");
+    expect(text).toContain("IEND");
+    const types = [];
+    for (let i = 8; i < stripped.length; ) {
+      const length = (stripped[i] << 24 | stripped[i + 1] << 16 | stripped[i + 2] << 8 | stripped[i + 3]) >>> 0;
+      types.push(String.fromCharCode(stripped[i + 4], stripped[i + 5], stripped[i + 6], stripped[i + 7]));
+      i += 8 + length + 4;
+    }
+    // Both IDAT chunks survive, in order, with the tEXt chunk between them gone.
+    expect(types).toEqual(["IHDR", "IDAT", "IDAT", "IEND"]);
   });
 });

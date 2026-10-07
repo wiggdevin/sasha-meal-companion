@@ -38,6 +38,24 @@ export function syntheticJpeg(extraMarkers: number[] = []): Uint8Array {
     0x12, 0xff, 0xd9]);
 }
 
+/**
+ * A synthetic JPEG whose entropy-coded scan carries the two things a real phone/canvas encoder
+ * can legally put in scan data: a byte-stuffed literal 0xFF (0xFF 0x00) and a restart marker
+ * (0xFFD0, which — unlike every marker before SOS — carries no length field). Proves the
+ * stripper's byte-stuffing/restart handling in `copyScanToEoi` doesn't mistake either for the
+ * real EOI or for metadata, and doesn't let either corrupt the scan it copies.
+ */
+export function syntheticJpegWithStuffedScan(): Uint8Array {
+  const dqt = segment(0xdb, [0x00, ...Array(64).fill(1)]);
+  const sof0 = segment(0xc0, [0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00]);
+  const dht = segment(0xc4, [0x00, 0x01, 0x01, ...Array(13).fill(0), 0x00]);
+  const sos = segment(0xda, [0x01, 0x01, 0x00, 0x00, 0x3f, 0x00]);
+  // 0x12, then a literal 0xFF (stuffed as 0xFF 0x00), then a restart marker, then one more data
+  // byte, then the real EOI.
+  const scan = [0x12, 0xff, 0x00, 0x34, 0xff, 0xd0, 0x56, 0xff, 0xd9];
+  return new Uint8Array([0xff, 0xd8, ...dqt, ...sof0, ...dht, ...sos, ...scan]);
+}
+
 /** A synthetic JPEG whose APP1 segment carries a fake EXIF/GPS-flavoured block — never a real
  *  photo, just enough bytes to prove a stripper removes the whole segment. */
 export function syntheticJpegWithExif(): Uint8Array {
@@ -64,4 +82,21 @@ export function syntheticPngWithMetadata(): Uint8Array {
   const text = pngChunk("tEXt", [...[..."Comment"].map((c) => c.charCodeAt(0)), 0,
     ...[..."hi"].map((c) => c.charCodeAt(0))]);
   return syntheticPng([...exif, ...text]);
+}
+
+/**
+ * A synthetic PNG with TWO IDAT chunks and a tEXt chunk placed AFTER both of them, before IEND —
+ * a legal chunk order some encoders produce (split image data, trailing metadata) that a stripper
+ * walking "until IDAT" rather than "until IEND" would miss entirely. Proves the chunk walk is
+ * order-independent: it keeps scanning past IDAT and still drops metadata that comes later.
+ */
+export function syntheticPngWithTrailingMetadataAfterIdat(): Uint8Array {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const ihdr = pngChunk("IHDR", [...u32be(1), ...u32be(1), 8, 2, 0, 0, 0]);
+  const idat1 = pngChunk("IDAT", [0x01]);
+  const idat2 = pngChunk("IDAT", [0x02]);
+  const text = pngChunk("tEXt", [...[..."Comment"].map((c) => c.charCodeAt(0)), 0,
+    ...[..."trailing"].map((c) => c.charCodeAt(0))]);
+  const iend = pngChunk("IEND", []);
+  return new Uint8Array([...sig, ...ihdr, ...idat1, ...idat2, ...text, ...iend]);
 }

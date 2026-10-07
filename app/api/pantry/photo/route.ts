@@ -1,5 +1,6 @@
 /**
- * POST /api/pantry/photo — JWT, 2 KB (a media path only), 10/min/user.
+ * POST /api/pantry/photo — JWT (shopping-pilot gate, same as every other `/api/shopping/*`
+ * route), 2 KB (a media path only), 10/min/user.
  *
  * W12 draft step (docs/specs/phase-18-open-world-foods.md §W12, acceptance 1): reads the
  * already-uploaded photo (same bucket and 24-hour sweep as every other media capture,
@@ -9,10 +10,10 @@
  */
 import { z } from "zod";
 import { adminClient } from "@/lib/server/admin";
-import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
 import { draftPantryPhoto } from "@/lib/server/pantry-photo";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
+import { requireRecipeUser } from "@/lib/server/recipe-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ const Body = z.object({ mediaPath: z.string().min(1).max(200) });
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const { userId } = await requireUser(req);
+    const { userId } = await requireRecipeUser(req);
     await enforceRateLimit(`pantry:photo:user:${userId}`, 10, 60);
     const body = await readJson(req, Body, MAX_BYTES);
     const draft = await draftPantryPhoto(adminClient(), userId, body.mediaPath);

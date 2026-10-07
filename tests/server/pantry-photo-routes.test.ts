@@ -6,9 +6,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: vi.fn() }));
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => ({ admin: true }) }));
-vi.mock("@/lib/server/auth", async (original) => ({
-  ...(await original<typeof import("@/lib/server/auth")>()), requireUser: mocks.auth,
-}));
+// Pantry photo is gated the same way as every other /api/shopping/* route (the shopping-pilot
+// allowlist) — mock requireRecipeUser directly rather than requireUser underneath it.
+vi.mock("@/lib/server/recipe-access", () => ({ requireRecipeUser: mocks.auth }));
 vi.mock("@/lib/server/pantry-photo", () => ({ draftPantryPhoto: mocks.draft, confirmPantryPhoto: mocks.confirm }));
 vi.mock("@/lib/server/shopping-rule-marks", () => ({ markShoppingItems: mocks.mark }));
 
@@ -50,14 +50,31 @@ describe("POST /api/pantry/photo/confirm", () => {
   it("writes confirmed items with null grams allowed and returns them marked", async () => {
     const written = [{ id: "p1", userId, name: "Eggs", identity: {}, confirmedGrams: null,
       confirmedAt: "2026-10-07T00:00:00Z", revision: 1, source: "photo" as const }];
-    mocks.confirm.mockResolvedValue(written);
+    mocks.confirm.mockResolvedValue({ written, failed: [] });
     mocks.mark.mockResolvedValue([{ ...written[0], ruleMark: null }]);
     const res = await confirmRoute(json({ requestId: "11111111-1111-4111-8111-111111111111",
       items: [{ name: "Eggs", grams: null }] }));
     expect(res.status).toBe(200);
-    expect((await res.json()).items[0]).toMatchObject({ name: "Eggs", source: "photo", ruleMark: null });
+    const body = await res.json();
+    expect(body.items[0]).toMatchObject({ name: "Eggs", source: "photo", ruleMark: null });
+    expect(body.failed).toEqual([]);
     expect(mocks.confirm).toHaveBeenCalledWith({ fake: true }, userId,
       [{ name: "Eggs", grams: null }], "11111111-1111-4111-8111-111111111111");
+  });
+
+  it("reports a per-item failure alongside whatever the batch did write", async () => {
+    const written = [{ id: "p1", userId, name: "Eggs", identity: {}, confirmedGrams: null,
+      confirmedAt: "2026-10-07T00:00:00Z", revision: 1, source: "photo" as const }];
+    const failed = [{ name: "Milk", status: 409, code: "pantry_identity_exists",
+      message: "This food is already in your pantry. Reload and edit its confirmed amount." }];
+    mocks.confirm.mockResolvedValue({ written, failed });
+    mocks.mark.mockResolvedValue([{ ...written[0], ruleMark: null }]);
+    const res = await confirmRoute(json({ requestId: "11111111-1111-4111-8111-111111111111",
+      items: [{ name: "Eggs", grams: null }, { name: "Milk", grams: 500 }] }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.items).toHaveLength(1);
+    expect(body.failed).toEqual(failed);
   });
 
   it("rejects an empty item list before calling the server", async () => {

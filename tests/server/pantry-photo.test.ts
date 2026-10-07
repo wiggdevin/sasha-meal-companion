@@ -125,11 +125,41 @@ describe("confirmPantryPhoto", () => {
         },
       }),
     } as never;
-    const written = await confirmPantryPhoto(client, "u1",
+    const { written, failed } = await confirmPantryPhoto(client, "u1",
       [{ name: "Eggs", grams: null }, { name: "Milk", grams: 500 }], "11111111-1111-4111-8111-111111111111");
     expect(written).toHaveLength(2);
+    expect(failed).toEqual([]);
     expect(written.map((item) => item.source)).toEqual(["photo", "photo"]);
     expect(written.map((item) => item.confirmedGrams)).toEqual([null, 500]);
     expect(inserted.every((call) => call.row.source === "photo")).toBe(true);
+  });
+
+  it("keeps writing the rest of the batch when one item collides, instead of discarding what already landed", async () => {
+    const inserted: Record<string, unknown>[] = [];
+    const client = {
+      from: () => ({
+        select: () => ({ eq: () => ({ eq: () => ({
+          maybeSingle: async () => ({ data: null, error: null }) }) }) }),
+        insert: (row: Record<string, unknown>) => {
+          inserted.push(row);
+          if (row.name === "Milk") {
+            return { select: () => ({ single: async () => ({
+              data: null, error: { code: "23505", message: "duplicate" } }) }) };
+          }
+          return { select: () => ({ single: async () => ({
+            data: { id: `row-${inserted.length}`, user_id: row.user_id, name: row.name,
+              identity: row.identity, confirmed_grams: row.confirmed_grams, source: row.source,
+              confirmed_at: "2026-10-07T00:00:00Z", rev: 1 }, error: null }) }) };
+        },
+      }),
+    } as never;
+    const { written, failed } = await confirmPantryPhoto(client, "u1",
+      [{ name: "Eggs", grams: null }, { name: "Milk", grams: 500 }, { name: "Spinach", grams: 200 }],
+      "11111111-1111-4111-8111-111111111111");
+    // Eggs and Spinach still land even though Milk (the middle item) collided — a mid-batch
+    // failure must not silently discard items the loop had already (or would still) write.
+    expect(written.map((item) => item.name)).toEqual(["Eggs", "Spinach"]);
+    expect(failed).toEqual([{ name: "Milk", status: 409, code: "pantry_identity_exists",
+      message: "This food is already in your pantry. Reload and edit its confirmed amount." }]);
   });
 });

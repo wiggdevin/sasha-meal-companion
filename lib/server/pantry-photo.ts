@@ -106,6 +106,11 @@ export async function draftPantryPhoto(
 }
 
 export type ConfirmedPantryPhotoItem = { name: string; grams: number | null };
+/** One item the batch could not write — surfaced instead of discarded, so a mid-batch failure
+ *  (e.g. item 3 of 5 collides with stock already in the pantry) never leaves the caller unsure
+ *  whether the OTHER items landed. */
+export type FailedPantryPhotoItem = { name: string; status: number; code: string; message: string };
+export type ConfirmPantryPhotoResult = { written: PantryItem[]; failed: FailedPantryPhotoItem[] };
 
 /** An ungrounded, free-text purchase identity for a photo-named item — the same shape capture
  *  uses for an item the catalog search never resolved (`foodRefId: null` = ungrounded, the
@@ -120,15 +125,28 @@ function photoIdentity(name: string): IngredientIdentity {
  * grams are allowed — the draft never estimates a weight, only a name. `requestId` is suffixed
  * per item so the idempotency key stays unique inside one confirm call while still letting an
  * exact retry of the whole batch no-op into the same rows (lib/shopping/repository.ts putPantry).
+ *
+ * One item's failure (most often `pantry_identity_exists`, a 409 when the photo names something
+ * already confirmed) does not abort the rest of the batch: the earlier all-or-nothing loop threw
+ * on the first failure and returned nothing, so a 3-of-5 failure silently left items 1 and 2
+ * written in the database while the caller saw one opaque error for the whole request and no way
+ * to know anything had landed. Every item is attempted; `written` and `failed` together account
+ * for all of them, in order.
  */
 export async function confirmPantryPhoto(
   client: SupabaseClient, userId: string, items: readonly ConfirmedPantryPhotoItem[], requestId: string,
-): Promise<PantryItem[]> {
+): Promise<ConfirmPantryPhotoResult> {
   const written: PantryItem[] = [];
+  const failed: FailedPantryPhotoItem[] = [];
   for (const [index, item] of items.entries()) {
-    written.push(await putPantry(client, userId,
-      { name: item.name, identity: photoIdentity(item.name), confirmedGrams: item.grams },
-      null, `${requestId}:${index}`, "photo"));
+    try {
+      written.push(await putPantry(client, userId,
+        { name: item.name, identity: photoIdentity(item.name), confirmedGrams: item.grams },
+        null, `${requestId}:${index}`, "photo"));
+    } catch (e) {
+      if (!(e instanceof HttpError)) throw e;
+      failed.push({ name: item.name, status: e.status, code: e.code, message: e.message });
+    }
   }
-  return written;
+  return { written, failed };
 }
