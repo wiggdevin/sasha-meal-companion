@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import AwardPlayer from "@/components/today/care/AwardPlayer";
 import CareNotes, { nextNote } from "@/components/today/care/CareNotes";
@@ -32,10 +32,36 @@ function inertOutside(el: HTMLElement): () => void {
 }
 
 /**
+ * A panel over the well made modal while `open`: everything outside it inert, and Tab / Shift+Tab
+ * wrapping inside it. Shared by the shop and the award player.
+ */
+function useModal(box: RefObject<HTMLElement | null>, open: boolean) {
+  useEffect(() => {
+    const el = box.current;
+    if (!open || !el) return;
+    const undo = inertOutside(el);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const stops = [...el.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input, [tabindex]:not([tabindex='-1'])")]
+        .filter((stop) => !stop.closest("[inert]"));
+      if (!stops.length) { event.preventDefault(); return; }
+      const first = stops[0]; const last = stops[stops.length - 1];
+      const at = document.activeElement;
+      if (event.shiftKey && (at === first || !el.contains(at) || !stops.includes(at as HTMLElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (at === last || !el.contains(at))) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => { undo(); document.removeEventListener("keydown", onKey); };
+  }, [box, open]);
+}
+
+/**
  * Seeds, the shop and Sprout's messages in the open well on today (owner, 2026-10-07; the care
  * backend, #5). A small Seeds chip sits in the card's lower corner and opens the shop over the well;
  * the newest message drops in at the top (an award offers Watch, which plays it and marks it seen);
- * Escape or Close puts the shop away and hands focus back to the chip. Nothing shows until the server
+ * Escape or Close puts the shop away and hands focus back to the chip. The shop and the award
+ * player are modal while open, and no tap inside this layer reaches the well behind it (it would
+ * fold, swipe or long-press the card). Nothing shows until the server
  * answers, and nothing at all when it cannot: a failed read is quiet, never a guessed balance.
  */
 export default function CareLayer({ active }: { active: boolean }) {
@@ -49,27 +75,18 @@ export default function CareLayer({ active }: { active: boolean }) {
 
   // The shop shows only while there is a shop to show.
   const open = shopOpen && care.shop !== null;
+  const awardBox = useRef<HTMLDivElement | null>(null);
+  const root = useRef<HTMLDivElement | null>(null);
+  useModal(panel, open);
+  useModal(awardBox, award !== null);
   useEffect(() => {
     if (!open) return;
-    // Focus moves into the shop, everything outside it goes inert, and on close both come back.
+    // Focus moves into the shop, and on close straight back to the chip.
     const opener = chip.current;
-    const undo = panel.current ? inertOutside(panel.current) : () => {};
     panel.current?.focus({ preventScroll: true });
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); return; }
-      // A modal panel: Tab and Shift+Tab wrap inside the shop, never reaching the well behind it.
-      const box = panel.current;
-      if (event.key !== "Tab" || !box) return;
-      const stops = [...box.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input, [tabindex]:not([tabindex='-1'])")]
-        .filter((el) => !el.closest("[inert]"));
-      if (!stops.length) { event.preventDefault(); return; }
-      const first = stops[0]; const last = stops[stops.length - 1];
-      const at = document.activeElement;
-      if (event.shiftKey && (at === first || at === box || !box.contains(at))) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && (at === last || !box.contains(at))) { event.preventDefault(); first.focus(); }
-    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); } };
     document.addEventListener("keydown", onKey);
-    return () => { undo(); document.removeEventListener("keydown", onKey); opener?.focus({ preventScroll: true }); };
+    return () => { document.removeEventListener("keydown", onKey); opener?.focus({ preventScroll: true }); };
   }, [open]);
   // The well folded or moved off today: whatever was open leaves.
   useEffect(() => {
@@ -79,10 +96,14 @@ export default function CareLayer({ active }: { active: boolean }) {
 
   if (!active) return null;
   const shop = care.shop;
-  return <div className={styles.layer}>
+  return <div ref={root} className={styles.layer} tabIndex={-1}
+    onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
     {!open && !award && <CareNotes note={note}
       onWatch={(next) => {
         unlockAudio();
+        // The Watch button leaves with its note: hand focus to something that stays (the chip, else
+        // this layer), so the award player returns it there when it closes.
+        (chip.current ?? root.current)?.focus({ preventScroll: true });
         if (note) { care.drop(note.id); setAward({ award: next, message: note.id }); }
       }}
       onDismiss={(id) => {
@@ -106,6 +127,7 @@ export default function CareLayer({ active }: { active: boolean }) {
           onChange={(next) => care.setShop({ ...shop, state: next })} onRefresh={care.refresh} onClose={() => setShopOpen(false)} />
       </motion.div>}
     </AnimatePresence>
+    <div ref={awardBox}>
     <AnimatePresence>
       {award && <AwardPlayer key={award.message} award={award.award} onClose={() => {
         void markAccoladesSeen([award.award.key]);
@@ -113,5 +135,6 @@ export default function CareLayer({ active }: { active: boolean }) {
         setAward(null);
       }} />}
     </AnimatePresence>
+    </div>
   </div>;
 }

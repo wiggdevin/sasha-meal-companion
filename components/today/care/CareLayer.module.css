@@ -7,6 +7,10 @@
   pointer-events: none;
 }
 .layer > * { pointer-events: auto; }
+/* The award player's wrapper only scopes its modal; the player positions itself over the card. */
+.layer > div:last-child { pointer-events: none; }
+.layer > div:last-child > * { pointer-events: auto; }
+.layer:focus { outline: none; }
 /* The Seeds chip: small glass in the card's lower corner, beside the grabber. */
 .chip {
   position: absolute;

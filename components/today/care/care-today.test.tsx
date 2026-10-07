@@ -119,6 +119,17 @@ describe("CareLayer", () => {
     expect(elsewhere.inert).toBe(false);
   });
 
+  it("never lets a tap inside it reach the card behind (it would fold the well) (Sol r3)", async () => {
+    const fold = vi.fn();
+    render(<MotionConfig reducedMotion="always"><div onClick={fold} onPointerDown={fold}><CareLayer active /></div></MotionConfig>);
+    const chip = await screen.findByRole("button", { name: /Open Sprout's shop/ });
+    await act(async () => { fireEvent.click(chip); });
+    const dialog = screen.getByRole("dialog", { name: "Sprout's shop" });
+    fireEvent.pointerDown(dialog);
+    fireEvent.click(dialog);
+    expect(fold).not.toHaveBeenCalled();
+  });
+
   it("keeps the open shop when a refresh fails (Sol r2)", async () => {
     layer();
     const chip = await screen.findByRole("button", { name: /Open Sprout's shop/ });
@@ -149,12 +160,18 @@ describe("CareLayer", () => {
     expect(screen.queryByRole("button", { name: /Open Sprout's shop/ })).toBeNull();
   });
 
-  it("plays an award from its note and marks it seen and read", async () => {
+  it("plays an award from its note, modal, marks it seen and read, and returns focus to the chip", async () => {
     layer();
+    const chip = await screen.findByRole("button", { name: /Open Sprout's shop/ });
     const watch = await screen.findByRole("button", { name: "Watch" });
     await act(async () => { fireEvent.click(watch); });
     expect(screen.getByRole("dialog", { name: /Award: First meal/ })).toBeTruthy();
+    // Modal (Sol r3): the rest of Today is out of reach while it plays.
+    expect(screen.getByText("Elsewhere on Today").closest("button")!.inert).toBe(true);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Done" })); });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /Award/ })).toBeNull());
+    expect(document.activeElement).toBe(chip);
+    expect(screen.getByText("Elsewhere on Today").closest("button")!.inert).toBe(false);
     expect(calls.some((c) => c.url === "/api/care/accolades/seen" && String(c.init?.body).includes("first-meal"))).toBe(true);
     expect(calls.some((c) => c.url === "/api/care/messages/m1/read")).toBe(true);
   });
