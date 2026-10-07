@@ -152,7 +152,7 @@ describe("the Avoid list (lib/server/avoid-list.ts)", () => {
     expect((await loadShoppingRuleContext(fake(), USER, [])).avoid?.refIds.size).toBe(1500);
     state.failFrom.user_food_prefs = PAGE_SIZE;
     expect((await loadShoppingRuleContext(fake(), USER, [])).avoid).toBeNull();
-  });
+  }, 20_000); // 1,500 seeded rows read twice; ~5 s on CI runners, so the default 5 s budget flakes.
 });
 
 describe("the recipe policy's Avoid read (lib/server/recipe-candidates.ts)", () => {
