@@ -44,5 +44,12 @@
   "taste_chips_undo(uuid,uuid)": { "class": "account", "case": "taste_undo" },
   "write_target_revision(uuid,jsonb)": { "class": "account", "case": "target_revision" },
   "write_target_revision_if_active(uuid,jsonb,uuid,bigint)": { "class": "account", "case": "target_revision" },
-  "write_target_revision_pair(uuid,jsonb,jsonb)": { "class": "account", "case": "target_revision" }
+  "write_target_revision_pair(uuid,jsonb,jsonb)": { "class": "account", "case": "target_revision" },
+  "care_points_sync(uuid,date,text)": { "class": "account", "case": "care_points_sync" },
+  "care_purchase(uuid,text,uuid,date,text)": { "class": "account", "case": "care_purchase" },
+  "care_equip(uuid,text,text,integer)": { "class": "account", "case": "care_equip" },
+  "care_accolades_sync(uuid,date,text)": { "class": "account", "case": "care_accolades_sync" },
+  "care_accolades_seen(uuid,text[])": { "class": "account", "case": "care_accolades_seen" },
+  "care_message_mark(uuid,uuid,text)": { "class": "account", "case": "care_message_mark" },
+  "care_log_grew(uuid,uuid,text)": { "class": "account", "case": "care_log_grew" }
 }

@@ -20,10 +20,20 @@ const NAMES = ["20261217090000_profile_cuisines_country", "20261217090100_profil
  */
 const LATER = ["20261220090000_taste_chip_receipts", "20261220090100_coach_undo_taste_mode",
   "20261220090200_coach_undo_taste_mode_validate"];
+/**
+ * UI-NEEDS SPROUT-CARE's mascot migration patches the SAME `_sync_upsert` user_settings branch
+ * this stack's own sync patch (NAMES[2]) does, layered on top of it in production. A round trip
+ * on a database that already carries it (every real target does) must take it off first and put
+ * it back last, or NAMES[2]'s own down anchors see a function with extra text spliced into them
+ * mid-match and refuse as only partly patched.
+ */
+const MASCOT = ["20261225090000_user_settings_mascot", "20261225090010_user_settings_mascot_validate"];
 const up = (name: string) => read(`supabase/migrations/${name}.sql`);
 const down = (name: string) => read(`supabase/migrations/down/${name}.down.sql`);
 const laterDown = () => [...LATER].reverse().map(down);
 const laterUp = () => LATER.map(up);
+const mascotDown = () => [...MASCOT].reverse().map(down);
+const mascotUp = () => MASCOT.map(up);
 
 describe("profile_cuisines_country migrations (static)", () => {
   it("are live-safe: lock and statement timeouts, a constant default, checks added NOT VALID then validated", () => {
@@ -67,14 +77,19 @@ describe.skipIf(!HAS_DB)("profile_cuisines_country migrations (database, rolled 
   ];
 
   it("the column down refuses while an account has chosen a cuisine or a country", () => {
-    expect(() => runSql([...seed, ...laterDown(), down(NAMES[2]), down(NAMES[1]), down(NAMES[0]), "rollback;"].join("\n")))
+    expect(() => runSql([...seed, ...mascotDown(), ...laterDown(), down(NAMES[2]), down(NAMES[1]),
+      down(NAMES[0]), "rollback;"].join("\n")))
       .toThrow(/accounts have chosen cuisines or a country/);
   });
 
   it("steps down and up again in order; defaults, NOT NULL and the sync patch come back", () => {
     const out = runSql([...seed,
       "set local app.allow_down_data_loss = 'on';",
-      ...laterDown(), down(NAMES[2]), down(NAMES[1]), down(NAMES[0]),
+      // The pre-down function text, captured before mascotDown touches it, so the later
+      // round-trip assertion can prove the mascot patch itself comes back byte for byte.
+      "select set_config('test.pre_mascot_def', pg_get_functiondef("
+        + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)::text, true);",
+      ...mascotDown(), ...laterDown(), down(NAMES[2]), down(NAMES[1]), down(NAMES[0]),
       "select 'dropped:' || not exists (select 1 from information_schema.columns where table_name = 'user_settings'"
         + " and column_name in ('cuisines', 'country_code'));",
       "select 'sync_clean:' || (position('cuisines' in pg_get_functiondef("
@@ -87,9 +102,15 @@ describe.skipIf(!HAS_DB)("profile_cuisines_country migrations (database, rolled 
         + " where table_name = 'user_settings' and column_name = 'cuisines');",
       "select 'sync:' || (position('cuisines_null' in pg_get_functiondef("
         + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)) > 0);",
+      ...mascotUp(),
+      `select 'mascot_default:' || (select mascot = 'sprout' from public.user_settings where user_id = '${owner}');`,
+      "select 'mascot_roundtrip:' || (pg_get_functiondef("
+        + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)::text"
+        + " = current_setting('test.pre_mascot_def'));",
       "rollback;",
     ].join("\n"));
     expect(out.split("\n").filter((line) => /^[a-z_]+:(true|false)$/.test(line)))
-      .toEqual(["dropped:true", "sync_clean:true", "later_back:true", "defaults:true", "not_null:true", "sync:true"]);
+      .toEqual(["dropped:true", "sync_clean:true", "later_back:true", "defaults:true", "not_null:true", "sync:true",
+        "mascot_default:true", "mascot_roundtrip:true"]);
   });
 });
