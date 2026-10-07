@@ -17,10 +17,12 @@ const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
 describe("the care_items massage seed", () => {
   const up = read(MIGRATION);
 
-  it("inserts exactly the catalog's own massage entry (id, slot, price, art)", () => {
+  it("inserts exactly the catalog's own massage entry (columns, id, slot, price, art, mascots)", () => {
     // catalog.ts: { id: "massage", name: "Massage", slot: "care", price: 30,
     //   art: "/pet/care/massage-1.webp", aspect: 1.286, places: [], scene: "massage" }
-    expect(up).toContain("values ('massage', 'care', 'care', 30, '/pet/care/massage-1.webp',");
+    expect(up).toContain("insert into public.care_items (id, slot, tier, price, asset_key, mascots)");
+    expect(up).toContain("values ('massage', 'care', 'care', 30, '/pet/care/massage-1.webp', "
+      + "array['sprout', 'blueberry', 'mushroom', 'peapod'])");
   });
 
   it("is idempotent: a repeat apply is a no-op, not an error", () => {
@@ -32,10 +34,15 @@ describe("the care_items massage seed", () => {
     expect(up).toContain("set local statement_timeout = '30s';");
   });
 
-  it("has a down file that refuses to drop an owned item without the data-loss flag", () => {
+  it("has a down file that refuses to drop an owned item without the data-loss flag, and "
+    + "clears every table that references it (not only inventory) when the flag is set", () => {
     expect(existsSync(path.join(process.cwd(), DOWN))).toBe(true);
     const down = read(DOWN);
     expect(down).toContain("app.allow_down_data_loss");
+    expect(down).toMatch(/exists \(select 1 from public\.care_inventory where item_id = 'massage'\)/);
+    expect(down).toMatch(/exists \(select 1 from public\.care_purchase_receipts where item_id = 'massage'\)/);
+    expect(down).toContain("delete from public.care_purchase_receipts where item_id = 'massage';");
+    expect(down).toContain("delete from public.care_inventory where item_id = 'massage';");
     expect(down).toContain("delete from public.care_items where id = 'massage';");
   });
 
