@@ -14,6 +14,7 @@ import {
   HAS_BRANCH, HAS_DB, adminClient, ensureUser, userClient, type TestUser,
 } from "../helpers/supabase";
 import { pointRequestClientAtBranch, sessionCookieFor } from "../log/fixtures";
+import { syntheticJpeg } from "../helpers/synthetic-images";
 import { accountSnapshot, purge } from "./seed";
 import { assertLocalTargets } from "./target-guard";
 
@@ -72,7 +73,10 @@ const { resetRateLimits } = await import("@/lib/server/ratelimit");
 
 const CANARY = `canary-${crypto.randomUUID()}`;
 const B_AI_CALLS = 3;
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+// W12-F: /api/plan/inspire now strips metadata server-side before any provider call
+// (lib/media/strip-metadata.ts), so B's own "control" read needs a fully well-formed JPEG, not a
+// signature-only stub.
+const JPEG: Uint8Array<ArrayBuffer> = new Uint8Array(syntheticJpeg());
 
 async function insert(table: string, row: Record<string, unknown>): Promise<void> {
   const { error } = await adminClient().from(table).insert(row);

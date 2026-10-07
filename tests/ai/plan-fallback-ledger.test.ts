@@ -8,7 +8,12 @@ import { providerFallbackWorthTrying } from "@/lib/ai/provider-fallback";
 import { HttpError } from "@/lib/server/auth";
 import { readDocument } from "@/lib/server/plan-document";
 import { inspire } from "@/lib/server/plan-inspire";
+import { syntheticJpeg } from "../helpers/synthetic-images";
 import { spendAdmin } from "./spend-admin";
+
+// W12-F: this route now strips metadata server-side (lib/media/strip-metadata.ts) before any
+// provider call, so the fixture must be a fully well-formed JPEG, not a signature-only stub.
+const JPEG = syntheticJpeg();
 
 afterEach(() => { vi.unstubAllEnvs(); });
 
@@ -56,7 +61,7 @@ describe("Plan provider fallback ledger", () => {
 
     const photo = await inspire(admin, {} as never, "u", { kind: "photo", localDate: "2026-10-05",
       mediaPath: "media/u/photo.jpg" }, { generate, generateGemini,
-      fetchObject: async () => ({ bytes: new Uint8Array([0xff, 0xd8, 0xff]), mimeType: "image/jpeg" }) });
+      fetchObject: async () => ({ bytes: JPEG, mimeType: "image/jpeg" }) });
     expect(photo.ingredients).toEqual(["eggs"]);
     const document = await readDocument(admin, {} as never, "u", { kind: "text", text: "Lunch: eggs",
       localDate: "2026-10-05", slot: "meal-2", slotTime: "12:30", targetKcal: 600 },
@@ -106,7 +111,7 @@ describe("Plan provider fallback ledger", () => {
       ingredients: ["eggs"], plate: null, menu: [] });
     const result = await inspire({} as never, {} as never, "u", { kind: "photo", localDate: "2026-10-05",
       mediaPath: "media/u/photo.jpg" }, { generate, generateGemini,
-      fetchObject: async () => ({ bytes: new Uint8Array([0xff, 0xd8, 0xff]), mimeType: "image/jpeg" }) });
+      fetchObject: async () => ({ bytes: JPEG, mimeType: "image/jpeg" }) });
     expect(result.ingredients).toEqual(["eggs"]);
     expect(generateGemini.mock.calls[0][0].route).toEqual({ provider: "google", modelId: LANES.plan.fallback });
   });

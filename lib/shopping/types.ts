@@ -69,6 +69,9 @@ export type PantryItem = {
   confirmedGrams: number | null;
   confirmedAt: string;
   revision: number;
+  /** migration 20261226090000 (W12). "photo" only for a confirmed pantry-from-a-photo item
+   *  (lib/server/pantry-photo.ts); every other writer defaults to "manual". */
+  source: "manual" | "photo";
   /** Response only, never stored: same meaning as ShoppingLine.ruleMark. */
   ruleMark?: RuleMark | null;
 };

@@ -80,7 +80,7 @@ describe("whole-period planner", () => {
       slots: [{ localDate: "2026-10-01", slotId: "dinner", targetKcal: null }],
       candidates: [candidate()], basket: [identity("beans"), identity("salt")], pins: [],
       aggregate: { identityFor, pantry: [{ id: "p", userId: "account-a", name: "beans",
-        identity: identity("beans"), confirmedGrams: null, confirmedAt: "2026-09-30", revision: 1 }] },
+        identity: identity("beans"), confirmedGrams: null, confirmedAt: "2026-09-30", revision: 1, source: "manual" }] },
     });
     expect(result.choices).toHaveLength(0);
     expect(result.unfilledSlots[0].reasons).toContain("Confirmed pantry quantity is insufficient or unknown.");
@@ -159,7 +159,7 @@ describe("whole-period planner", () => {
         { localDate: "2026-10-08", slotId: "meal-3", targetKcal: null }],
       candidates: [candidate()], basket: [], pins: [], aggregate: { identityFor,
         pantry: [{ id: "stock", userId: "account-a", name: "beans", identity: identity("beans"),
-          confirmedGrams: 80, confirmedAt: "2026-09-30", revision: 1 }] } });
+          confirmedGrams: 80, confirmedAt: "2026-09-30", revision: 1, source: "manual" }] } });
     const bean = plan.shopping.lines.find((line) => line.name === "beans")!;
     const weekly = plan.replenishment.map((row) => row.lines.find((line) => line.lineId === bean.id)!);
     expect(weekly.map((row) => row.needGrams)).toEqual([50, 50]);
