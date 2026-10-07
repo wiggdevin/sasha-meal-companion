@@ -69,17 +69,6 @@ export function buildOnboardingStateFromFacts(settings: Settings, facts: FactsLi
   // can always refine it later in Settings; this only keeps completion from being blocked on a
   // question this shell never asks.
   const activityLevel = facts.activity ?? state.activityLevel ?? "moderate";
-  // `OnboardingState.body.sex` is typed `"female"|"male"|""` (lib/profile/onboarding-state.ts,
-  // not edited here) — `createOnboardingState` collapses any other `Settings.sex` value,
-  // "unspecified" included, to `""`, which is how a "Prefer not to say" answer would otherwise
-  // get reported as a MISSING sex by `missingProfileFields` and then get silently re-nulled by
-  // `candidateSettings`'s `sex: state.body.sex || null` on write. Both of those reads only ever
-  // check truthiness or pass the value straight through — never a strict `==="female"` branch —
-  // so carrying the real value through this one field is safe for every consumer this bridge
-  // actually drives (`missingProfileFields`, `buildCompletedSettings`, `persistCompletedOnboarding`).
-  // Flagged as a UI-NEEDS in coord.md for the real fix (widen the type at the source); this is the
-  // narrow, contained workaround until that lands, not a silent guess at a value.
-  const body = facts.sex === "unspecified" ? { ...state.body, sex: "unspecified" as never } : state.body;
   // GPT-6 Sol round-1 BLOCK: this shell never asks a dietary-flag question, so `facts.dietFlags`
   // is undefined on every real run — overwriting `state.flags` with `knownPreferenceFlags(undefined)`
   // (always `[]`) would silently erase an account's already-saved flags (vegan, halal, ...) on
@@ -87,5 +76,5 @@ export function buildOnboardingStateFromFacts(settings: Settings, facts: FactsLi
   // existing saved diet flags (onboarding-state.ts, unedited) — only replace it when the
   // facts flow actually answered a flags question.
   const flags = facts.dietFlags !== undefined ? knownPreferenceFlags(facts.dietFlags) : state.flags;
-  return { ...state, body, flags, goalRateBpWeek, activityLevel };
+  return { ...state, flags, goalRateBpWeek, activityLevel };
 }
