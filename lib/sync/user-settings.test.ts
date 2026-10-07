@@ -79,6 +79,7 @@ describe("user_settings profile mapping", () => {
       trainingWeekdays: [1, 3, 4, 5],
       dietPrefs: { flags: ["no_dairy", "low_fodmap"], text: "Keep fibre gentle" },
       onboardedAt: "2026-09-19T18:00:00.000Z",
+      mascot: "sprout",
     });
   });
 
@@ -113,6 +114,7 @@ describe("user_settings profile mapping", () => {
       trainingWeekdays: null,
       dietPrefs: null,
       onboardedAt: null,
+      mascot: "sprout",
     });
   });
 

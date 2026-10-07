@@ -14,8 +14,18 @@
  * - The words observe; they never shame and never tell anyone to eat.
  *
  * Pure: the hour and the day's place in time are passed in, so a test can hold the clock.
+ *
+ * UI-NEEDS MASCOT (coord.md 2026-10-07T12:38Z): `petState`'s optional fourth argument names the
+ * chosen companion (Settings.mascot, lib/profile/mascot.ts) and its lines use that name in place
+ * of the literal "Sprout". Omitting it keeps every existing call exactly as it was -- `PET_NAME`
+ * stays "Sprout" and is unchanged, since it is still what every unmodified caller imports and
+ * renders directly (components/today/LiveWidget.tsx, components/today/island/Sprout.tsx); the UI
+ * lane wires a dynamic name into those call sites separately. `PET_ART` is untouched by design
+ * (per the UI-NEEDS note): a non-default mascot's art comes from
+ * components/today/island/mascots.ts, not from here.
  */
 import type { Macros } from "@/lib/types";
+import { MASCOT_NAMES, mascotKeyOf, type MascotKey } from "@/lib/profile/mascot";
 
 export type PetMood = "content" | "joyful" | "sleepy" | "droopy";
 export type PetWhen = "today" | "past" | "future";
@@ -66,8 +76,9 @@ function part(value: number, target: number, expected: number, weight: number, l
   return lowerBound && score < 1 ? null : { score, weight };
 }
 
-export function petState(day: PetDay, hour: number, when: PetWhen = "today"): PetState {
-  if (when === "future") return { mood: "content", vitality: null, line: `${PET_NAME} is waiting for this day.` };
+export function petState(day: PetDay, hour: number, when: PetWhen = "today", mascot?: MascotKey): PetState {
+  const name = mascot === undefined ? PET_NAME : MASCOT_NAMES[mascotKeyOf(mascot)];
+  if (when === "future") return { mood: "content", vitality: null, line: `${name} is waiting for this day.` };
 
   const expected = when === "past" ? 1 : expectedShare(hour);
   const kcalShare = day.targets.kcal > 0 ? day.consumed.kcal / day.targets.kcal : 0;
@@ -79,24 +90,24 @@ export function petState(day: PetDay, hour: number, when: PetWhen = "today"): Pe
     part(day.consumed.protein, day.targets.protein, expected, 0.35, day.partial),
     day.water ? part(day.water.cups, day.water.goal, expected, 0.25) : null,
   ].filter((value): value is Part => value !== null);
-  if (parts.length === 0) return { mood: "content", vitality: null, line: `${PET_NAME} is here with you.` };
+  if (parts.length === 0) return { mood: "content", vitality: null, line: `${name} is here with you.` };
 
   const weight = parts.reduce((sum, { weight: w }) => sum + w, 0);
   const vitality = Math.round((parts.reduce((sum, { score, weight: w }) => sum + score * w, 0) / weight) * 100) / 100;
 
   if (when === "today" && (hour >= NIGHT_FROM || hour < NIGHT_UNTIL)) {
-    return { mood: "sleepy", vitality, line: `${PET_NAME} is asleep. Rest well.` };
+    return { mood: "sleepy", vitality, line: `${name} is asleep. Rest well.` };
   }
   const past = when === "past";
   if (vitality >= 0.85 && !over) {
-    return { mood: "joyful", vitality, line: past ? "A well cared-for day." : `${PET_NAME} is thriving today.` };
+    return { mood: "joyful", vitality, line: past ? "A well cared-for day." : `${name} is thriving today.` };
   }
   // A young day, an unmeasured serving or a day that has reached its calories is never called low.
   const mayBeLow = !day.partial && !reached && (past || hour >= LOW_FROM);
   if (vitality >= 0.5 || !mayBeLow) {
-    return { mood: "content", vitality, line: past ? "A steady day." : `${PET_NAME} is doing fine.` };
+    return { mood: "content", vitality, line: past ? "A steady day." : `${name} is doing fine.` };
   }
-  return { mood: "droopy", vitality, line: past ? "A quieter day for Sprout." : `${PET_NAME} is feeling a little low.` };
+  return { mood: "droopy", vitality, line: past ? `A quieter day for ${name}.` : `${name} is feeling a little low.` };
 }
 
 /** The image for each mood (public/pet, recorded in docs/design/meal-card-image-sources.md). */
