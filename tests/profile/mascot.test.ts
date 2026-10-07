@@ -18,9 +18,10 @@ describe("lib/profile/mascot.ts", () => {
     expect(DEFAULT_MASCOT).toBe("sprout");
   });
 
-  it("matches components/today/island/mascots.ts's own key list, once it lands", () => {
+  it("matches components/today/island/mascots.ts's own key list exactly, once it lands", () => {
     // Static text match (no cross-lane import): the UI lane owns the richer catalog, this file
-    // owns the thin id-only twin. A test holds the two lists equal so they cannot drift silently.
+    // owns the thin id-only twin. A test holds the two EXACT key sets equal (Sol review NIT: a
+    // "contains" check alone would miss a key the UI added or renamed that this file lacks).
     let mascotsTs: string | null = null;
     try {
       mascotsTs = readFileSync("components/today/island/mascots.ts", "utf8");
@@ -28,7 +29,9 @@ describe("lib/profile/mascot.ts", () => {
       mascotsTs = null;
     }
     if (mascotsTs === null) return; // Not landed in this worktree yet; nothing to compare.
-    for (const key of MASCOT_KEYS) expect(mascotsTs).toContain(`"${key}"`);
+    // Each mascot's own entry is `<key>: { key: "<key>", ...`; collect every such key.
+    const found = [...mascotsTs.matchAll(/^\s*([a-z]+): \{ key: "\1"/gm)].map((m) => m[1]);
+    expect(found.sort()).toEqual([...MASCOT_KEYS].sort());
   });
 
   it("isMascotKey/mascotKeyOf: a known key passes through, anything else falls back to sprout", () => {
