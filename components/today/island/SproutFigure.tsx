@@ -24,7 +24,8 @@ export const SPROUT_HERO_ART: Record<SproutPose, string> = MASCOTS.sprout.art;
 
 /**
  * Sprout on its own, at any size: for onboarding's guide and any full-screen moment (2026-10-07,
- * onboarding v2). Presentational only: no mood is read here and nothing is stored. It breathes on a
+ * onboarding v2). Draws Sprout unless `mascot` names another companion (mascots.ts) — the picker's
+ * figure and tiles. Presentational only: no mood is read here and nothing is stored. It breathes on a
  * slow loop and stands on a soft contact shadow; a pose change cross-fades in place. Reduced motion
  * holds it still and swaps poses at once. Decorative unless `label` is given, then it is one image
  * with that name.
