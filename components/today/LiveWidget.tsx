@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useAnimationControls, useReducedMotionConfig, 
 import Button from "@/components/ui/Button";
 import WidgetEditTray from "@/components/today/WidgetEditTray";
 import SproutStage, { SproutBand, SproutMini, type Glance } from "@/components/today/island/Sprout";
+import CareLayer from "@/components/today/care/CareLayer";
 import FuelView from "@/components/today/island/FuelView";
 import WellWater from "@/components/today/island/WellWater";
 import IslandGoo from "@/components/today/island/IslandGoo";
@@ -351,6 +352,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
                       : <FullPanel panel={panel} data={panelData} />}
                   </motion.div>}
                 </AnimatePresence>
+                <CareLayer active={expanded && when === "today" && !preview} />
                 {/* Long-press arranges the views; this stays for the keyboard and shows when focused. */}
                 {expanded && <div className={styles.footerHidden}>
                   <Button variant="ghost" size="sm" className={styles.edit} onClick={() => setEditing(true)}

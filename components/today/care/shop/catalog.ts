@@ -79,7 +79,7 @@ export const words = (item: ShopItem) => ({
 
 /** What earned or spent Seeds (the server ledger's `kind`). Copy observes; nothing rewards eating less. */
 export type LedgerKind = "day_recorded" | "day_complete" | "protein_goal" | "water_goal" | "weigh_in_week"
-  | "five_day_week" | "purchase";
+  | "five_day_week" | "purchase" | "reversal";
 
 export const LEDGER_COPY: Record<LedgerKind, string> = {
   day_recorded: "A day recorded",
@@ -89,6 +89,7 @@ export const LEDGER_COPY: Record<LedgerKind, string> = {
   weigh_in_week: "Three weigh-in days",
   five_day_week: "Five days this week",
   purchase: "Bought",
+  reversal: "A correction",
 };
 
 export type LedgerRow = {
