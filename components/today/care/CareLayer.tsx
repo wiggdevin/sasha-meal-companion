@@ -11,13 +11,10 @@ import { seeds } from "@/components/today/care/shop/shop-state";
 import { unlockAudio } from "@/components/today/care/sound";
 import { useCare } from "@/components/today/care/useCare";
 import { FADES, INSTANT } from "@/lib/design/motion";
+import { localIsoDate } from "@/lib/settings/date";
 import styles from "@/components/today/care/CareLayer.module.css";
 
 const SERVER: ShopRules = { purchase: purchaseCareItem, equip: equipCareItem };
-const localDate = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
 
 /**
  * Seeds, the shop and Sprout's messages in the open well on today (owner, 2026-10-07; the care
@@ -32,12 +29,14 @@ export default function CareLayer({ active }: { active: boolean }) {
   const [shopOpen, setShopOpen] = useState(false);
   const [award, setAward] = useState<{ award: Award; message: string } | null>(null);
   const chip = useRef<HTMLButtonElement | null>(null);
+  const panel = useRef<HTMLDivElement | null>(null);
   const note = nextNote(care.notes);
 
   useEffect(() => {
     if (!shopOpen) return;
-    // The chip stays mounted under the shop, so focus can go straight back to it on close.
+    // Focus moves into the shop (the chip goes inert under it), and straight back to the chip on close.
     const opener = chip.current;
+    panel.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); } };
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("keydown", onKey); opener?.focus({ preventScroll: true }); };
@@ -70,9 +69,10 @@ export default function CareLayer({ active }: { active: boolean }) {
       <span>{shop.state.balance.toLocaleString("en-US")}</span>
     </button>}
     <AnimatePresence>
-      {shop && shopOpen && <motion.div key="shop" role="dialog" aria-label="Sprout's shop" className={`matte ${styles.panel}`}
+      {shop && shopOpen && <motion.div ref={panel} key="shop" role="dialog" aria-label="Sprout's shop" tabIndex={-1}
+        className={`matte ${styles.panel}`}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
-        <CareShop state={shop.state} today={localDate()} rules={SERVER} items={offeredItems(shop.prices)}
+        <CareShop state={shop.state} today={localIsoDate(new Date())} rules={SERVER} items={offeredItems(shop.prices)}
           onChange={(next) => care.setShop({ ...shop, state: next })} onRefresh={care.refresh} onClose={() => setShopOpen(false)} />
       </motion.div>}
     </AnimatePresence>

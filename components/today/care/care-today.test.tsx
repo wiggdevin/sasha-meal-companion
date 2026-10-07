@@ -39,7 +39,7 @@ function serve(route: Route) {
     return body === undefined ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(body), { status: 200 });
   }));
 }
-const normal: Route = (url) => url === "/api/care/shop" ? SHOP : url === "/api/care/points" ? POINTS
+const normal: Route = (url) => url === "/api/care/shop" ? SHOP : url.startsWith("/api/care/points?date=") ? POINTS
   : url.startsWith("/api/care/messages?") ? MESSAGES : url.startsWith("/api/care/") ? { ok: true } : undefined;
 
 beforeEach(() => serve(normal));
@@ -60,6 +60,7 @@ describe("the care routes, from the phone", () => {
     serve(() => undefined);
     expect(await readCareShop()).toBe("failed");
     serve((url) => url === "/api/care/shop" ? { ...SHOP, balance: "lots" } : POINTS);
+    // The phone's own day rides along, so the server settles Seeds on the phone's today.
     expect(await readCareShop()).toBe("failed");
   });
 
@@ -69,6 +70,7 @@ describe("the care routes, from the phone", () => {
     const bought = await purchaseCareItem(state, "bucket-hat", "a1");
     expect(bought !== "failed" && bought.ok && bought.state.balance).toBe(17);
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({ itemId: "bucket-hat", actionId: "a1" });
+    expect(calls[0].url).toMatch(/^\/api\/care\/purchase\?date=\d{4}-\d{2}-\d{2}$/);
     serve(() => ({ status: "insufficient", short: 8 }));
     expect(await purchaseCareItem(state, "bucket-hat", "a2")).toEqual({ ok: false, code: "insufficient", short: 8 });
     serve(() => ({ status: "conflict", equipped: {}, rev: 4 }));
@@ -94,6 +96,8 @@ describe("CareLayer", () => {
     const chip = await screen.findByRole("button", { name: "42 Seeds. Open Sprout's shop" });
     await act(async () => { fireEvent.click(chip); });
     expect(screen.getByRole("dialog", { name: "Sprout's shop" })).toBeTruthy();
+    // Focus moves into the shop (the chip is inert under it).
+    expect(document.activeElement).toBe(screen.getByRole("dialog", { name: "Sprout's shop" }));
     expect(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Jetpack/ })).toBeNull();
     fireEvent.keyDown(document, { key: "Escape" });

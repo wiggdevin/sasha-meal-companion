@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { accountFetch, accountHandle, accountJson } from "@/lib/device/account";
+import { localIsoDate } from "@/lib/settings/date";
 import { SHOP_ITEMS, itemById, type LedgerRow, type Slot } from "@/components/today/care/shop/catalog";
 import type { EquipOutcome, PurchaseOutcome, ShopState } from "@/components/today/care/shop/shop-state";
 
@@ -59,6 +60,9 @@ const getJson = <T,>(url: string, schema: z.ZodType<T>) =>
 const postJson = <T,>(url: string, body: unknown, schema: z.ZodType<T>) =>
   call(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, "commit", schema);
 
+/** The phone's own day, which the server takes as "today" for settling Seeds and dating a purchase. */
+const today = () => encodeURIComponent(localIsoDate(new Date()));
+
 /** Equipped slots the phone knows, holding items it owns art for. */
 function knownEquipped(equipped: Record<string, string>): Partial<Record<Slot, string>> {
   const out: Partial<Record<Slot, string>> = {};
@@ -70,7 +74,7 @@ function knownEquipped(equipped: Record<string, string>): Partial<Record<Slot, s
 
 /** The shop and recent Seeds as the phone draws them, or "failed". */
 export async function readCareShop(): Promise<CareShopSnapshot | "failed"> {
-  const [shop, points] = await Promise.all([getJson("/api/care/shop", shopBody), getJson("/api/care/points", pointsBody)]);
+  const [shop, points] = await Promise.all([getJson("/api/care/shop", shopBody), getJson(`/api/care/points?date=${today()}`, pointsBody)]);
   if (shop === "failed" || points === "failed") return "failed";
   const prices = Object.fromEntries(shop.items.filter((item) => itemById(item.id)?.slot === item.slot)
     .map((item) => [item.id, item.price]));
@@ -85,7 +89,7 @@ export async function readCareShop(): Promise<CareShopSnapshot | "failed"> {
 
 /** Buys one item; the same action id on a retry answers the first receipt (the server is idempotent). */
 export async function purchaseCareItem(state: ShopState, itemId: string, actionId: string): Promise<PurchaseOutcome | "failed"> {
-  const answer = await postJson("/api/care/purchase", { itemId, actionId }, purchaseBody);
+  const answer = await postJson(`/api/care/purchase?date=${today()}`, { itemId, actionId }, purchaseBody);
   if (answer === "failed") return "failed";
   if (answer.status === "insufficient") return { ok: false, code: "insufficient", short: answer.short };
   if (answer.status !== "applied" && answer.status !== "existing") return { ok: false, code: answer.status };

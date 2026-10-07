@@ -169,7 +169,8 @@
 .swimAsk {
   position: absolute;
   left: 12px;
-  bottom: 12px;
+  /* Above the Seeds chip, which sits in the card's lower left corner (CareLayer). */
+  bottom: 60px;
   z-index: 3;
   min-height: 44px;
   padding: 0 16px;
