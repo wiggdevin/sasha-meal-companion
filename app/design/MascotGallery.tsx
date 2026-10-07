@@ -4,7 +4,7 @@ import { useState } from "react";
 import MascotPicker from "@/components/today/care/MascotPicker";
 import { SproutFigure } from "@/components/today/island/SproutFigure";
 import { MASCOTS, MASCOT_KEYS, type MascotKey, type MascotPose } from "@/components/today/island/mascots";
-import styles from "@/app/design/ShopGallery.module.css";
+import styles from "@/app/design/MascotGallery.module.css";
 
 const POSES: MascotPose[] = ["content", "joyful", "sleepy", "droopy", "wave", "listening", "thinking", "pointing"];
 
@@ -19,7 +19,7 @@ export default function MascotGallery() {
     {MASCOT_KEYS.map((key) => <section key={key} aria-label={`${MASCOTS[key].name}'s poses`} className="flex flex-col gap-2">
       <h2 className="m-0 text-caption font-semibold text-muted">{MASCOTS[key].name}</h2>
       <div className="grid grid-cols-4 gap-2">
-        {POSES.map((pose) => <SproutFigure key={pose} mascot={key} mood={pose} size={88} breathe={false} label={`${MASCOTS[key].name}, ${pose}`} />)}
+        {POSES.map((pose) => <SproutFigure key={pose} mascot={key} mood={pose} size={64} breathe={false} label={`${MASCOTS[key].name}, ${pose}`} />)}
       </div>
     </section>)}
   </main>;
