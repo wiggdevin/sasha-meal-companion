@@ -1,0 +1,55 @@
+/* Choose your companion (MascotPicker.tsx): the chosen one large on top, all four in a row below.
+   Text uses the matte roles of the dark well. Only transform and opacity animate. */
+.picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 16px 12px;
+}
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.name {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--color-on-olive);
+}
+.line {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 4px;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--color-on-olive) 6%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 14%, transparent);
+  color: var(--color-on-olive);
+}
+.tile[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--color-gauge-fat-end) 18%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--color-gauge-fat-end);
+}
+.tileName { font-size: 12px; }

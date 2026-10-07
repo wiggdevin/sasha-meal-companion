@@ -134,3 +134,16 @@ white background keyed out locally (rembg dropped the wooden table), both frames
 | --- | --- |
 | `public/pet/care/massage-1.webp` | Massage: Sprout face down on a tiny spa table, warm stones on its back |
 | `public/pet/care/massage-2.webp` | Massage, after: Sprout sitting up on the table, glowing |
+## The companions (2026-10-07)
+
+The mascots a person can choose (`components/today/island/mascots.ts`, picker in
+`components/today/care/MascotPicker.tsx`). Same rights basis: generated output from the owner's paid
+Higgsfield plan (GPT Image 2), each pose drawn from the companion's own design sheet with Sprout's
+matching hero pose as the pose reference; the white background keyed out locally; each companion in
+one shared 768 px frame at one scale, so a pose change never moves it.
+
+| Local asset | What |
+| --- | --- |
+| `public/pet/mascots/blueberry/{content,droopy,joyful,listening,pointing,sleepy,thinking,wave}.webp` | Blu, a round felt blueberry |
+| `public/pet/mascots/mushroom/{…same eight…}.webp` | Button, a felt mushroom with a speckled cap |
+| `public/pet/mascots/peapod/{…same eight…}.webp` | Pod, an open felt pea pod with three peas |
