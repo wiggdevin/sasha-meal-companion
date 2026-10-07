@@ -98,6 +98,11 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
     fit: fitScore(plate.macros, target),
     index,
     pairing: plate.pairing,
+    // Acceptance 3: a universe pool id (`universe:<bundled id>`) is bundled catalog data, cheaply
+    // provable generic. An account Favored row's own name might be the user's own custom text —
+    // this builder cannot cheaply tell, so any plate holding one stays out of the Jev shortlist
+    // entirely (it keeps its formula-order slot, `lib/coach/suggest.ts`).
+    jevEligible: plate.rows.every((row) => row.food.id.startsWith("universe:")),
   }));
   return {
     candidates, requested, pendingSlots: undefined, hiddenUnverified: 0, interrupted: signal.aborted,

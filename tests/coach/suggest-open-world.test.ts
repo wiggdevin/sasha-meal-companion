@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/ai/typesafe", () => ({ systemOne: vi.fn(async () => null) }));
 
 import { suggestOptions, type SuggestPorts } from "@/lib/coach/suggest";
-import { inputsFor, openSnapshot } from "@/tests/helpers/open-snapshot";
+import { inputsFor, openSnapshot, ownFood } from "@/tests/helpers/open-snapshot";
 import { TEST_PROFILE as DEFAULT_PROFILE } from "@/tests/helpers/constraint-profile";
 
 const TARGET = { kcal: 500, protein: 35, carbs: 52.5, fat: 16.7 };
@@ -47,5 +47,28 @@ describe("W10 acceptance 1: an open account with 0 Favored foods", () => {
     const cards = await suggestOptions({ kind: "meal", count: 5, slot: "meal-1" }, openPorts());
     const anchors = cards.map((card) => card.items.find((item) => item.part === "anchor")?.name);
     expect(new Set(anchors).size).toBe(anchors.length);
+  });
+});
+
+describe("W10 acceptance 3: a Favored account row stays out of the Jev shortlist", () => {
+  it("never sends a plate holding the account's own Favored food to Jev", async () => {
+    const chicken = ownFood("11111111-1111-4111-8111-111111111111", "Chicken breast, grilled",
+      "protein", [31, 0, 3.6]);
+    const open = inputsFor(openSnapshot({ favored: [chicken] }), [chicken]);
+    const seen: { foods: { name: string }[] }[][] = [];
+    const jev: SuggestPorts["systemOne"] = async (payload) => {
+      const state = payload.state as unknown as { candidates: { foods: { name: string }[] }[] };
+      seen.push(state.candidates);
+      return Object.fromEntries(Object.keys(payload.questions).map((key) => [key, {
+        type: "score" as const, score: 2, legend: { "0": "not", "1": "acceptable", "2": "natural" },
+        probabilities: { "0": 0, "1": 0, "2": 1 }, confidence: 1,
+      }]));
+    };
+    const cards = await suggestOptions({ kind: "meal", count: 5, slot: "meal-1" },
+      openPorts({ openWorld: async () => open, systemOne: jev }));
+    expect(cards.length).toBeGreaterThanOrEqual(3);
+    expect(seen).toHaveLength(1);
+    const jevNames = seen[0].flatMap((candidate) => candidate.foods.map((food) => food.name));
+    expect(jevNames).not.toContain("Chicken breast, grilled");
   });
 });

@@ -1,9 +1,10 @@
 import type { JevPayload, SuggestState } from "@/lib/ai/payloads";
 import type { ScoreAnswer, ScoreQuestion } from "@/lib/ai/jev-types";
-import type { ComposedMeal } from "@/lib/coach/compose";
+import type { ComposedItem, ComposedMeal } from "@/lib/coach/compose";
 import type { SuggestionCandidate } from "@/lib/coach/suggest-candidates";
 import type { SuggestInput } from "@/lib/coach/executors";
 import { SLOT_LABELS } from "@/lib/meals";
+import type { Part } from "@/lib/meals/parts";
 
 export type JevAnswers = Record<string, ScoreAnswer>;
 /** Phase 13 §9 R3: the port takes the builder's payload (lib/ai/payloads.ts), never raw state. */
@@ -35,6 +36,23 @@ function recordVetoes(positions: readonly number[], total: number, kind: Suggest
 
 export { questionsFor } from "@/lib/coach/suggest-questions";
 
+const PART_LABEL: Partial<Record<Part, string>> = {
+  anchor: "protein", protein: "protein", starch: "starch", veg: "vegetable", fruit: "fruit", fat: "fat",
+};
+
+/**
+ * Phase 18 W10 acceptance 3: an item with no catalog-pinned revision is the account's own custom
+ * or label-scan text — the same boundary `lib/server/lookup-lane.ts`'s `resolveSubject` already
+ * draws for a model-reachable food name ("its name and brand are the user's own text ... they
+ * never become a search subject"). It never reaches Jev as typed: its template part stands in for
+ * it ("a protein food"), or "a custom food" with no part recorded.
+ */
+function jevSafeName(item: Pick<ComposedItem, "name" | "catalogFoodRevisionId" | "part">): string {
+  if (typeof item.catalogFoodRevisionId === "number") return item.name;
+  const label = item.part ? PART_LABEL[item.part] : undefined;
+  return label ? `a ${label} food` : "a custom food";
+}
+
 /** The complete ranking payload: no stored flags, notes, conditions, or dietary prose. */
 export function rankingState(
   input: SuggestInput,
@@ -49,7 +67,7 @@ export function rankingState(
     wish: input.wish?.trim() || null,
     candidates: candidates.map(({ meal }, index) => ({
       index,
-      foods: meal.items.map((item) => ({ name: item.name, grams: item.grams })),
+      foods: meal.items.map((item) => ({ name: jevSafeName(item), grams: item.grams })),
       macros: { ...meal.totals },
     })),
   };

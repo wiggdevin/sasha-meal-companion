@@ -38,7 +38,17 @@ const GRAM_SIZE = /\b\d+(?:\.\d+)?\s*(?:g|grams?)\b(?!\s*(?:protein|carbs?|fat|f
 const SMALL_SIZE = /\b(?:small|light)\b/i;
 
 /** `pairing` (0–1) is how usual the card's foods are together for its meal type. */
-export type SuggestionCandidate = { meal: ComposedMeal; fit: number; index: number; pairing?: number };
+export type SuggestionCandidate = {
+  meal: ComposedMeal; fit: number; index: number; pairing?: number;
+  /**
+   * Phase 18 W10 acceptance 3: false means this candidate stays out of the Jev shortlist
+   * entirely — a pool food this builder could not cheaply prove is a bundled, generic identity
+   * (`lib/coach/suggest-pool.ts`'s own check). Absent/true: eligible (every closed-world
+   * candidate; a per-item name still never reaches Jev untyped unless it is catalog-pinned,
+   * `lib/coach/suggest-rank.ts`'s `jevSafeName`).
+   */
+  jevEligible?: boolean;
+};
 export type CandidateBuild = {
   candidates: SuggestionCandidate[];
   requested: number;

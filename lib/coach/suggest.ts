@@ -157,8 +157,13 @@ export async function suggestOptions<T extends SuggestPorts>(
     // (acceptance 5's fit-first order). A candidate past the cap keeps its formula slot below —
     // it is never sent to Jev and never reordered by it.
     const ordered = formulaOrder(candidates);
-    const shortlist = ordered.slice(0, SUGGEST_SHORTLIST_MAX);
-    const overflow = ordered.slice(shortlist.length);
+    // Acceptance 3: a candidate the builder could not cheaply prove generic (`jevEligible ===
+    // false`, lib/coach/suggest-pool.ts) never reaches Jev at all — it keeps its formula-order
+    // slot in `overflow` below, counted neither toward nor against the 5-8 shortlist cap.
+    const jevEligible = ordered.filter((candidate) => candidate.jevEligible !== false);
+    const shortlistSet = new Set(jevEligible.slice(0, SUGGEST_SHORTLIST_MAX));
+    const shortlist = ordered.filter((candidate) => shortlistSet.has(candidate));
+    const overflow = ordered.filter((candidate) => !shortlistSet.has(candidate));
     const state = rankingState(input, shortlist, pendingSlots);
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
     const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));

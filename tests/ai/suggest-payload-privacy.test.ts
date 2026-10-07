@@ -7,12 +7,13 @@
  * candidate's items never survives into the request body, the same guarantee
  * tests/ai/no-demographics-payload.test.ts proves for the other Jev builders.
  *
- * A known, separately tracked boundary: a Favored account food's own name (never its profile,
- * rule or account data) still reaches this payload as plain text, same as every other suggestion
- * caller today — closing that fully needs the food's `user_foods.kind` (manual vs catalog vs
- * label-scan) threaded through `FoodHit`, which is a larger plumbing change than this slice's
- * acceptance criteria require. Flagged to the orchestrator; this test locks down the four fields
- * the criterion also names explicitly.
+ * A food item is only ever named verbatim when it carries a catalog-pinned revision
+ * (`catalogFoodRevisionId` a number) — the same boundary `lib/server/lookup-lane.ts`'s
+ * `resolveSubject` already draws for a model-reachable food name. Anything else (the account's
+ * own custom or label-scan text) is replaced with a generic, part-based identity
+ * (`lib/coach/suggest-rank.ts`'s `jevSafeName`) before the payload is built. A pool-sourced plate
+ * this builder cannot cheaply tell apart (an account Favored row vs a bundled universe item,
+ * `lib/coach/suggest-pool.ts`) stays out of the Jev shortlist entirely instead.
  */
 import { describe, expect, it } from "vitest";
 import { suggestPayload } from "@/lib/ai/payloads";
@@ -83,5 +84,33 @@ describe("W10 acceptance 3: the suggestion short-list payload", () => {
     expect(Object.keys(payload.state).sort()).toEqual(["candidates", "slot", "wish"]);
     expect(Object.keys(payloadState.candidates[0]).sort()).toEqual(["foods", "index", "macros"]);
     expect(Object.keys(payloadState.candidates[0].foods[0]).sort()).toEqual(["grams", "name"]);
+  });
+
+  it("never sends a custom or label-scan item's own name — a part-based identity stands in", () => {
+    // "Chicken breast" is a user-chosen label on an account's own row with no catalog revision
+    // (catalogFoodRevisionId: null, the fixture's default) — exactly a custom or label-scan food.
+    const input: SuggestInput = { kind: "meal", count: 3 };
+    const state = rankingState(input, [candidate(0, { part: "protein" })], undefined);
+    const payload = suggestPayload(state, "meal");
+    expect(leaked(payload)).toEqual([]);
+    expect(JSON.stringify(payload)).not.toContain("Chicken breast");
+    const payloadState = payload.state as unknown as { candidates: { foods: { name: string }[] }[] };
+    expect(payloadState.candidates[0].foods[0].name).toBe("a protein food");
+  });
+
+  it("falls back to \"a custom food\" with no template part recorded", () => {
+    const input: SuggestInput = { kind: "meal", count: 3 };
+    const state = rankingState(input, [candidate(0)], undefined);
+    const payload = suggestPayload(state, "meal");
+    const payloadState = payload.state as unknown as { candidates: { foods: { name: string }[] }[] };
+    expect(payloadState.candidates[0].foods[0].name).toBe("a custom food");
+  });
+
+  it("still names a catalog-pinned item verbatim", () => {
+    const input: SuggestInput = { kind: "meal", count: 3 };
+    const state = rankingState(input, [candidate(0, { catalogFoodRevisionId: 42 })], undefined);
+    const payload = suggestPayload(state, "meal");
+    const payloadState = payload.state as unknown as { candidates: { foods: { name: string }[] }[] };
+    expect(payloadState.candidates[0].foods[0].name).toBe("Chicken breast");
   });
 });
