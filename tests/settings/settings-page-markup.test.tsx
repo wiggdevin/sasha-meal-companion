@@ -21,7 +21,9 @@
  * (UI pass U16/U17): no "Working around a job", no "Food preferences", calendar reminders inside the
  * meal-times card, and Data & account as one card. On 2026-10-05 (owner notes): "Body profile & units"
  * left for the profile card's details, Goals & targets became one card, and the daily targets show
- * each macro's amount and short name once.
+ * each macro's amount and short name once. On 2026-10-07 (owner: "Choose a mascot"): one insertion,
+ * the Your companion section after Cuisines; next/image is pinned to a plain img (its module reads
+ * `document` when it loads, which this server render has not got).
  */
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -85,6 +87,11 @@ vi.mock("@/lib/settings/date", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/settings/date")>();
   return { ...actual, todayIso: () => TODAY };
 });
+
+vi.mock("next/image", () => ({
+  // Lazy, as next/image renders without `priority`, so React adds no preload link to the markup.
+  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} loading="lazy" />,
+}));
 
 vi.mock("@/lib/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/store")>();

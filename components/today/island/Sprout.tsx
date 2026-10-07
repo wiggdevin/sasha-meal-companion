@@ -4,7 +4,9 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useAnimationControls, useIsPresent, useReducedMotionConfig } from "motion/react";
 import { FADES, INSTANT, SPRINGS } from "@/lib/design/motion";
-import { PET_ART, PET_NAME, type PetState, type PetWhen } from "@/lib/today/pet-mood";
+import type { PetState, PetWhen } from "@/lib/today/pet-mood";
+import { MASCOTS, type MascotKey } from "@/components/today/island/mascots";
+import { wellArt } from "@/components/today/island/well-pet";
 import styles from "@/components/today/island/Sprout.module.css";
 
 /** Sprout alone at any size (onboarding v2's guide); see SproutFigure.tsx. */
@@ -42,11 +44,11 @@ export function SproutBand({ className, onLeave, children }: { className: string
 }
 
 /** Collapsed: the whole of Sprout, small, standing at the island's head on its own light. Decorative. */
-export function SproutMini({ state }: { state: PetState }) {
+export function SproutMini({ state, mascot = "sprout" }: { state: PetState; mascot?: MascotKey }) {
   return <span aria-hidden="true" className={styles.mini} data-mood={state.mood}>
     <span className={styles.miniShadow} />
     <span className={styles.miniBreath}>
-      <Image src={PET_ART[state.mood]} alt="" width={42} height={42} sizes="42px" draggable={false}
+      <Image src={wellArt(mascot, state.mood)} alt="" width={42} height={42} sizes="42px" draggable={false}
         className={styles.img} />
     </span>
   </span>;
@@ -59,8 +61,10 @@ export function SproutMini({ state }: { state: PetState }) {
  * says hello back in its line, so the press answers without motion and for a screen reader. Its mood
  * and the vitality bar come from lib/today/pet-mood.ts. The glass lid's sheen passes over it.
  */
-export default function SproutStage({ state, glance, bounce, when = "today", figureOnly = false }: {
+export default function SproutStage({ state, glance, bounce, when = "today", figureOnly = false, mascot = "sprout" }: {
   state: PetState; glance: Glance; bounce: number; when?: PetWhen;
+  /** The chosen companion (Settings.mascot): whose art and name the well shows. */
+  mascot?: MascotKey;
   /** In the middle of the rings: the figure only; the name, line and meter stay for screen readers. */
   figureOnly?: boolean;
 }) {
@@ -89,21 +93,23 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
   }, [bounce, hop, reduce]);
 
   const vitality = state.vitality === null ? null : Math.round(state.vitality * 100);
+  const name = MASCOTS[mascot].name;
+  const art = wellArt(mascot, state.mood);
   return <div className={styles.stage} data-mood={state.mood}>
-    <button ref={self} type="button" className={`tap ${styles.pet}`} aria-label={`${PET_NAME}. Say hello`}
+    <button ref={self} type="button" className={`tap ${styles.pet}`} aria-label={`${name}. Say hello`}
       onClick={() => { setHello((count) => count + 1); if (!reduce) void hopOnce(hop); }}>
       <span aria-hidden="true" className={styles.shadow} data-still={reduce || undefined} />
       <span aria-hidden="true" className={styles.reflection} data-still={reduce || undefined}>
-        <Image src={PET_ART[state.mood]} alt="" fill sizes="104px" draggable={false} className={styles.img} />
+        <Image src={art} alt="" fill sizes="104px" draggable={false} className={styles.img} />
       </span>
       <motion.span className={styles.lean} initial={false} animate={{ rotate: look * 6, x: look * 4 }}
         transition={reduce ? INSTANT : SPRINGS.smooth}>
         <motion.span className={styles.hop} animate={hop}>
           <span className={styles.breath} data-still={reduce || undefined}>
             <AnimatePresence initial={false}>
-              <motion.span key={state.mood} className={styles.frame} initial={{ opacity: 0, scale: 0.96 }}
+              <motion.span key={`${mascot}-${state.mood}`} className={styles.frame} initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
-                <Image src={PET_ART[state.mood]} alt="" fill sizes="104px" draggable={false} className={styles.img} />
+                <Image src={art} alt="" fill sizes="104px" draggable={false} className={styles.img} />
               </motion.span>
             </AnimatePresence>
           </span>
@@ -111,13 +117,13 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
       </motion.span>
     </button>
     <div className={figureOnly ? "sr-only" : styles.status}>
-      <span className={styles.name}>{PET_NAME}</span>
-      <span className={styles.line} aria-live="polite">{hello ? `${PET_NAME} says hello back.` : state.line}</span>
+      <span className={styles.name}>{name}</span>
+      <span className={styles.line} aria-live="polite">{hello ? `${name} says hello back.` : state.line}</span>
       {vitality !== null && <>
         <span aria-hidden="true" className={styles.meterRow}>
           <span>{when === "past" ? "Care that day" : "Care today"}</span><span>{vitality}%</span>
         </span>
-        <span role="meter" aria-label={`${PET_NAME}'s wellbeing`} aria-valuemin={0} aria-valuemax={100}
+        <span role="meter" aria-label={`${name}'s wellbeing`} aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={vitality} aria-valuetext={`${vitality} percent`} className={styles.meter}
           data-band={vitality < 34 ? "low" : vitality < 67 ? "mid" : "high"}>
           <motion.span className={styles.meterFill} initial={false} animate={{ width: `${Math.max(8, vitality)}%` }}

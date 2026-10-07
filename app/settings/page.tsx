@@ -18,6 +18,7 @@ import SettingsSection from "@/components/settings/Section";
 import { CAPTION, CARD_TITLE } from "@/components/settings/settings-styles";
 import TargetsSection from "@/components/settings/TargetsSection";
 import CuisinesSection from "@/components/settings/CuisinesSection";
+import CompanionSection from "@/components/settings/CompanionSection";
 import WaterSection from "@/components/settings/WaterSection";
 import { useSettingsController } from "@/components/settings/use-settings-controller";
 import { isExistingAccount } from "@/lib/profile/onboarding-state";
@@ -125,6 +126,8 @@ export default function SettingsPage() {
       <WaterSection settings={settings} />
 
       <CuisinesSection settings={settings} />
+
+      <CompanionSection settings={settings} />
 
       <ScheduleSection shiftMinutes={settings.shiftMinutes} slotTimes={settings.slotTimes}
         mealsPerDay={settings.mealsPerDay} activeTargetProfile={settings.activeTargetProfile}
