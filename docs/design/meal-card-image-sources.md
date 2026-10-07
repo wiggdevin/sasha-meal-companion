@@ -123,3 +123,14 @@ glass after the cut. Every item is a layer placed on Sprout's content pose, neve
 | `public/pet/shop/shorts.webp` | Legs: denim shorts with a belt, clipped to Sprout's outline |
 | `public/pet/shop/leaf-pin.webp` | Pin: a green enamel leaf pin |
 | `public/pet/shop/sprout-leaf.webp` | Sprout's own leaf, cut from the content pose (768 px frame), drawn over a hat |
+
+## Sprout's care scenes (2026-10-07)
+
+Care scenes from the shop (`components/today/care/CareScenePlayer.tsx`). Same rights basis: generated
+output from the owner's paid Higgsfield plan (GPT Image 2) with Sprout's hero art as the reference; the
+white background keyed out locally (rembg dropped the wooden table), both frames in one 720 × 560 frame.
+
+| Local asset | What |
+| --- | --- |
+| `public/pet/care/massage-1.webp` | Massage: Sprout face down on a tiny spa table, warm stones on its back |
+| `public/pet/care/massage-2.webp` | Massage, after: Sprout sitting up on the table, glowing |

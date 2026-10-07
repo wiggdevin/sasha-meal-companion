@@ -5,14 +5,14 @@
  * its action id, the balance never goes below zero, and only an owned item is worn, in its own slot.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import { useState } from "react";
 import CareShop from "./CareShop";
 
 const sound = vi.hoisted(() => ({ play: vi.fn(), unlockAudio: vi.fn(), muted: false }));
 vi.mock("@/components/today/care/sound", () => ({
-  play: sound.play, unlockAudio: sound.unlockAudio, readMuted: () => sound.muted,
+  play: sound.play, unlockAudio: sound.unlockAudio, readMuted: () => sound.muted, silence: () => {},
 }));
 import { LEDGER_COPY, SHOP_ITEMS, SLOTS, itemById } from "./catalog";
 import { equip, pendingSeeds, purchase, seeds, type ShopState } from "./shop-state";
@@ -61,8 +61,12 @@ describe("the shop's rules", () => {
   it("has a place for every item, in a known slot, and copy that never rewards eating less", () => {
     const slots = new Set(SLOTS.map((s) => s.slot));
     for (const item of SHOP_ITEMS) {
-      expect(slots.has(item.slot)).toBe(true);
-      expect(item.places.length).toBeGreaterThan(0);
+      // A wearable has a place on Sprout; a care item has a scene instead.
+      if (item.slot === "care") expect(item.scene).toBeTruthy();
+      else {
+        expect(slots.has(item.slot)).toBe(true);
+        expect(item.places.length).toBeGreaterThan(0);
+      }
       expect(item.price).toBeGreaterThan(0);
     }
     for (const line of Object.values(LEDGER_COPY)) expect(line).not.toMatch(/\b(less|under|fast|skip|calorie)/i);
@@ -179,5 +183,57 @@ describe("a reversed award (Sol r1)", () => {
     shop({ ...START, ledger: [{ id: "r1", kind: "protein_goal", delta: 1, localDate: "2026-10-06", status: "reversed" }] });
     fireEvent.click(screen.getByRole("button", { name: /Show recent Seeds/ }));
     expect(screen.getByRole("region", { name: "Recent Seeds" }).textContent).toContain("reversed, Oct 6");
+  });
+});
+
+describe("a care scene: the massage (owner's list)", () => {
+  it("is done for Sprout, never worn", () => {
+    const bought = purchase(START, "massage", "m1", "2026-10-07");
+    if (!bought.ok) throw new Error("expected a purchase");
+    expect(equip(bought.state, "care", "massage")).toEqual({ ok: false, code: "not_wearable" });
+    expect(equip(bought.state, "head", "massage")).toEqual({ ok: false, code: "not_wearable" });
+  });
+
+  it("plays at once when bought, says so, and closes with Done; Play brings it back", async () => {
+    shop();
+    fireEvent.click(screen.getByRole("button", { name: "Massage, 30 Seeds" }));
+    // Selecting it changes nothing Sprout wears.
+    expect(screen.getByRole("img", { name: "Sprout, wearing leaf pin" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Buy the massage for 30 Seeds" }));
+    expect(screen.getByRole("dialog", { name: "Care: Massage" })).toBeTruthy();
+    expect(live()).toBe("The massage is yours. 12 Seeds.");
+    // Reduced motion: the finished frame and its words at once, the frame already in full view (Sol r1).
+    expect(screen.getByRole("dialog").textContent).toContain("Sprout feels brand new.");
+    const after = [...screen.getByRole("dialog").querySelectorAll("img")].find((img) => img.getAttribute("src")?.includes("massage-2"));
+    expect(after?.parentElement?.style.opacity).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    expect(screen.getByRole("dialog", { name: "Care: Massage" })).toBeTruthy();
+  });
+
+  it("closes on Escape", async () => {
+    shop({ ...START, owned: [...START.owned, "massage"] });
+    fireEvent.click(screen.getByRole("button", { name: "Massage, yours" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("cancels its pending plink and sparks when Done is clicked before they fire", () => {
+    vi.useFakeTimers();
+    try {
+      render(<MotionConfig reducedMotion="never"><Harness start={{ ...START, owned: [...START.owned, "massage"] }} /></MotionConfig>);
+      fireEvent.click(screen.getByRole("button", { name: "Massage, yours" }));
+      fireEvent.click(screen.getByRole("button", { name: "Play" }));
+      expect(screen.getByRole("dialog", { name: "Care: Massage" })).toBeTruthy();
+      sound.play.mockClear();
+      // Closed well before the "after" timer (3800 ms) would otherwise flip the phase and plink.
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+      act(() => { vi.advanceTimersByTime(5000); });
+      expect(sound.play).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

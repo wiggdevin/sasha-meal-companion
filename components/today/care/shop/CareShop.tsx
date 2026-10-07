@@ -6,7 +6,8 @@ import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { INSTANT, SPRINGS } from "@/lib/design/motion";
 import Button from "@/components/ui/Button";
 import DressedSprout from "@/components/today/care/shop/DressedSprout";
-import { LEDGER_COPY, SHOP_ITEMS, itemById, words, type ShopItem, type Slot } from "@/components/today/care/shop/catalog";
+import CareScenePlayer from "@/components/today/care/CareScenePlayer";
+import { LEDGER_COPY, SHOP_ITEMS, itemById, words, type CareScene, type ShopItem, type Slot } from "@/components/today/care/shop/catalog";
 import { equip, pendingSeeds, purchase, seeds, type ShopState } from "@/components/today/care/shop/shop-state";
 import { play, readMuted, unlockAudio } from "@/components/today/care/sound";
 import styles from "@/components/today/care/shop/Shop.module.css";
@@ -63,10 +64,13 @@ export default function CareShop({ state, onChange, today }: {
   const tileRefs = useRef<Partial<Record<string, HTMLButtonElement>>>({});
   const item = chosen ? itemById(chosen) ?? null : null;
   const owned = item ? state.owned.includes(item.id) : false;
-  const worn = item ? state.equipped[item.slot] === item.id : false;
+  // A care scene (a massage) is done for Sprout: it plays, it is never worn or tried on.
+  const care = item?.scene ?? null;
+  const worn = item && !care ? state.equipped[item.slot] === item.id : false;
+  const [playing, setPlaying] = useState<CareScene | null>(null);
   // What Sprout has on: its own things, and the chosen item tried on in its slot.
   const wearing: Partial<Record<Slot, string>> = { ...state.equipped };
-  if (item) wearing[item.slot] = item.id;
+  if (item && !care) wearing[item.slot] = item.id;
   const pending = pendingSeeds(state);
 
   const choose = (next: ShopItem) => {
@@ -74,7 +78,8 @@ export default function CareShop({ state, onChange, today }: {
     setChosen(next.id);
     // Say so whenever the preview actually changes what Sprout has on — an owned item not yet worn
     // previews exactly like an unbought one. Selecting an already-worn item changes nothing to say.
-    if (state.equipped[next.slot] !== next.id) setSaid(`Sprout tries on ${words(next).the}.`);
+    if (next.scene) setSaid("");
+    else if (state.equipped[next.slot] !== next.id) setSaid(`Sprout tries on ${words(next).the}.`);
   };
   const buy = (target: ShopItem) => {
     // The shared Sound off (set in the award player) and reduced motion both keep the chime quiet.
@@ -83,6 +88,14 @@ export default function CareShop({ state, onChange, today }: {
     const outcome = purchase(state, target.id, newActionId(), today);
     if (!outcome.ok) {
       setSaid(outcome.code === "insufficient" ? `${seeds(outcome.short)} more needed.` : "That one is already yours.");
+      return;
+    }
+    if (target.scene) {
+      // Bought, and played at once; the scene says itself.
+      onChange(outcome.state);
+      const w = words(target);
+      setSaid(`${w.the[0].toUpperCase()}${w.the.slice(1)} ${w.is} yours. ${seeds(outcome.receipt.balance)}.`);
+      setPlaying(target.scene);
       return;
     }
     const dressed = equip(outcome.state, target.slot, target.id);
@@ -159,6 +172,7 @@ export default function CareShop({ state, onChange, today }: {
         <span className={styles.actionName}>{item ? item.name : "Try something on"}</span>
         <span className={styles.actionNote}>
           {!item ? "Tap an item: Sprout tries it on."
+            : owned && care ? "Yours. It plays any time."
             : owned ? (worn ? `Sprout has ${words(item).it} on.` : `Yours. Sprout can wear ${words(item).it}.`)
             : shortBy > 0 ? `${seeds(shortBy)} more to go.` : `Balance after: ${seeds(state.balance - item.price)}.`}
         </span>
@@ -169,10 +183,14 @@ export default function CareShop({ state, onChange, today }: {
             to the page when the slot swaps to a different label. */}
         {!owned && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0} onClick={() => buy(item)}
           aria-label={`Buy ${words(item).the} for ${seeds(item.price)}`}>Buy · {item.price}</Button>}
-        {owned && !worn && <Button key="action" variant="primary" size="sm" onClick={() => wear(item, true)}>Wear</Button>}
+        {owned && care && <Button key="action" variant="primary" size="sm" onClick={() => setPlaying(care)}>Play</Button>}
+        {owned && !care && !worn && <Button key="action" variant="primary" size="sm" onClick={() => wear(item, true)}>Wear</Button>}
         {owned && worn && <Button key="action" variant="secondary" size="sm" onClick={() => wear(item, false)}>Take off</Button>}
       </div>}
     </div>
     <p className="sr-only" aria-live="polite">{said}</p>
+    <AnimatePresence>
+      {playing && <CareScenePlayer key={playing} scene={playing} onClose={() => setPlaying(null)} />}
+    </AnimatePresence>
   </section>;
 }
