@@ -16,6 +16,7 @@
  * later" rather than reach a provider whose zero-data-retention routing is not this app's to set.
  */
 import "server-only";
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AttestationRefused } from "@/lib/ai/attestation";
 import { SchemaRejection } from "@/lib/ai/call";
@@ -121,17 +122,33 @@ function photoIdentity(name: string): IngredientIdentity {
 }
 
 /**
+ * A stable, valid UUID derived from the batch's own `requestId` and an item's position in it.
+ * `shopping_pantry.request_id` is a `uuid` column (Sol review BLOCK: the earlier `${requestId}:
+ * ${index}` string is not one, and Postgres refuses every insert in this batch) — this keeps the
+ * per-item idempotency `putPantry` needs (the same requestId+index always derives the same UUID,
+ * so an exact retry of the whole confirm call still no-ops into the same rows) without needing a
+ * uuid column that stores anything but a uuid. Not a security token: derived, not secret.
+ */
+function itemRequestId(requestId: string, index: number): string {
+  const hex = createHash("sha256").update(`${requestId}:${index}`).digest("hex").slice(0, 32);
+  const version = `4${hex.slice(13, 16)}`; // version nibble forced to 4
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16) + hex.slice(17, 20); // variant bits
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${version}-${variant}-${hex.slice(20, 32)}`;
+}
+
+/**
  * Writes one `shopping_pantry` row per confirmed item, `source: 'photo'` (acceptance 2). Null
- * grams are allowed — the draft never estimates a weight, only a name. `requestId` is suffixed
- * per item so the idempotency key stays unique inside one confirm call while still letting an
- * exact retry of the whole batch no-op into the same rows (lib/shopping/repository.ts putPantry).
+ * grams are allowed — the draft never estimates a weight, only a name. Each item gets its own
+ * derived request id (`itemRequestId`) so the idempotency key stays unique and valid inside one
+ * confirm call while still letting an exact retry of the whole batch no-op into the same rows
+ * (lib/shopping/repository.ts putPantry).
  *
  * One item's failure (most often `pantry_identity_exists`, a 409 when the photo names something
- * already confirmed) does not abort the rest of the batch: the earlier all-or-nothing loop threw
- * on the first failure and returned nothing, so a 3-of-5 failure silently left items 1 and 2
- * written in the database while the caller saw one opaque error for the whole request and no way
- * to know anything had landed. Every item is attempted; `written` and `failed` together account
- * for all of them, in order.
+ * already confirmed, but any write failure — an HttpError or otherwise, Sol review WARN) does not
+ * abort the rest of the batch: an all-or-nothing loop would throw on the first failure and return
+ * nothing, so a 3-of-5 failure would silently leave items 1 and 2 written in the database while
+ * the caller saw one opaque error for the whole request and no way to know anything had landed.
+ * Every item is attempted; `written` and `failed` together account for all of them, in order.
  */
 export async function confirmPantryPhoto(
   client: SupabaseClient, userId: string, items: readonly ConfirmedPantryPhotoItem[], requestId: string,
@@ -142,10 +159,14 @@ export async function confirmPantryPhoto(
     try {
       written.push(await putPantry(client, userId,
         { name: item.name, identity: photoIdentity(item.name), confirmedGrams: item.grams },
-        null, `${requestId}:${index}`, "photo"));
+        null, itemRequestId(requestId, index), "photo"));
     } catch (e) {
-      if (!(e instanceof HttpError)) throw e;
-      failed.push({ name: item.name, status: e.status, code: e.code, message: e.message });
+      if (e instanceof HttpError) {
+        failed.push({ name: item.name, status: e.status, code: e.code, message: e.message });
+      } else {
+        console.error("pantry photo confirm: unexpected write failure", { name: item.name, error: e });
+        failed.push({ name: item.name, status: 500, code: "internal", message: "Could not save this item. Try again." });
+      }
     }
   }
   return { written, failed };

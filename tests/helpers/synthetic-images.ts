@@ -100,3 +100,22 @@ export function syntheticPngWithTrailingMetadataAfterIdat(): Uint8Array {
   const iend = pngChunk("IEND", []);
   return new Uint8Array([...sig, ...ihdr, ...idat1, ...idat2, ...text, ...iend]);
 }
+
+/** A synthetic PNG carrying an `iCCP` chunk (an embedded colour profile) — not one of the five
+ *  named text/time chunks a drop-list would catch, but still a chunk this codebase never needs to
+ *  forward to a vision model, and the PNG spec permits private/future ancillary chunks of any
+ *  name. Proves the stripper keeps only an explicit allowlist rather than dropping a fixed list. */
+export function syntheticPngWithIccProfile(): Uint8Array {
+  const iccp = pngChunk("iCCP", [...[..."sRGB"].map((c) => c.charCodeAt(0)), 0, 0,
+    ...[..."NOT_METADATA_BUT_NOT_NEEDED"].map((c) => c.charCodeAt(0))]);
+  return syntheticPng([...iccp]);
+}
+
+/** A structurally "complete" PNG (signature through IEND) that never carries an IHDR or an IDAT
+ *  — no pixel data at all. Proves the stripper refuses this instead of forwarding an empty shell
+ *  to the provider. */
+export function syntheticPngWithNoImageData(): Uint8Array {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const iend = pngChunk("IEND", []);
+  return new Uint8Array([...sig, ...iend]);
+}

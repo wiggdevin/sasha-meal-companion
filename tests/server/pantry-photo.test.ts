@@ -132,6 +132,29 @@ describe("confirmPantryPhoto", () => {
     expect(written.map((item) => item.source)).toEqual(["photo", "photo"]);
     expect(written.map((item) => item.confirmedGrams)).toEqual([null, 500]);
     expect(inserted.every((call) => call.row.source === "photo")).toBe(true);
+    // Sol review BLOCK: shopping_pantry.request_id is a `uuid` column — a literal
+    // `${requestId}:${index}` is not a valid uuid and Postgres would refuse every insert. Each
+    // item must get its own well-formed, distinct UUID.
+    const requestIds = inserted.map((call) => call.row.request_id as string);
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const id of requestIds) expect(id).toMatch(UUID);
+    expect(new Set(requestIds).size).toBe(requestIds.length);
+  });
+
+  it("derives the same per-item request id on an exact retry, so a resend no-ops idempotently", async () => {
+    const seen: string[] = [];
+    const client = { from: () => ({
+      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) }),
+      insert: (row: Record<string, unknown>) => {
+        seen.push(row.request_id as string);
+        return { select: () => ({ single: async () => ({ data: { id: "r1", user_id: row.user_id,
+          name: row.name, identity: row.identity, confirmed_grams: row.confirmed_grams,
+          source: row.source, confirmed_at: "2026-10-07T00:00:00Z", rev: 1 }, error: null }) }) };
+      },
+    }) } as never;
+    await confirmPantryPhoto(client, "u1", [{ name: "Eggs", grams: null }], "22222222-2222-4222-8222-222222222222");
+    await confirmPantryPhoto(client, "u1", [{ name: "Eggs", grams: null }], "22222222-2222-4222-8222-222222222222");
+    expect(seen[0]).toBe(seen[1]);
   });
 
   it("keeps writing the rest of the batch when one item collides, instead of discarding what already landed", async () => {

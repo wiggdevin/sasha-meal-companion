@@ -30,6 +30,9 @@ function copyScanToEoi(bytes: Uint8Array, start: number, out: number[]): void {
   while (k + 1 < bytes.length) {
     if (bytes[k] !== 0xff) { out.push(bytes[k]); k += 1; continue; }
     const next = bytes[k + 1];
+    // The standard (ITU-T T.81 B.1.1.5) allows any number of 0xFF fill bytes before a marker
+    // code; drop the stray fill byte and re-examine the next pair rather than refuse it.
+    if (next === 0xff) { k += 1; continue; }
     if (next === 0xd9) { out.push(0xff, 0xd9); return; } // EOI
     if (next === 0x00 || (next >= 0xd0 && next <= 0xd7)) { out.push(bytes[k], next); k += 2; continue; }
     throw new UnparseableImage("malformed JPEG: unexpected marker inside scan data");
@@ -52,6 +55,12 @@ function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
   let i = 2;
   while (i < bytes.length) {
     if (bytes[i] !== 0xff) throw new UnparseableImage("malformed JPEG: expected a marker");
+    // Fill bytes (any number of 0xFF) may precede a marker code (ITU-T T.81 B.1.1.5); skip them
+    // without emitting them — they carry no metadata and decoders do not require them back.
+    let j = i + 1;
+    while (j < bytes.length && bytes[j] === 0xff) j += 1;
+    if (j >= bytes.length) throw new UnparseableImage("truncated JPEG: fill bytes with no marker");
+    i = j - 1;
     const marker = bytes[i + 1];
     if (marker === 0xd8) throw new UnparseableImage("malformed JPEG: unexpected SOI");
     if (marker >= 0xd0 && marker <= 0xd7) { out.push(0xff, marker); i += 2; continue; } // RST
@@ -69,12 +78,24 @@ function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
 }
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-/** Ancillary chunk types that carry text/time metadata (PNG spec); eXIf carries Exif (incl. GPS). */
-const PNG_METADATA_CHUNKS = new Set(["eXIf", "tEXt", "zTXt", "iTXt", "tIME"]);
+/**
+ * Default-deny, not default-allow (Sol review BLOCK: a drop-list let an `iCCP` chunk, or any
+ * other ancillary chunk this list never named — the PNG spec permits private, application-
+ * specific ancillary chunks of any four-letter name — carry metadata straight through). Only
+ * these chunks are kept: the three required ones (IHDR, IDAT, IEND), PLTE for a palette image,
+ * and the handful of colour/transparency chunks that change what the pixels mean rather than
+ * describe anything about the photo or its origin (tRNS, gAMA, cHRM, sRGB, bKGD). Everything else
+ * — eXIf, tEXt/zTXt/iTXt, tIME, iCCP, any private or future ancillary chunk — is dropped.
+ */
+const PNG_KEEP_CHUNKS = new Set(["IHDR", "PLTE", "IDAT", "IEND", "tRNS", "gAMA", "cHRM", "sRGB", "bKGD"]);
 
-/** Drops every metadata chunk, keeping every other chunk (including its own CRC) byte for byte —
- *  removing a whole chunk never invalidates another chunk's CRC. Refuses a file whose chunk
- *  lengths run past the buffer, or that never reaches IEND, rather than guess at the rest. */
+/**
+ * Keeps only `PNG_KEEP_CHUNKS`, dropping every other chunk (including its own CRC) whole —
+ * removing a chunk never invalidates another chunk's CRC. Refuses a file whose first chunk is not
+ * IHDR, that carries no IDAT, that never reaches IEND, or whose chunk lengths run past the
+ * buffer — a structurally incomplete "image" (no pixel data at all) is exactly the shape Sol's
+ * review reproduced getting past the old chunk-drop-list and forwarded to the provider.
+ */
 function stripPngMetadata(bytes: Uint8Array): Uint8Array {
   if (bytes.length < 8 || !PNG_SIGNATURE.every((b, idx) => bytes[idx] === b)) {
     throw new UnparseableImage("not a PNG (missing signature)");
@@ -82,17 +103,23 @@ function stripPngMetadata(bytes: Uint8Array): Uint8Array {
   const out: number[] = [...PNG_SIGNATURE];
   let i = 8;
   let sawEnd = false;
+  let sawIdat = false;
+  let chunkCount = 0;
   while (i < bytes.length) {
     if (i + 8 > bytes.length) throw new UnparseableImage("truncated PNG chunk header");
     const length = u32(bytes, i);
     const type = String.fromCharCode(bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]);
+    if (chunkCount === 0 && type !== "IHDR") throw new UnparseableImage("malformed PNG: first chunk is not IHDR");
+    chunkCount += 1;
     const total = 8 + length + 4; // length field + type + data + crc
     if (length < 0 || i + total > bytes.length) throw new UnparseableImage("truncated PNG chunk data");
-    if (!PNG_METADATA_CHUNKS.has(type)) for (let k = i; k < i + total; k++) out.push(bytes[k]);
+    if (type === "IDAT") sawIdat = true;
+    if (PNG_KEEP_CHUNKS.has(type)) for (let k = i; k < i + total; k++) out.push(bytes[k]);
     i += total;
     if (type === "IEND") { sawEnd = true; break; }
   }
   if (!sawEnd) throw new UnparseableImage("malformed PNG: no IEND found");
+  if (!sawIdat) throw new UnparseableImage("malformed PNG: no IDAT (no image data) found");
   return Uint8Array.from(out);
 }
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata";
 import { syntheticJpeg, syntheticJpegWithExif, syntheticJpegWithStuffedScan, syntheticPng,
-  syntheticPngWithMetadata, syntheticPngWithTrailingMetadataAfterIdat }
+  syntheticPngWithIccProfile, syntheticPngWithMetadata, syntheticPngWithNoImageData,
+  syntheticPngWithTrailingMetadataAfterIdat }
   from "../helpers/synthetic-images";
 
 describe("stripImageMetadata (JPEG)", () => {
@@ -48,6 +49,15 @@ describe("stripImageMetadata (JPEG)", () => {
     // mistake either for one or drop/alter a byte while walking past them.
     expect([...stripImageMetadata(plain, "image/jpeg")]).toEqual([...plain]);
   });
+
+  it("tolerates 0xFF fill bytes before a marker instead of refusing a valid photo (Sol review WARN)", () => {
+    // ITU-T T.81 B.1.1.5 permits any number of 0xFF fill bytes before a marker code. "FF FF D9"
+    // is a legal EOI preceded by one fill byte, not a malformed scan.
+    const withFill = new Uint8Array([...syntheticJpeg().slice(0, -1), 0xff, 0xd9]);
+    const stripped = stripImageMetadata(withFill, "image/jpeg");
+    expect(stripped[stripped.length - 2]).toBe(0xff);
+    expect(stripped[stripped.length - 1]).toBe(0xd9);
+  });
 });
 
 describe("stripImageMetadata (PNG)", () => {
@@ -92,5 +102,25 @@ describe("stripImageMetadata (PNG)", () => {
     }
     // Both IDAT chunks survive, in order, with the tEXt chunk between them gone.
     expect(types).toEqual(["IHDR", "IDAT", "IDAT", "IEND"]);
+  });
+
+  it("drops a chunk type no fixed drop-list names, such as iCCP (Sol review BLOCK)", () => {
+    // A drop-list only catches the chunk types it was written to know about; the PNG spec allows
+    // any ancillary chunk name, including private, application-specific ones. The stripper must
+    // keep only an explicit allowlist (IHDR/PLTE/IDAT/IEND + a few colour chunks) rather than
+    // drop a fixed list, so an unlisted chunk like iCCP is dropped too, not forwarded by default.
+    const stripped = stripImageMetadata(syntheticPngWithIccProfile(), "image/png");
+    const text = Buffer.from(stripped).toString("latin1");
+    expect(text).not.toContain("iCCP");
+    expect(text).not.toContain("NOT_METADATA_BUT_NOT_NEEDED");
+    expect(text).toContain("IHDR");
+    expect(text).toContain("IDAT");
+  });
+
+  it("refuses a structurally complete PNG that carries no IHDR or IDAT (Sol review BLOCK)", () => {
+    // Reproduces Sol's finding: a signature-to-IEND "image" with no pixel data at all must not
+    // pass the pre-provider gate just because it technically reaches IEND.
+    expect(() => stripImageMetadata(syntheticPngWithNoImageData(), "image/png"))
+      .toThrow(UnparseableImage);
   });
 });
