@@ -17,6 +17,9 @@ vi.mock("@/components/today/care/sound", () => ({
 import { LEDGER_COPY, SHOP_ITEMS, SLOTS, itemById } from "./catalog";
 import { equip, pendingSeeds, purchase, seeds, type ShopState } from "./shop-state";
 
+/** A click that lets the shop's rules (async, so the server can decide on Today) settle. */
+const click = async (el: Element) => { await act(async () => { fireEvent.click(el); }); };
+
 afterEach(() => { cleanup(); sound.play.mockClear(); sound.unlockAudio.mockClear(); sound.muted = false; });
 
 const START: ShopState = {
@@ -81,73 +84,73 @@ const shop = (start = START) => render(<MotionConfig reducedMotion="always"><Har
 const live = () => document.querySelector("[aria-live]")?.textContent;
 
 describe("CareShop", () => {
-  it("tries an item on, buys it with its price and the balance after in words, and puts it on", () => {
+  it("tries an item on, buys it with its price and the balance after in words, and puts it on", async () => {
     shop();
-    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
+    await click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
     expect(screen.getByText("Balance after: 17 Seeds.")).toBeTruthy();
     expect(screen.getByRole("img", { name: /wearing leaf pin, bucket hat/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" }));
+    await click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" }));
     expect(live()).toBe("The bucket hat is yours, and Sprout has it on. 17 Seeds.");
     expect(screen.getByRole("button", { name: /17 Seeds/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Bucket hat, yours, on Sprout" })).toBeTruthy();
   });
 
-  it("speaks of a pair in the plural", () => {
+  it("speaks of a pair in the plural", async () => {
     shop();
-    fireEvent.click(screen.getByRole("button", { name: "Mittens, 20 Seeds" }));
-    fireEvent.click(screen.getByRole("button", { name: "Buy the mittens for 20 Seeds" }));
+    await click(screen.getByRole("button", { name: "Mittens, 20 Seeds" }));
+    await click(screen.getByRole("button", { name: "Buy the mittens for 20 Seeds" }));
     expect(live()).toBe("The mittens are yours, and Sprout has them on. 22 Seeds.");
   });
 
-  it("will not buy what the Seeds do not cover, and says how many more", () => {
+  it("will not buy what the Seeds do not cover, and says how many more", async () => {
     shop({ ...START, balance: 3 });
-    fireEvent.click(screen.getByRole("button", { name: "Sunglasses, 35 Seeds" }));
+    await click(screen.getByRole("button", { name: "Sunglasses, 35 Seeds" }));
     expect(screen.getByText("32 Seeds more to go.")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Buy the sunglasses for 35 Seeds" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("takes an owned item off and puts it back on", () => {
+  it("takes an owned item off and puts it back on", async () => {
     shop();
-    fireEvent.click(screen.getByRole("button", { name: "Leaf pin, yours, on Sprout" }));
-    fireEvent.click(screen.getByRole("button", { name: "Take off" }));
+    await click(screen.getByRole("button", { name: "Leaf pin, yours, on Sprout" }));
+    await click(screen.getByRole("button", { name: "Take off" }));
     expect(live()).toBe("Sprout takes off the leaf pin.");
-    fireEvent.click(screen.getByRole("button", { name: "Leaf pin, yours" }));
-    fireEvent.click(screen.getByRole("button", { name: "Wear" }));
+    await click(screen.getByRole("button", { name: "Leaf pin, yours" }));
+    await click(screen.getByRole("button", { name: "Wear" }));
     expect(live()).toBe("Sprout puts on the leaf pin.");
   });
 
-  it("keeps keyboard focus on the action button when Buy turns into Take off", () => {
+  it("keeps keyboard focus on the action button when Buy turns into Take off", async () => {
     shop();
-    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
+    await click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
     const buyBtn = screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" });
     buyBtn.focus();
-    fireEvent.click(buyBtn);
+    await click(buyBtn);
     // The slot now reads Take off: focus must have stayed on the same button, not fallen to <body>.
     expect(document.activeElement?.textContent).toBe("Take off");
   });
 
-  it("returns focus to the item's tile when Take off empties the action row", () => {
+  it("returns focus to the item's tile when Take off empties the action row", async () => {
     shop();
-    fireEvent.click(screen.getByRole("button", { name: "Leaf pin, yours, on Sprout" }));
-    fireEvent.click(screen.getByRole("button", { name: "Take off" }));
+    await click(screen.getByRole("button", { name: "Leaf pin, yours, on Sprout" }));
+    await click(screen.getByRole("button", { name: "Take off" }));
     // Take off deselects (nothing left to preview), so the action row disappears; focus must land
     // back on the leaf pin's own tile rather than falling through to the page.
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Leaf pin, yours" }));
   });
 
-  it("says Sprout tries on an owned-but-unworn item too, and clears the line on deselect", () => {
+  it("says Sprout tries on an owned-but-unworn item too, and clears the line on deselect", async () => {
     shop({ ...START, owned: [...START.owned, "bucket-hat"] });
-    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, yours" }));
+    await click(screen.getByRole("button", { name: "Bucket hat, yours" }));
     expect(live()).toBe("Sprout tries on the bucket hat.");
-    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, yours" }));
+    await click(screen.getByRole("button", { name: "Bucket hat, yours" }));
     expect(live()).toBe("");
   });
 
-  it("shows recent Seeds from the balance, pending ones as tonight", () => {
+  it("shows recent Seeds from the balance, pending ones as tonight", async () => {
     shop();
     const balance = screen.getByRole("button", { name: /42 Seeds\. Show recent Seeds/ });
     expect(balance.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(balance);
+    await click(balance);
     const ledger = screen.getByRole("region", { name: "Recent Seeds" });
     expect(ledger.textContent).toContain("A day recorded");
     expect(ledger.textContent).toContain("tonight");
@@ -156,32 +159,32 @@ describe("CareShop", () => {
 });
 
 describe("the purchase chime (Sol r1)", () => {
-  const buyHat = (motion: "never" | "always") => {
+  const buyHat = async (motion: "never" | "always") => {
     render(<MotionConfig reducedMotion={motion}><Harness start={START} /></MotionConfig>);
-    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
-    fireEvent.click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" }));
+    await click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
+    await click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" }));
   };
 
-  it("chimes on a purchase when sound is on", () => {
-    buyHat("never");
+  it("chimes on a purchase when sound is on", async () => {
+    await buyHat("never");
     expect(sound.play).toHaveBeenCalledWith("chime");
   });
 
-  it("stays quiet when the shared Sound off is set, or motion is reduced", () => {
+  it("stays quiet when the shared Sound off is set, or motion is reduced", async () => {
     sound.muted = true;
-    buyHat("never");
+    await buyHat("never");
     cleanup();
     sound.muted = false;
-    buyHat("always");
+    await buyHat("always");
     expect(sound.play).not.toHaveBeenCalled();
     expect(sound.unlockAudio).not.toHaveBeenCalled();
   });
 });
 
 describe("a reversed award (Sol r1)", () => {
-  it("says it was reversed instead of reading as Seeds earned", () => {
+  it("says it was reversed instead of reading as Seeds earned", async () => {
     shop({ ...START, ledger: [{ id: "r1", kind: "protein_goal", delta: 1, localDate: "2026-10-06", status: "reversed" }] });
-    fireEvent.click(screen.getByRole("button", { name: /Show recent Seeds/ }));
+    await click(screen.getByRole("button", { name: /Show recent Seeds/ }));
     expect(screen.getByRole("region", { name: "Recent Seeds" }).textContent).toContain("reversed, Oct 6");
   });
 });
@@ -196,40 +199,40 @@ describe("a care scene: the massage (owner's list)", () => {
 
   it("plays at once when bought, says so, and closes with Done; Play brings it back", async () => {
     shop();
-    fireEvent.click(screen.getByRole("button", { name: "Massage, 30 Seeds" }));
+    await click(screen.getByRole("button", { name: "Massage, 30 Seeds" }));
     // Selecting it changes nothing Sprout wears.
     expect(screen.getByRole("img", { name: "Sprout, wearing leaf pin" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Buy the massage for 30 Seeds" }));
+    await click(screen.getByRole("button", { name: "Buy the massage for 30 Seeds" }));
     expect(screen.getByRole("dialog", { name: "Care: Massage" })).toBeTruthy();
     expect(live()).toBe("The massage is yours. 12 Seeds.");
     // Reduced motion: the finished frame and its words at once, the frame already in full view (Sol r1).
     expect(screen.getByRole("dialog").textContent).toContain("Sprout feels brand new.");
     const after = [...screen.getByRole("dialog").querySelectorAll("img")].find((img) => img.getAttribute("src")?.includes("massage-2"));
     expect(after?.parentElement?.style.opacity).toBe("1");
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await click(screen.getByRole("button", { name: "Play" }));
     expect(screen.getByRole("dialog", { name: "Care: Massage" })).toBeTruthy();
   });
 
   it("closes on Escape", async () => {
     shop({ ...START, owned: [...START.owned, "massage"] });
-    fireEvent.click(screen.getByRole("button", { name: "Massage, yours" }));
-    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await click(screen.getByRole("button", { name: "Massage, yours" }));
+    await click(screen.getByRole("button", { name: "Play" }));
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("cancels its pending plink and sparks when Done is clicked before they fire", () => {
+  it("cancels its pending plink and sparks when Done is clicked before they fire", async () => {
     vi.useFakeTimers();
     try {
       render(<MotionConfig reducedMotion="never"><Harness start={{ ...START, owned: [...START.owned, "massage"] }} /></MotionConfig>);
-      fireEvent.click(screen.getByRole("button", { name: "Massage, yours" }));
-      fireEvent.click(screen.getByRole("button", { name: "Play" }));
+      await click(screen.getByRole("button", { name: "Massage, yours" }));
+      await click(screen.getByRole("button", { name: "Play" }));
       expect(screen.getByRole("dialog", { name: "Care: Massage" })).toBeTruthy();
       sound.play.mockClear();
       // Closed well before the "after" timer (3800 ms) would otherwise flip the phase and plink.
-      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+      await click(screen.getByRole("button", { name: "Done" }));
       act(() => { vi.advanceTimersByTime(5000); });
       expect(sound.play).not.toHaveBeenCalled();
     } finally {

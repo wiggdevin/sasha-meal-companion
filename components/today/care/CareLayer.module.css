@@ -1,0 +1,41 @@
+/* Seeds, the shop and Sprout's messages over the open well (CareLayer.tsx): one layer over the card's
+   body that lets taps through except on its own pieces. Only transform and opacity animate. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+.layer > * { pointer-events: auto; }
+/* The award player's wrapper only scopes its modal; the player positions itself over the card. */
+.layer > div:last-child { pointer-events: none; }
+.layer > div:last-child > * { pointer-events: auto; }
+.layer:focus { outline: none; }
+/* The Seeds chip: small glass in the card's lower corner, beside the grabber. */
+.chip {
+  position: absolute;
+  left: 12px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 12px 0 10px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--color-charcoal-deep) 70%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 18%, transparent);
+  color: var(--color-on-olive);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.seed { width: 14px; height: 14px; color: var(--color-gauge-fat-end); }
+/* The shop over the well: the dark glass, edge to edge of the card's body. */
+.panel {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  border-radius: inherit;
+  background: radial-gradient(80% 60% at 50% 35%, color-mix(in oklab, var(--color-gauge-water) 18%, var(--color-charcoal-deep)),
+    var(--color-charcoal-deep));
+}
