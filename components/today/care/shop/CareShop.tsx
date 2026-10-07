@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import DressedSprout from "@/components/today/care/shop/DressedSprout";
 import CareScenePlayer from "@/components/today/care/CareScenePlayer";
 import { LEDGER_COPY, SHOP_ITEMS, itemById, words, type CareScene, type ShopItem, type Slot } from "@/components/today/care/shop/catalog";
-import { equip, pendingSeeds, purchase, seeds, type ShopState } from "@/components/today/care/shop/shop-state";
+import { equip, pendingSeeds, purchase, seeds, type EquipOutcome, type PurchaseOutcome, type ShopState } from "@/components/today/care/shop/shop-state";
 import { play, readMuted, unlockAudio } from "@/components/today/care/sound";
 import styles from "@/components/today/care/shop/Shop.module.css";
 
@@ -34,12 +34,36 @@ const newActionId = () => (typeof crypto !== "undefined" && "randomUUID" in cryp
  * off. Every change is said in a polite live region. Presentation on the server's contract shape
  * (shop-state.ts): the gallery passes samples; the real routes wait on UI-NEEDS SPROUT-CARE.
  */
-export default function CareShop({ state, onChange, today }: {
+/** Where a purchase or a change of clothes is decided: the server on Today, the pure rules in the gallery. */
+export type ShopRules = {
+  purchase: (state: ShopState, itemId: string, actionId: string) => Promise<PurchaseOutcome | "failed">;
+  equip: (state: ShopState, slot: Slot, itemId: string | null) => Promise<EquipOutcome | "failed" | "conflict">;
+};
+
+export default function CareShop({ state, onChange, today, rules, items, onRefresh, onClose }: {
   state: ShopState;
   onChange: (next: ShopState) => void;
-  /** The account's local date, YYYY-MM-DD, for a purchase's ledger row. */
+  /** The account's local date, YYYY-MM-DD, for a purchase's ledger row under the local rules. */
   today: string;
+  /** The server's rules (Today); without them the shop plays on the pure rules (the gallery). */
+  rules?: ShopRules;
+  /** What is on offer, at the server's prices; the whole catalog when absent. */
+  items?: readonly ShopItem[];
+  /** Read Seeds and the shop again: after a confirmed change, or when another device changed it. */
+  onRefresh?: () => void;
+  /** Put the shop away (Today, where it opens over the well); a Close button in its top row. */
+  onClose?: () => void;
 }) {
+  const offered = items ?? SHOP_ITEMS;
+  const local: ShopRules = {
+    purchase: async (from, itemId, actionId) => purchase(from, itemId, actionId, today),
+    equip: async (from, slot, itemId) => equip(from, slot, itemId),
+  };
+  const decide = rules ?? local;
+  // One request at a time; a purchase that never got an answer keeps its action id, so the next tap
+  // retries the same purchase (the server answers the first receipt, never a second charge).
+  const [busy, setBusy] = useState(false);
+  const retry = useRef<{ itemId: string; actionId: string } | null>(null);
   const reduce = useReducedMotionConfig() ?? false;
   // Sprout fills the stage, whatever room the well gives it.
   const stage = useRef<HTMLDivElement>(null);
@@ -62,7 +86,7 @@ export default function CareShop({ state, onChange, today }: {
   // Taking an item off deselects it, so its Take-off button disappears with nothing in its place;
   // focus goes back to that item's tile rather than falling through to the page.
   const tileRefs = useRef<Partial<Record<string, HTMLButtonElement>>>({});
-  const item = chosen ? itemById(chosen) ?? null : null;
+  const item = chosen ? offered.find((entry) => entry.id === chosen) ?? itemById(chosen) ?? null : null;
   const owned = item ? state.owned.includes(item.id) : false;
   // A care scene (a massage) is done for Sprout: it plays, it is never worn or tried on.
   const care = item?.scene ?? null;
@@ -81,32 +105,50 @@ export default function CareShop({ state, onChange, today }: {
     if (next.scene) setSaid("");
     else if (state.equipped[next.slot] !== next.id) setSaid(`Sprout tries on ${words(next).the}.`);
   };
-  const buy = (target: ShopItem) => {
+  const buy = async (target: ShopItem) => {
+    if (busy) return;
     // The shared Sound off (set in the award player) and reduced motion both keep the chime quiet.
     const sound = !reduce && !readMuted();
     if (sound) unlockAudio();
-    const outcome = purchase(state, target.id, newActionId(), today);
+    const actionId = retry.current?.itemId === target.id ? retry.current.actionId : newActionId();
+    retry.current = { itemId: target.id, actionId };
+    setBusy(true);
+    const outcome = await decide.purchase(state, target.id, actionId);
+    if (outcome === "failed") { setBusy(false); setSaid("That did not go through. Try again."); return; }
+    retry.current = null;
     if (!outcome.ok) {
+      setBusy(false);
       setSaid(outcome.code === "insufficient" ? `${seeds(outcome.short)} more needed.` : "That one is already yours.");
+      onRefresh?.();
       return;
     }
+    const w = words(target);
     if (target.scene) {
       // Bought, and played at once; the scene says itself.
+      setBusy(false);
       onChange(outcome.state);
-      const w = words(target);
       setSaid(`${w.the[0].toUpperCase()}${w.the.slice(1)} ${w.is} yours. ${seeds(outcome.receipt.balance)}.`);
       setPlaying(target.scene);
+      onRefresh?.();
       return;
     }
-    const dressed = equip(outcome.state, target.slot, target.id);
-    onChange(dressed.ok ? dressed.state : outcome.state);
+    const dressed = await decide.equip(outcome.state, target.slot, target.id);
+    setBusy(false);
+    onChange(typeof dressed === "object" && dressed.ok ? dressed.state : outcome.state);
     setBought((n) => n + 1);
     if (sound) play("chime");
-    const w = words(target);
-    setSaid(`${w.the[0].toUpperCase()}${w.the.slice(1)} ${w.is} yours, and Sprout has ${w.it} on. ${seeds(outcome.receipt.balance)}.`);
+    setSaid(typeof dressed === "object" && dressed.ok
+      ? `${w.the[0].toUpperCase()}${w.the.slice(1)} ${w.is} yours, and Sprout has ${w.it} on. ${seeds(outcome.receipt.balance)}.`
+      : `${w.the[0].toUpperCase()}${w.the.slice(1)} ${w.is} yours. ${seeds(outcome.receipt.balance)}.`);
+    onRefresh?.();
   };
-  const wear = (target: ShopItem, on: boolean) => {
-    const result = equip(state, target.slot, on ? target.id : null);
+  const wear = async (target: ShopItem, on: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    const result = await decide.equip(state, target.slot, on ? target.id : null);
+    setBusy(false);
+    if (result === "failed") { setSaid("That did not go through. Try again."); return; }
+    if (result === "conflict") { setSaid("Sprout changed on another device. Try again."); onRefresh?.(); return; }
     if (!result.ok) return;
     onChange(result.state);
     if (!on) { setChosen(null); tileRefs.current[target.id]?.focus(); }
@@ -123,6 +165,7 @@ export default function CareShop({ state, onChange, today }: {
         <span className={styles.balanceWord}>{state.balance === 1 ? "Seed" : "Seeds"}</span>
       </button>
       {pending > 0 && <span className={styles.pending}>+{pending} settling tonight</span>}
+      {onClose && <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>}
     </div>
 
     <AnimatePresence>
@@ -152,7 +195,7 @@ export default function CareShop({ state, onChange, today }: {
     </div>
 
     <ul className={styles.tiles} aria-label="Items">
-      {SHOP_ITEMS.map((entry) => {
+      {offered.map((entry) => {
         const mine = state.owned.includes(entry.id);
         const on = state.equipped[entry.slot] === entry.id;
         return <li key={entry.id}>
@@ -181,11 +224,14 @@ export default function CareShop({ state, onChange, today }: {
         {/* One shared key: Buy, Wear and Take off are the same action slot, so a purchase or a wear
             toggle updates this button in place and keeps keyboard focus on it, never dropping focus
             to the page when the slot swaps to a different label. */}
-        {!owned && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0} onClick={() => buy(item)}
+        {!owned && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
+          status={busy ? "pending" : undefined} onClick={() => void buy(item)}
           aria-label={`Buy ${words(item).the} for ${seeds(item.price)}`}>Buy · {item.price}</Button>}
         {owned && care && <Button key="action" variant="primary" size="sm" onClick={() => setPlaying(care)}>Play</Button>}
-        {owned && !care && !worn && <Button key="action" variant="primary" size="sm" onClick={() => wear(item, true)}>Wear</Button>}
-        {owned && worn && <Button key="action" variant="secondary" size="sm" onClick={() => wear(item, false)}>Take off</Button>}
+        {owned && !care && !worn && <Button key="action" variant="primary" size="sm" disabled={busy}
+          status={busy ? "pending" : undefined} onClick={() => void wear(item, true)}>Wear</Button>}
+        {owned && worn && <Button key="action" variant="secondary" size="sm" disabled={busy}
+          status={busy ? "pending" : undefined} onClick={() => void wear(item, false)}>Take off</Button>}
       </div>}
     </div>
     <p className="sr-only" aria-live="polite">{said}</p>
