@@ -70,7 +70,7 @@ describe("claim 1b / 6 — the 28-day cycle artefact, at every phase, never misl
         }
       }
     }
-  });
+  }, 20_000); // full multi-phase backtest; ~5 s on CI runners, so the default 5 s budget flakes.
 });
 
 describe("claim 2 — under-logging holds, it does not chase, and never re-enters burn_in once graduated", () => {
