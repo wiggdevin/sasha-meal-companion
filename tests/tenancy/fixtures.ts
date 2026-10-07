@@ -386,4 +386,26 @@ export const BUILDERS: Record<string, Builder> = {
     return { table: "water_log", row: { user_id: owner, local_date: date, cups: 1 },
       match: { user_id: owner, local_date: date }, touch: () => ({ cups: 2 }) };
   },
+  // UI-NEEDS SPROUT-CARE: care_items/care_accolade_defs are the global, seeded catalogs
+  // (20261225090200/090300); every fixture below points at one of their real rows.
+  care_points_ledger: async (owner) => withId("care_points_ledger", { user_id: owner,
+    event_key: `tenancy:${randomUUID()}`, rule_version: "v1", kind: "day_recorded", delta: 2,
+    local_date: randomDate(), zone: "UTC", status: "settled" }, { status: "reversed" }),
+  care_inventory: async (owner) => ({ table: "care_inventory",
+    row: { user_id: owner, item_id: "leaf-pin", receipt_id: randomUUID() },
+    match: { user_id: owner, item_id: "leaf-pin" }, touch: () => ({ receipt_id: randomUUID() }) }),
+  care_equipped: async (owner) => ({ table: "care_equipped",
+    row: { user_id: owner, equipped: { pin: "leaf-pin" }, rev: 1 },
+    match: { user_id: owner }, touch: () => ({ rev: 2 }) }),
+  care_purchase_receipts: async (owner) => {
+    const actionId = randomUUID();
+    return { table: "care_purchase_receipts",
+      row: { user_id: owner, action_id: actionId, item_id: "leaf-pin", price: 10 },
+      match: { user_id: owner, action_id: actionId }, touch: () => ({ price: 11 }) };
+  },
+  care_accolades: async (owner) => ({ table: "care_accolades",
+    row: { user_id: owner, key: "first-meal", version: 1 },
+    match: { user_id: owner, key: "first-meal", version: 1 }, touch: () => ({ seen_at: "2040-01-01T00:00:00Z" }) }),
+  care_messages: async (owner) => withId("care_messages", { user_id: owner, type: "observation",
+    payload: { text: "tenancy" } }, { read_at: "2040-01-01T00:00:00Z" }),
 };

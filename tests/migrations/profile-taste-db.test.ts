@@ -16,6 +16,20 @@ import { HAS_DB, runSql } from "../helpers/supabase";
 const COLUMNS = readFileSync("supabase/migrations/20261217090000_profile_cuisines_country.sql", "utf8");
 const SYNC_UP = readFileSync("supabase/migrations/20261217090200_profile_sync_cuisines_country.sql", "utf8");
 const SYNC_DOWN = readFileSync("supabase/migrations/down/20261217090200_profile_sync_cuisines_country.down.sql", "utf8");
+/**
+ * UI-NEEDS SPROUT-CARE's mascot migration patches the same `_sync_upsert` user_settings branch
+ * these tests probe, layered on top of it in production (every real target carries it). Its own
+ * anchors splice text into two of SYNC_UP's five "tos" fragments (the insert column list and the
+ * country_code SET clause), so on a database that already carries the mascot patch those two
+ * fragments no longer occur verbatim and this describe block's own partial-patch counting would
+ * see "3 of 5" instead of "4 of 5" for reasons unrelated to what it is actually testing. Taking
+ * the mascot patch off first (each `it` here rolls its own transaction back, so there is nothing
+ * to put back) restores the exact function shape these tests were written against.
+ */
+const MASCOT_DOWN = [
+  "down/20261225090010_user_settings_mascot_validate.down.sql",
+  "down/20261225090000_user_settings_mascot.down.sql",
+].map((f) => readFileSync(`supabase/migrations/${f}`, "utf8")).join("\n");
 
 describe("the taste vocabulary (static)", () => {
   it("the SQL tag list equals SENSORY_TAGS", () => {
@@ -97,18 +111,18 @@ describe.skipIf(!HAS_DB)("the _sync_upsert patch refuses a partly patched functi
   });
 
   it("up raises on four of five parts", () => {
-    expect(() => runSql(["begin;", unpatchDietPrefs, SYNC_UP, "rollback;"].join("\n")))
+    expect(() => runSql(["begin;", MASCOT_DOWN, unpatchDietPrefs, SYNC_UP, "rollback;"].join("\n")))
       .toThrow(/4 of 5 parts already patched/);
   });
 
   it("down raises on four of five parts", () => {
-    expect(() => runSql(["begin;", unpatchDietPrefs, SYNC_DOWN, "rollback;"].join("\n")))
+    expect(() => runSql(["begin;", MASCOT_DOWN, unpatchDietPrefs, SYNC_DOWN, "rollback;"].join("\n")))
       .toThrow(/only 4 of 5 parts patched/);
   });
 
   it("up on the fully patched function is a no-op; down then up restores it byte for byte", () => {
     const def = "select md5(pg_get_functiondef('public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure));";
-    const out = runSql(["begin;", def, SYNC_UP, def, SYNC_DOWN, SYNC_DOWN, SYNC_UP, def, "rollback;"].join("\n"))
+    const out = runSql(["begin;", MASCOT_DOWN, def, SYNC_UP, def, SYNC_DOWN, SYNC_DOWN, SYNC_UP, def, "rollback;"].join("\n"))
       .split("\n").filter((line) => /^[0-9a-f]{32}$/.test(line));
     expect(out).toHaveLength(3);
     expect(new Set(out).size).toBe(1);
