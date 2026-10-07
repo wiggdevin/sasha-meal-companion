@@ -119,6 +119,20 @@ describe("CareLayer", () => {
     expect(elsewhere.inert).toBe(false);
   });
 
+  it("stays modal through the shop's closing fade, then hands focus to the chip (Sol r4)", async () => {
+    render(<MotionConfig reducedMotion="never"><button type="button">Elsewhere on Today</button>
+      <div><CareLayer active /></div></MotionConfig>);
+    const chip = await screen.findByRole("button", { name: /Open Sprout's shop/ });
+    await act(async () => { fireEvent.click(chip); });
+    const elsewhere = screen.getByText("Elsewhere on Today").closest("button")!;
+    fireEvent.keyDown(document, { key: "Escape" });
+    // Fading out: still modal.
+    expect(elsewhere.inert).toBe(true);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sprout's shop" })).toBeNull());
+    await waitFor(() => expect(elsewhere.inert).toBe(false));
+    expect(document.activeElement).toBe(chip);
+  });
+
   it("never lets a tap inside it reach the card behind (it would fold the well) (Sol r3)", async () => {
     const fold = vi.fn();
     render(<MotionConfig reducedMotion="always"><div onClick={fold} onPointerDown={fold}><CareLayer active /></div></MotionConfig>);
@@ -165,7 +179,7 @@ describe("CareLayer", () => {
     const chip = await screen.findByRole("button", { name: /Open Sprout's shop/ });
     const watch = await screen.findByRole("button", { name: "Watch" });
     await act(async () => { fireEvent.click(watch); });
-    expect(screen.getByRole("dialog", { name: /Award: First meal/ })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: /Award: First meal/ }).getAttribute("aria-modal")).toBe("true");
     // Modal (Sol r3): the rest of Today is out of reach while it plays.
     expect(screen.getByText("Elsewhere on Today").closest("button")!.inert).toBe(true);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Done" })); });

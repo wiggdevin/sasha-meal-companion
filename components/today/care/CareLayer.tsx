@@ -35,11 +35,20 @@ function inertOutside(el: HTMLElement): () => void {
  * A panel over the well made modal while `open`: everything outside it inert, and Tab / Shift+Tab
  * wrapping inside it. Shared by the shop and the award player.
  */
-function useModal(box: RefObject<HTMLElement | null>, open: boolean) {
+function useModal(box: RefObject<HTMLElement | null>, open: boolean, homes: RefObject<HTMLElement | null>[]) {
   useEffect(() => {
     const el = box.current;
     if (!open || !el) return;
     const undo = inertOutside(el);
+    const release = () => {
+      undo();
+      // Released after the panel's exit: if focus was left on the page (or in the panel that left),
+      // it goes home (the chip, else this layer).
+      const at = document.activeElement;
+      if (!at || at === document.body || !at.isConnected || el.contains(at)) {
+        homes.map((ref) => ref.current).find((target) => target?.isConnected)?.focus({ preventScroll: true });
+      }
+    };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
       const stops = [...el.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input, [tabindex]:not([tabindex='-1'])")]
@@ -51,7 +60,9 @@ function useModal(box: RefObject<HTMLElement | null>, open: boolean) {
       else if (!event.shiftKey && (at === last || !el.contains(at))) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", onKey);
-    return () => { undo(); document.removeEventListener("keydown", onKey); };
+    return () => { document.removeEventListener("keydown", onKey); release(); };
+    // `homes` is a fresh array each render; its refs are stable, so it is read at release only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [box, open]);
 }
 
@@ -77,16 +88,21 @@ export default function CareLayer({ active }: { active: boolean }) {
   const open = shopOpen && care.shop !== null;
   const awardBox = useRef<HTMLDivElement | null>(null);
   const root = useRef<HTMLDivElement | null>(null);
-  useModal(panel, open);
-  useModal(awardBox, award !== null);
+  // A closing panel stays modal through its exit (the fade), then hands focus home.
+  const [shopLeaving, setShopLeaving] = useState(false);
+  const [awardLeaving, setAwardLeaving] = useState(false);
+  useModal(panel, open || shopLeaving, [chip, root]);
+  useModal(awardBox, award !== null || awardLeaving, [chip, root]);
+  const closeShop = () => { setShopOpen(false); setShopLeaving(true); };
   useEffect(() => {
     if (!open) return;
-    // Focus moves into the shop, and on close straight back to the chip.
-    const opener = chip.current;
+    // Focus moves into the shop; Escape puts it away.
     panel.current?.focus({ preventScroll: true });
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); } };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setShopOpen(false); setShopLeaving(true); }
+    };
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("keydown", onKey); opener?.focus({ preventScroll: true }); };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
   // The well folded or moved off today: whatever was open leaves.
   useEffect(() => {
@@ -119,20 +135,21 @@ export default function CareLayer({ active }: { active: boolean }) {
       </svg>
       <span>{shop.state.balance.toLocaleString("en-US")}</span>
     </button>}
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => setShopLeaving(false)}>
       {shop && open && <motion.div ref={panel} key="shop" role="dialog" aria-modal="true" aria-label="Sprout's shop" tabIndex={-1}
         className={`matte ${styles.panel}`}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
         <CareShop state={shop.state} today={localIsoDate(new Date())} rules={SERVER} items={offeredItems(shop.prices)}
-          onChange={(next) => care.setShop({ ...shop, state: next })} onRefresh={care.refresh} onClose={() => setShopOpen(false)} />
+          onChange={(next) => care.setShop({ ...shop, state: next })} onRefresh={care.refresh} onClose={closeShop} />
       </motion.div>}
     </AnimatePresence>
     <div ref={awardBox}>
-    <AnimatePresence>
-      {award && <AwardPlayer key={award.message} award={award.award} onClose={() => {
+    <AnimatePresence onExitComplete={() => setAwardLeaving(false)}>
+      {award && <AwardPlayer key={award.message} award={award.award} modal onClose={() => {
         void markAccoladesSeen([award.award.key]);
         void markCareMessage(award.message, "read");
         setAward(null);
+        setAwardLeaving(true);
       }} />}
     </AnimatePresence>
     </div>

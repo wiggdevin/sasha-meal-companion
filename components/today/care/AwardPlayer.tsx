@@ -21,7 +21,12 @@ import styles from "@/components/today/care/Awards.module.css";
  * It is a panel inside the card, not a page-wide modal: Escape works from anywhere while it is open,
  * and closing hands focus back to what opened it, or to the card when that is gone.
  */
-export default function AwardPlayer({ award, onClose }: { award: Award; onClose: () => void }) {
+export default function AwardPlayer({ award, onClose, modal = false }: {
+  award: Award;
+  onClose: () => void;
+  /** Played over Today, where the caller keeps the rest of the page out of reach: say so to assistive tech. */
+  modal?: boolean;
+}) {
   const reduce = useReducedMotionConfig() ?? false;
   const sparks = useRef<SparksApi | null>(null);
   const self = useRef<HTMLDivElement | null>(null);
@@ -71,7 +76,7 @@ export default function AwardPlayer({ award, onClose }: { award: Award; onClose:
   const replay = () => { setSkipped(false); setDone(false); setRun((n) => n + 1); };
   const skip = () => { silence(); setSkipped(true); setRun((n) => n + 1); };
 
-  return <motion.div ref={self} role="dialog" aria-label={`Award: ${award.title}`} tabIndex={-1}
+  return <motion.div ref={self} role="dialog" aria-modal={modal || undefined} aria-label={`Award: ${award.title}`} tabIndex={-1}
     className={`matte ${styles.player}`} data-material={award.material} data-scene={award.scene}
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
     <div aria-hidden="true" className={styles.dim} />
