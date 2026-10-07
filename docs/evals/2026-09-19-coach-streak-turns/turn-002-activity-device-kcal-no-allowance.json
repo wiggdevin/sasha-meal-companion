@@ -1,0 +1,146 @@
+{
+  "generatedAt": "2026-10-03T20:25:00.509Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 2,
+  "case": {
+    "id": "activity-device-kcal-no-allowance",
+    "category": "activity",
+    "sentence": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+    "expected_path": "llm",
+    "note": "C13: call 520 a device estimate, give no food allowance, claim no target mutation, and point to the logs-and-weight weekly proposal",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": []
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30675,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": false
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30675 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "C13 activity context present",
+      "passed": false,
+      "detail": "packed today.activity absent"
+    },
+    {
+      "name": "C13 device estimate wording",
+      "passed": false,
+      "detail": "\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "C13 forbidden allowance wording",
+      "passed": true,
+      "detail": "\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "C13 no numeric food allowance",
+      "passed": false,
+      "detail": "\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "C13 no target mutation",
+      "passed": false,
+      "detail": "\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "C13 logs-and-weight weekly proposal",
+      "passed": false,
+      "detail": "\"That took too long and I stopped. Ask me again.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "7947cdf8-1b79-49cb-804f-0fb26230db73",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 471,
+      "model": 29088,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "862ad3fe-4862-4d36-9664-969f5c006535",
+        "role": "user",
+        "content": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "0915dd5d-982a-4b8c-b77b-ebb2f00022a2",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

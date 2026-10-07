@@ -1,0 +1,32 @@
+[
+ {
+  "key": "auth-security dimension produced no findings on the actual auth code",
+  "files": "lib/server/auth.ts, lib/supabase/client.ts + server.ts, app/auth/callback/route.ts, app/sign-in/{page,code,password}.ts, components/AuthGate.tsx, components/PasswordSignInForm.tsx, components/SignInCodeForm.tsx",
+  "why": "Every 'security' finding that survived (#18, #52) is about CI skipping RLS tests, not about the auth implementation itself. None of the actual session/callback/sign-in-code code paths appear in confirmed or refuted \u2014 for a dimension explicitly named 'auth-security', the auth surface itself looks unread."
+ },
+ {
+  "key": "privileged/token/crypto boundary never touched",
+  "files": "lib/server/privileged.ts, lib/server/tokens.ts, lib/server/health-tokens.ts, lib/server/admin.ts, lib/server/crypto.ts, lib/server/ratelimit.ts (the implementation, not just its call sites), lib/server/http.ts",
+  "why": "AGENTS.md calls this out by name as the service-role/privileged-access boundary and the encrypted-health-token layer \u2014 exactly the kind of code a security-minded finder round should read line by line. Zero findings (confirmed or refuted) anchor here despite two dimensions (auth-security, health-ingest-oura) that should have led a finder to it."
+ },
+ {
+  "key": "recipe / build-a-meal feature almost entirely unexamined",
+  "files": "components/BuildMealSheet.tsx, RecipeSheet.tsx, RecipeDraftList.tsx, RecipeFoodRow.tsx, RecipeFoodSearch.tsx, RecipeIngredientPicker.tsx, RecipeItemRow.tsx, lib/recipes/nutrients.ts, lib/recipes/recipe-sheet-state.ts, lib/foods/adopt-client.ts",
+  "why": "This is a headline diet-safety feature per AGENTS.md ('Tap one protein, one carb, one fat -> portions sized to the slot') yet only lib/recipes/use-recipe-sheet.ts:238 (a generic 'save has no error handling' finding) touches this cluster. The actual portion-sizing and nutrient math a wrong recipe could put in front of Sasha was never traced."
+ },
+ {
+  "key": "body/health dashboard rendering layer disconnected from the health-ingest findings",
+  "files": "components/BodyDashboard.tsx, BodyDataCard.tsx, BodyProfileFields.tsx, BodyTodayCard.tsx/Gate.tsx/Live.tsx, HealthMetricCard.tsx, WeightTrend.tsx, Sparkline.tsx, lib/health/capability.ts, contract.ts, replay.ts, today-card.ts, units.ts",
+  "why": "health-ingest-oura and expenditure-tdee-weekly-proposals as dimensions concentrated entirely on ingestion/estimation math (daily.ts, dedupe.ts, normalize.ts, oura/map.ts, expenditure.ts) and never followed corrupted/mismatched data into what Sasha actually sees on /body \u2014 only TdeeLines.tsx got one finding."
+ },
+ {
+  "key": "barcode decode/quorum core and raw catalog source mappers",
+  "files": "lib/barcode/quorum.ts, lib/barcode/gtin.ts, lib/barcode/scan-cache.ts, lib/barcode/worker.ts, lib/catalog/off.ts, lib/catalog/fdc.ts, lib/catalog/fdc-map.ts",
+  "why": "barcode-scan-diet-safety reached lib/catalog/off-map.ts and lib/server/barcode.ts but never the OCR/decoder quorum-voting logic (worker.ts/quorum.ts) or the raw OFF/FDC source-to-catalog mappers that feed everything downstream \u2014 a wrong vote or a bad source mapping upstream would explain several already-confirmed downstream symptoms but was never traced to its origin."
+ },
+ {
+  "key": "coach orchestration core (turn/dispatch/policy) never read directly",
+  "files": "lib/coach/turn.ts, lib/coach/dispatch.ts, lib/coach/policy.ts, lib/coach/deflect.ts, lib/coach/registry.ts, lib/coach/prompt.ts, lib/coach/weekly-review.ts",
+  "why": "coach-ai reached envelope.ts (prompt injection), executors.ts, and floors.ts, but the module that actually wires a turn through policy checks into a draft (turn.ts/dispatch.ts/policy.ts) was never opened \u2014 exactly where the already-found pattern of hardcoded category:null / foodRefId:null / discarded allergenTags (across executors.ts, capture.ts, log.ts, catalog.ts, all refuted-but-real) would most plausibly trace to one shared root cause."
+ }
+]

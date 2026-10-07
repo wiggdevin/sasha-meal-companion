@@ -1,0 +1,86 @@
+{
+  "before": {
+    "events": [
+      {
+        "type": "pointerdown",
+        "pointerType": "touch",
+        "buttons": 1,
+        "detail": 0
+      },
+      {
+        "type": "gotpointercapture",
+        "pointerType": "touch",
+        "buttons": 1,
+        "detail": 0
+      },
+      {
+        "type": "pointermove",
+        "pointerType": "touch",
+        "buttons": 1,
+        "detail": 0
+      },
+      {
+        "type": "pointercancel",
+        "pointerType": "touch",
+        "buttons": 0,
+        "detail": 0
+      },
+      {
+        "type": "pointerleave",
+        "pointerType": "touch",
+        "buttons": 0,
+        "detail": 0
+      }
+    ],
+    "sessions": 0,
+    "text": "Retained after drag",
+    "sent": []
+  },
+  "after": [
+    "Retained after drag"
+  ],
+  "widths": [
+    {
+      "width": 320,
+      "overflow": false,
+      "main": {
+        "x": 243,
+        "y": 185.78125,
+        "width": 44,
+        "height": 44,
+        "top": 185.78125,
+        "right": 287,
+        "bottom": 229.78125,
+        "left": 243
+      }
+    },
+    {
+      "width": 430,
+      "overflow": false,
+      "main": {
+        "x": 353,
+        "y": 185.78125,
+        "width": 44,
+        "height": 44,
+        "top": 185.78125,
+        "right": 397,
+        "bottom": 229.78125,
+        "left": 353
+      }
+    },
+    {
+      "width": 1024,
+      "overflow": false,
+      "main": {
+        "x": 655,
+        "y": 185.78125,
+        "width": 44,
+        "height": 44,
+        "top": 185.78125,
+        "right": 699,
+        "bottom": 229.78125,
+        "left": 655
+      }
+    }
+  ]
+}

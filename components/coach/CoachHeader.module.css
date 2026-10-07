@@ -1,0 +1,107 @@
+/* The Sasha header (U21, DESIGN.md §Components › Chat header, 2026-10-04): the living mark, the
+   title, the scope chip and the screen's own control. Every colour is a token. */
+
+.mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: var(--grad-card);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.12), var(--shadow-card);
+}
+.compact .mark { width: 36px; height: 36px; }
+
+.orbs { overflow: visible; }
+
+.olive { fill: var(--color-primary); }
+.sage { fill: var(--color-sage); }
+.wheat { fill: var(--color-gauge-fat-end); }
+
+/* At rest the orbs drift and breathe at a third of the thinking pace (Thinking.module.css runs
+   2.4 s / 3.1 s / 3.9 s orbits and a 1.8 s breath); SashaMark raises the playback rate to 3 while a
+   turn is in flight, so the two read as the same body. */
+.orbit {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+  animation: mark-spin 7.2s linear infinite;
+}
+.orbit:nth-of-type(2) { animation-duration: 9.3s; animation-direction: reverse; }
+.orbit:nth-of-type(3) { animation-duration: 11.7s; }
+
+.orb {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mark-breathe 5.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.orbit:nth-of-type(2) .orb { animation-delay: -1.8s; }
+.orbit:nth-of-type(3) .orb { animation-delay: -3.6s; }
+
+@keyframes mark-spin { to { transform: rotate(360deg); } }
+@keyframes mark-breathe {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(-3px) scale(0.9); }
+}
+
+[data-motion="reduced"] .orbit,
+[data-motion="reduced"] .orb { animation: none; }
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.titles {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* The scope: where the next answer is about. Plain metadata (a dot and words), never a pill, so it
+   does not read as a control. */
+.scope {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.scopeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-sage);
+}
+.scopeDot[data-thinking="true"] {
+  animation: mark-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mark-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit, .orb, .scopeDot[data-thinking="true"] { animation: none; }
+}

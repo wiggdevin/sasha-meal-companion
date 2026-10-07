@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activityLevel": {
+      "description": "Allowed values: \"sedentary\", \"light\", \"moderate\", \"active\", \"very_active\"; \"\" means absent.",
+      "type": "string"
+    },
+    "at": {
+      "type": "string"
+    },
+    "birthYear": {
+      "maximum": <YEAR>,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "bodyFatPct": {
+      "maximum": 70,
+      "minimum": 0,
+      "type": "number"
+    },
+    "date": {
+      "type": "string"
+    },
+    "dayType": {
+      "description": "Allowed values: \"training\", \"rest\", \"both\"; \"\" means absent.",
+      "type": "string"
+    },
+    "entryId": {
+      "maxLength": 64,
+      "type": "string"
+    },
+    "foodRefId": {
+      "maxLength": 64,
+      "type": "string"
+    },
+    "from": {
+      "type": "string"
+    },
+    "goal": {
+      "description": "Allowed values: \"lose_fat\", \"recomp\", \"maintain\", \"gain_muscle\"; \"\" means absent.",
+      "type": "string"
+    },
+    "grams": {
+      "maximum": 2000,
+      "minimum": 0,
+      "type": "number"
+    },
+    "heightCm": {
+      "maximum": 260,
+      "minimum": 0,
+      "type": "number"
+    },
+    "item": {
+      "additionalProperties": false,
+      "properties": {
+        "grams": {
+          "maximum": 2000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "name": {
+          "maxLength": 120,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "grams": {
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "kcal": {
+      "anyOf": [
+        {
+          "maximum": 5000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "kg": {
+      "maximum": 400,
+      "minimum": 0,
+      "type": "number"
+    },
+    "kind": {
+      "enum": [
+        "log_meal",
+        "add_slot_item",
+        "remove_slot_item",
+        "set_slot_item",
+        "move_slot",
+        "add_to_avoid",
+        "remove_from_avoid",
+        "set_slot_meal",
+        "delete_entry",
+        "move_entry",
+        "save_recipe",
+        "shift_schedule",
+        "log_water",
+        "log_weight",
+        "update_profile",
+        "set_targets",
+        "add_to_eats",
+        "remove_from_eats",
+        "add_to_shopping_list",
+        "skip_slot",
+        "restore_slot"
+      ],
+      "type": "string"
+    },
+    "minutes": {
+      "maximum": 720,
+      "minimum": -720,
+      "type": "integer"
+    },
+    "ml": {
+      "maximum": 3000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "name": {
+      "maxLength": 120,
+      "type": "string"
+    },
+    "names": {
+      "items": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "note": {
+      "maxLength": 2000,
+      "type": "string"
+    },
+    "numericArgs": {
+      "items": {
+        "type": "number"
+      },
+      "maxItems": 11,
+      "type": "array"
+    },
+    "proteinG": {
+      "anyOf": [
+        {
+          "maximum": 300,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "scope": {
+      "description": "Allowed values: \"all\", \"remaining\"; \"\" means absent.",
+      "type": "string"
+    },
+    "sex": {
+      "description": "Allowed values: \"female\", \"male\"; \"\" means absent.",
+      "type": "string"
+    },
+    "slot": {
+      "enum": [
+        "coffee",
+        "pouches-pre",
+        "post-refuel",
+        "meal-1",
+        "meal-2",
+        "meal-3",
+        "meal-4",
+        "meal-5",
+        "meal-6",
+        "hot-chocolate",
+        "snack"
+      ],
+      "type": "string"
+    },
+    "stringArgs": {
+      "items": {
+        "maxLength": 2000,
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "through": {
+      "type": "string"
+    },
+    "time": {
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 120,
+      "type": "string"
+    },
+    "trainingWeekdays": {
+      "items": {
+        "maximum": 6,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "weekdays": {
+      "items": {
+        "maximum": 6,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maxItems": 7,
+      "type": "array"
+    },
+    "weightKg": {
+      "maximum": 400,
+      "minimum": 0,
+      "type": "number"
+    }
+  },
+  "required": [
+    "kind"
+  ],
+  "type": "object"
+}

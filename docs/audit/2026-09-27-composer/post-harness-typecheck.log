@@ -1,0 +1,1 @@
+.next/dev/types/validator.ts(53,39): error TS2307: Cannot find module '../../../app/auth/composer-proof/page.js' or its corresponding type declarations.

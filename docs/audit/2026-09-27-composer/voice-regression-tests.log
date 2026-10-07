@@ -1,0 +1,15 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.1 /Users/zero-suminc./.codex/worktrees/sasha-composer/meal-companion
+
+
+ Test Files  14 passed (14)
+      Tests  117 passed | 5 skipped (122)
+   Start at  17:07:59
+   Duration  723ms (transform 47%, import 25%, tests 24%, setup 2%, worker 1%)
+
+  Transform  transforming modules took 2.34s · 47% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns

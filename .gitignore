@@ -1,0 +1,69 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.venv/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vitest json reporter output
+.vitest/
+
+# keep the documented example
+!.env.example
+
+# supabase cli local state (linked project, version check)
+supabase/.temp/
+
+# zxing-wasm reader wasm, copied from node_modules by postinstall, never committed
+public/zxing/
+
+# session handoffs are working state, not source
+.claude/handoffs/
+
+# eval fixtures are Sasha's own photos and recordings, never committed
+scripts/eval/fixtures/*
+!scripts/eval/fixtures/README.md
+supabase/.branches/
+
+# Python validation artifacts
+__pycache__/
+
+# panel acceptance suite copy-in (never committed)
+.panel
+/.priors-work/

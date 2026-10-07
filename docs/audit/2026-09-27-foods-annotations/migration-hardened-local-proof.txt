@@ -1,0 +1,59 @@
+UP 3ce6f37ac392898c1f8a430d606326a44c21c0ed8f997ff5b52f21e1564b6491
+DOWN 72c3afb0c40a7ad53bacf47a7ccd41cda1c9728812960313ea8c52ad36389160
+
+drop empty old clone schema exit=0
+BEGIN
+LOCK TABLE
+SET
+DO
+ALTER TABLE
+ALTER TABLE
+DROP FUNCTION
+COMMIT
+
+apply frozen up exit=0
+BEGIN
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+COMMENT
+COMMIT
+
+validator cases exit=0
+ null_rejected_should_false | valid_should_true | padding_should_false | duplicate_should_false
+----------------------------+-------------------+----------------------+------------------------
+ f                          | t                 | f                    | f
+(1 row)
+
+
+table CHECK rejects malformed exit=3
+BEGIN
+ERROR:  new row for relation "constraint_profiles" violates check constraint "constraint_profiles_custom_rules_shape"
+
+rollback refuses existing rules exit=3
+BEGIN
+UPDATE 1
+LOCK TABLE
+SET
+ERROR:  custom_food_rules rollback refused: account rules remain
+CONTEXT:  PL/pgSQL function inline_code_block line 3 at RAISE
+
+empty rollback succeeds exit=0
+BEGIN
+LOCK TABLE
+SET
+DO
+ALTER TABLE
+ALTER TABLE
+DROP FUNCTION
+COMMIT
+
+up succeeds again exit=0
+BEGIN
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+COMMENT
+COMMIT
+
+Working local postgres UP: exit0 CREATE FUNCTION, ALTER TABLE x2, COMMENT, single transaction. No production apply.

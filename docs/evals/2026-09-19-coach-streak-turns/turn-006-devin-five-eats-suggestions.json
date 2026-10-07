@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-10-03T20:31:59.094Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 6,
+  "case": {
+    "id": "devin-five-eats-suggestions",
+    "category": "devin",
+    "sentence": "make me 5 suggestions from my eats list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: suggestion scope and list target are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 5,
+      "max": 5
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30850,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 5-5; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30850 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "C11 distinct protein anchors",
+      "passed": false,
+      "detail": "[]"
+    },
+    {
+      "name": "C11 policy-clean cards",
+      "passed": true,
+      "detail": "[]"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "5413566a-27fc-4e64-99f8-7bf1aaf15360",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 538,
+      "model": 28306,
+      "ground": 1
+    },
+    "messages": [
+      {
+        "id": "6c781282-2b98-48a9-84c1-c20732624dcb",
+        "role": "user",
+        "content": "make me 5 suggestions from my eats list",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "b8ff8957-6a44-4496-b63b-341d76c8f7c0",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

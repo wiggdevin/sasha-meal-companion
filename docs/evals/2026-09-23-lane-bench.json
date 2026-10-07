@@ -1,0 +1,2174 @@
+{
+  "date": "2026-09-23",
+  "runs": 2,
+  "rescoredAt": "2026-09-24",
+  "rows": [
+    {
+      "lane": "converse",
+      "model": "gemini-3.6-flash",
+      "n": 12,
+      "p50Ms": 1021,
+      "p95Ms": 1511,
+      "schemaValidRate": 1,
+      "accuracy": 1,
+      "costUsd": 0.0011535,
+      "costPerCallUsd": 0.000096125,
+      "unknownCost": 0
+    },
+    {
+      "lane": "converse",
+      "model": "gemini-3.8-flash",
+      "n": 12,
+      "p50Ms": 892,
+      "p95Ms": 1783,
+      "schemaValidRate": 1,
+      "accuracy": 1,
+      "costUsd": 0.0011535,
+      "costPerCallUsd": 0.000096125,
+      "unknownCost": 0
+    },
+    {
+      "lane": "converse",
+      "model": "deepseek-flash",
+      "n": 12,
+      "p50Ms": 607,
+      "p95Ms": 764,
+      "schemaValidRate": 1,
+      "accuracy": 1,
+      "costUsd": 0.00047400000000000003,
+      "costPerCallUsd": 0.000039500000000000005,
+      "unknownCost": 0
+    },
+    {
+      "lane": "ui_chart",
+      "model": "deepseek-flash",
+      "n": 8,
+      "p50Ms": 846,
+      "p95Ms": 1187,
+      "schemaValidRate": 1,
+      "accuracy": 0.625,
+      "costUsd": 0.0018354,
+      "costPerCallUsd": 0.000229425,
+      "unknownCost": 0
+    },
+    {
+      "lane": "ui_chart",
+      "model": "gemini-3.8-flash",
+      "n": 8,
+      "p50Ms": 1155,
+      "p95Ms": 1429,
+      "schemaValidRate": 1,
+      "accuracy": 0.75,
+      "costUsd": 0.00660675,
+      "costPerCallUsd": 0.00082584375,
+      "unknownCost": 0
+    },
+    {
+      "lane": "ui_replies",
+      "model": "deepseek-flash",
+      "n": 6,
+      "p50Ms": 647,
+      "p95Ms": 958,
+      "schemaValidRate": 1,
+      "accuracy": 1,
+      "costUsd": 0.00025259999999999996,
+      "costPerCallUsd": 0.00004209999999999999,
+      "unknownCost": 0
+    },
+    {
+      "lane": "ui_replies",
+      "model": "gemini-3.8-flash",
+      "n": 6,
+      "p50Ms": 737,
+      "p95Ms": 920,
+      "schemaValidRate": 1,
+      "accuracy": 1,
+      "costUsd": 0.0007035,
+      "costPerCallUsd": 0.00011725,
+      "unknownCost": 0
+    },
+    {
+      "lane": "capture_text",
+      "model": "gemini-3.8-flash",
+      "n": 12,
+      "p50Ms": 1378,
+      "p95Ms": 5015,
+      "schemaValidRate": 0.8333333333333334,
+      "accuracy": 0.8333333333333334,
+      "costUsd": 0.00973125,
+      "costPerCallUsd": 0.0008109375,
+      "unknownCost": 0
+    },
+    {
+      "lane": "capture_text",
+      "model": "gemini-3.7-flash",
+      "n": 12,
+      "p50Ms": 2266,
+      "p95Ms": 6797,
+      "schemaValidRate": 0.8333333333333334,
+      "accuracy": 0.8333333333333334,
+      "costUsd": 0.00856125,
+      "costPerCallUsd": 0.0007134375,
+      "unknownCost": 0
+    }
+  ],
+  "attempts": [
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "550"
+      },
+      "latencyMs": 1046,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 13,
+      "costUsd": 0.00011774999999999999,
+      "lane": "converse",
+      "caseId": "c1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "48"
+      },
+      "latencyMs": 888,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 6,
+      "costUsd": 0.0000915,
+      "lane": "converse",
+      "caseId": "c2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "true"
+      },
+      "latencyMs": 1021,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 5,
+      "costUsd": 0.00008774999999999999,
+      "lane": "converse",
+      "caseId": "c3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "2000"
+      },
+      "latencyMs": 952,
+      "schemaValid": true,
+      "inputTokens": 112,
+      "outputTokens": 8,
+      "costUsd": 0.00011399999999999999,
+      "lane": "converse",
+      "caseId": "c4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "lunch"
+      },
+      "latencyMs": 1197,
+      "schemaValid": true,
+      "inputTokens": 91,
+      "outputTokens": 5,
+      "costUsd": 0.000087,
+      "lane": "converse",
+      "caseId": "c5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "false"
+      },
+      "latencyMs": 1206,
+      "schemaValid": true,
+      "inputTokens": 95,
+      "outputTokens": 5,
+      "costUsd": 0.00008999999999999999,
+      "lane": "converse",
+      "caseId": "c6",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "550"
+      },
+      "latencyMs": 1107,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 7,
+      "costUsd": 0.00009525,
+      "lane": "converse",
+      "caseId": "c1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "48"
+      },
+      "latencyMs": 923,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 6,
+      "costUsd": 0.0000915,
+      "lane": "converse",
+      "caseId": "c2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "true"
+      },
+      "latencyMs": 888,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 5,
+      "costUsd": 0.00008774999999999999,
+      "lane": "converse",
+      "caseId": "c3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "2000"
+      },
+      "latencyMs": 1013,
+      "schemaValid": true,
+      "inputTokens": 112,
+      "outputTokens": 14,
+      "costUsd": 0.0001365,
+      "lane": "converse",
+      "caseId": "c4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "lunch"
+      },
+      "latencyMs": 795,
+      "schemaValid": true,
+      "inputTokens": 91,
+      "outputTokens": 5,
+      "costUsd": 0.000087,
+      "lane": "converse",
+      "caseId": "c5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "false"
+      },
+      "latencyMs": 892,
+      "schemaValid": true,
+      "inputTokens": 95,
+      "outputTokens": 5,
+      "costUsd": 0.00008999999999999999,
+      "lane": "converse",
+      "caseId": "c6",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "550"
+      },
+      "latencyMs": 751,
+      "schemaValid": true,
+      "inputTokens": 104,
+      "outputTokens": 6,
+      "costUsd": 0.0000384,
+      "lane": "converse",
+      "caseId": "c1",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "48"
+      },
+      "latencyMs": 488,
+      "schemaValid": true,
+      "inputTokens": 103,
+      "outputTokens": 6,
+      "costUsd": 0.0000381,
+      "lane": "converse",
+      "caseId": "c2",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "true"
+      },
+      "latencyMs": 473,
+      "schemaValid": true,
+      "inputTokens": 102,
+      "outputTokens": 6,
+      "costUsd": 0.0000378,
+      "lane": "converse",
+      "caseId": "c3",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "2000"
+      },
+      "latencyMs": 649,
+      "schemaValid": true,
+      "inputTokens": 114,
+      "outputTokens": 7,
+      "costUsd": 0.0000426,
+      "lane": "converse",
+      "caseId": "c4",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "lunch"
+      },
+      "latencyMs": 764,
+      "schemaValid": true,
+      "inputTokens": 110,
+      "outputTokens": 7,
+      "costUsd": 0.000041400000000000003,
+      "lane": "converse",
+      "caseId": "c5",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "false"
+      },
+      "latencyMs": 694,
+      "schemaValid": true,
+      "inputTokens": 105,
+      "outputTokens": 6,
+      "costUsd": 0.0000387,
+      "lane": "converse",
+      "caseId": "c6",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "550"
+      },
+      "latencyMs": 1063,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 7,
+      "costUsd": 0.00009525,
+      "lane": "converse",
+      "caseId": "c1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "48"
+      },
+      "latencyMs": 948,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 6,
+      "costUsd": 0.0000915,
+      "lane": "converse",
+      "caseId": "c2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "true"
+      },
+      "latencyMs": 1110,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 5,
+      "costUsd": 0.00008774999999999999,
+      "lane": "converse",
+      "caseId": "c3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "2000"
+      },
+      "latencyMs": 960,
+      "schemaValid": true,
+      "inputTokens": 112,
+      "outputTokens": 8,
+      "costUsd": 0.00011399999999999999,
+      "lane": "converse",
+      "caseId": "c4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "lunch"
+      },
+      "latencyMs": 1511,
+      "schemaValid": true,
+      "inputTokens": 91,
+      "outputTokens": 5,
+      "costUsd": 0.000087,
+      "lane": "converse",
+      "caseId": "c5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "value": {
+        "value": "false"
+      },
+      "latencyMs": 945,
+      "schemaValid": true,
+      "inputTokens": 95,
+      "outputTokens": 5,
+      "costUsd": 0.00008999999999999999,
+      "lane": "converse",
+      "caseId": "c6",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "550"
+      },
+      "latencyMs": 1783,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 7,
+      "costUsd": 0.00009525,
+      "lane": "converse",
+      "caseId": "c1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "48"
+      },
+      "latencyMs": 906,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 6,
+      "costUsd": 0.0000915,
+      "lane": "converse",
+      "caseId": "c2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "true"
+      },
+      "latencyMs": 648,
+      "schemaValid": true,
+      "inputTokens": 92,
+      "outputTokens": 5,
+      "costUsd": 0.00008774999999999999,
+      "lane": "converse",
+      "caseId": "c3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "2000"
+      },
+      "latencyMs": 953,
+      "schemaValid": true,
+      "inputTokens": 112,
+      "outputTokens": 8,
+      "costUsd": 0.00011399999999999999,
+      "lane": "converse",
+      "caseId": "c4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "lunch"
+      },
+      "latencyMs": 858,
+      "schemaValid": true,
+      "inputTokens": 91,
+      "outputTokens": 5,
+      "costUsd": 0.000087,
+      "lane": "converse",
+      "caseId": "c5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "value": "false"
+      },
+      "latencyMs": 773,
+      "schemaValid": true,
+      "inputTokens": 95,
+      "outputTokens": 5,
+      "costUsd": 0.00008999999999999999,
+      "lane": "converse",
+      "caseId": "c6",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "550"
+      },
+      "latencyMs": 706,
+      "schemaValid": true,
+      "inputTokens": 104,
+      "outputTokens": 6,
+      "costUsd": 0.0000384,
+      "lane": "converse",
+      "caseId": "c1",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "48"
+      },
+      "latencyMs": 460,
+      "schemaValid": true,
+      "inputTokens": 103,
+      "outputTokens": 6,
+      "costUsd": 0.0000381,
+      "lane": "converse",
+      "caseId": "c2",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "true"
+      },
+      "latencyMs": 704,
+      "schemaValid": true,
+      "inputTokens": 102,
+      "outputTokens": 6,
+      "costUsd": 0.0000378,
+      "lane": "converse",
+      "caseId": "c3",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "2000"
+      },
+      "latencyMs": 579,
+      "schemaValid": true,
+      "inputTokens": 114,
+      "outputTokens": 7,
+      "costUsd": 0.0000426,
+      "lane": "converse",
+      "caseId": "c4",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "lunch"
+      },
+      "latencyMs": 408,
+      "schemaValid": true,
+      "inputTokens": 110,
+      "outputTokens": 7,
+      "costUsd": 0.000041400000000000003,
+      "lane": "converse",
+      "caseId": "c5",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "value": "false"
+      },
+      "latencyMs": 607,
+      "schemaValid": true,
+      "inputTokens": 105,
+      "outputTokens": 6,
+      "costUsd": 0.0000387,
+      "lane": "converse",
+      "caseId": "c6",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "kcal_week",
+        "series": [
+          {
+            "label": "Calories",
+            "points": [
+              {
+                "x": "Mon",
+                "y": 1800
+              },
+              {
+                "x": "Tue",
+                "y": 2000
+              },
+              {
+                "x": "Wed",
+                "y": 2200
+              },
+              {
+                "x": "Thu",
+                "y": 1900
+              },
+              {
+                "x": "Fri",
+                "y": 2100
+              },
+              {
+                "x": "Sat",
+                "y": 2000
+              },
+              {
+                "x": "Sun",
+                "y": 2000
+              }
+            ]
+          }
+        ],
+        "unit": "kcal",
+        "caption": "Calories ranged from 1800 kcal on Mon to 2200 kcal on Wed, totaling 14000 kcal over 7 days."
+      },
+      "latencyMs": 846,
+      "schemaValid": true,
+      "inputTokens": 212,
+      "outputTokens": 155,
+      "costUsd": 0.0002496,
+      "lane": "ui_chart",
+      "caseId": "u1",
+      "correct": false
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "macros_today",
+        "series": [
+          {
+            "label": "grams",
+            "points": [
+              {
+                "x": "protein",
+                "y": 140
+              },
+              {
+                "x": "carbs",
+                "y": 230
+              },
+              {
+                "x": "fat",
+                "y": 60
+              }
+            ]
+          }
+        ],
+        "unit": "g",
+        "caption": "Protein 140 g, carbs 230 g, and fat 60 g today."
+      },
+      "latencyMs": 676,
+      "schemaValid": true,
+      "inputTokens": 190,
+      "outputTokens": 90,
+      "costUsd": 0.000165,
+      "lane": "ui_chart",
+      "caseId": "u2",
+      "correct": false
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "W1",
+                "y": 82.1
+              },
+              {
+                "x": "W2",
+                "y": 81.6
+              },
+              {
+                "x": "W3",
+                "y": 81.4
+              },
+              {
+                "x": "W4",
+                "y": 80.9
+              },
+              {
+                "x": "W5",
+                "y": 80.7
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight went from 82.1 kg in W1 to 80.7 kg in W5, with values 82.1, 81.6, 81.4, 80.9, and 80.7."
+      },
+      "latencyMs": 1015,
+      "schemaValid": true,
+      "inputTokens": 214,
+      "outputTokens": 159,
+      "costUsd": 0.00025499999999999996,
+      "lane": "ui_chart",
+      "caseId": "u3",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "09-01",
+                "y": 70.2
+              },
+              {
+                "x": "09-05",
+                "y": 70
+              },
+              {
+                "x": "09-09",
+                "y": 69.8
+              },
+              {
+                "x": "09-13",
+                "y": 69.9
+              },
+              {
+                "x": "09-17",
+                "y": 69.5
+              },
+              {
+                "x": "09-21",
+                "y": 69.4
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight went from 70.2 kg on 09-01 to 69.4 kg on 09-21, with a high of 70.2 and a low of 69.4."
+      },
+      "latencyMs": 1187,
+      "schemaValid": true,
+      "inputTokens": 227,
+      "outputTokens": 171,
+      "costUsd": 0.0002733,
+      "lane": "ui_chart",
+      "caseId": "u4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "kcal_week",
+        "series": [
+          {
+            "label": "Calories",
+            "points": [
+              {
+                "x": "Mon",
+                "y": 1800
+              },
+              {
+                "x": "Tue",
+                "y": 2000
+              },
+              {
+                "x": "Wed",
+                "y": 2200
+              },
+              {
+                "x": "Thu",
+                "y": 1900
+              },
+              {
+                "x": "Fri",
+                "y": 2100
+              },
+              {
+                "x": "Sat",
+                "y": 2000
+              },
+              {
+                "x": "Sun",
+                "y": 2000
+              }
+            ]
+          }
+        ],
+        "unit": "kcal",
+        "caption": "Calories recorded are 1800, 2000, 2200, 1900, 2100, 2000, and 2000."
+      },
+      "latencyMs": 1393,
+      "schemaValid": true,
+      "inputTokens": 204,
+      "outputTokens": 224,
+      "costUsd": 0.000993,
+      "lane": "ui_chart",
+      "caseId": "u1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "macros_today",
+        "series": [
+          {
+            "label": "Macronutrients",
+            "points": [
+              {
+                "x": "protein",
+                "y": 140
+              },
+              {
+                "x": "carbs",
+                "y": 230
+              },
+              {
+                "x": "fat",
+                "y": 60
+              }
+            ]
+          }
+        ],
+        "unit": "g",
+        "caption": "Today's intake includes 140 g of protein, 230 g of carbs, and 60 g of fat."
+      },
+      "latencyMs": 1030,
+      "schemaValid": true,
+      "inputTokens": 173,
+      "outputTokens": 138,
+      "costUsd": 0.0006472499999999999,
+      "lane": "ui_chart",
+      "caseId": "u2",
+      "correct": false
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "W1",
+                "y": 82.1
+              },
+              {
+                "x": "W2",
+                "y": 81.6
+              },
+              {
+                "x": "W3",
+                "y": 81.4
+              },
+              {
+                "x": "W4",
+                "y": 80.9
+              },
+              {
+                "x": "W5",
+                "y": 80.7
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight recorded at 82.1 kg in W1, 81.6 kg in W2, 81.4 kg in W3, 80.9 kg in W4, and 80.7 kg in W5."
+      },
+      "latencyMs": 1118,
+      "schemaValid": true,
+      "inputTokens": 196,
+      "outputTokens": 203,
+      "costUsd": 0.00090825,
+      "lane": "ui_chart",
+      "caseId": "u3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "09-01",
+                "y": 70.2
+              },
+              {
+                "x": "09-05",
+                "y": 70
+              },
+              {
+                "x": "09-09",
+                "y": 69.8
+              },
+              {
+                "x": "09-13",
+                "y": 69.9
+              },
+              {
+                "x": "09-17",
+                "y": 69.5
+              },
+              {
+                "x": "09-21",
+                "y": 69.4
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight recorded at 70.2, 70, 69.8, 69.9, 69.5, and 69.4 kg."
+      },
+      "latencyMs": 1429,
+      "schemaValid": true,
+      "inputTokens": 224,
+      "outputTokens": 222,
+      "costUsd": 0.0010005,
+      "lane": "ui_chart",
+      "caseId": "u4",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "kcal_week",
+        "series": [
+          {
+            "label": "Calories",
+            "points": [
+              {
+                "x": "Mon",
+                "y": 1800
+              },
+              {
+                "x": "Tue",
+                "y": 2000
+              },
+              {
+                "x": "Wed",
+                "y": 2200
+              },
+              {
+                "x": "Thu",
+                "y": 1900
+              },
+              {
+                "x": "Fri",
+                "y": 2100
+              },
+              {
+                "x": "Sat",
+                "y": 2000
+              },
+              {
+                "x": "Sun",
+                "y": 2000
+              }
+            ]
+          }
+        ],
+        "unit": "kcal",
+        "caption": "Calories ranged from 1800 kcal on Mon to 2200 kcal on Wed, totaling 14000 kcal over 7 days."
+      },
+      "latencyMs": 1090,
+      "schemaValid": true,
+      "inputTokens": 212,
+      "outputTokens": 155,
+      "costUsd": 0.0002496,
+      "lane": "ui_chart",
+      "caseId": "u1",
+      "correct": false
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "macros_today",
+        "series": [
+          {
+            "label": "Macros",
+            "points": [
+              {
+                "x": "protein",
+                "y": 140
+              },
+              {
+                "x": "carbs",
+                "y": 230
+              },
+              {
+                "x": "fat",
+                "y": 60
+              }
+            ]
+          }
+        ],
+        "unit": "g",
+        "caption": "Today's macros: protein 140 g, carbs 230 g, fat 60 g."
+      },
+      "latencyMs": 824,
+      "schemaValid": true,
+      "inputTokens": 190,
+      "outputTokens": 93,
+      "costUsd": 0.00016859999999999998,
+      "lane": "ui_chart",
+      "caseId": "u2",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "W1",
+                "y": 82.1
+              },
+              {
+                "x": "W2",
+                "y": 81.6
+              },
+              {
+                "x": "W3",
+                "y": 81.4
+              },
+              {
+                "x": "W4",
+                "y": 80.9
+              },
+              {
+                "x": "W5",
+                "y": 80.7
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight went from 82.1 kg in W1 to 80.7 kg in W5."
+      },
+      "latencyMs": 757,
+      "schemaValid": true,
+      "inputTokens": 214,
+      "outputTokens": 131,
+      "costUsd": 0.00022140000000000001,
+      "lane": "ui_chart",
+      "caseId": "u3",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "09-01",
+                "y": 70.2
+              },
+              {
+                "x": "09-05",
+                "y": 70
+              },
+              {
+                "x": "09-09",
+                "y": 69.8
+              },
+              {
+                "x": "09-13",
+                "y": 69.9
+              },
+              {
+                "x": "09-17",
+                "y": 69.5
+              },
+              {
+                "x": "09-21",
+                "y": 69.4
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight went from 70.2 kg on 09-01 to 69.4 kg on 09-21."
+      },
+      "latencyMs": 958,
+      "schemaValid": true,
+      "inputTokens": 227,
+      "outputTokens": 154,
+      "costUsd": 0.00025289999999999997,
+      "lane": "ui_chart",
+      "caseId": "u4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "kcal_week",
+        "series": [
+          {
+            "label": "Calories",
+            "points": [
+              {
+                "x": "Mon",
+                "y": 1800
+              },
+              {
+                "x": "Tue",
+                "y": 2000
+              },
+              {
+                "x": "Wed",
+                "y": 2200
+              },
+              {
+                "x": "Thu",
+                "y": 1900
+              },
+              {
+                "x": "Fri",
+                "y": 2100
+              },
+              {
+                "x": "Sat",
+                "y": 2000
+              },
+              {
+                "x": "Sun",
+                "y": 2000
+              }
+            ]
+          }
+        ],
+        "unit": "kcal",
+        "caption": "Calories recorded are 1800, 2000, 2200, 1900, 2100, 2000, and 2000."
+      },
+      "latencyMs": 1155,
+      "schemaValid": true,
+      "inputTokens": 204,
+      "outputTokens": 224,
+      "costUsd": 0.000993,
+      "lane": "ui_chart",
+      "caseId": "u1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "macros_today",
+        "series": [
+          {
+            "label": "Grams",
+            "points": [
+              {
+                "x": "protein",
+                "y": 140
+              },
+              {
+                "x": "carbs",
+                "y": 230
+              },
+              {
+                "x": "fat",
+                "y": 60
+              }
+            ]
+          }
+        ],
+        "unit": "g",
+        "caption": "Today's macros consist of 140, 230, and 60."
+      },
+      "latencyMs": 1155,
+      "schemaValid": true,
+      "inputTokens": 173,
+      "outputTokens": 150,
+      "costUsd": 0.0006922499999999999,
+      "lane": "ui_chart",
+      "caseId": "u2",
+      "correct": false
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "W1",
+                "y": 82.1
+              },
+              {
+                "x": "W2",
+                "y": 81.6
+              },
+              {
+                "x": "W3",
+                "y": 81.4
+              },
+              {
+                "x": "W4",
+                "y": 80.9
+              },
+              {
+                "x": "W5",
+                "y": 80.7
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Weight decreased from 82.1 kg in W1 to 80.7 kg in W5, with measurements of 81.6 kg, 81.4 kg, and 80.9 kg in between."
+      },
+      "latencyMs": 1311,
+      "schemaValid": true,
+      "inputTokens": 196,
+      "outputTokens": 133,
+      "costUsd": 0.0006457500000000001,
+      "lane": "ui_chart",
+      "caseId": "u3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "09-01",
+                "y": 70.2
+              },
+              {
+                "x": "09-05",
+                "y": 70
+              },
+              {
+                "x": "09-09",
+                "y": 69.8
+              },
+              {
+                "x": "09-13",
+                "y": 69.9
+              },
+              {
+                "x": "09-17",
+                "y": 69.5
+              },
+              {
+                "x": "09-21",
+                "y": 69.4
+              }
+            ]
+          }
+        ],
+        "unit": "kg",
+        "caption": "Recorded values are 70.2, 70, 69.8, 69.9, 69.5, and 69.4."
+      },
+      "latencyMs": 1187,
+      "schemaValid": true,
+      "inputTokens": 224,
+      "outputTokens": 149,
+      "costUsd": 0.00072675,
+      "lane": "ui_chart",
+      "caseId": "u4",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "options": [
+          "breakfast",
+          "lunch",
+          "dinner"
+        ]
+      },
+      "latencyMs": 958,
+      "schemaValid": true,
+      "inputTokens": 85,
+      "outputTokens": 14,
+      "costUsd": 0.0000423,
+      "lane": "ui_replies",
+      "caseId": "r1",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "options": [
+          "meal 1",
+          "meal 2"
+        ]
+      },
+      "latencyMs": 507,
+      "schemaValid": true,
+      "inputTokens": 84,
+      "outputTokens": 13,
+      "costUsd": 0.0000408,
+      "lane": "ui_replies",
+      "caseId": "r2",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "options": [
+          "1 cup",
+          "2 cups",
+          "a bottle"
+        ]
+      },
+      "latencyMs": 644,
+      "schemaValid": true,
+      "inputTokens": 86,
+      "outputTokens": 14,
+      "costUsd": 0.0000426,
+      "lane": "ui_replies",
+      "caseId": "r3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "options": [
+          "breakfast",
+          "lunch",
+          "dinner"
+        ]
+      },
+      "latencyMs": 767,
+      "schemaValid": true,
+      "inputTokens": 61,
+      "outputTokens": 27,
+      "costUsd": 0.000147,
+      "lane": "ui_replies",
+      "caseId": "r1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "options": [
+          "meal 1",
+          "meal 2"
+        ]
+      },
+      "latencyMs": 718,
+      "schemaValid": true,
+      "inputTokens": 63,
+      "outputTokens": 26,
+      "costUsd": 0.00014475,
+      "lane": "ui_replies",
+      "caseId": "r2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "options": [
+          "1 cup",
+          "2 cups",
+          "a bottle"
+        ]
+      },
+      "latencyMs": 737,
+      "schemaValid": true,
+      "inputTokens": 65,
+      "outputTokens": 12,
+      "costUsd": 0.00009375,
+      "lane": "ui_replies",
+      "caseId": "r3",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "options": [
+          "breakfast",
+          "lunch",
+          "dinner"
+        ]
+      },
+      "latencyMs": 735,
+      "schemaValid": true,
+      "inputTokens": 85,
+      "outputTokens": 14,
+      "costUsd": 0.0000423,
+      "lane": "ui_replies",
+      "caseId": "r1",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "options": [
+          "meal 1",
+          "meal 2"
+        ]
+      },
+      "latencyMs": 647,
+      "schemaValid": true,
+      "inputTokens": 84,
+      "outputTokens": 14,
+      "costUsd": 0.000042,
+      "lane": "ui_replies",
+      "caseId": "r2",
+      "correct": true
+    },
+    {
+      "model": "deepseek-flash",
+      "value": {
+        "options": [
+          "1 cup",
+          "2 cups",
+          "a bottle"
+        ]
+      },
+      "latencyMs": 715,
+      "schemaValid": true,
+      "inputTokens": 86,
+      "outputTokens": 14,
+      "costUsd": 0.0000426,
+      "lane": "ui_replies",
+      "caseId": "r3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "options": [
+          "breakfast",
+          "lunch",
+          "dinner"
+        ]
+      },
+      "latencyMs": 732,
+      "schemaValid": true,
+      "inputTokens": 61,
+      "outputTokens": 9,
+      "costUsd": 0.00007950000000000001,
+      "lane": "ui_replies",
+      "caseId": "r1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "options": [
+          "meal 1",
+          "meal 2"
+        ]
+      },
+      "latencyMs": 884,
+      "schemaValid": true,
+      "inputTokens": 63,
+      "outputTokens": 26,
+      "costUsd": 0.00014475,
+      "lane": "ui_replies",
+      "caseId": "r2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "options": [
+          "1 cup",
+          "2 cups",
+          "a bottle"
+        ]
+      },
+      "latencyMs": 920,
+      "schemaValid": true,
+      "inputTokens": 65,
+      "outputTokens": 12,
+      "costUsd": 0.00009375,
+      "lane": "ui_replies",
+      "caseId": "r3",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "eggs",
+            "grams": 100,
+            "qty": 2,
+            "unit": "whole",
+            "confidence": 0.9
+          },
+          {
+            "label": "toast",
+            "grams": 30,
+            "qty": 1,
+            "unit": "slice",
+            "confidence": 0.85
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1340,
+      "schemaValid": true,
+      "inputTokens": 262,
+      "outputTokens": 116,
+      "costUsd": 0.0006315,
+      "lane": "capture_text",
+      "caseId": "k1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "oatmeal",
+            "grams": 240,
+            "qty": 1,
+            "unit": "cup",
+            "confidence": 0.8
+          },
+          {
+            "label": "blueberries",
+            "grams": 75,
+            "qty": 0.5,
+            "unit": "cup",
+            "confidence": 0.7
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 4292,
+      "schemaValid": true,
+      "inputTokens": 261,
+      "outputTokens": 120,
+      "costUsd": 0.0006457500000000001,
+      "lane": "capture_text",
+      "caseId": "k2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": null,
+      "latencyMs": 4993,
+      "schemaValid": false,
+      "inputTokens": 801,
+      "outputTokens": 304,
+      "costUsd": 0.00174075,
+      "errorCode": "schema_invalid",
+      "lane": "capture_text",
+      "caseId": "k3",
+      "correct": false
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "banana",
+            "grams": 118,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.95
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1206,
+      "schemaValid": true,
+      "inputTokens": 257,
+      "outputTokens": 68,
+      "costUsd": 0.00044775,
+      "lane": "capture_text",
+      "caseId": "k4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "greek yogurt",
+            "grams": 170,
+            "qty": 1,
+            "unit": "cup",
+            "confidence": 0.5
+          },
+          {
+            "label": "honey",
+            "grams": 21,
+            "qty": 1,
+            "unit": "tbsp",
+            "confidence": 0.7
+          },
+          {
+            "label": "walnuts",
+            "grams": 28,
+            "qty": 1,
+            "unit": "oz",
+            "confidence": 0.5
+          }
+        ],
+        "notes": [
+          "Assumed a typical serving for greek yogurt and walnuts due to unspecified amounts."
+        ]
+      },
+      "latencyMs": 1484,
+      "schemaValid": true,
+      "inputTokens": 265,
+      "outputTokens": 187,
+      "costUsd": 0.0009,
+      "lane": "capture_text",
+      "caseId": "k5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "tuna salad sandwich",
+            "grams": 220,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.55
+          }
+        ],
+        "notes": [
+          "Specific bread type and tuna salad recipe unknown."
+        ]
+      },
+      "latencyMs": 1329,
+      "schemaValid": true,
+      "inputTokens": 259,
+      "outputTokens": 86,
+      "costUsd": 0.0005167500000000001,
+      "lane": "capture_text",
+      "caseId": "k6",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "eggs",
+            "grams": 100,
+            "qty": 2,
+            "unit": "whole",
+            "confidence": 0.9
+          },
+          {
+            "label": "toast",
+            "grams": 30,
+            "qty": 1,
+            "unit": "slice",
+            "confidence": 0.85
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1432,
+      "schemaValid": true,
+      "inputTokens": 262,
+      "outputTokens": 55,
+      "costUsd": 0.00040275,
+      "lane": "capture_text",
+      "caseId": "k1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "oatmeal",
+            "grams": 234,
+            "qty": 1,
+            "unit": "cup",
+            "confidence": 0.75
+          },
+          {
+            "label": "blueberries",
+            "grams": 50,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.65
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 2532,
+      "schemaValid": true,
+      "inputTokens": 261,
+      "outputTokens": 120,
+      "costUsd": 0.0006457500000000001,
+      "lane": "capture_text",
+      "caseId": "k2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": null,
+      "latencyMs": 6797,
+      "schemaValid": false,
+      "inputTokens": 801,
+      "outputTokens": 364,
+      "costUsd": 0.00196575,
+      "errorCode": "schema_invalid",
+      "lane": "capture_text",
+      "caseId": "k3",
+      "correct": false
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "banana",
+            "grams": 118,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.9
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1701,
+      "schemaValid": true,
+      "inputTokens": 257,
+      "outputTokens": 31,
+      "costUsd": 0.00030900000000000003,
+      "lane": "capture_text",
+      "caseId": "k4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "greek yogurt",
+            "grams": 170,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.6
+          },
+          {
+            "label": "honey",
+            "grams": 21,
+            "qty": 1,
+            "unit": "tbsp",
+            "confidence": 0.85
+          },
+          {
+            "label": "walnuts",
+            "grams": 15,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.5
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 2645,
+      "schemaValid": true,
+      "inputTokens": 265,
+      "outputTokens": 167,
+      "costUsd": 0.000825,
+      "lane": "capture_text",
+      "caseId": "k5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "tuna salad sandwich",
+            "grams": 200,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.8
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1894,
+      "schemaValid": true,
+      "inputTokens": 259,
+      "outputTokens": 70,
+      "costUsd": 0.00045675,
+      "lane": "capture_text",
+      "caseId": "k6",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "eggs",
+            "grams": 100,
+            "qty": 2,
+            "unit": "whole",
+            "confidence": 0.95
+          },
+          {
+            "label": "toast",
+            "grams": 30,
+            "qty": 1,
+            "unit": "slice",
+            "confidence": 0.9
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1424,
+      "schemaValid": true,
+      "inputTokens": 262,
+      "outputTokens": 116,
+      "costUsd": 0.0006315,
+      "lane": "capture_text",
+      "caseId": "k1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "oatmeal",
+            "grams": 240,
+            "qty": 1,
+            "unit": "cup",
+            "confidence": 0.8
+          },
+          {
+            "label": "blueberries",
+            "grams": 50,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.7
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1362,
+      "schemaValid": true,
+      "inputTokens": 261,
+      "outputTokens": 118,
+      "costUsd": 0.0006382499999999999,
+      "lane": "capture_text",
+      "caseId": "k2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": null,
+      "latencyMs": 5015,
+      "schemaValid": false,
+      "inputTokens": 801,
+      "outputTokens": 304,
+      "costUsd": 0.00174075,
+      "errorCode": "schema_invalid",
+      "lane": "capture_text",
+      "caseId": "k3",
+      "correct": false
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "banana",
+            "grams": 118,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.9
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1321,
+      "schemaValid": true,
+      "inputTokens": 257,
+      "outputTokens": 31,
+      "costUsd": 0.00030900000000000003,
+      "lane": "capture_text",
+      "caseId": "k4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "greek yogurt",
+            "grams": 170,
+            "qty": 1,
+            "unit": "cup",
+            "confidence": 0.7
+          },
+          {
+            "label": "honey",
+            "grams": 21,
+            "qty": 1,
+            "unit": "tbsp",
+            "confidence": 0.8
+          },
+          {
+            "label": "walnuts",
+            "grams": 15,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.5
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1435,
+      "schemaValid": true,
+      "inputTokens": 265,
+      "outputTokens": 166,
+      "costUsd": 0.0008212499999999999,
+      "lane": "capture_text",
+      "caseId": "k5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "value": {
+        "items": [
+          {
+            "label": "bread",
+            "grams": 60,
+            "qty": 2,
+            "unit": "slice",
+            "confidence": 0.7
+          },
+          {
+            "label": "tuna salad",
+            "grams": 100,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.5
+          }
+        ],
+        "notes": [
+          "Assumed standard sandwich with two slices of bread and tuna salad filling."
+        ]
+      },
+      "latencyMs": 1378,
+      "schemaValid": true,
+      "inputTokens": 259,
+      "outputTokens": 137,
+      "costUsd": 0.000708,
+      "lane": "capture_text",
+      "caseId": "k6",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "eggs",
+            "grams": 100,
+            "qty": 2,
+            "unit": "whole",
+            "confidence": 0.9
+          },
+          {
+            "label": "slice of toast",
+            "grams": 30,
+            "qty": 1,
+            "unit": "slice",
+            "confidence": 0.9
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 2266,
+      "schemaValid": true,
+      "inputTokens": 262,
+      "outputTokens": 117,
+      "costUsd": 0.00063525,
+      "lane": "capture_text",
+      "caseId": "k1",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "oatmeal",
+            "grams": 234,
+            "qty": 1,
+            "unit": "cup",
+            "confidence": 0.7
+          },
+          {
+            "label": "blueberries",
+            "grams": 74,
+            "qty": 0.5,
+            "unit": "cup",
+            "confidence": 0.6
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 2389,
+      "schemaValid": true,
+      "inputTokens": 261,
+      "outputTokens": 126,
+      "costUsd": 0.00066825,
+      "lane": "capture_text",
+      "caseId": "k2",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": null,
+      "latencyMs": 6206,
+      "schemaValid": false,
+      "inputTokens": 801,
+      "outputTokens": 242,
+      "costUsd": 0.00150825,
+      "errorCode": "schema_invalid",
+      "lane": "capture_text",
+      "caseId": "k3",
+      "correct": false
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "banana",
+            "grams": 118,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.9
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 2121,
+      "schemaValid": true,
+      "inputTokens": 257,
+      "outputTokens": 31,
+      "costUsd": 0.00030900000000000003,
+      "lane": "capture_text",
+      "caseId": "k4",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "greek yogurt",
+            "grams": 170,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.55
+          },
+          {
+            "label": "spoon of honey",
+            "grams": 21,
+            "qty": 1,
+            "unit": "tbsp",
+            "confidence": 0.8
+          },
+          {
+            "label": "some walnuts",
+            "grams": 28,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.5
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 2399,
+      "schemaValid": true,
+      "inputTokens": 265,
+      "outputTokens": 83,
+      "costUsd": 0.00051,
+      "lane": "capture_text",
+      "caseId": "k5",
+      "correct": true
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "value": {
+        "items": [
+          {
+            "label": "tuna salad sandwich",
+            "grams": 200,
+            "qty": 1,
+            "unit": "whole",
+            "confidence": 0.75
+          }
+        ],
+        "notes": []
+      },
+      "latencyMs": 1999,
+      "schemaValid": true,
+      "inputTokens": 259,
+      "outputTokens": 35,
+      "costUsd": 0.0003255,
+      "lane": "capture_text",
+      "caseId": "k6",
+      "correct": true
+    }
+  ]
+}

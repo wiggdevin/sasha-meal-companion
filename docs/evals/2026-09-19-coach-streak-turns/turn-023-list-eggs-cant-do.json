@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-10-03T20:48:49.106Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 23,
+  "case": {
+    "id": "list-eggs-cant-do",
+    "category": "list_edit",
+    "sentence": "I can't do eggs anymore",
+    "expected_path": "either",
+    "note": "argument-confidence rule: implicit list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 15352,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.02,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_avoid]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 15352 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.02"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I could not answer that one. Ask me again, more specifically.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "1ee0bf9d-c974-49f3-b400-10e54f62fae3",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 540,
+      "model": 13345,
+      "ground": 656
+    },
+    "messages": [
+      {
+        "id": "1bfb1ee3-e3f8-4d38-a4c4-1e8e8352123f",
+        "role": "user",
+        "content": "I can't do eggs anymore",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "1d6c00ce-918f-466f-a84c-db025e70518d",
+        "role": "assistant",
+        "content": "I could not answer that one. Ask me again, more specifically.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

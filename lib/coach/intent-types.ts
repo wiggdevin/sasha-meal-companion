@@ -1,0 +1,15 @@
+export type Intent =
+  | "shift_schedule"
+  | "log_food"
+  | "plan_meal"
+  | "suggest_options"
+  | "add_to_eats"
+  | "add_to_avoid"
+  | "remove_from_eats"
+  | "remove_from_avoid"
+  | "log_water"
+  | "log_weight"
+  | "update_profile"
+  | "set_targets"
+  | "question"
+  | "other";

@@ -1,0 +1,220 @@
+[
+  {
+    "id": "A01",
+    "requirements": [
+      "Edit diet style and exclusions freely from the card; review and confirm explicitly, with Cancel preserving values.",
+      "Persist validated account-owned values used by the user and coach; reload and suggestions reflect the change without changing another account."
+    ],
+    "evidence": [
+      "root-live-evidence.md: synthetic mobile account selected Vegetarian, reviewed, cancelled with no change, then confirmed and reloaded with Vegetarian retained; later confirmed removal restored neutral.",
+      "tests/foods/diet-client.test.ts: shared user_settings outbox, persisted reread, queued-write refusal, stale revision and account-switch cases. tests/foods/diet-route.test.ts: authenticated owner read and no second direct settings writer.",
+      "lib/server/policy-profile.ts and lib/server/dietary-profiles.ts read account-derived dietary rules for the coach; rules-report.md records the source path."
+    ],
+    "remaining": [
+      "No recorded before/after suggestion output under the confirmed Vegetarian flag. Owner isolation is tested at API/outbox boundaries, not by a second browser account."
+    ]
+  },
+  {
+    "id": "A02",
+    "requirements": [
+      "Use an accessible, high-contrast, scrollable glass selector for cooking effort.",
+      "Support touch, keyboard, selected value, focus and screen-reader labels."
+    ],
+    "evidence": [
+      "components/ui/GlassSelect.tsx and GlassSelect.module.css implement the shared listbox; components/RecipeDiscovery.tsx uses it for effort.",
+      "components/ui/GlassSelect.test.tsx: labelled click/touch selection, exact form value, Arrow/Enter/Escape, disabled choices, dialog portal and focus.",
+      "root-live-evidence.md: mobile popup visible; ArrowDown/Enter changed Any to No cooking and returned focus, Escape closed it, 390 px viewport had no horizontal overflow. selector-mobile.png and gemini-visual-review-final.md inspect its pictured contrast and layout."
+    ],
+    "remaining": [
+      "No physical touch-device or VoiceOver narration recording; DOM interaction and ARIA tests are the available functional evidence."
+    ]
+  },
+  {
+    "id": "A03",
+    "requirements": [
+      "Keep cuisine, max minutes and effort compact; at mobile width minutes and effort share a row.",
+      "Avoid clipped text, overflow and undersized tap targets."
+    ],
+    "evidence": [
+      "components/RecipeDiscovery.tsx: cuisine spans the two-column mobile grid; max minutes and GlassSelect effort occupy its next row, with min-h-11 controls.",
+      "root-live-evidence.md and recipes-results-final-mobile.png: 390 px mobile layout displayed those fields and results, with measured document width 390/viewport 390. gemini-visual-review-final.md found no clipping in the pictured layout."
+    ],
+    "remaining": []
+  },
+  {
+    "id": "A04",
+    "requirements": [
+      "Edit a food in its tap sheet, confirm saved feedback and retain changes on reload.",
+      "Reveal remove/clear on left swipe with an accessible explicit button; membership removal must not delete shared catalog data or consumed history."
+    ],
+    "evidence": [
+      "root-live-evidence.md: Black beans note saved, reloaded, reopened, later explicitly cleared and verified absent after reload; existing Avoid note edit no longer opened a second impact dialog.",
+      "components/MyFoods.tsx FoodRow has left-swipe reveal plus labelled Remove button; FoodSheet.tsx has explicit Save changes. tests/foods/food-sheet-save.test.tsx covers save/failure drafts and tests/foods/food-edits-sync.test.ts covers revision-bound group/nutrition and stale-note handling.",
+      "note-migration-local-proof.txt: local clone and working DB guarded note clear, stale CAS, legacy replay fence, cross-owner refusal. foods-ui-report.md records neutral membership removal without catalog or log deletion."
+    ],
+    "remaining": [
+      "No recorded live left-swipe/remove then reload journey or cross-device group/nutrition reload. The source and focused tests cover those paths without destructive history writes."
+    ]
+  },
+  {
+    "id": "A05",
+    "requirements": [
+      "Every usual-food category has a thin full-width centered Add footer, including empty cards.",
+      "Add opens the proper food flow and assigns the selected category."
+    ],
+    "evidence": [
+      "components/MyFoods.tsx renders the same Add footer for protein, carb, fat and Other role groups, including empty-state groups; Add supplies the selected role to AddFoodSheet.",
+      "tests/cards/foods.test.tsx covers empty role cards and role placement; root-live-evidence.md used Add Protein, selected Black beans and reloaded it in the protein group. foods-ui-report.md describes the shared footer flow."
+    ],
+    "remaining": [
+      "The browser record exercises Protein only; no saved browser result is recorded for Carb, Fat, Other or an empty category."
+    ]
+  },
+  {
+    "id": "A06",
+    "requirements": [
+      "Put discovery at the start of Recipes below usual foods, not above Favorites.",
+      "Place an accessible search icon inside the input's far-right edge and submit on Enter."
+    ],
+    "evidence": [
+      "components/RecipesSection.tsx groups discovery, filters and saved recipes; components/RecipeDiscovery.tsx renders a labelled submit button inside the input well and a form onSubmit path for Enter.",
+      "root-live-evidence.md and recipes-results-final-mobile.png: mobile placement/icon and successful American/15-minute/Any search results. recipes-placement-mobile.png records section placement."
+    ],
+    "remaining": [
+      "The saved browser transcript submits Search by tap; Enter submission follows the form source but was not separately observed in the browser."
+    ]
+  },
+  {
+    "id": "A07",
+    "requirements": [
+      "A separate New recipe action opens the existing creation sequence; search, filters and saved recipes stay together.",
+      "Account-owned recipes can be stored, edited and deleted while catalog originals remain immutable."
+    ],
+    "evidence": [
+      "root-live-evidence.md: synthetic account created QA recipe lifecycle version 1, reloaded, renamed/saved version 2, saw favorite state, confirmed Remove recipe and reloaded to Nothing saved yet.",
+      "components/RecipesSection.tsx keeps New recipe and discovery in Recipes. tests/recipes/recipes-client.test.ts covers create/update, tombstone delete and revision conflict; tests/recipe-catalog/local-integration.test.ts covers authenticated inability to edit published catalog content and sealed revisions."
+    ],
+    "remaining": []
+  },
+  {
+    "id": "A08",
+    "requirements": [
+      "Add, persist, edit and remove free-text rules.",
+      "Enforce supported ingredient/cuisine exclusions consistently in recommendations; identify unsupported or ambiguous guidance without a false safety promise."
+    ],
+    "evidence": [
+      "root-live-evidence.md: synthetic account added garlic as Guidance, edited it to Ingredient, reloaded it, removed it and reloaded the empty state. custom-rules-owner-db-proof.txt verified one owner's row visible/updateable and a second existing owner's row invisible/unwriteable.",
+      "migration-final-grants-proof.txt and migration-hardened-local-proof.txt cover local column privileges, validation and guarded rollback. lib/policy/custom-rules.ts treats unsupported guidance separately and parseCustomRules fails closed for malformed stored data.",
+      "tests/recipe-catalog/catalog-ingredient-policy.test.ts: peanut hidden in mapped sauce blocks; missing composite subingredients remain unverified. recipe-repair-local-proof.md records exact mapped public ingredients and no fabricated label completeness."
+    ],
+    "remaining": [
+      "No end-to-end exercise shows the same saved ingredient/cuisine rule across every suggestion, recipe search, plan accept and remix surface. Unknown composite ingredient evidence remains deliberately unverified."
+    ]
+  },
+  {
+    "id": "A09",
+    "requirements": [
+      "Save conditions through an explicit submit icon and Enter, not blur; preserve draft and show error on failure.",
+      "Show brief success glow, visual fallback and reduced-motion behavior, with an approximately two-second haptic pattern where supported."
+    ],
+    "evidence": [
+      "root-live-evidence.md: Save conditions persisted a synthetic condition after reload; Enter cleared it, showed Saved and DB confirmed empty; an earlier failed save kept its draft and failure toast. conditions-saved-mobile.png and conditions-toast-clear-mobile.png show visible feedback without assistant-button overlap.",
+      "components/AvoidRules.tsx uses explicit Save conditions and Enter handler; components/ui/ActionFeedback.tsx uses 2,000 ms commit state, visual fallback and reduced motion. lib/haptics.test.ts verifies the success pattern totals 2,000 ms.",
+      "Final source includes existing SendGlyph inside Save conditions control, preserving aria-label, text, state and Enter/shared feedback; scoped lint/type/diff passed."
+    ],
+    "remaining": [
+      "No physical vibration waveform measurement was possible in the browser. Haptics are best effort only where supported; this is a capability limit, not an added device gate."
+    ]
+  },
+  {
+    "id": "A10",
+    "requirements": [
+      "Repair the bean/empty Avoid search through data or API behavior, including semantic aliases, partial names and typo-tolerant useful matches.",
+      "Selecting a result persists in Avoids, survives reload, affects suggestions and stays account-isolated."
+    ],
+    "evidence": [
+      "root-live-evidence.md: reproduced empty built-in bean fallback, then Black/navy/pinto/refried/green bean results; selected Black beans, reloaded it and moved it to Avoid with note retained.",
+      "tests/foods/add-food-bundled-fallback.test.tsx covers fallback, adopting a built-in bean directly into Avoid, actionable error and stale-account search suppression. lib/catalog-client.ts uses existing catalog synonym/trigram search and the bundled FoodDB fallback; foods-ui-report.md records the account-owned adoption path."
+    ],
+    "remaining": [
+      "No recorded representative alias, partial-name and typo corpus in the browser, before/after suggestion output, or second-account saved Avoid inspection."
+    ]
+  },
+  {
+    "id": "A11",
+    "requirements": [
+      "Show Avoids first with Add footer; distinguish ingredient from cuisine checks and scan saved future meals without calling blocked candidates safe.",
+      "Show per-avoid affected counts and instance details, honestly marking incomplete scans.",
+      "Support accessible Edit, Remove and Remix actions with left/right gestures; targeted Ask Sasha suggestions; inline conflict settings; preserve consumed history."
+    ],
+    "evidence": [
+      "root-live-evidence.md: actual ingredient impact check found 12+ future banana instances and opened exact dated modal; confirmed Remove of Sep28 meal3 reduced count to 11+; Remix Sep29 meal3 offered eligible Lemon chicken, opened portion editor at the same date/slot, accepted approximate 1.03 servings and reduced count to 10+.",
+      "root-live-evidence.md: Ask Sasha POST200 carried selected date:meal keys and returned an honest no-verified-option/unsaved-exclusion response without changing the plan; Edit food settings here exposed diet, rules, custom rules and Conditions inside modal.",
+      "app/api/foods/avoid-impact/route.ts scopes reads to owner, excludes eaten and superseded slots, and marks opaque snapshots/swaps as incomplete. tests/foods/avoid-impact-route.test.ts covers matching aliases, null catalog ID, swapped selections, lower bounds and consumed exclusion; shopping-history-local-proof.md separately proves a real DB stale consumed write/undo race.",
+      "components/AvoidImpact.tsx offers explicit buttons and guarded swipe thresholds; rules-report.md records focused gesture/route tests and in-modal error placement. RecipePlanFlow provides explicit portion preview/accept rather than auto-changing the plan.",
+      "Final root browser Ask Sasha HTTP200 after shared candidate grounding: displayed per-selected-date/slot verified recipe options with Review buttons; assistant named Lemon chicken and Salmon without banana. Existing portion flow requires explicit accept. Errors/notices now inside modal; direction-aware touch guard tested. Inline food settings opened without navigation."
+    ],
+    "remaining": [
+      "The observed 12+/11+/10+ are honest lower bounds because some saved ingredients are opaque, not exact counts. A live swipe or Edit-original-recipe action was not recorded, though explicit buttons and route/source guards exist. The real DB consumed race and mocked Avoid scan are separate, not a single simultaneous Avoid/consume test."
+    ]
+  },
+  {
+    "id": "A12",
+    "requirements": [
+      "Allow shopping plan/save without location or currency; keep area optional and request browser location only after direct tap.",
+      "Offer real single/multiple nearby store selection and sourced fresh local prices only if a usable provider exists; never invent quotes or exact bills.",
+      "If unavailable, explain the blocker and retain useful preferences."
+    ],
+    "evidence": [
+      "root-live-evidence.md and shopping-manual-browser.json: blank list saved, edited and reopened without budget, location or currency. A later generated seven-day shop accepted while price and package amounts remained explicitly unknown.",
+      "tests/shopping/ui.test.tsx covers optional area/currency and getCurrentPosition only after a tap; tests/shopping/root.test.tsx covers account-keyed area/store notes. components/ShoppingControls.tsx labels store notes as device-only and states nearby search/prices unavailable.",
+      "shopping-report.md documents no approved licensed store-search/product-price provider, SKU mapping, freshness pipeline or usable credential contract; no fabricated stores or quotes are displayed."
+    ],
+    "remaining": [
+      "Nearby store selection and actual local price quotes are blocked by the absent approved provider/data contract. This is an external dependency, not evidence of completed store/pricing capability."
+    ]
+  },
+  {
+    "id": "A13",
+    "requirements": [
+      "Inventory dropdowns and use the shared glass selector across the app without changing option semantics.",
+      "Check touch, keyboard, contrast, portal/overflow, disabled/error and responsive states."
+    ],
+    "evidence": [
+      "Source inventory finds GlassSelect in RecipeDiscovery, ShoppingIngredientPicker, ShoppingRoot/Controls, RecipePlanFlow, FoodSheet, BodyProfileFields/BodyFatSourceField, GoalRateField and settings Profile/Targets; components/ui/index.ts exports it.",
+      "components/ui/GlassSelect.test.tsx covers labelled selection, form value, Arrow/Enter/Escape, disabled choices and dialog portal. root-live-evidence.md tested cooking effort keyboard/focus and 390 px no-overflow; gemini-visual-review-final.md inspected pictured contrast."
+    ],
+    "remaining": [
+      "No exhaustive app-wide browser/assistive interaction record for every migrated selector and responsive state. The component tests cover shared behavior, not each consumer's complete user journey."
+    ]
+  },
+  {
+    "id": "A14",
+    "requirements": [
+      "Publish a reusable selector in the existing component library with documentation and tests.",
+      "Real consumers use it instead of parallel copies while retaining exact options and values."
+    ],
+    "evidence": [
+      "components/ui/GlassSelect.tsx, GlassSelect.module.css and components/ui/index.ts define/export the reusable selector; docs/design/KIT.md documents it.",
+      "components/ui/GlassSelect.test.tsx verifies selected/disabled values, keyboard, labelled form submission and dialog portal. A source inventory finds actual recipe, plan, shopping, settings, body and food consumers; tests/settings/settings-page-markup.test.tsx and focused Settings repairs cover the intended native-select-to-combobox change."
+    ],
+    "remaining": []
+  },
+  {
+    "id": "A15",
+    "requirements": [
+      "Repair the reported shopping population/planning failure and generate, save, list/reopen and edit shopping plans.",
+      "Preserve checked items, notes, manual lines and pinned canonical ingredients across reload and replan.",
+      "Show recoverable empty/errors with truthful save state and enforce account isolation."
+    ],
+    "evidence": [
+      "root-live-evidence.md: synthetic browser accepted a seven-day generated shop (Sep27\u2013Oct03) with four canonical ingredients and seven dated meal uses; full reload and Shopping reopen retained generated rows and the earlier manual Bought flag and note. Unknown price/package amounts were shown honestly.",
+      "shopping-history-local-proof.md: real local DB generated preview/accept/replan preserved checked dated windows and notes, a checked/noted manual line, and a pinned canonical ingredient; a second authenticated owner saw no lines. The same test used temporary accounts and cleaned them afterward.",
+      "shopping-manual-browser.json: blank/manual list save, name edit, Bought and note persisted after reopen. tests/shopping/root.test.tsx covers older list lookup, late/stale responses, no false success and account switch; tests/shopping/ui.test.tsx covers explicit accept and recoverable preview failures.",
+      "shopping-policy-handoff.md traces the population path through loadRecipeCandidates; recipe-repair-local-proof.md and root-live-evidence.md show the shared recipe-evidence failure repaired locally enough to populate a real plan."
+    ],
+    "remaining": [
+      "The original Shopping error response was not captured byte-for-byte, so causal attribution remains source-supported. The generated browser journey and separate real-DB replan/RLS proof are now recorded; no production claim is made."
+    ]
+  }
+]

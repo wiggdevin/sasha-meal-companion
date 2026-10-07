@@ -1,0 +1,400 @@
+{
+  "generatedAt": "2026-09-20T08:25:21.226Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 16,
+  "case": {
+    "id": "jev-tiny-rice-log",
+    "category": "jev",
+    "sentence": "log 1 g of rice",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "tiny_log_commit",
+      "grams": 1
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4560,
+    "actions": [
+      "log_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.08,
+      "verifier": "jev"
+    },
+    "jev": {
+      "assistantContent": "Logged 1 g of cooked white rice.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [],
+        "actions": [
+          {
+            "date": "2026-09-20",
+            "kind": "log_meal",
+            "slot": "meal-1",
+            "items": [
+              {
+                "name": "Rice, white, cooked",
+                "grams": 1,
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "kind": "portion",
+                      "level": "tiny",
+                      "itemId": "dd261d90-6023-4945-940a-0e82e882d863:0",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                },
+                "verdict": "allowed",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 12
+              }
+            ],
+            "flagged": [],
+            "actionId": "dd261d90-6023-4945-940a-0e82e882d863"
+          }
+        ],
+        "composed": [],
+        "suggestions": [
+          {
+            "name": "Rice, white, cooked",
+            "grams": 1,
+            "reason": null,
+            "verdict": "unverified",
+            "foodRefId": null
+          }
+        ]
+      },
+      "actions": [
+        {
+          "date": "2026-09-20",
+          "kind": "log_meal",
+          "slot": "meal-1",
+          "items": [
+            {
+              "name": "Rice, white, cooked",
+              "grams": 1,
+              "sanity": {
+                "status": "warn",
+                "warnings": [
+                  {
+                    "kind": "portion",
+                    "level": "tiny",
+                    "itemId": "dd261d90-6023-4945-940a-0e82e882d863:0",
+                    "message": "This serving is under 2 g."
+                  }
+                ]
+              },
+              "verdict": "allowed",
+              "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+              "fatPer100g": 0.3,
+              "kcalPer100g": 130,
+              "carbsPer100g": 28,
+              "proteinPer100g": 2.7,
+              "catalogFoodRevisionId": 12
+            }
+          ],
+          "flagged": [],
+          "actionId": "dd261d90-6023-4945-940a-0e82e882d863"
+        }
+      ],
+      "blocks": [],
+      "commit": {
+        "status": "ok",
+        "entry_id": "ed4664c2-de0a-425b-90b1-4edd8a977e62",
+        "rev": 1,
+        "items": [
+          {
+            "id": "8f52a3b3-9e14-4e09-b439-dc6866575178",
+            "entry_id": "ed4664c2-de0a-425b-90b1-4edd8a977e62",
+            "seq": 1,
+            "food_ref_id": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+            "qty": 1,
+            "unit": "g",
+            "grams": 1,
+            "portion_id": null,
+            "food_revision_id": 12,
+            "was_edited": false,
+            "confidence": null,
+            "snapshot": {
+              "protein": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.027,
+                "source": "fdc_branded",
+                "revision_id": 12,
+                "source_version": "coach-streak-1"
+              },
+              "fat_total": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.003,
+                "source": "fdc_branded",
+                "revision_id": 12,
+                "source_version": "coach-streak-1"
+              },
+              "energy_kcal": {
+                "unit": "kcal",
+                "basis": "per_100g",
+                "amount": 1.3,
+                "source": "fdc_branded",
+                "revision_id": 12,
+                "source_version": "coach-streak-1"
+              },
+              "carbohydrate": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.28,
+                "source": "fdc_branded",
+                "revision_id": 12,
+                "source_version": "coach-streak-1"
+              }
+            }
+          }
+        ],
+        "totals": {
+          "local_date": "2026-09-20",
+          "nutrients": [
+            {
+              "code": "energy_kcal_calc",
+              "amount": 420,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "protein",
+              "amount": 18.027,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "carbohydrate",
+              "amount": 72.28,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "energy_kcal",
+              "amount": 1.3,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "fat_total",
+              "amount": 8.003,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            }
+          ],
+          "micro_coverage_pct": 0
+        }
+      },
+      "logEntry": {
+        "id": "ed4664c2-de0a-425b-90b1-4edd8a977e62",
+        "grams": [
+          1
+        ]
+      },
+      "rankingPurposes": [
+        "coach-intent",
+        "coach"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_meal]; got [log_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4560 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.08"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 1 g of cooked white rice.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted tiny-portion warning",
+      "passed": true,
+      "detail": "{\"name\":\"Rice, white, cooked\",\"grams\":1,\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"dd261d90-6023-4945-940a-0e82e882d863:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}"
+    },
+    {
+      "name": "Jev tiny log committed",
+      "passed": true,
+      "detail": "{\"status\":\"ok\",\"entry_id\":\"ed4664c2-de0a-425b-90b1-4edd8a977e62\",\"rev\":1,\"items\":[{\"id\":\"8f52a3b3-9e14-4e09-b439-dc6866575178\",\"entry_id\":\"ed4664c2-de0a-425b-90b1-4edd8a977e62\",\"seq\":1,\"food_ref_id\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":12,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":1.3,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "1bc3cd4c-a6ab-4cb7-a3ed-e7459f3c4787",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "Rice, white, cooked",
+        "grams": 1,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "date": "2026-09-20",
+        "kind": "log_meal",
+        "slot": "meal-1",
+        "items": [
+          {
+            "name": "Rice, white, cooked",
+            "grams": 1,
+            "sanity": {
+              "status": "warn",
+              "warnings": [
+                {
+                  "kind": "portion",
+                  "level": "tiny",
+                  "itemId": "dd261d90-6023-4945-940a-0e82e882d863:0",
+                  "message": "This serving is under 2 g."
+                }
+              ]
+            },
+            "verdict": "allowed",
+            "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+            "fatPer100g": 0.3,
+            "kcalPer100g": 130,
+            "carbsPer100g": 28,
+            "proteinPer100g": 2.7,
+            "catalogFoodRevisionId": 12
+          }
+        ],
+        "flagged": [],
+        "actionId": "dd261d90-6023-4945-940a-0e82e882d863"
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 346,
+      "model": 2657,
+      "ground": 625
+    },
+    "messages": [
+      {
+        "id": "3539f6fc-9a42-4612-864f-ae57557eea2d",
+        "role": "user",
+        "content": "log 1 g of rice",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "62507357-d104-4fa5-8702-ae154c762d54",
+        "role": "assistant",
+        "content": "Logged 1 g of cooked white rice.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "dd261d90-6023-4945-940a-0e82e882d863",
+            "flagged": [],
+            "kind": "log_meal",
+            "date": "2026-09-20",
+            "slot": "meal-1",
+            "items": [
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "catalogFoodRevisionId": 12,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "allowed",
+                "grams": 1,
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "itemId": "dd261d90-6023-4945-940a-0e82e882d863:0",
+                      "kind": "portion",
+                      "level": "tiny",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

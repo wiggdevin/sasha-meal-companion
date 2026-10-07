@@ -1,0 +1,99 @@
+--- reviewed/lib/coach/hold.ts
++++ final/lib/coach/hold.ts
+@@ -163,27 +163,24 @@
+         const next = this.interaction === "tap" && this.state.phase === "finalising"
+           ? (this.state = { ...nextDictation({ ...this.state, phase: "listening" },
+             { type: "segment", ...segment }), phase: "finalising" })
+           : this.apply({ type: "segment", ...segment });
+         if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+         this.ports.writeBox(this.interaction === "tap"
+           ? this.withDraft(transcriptOf(next)) : transcriptOf(next));
+         this.publish();
+       },
+       onError: (code) => {
+         if (!active || gen !== this.gen) return;
+         if (this.interaction === "tap" && this.holding && code === "no-speech") {
+-          if (this.state.interim.trim()) {
+-            this.apply({ type: "segment", text: this.state.interim, final: true });
+-          }
+           active = false;
+           this.session?.abort();
+           this.session = null;
+           this.handleSessionEnd(gen);
+           return;
+         }
+         const next = this.apply({ type: "error", code });
+         if (next.phase === "listening" || next.phase === "finalising") return;
+         this.session?.abort();
+         this.session = null;
+         this.holding = false;
+         if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+@@ -198,24 +195,27 @@
+         if (!active || gen !== this.gen) return;
+         this.audioStarted = true;
+         if (!this.holding && !this.heard) this.quiet();
+       },
+     };
+   }
+
+   private handleSessionEnd(gen: number): void {
+     this.session = null;
+     if (!this.holding) {
+       if (this.state.phase === "finalising") this.settleSpeech(this.apply({ type: "finalised" }));
+       return;
++    }
++    if (this.interaction === "tap" && this.state.interim.trim()) {
++      this.apply({ type: "segment", text: this.state.interim, final: true });
+     }
+     if (this.restarts < 1) {
+       this.restarts += 1;
+       const session = this.ports.listen(this.handlers(gen));
+       if (gen !== this.gen) { session?.abort(); return; }
+       this.session = session;
+       if (session !== null || !this.holding) return;
+       this.carried = transcriptOf(this.state);
+       void this.startRecording();
+       return;
+     }
+     this.holding = false;
+
+--- reviewed/tests/coach/tap-dictation.test.ts
++++ final/tests/coach/tap-dictation.test.ts
+@@ -115,24 +115,38 @@
+     h.speech[0].onSegment({ text: "first", final: true });
+     h.speech[0].onEnd();
+     expect(h.hold.view().listening).toBe(true);
+     h.speech[1].onSegment({ text: "second", final: true });
+     h.speech[1].onEnd();
+     expect(h.speech).toHaveLength(3);
+     h.speech[2].onSegment({ text: "third", final: true });
+     h.hold.toggleTap();
+     expect(h.box.value).toBe("first second third");
+     expect(h.sent).not.toHaveBeenCalled();
+   });
+
++  it("keeps an interim phrase across an ordinary recognizer restart", () => {
++    const h = harness();
++    h.hold.toggleTap();
++    h.speech[0].onSegment({ text: "one", final: false });
++    h.speech[0].onEnd();
++    expect(h.speech).toHaveLength(2);
++    h.speech[1].onSegment({ text: "two", final: true });
++    h.hold.toggleTap();
++    h.speech[1].onEnd();
++    expect(h.box.value).toBe("one two");
++    expect(h.hold.view().locked).toBe(false);
++    expect(h.sent).not.toHaveBeenCalled();
++  });
++
+   it("treats mid-recording no-speech as one bounded restart", () => {
+     const h = harness();
+     h.hold.toggleTap();
+     h.speech[0].onSegment({ text: "first", final: false });
+     h.speech[0].onError("no-speech");
+     h.speech[0].onEnd(); // The aborted session may still report its end.
+     expect(h.speech).toHaveLength(2);
+     expect(h.hold.view().listening).toBe(true);
+     h.speech[1].onSegment({ text: "second", final: true });
+     h.hold.toggleTap();
+     expect(h.box.value).toBe("first second");

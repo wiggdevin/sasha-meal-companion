@@ -1,0 +1,66 @@
+{"q":"chicken breast","source":"fdc_foundation","sourceId":"2646170","note":"Chicken, breast, boneless, skinless, raw"}
+{"q":"sirloin steak","source":"fdc_foundation","sourceId":"2727574","note":"Beef, top sirloin steak, raw"}
+{"q":"ahi tuna","source":"fdc_foundation","sourceId":"2747673","note":"Tuna, ahi or yellowfin, frozen, wild caught"}
+{"q":"canned albacore","source":"fdc_sr_legacy","sourceId":"175158","note":"Fish, tuna, white, canned in water, drained solids"}
+{"q":"eggs","source":"fdc_fndds","sourceId":"2707152","note":"Egg, whole, raw"}
+{"q":"prosciutto","source":"fdc_fndds","sourceId":"2705879","note":"Ham, prosciutto"}
+{"q":"white rice","source":"fdc_sr_legacy","sourceId":"168877","note":"Rice, white, long-grain, regular, raw, enriched"}
+{"q":"jasmine rice","source":"fdc_sr_legacy","sourceId":"","note":"no jasmine/aromatic/basmati rice row in any imported source \u2014 left unresolved"}
+{"q":"white potato","source":"fdc_sr_legacy","sourceId":"170028","note":"Potatoes, white, flesh and skin, raw"}
+{"q":"sweet potato","source":"fdc_sr_legacy","sourceId":"168482","note":"Sweet potato, raw, unprepared (Includes foods for USDA's Food Distribution Program)"}
+{"q":"butternut squash","source":"fdc_sr_legacy","sourceId":"169295","note":"Squash, winter, butternut, raw"}
+{"q":"banana","source":"fdc_fndds","sourceId":"2709224","note":"Banana, raw"}
+{"q":"cantaloupe","source":"fdc_fndds","sourceId":"2709226","note":"Cantaloupe, raw"}
+{"q":"avocado","source":"fdc_fndds","sourceId":"2709223","note":"Avocado, raw"}
+{"q":"avocado mayo","source":"fdc_sr_legacy","sourceId":"","note":"no avocado-mayonnaise product in any imported source \u2014 left unresolved"}
+{"q":"almond butter","source":"fdc_fndds","sourceId":"2707533","note":"Almond butter"}
+{"q":"olive oil","source":"fdc_fndds","sourceId":"2710186","note":"Olive oil"}
+{"q":"salmon","source":"fdc_fndds","sourceId":"2706284","note":"Fish, salmon, raw"}
+{"q":"canned salmon","source":"fdc_fndds","sourceId":"2706291","note":"Fish, salmon, canned"}
+{"q":"cod","source":"fdc_fndds","sourceId":"2706240","note":"Fish, cod, NFS"}
+{"q":"halibut","source":"fdc_foundation","sourceId":"2747656","note":"Halibut, frozen, wild caught"}
+{"q":"shrimp","source":"fdc_fndds","sourceId":"2706360","note":"Shrimp, NFS"}
+{"q":"scallops","source":"fdc_sr_legacy","sourceId":"174220","note":"Mollusks, scallop, mixed species, raw"}
+{"q":"sardines","source":"fdc_fndds","sourceId":"2706293","note":"Fish, sardines, canned"}
+{"q":"turkey breast","source":"fdc_sr_legacy","sourceId":"171098","note":"Turkey, whole, breast, meat only, raw"}
+{"q":"pork tenderloin","source":"fdc_fndds","sourceId":"2705877","note":"Pork, tenderloin"}
+{"q":"ground beef","source":"fdc_fndds","sourceId":"2705853","note":"Beef, ground, raw"}
+{"q":"bison","source":"fdc_sr_legacy","sourceId":"175293","note":"Bison, ground, grass-fed, raw"}
+{"q":"lamb loin","source":"fdc_sr_legacy","sourceId":"172491","note":"Lamb, loin, separable lean only, trimmed to 1/4\" fat, choice, raw"}
+{"q":"egg whites","source":"fdc_sr_legacy","sourceId":"172183","note":"Egg, white, raw, fresh"}
+{"q":"pear","source":"fdc_fndds","sourceId":"2709254","note":"Pear, raw"}
+{"q":"mango","source":"fdc_fndds","sourceId":"2709242","note":"Mango, raw"}
+{"q":"papaya","source":"fdc_fndds","sourceId":"2709246","note":"Papaya, raw"}
+{"q":"honeydew","source":"fdc_fndds","sourceId":"2709241","note":"Honeydew melon, raw"}
+{"q":"pineapple","source":"fdc_fndds","sourceId":"2709260","note":"Pineapple, raw"}
+{"q":"carrot","source":"fdc_fndds","sourceId":"2709660","note":"Carrots, raw"}
+{"q":"pumpkin puree","source":"fdc_sr_legacy","sourceId":"168450","note":"Pumpkin, canned, without salt"}
+{"q":"plantain","source":"fdc_fndds","sourceId":"2709560","note":"Plantain, raw"}
+{"q":"cassava","source":"fdc_sr_legacy","sourceId":"169985","note":"Cassava, raw"}
+{"q":"rice noodles","source":"fdc_sr_legacy","sourceId":"169742","note":"Rice noodles, dry"}
+{"q":"rice cake","source":"fdc_fndds","sourceId":"2708162","note":"Rice cake"}
+{"q":"fruit pouch","source":"fdc_sr_legacy","sourceId":"","note":"no pouch/squeeze fruit product in any imported source \u2014 left unresolved"}
+{"q":"coconut water","source":"fdc_sr_legacy","sourceId":"170174","note":"Nuts, coconut water (liquid from coconuts)"}
+{"q":"coconut oil","source":"fdc_fndds","sourceId":"2710182","note":"Coconut oil"}
+{"q":"avocado oil","source":"fdc_sr_legacy","sourceId":"173573","note":"Oil, avocado"}
+{"q":"mct oil","source":"fdc_sr_legacy","sourceId":"","note":"no MCT/medium-chain-triglyceride oil row in any imported source \u2014 left unresolved"}
+{"q":"macadamia nuts","source":"fdc_fndds","sourceId":"2707503","note":"Macadamia nuts"}
+{"q":"tahini","source":"fdc_fndds","sourceId":"2707587","note":"Tahini"}
+{"q":"sunflower butter","source":"fdc_sr_legacy","sourceId":"168595","note":"Seeds, sunflower seed butter, with salt added (Includes foods for USDA's Food Distribution Program)"}
+{"q":"cashew butter","source":"fdc_fndds","sourceId":"2707536","note":"Cashew butter"}
+{"q":"olives","source":"fdc_fndds","sourceId":"2710088","note":"Olives, NFS"}
+{"q":"coconut milk","source":"fdc_fndds","sourceId":"2705413","note":"Coconut milk"}
+{"q":"duck fat","source":"fdc_sr_legacy","sourceId":"","note":"no duck fat row in any imported source \u2014 left unresolved"}
+{"q":"chicken thigh","source":"fdc_foundation","sourceId":"2646171","note":"Chicken, thigh, boneless, skinless, raw"}
+{"q":"rotisserie chicken","source":"fdc_sr_legacy","sourceId":"171445","note":"Chicken, broiler, rotisserie, BBQ, breast, meat only"}
+{"q":"chicken thigh roasted","source":"fdc_sr_legacy","sourceId":"172388","note":"Chicken, broilers or fryers, thigh, meat only, cooked, roasted"}
+{"q":"turkey breast roasted","source":"fdc_sr_legacy","sourceId":"171496","note":"Turkey, whole, breast, meat only, cooked, roasted"}
+{"q":"white rice cooked","source":"fdc_fndds","sourceId":"2708403","note":"Rice, white, cooked, NS as to fat"}
+{"q":"ground beef 90/10","source":"fdc_sr_legacy","sourceId":"174030","note":"Beef, ground, 90% lean meat / 10% fat, raw"}
+{"q":"chkn brst","source":"fdc_foundation","sourceId":"2646170","note":"Chicken, breast, boneless, skinless, raw (same canonical food as 'chicken breast')"}
+{"q":"sweet potatoe","source":"fdc_sr_legacy","sourceId":"168482","note":"Sweet potato, raw, unprepared (Includes foods for USDA's Food Distribution Program) (same canonical food as 'sweet potato')"}
+{"q":"advocado","source":"fdc_fndds","sourceId":"2709223","note":"Avocado, raw (same canonical food as 'avocado')"}
+{"q":"bannana","source":"fdc_fndds","sourceId":"2709224","note":"Banana, raw (same canonical food as 'banana')"}
+{"q":"salmom","source":"fdc_fndds","sourceId":"2706284","note":"Fish, salmon, raw (same canonical food as 'salmon')"}
+{"q":"cantalope","source":"fdc_fndds","sourceId":"2709226","note":"Cantaloupe, raw (same canonical food as 'cantaloupe')"}
+{"q":"almond buter","source":"fdc_fndds","sourceId":"2707533","note":"Almond butter (same canonical food as 'almond butter')"}

@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-10-03T20:23:07.908Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 1,
+  "case": {
+    "id": "list-remove-watermelon-avoid",
+    "category": "list_edit",
+    "sentence": "remove watermelon from avoid",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "remove_from_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 2008,
+    "actions": [
+      "remove_from_avoid"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": false
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [remove_from_avoid]; got [remove_from_avoid]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 2000 ms; got 2008 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Removing Watermelon, raw from your Avoid list.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "d4dded62-6bb1-48d6-a8b3-bf350db14995",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "remove_from_avoid",
+        "name": "Watermelon, raw",
+        "foodRefId": "98537b0a-bc2f-4e95-8b8b-dcb452e8b540",
+        "catalogFoodRevisionId": 19,
+        "kcalPer100g": 30,
+        "proteinPer100g": 0.6,
+        "carbsPer100g": 7.6,
+        "fatPer100g": 0.2,
+        "verdict": "unverified",
+        "marks": [
+          {
+            "facet": "gluten",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "dairy",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "apple",
+            "source": "floor",
+            "outcome": "unknown"
+          }
+        ],
+        "actionId": "c73f8143-4b07-4058-9896-defa88f26aa3",
+        "flagged": [],
+        "alsoFoodRefIds": [
+          "730ea48a-580e-40d8-89a1-f2f18f0ae952"
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "intent": "remove_from_avoid",
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 803,
+      "model": 0,
+      "ground": 450
+    },
+    "messages": [
+      {
+        "id": "ccb2e99b-f69b-4d40-9d40-5e02257b3cf0",
+        "role": "user",
+        "content": "remove watermelon from avoid",
+        "seq": 1
+      },
+      {
+        "id": "86629d78-c1cc-4593-8221-93a047cff075",
+        "role": "assistant",
+        "content": "Removing Watermelon, raw from your Avoid list.",
+        "seq": 2
+      }
+    ]
+  }
+}

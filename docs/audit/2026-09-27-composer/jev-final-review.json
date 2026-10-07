@@ -1,0 +1,63 @@
+{
+  "packet_sha256": "9f7b244159a3a1f01c20bc003a0f68be06dae8e204e6fb563062ae96ffeb27d5",
+  "source_sha256": {
+    "components/CoachMic.tsx": "51ca7742e6f7fe2243013108ebea248c3109483e3b4e90ee6bc54fbe6c626497",
+    "components/coach/use-composer-input.ts": "c7733bba2a80b1eadb64bd9d4a91cb7a688eef3a8200089abb44f85510098e8f",
+    "lib/coach/hold.ts": "1449534c40ab7ec46c10bda8e9ca48219c1bf97498311f915165876018559ccd",
+    "app/globals.css": "b3e60fded04eb53226b210cc07d4b7397ba001e010fa4d3d4a0cff75a28403e1"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "J1_review": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.99,
+        "probabilities": {
+          "no": 0.01,
+          "yes": 0.99
+        }
+      },
+      "J2_stop": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.95,
+        "probabilities": {
+          "no": 0.03,
+          "yes": 0.97
+        }
+      },
+      "J3_settle": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.99,
+        "probabilities": {
+          "no": 0.01,
+          "yes": 0.99
+        }
+      },
+      "J4_ime": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 1.0,
+        "probabilities": {
+          "no": 0.0,
+          "yes": 1.0
+        }
+      },
+      "J5_motion": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 1.0,
+        "probabilities": {
+          "no": 0.0,
+          "yes": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 4961,
+      "output_tokens": 155
+    }
+  }
+}

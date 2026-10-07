@@ -1,0 +1,25 @@
+# Foods rules contract (working implementation)
+
+## Authority and writes
+
+- Diet flags live in the owner-scoped `user_settings.diet_prefs.flags` revision. `GET /api/foods/diet` reads the authenticated account row. The editor checks the displayed revision, previews a complete replacement, then folds `diet_prefs` into the same atomic settings-intent outbox used by coach profile changes. It merges against the current IDB mirror inside the transaction to preserve queued lifestyle edits, drains the outbox, and rereads the server flags before showing success. A pending write is reported as pending, never as saved. Coach and recipe candidate reads use that same persisted field. Local `Settings` is a display projection.
+- Supported custom rules have an explicit kind: `ingredient` or `cuisine`. Ingredient rules match normalized ingredient identity/name across recipe candidates. Cuisine rules match a recipe's cuisine label; they are never translated into an ingredient Avoid mark. Free-form guidance that cannot be interpreted into one of those kinds remains visible as **guidance only**, without an enforcement promise.
+- Custom rules use `constraint_profiles.custom_rules` through the existing owner-scoped, revision-checked `/api/constraints` write. The migration and down script are review artifacts; root applies SQL. No production SQL or data writes in this worker.
+- The earlier rule-review migration grants authenticated clients writes only to named account-rule columns. A08 extends that allowlist with INSERT/UPDATE on `custom_rules` alone; its guarded down revokes only those two column grants. The server-owned review marker columns remain outside the grant.
+
+## Read and policy behavior
+
+- Recipe eligibility keeps three states: eligible, blocked by a proven rule or Avoid identity, and unknown because evidence is unavailable. An unknown never becomes eligible by default. A known Avoid match survives evidence failure.
+- The original pilot recipes use `food_db_id` identities and have no `catalog_food_revision_id`; querying only revision evidence cannot verify them. Mapping may attach specific catalog revision evidence only when the identity is reviewed and unique. No guessed facets or absence claims. A materialized static mapping or complete food-specific evidence is required to clear active rules. Missing proof remains unknown with one concise limitation rather than an ingredient-by-ingredient flood.
+- Recipe list and detail, plan accept and Coach candidates must use the same candidate eligibility and account rule fingerprint. A pending legacy rule review is a typed `rule_review_required` response with a direct Foods/Avoids review path.
+- Food search is an authenticated account-scoped RPC. A catalog miss may fall back to the bundled food index with a clearly marked source; an RPC error must stay an error, not be called `noresults`. Select/mark uses the existing membership operation. Search recognizes aliases, partial words and bounded typo matches.
+
+## Affected future plans
+
+- `GET /api/foods/avoid-impact` and a read-only batch `POST` (up to 100 Avoid foods) read owner-scoped saved recipe selections and edited `plan_days` from the account's current local date, excluding eaten slots. Count is a count of matching instances, not distinct recipes. Opaque swaps, cuisine edits and a scan over 500 rows make `complete=false`; the UI labels the count as a lower bound. Generated unsaved future cards are not enumerable and are outside this count. Historical consumed snapshots and logs stay intact. The scan uses saved catalog food refs, bundled FoodDB identities and comma-base names. Missing or malformed ingredient snapshots and unresolved prepared-food subingredients make complete=false rather than an exact zero. Full alias coverage remains unproven.
+- The impact modal lists dates, slots and matches. Its inline Remove writes a cleared slot through the existing plan-day outbox, checks sync before and after, and says when server sync remains pending. Remix offers current policy-eligible recipes and opens the existing portion preview/accept flow; Edit reopens the original recipe only if it is still eligible. Explicit buttons accompany left-remove/right-remix gestures. This is not an atomic server-side selection mutation, so the root must verify conflict and consumed-history behavior against the local database before acceptance. The modal rechecks selected exact owner-scoped date/slot instances before a suggestion-only Coach turn. It applies no plan action; the existing preview/accept flow remains the confirmation step.
+
+## UI boundaries
+
+- `AvoidsView` and `AvoidRules` own the diet/rule editor and impact wrapper. `MyFoods` owns its rows and exposes `renderAvoidStatus` and `onAvoidSaved`; the impact wrapper consumes them for automatic row badges and scans. Shopping and recipe presentation remain other workers' files.
+- All API calls carry the bound account handle/header. Offline edits are disabled or explicitly queued only by an existing durable outbox; no optimistic saved message for an unacknowledged server write.

@@ -1,0 +1,55 @@
+{
+  "motion_from_stills": "NOT_PROVEN",
+  "real_transcription": "NOT_PROVEN",
+  "criteria": {
+    "single_main_control_in_idle_recording_finishing_send_review": {
+      "status": "YES",
+      "screenshotsEvidence": {
+        "final-idle-390.png": "Single primary circular control anchored at bottom right displaying microphone glyph (record). Left side has a secondary drawer/preset icon button.",
+        "final-recording-390.png": "Single primary circular control anchored at bottom right displaying red stop button with square inner glyph.",
+        "final-reduced-motion-390.png": "Single primary circular control at bottom right displaying red stop button with square inner glyph.",
+        "final-finishing-390.png": "Single primary circular control at bottom right displaying an ellipsis ('...') glyph.",
+        "final-send-390.png": "Single primary circular control at bottom right displaying a paper plane glyph (send).",
+        "final-review-390.png": "Single primary circular control at bottom right displaying an eye glyph (review)."
+      },
+      "runtimeContext": "Supplied synthetic runtime evidence (rendered-manual-checks.json & rendered-auto-keyboard-checks.json) lists main labels: 'Record message', 'Stop recording', 'Finishing recording', 'Send', 'Review recording'."
+    },
+    "editing_secondary_send_reachable": {
+      "status": "YES",
+      "screenshotsEvidence": {
+        "final-editing-390.png": "While editing ('Please note:|'), the bottom row renders the primary mic button alongside a reachable secondary send button (paper plane glyph) immediately to its left."
+      },
+      "runtimeContext": "Supplied synthetic runtime evidence notes 'name': 'editing' with main control 'Record message' and non-readonly draft 'Please note: '."
+    },
+    "stop_visibly_red": {
+      "status": "YES",
+      "screenshotsEvidence": {
+        "final-recording-390.png": "Stop button is rendered in a prominent high-contrast red fill circle with an outer red halo ring and a white centered square stop glyph.",
+        "final-reduced-motion-390.png": "Stop button retains the identical vibrant red fill circle, outer ring, and white square stop glyph."
+      },
+      "runtimeContext": "Supplied synthetic runtime evidence indicates 'name': 'recording' with animation 'coach-recording-pulse' and 'reduced-motion' with animation 'none'."
+    },
+    "draft_legible_no_390px_clipping": {
+      "status": "YES",
+      "screenshotsEvidence": {
+        "all_stills": "Across all eight 390px stills (final-idle-390.png through final-permission-error-390.png), composer card maintains ample lateral margins (~20px each side), input text ('Ask Sasha', 'Please note:', 'Please note: I had lunch.', 'For tomorrow: a packed lunch', 'Keep my typed draft') wraps cleanly within container padding without clipping or horizontal overflow."
+      },
+      "runtimeContext": "Supplied synthetic runtime evidence explicitly reports 'overflow': false across all manual and keyboard check entries."
+    },
+    "error_text_legible": {
+      "status": "YES",
+      "screenshotsEvidence": {
+        "final-permission-error-390.png": "Status string 'Microphone access is off. Allow it in Settings, then try again.' renders directly underneath the composer container in crisp, legible light gray font with no horizontal clipping on the 390px canvas."
+      },
+      "runtimeContext": "Supplied synthetic runtime evidence (rendered-auto-keyboard-checks.json) reports status: 'Microphone access is off. Allow it in Settings, then try again.' with 'overflow': false."
+    },
+    "review_visually_distinct_from_send": {
+      "status": "YES",
+      "screenshotsEvidence": {
+        "comparison": "final-send-390.png features a paper plane glyph inside the white circle, whereas final-review-390.png features an eye glyph inside the white circle. The two actions are clearly visually distinct."
+      },
+      "runtimeContext": "Supplied synthetic runtime evidence records main as 'Review recording' for automatic-review and 'Send' for acknowledged/send."
+    }
+  },
+  "visualDefects": []
+}

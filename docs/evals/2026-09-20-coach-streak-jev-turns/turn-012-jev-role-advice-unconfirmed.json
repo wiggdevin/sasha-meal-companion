@@ -1,0 +1,207 @@
+{
+  "generatedAt": "2026-09-20T08:22:04.952Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 12,
+  "case": {
+    "id": "jev-role-advice-unconfirmed",
+    "category": "jev",
+    "sentence": "add blue pea crunch to my Eats list",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "role_advice_unconfirmed"
+    }
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 1298,
+    "actions": [
+      "add_to_eats"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "jev": {
+      "assistantContent": "Adding Blue pea crunch to your Eats list.",
+      "toolCalls": {
+        "calls": [],
+        "intent": "add_to_eats",
+        "actions": [
+          {
+            "kind": "add_to_eats",
+            "name": "Blue pea crunch",
+            "flagged": [
+              "blue pea crunch"
+            ],
+            "verdict": "blocked",
+            "actionId": "13de01bd-9814-438a-90fe-cf88eda8a502",
+            "foodRefId": "7a83fbff-bb40-44f6-83c3-1d1ededb6f83",
+            "fatPer100g": 3,
+            "kcalPer100g": 167,
+            "carbsPer100g": 5,
+            "alsoFoodRefIds": [],
+            "proteinPer100g": 30,
+            "catalogFoodRevisionId": null
+          }
+        ],
+        "composed": [],
+        "fastPath": true,
+        "suggestions": []
+      },
+      "actions": [
+        {
+          "kind": "add_to_eats",
+          "name": "Blue pea crunch",
+          "flagged": [
+            "blue pea crunch"
+          ],
+          "verdict": "blocked",
+          "actionId": "13de01bd-9814-438a-90fe-cf88eda8a502",
+          "foodRefId": "7a83fbff-bb40-44f6-83c3-1d1ededb6f83",
+          "fatPer100g": 3,
+          "kcalPer100g": 167,
+          "carbsPer100g": 5,
+          "alsoFoodRefIds": [],
+          "proteinPer100g": 30,
+          "catalogFoodRevisionId": null
+        }
+      ],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-intent"
+      ],
+      "membershipBefore": {
+        "status": "avoid",
+        "role": null
+      },
+      "membershipAfter": {
+        "status": "avoid",
+        "role": null
+      }
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_eats]; got [add_to_eats]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 2000 ms; got 1298 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Adding Blue pea crunch to your Eats list.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted role advice requires confirmation",
+      "passed": false,
+      "detail": "{\"kind\":\"add_to_eats\",\"name\":\"Blue pea crunch\",\"flagged\":[\"blue pea crunch\"],\"verdict\":\"blocked\",\"actionId\":\"13de01bd-9814-438a-90fe-cf88eda8a502\",\"foodRefId\":\"7a83fbff-bb40-44f6-83c3-1d1ededb6f83\",\"fatPer100g\":3,\"kcalPer100g\":167,\"carbsPer100g\":5,\"alsoFoodRefIds\":[],\"proteinPer100g\":30,\"catalogFoodRevisionId\":null}"
+    },
+    {
+      "name": "Jev role unchanged before confirmation",
+      "passed": true,
+      "detail": "{\"before\":{\"status\":\"avoid\",\"role\":null},\"after\":{\"status\":\"avoid\",\"role\":null}}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "24b7166f-56ea-42e5-89e8-4fc13836ee36",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "add_to_eats",
+        "name": "Blue pea crunch",
+        "flagged": [
+          "blue pea crunch"
+        ],
+        "verdict": "blocked",
+        "actionId": "13de01bd-9814-438a-90fe-cf88eda8a502",
+        "foodRefId": "7a83fbff-bb40-44f6-83c3-1d1ededb6f83",
+        "fatPer100g": 3,
+        "kcalPer100g": 167,
+        "carbsPer100g": 5,
+        "alsoFoodRefIds": [],
+        "proteinPer100g": 30,
+        "catalogFoodRevisionId": null
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "intent": "add_to_eats",
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 397,
+      "model": 0,
+      "ground": 269
+    },
+    "messages": [
+      {
+        "id": "75900b14-f8b2-4c1d-aba9-b6d2b0682d1c",
+        "role": "user",
+        "content": "add blue pea crunch to my Eats list",
+        "seq": 1
+      },
+      {
+        "id": "9ed0407c-e761-4e4e-9ba8-0abc084a05c8",
+        "role": "assistant",
+        "content": "Adding Blue pea crunch to your Eats list.",
+        "seq": 2
+      }
+    ]
+  }
+}

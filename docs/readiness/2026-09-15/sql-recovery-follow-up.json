@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "database": "smc_restore_98e7e7169f7e",
+  "dump": "/tmp/sasha-exact-backup-drill/2026-09-15T202433Z-bd9a79e2.sql",
+  "receipt": {
+    "format": "postgresql-plain-v1",
+    "file": "2026-09-15T202433Z-bd9a79e2.sql",
+    "bytes": 11940524,
+    "sha256": "069283def7c4146953fb7664b63af921815f6b7d972916402f78d0b4a35d112d",
+    "postgres_major": 17,
+    "taken_at": "2026-09-15T202433Z",
+    "host": "127.0.0.1",
+    "database": "postgres"
+  },
+  "tables_compared": 84,
+  "rows_restored": 324410,
+  "row_count_mismatches": 0,
+  "public_function_acl_owner_matches": 66,
+  "public_table_acl_owner_rls_matches": 50,
+  "public_policies_match": 44,
+  "protected_functions_deny_anon": true
+}

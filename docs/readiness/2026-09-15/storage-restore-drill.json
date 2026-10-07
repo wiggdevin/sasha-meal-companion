@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "source": "isolated local Supabase 54331",
+  "backup_objects": 1,
+  "restored_synthetic_bytes": 68,
+  "sha256": "87b44de2dcc4ed2138d964ac202d0dfec004f605ffba3ee275f886677973e8d5",
+  "restore_bucket": "smc-restore-ba5dd922",
+  "byte_match": true,
+  "directory": "/tmp/sasha-storage-drill/2026-09-15T201925Z-storage-af9af0f7"
+}

@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-10-03T21:02:28.853Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 38,
+  "case": {
+    "id": "water-two-cups",
+    "category": "schedule_body",
+    "sentence": "log two cups of water",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "log_water"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 10336,
+    "actions": [
+      "log_water"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_water]; got [log_water]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 10336 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 480 ml water.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "6cd44eaa-d29a-4b8d-a199-080ed7e152fb",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "log_water",
+        "date": "2026-10-03",
+        "ml": 480,
+        "actionId": "410aa048-e9c2-443f-8b14-92933ca1a3e3",
+        "flagged": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 492,
+      "model": 8765,
+      "ground": 7
+    },
+    "messages": [
+      {
+        "id": "1c06c5d6-5ef9-4c7e-8ec6-ceb54f3e96e3",
+        "role": "user",
+        "content": "log two cups of water",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "82e6e12f-434f-461d-bb22-0c2af25f2c93",
+        "role": "assistant",
+        "content": "Logged 480 ml water.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "410aa048-e9c2-443f-8b14-92933ca1a3e3",
+            "flagged": [],
+            "kind": "log_water",
+            "date": "2026-10-03",
+            "ml": 480
+          }
+        ]
+      }
+    ]
+  }
+}

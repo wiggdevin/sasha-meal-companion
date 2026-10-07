@@ -1,0 +1,68 @@
+[
+  {
+    "name": "idle",
+    "main": "Record message",
+    "text": "",
+    "readOnly": false,
+    "sent": "[]",
+    "overflow": false,
+    "animation": "none"
+  },
+  {
+    "name": "editing",
+    "main": "Record message",
+    "text": "Please note: ",
+    "readOnly": false,
+    "sent": "[]",
+    "overflow": false,
+    "animation": "none"
+  },
+  {
+    "name": "recording",
+    "main": "Stop recording",
+    "text": "Please note: I had lunch.",
+    "readOnly": true,
+    "sent": "[]",
+    "overflow": false,
+    "animation": "coach-recording-pulse"
+  },
+  {
+    "name": "pulse-progress",
+    "before": 140.2000000000001,
+    "after": 179.9000000000035,
+    "playState": "running"
+  },
+  {
+    "name": "reduced-motion",
+    "main": "Stop recording",
+    "text": "Please note: I had lunch.",
+    "readOnly": true,
+    "sent": "[]",
+    "overflow": false,
+    "animation": "none"
+  },
+  {
+    "name": "finishing",
+    "main": "Finishing recording",
+    "text": "Please note: I had lunch.",
+    "readOnly": true,
+    "sent": "[]",
+    "overflow": false,
+    "animation": "none"
+  },
+  {
+    "name": "send",
+    "main": "Send",
+    "text": "Please note: I had lunch.",
+    "readOnly": false,
+    "sent": "[]",
+    "overflow": false,
+    "animation": "none"
+  },
+  {
+    "name": "explicit-send",
+    "sent": [
+      "Please note: I had lunch."
+    ]
+  }
+]

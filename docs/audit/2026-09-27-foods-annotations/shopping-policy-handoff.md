@@ -1,0 +1,7 @@
+# Shopping population and shared recipe policy handoff
+
+`POST /api/shopping/preview` calls `previewShopping` in `lib/server/recipe-plan.ts`. Its candidate source is `loadRecipeCandidates(client, userId, { query: "", limit: 64 }, ...)`. The reported screenshot shows recipe discovery rejecting many ingredients because preference/restriction evidence could not be checked. That same candidate eligibility path can leave Shopping with unfilled slots. The exact production response for the reported Shopping error has not been captured in this branch, so this is a source-supported dependency, not a verified live root cause.
+
+Shopping client behavior found and fixed here: `shoppingRequest` previously collapsed every HTTP 409 to “Shopping changed elsewhere”, including `needs_profile`, target changes and dated-rule review. The client now maps known planning prerequisites to actionable copy while retaining stale-revision handling. Shopping list retrieval also previously filtered to roughly 30 days around today, hiding older saved lists. The list picker now queries the owner-scoped periods route without date filters and opens the selected period with the existing owner-scoped GET.
+
+Recipe-policy/evidence owner: investigate the candidate failure and rule-review prerequisite in `lib/server/recipe-candidates.ts` / policy evidence. Keep hard dietary exclusions fail closed. This Shopping worker has not changed those files, migrations or candidate behavior.

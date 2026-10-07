@@ -1,0 +1,210 @@
+/* A tip's demonstration (components/today/tips/TipDemo.tsx, TipDemoCards.tsx; 2026-10-03). A sketch
+   of the control in the app's own materials: the ivory card, the olive lens, the charcoal meal card
+   with its olive art, the macro colours, the water tile's blue-green. The fingertip is line-drawn
+   like the app's icons (1.5 px ink on ivory). Colour comes from tokens only. */
+
+.demo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.card {
+  fill: var(--color-surface);
+  stroke: rgb(var(--ink-rgb) / 0.06);
+  stroke-width: 1;
+}
+
+.hairline {
+  stroke: rgb(var(--ink-rgb) / 0.1);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.label,
+.letter,
+.letterOnLens,
+.actionLabel,
+.mealTime {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.label,
+.letter {
+  fill: var(--color-text-muted);
+}
+
+.letterOnLens {
+  fill: var(--color-on-primary);
+}
+
+.daysOnLens .letter {
+  fill: var(--color-on-primary);
+}
+
+.daysOnLens .dayDot {
+  fill: var(--color-on-primary);
+}
+
+.lens {
+  fill: var(--color-primary);
+}
+
+.dayDot {
+  fill: rgb(var(--ink-rgb) / 0.3);
+}
+
+.today {
+  fill: var(--color-alert);
+}
+
+.monthCell {
+  fill: rgb(var(--ink-rgb) / 0.06);
+}
+
+/* ---- The orb and its entities ---- */
+
+.track {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.12);
+  stroke-width: 1;
+}
+
+.orb {
+  fill: var(--color-surface);
+  stroke: rgb(var(--orb-rim-rgb) / 0.55);
+  stroke-width: 3;
+}
+
+.entity {
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+.entity[data-kind="calories"] { fill: var(--color-gauge-calories); }
+.entity[data-kind="protein"] { fill: var(--color-gauge-protein); }
+.entity[data-kind="carbs"] { fill: var(--color-gauge-carbs); }
+.entity[data-kind="fat"] { fill: var(--color-gauge-fat); }
+.entity[data-kind="water"] { fill: var(--color-gauge-water); }
+.entity[data-kind="activity"] { fill: var(--color-orange); }
+.entity[data-kind="recovery"] { fill: var(--color-plum); }
+
+/* ---- The ledger the demo taps ---- */
+
+.ledgerFigure {
+  fill: var(--color-gauge-calories);
+}
+
+.ledgerTab {
+  fill: var(--color-charcoal);
+}
+
+/* ---- Meal cards ---- */
+
+.meal {
+  fill: var(--color-charcoal);
+}
+
+.mealArt {
+  fill: var(--color-primary);
+}
+
+.mealLine {
+  fill: rgb(var(--cream-rgb) / 0.85);
+}
+
+.mealLineFaint {
+  fill: rgb(var(--cream-rgb) / 0.4);
+}
+
+.mealTime {
+  fill: rgb(var(--cream-rgb) / 0.85);
+}
+
+/* The lifted card's long, soft shadow. */
+.lifted {
+  fill: rgb(var(--ink-rgb) / 0.2);
+  filter: blur(6px);
+}
+
+.tray {
+  fill: var(--color-secondary);
+}
+
+.clear {
+  fill: var(--color-yellow);
+}
+
+.delete {
+  fill: var(--color-red);
+}
+
+.actionLabel {
+  fill: var(--color-on-primary);
+}
+
+/* ---- The water tile and its bar ---- */
+
+.waterTile {
+  fill: color-mix(in srgb, var(--color-gauge-water) 8%, var(--color-surface));
+  stroke: rgb(var(--ink-rgb) / 0.06);
+  stroke-width: 1;
+}
+
+.liquid {
+  fill: color-mix(in srgb, var(--color-gauge-water-end) 70%, var(--color-gauge-carbs-end));
+}
+
+.addPill {
+  fill: var(--color-primary);
+}
+
+.bar {
+  fill: var(--color-surface);
+  stroke: rgb(var(--ink-rgb) / 0.08);
+  stroke-width: 1;
+}
+
+.barTrack {
+  fill: rgb(var(--ink-rgb) / 0.06);
+}
+
+.barBase {
+  fill: color-mix(in srgb, var(--color-gauge-water) 82%, var(--color-gauge-carbs));
+}
+
+.barAdd {
+  fill: color-mix(in srgb, var(--color-gauge-water-end) 86%, var(--color-gauge-carbs-end));
+}
+
+/* ---- The fingertip ---- */
+
+.finger {
+  fill: var(--color-surface);
+  stroke: rgb(var(--ink-rgb) / 0.4);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.nail {
+  fill: rgb(var(--ink-rgb) / 0.06);
+  stroke: rgb(var(--ink-rgb) / 0.2);
+  stroke-width: 1;
+}
+
+.ripple {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+}
+
+.holdRing {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}

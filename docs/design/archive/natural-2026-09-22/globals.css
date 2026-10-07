@@ -1,0 +1,406 @@
+@import "tailwindcss";
+@import "./design-tokens.css";
+
+/*
+  Sasha's Meal Companion — design tokens.
+  NeuForm remap (Devin, 2026-09-10): light glass material, replacing the
+  dark "flame" theme. The Foodnoms token names survive so other lanes never
+  need to touch a class name — only the values, and what they mean, change:
+    paper    dark base surface        -> light ground (#f6f4ee)
+    fog      raised dark card         -> card white
+    sky      cool data accent         -> carbs olive
+    green    data accent              -> fat gold
+    plum     data accent              -> protein blue
+    signal   dark-theme action red    -> calories orange
+  `app/design-tokens.css` (imported above) is exported from DESIGN.md and
+  carries the NeuForm component tokens (shell/surface/pill recipes, gauge
+  colours, radii, type); this file's @theme comes after that import so its
+  values win where names collide, and remaps every legacy name onto them.
+  See docs/plans/2026-09-07-meal-companion-prd.md §5 and DESIGN.md.
+*/
+
+@theme {
+  /* ---- Neutrals (light NeuForm remap of the Foodnoms roles) ---- */
+  --color-paper: #f6f4ee; /* base surface: the ground */
+  --color-fog: #ffffff; /* raised card */
+  --color-graphite: #4a4c42; /* primary text */
+  --color-charcoal: #2a2b25; /* plan text (DESIGN.md text-primary) */
+  --color-muted: #6d705f;
+  --color-hairline: rgba(0, 0, 0, 0.06);
+
+  /* ---- Actions ---- */
+  --color-tangerine: #c96f4a;
+  --color-signal: #c96f4a;
+
+  /* ---- Macro + status (data colours) ---- */
+  --color-green: #c9a24a;
+  --color-sky: #6f7f57;
+  --color-plum: #6f8fa8;
+  --color-amber: #c9a24a;
+  --color-alert: #d9584c;
+  /* DESIGN.md calls the tertiary accent clay; keep that semantic name on the same token. */
+  --color-clay: var(--color-tertiary);
+
+  /* design-tokens.css exports --spacing-{xs..xl}; Tailwind 4 resolves
+     max-w-md / w-sm etc. through that namespace, so main.max-w-md became
+     12px wide. Reset the five named keys so they fall back to --container-*.
+     The exported radius keys are kept on purpose (DESIGN.md radii). */
+  --spacing-xs: initial;
+  --spacing-sm: initial;
+  --spacing-md: initial;
+  --spacing-lg: initial;
+  --spacing-xl: initial;
+
+  /* ---- Radius: 26px on EVERYTHING. Signature. ---- */
+  --radius-card: 26px;
+  --radius-pill: 999px;
+
+  /* ---- Type ---- */
+  --font-sans: system-ui, -apple-system, "SF Pro Text", sans-serif;
+
+  --text-tiny: 12px;
+  --text-caption: 14px;
+  --text-body-sm: 16px;
+  --text-body: 17px;
+  --text-subheading: 20px;
+  --text-heading-sm: 20px;
+  --text-heading: 30px;
+  --text-display: 40px;
+}
+
+:root {
+  /* Liquid Glass chrome — not @theme, these are raw values for backdrop use */
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-blur: 12px;
+  --glass-border: rgba(0, 0, 0, 0.06);
+
+  /* iOS safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  color-scheme: light;
+}
+
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-paper);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  /* Room for the floating glass tab bar. The bar sits at
+     bottom: safe + 12px and is ~64px tall, so content needs to clear
+     ~76px before it even starts — 128px leaves a real gap rather than
+     tucking the last card under the glass. */
+  padding-bottom: calc(128px + var(--safe-bottom));
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Liquid Glass chrome. Hairline border, never a drop shadow — §5.3. */
+.glass {
+  background: var(--glass-bg);
+  /* Unprefixed ONLY. Lightning CSS (Tailwind v4 / Turbopack) merges a
+     hand-written -webkit-backdrop-filter into this declaration and then
+     emitted only the prefixed form, which Chromium ignores — the built CSS
+     shipped with no blur at all outside Safari. It adds the prefix itself. */
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+}
+
+/* Browsers without backdrop-filter get an opaque fallback, not a see-through mess */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background: rgba(255, 255, 255, 0.97);
+  }
+}
+
+/* NeuForm glass utilities — recipes copied verbatim from the mockup helmet
+   styles (.superpowers/sdd/lane-E-theme/mockup-styles.css) and DESIGN.md. */
+
+/* Gradient hairline shell: 1px-padded gradient div wrapping a surface. */
+.shell {
+  border-radius: 32px;
+  padding: 1px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 50%, rgba(58, 70, 40, 0.12) 100%);
+  /* Shadow tinted moss, not black: on the linen ground a neutral shadow reads grey. */
+  box-shadow:
+    0 0 0 1px rgba(58, 70, 40, 0.06),
+    0 1px 1px -0.5px rgba(58, 70, 40, 0.06),
+    0 3px 3px -1.5px rgba(58, 70, 40, 0.06),
+    0 6px 6px -3px rgba(58, 70, 40, 0.06),
+    0 12px 12px -6px rgba(58, 70, 40, 0.06),
+    0 24px 24px -12px rgba(58, 70, 40, 0.07);
+}
+
+/* Surface: the shell's interior (mockup .inner). */
+/* Glass (2026-09-18, Devin): the surface is frosted, not painted — the garden video shows
+   through at about 30 %, blurred. The shell's hairline gradient stays the edge.
+
+   The blur lives on a ::before BEHIND the content, never on the surface itself: a backdrop-filter
+   makes a stacking context, and the meal card's tick button (z-10) then could not rise above the
+   card's edit overlay (z-1) that sits outside the surface — every tick opened the editor instead
+   (Devin, 2026-09-18 evening). `isolation: isolate` on the shell keeps the pseudo's z-index -1
+   inside the card, above the ground, below the content. */
+.shell,
+.meal-card {
+  isolation: isolate;
+}
+.surface,
+.meal-card-in,
+.logged-card-in {
+  position: relative;
+}
+.surface::before,
+.meal-card-in::before,
+.logged-card-in::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  backdrop-filter: blur(22px) saturate(150%);
+}
+.surface {
+  border-radius: 31px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74) 0%, rgba(250, 250, 250, 0.66) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.pill {
+  border-radius: 9999px;
+  padding: 1px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(0, 0, 0, 0.1) 100%);
+  box-shadow:
+    0 2px 3px -1px rgba(0, 0, 0, 0.1),
+    0 1px 0 0 rgba(40,46,30, 0.02),
+    0 0 0 1px rgba(40,46,30, 0.08);
+}
+
+.pill-in {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(252, 252, 252, 0.6) 100%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 1),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.02);
+}
+
+/* Meal card: charcoal body in an olive shell (mockup .mealcard / .mealin). */
+.meal-card {
+  border-radius: 28px;
+  padding: 1px;
+  background: linear-gradient(180deg, #6f7f57 0%, #5a6847 50%, #2f3a2a 100%);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 6px 6px -3px rgba(0, 0, 0, 0.08),
+    0 20px 20px -12px rgba(0, 0, 0, 0.14);
+}
+
+.meal-card-in {
+  border-radius: 27px;
+  background: linear-gradient(180deg, rgba(63, 70, 58, 0.84) 0%, rgba(43, 47, 40, 0.86) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+}
+
+/* Logged-extra card: the same olive shell as .meal-card, but olive all the way
+   through instead of charcoal. Charcoal already means "plan slot, eaten"; a food
+   she logged on top of the plan is a different thing and reads green in the stack.
+   Palette is the existing olive emphasis panel — no new colour. */
+.logged-card-in {
+  border-radius: 27px;
+  background: linear-gradient(180deg, rgba(90, 104, 71, 0.84) 0%, rgba(61, 70, 51, 0.86) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+}
+
+/* Inset well: DESIGN.md inputs. */
+.well {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+/* Olive emphasis panel: DESIGN.md dark panels (note card, macro panel). */
+.olive-panel {
+  background: linear-gradient(180deg, rgba(90, 104, 71, 0.86), rgba(61, 70, 51, 0.88));
+  backdrop-filter: blur(18px) saturate(140%);
+  color: #f1ecdf;
+  /* DESIGN.md Components: 24-31px radius. 24px is the lower bound;
+     components override to 31px when the panel sits inside a shell. */
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* Floating glass tab bar. Unprefixed backdrop-filter only — see the .glass
+   comment above about Lightning CSS stripping a hand-written -webkit- prefix. */
+.tab-glass {
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+/* Primary ink button — DESIGN.md Buttons > Primary (ink). */
+.btn-ink {
+  background: linear-gradient(180deg, #5a6847, #3d4633);
+  color: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+/* Native form controls (date picker, inputs) follow the light scheme. */
+input,
+textarea {
+  color-scheme: light;
+}
+
+/* Every tap target ≥44px — PRD acceptance criterion 10 */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Garden ground (2026-09-18, Devin) — a fixed, silent 12 s clip of a night garden behind every
+   screen (components/BackgroundVideo.tsx), in true colour: no scrim, no filter (Devin, the same
+   evening: "it looks like there's a washed-out film over it"). Text that sits on the bare ground
+   is light with a dark halo (.ground); everything else sits on frosted glass. The poster is the
+   same frame, blurred: what a reduced-motion or data-saver phone sees, and what shows until the
+   clip has loaded. */
+.bg-video {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--color-paper) url("/bg/garden.jpg") center / cover no-repeat;
+}
+.bg-video video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Text on the bare ground: linen with a dark halo, so it reads on the clip's darkest frames. */
+.ground {
+  color: var(--color-on-charcoal);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 0 14px rgba(0, 0, 0, 0.45);
+}
+.ground-muted {
+  color: var(--color-on-charcoal-muted);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(0, 0, 0, 0.45);
+}
+
+/* .ground is for the bare ground ONLY. Inside a light glass surface, linen text with a dark halo
+   reads as a blurred ghost (Devin, 2026-09-22: "there should be no blurry text on the application").
+   Any .ground that lands inside a .surface, a .pill-in or a .well (the three light glass interiors)
+   is reset to charcoal with no halo, so a misplaced class can never blur text again. The dark
+   panels (.meal-card-in, .logged-card-in, .olive-panel) keep linen text and are not covered. */
+.surface .ground,
+.surface .ground-muted,
+.pill-in .ground,
+.pill-in .ground-muted,
+.well .ground,
+.well .ground-muted {
+  text-shadow: none;
+}
+.surface .ground,
+.pill-in .ground,
+.well .ground {
+  color: var(--color-charcoal);
+}
+.surface .ground-muted,
+.pill-in .ground-muted,
+.well .ground-muted {
+  color: var(--color-graphite);
+}
+
+/* Critical Today copy gets a local, token-derived scrim. The video remains unscreened elsewhere. */
+main > header:has(h1.ground) {
+  position: relative;
+  isolation: isolate;
+}
+main > header:has(h1.ground)::before {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+  z-index: -1;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-charcoal-deep) 72%, transparent),
+    color-mix(in srgb, var(--color-charcoal-deep) 38%, transparent) 72%,
+    transparent
+  );
+}
+
+/* Press: a button or tappable link settles 2 % smaller for as long as it is held. 150 ms,
+   no bounce — DESIGN.md §Motion. Disabled controls do not move. */
+button,
+a.tap,
+[role="button"] {
+  transition: transform 150ms ease;
+}
+button:active:not(:disabled),
+a.tap:active,
+[role="button"]:active {
+  transform: scale(0.98);
+}
+
+/* Tab bar: the moss pill that slides under the tab she taps (components/TabBar.tsx). */
+.tab-pill {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(160deg, #6f7f57 0%, #4f5a3f 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    0 8px 16px -10px rgba(79, 90, 63, 0.9);
+  transition: left 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,635 @@
+[
+  {
+    "id": "devin-shift-late-30",
+    "category": "devin",
+    "sentence": "I woke up late, can you move all my meals by 30 minutes?",
+    "expected_path": "either",
+    "note": "argument-confidence rule: direction and scope are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [
+      "shift_schedule"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "devin-five-eats-suggestions",
+    "category": "devin",
+    "sentence": "make me 5 suggestions from my eats list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: suggestion scope and list target are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 5,
+      "max": 5
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "devin-remaining-snack",
+    "category": "devin",
+    "sentence": "suggest a snack that fits my remaining macros",
+    "expected_path": "either",
+    "note": "argument-confidence rule: remaining-macro scope is a classifier-scored argument that may fall below 0.90",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "devin-watermelon-avoid",
+    "category": "devin",
+    "sentence": "add watermelon to my avoid list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "list-remove-chicken-eats",
+    "category": "list_edit",
+    "sentence": "take chicken off my eats list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "remove_from_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "list-restore-salmon-eats",
+    "category": "list_edit",
+    "sentence": "put salmon back on eats",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "list-eggs-cant-do",
+    "category": "list_edit",
+    "sentence": "I can't do eggs anymore",
+    "expected_path": "either",
+    "note": "argument-confidence rule: implicit list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "list-remove-watermelon-avoid",
+    "category": "list_edit",
+    "sentence": "remove watermelon from avoid",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "remove_from_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "list-add-tofu-eats",
+    "category": "list_edit",
+    "sentence": "add tofu to the foods I eat",
+    "expected_path": "either",
+    "note": "argument-confidence rule: paraphrased list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "schedule-push-hour",
+    "category": "schedule_body",
+    "sentence": "push everything back an hour",
+    "expected_path": "either",
+    "note": "argument-confidence rule: direction and scope are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [
+      "shift_schedule"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "schedule-earlier-15",
+    "category": "schedule_body",
+    "sentence": "move my meals earlier by 15 minutes",
+    "expected_path": "either",
+    "note": "argument-confidence rule: direction and scope are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [
+      "shift_schedule"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "water-two-cups",
+    "category": "schedule_body",
+    "sentence": "log two cups of water",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "log_water"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "weight-127-pounds",
+    "category": "schedule_body",
+    "sentence": "I weigh 127 pounds this morning",
+    "expected_path": "fast",
+    "expected_action_kinds": [
+      "log_weight"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "suggest-three-dinners",
+    "category": "suggestion",
+    "sentence": "three dinner ideas",
+    "expected_path": "either",
+    "note": "argument-confidence rule: suggestion kind is a classifier-scored argument that may fall below 0.90",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "suggest-chicken-wrap-wish",
+    "category": "suggestion",
+    "sentence": "a chicken wrap that fits my macros",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "suggest-small-snack-wish",
+    "category": "suggestion",
+    "sentence": "a small snack",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "suggest-no-cook-recipes-wish",
+    "category": "suggestion",
+    "sentence": "recipes I can make without cooking",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "question-food-left",
+    "category": "no_action",
+    "sentence": "what do I have left to eat today?",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "question-protein-high",
+    "category": "no_action",
+    "sentence": "why is my protein so high?",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "question-colitis-deflection",
+    "category": "no_action",
+    "sentence": "do I have colitis?",
+    "expected_path": "fast",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_marker": "medical_deflection"
+  },
+  {
+    "id": "block-weight-trend",
+    "category": "block",
+    "sentence": "how's my weight trending?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "weight_trend",
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "block-week-review",
+    "category": "block",
+    "sentence": "how did this week go?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "kcal_week",
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "block-protein-or-fibre",
+    "category": "block",
+    "sentence": "can you change my breakfast?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_block_kinds": [
+      "quick_replies"
+    ],
+    "expected_quick_replies": {
+      "min": 2,
+      "max": 4
+    },
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "block-search-greek-yogurt-eats",
+    "category": "block",
+    "sentence": "find greek yogurt and put it on my eats",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "eats",
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "block-search-watermelon-avoid",
+    "category": "block",
+    "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "avoid",
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "block-three-dinner-ideas",
+    "category": "block",
+    "sentence": "three dinner ideas",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_block_kinds": [
+      "food_ideas"
+    ],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "jev-log-soy-mark",
+    "category": "jev",
+    "sentence": "log 100 g of smoked tofu for lunch",
+    "expected_path": "either",
+    "expected_action_kinds": ["log_meal"],
+    "expected_block_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true,
+    "expected_jev": {
+      "kind": "logged_facet_mark",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  {
+    "id": "jev-recipe-excludes-soy",
+    "category": "jev",
+    "sentence": "make a recipe from smoked tofu, rice, and avocado",
+    "expected_path": "llm",
+    "expected_action_kinds": ["save_recipe"],
+    "expected_block_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true,
+    "expected_jev": {
+      "kind": "recipe_exclusion",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  {
+    "id": "jev-low-fodmap-unverified",
+    "category": "jev",
+    "sentence": "make a recipe from mystery broth, rice, and chicken",
+    "expected_path": "llm",
+    "expected_action_kinds": ["save_recipe"],
+    "expected_block_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true,
+    "expected_jev": {
+      "kind": "unverified_recipe",
+      "preference": "low_fodmap"
+    }
+  },
+  {
+    "id": "jev-tiny-rice-log",
+    "category": "jev",
+    "sentence": "log 1 g of rice",
+    "expected_path": "either",
+    "expected_action_kinds": ["log_meal"],
+    "expected_block_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true,
+    "expected_jev": { "kind": "tiny_log_commit", "grams": 1 }
+  },
+  {
+    "id": "jev-three-dinner-ideas",
+    "category": "jev",
+    "sentence": "give me three dinner ideas that fit my preferences",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_block_kinds": ["food_ideas"],
+    "expected_card_count": { "min": 3, "max": 3 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true,
+    "expected_jev": {
+      "kind": "ranked_suggestions",
+      "purpose": "suggest-options",
+      "calls": 1
+    }
+  },
+  {
+    "id": "jev-role-advice-unconfirmed",
+    "category": "jev",
+    "sentence": "add blue pea crunch to my Eats list",
+    "expected_path": "either",
+    "expected_action_kinds": ["add_to_eats"],
+    "expected_block_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true,
+    "expected_jev": { "kind": "role_advice_unconfirmed" }
+  },
+  {
+    "id": "meals-p1-month-breakfast",
+    "category": "meals",
+    "sentence": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+    "expected_path": "llm",
+    "note": "P1: exactly one set_slot_meal with 31 dates and title Sourdough toast, bacon & eggs",
+    "expected_action_kinds": ["set_slot_meal"],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "meals-p2-future-breakfast",
+    "category": "meals",
+    "sentence": "What's my breakfast on 2026-10-05?",
+    "expected_path": "llm",
+    "note": "P2 follows P1 in the same thread: report Sourdough toast, bacon & eggs from the materialized plan",
+    "expected_action_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "meals-p3-next-tuesday-lunch",
+    "category": "meals",
+    "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+    "expected_path": "llm",
+    "note": "P3: one set_slot_meal for meal-2 with title Grilled chicken & rice",
+    "expected_action_kinds": ["set_slot_meal"],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "meals-p4-spaghetti-snack",
+    "category": "meals",
+    "sentence": "I just ate spaghetti bolognese as a snack.",
+    "expected_path": "llm",
+    "note": "P4: one log_meal with title Spaghetti bolognese",
+    "expected_action_kinds": ["log_meal"],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "meals-p6-weekday-oatmeal",
+    "category": "meals",
+    "sentence": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+    "expected_path": "llm",
+    "note": "P6: one set_slot_meal with weekdays 1-5, 10 dates, and title Oatmeal with blueberries",
+    "expected_action_kinds": ["set_slot_meal"],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true
+  },
+  {
+    "id": "activity-device-kcal-no-allowance",
+    "category": "activity",
+    "sentence": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+    "expected_path": "llm",
+    "note": "C13: call 520 a device estimate, give no food allowance, claim no target mutation, and point to the logs-and-weight weekly proposal",
+    "expected_action_kinds": [],
+    "expected_card_count": { "min": 0, "max": 0 },
+    "expected_block_kinds": [],
+    "latency_bound_ms": { "fast": 2000, "llm": 15000 },
+    "no_unsupported_claim": true
+  }
+]

@@ -1,0 +1,379 @@
+[
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "meal-1",
+      "title": "Egg",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 50
+        }
+      ],
+      "at": "09:00"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "meal-1",
+      "title": "Egg",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 50
+        }
+      ],
+      "note": "just a note"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "snack",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 50
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "meal-1",
+      "title": "Egg",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 50
+        }
+      ],
+      "note": "named",
+      "at": "08:15"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_slot_item",
+      "date": "2026-09-18",
+      "slot": "meal-2",
+      "item": {
+        "name": "rice",
+        "grams": 160
+      }
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "remove_slot_item",
+      "date": "2026-09-18",
+      "slot": "meal-3",
+      "name": "rice"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_slot_item",
+      "date": "2026-09-18",
+      "slot": "meal-3",
+      "name": "rice",
+      "grams": 120
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "move_slot",
+      "date": "2026-09-18",
+      "slot": "meal-3",
+      "time": "13:30"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "move_slot",
+      "date": "2026-09-18",
+      "slot": "meal-3",
+      "time": "13:45"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_avoid",
+      "name": "watermelon"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "remove_from_avoid",
+      "name": "watermelon"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_slot_meal",
+      "from": "2026-09-18",
+      "through": "2026-10-01",
+      "weekdays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "slot": "meal-1",
+      "title": "Oatmeal",
+      "items": [
+        {
+          "name": "oatmeal"
+        },
+        {
+          "name": "blueberries",
+          "grams": 80
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_slot_meal",
+      "from": "2026-09-21",
+      "through": "2026-09-21",
+      "slot": "meal-1",
+      "title": "Eggs",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 200
+        }
+      ]
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "delete_entry",
+      "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "move_entry",
+      "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
+      "at": "13:30"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "save_recipe",
+      "name": "Chicken bowl",
+      "items": [
+        {
+          "name": "chicken",
+          "grams": 150
+        }
+      ]
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "shift_schedule",
+      "date": "2026-09-18",
+      "minutes": 30,
+      "scope": "remaining"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "shift_schedule",
+      "date": "2026-09-18",
+      "minutes": -45,
+      "scope": "all"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_water",
+      "date": "2026-09-18",
+      "ml": 480
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_water",
+      "date": "2026-09-18",
+      "ml": 250
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_weight",
+      "date": "2026-09-18",
+      "kg": 58.1
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "update_profile",
+      "birthYear": 1992
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "update_profile",
+      "heightCm": 170,
+      "weightKg": 60,
+      "sex": "female",
+      "bodyFatPct": 22,
+      "activityLevel": "moderate",
+      "trainingWeekdays": [
+        1,
+        3,
+        5
+      ]
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "update_profile",
+      "goal": "lose_fat"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_targets",
+      "dayType": "training",
+      "kcal": 2300
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_targets",
+      "dayType": "both",
+      "proteinG": 140
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_targets",
+      "dayType": "rest",
+      "kcal": null,
+      "proteinG": 150
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_eats",
+      "name": "salmon",
+      "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "remove_from_eats",
+      "name": "salmon"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_shopping_list",
+      "names": [
+        "eggs",
+        "oat milk"
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_water",
+      "date": "2026-09-18",
+      "ml": 250
+    }
+  }
+]

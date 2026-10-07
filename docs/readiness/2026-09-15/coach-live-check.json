@@ -1,0 +1,105 @@
+{
+  "source": "origin/main c7f2a59 isolated local3104 and synthetic Supabase54331, real Gemini",
+  "http_status": 200,
+  "elapsed_ms": 4237,
+  "daily_spend_before": 0.0026850000000000003,
+  "new_recorded_cost": 0.0033975000000000003,
+  "response": {
+    "threadId": "2ffe69f5-7eff-4db0-871e-dea4db29bcef",
+    "suggestions": [],
+    "draft": null,
+    "deflected": false,
+    "toolsUsed": [
+      "get_targets",
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "messages": [
+      {
+        "id": "78929fd0-60b8-4b02-a2d1-9740481de9ce",
+        "role": "user",
+        "content": "Please suggest a simple snack using rice and chicken. Use your tools to check my targets and the available foods first.",
+        "seq": 1
+      },
+      {
+        "id": "36a6ebee-a2bb-471a-a6b1-224ac61062b2",
+        "role": "assistant",
+        "content": "A simple snack option is cooked white rice with chicken breast. You could have 100g of cooked white rice and 100g of cooked chicken breast. Both fit your gluten-free and dairy-free requirements. Let me know if you would like me to draft this in a specific meal slot for you.",
+        "seq": 2
+      }
+    ]
+  },
+  "ai_calls": [
+    {
+      "purpose": "coach",
+      "model_id": "gemini-3.6-flash",
+      "status": "ok",
+      "latency_ms": 2206,
+      "input_tokens": 1373,
+      "output_tokens": 108,
+      "cost_estimate": 0.00143475,
+      "error": null
+    },
+    {
+      "purpose": "coach",
+      "model_id": "gemini-3.6-flash",
+      "status": "ok",
+      "latency_ms": 1599,
+      "input_tokens": 2237,
+      "output_tokens": 76,
+      "cost_estimate": 0.00196275,
+      "error": null
+    }
+  ],
+  "readback": {
+    "http_status": 200,
+    "message_count": 2,
+    "reply_matches": true
+  },
+  "latest_four_coach_calls": [
+    {
+      "created_at": "2026-09-15T19:49:54.367095+00:00",
+      "purpose": "coach",
+      "model_id": "gemini-3.6-flash",
+      "status": "ok",
+      "latency_ms": 1621,
+      "input_tokens": 1468,
+      "output_tokens": 42,
+      "cost_estimate": 0.0012585
+    },
+    {
+      "created_at": "2026-09-15T19:49:52.712644+00:00",
+      "purpose": "coach",
+      "model_id": "gemini-3.6-flash",
+      "status": "ok",
+      "latency_ms": 2056,
+      "input_tokens": 1375,
+      "output_tokens": 42,
+      "cost_estimate": 0.0011887500000000001
+    },
+    {
+      "created_at": "2026-09-15T19:48:40.405356+00:00",
+      "purpose": "coach",
+      "model_id": "gemini-3.6-flash",
+      "status": "ok",
+      "latency_ms": 1599,
+      "input_tokens": 2237,
+      "output_tokens": 76,
+      "cost_estimate": 0.00196275
+    },
+    {
+      "created_at": "2026-09-15T19:48:38.528548+00:00",
+      "purpose": "coach",
+      "model_id": "gemini-3.6-flash",
+      "status": "ok",
+      "latency_ms": 2206,
+      "input_tokens": 1373,
+      "output_tokens": 108,
+      "cost_estimate": 0.00143475
+    }
+  ],
+  "latest_four_recorded_cost": 0.00584475
+}

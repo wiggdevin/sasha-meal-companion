@@ -1,0 +1,119 @@
+/* Onboarding v2 shell (lane L2, 2026-10-07; VISUAL-SPEC.md §1). Full-bleed matte charcoal — the
+   same family as the meal card and dock, never flat black, never the light oat ground a card stands
+   on — no header, no progress bar: Sprout is the progress indicator (SproutGuide). DESIGN.md
+   licenses an internally-scrolling surface for a redesigned onboarding that is its own overlay
+   (§Layout, "one scroller per screen"); this is that one scroller. All colour comes from tokens
+   already declared in app/globals.css / app/design-tokens.css. */
+
+.shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  /* `--grad-matte`: "the meal card and dock" (app/globals.css) — the house charcoal, not a literal.
+     The grain is this rule's own pseudo-element (not the global `.matte-grain` utility — that class
+     also sets `position: relative`, which risks fighting this rule's own `position: fixed` on
+     specificity/cascade order rather than intent) — same `--grain` token, same 4% opacity. */
+  background: var(--grad-matte);
+}
+.shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--grain);
+  opacity: 0.04;
+}
+
+/* VISUAL-SPEC.md §3: a soft backdrop so the stage is never an empty field. This PR's own version is
+   deliberately simple — a few low-opacity olive-tinted blobs, no new illustration assets (the food
+   art manifest is a separate PR, §9/§10) — structurally the same "illustrated field behind the hero
+   figure" idea, filled in with real art once §9 lands. It quiets to one soft persimmon glow for the
+   reward beat, the one deliberate "focus narrows" exception the spec calls for. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* The olive the house `--grad-ink` itself starts from (app/design-tokens.css), at low alpha —
+     "olive-tinted on charcoal" (VISUAL-SPEC.md §3), not a new hue. §3 names 6-8 shapes at 12%; this
+     is 6, at 18% — a real-device check (round-trip screenshot) found the spec's own 12%, stacked
+     with a radial fall-off to transparent, read as all but invisible against charcoal, which would
+     defeat §3's entire purpose (fixing the "big empty middle" §0 flags). 18% is the smallest bump
+     that stayed visibly soft rather than flat-invisible; the 12% lives in a stop's own alpha
+     (`color-mix`), never a second multiplied container opacity — stacking both nearly erased it. */
+  background:
+    radial-gradient(140px 140px at 18% 22%,
+      color-mix(in srgb, var(--color-olive-shell-top) 18%, transparent), transparent 70%),
+    radial-gradient(110px 110px at 82% 18%,
+      color-mix(in srgb, var(--color-olive-shell-top) 18%, transparent), transparent 70%),
+    radial-gradient(130px 130px at 24% 78%,
+      color-mix(in srgb, var(--color-olive-shell-top) 18%, transparent), transparent 70%),
+    radial-gradient(100px 100px at 78% 74%,
+      color-mix(in srgb, var(--color-olive-shell-top) 18%, transparent), transparent 70%),
+    radial-gradient(120px 120px at 50% 50%,
+      color-mix(in srgb, var(--color-olive-shell-top) 18%, transparent), transparent 70%),
+    radial-gradient(90px 90px at 60% 30%,
+      color-mix(in srgb, var(--color-olive-shell-top) 18%, transparent), transparent 70%);
+  transition: opacity 320ms ease;
+}
+.backdrop[data-reward] {
+  opacity: 1;
+  background: radial-gradient(45% 35% at 50% 38%,
+    color-mix(in srgb, var(--color-gauge-calories) 8%, transparent) 0%, transparent 70%);
+}
+
+.scroller {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroller::-webkit-scrollbar { display: none; }
+
+.stream {
+  display: flex;
+  min-height: 100%;
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  /* Sol round 3: without --safe-top, Sprout could start under an iPhone's status area
+     (viewport-fit: cover). */
+  padding: calc(24px + var(--safe-top)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dockRow {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+.skipLink {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 6px;
+}

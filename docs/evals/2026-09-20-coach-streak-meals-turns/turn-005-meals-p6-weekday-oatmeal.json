@@ -1,0 +1,266 @@
+{
+  "generatedAt": "2026-09-20T15:18:08.191Z",
+  "branch": "meals-2-2026-09-20",
+  "seed": "20260919",
+  "turn": 5,
+  "case": {
+    "id": "meals-p6-weekday-oatmeal",
+    "category": "meals",
+    "sentence": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+    "expected_path": "llm",
+    "note": "P6: one set_slot_meal with weekdays 1-5, 10 dates, and title Oatmeal with blueberries",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3364,
+    "actions": [
+      "set_slot_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.36,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [set_slot_meal]; got [set_slot_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3364 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.36"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Set oatmeal with blueberries for breakfast every weekday for the next two weeks.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": true,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":\"set_slot_meal\"}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": true,
+      "detail": "{\"expected\":\"meal-1\",\"actual\":\"meal-1\"}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": true,
+      "detail": "{\"expected\":\"Oatmeal with blueberries\",\"actual\":\"Oatmeal with blueberries\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": true,
+      "detail": "{\"expected\":[\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\"],\"actual\":[\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\"]}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": true,
+      "detail": "{\"expected\":{\"min\":150,\"max\":400},\"actual\":251}"
+    },
+    {
+      "name": "C9 phone-side materialization",
+      "passed": true,
+      "detail": "{\"dates\":10,\"title\":\"Oatmeal with blueberries\",\"slot\":\"meal-1\"}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "f60d92b2-bb74-41db-bc98-101dadd20336",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "oatmeal",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "blueberries",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-20",
+        "through": "2026-10-03",
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "slot": "meal-1",
+        "title": "Oatmeal with blueberries",
+        "items": [
+          {
+            "name": "oatmeal",
+            "foodRefId": "97b9c7cf-84f3-4c86-aee7-705c16bfaf17",
+            "catalogFoodRevisionId": 6,
+            "kcalPer100g": 71,
+            "proteinPer100g": 2.5,
+            "carbsPer100g": 12,
+            "fatPer100g": 1.5,
+            "verdict": "unverified",
+            "grams": 234
+          },
+          {
+            "name": "blueberries",
+            "foodRefId": "b0346a39-499d-4cb2-b174-c0a633292cea",
+            "catalogFoodRevisionId": 7,
+            "kcalPer100g": 57,
+            "proteinPer100g": 0.7,
+            "carbsPer100g": 14.5,
+            "fatPer100g": 0.3,
+            "verdict": "unverified",
+            "grams": 148
+          }
+        ],
+        "actionId": "ca7ead7c-a91a-4d7e-a3d1-1d76e0992452",
+        "flagged": [],
+        "date": "2026-09-20",
+        "dates": [
+          "2026-09-21",
+          "2026-09-22",
+          "2026-09-23",
+          "2026-09-24",
+          "2026-09-25",
+          "2026-09-28",
+          "2026-09-29",
+          "2026-09-30",
+          "2026-10-01",
+          "2026-10-02"
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 184,
+      "model": 3071,
+      "ground": 39
+    },
+    "messages": [
+      {
+        "id": "94248635-f0b6-4500-8696-c609d1c5eafe",
+        "role": "user",
+        "content": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "ded27036-67f6-465f-ab42-8ddc071ddd82",
+        "role": "assistant",
+        "content": "Set oatmeal with blueberries for breakfast every weekday for the next two weeks.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "ca7ead7c-a91a-4d7e-a3d1-1d76e0992452",
+            "flagged": [],
+            "kind": "set_slot_meal",
+            "date": "2026-09-20",
+            "from": "2026-09-20",
+            "through": "2026-10-03",
+            "weekdays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "dates": [
+              "2026-09-21",
+              "2026-09-22",
+              "2026-09-23",
+              "2026-09-24",
+              "2026-09-25",
+              "2026-09-28",
+              "2026-09-29",
+              "2026-09-30",
+              "2026-10-01",
+              "2026-10-02"
+            ],
+            "title": "Oatmeal with blueberries",
+            "slot": "meal-1",
+            "items": [
+              {
+                "name": "oatmeal",
+                "foodRefId": "97b9c7cf-84f3-4c86-aee7-705c16bfaf17",
+                "catalogFoodRevisionId": 6,
+                "kcalPer100g": 71,
+                "proteinPer100g": 2.5,
+                "carbsPer100g": 12,
+                "fatPer100g": 1.5,
+                "verdict": "unverified",
+                "grams": 234
+              },
+              {
+                "name": "blueberries",
+                "foodRefId": "b0346a39-499d-4cb2-b174-c0a633292cea",
+                "catalogFoodRevisionId": 7,
+                "kcalPer100g": 57,
+                "proteinPer100g": 0.7,
+                "carbsPer100g": 14.5,
+                "fatPer100g": 0.3,
+                "verdict": "unverified",
+                "grams": 148
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

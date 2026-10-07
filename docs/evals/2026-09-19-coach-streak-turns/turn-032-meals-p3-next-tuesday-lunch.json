@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-03T20:59:00.469Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 32,
+  "caseId": "meals-p3-next-tuesday-lunch",
+  "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+  "passed": false,
+  "error": "HttpError: Sasha is unavailable right now. Try again in a minute."
+}

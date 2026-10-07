@@ -1,0 +1,398 @@
+{
+  "generatedAt": "2026-09-20T08:24:41.787Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 14,
+  "case": {
+    "id": "jev-log-soy-mark",
+    "category": "jev",
+    "sentence": "log 100 g of smoked tofu for lunch",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "logged_facet_mark",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4940,
+    "actions": [
+      "log_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.22,
+      "verifier": "jev"
+    },
+    "jev": {
+      "assistantContent": "Logged 100 g of smoked tofu for Meal 2. Tofu is a legume, so it is marked off-plan. Off-plan: smoked tofu.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [],
+        "actions": [
+          {
+            "date": "2026-09-20",
+            "kind": "log_meal",
+            "slot": "meal-2",
+            "items": [
+              {
+                "name": "smoked tofu",
+                "grams": 100,
+                "sanity": {
+                  "status": "pending",
+                  "warnings": []
+                },
+                "verdict": "blocked",
+                "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+                "fatPer100g": 9,
+                "kcalPer100g": 170,
+                "carbsPer100g": 3,
+                "proteinPer100g": 19,
+                "catalogFoodRevisionId": 467
+              }
+            ],
+            "flagged": [
+              "smoked tofu"
+            ],
+            "actionId": "b86da7e0-832d-4536-a088-7d29f9175b0e"
+          }
+        ],
+        "composed": [],
+        "suggestions": [
+          {
+            "name": "smoked tofu",
+            "grams": 100,
+            "reason": null,
+            "verdict": "unverified",
+            "foodRefId": null
+          }
+        ]
+      },
+      "actions": [
+        {
+          "date": "2026-09-20",
+          "kind": "log_meal",
+          "slot": "meal-2",
+          "items": [
+            {
+              "name": "smoked tofu",
+              "grams": 100,
+              "sanity": {
+                "status": "pending",
+                "warnings": []
+              },
+              "verdict": "blocked",
+              "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+              "fatPer100g": 9,
+              "kcalPer100g": 170,
+              "carbsPer100g": 3,
+              "proteinPer100g": 19,
+              "catalogFoodRevisionId": 467
+            }
+          ],
+          "flagged": [
+            "smoked tofu"
+          ],
+          "actionId": "b86da7e0-832d-4536-a088-7d29f9175b0e"
+        }
+      ],
+      "blocks": [],
+      "commit": {
+        "status": "ok",
+        "entry_id": "ff43dd33-598a-4bea-9bd0-eb612af8e076",
+        "rev": 1,
+        "items": [
+          {
+            "id": "960c27bf-e641-4118-a36f-ae1cec14776a",
+            "entry_id": "ff43dd33-598a-4bea-9bd0-eb612af8e076",
+            "seq": 1,
+            "food_ref_id": "69bde986-e332-46db-99d4-643c02b7ffbb",
+            "qty": 100,
+            "unit": "g",
+            "grams": 100,
+            "portion_id": null,
+            "food_revision_id": 467,
+            "was_edited": false,
+            "confidence": null,
+            "snapshot": {
+              "protein": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 19,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              },
+              "fat_total": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 9,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              },
+              "energy_kcal": {
+                "unit": "kcal",
+                "basis": "per_100g",
+                "amount": 170,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              },
+              "carbohydrate": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 3,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              }
+            }
+          }
+        ],
+        "totals": {
+          "local_date": "2026-09-20",
+          "nutrients": [
+            {
+              "code": "energy_kcal_calc",
+              "amount": 420,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "protein",
+              "amount": 37,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "carbohydrate",
+              "amount": 75,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "energy_kcal",
+              "amount": 170,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "fat_total",
+              "amount": 17,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            }
+          ],
+          "micro_coverage_pct": 0
+        },
+        "flagged": [
+          {
+            "path": "items.0",
+            "message": "blocked:facet:contains_soy"
+          }
+        ]
+      },
+      "logEntry": {
+        "id": "ff43dd33-598a-4bea-9bd0-eb612af8e076",
+        "grams": [
+          100
+        ]
+      },
+      "rankingPurposes": [
+        "coach-intent",
+        "coach",
+        "log_sanity"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_meal]; got [log_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4940 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.22"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 100 g of smoked tofu for Meal 2. Tofu is a legume, so it is marked off-plan. Off-plan: smoked tofu.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted soy verdict",
+      "passed": true,
+      "detail": "{\"date\":\"2026-09-20\",\"kind\":\"log_meal\",\"slot\":\"meal-2\",\"items\":[{\"name\":\"smoked tofu\",\"grams\":100,\"sanity\":{\"status\":\"pending\",\"warnings\":[]},\"verdict\":\"blocked\",\"foodRefId\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"fatPer100g\":9,\"kcalPer100g\":170,\"carbsPer100g\":3,\"proteinPer100g\":19,\"catalogFoodRevisionId\":467}],\"flagged\":[\"smoked tofu\"],\"actionId\":\"b86da7e0-832d-4536-a088-7d29f9175b0e\"}"
+    },
+    {
+      "name": "Jev persisted soy reply mark",
+      "passed": true,
+      "detail": "Logged 100 g of smoked tofu for Meal 2. Tofu is a legume, so it is marked off-plan. Off-plan: smoked tofu."
+    },
+    {
+      "name": "Jev soy log committed",
+      "passed": true,
+      "detail": "{\"status\":\"ok\",\"entry_id\":\"ff43dd33-598a-4bea-9bd0-eb612af8e076\",\"rev\":1,\"items\":[{\"id\":\"960c27bf-e641-4118-a36f-ae1cec14776a\",\"entry_id\":\"ff43dd33-598a-4bea-9bd0-eb612af8e076\",\"seq\":1,\"food_ref_id\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"qty\":100,\"unit\":\"g\",\"grams\":100,\"portion_id\":null,\"food_revision_id\":467,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":19,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":9,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":170,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":3,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":37,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":75,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":170,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":17,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0},\"flagged\":[{\"path\":\"items.0\",\"message\":\"blocked:facet:contains_soy\"}]}"
+    },
+    {
+      "name": "Jev commit carries soy facet mark",
+      "passed": true,
+      "detail": "[{\"path\":\"items.0\",\"message\":\"blocked:facet:contains_soy\"}]"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "a40af0d6-17fe-4eb9-807f-945c13bfafbe",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "smoked tofu",
+        "grams": 100,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "date": "2026-09-20",
+        "kind": "log_meal",
+        "slot": "meal-2",
+        "items": [
+          {
+            "name": "smoked tofu",
+            "grams": 100,
+            "sanity": {
+              "status": "pending",
+              "warnings": []
+            },
+            "verdict": "blocked",
+            "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+            "fatPer100g": 9,
+            "kcalPer100g": 170,
+            "carbsPer100g": 3,
+            "proteinPer100g": 19,
+            "catalogFoodRevisionId": 467
+          }
+        ],
+        "flagged": [
+          "smoked tofu"
+        ],
+        "actionId": "b86da7e0-832d-4536-a088-7d29f9175b0e"
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 427,
+      "model": 2939,
+      "ground": 609
+    },
+    "messages": [
+      {
+        "id": "5f637729-baaf-45b2-83d2-93b1348b3fc5",
+        "role": "user",
+        "content": "log 100 g of smoked tofu for lunch",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "c659df3a-6929-48ec-8375-17514f6fce15",
+        "role": "assistant",
+        "content": "Logged 100 g of smoked tofu for Meal 2. Tofu is a legume, so it is marked off-plan. Off-plan: smoked tofu.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "b86da7e0-832d-4536-a088-7d29f9175b0e",
+            "flagged": [
+              "smoked tofu"
+            ],
+            "kind": "log_meal",
+            "date": "2026-09-20",
+            "slot": "meal-2",
+            "items": [
+              {
+                "name": "smoked tofu",
+                "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+                "catalogFoodRevisionId": 467,
+                "kcalPer100g": 170,
+                "proteinPer100g": 19,
+                "carbsPer100g": 3,
+                "fatPer100g": 9,
+                "verdict": "blocked",
+                "grams": 100,
+                "sanity": {
+                  "status": "pending",
+                  "warnings": []
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+**DO NOT SHIP**
+
+- **R2 BLOCK — RESOLVED.** Replay accepts only the assistant at the next sequence number, and an abandoned turn’s fallback reply must be inserted before it is returned. [coach-threads.ts](/Users/zero-suminc./projects/clients/Sasha/mc-coach-deadline/lib/server/coach-threads.ts:75)
+- **R2 FIX — NOT RESOLVED.** The attachment deadline is checked only before `persist`; an insert already in progress can finish after the route returns 503. [coach-attachments.ts](/Users/zero-suminc./projects/clients/Sasha/mc-coach-deadline/lib/server/coach-attachments.ts:262), [coach-turn.ts](/Users/zero-suminc./projects/clients/Sasha/mc-coach-deadline/lib/server/coach-turn.ts:304)
+- **NEW [BLOCK] from `49d4a96`:** If a later user message occupies the abandoned turn’s next sequence number, the new fallback insert conflicts with the unique `(thread_id, seq)` constraint. Every retry of the abandoned message then returns 503. [coach-threads.ts](/Users/zero-suminc./projects/clients/Sasha/mc-coach-deadline/lib/server/coach-threads.ts:94), [schema](/Users/zero-suminc./projects/clients/Sasha/mc-coach-deadline/supabase/migrations/20261001000000_phase7_coach.sql:38)
+
+Focused tests could not start: `pnpm` attempted a write in the read-only workspace.

@@ -1,0 +1,15 @@
+-- The body-fat provenance trigger function is internal: no client role needs to call it.
+--
+-- 20261028090000_body_fat_provenance.sql created `user_settings_body_fat_provenance()` without a
+-- revoke, so Supabase's default privileges gave EXECUTE to `anon` and `authenticated`. The RPC
+-- manifest check (tests/tenancy/rpc-matrix.test.ts, PR #247) found it as the one undeclared
+-- function `authenticated` may execute. It returns `trigger`, so a direct call fails anyway
+-- ("trigger functions can only be called as triggers"), and it is SECURITY INVOKER; this closes
+-- the grant so the manifest stays exact. Same rule as the PR #250 trigger functions.
+--
+-- Safe for writes: PostgreSQL checks EXECUTE on a trigger function when the trigger is created,
+-- not when it fires, so the trigger keeps running for every writer.
+--
+-- 20261028090000 is already applied to production, so this is a new migration rather than an
+-- edit. Idempotent: a revoke that is already in place is a no-op.
+revoke all on function public.user_settings_body_fat_provenance() from public, anon, authenticated;

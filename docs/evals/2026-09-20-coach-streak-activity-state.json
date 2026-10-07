@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "seed": "20260919",
+  "branch": "feat/health-3 (local Docker)",
+  "category": "activity",
+  "startedAt": "2026-09-20T18:02:46.221Z",
+  "updatedAt": "2026-09-20T18:02:50.009Z",
+  "status": "success",
+  "streak": 1,
+  "totalTurns": 1,
+  "turns": [
+    {
+      "turn": 1,
+      "caseId": "activity-device-kcal-no-allowance",
+      "sentence": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+      "path": "llm",
+      "elapsedMs": 2865,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "activity",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 2865 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.06"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. For target questions, point to the one-tap weekly proposal based on logs and weight.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "C13 activity context present",
+          "passed": true,
+          "detail": "packed today.activity present"
+        },
+        {
+          "name": "C13 device estimate wording",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. For target questions, point to the one-tap weekly proposal based on logs and weight.\""
+        },
+        {
+          "name": "C13 forbidden allowance wording",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. For target questions, point to the one-tap weekly proposal based on logs and weight.\""
+        },
+        {
+          "name": "C13 no numeric food allowance",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. For target questions, point to the one-tap weekly proposal based on logs and weight.\""
+        },
+        {
+          "name": "C13 no target mutation",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. For target questions, point to the one-tap weekly proposal based on logs and weight.\""
+        },
+        {
+          "name": "C13 logs-and-weight weekly proposal",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. For target questions, point to the one-tap weekly proposal based on logs and weight.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-activity-turns/turn-001-activity-device-kcal-no-allowance.json",
+      "threadId": "88d69df8-be3a-434e-aaa5-61ff42afcaff"
+    }
+  ],
+  "failures": [],
+  "blockers": []
+}

@@ -1,0 +1,205 @@
+{
+  "generatedAt": "2026-10-03T20:41:32.221Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 18,
+  "case": {
+    "id": "block-search-watermelon-avoid",
+    "category": "block",
+    "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "avoid"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 10073,
+    "actions": [],
+    "blocks": [
+      "food_search"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "7284cfa5-dd82-4e7a-8daa-77c0e83b4bc0",
+        "kind": "food_search",
+        "query": "watermelon",
+        "intent": "log",
+        "results": [
+          {
+            "name": "Watermelon, raw",
+            "status": "neutral",
+            "blocked": false,
+            "foodRefId": "98537b0a-bc2f-4e95-8b8b-dcb452e8b540",
+            "revisionId": "19",
+            "kcalPer100g": 30
+          },
+          {
+            "name": "Watermelon, raw",
+            "status": "neutral",
+            "blocked": false,
+            "foodRefId": "730ea48a-580e-40d8-89a1-f2f18f0ae952",
+            "revisionId": "20",
+            "kcalPer100g": 30
+          },
+          {
+            "name": "Tuna, light, canned in water",
+            "status": "eats",
+            "blocked": false,
+            "foodRefId": "41291091-81c0-4df9-8c81-8a05a0f085b1",
+            "revisionId": "3",
+            "kcalPer100g": 116
+          }
+        ],
+        "truncated": false
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 10073 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Here is watermelon in the catalog.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [food_search]; got [food_search]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected food-search intent",
+      "passed": false,
+      "detail": "expected avoid; got [\"log\"]"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "63ef3d2f-0425-4a96-ad13-bbabbb0d3204",
+    "suggestions": [
+      {
+        "foodRefId": "730ea48a-580e-40d8-89a1-f2f18f0ae952",
+        "name": "Watermelon, raw",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 518,
+      "model": 7886,
+      "ground": 8
+    },
+    "messages": [
+      {
+        "id": "7d25d300-25e1-434f-92de-4c5bdda31c7c",
+        "role": "user",
+        "content": "show me watermelon in the catalog so I can decide whether to avoid it",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "ae84d19f-6e4e-414a-b3e1-d3e227298f62",
+        "role": "assistant",
+        "content": "Here is watermelon in the catalog.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "food_search",
+            "v": 1,
+            "id": "7284cfa5-dd82-4e7a-8daa-77c0e83b4bc0",
+            "query": "watermelon",
+            "intent": "log",
+            "results": [
+              {
+                "foodRefId": "98537b0a-bc2f-4e95-8b8b-dcb452e8b540",
+                "revisionId": "19",
+                "name": "Watermelon, raw",
+                "kcalPer100g": 30,
+                "status": "neutral",
+                "blocked": false
+              },
+              {
+                "foodRefId": "730ea48a-580e-40d8-89a1-f2f18f0ae952",
+                "revisionId": "20",
+                "name": "Watermelon, raw",
+                "kcalPer100g": 30,
+                "status": "neutral",
+                "blocked": false
+              },
+              {
+                "foodRefId": "41291091-81c0-4df9-8c81-8a05a0f085b1",
+                "revisionId": "3",
+                "name": "Tuna, light, canned in water",
+                "kcalPer100g": 116,
+                "status": "eats",
+                "blocked": false
+              }
+            ],
+            "truncated": false
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,183 @@
+// @vitest-environment jsdom
+/**
+ * Sprout's shop (owner, 2026-10-07): Seeds buy items for Sprout, who tries them on and wears them.
+ * The rules mirror the server contract asked for in UI-NEEDS SPROUT-CARE: a purchase is idempotent on
+ * its action id, the balance never goes below zero, and only an owned item is worn, in its own slot.
+ */
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MotionConfig } from "motion/react";
+import { useState } from "react";
+import CareShop from "./CareShop";
+
+const sound = vi.hoisted(() => ({ play: vi.fn(), unlockAudio: vi.fn(), muted: false }));
+vi.mock("@/components/today/care/sound", () => ({
+  play: sound.play, unlockAudio: sound.unlockAudio, readMuted: () => sound.muted,
+}));
+import { LEDGER_COPY, SHOP_ITEMS, SLOTS, itemById } from "./catalog";
+import { equip, pendingSeeds, purchase, seeds, type ShopState } from "./shop-state";
+
+afterEach(() => { cleanup(); sound.play.mockClear(); sound.unlockAudio.mockClear(); sound.muted = false; });
+
+const START: ShopState = {
+  balance: 42, owned: ["leaf-pin"], equipped: { pin: "leaf-pin" }, rev: 1, receipts: {},
+  ledger: [{ id: "d1", kind: "day_recorded", delta: 2, localDate: "2026-10-07", status: "pending" },
+    { id: "c6", kind: "day_complete", delta: 2, localDate: "2026-10-06", status: "settled" }],
+};
+
+describe("the shop's rules", () => {
+  it("debits and grants at once, and a retry with the same action id answers the first receipt", () => {
+    const first = purchase(START, "bucket-hat", "a1", "2026-10-07");
+    expect(first.ok && first.receipt).toEqual({ actionId: "a1", itemId: "bucket-hat", price: 25, balance: 17 });
+    if (!first.ok) throw new Error("expected a purchase");
+    expect(first.state.owned).toContain("bucket-hat");
+    expect(first.state.ledger[0]).toMatchObject({ kind: "purchase", delta: -25, status: "settled" });
+    const again = purchase(first.state, "bucket-hat", "a1", "2026-10-07");
+    expect(again.ok && again.replay).toBe(true);
+    expect(again.ok && again.state.balance).toBe(17);
+    expect(purchase(first.state, "glasses", "a1", "2026-10-07")).toEqual({ ok: false, code: "action_conflict" });
+  });
+
+  it("never lets the balance go below zero, and never sells an item twice", () => {
+    expect(purchase({ ...START, balance: 20 }, "sunglasses", "a2", "2026-10-07")).toEqual({ ok: false, code: "insufficient", short: 15 });
+    expect(purchase(START, "leaf-pin", "a3", "2026-10-07")).toEqual({ ok: false, code: "owned" });
+    expect(purchase(START, "a-unicorn", "a4", "2026-10-07")).toEqual({ ok: false, code: "unknown_item" });
+  });
+
+  it("wears only an owned item, only in its own slot, and takes it off", () => {
+    expect(equip(START, "head", "bucket-hat")).toEqual({ ok: false, code: "not_owned" });
+    expect(equip(START, "eyes", "leaf-pin")).toEqual({ ok: false, code: "wrong_slot" });
+    const off = equip(START, "pin", null);
+    expect(off.ok && off.state.equipped.pin).toBeUndefined();
+    expect(off.ok && off.state.rev).toBe(2);
+  });
+
+  it("counts pending Seeds and says Seeds in words", () => {
+    expect(pendingSeeds(START)).toBe(2);
+    expect(seeds(1)).toBe("1 Seed");
+    expect(seeds(1250)).toBe("1,250 Seeds");
+  });
+
+  it("has a place for every item, in a known slot, and copy that never rewards eating less", () => {
+    const slots = new Set(SLOTS.map((s) => s.slot));
+    for (const item of SHOP_ITEMS) {
+      expect(slots.has(item.slot)).toBe(true);
+      expect(item.places.length).toBeGreaterThan(0);
+      expect(item.price).toBeGreaterThan(0);
+    }
+    for (const line of Object.values(LEDGER_COPY)) expect(line).not.toMatch(/\b(less|under|fast|skip|calorie)/i);
+  });
+});
+
+function Harness({ start }: { start: ShopState }) {
+  const [state, setState] = useState(start);
+  return <CareShop state={state} onChange={setState} today="2026-10-07" />;
+}
+const shop = (start = START) => render(<MotionConfig reducedMotion="always"><Harness start={start} /></MotionConfig>);
+const live = () => document.querySelector("[aria-live]")?.textContent;
+
+describe("CareShop", () => {
+  it("tries an item on, buys it with its price and the balance after in words, and puts it on", () => {
+    shop();
+    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
+    expect(screen.getByText("Balance after: 17 Seeds.")).toBeTruthy();
+    expect(screen.getByRole("img", { name: /wearing leaf pin, bucket hat/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" }));
+    expect(live()).toBe("The bucket hat is yours, and Sprout has it on. 17 Seeds.");
+    expect(screen.getByRole("button", { name: /17 Seeds/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bucket hat, yours, on Sprout" })).toBeTruthy();
+  });
+
+  it("speaks of a pair in the plural", () => {
+    shop();
+    fireEvent.click(screen.getByRole("button", { name: "Mittens, 20 Seeds" }));
+    fireEvent.click(screen.getByRole("button", { name: "Buy the mittens for 20 Seeds" }));
+    expect(live()).toBe("The mittens are yours, and Sprout has them on. 22 Seeds.");
+  });
+
+  it("will not buy what the Seeds do not cover, and says how many more", () => {
+    shop({ ...START, balance: 3 });
+    fireEvent.click(screen.getByRole("button", { name: "Sunglasses, 35 Seeds" }));
+    expect(screen.getByText("32 Seeds more to go.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Buy the sunglasses for 35 Seeds" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("takes an owned item off and puts it back on", () => {
+    shop();
+    fireEvent.click(screen.getByRole("button", { name: "Leaf pin, yours, on Sprout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take off" }));
+    expect(live()).toBe("Sprout takes off the leaf pin.");
+    fireEvent.click(screen.getByRole("button", { name: "Leaf pin, yours" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wear" }));
+    expect(live()).toBe("Sprout puts on the leaf pin.");
+  });
+
+  it("keeps keyboard focus on the action button when Buy turns into Take off", () => {
+    shop();
+    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
+    const buyBtn = screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" });
+    buyBtn.focus();
+    fireEvent.click(buyBtn);
+    // The slot now reads Take off: focus must have stayed on the same button, not fallen to <body>.
+    expect(document.activeElement?.textContent).toBe("Take off");
+  });
+
+  it("returns focus to the item's tile when Take off empties the action row", () => {
+    shop();
+    fireEvent.click(screen.getByRole("button", { name: "Leaf pin, yours, on Sprout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take off" }));
+    // Take off deselects (nothing left to preview), so the action row disappears; focus must land
+    // back on the leaf pin's own tile rather than falling through to the page.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Leaf pin, yours" }));
+  });
+
+  it("says Sprout tries on an owned-but-unworn item too, and clears the line on deselect", () => {
+    shop({ ...START, owned: [...START.owned, "bucket-hat"] });
+    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, yours" }));
+    expect(live()).toBe("Sprout tries on the bucket hat.");
+    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, yours" }));
+    expect(live()).toBe("");
+  });
+
+  it("shows recent Seeds from the balance, pending ones as tonight", () => {
+    shop();
+    const balance = screen.getByRole("button", { name: /42 Seeds\. Show recent Seeds/ });
+    expect(balance.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(balance);
+    const ledger = screen.getByRole("region", { name: "Recent Seeds" });
+    expect(ledger.textContent).toContain("A day recorded");
+    expect(ledger.textContent).toContain("tonight");
+    expect(itemById("leaf-pin")?.name).toBe("Leaf pin");
+  });
+});
+
+describe("the purchase chime (Sol r1)", () => {
+  const buyHat = (motion: "never" | "always") => {
+    render(<MotionConfig reducedMotion={motion}><Harness start={START} /></MotionConfig>);
+    fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" }));
+    fireEvent.click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" }));
+  };
+
+  it("chimes on a purchase when sound is on", () => {
+    buyHat("never");
+    expect(sound.play).toHaveBeenCalledWith("chime");
+  });
+
+  it("stays quiet when the shared Sound off is set, or motion is reduced", () => {
+    sound.muted = true;
+    buyHat("never");
+    cleanup();
+    sound.muted = false;
+    buyHat("always");
+    expect(sound.play).not.toHaveBeenCalled();
+    expect(sound.unlockAudio).not.toHaveBeenCalled();
+  });
+});
+
+describe("a reversed award (Sol r1)", () => {
+  it("says it was reversed instead of reading as Seeds earned", () => {
+    shop({ ...START, ledger: [{ id: "r1", kind: "protein_goal", delta: 1, localDate: "2026-10-06", status: "reversed" }] });
+    fireEvent.click(screen.getByRole("button", { name: /Show recent Seeds/ }));
+    expect(screen.getByRole("region", { name: "Recent Seeds" }).textContent).toContain("reversed, Oct 6");
+  });
+});

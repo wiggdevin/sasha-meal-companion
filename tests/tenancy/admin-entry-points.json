@@ -1,0 +1,349 @@
+{
+  "app/api/coach/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
+  },
+  "app/api/coach/transcribe/route.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/coach/transcribe/route"
+  },
+  "app/api/constraints/review/route.ts": {
+    "test": "tests/tenancy/admin-rule-review.test.ts",
+    "via": "@/app/api/constraints/review/route"
+  },
+  "app/api/dev/sign-in/route.ts": {
+    "test": "tests/tenancy/admin-auth.test.ts",
+    "via": "@/app/api/dev/sign-in/route"
+  },
+  "app/api/foods/barcode/route.ts": {
+    "test": "tests/tenancy/admin-barcode.test.ts",
+    "via": "@/app/api/foods/barcode/route"
+  },
+  "app/api/foods/facets/warm/route.ts": {
+    "test": "tests/tenancy/admin-facets-warm.test.ts",
+    "via": "@/app/api/foods/facets/warm/route"
+  },
+  "app/api/foods/world/route.ts": {
+    "test": "tests/tenancy/admin-food-world.test.ts",
+    "via": "@/app/api/foods/world/route"
+  },
+  "app/api/health/ingest/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/ingest/route"
+  },
+  "app/api/health/oura/callback/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/oura/callback/route"
+  },
+  "app/api/health/oura/disconnect/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/oura/disconnect/route"
+  },
+  "app/api/health/oura/start/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/oura/start/route"
+  },
+  "app/api/health/route.ts": {
+    "test": "tests/tenancy/admin-health.test.ts",
+    "via": "@/app/api/health/route"
+  },
+  "app/api/health/tokens/[id]/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/tokens/[id]/route"
+  },
+  "app/api/health/tokens/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/tokens/route"
+  },
+  "app/api/health/weigh-in/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/weigh-in/route"
+  },
+  "app/api/jobs/backup/route.ts": {
+    "test": "tests/tenancy/admin-backup.test.ts",
+    "via": "@/app/api/jobs/backup/route"
+  },
+  "app/api/jobs/estimate/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/estimate/route"
+  },
+  "app/api/jobs/facet-warm/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/facet-warm/route"
+  },
+  "app/api/jobs/media-sweep/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/media-sweep/route"
+  },
+  "app/api/jobs/oura-pull/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/oura-pull/route"
+  },
+  "app/api/jobs/signal-purge/route.ts": {
+    "test": "tests/tenancy/admin-signal-purge.test.ts",
+    "via": "@/app/api/jobs/signal-purge/route"
+  },
+  "app/api/jobs/spend-sweep/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/spend-sweep/route"
+  },
+  "app/api/jobs/weekly-proposal/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/weekly-proposal/route"
+  },
+  "app/api/jobs/weekly-review/route.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/weekly-review/route"
+  },
+  "app/api/log/commit/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/log/commit/route"
+  },
+  "app/api/log/propose/route.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/log/propose/route"
+  },
+  "app/api/mcp/route.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/mcp/route"
+  },
+  "app/api/media/sign/route.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/media/sign/route"
+  },
+  "app/api/onboarding/extract/route.ts": {
+    "test": "tests/tenancy/admin-onboarding-extract.test.ts",
+    "via": "@/app/api/onboarding/extract/route"
+  },
+  "app/api/plan/document/route.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/plan/document/route"
+  },
+  "app/api/plan/inspire/route.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/plan/inspire/route"
+  },
+  "lib/ai/adapter.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/adapter"
+  },
+  "lib/ai/call-ledger.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/adapter"
+  },
+  "lib/ai/call.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/adapter"
+  },
+  "lib/ai/capture.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/log/propose/route"
+  },
+  "lib/ai/circuit.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/circuit"
+  },
+  "lib/ai/gemini-grounded.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/gemini-grounded"
+  },
+  "lib/ai/openrouter.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/openrouter"
+  },
+  "lib/ai/spend.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/ai/spend"
+  },
+  "lib/ai/typesafe.ts": {
+    "test": "tests/tenancy/admin-ai.test.ts",
+    "via": "@/lib/ai/typesafe"
+  },
+  "lib/coach/blocks/index.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/coach/blocks"
+  },
+  "lib/coach/suggest-policy.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/coach/suggest-policy"
+  },
+  "lib/coach/weekly-review.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/weekly-review/route"
+  },
+  "lib/foods/facet-warm.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/foods/facet-warm"
+  },
+  "lib/foods/facets.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/coach/suggest-policy"
+  },
+  "lib/mcp/coach-tools.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/mcp/route"
+  },
+  "lib/mcp/expenditure-tools.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/mcp/route"
+  },
+  "lib/mcp/health-tools.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/mcp/route"
+  },
+  "lib/server/barcode.ts": {
+    "test": "tests/tenancy/admin-barcode.test.ts",
+    "via": "@/app/api/foods/barcode/route"
+  },
+  "lib/server/capture.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/log/propose/route"
+  },
+  "lib/server/catalog-names.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/catalog-names"
+  },
+  "lib/server/catalog-writer.ts": {
+    "test": "tests/tenancy/admin-barcode.test.ts",
+    "via": "@/app/api/foods/barcode/route"
+  },
+  "lib/server/coach-attachments.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/coach/route"
+  },
+  "lib/server/coach-context.ts": {
+    "test": "tests/tenancy/admin-canary.test.ts",
+    "via": "@/lib/server/coach-context"
+  },
+  "lib/server/coach-intent-telemetry.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/coach-intent-telemetry"
+  },
+  "lib/server/coach-ports.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/coach-ports"
+  },
+  "lib/server/coach-role-advice.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/coach-role-advice"
+  },
+  "lib/server/coach-threads.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
+  },
+  "lib/server/coach-transcribe.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/coach/transcribe/route"
+  },
+  "lib/server/coach-turn.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
+  },
+  "lib/server/coach-turn/setup.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
+  },
+  "lib/server/coach-turn/types.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
+  },
+  "lib/server/coach.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/weekly-review/route"
+  },
+  "lib/server/compose-pool-ports.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/compose-pool-ports"
+  },
+  "lib/server/day-context.ts": {
+    "test": "tests/tenancy/admin-canary.test.ts",
+    "via": "@/lib/server/coach-context"
+  },
+  "lib/server/day-energy.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/day-totals"
+  },
+  "lib/server/day-totals.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/day-totals"
+  },
+  "lib/server/expenditure.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/estimate/route"
+  },
+  "lib/server/food-world.ts": {
+    "test": "tests/tenancy/admin-food-world.test.ts"
+  },
+  "lib/server/health-ingest.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/health/ingest/route"
+  },
+  "lib/server/health-tokens.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/lib/server/health-tokens"
+  },
+  "lib/server/job-cursor.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/estimate/route"
+  },
+  "lib/server/jobs.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/estimate/route"
+  },
+  "lib/server/log.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/lib/server/log"
+  },
+  "lib/server/lookup-lane.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/coach-ports"
+  },
+  "lib/server/media.ts": {
+    "test": "tests/tenancy/admin-canary.test.ts",
+    "via": "@/lib/server/media"
+  },
+  "lib/server/membership-revisions.ts": {
+    "test": "tests/tenancy/admin-favor.test.ts",
+    "via": "@/app/api/foods/favor/route"
+  },
+  "lib/server/occasion-facets.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/occasion-facets"
+  },
+  "lib/server/onboarding-extract.ts": {
+    "test": "tests/tenancy/admin-onboarding-extract.test.ts",
+    "via": "@/app/api/onboarding/extract/route"
+  },
+  "lib/server/oura.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/oura-pull/route"
+  },
+  "lib/server/plan-document.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/plan/document/route"
+  },
+  "lib/server/plan-inspire.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/plan/inspire/route"
+  },
+  "lib/server/plan-menu.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/plan/inspire/route"
+  },
+  "lib/server/privileged.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/privileged"
+  },
+  "lib/server/ratelimit.ts": {
+    "test": "tests/tenancy/admin-ratelimit.test.ts",
+    "via": "@/lib/server/ratelimit"
+  },
+  "lib/server/recipe-plan.ts": {
+    "test": "tests/tenancy/admin-recipes.test.ts",
+    "via": "@/lib/server/recipe-plan"
+  },
+  "lib/server/viewed-day.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/coach-ports"
+  }
+}

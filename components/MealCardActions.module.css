@@ -1,0 +1,43 @@
+/* The swipe tray's labels always fit their pill (2026-10-04, owner: "I think that the text needs to
+   fit"). Each pill is a size container and shows the longest label its width holds: "Release to
+   delete", then "Delete" (the verb, never a bare "Release"), then the glyph alone; "Delete", then the
+   glyph; "Clear", then nothing. The
+   pill follows the finger and the sticky detents, so the words step down and up with it, crossfading
+   in one place (FADES.quick, 150 ms), rather than being cut. The button's own aria-label ("Delete
+   Lunch") is what assistive tech reads. */
+.pill {
+  container-type: inline-size;
+}
+
+/* Every label shares one cell, centred, so a label that is not shown never moves the one that is. */
+.labels {
+  display: grid;
+  place-items: center;
+}
+
+.label {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@container (min-width: 128px) {
+  .releaseLong { opacity: 1; }
+}
+
+@container (min-width: 64px) and (max-width: 127.98px) {
+  .releaseShort { opacity: 1; }
+}
+
+@container (min-width: 56px) {
+  .deleteLabel { opacity: 1; }
+}
+
+@container (min-width: 48px) {
+  .clearLabel { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .label { transition: none; }
+}

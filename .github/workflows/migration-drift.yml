@@ -1,0 +1,51 @@
+name: Migration drift
+
+# Split out of ci.yml (2026-10-06) so merging a PR doesn't also re-run the full
+# Quality/Integration/Build suite that the PR's own pull_request run already proved on
+# this exact commit — see the `on:` comment in ci.yml for the Actions-minutes math.
+#
+# Post-merge signal only. On a pull request the branch's own migration is legitimately not
+# applied yet, so this would always be red; on main it means exactly one thing — main expects
+# a schema production does not have, and somebody must apply it. It reports, never applies:
+# migrations reach production by hand (docs/CONTRIBUTING.md).
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  # github.ref for a push run is refs/heads/main, so only the latest push-to-main run
+  # survives — exactly one drift check in flight at a time.
+  group: migration-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  migrations:
+    name: Migration drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # A safe no-op until the two production drift secrets are added to the repo:
+      # the script exits 0 with a notice when it has no token or project ref.
+      - name: Check migration drift
+        run: pnpm exec tsx scripts/check-migration-drift.ts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}

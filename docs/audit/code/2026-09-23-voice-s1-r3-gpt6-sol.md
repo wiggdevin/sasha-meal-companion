@@ -1,0 +1,27 @@
+## Verdict: DO NOT SHIP
+
+The r2 finalisation and accounting changes close two timing findings. The setup deadline still misses the new 1.5 s close wait, and a busy response now retries live dictation within the same hold.
+
+| Prior finding | Status | Evidence |
+|---|---|---|
+| R1 #1 Client time defeats minute cap | **CLOSED** | [SQL:58](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/supabase/migrations/20261104090000_voice_ears.sql:58) charges full reservations. |
+| R1 #2 Release during setup loses speech | **PARTIAL** | Buffered audio is sent on a successful open at [live-listen.ts:182](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:182); the still-reachable setup timeout discards it at [line 209](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:209). |
+| R1 #3 First final sends a partial turn | **CLOSED** | Finals accumulate at [live-listen.ts:193](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:193); one aggregate final is emitted at [line 147](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:147). |
+| R1 #4 Renewal loses audio | **CLOSED** | [live-listen.ts:183](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:183) caps and ends one session without renewal. |
+| R1 #5 Token setup incompletely locked | **CLOSED** | [Mint config:200](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/server/voice-ears.ts:200) omits the field mask; the [SDK wire test:41](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/tests/voice/ears-mint-wire.test.ts:41) asserts that serialization. |
+| R1 #6 Mic setup cannot be cancelled | **CLOSED** | [live-io.ts:67](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-io.ts:67) registers abort teardown and [line 75](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-io.ts:75) requires a running context. |
+| R1 #7 Integration claims lack proof | **PARTIAL** | Hold and SDK wire tests exist ([hold-live.test.ts:73](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/tests/voice/hold-live.test.ts:73), [ears-mint-wire.test.ts:26](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/tests/voice/ears-mint-wire.test.ts:26)); the installed-iPhone gate remains unverified. |
+| R1 #8 Documentation claim and spec | **PARTIAL** | [features.md:232](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/docs/features.md:232) now names both writes; its Phase 14 spec is absent from this checkout. |
+| R2 #1 Quiet cutoff truncates finals | **CLOSED** | [live-listen.ts:176](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:176) waits the full window unless turn completion arrives. |
+| R2 #2 Slow setup discards speech | **PARTIAL** | The new [1.5 s close wait](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-io.ts:175) precedes the 5 s request and 4 s connection budgets. Their 10.5 s total exceeds [OPEN_TIMEOUT_MS, 9.5 s](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:47). Include that wait in the timeout or start the setup clock after it. |
+| R2 #3 `/close` delays the final | **CLOSED** | [live-listen.ts:143](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:143) delivers to handlers before the background [report at line 151](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:151). |
+
+## New findings
+
+1. **[BLOCK] Busy retries live within the same hold.** The chooser leaves `busy` enabled for later holds at [choose-listener.ts:32](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/choose-listener.ts:32), but a busy session calls `onEnd` at [live-listen.ts:158](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:158). While the finger is down, [hold.ts:205](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/coach/hold.ts:205) immediately starts live again. Speech captured during both failed setups is discarded before recorder fallback. Make `busy` skip live for the *current* hold while allowing the next hold to retry; test that path through `HoldController`.
+
+2. **[FIX] A failed cost write still grants a token.** [recordCost logs an insert error and returns](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/server/voice-ears.ts:162), then [openEars returns the token](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/server/voice-ears.ts:127). The next shared spend check reads only `ai_calls` at [spend.ts:75](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/ai/spend.ts:75), so repeated write failures bypass that cap until the separate minute cap stops them. Fail the grant when the charge cannot be recorded, or enforce the spend reservation in the ledger.
+
+**Device checks:** On an installed iPhone PWA, verify mic start, interim and final text, release, the 30 s cap, and page-hide teardown.
+
+Type checking and `git diff --check` passed. Focused Vitest could not collect tests because the read-only environment denied Vite’s temporary `ssr` directory. The nested `codex exec review` also could not initialize in this sandbox; the findings above come from direct review of `origin/main...HEAD`.

@@ -1,0 +1,1192 @@
+[
+ {
+  "order": 1,
+  "slug": "widen-banned-food-vocabulary",
+  "riskArea": "core-rules",
+  "findings": [
+   1,
+   9,
+   12,
+   75,
+   80
+  ],
+  "severity": "critical",
+  "titles": [
+   "bannedReason misses buttermilk and malt (dairy/gluten false negatives)",
+   "bannedReason lets common dairy/gluten items through under plausible names",
+   "bannedReason lets named dairy cheeses through when typed without the word 'cheese'",
+   "meals.test.ts's dairy/gluten word lists share bannedReason's buttermilk/malt blind spot",
+   "meals.test.ts dairy/gluten scan is narrower than bannedReason for ghee/whey/casein/couscous"
+  ],
+  "files": [
+   "lib/foods.ts",
+   "lib/meals.test.ts"
+  ],
+  "rationale": "All five share the one root cause: the hand-maintained banned-term word lists (bannedReason in lib/foods.ts, and the mirrored containsDairyTerm/containsGlutenTerm in lib/meals.test.ts) are missing common dairy/gluten terms (buttermilk, malt, named cheeses, kefir, orzo, beer, couscous, ghee, whey, casein). One fix agent should build a single shared banned-term source and update both the production gate and its test-vocabulary mirror together."
+ },
+ {
+  "order": 2,
+  "slug": "fix-floor-day-avoid-and-scaling",
+  "riskArea": "core-rules",
+  "findings": [
+   11,
+   13
+  ],
+  "severity": "critical",
+  "titles": [
+   "Floor Day always serves eggs/albacore/chicken/rice/oil/mayo/banana/sweet potato regardless of her Avoid list",
+   "resolveDay rescales Floor Day, breaking its fixed-floor promise"
+  ],
+  "files": [
+   "lib/meals.ts",
+   "lib/resolve.ts"
+  ],
+  "rationale": "Both are defects in resolveDay's Floor Day branch: it substitutes FLOOR_DAY_MEALS without checking her Avoid list, and separately rescales those meals instead of keeping the documented fixed total. Same function, same code region, fix together."
+ },
+ {
+  "order": 3,
+  "slug": "fix-label-scan-allergen-gaps",
+  "riskArea": "ai",
+  "findings": [
+   7
+  ],
+  "severity": "critical",
+  "titles": [
+   "Label-photo allergen scan misses buttermilk/caseinate/milkfat"
+  ],
+  "files": [
+   "lib/capture/propose.ts"
+  ],
+  "rationale": "AI label-photo capture's own weaker allergen keyword list misses buttermilk/caseinate/milkfat, letting a photographed label through the coach/capture pipeline uncaught."
+ },
+ {
+  "order": 4,
+  "slug": "fix-scan-allergen-fail-open-nonenglish",
+  "riskArea": "catalog",
+  "findings": [
+   8
+  ],
+  "severity": "critical",
+  "titles": [
+   "scanAllergens fails open on non-English and vocabulary-gap ingredient text"
+  ],
+  "files": [
+   "lib/catalog/off-map.ts"
+  ],
+  "rationale": "scanAllergens (the shared OFF text-scan engine) fails open on non-English or vocabulary-gap ingredient text with no quality flag, a distinct gap from the client-side regex issues below."
+ },
+ {
+  "order": 5,
+  "slug": "fix-catalog-client-offplan-verdict",
+  "riskArea": "catalog",
+  "findings": [
+   5,
+   26
+  ],
+  "severity": "critical",
+  "titles": [
+   "Catalog search drops the server's ingredient/category policy verdict",
+   "Client off-plan regex misses whole gluten words (wheat, rye, semolina, malt)"
+  ],
+  "files": [
+   "lib/catalog-client.ts"
+  ],
+  "rationale": "Both are in lib/catalog-client.ts's off-plan flagging path: the client drops the server's real policy verdict (5) and its own fallback regex is missing whole gluten words (26) \u2014 same function, same fix effort (prefer server verdict, widen the regex as the offline fallback)."
+ },
+ {
+  "order": 6,
+  "slug": "wire-today-screen-writes-to-sync-outbox",
+  "riskArea": "sync",
+  "findings": [
+   4,
+   10,
+   24,
+   25
+  ],
+  "severity": "critical",
+  "titles": [
+   "localStorage write failures silently revert every local write",
+   "Today-screen writes never reach the new sync engine's outbox",
+   "Sync status card shows 'Everything is sent' while Today-screen data never syncs",
+   "Manual gut-log entry writes a different record than the synced gut_log entity the coach reads"
+  ],
+  "files": [
+   "app/page.tsx",
+   "components/SyncStatus.tsx",
+   "lib/store.ts"
+  ],
+  "rationale": "All four trace to the same lib/store.ts write path: it never enqueues into the new sync outbox (10), silently reverts on localStorage write failure (4, same cited line), the sync status card then falsely reports everything sent (24), and the gut-log control writes a divergent record from what the coach reads (25) \u2014 one wiring fix resolves the whole cluster."
+ },
+ {
+  "order": 7,
+  "slug": "fix-legacy-sync-field-merge",
+  "riskArea": "sync",
+  "findings": [
+   2
+  ],
+  "severity": "critical",
+  "titles": [
+   "Legacy days/foods sync is whole-record last-write-wins, not field-merged"
+  ],
+  "files": [
+   "lib/server/db.ts"
+  ],
+  "rationale": "The live MCP tools (log_gut, log_food) push whole-record last-write-wins updates through lib/server/db.ts instead of a field-level merge, risking silent data loss on concurrent writes."
+ },
+ {
+  "order": 8,
+  "slug": "fix-logfoodsheet-commit-pipeline",
+  "riskArea": "sync",
+  "findings": [
+   3,
+   6
+  ],
+  "severity": "critical",
+  "titles": [
+   "\"Log a meal\" entries never reach the server log-commit path",
+   "Rejected/blocked log commits leave a phantom entry in her visible log with no warning"
+  ],
+  "files": [
+   "components/LogFoodSheet.tsx"
+  ],
+  "rationale": "Both are gaps in LogFoodSheet's commit flow: multi-item 'Log a meal' entries never call the server commit at all (3), and a rejected/blocked single-item commit leaves a phantom, uncounted-as-failed entry in her log (6) \u2014 same component, same commit pipeline."
+ },
+ {
+  "order": 9,
+  "slug": "fix-server-date-utc-local-mismatch",
+  "riskArea": "core-rules",
+  "findings": [
+   43,
+   46,
+   55
+  ],
+  "severity": "high",
+  "titles": [
+   "Weekly review graded on next week's empty data (UTC/local mismatch)",
+   "Server-side \"today\" is computed in UTC, not Sasha's local day, on both AI surfaces",
+   "Server ramp-stage/profile date uses UTC, diverging from her local day"
+  ],
+  "files": [
+   "app/api/jobs/weekly-review/route.ts",
+   "app/api/mcp/route.ts",
+   "lib/server/targets.ts"
+  ],
+  "rationale": "Three separate server surfaces (MCP get_day/coach 'today', ramp-stage/targets activeStage, weekly-review's week_start) all compute the calendar day from server UTC time instead of Sasha's local day \u2014 the same missing local-date plumbing, fixable with one shared helper."
+ },
+ {
+  "order": 10,
+  "slug": "fix-rotation-date-purity",
+  "riskArea": "core-rules",
+  "findings": [
+   22
+  ],
+  "severity": "high",
+  "titles": [
+   "Rotation is not actually a pure function of date \u2014 Avoid/Eats edits rewrite past days' meals"
+  ],
+  "files": [
+   "lib/rotation.ts"
+  ],
+  "rationale": "resolveDay is documented as a pure function of date but silently rewrites already-eaten past days' meals whenever her Avoid/Eats list changes later."
+ },
+ {
+  "order": 11,
+  "slug": "fix-empty-role-meal-slot-fallback",
+  "riskArea": "core-rules",
+  "findings": [
+   34,
+   90
+  ],
+  "severity": "high",
+  "titles": [
+   "A meal slot silently vanishes (or loses a whole macro role) once every food in one role is marked Avoid",
+   "\"no gaps\" test in rotation.test.ts is tautological, can't catch a missing slot"
+  ],
+  "files": [
+   "lib/foods.ts",
+   "lib/rotation.test.ts"
+  ],
+  "rationale": "A macro role fully marked Avoid silently drops a slot/role in lib/foods.ts's pool selection (34), and the one regression test meant to catch exactly this (lib/rotation.test.ts 'no gaps') is tautological and cannot catch it (90) \u2014 fix the production fallback and the test together."
+ },
+ {
+  "order": 12,
+  "slug": "fix-constraints-save-error-handling",
+  "riskArea": "core-rules",
+  "findings": [
+   36
+  ],
+  "severity": "high",
+  "titles": [
+   "Constraints save has no error handling \u2014 allergen edits vanish silently"
+  ],
+  "files": [
+   "components/ConstraintsEditor.tsx"
+  ],
+  "rationale": "ConstraintsEditor's save has no error handling, so an allergen/avoid-list edit can silently vanish on a dropped connection \u2014 a safety-relevant data-loss case, not just cosmetic."
+ },
+ {
+  "order": 13,
+  "slug": "fix-missing-kcal-atwater-fallback",
+  "riskArea": "catalog",
+  "findings": [
+   14,
+   39
+  ],
+  "severity": "high",
+  "titles": [
+   "Catalog/scanned foods with macros but no reported calories log as 0 kcal, not \"\u2014\"",
+   "A catalog item with macros but unmeasured kcal drops its calories from Today's totals, not just the log sheet"
+  ],
+  "files": [
+   "lib/log-client.ts",
+   "lib/resolve.ts"
+  ],
+  "rationale": "Both are the same missing-kcal-fallback bug in different snapshotMacros call sites (log-client.ts's confirm screen, resolve.ts's day totals): a food with real macros but no reported energy_kcal should fall back to the already-computed Atwater energy_kcal_calc instead of showing/counting 0."
+ },
+ {
+  "order": 14,
+  "slug": "thread-category-and-quality-flags-in-barcode",
+  "riskArea": "catalog",
+  "findings": [
+   33,
+   38
+  ],
+  "severity": "high",
+  "titles": [
+   "Banned-category diet rule (simple_sugars) never enforced on any barcode-scanned or OFF/FDC-branded catalog item",
+   "Check-kcal / energy_mismatch flag never reaches the log-confirm screen or barcode scans"
+  ],
+  "files": [
+   "lib/server/barcode.ts"
+  ],
+  "rationale": "Both are the same toMatch() function in lib/server/barcode.ts dropping a field it should carry through: category (blocking the simple_sugars banned-category rule) and qualityFlags (the energy_mismatch pill) never reach the client."
+ },
+ {
+  "order": 15,
+  "slug": "fix-food-db-offplan-flag-gaps",
+  "riskArea": "catalog",
+  "findings": [
+   23,
+   28
+  ],
+  "severity": "high",
+  "titles": [
+   "Local food-db.json ships wrong/missing off-plan flags for well-known gluten and dairy foods",
+   "mineAsDb never computes off-plan flags for her own foods"
+  ],
+  "files": [
+   "lib/food-db.json",
+   "lib/food-db.ts"
+  ],
+  "rationale": "Both are off-plan-flag completeness gaps in lib/food-db.ts: the bundled DB ships wrong/missing flags for known gluten/dairy foods (23) and mineAsDb never computes flags at all for her own added foods (28)."
+ },
+ {
+  "order": 16,
+  "slug": "fix-coach-draft-verdict-loss",
+  "riskArea": "ai",
+  "findings": [
+   29
+  ],
+  "severity": "high",
+  "titles": [
+   "Coach confirm sheet always shows draft items as \"allowed\", losing real verdicts"
+  ],
+  "files": [
+   "lib/coach-client.ts"
+  ],
+  "rationale": "draft_log_entry's real per-item policy verdict is computed then discarded; the confirm sheet always renders 'allowed' regardless of the true check."
+ },
+ {
+  "order": 17,
+  "slug": "fix-coach-log-this-button-binding",
+  "riskArea": "ai",
+  "findings": [
+   40
+  ],
+  "severity": "high",
+  "titles": [
+   "Coach \"Log this\" button logs the wrong food, not the one tapped"
+  ],
+  "files": [
+   "components/CoachChat.tsx"
+  ],
+  "rationale": "CoachChat's 'Log this' button is bound to the shared draft rather than the specific suggestion tapped, so it can log the wrong food from a multi-suggestion reply."
+ },
+ {
+  "order": 18,
+  "slug": "fix-zero-gram-capture-commit",
+  "riskArea": "ai",
+  "findings": [
+   50
+  ],
+  "severity": "high",
+  "titles": [
+   "AI-capture confirm can commit a real food at 0 grams / 0 kcal"
+  ],
+  "files": [
+   "lib/log/contract.ts"
+  ],
+  "rationale": "AI-capture confirm can commit a real food at 0 grams/0 kcal with no floor or removal, unlike the equivalent recipe_items check."
+ },
+ {
+  "order": 19,
+  "slug": "log-capture-provider-failures",
+  "riskArea": "ai",
+  "findings": [
+   51
+  ],
+  "severity": "high",
+  "titles": [
+   "Capture-path provider failures are never logged, unlike Coach's"
+  ],
+  "files": [
+   "lib/ai/capture.ts"
+  ],
+  "rationale": "Capture-path provider failures (photo/voice/text/label) are never logged server-side, unlike the equivalent Coach path that already got this fix."
+ },
+ {
+  "order": 20,
+  "slug": "wire-duplicate-entry-fingerprint-check",
+  "riskArea": "sync",
+  "findings": [
+   47
+  ],
+  "severity": "high",
+  "titles": [
+   "Duplicate-entry fingerprint is never computed or checked anywhere"
+  ],
+  "files": [
+   "lib/sync/fingerprint.ts"
+  ],
+  "rationale": "entryFingerprint exists but is never called at log-commit time, so the duplicate-detection machinery never actually catches a double-logged meal."
+ },
+ {
+  "order": 21,
+  "slug": "fix-gone-op-result-handling",
+  "riskArea": "sync",
+  "findings": [
+   35
+  ],
+  "severity": "high",
+  "titles": [
+   "A 'gone' op result is silently dropped, leaving the local mirror row untouched"
+  ],
+  "files": [
+   "lib/sync/outbox.ts"
+  ],
+  "rationale": "applyResult silently drops a 'gone' op result instead of re-deriving/re-queuing it, leaving the local mirror permanently out of sync with the server."
+ },
+ {
+  "order": 22,
+  "slug": "fix-synconce-push-error-swallow",
+  "riskArea": "sync",
+  "findings": [
+   48
+  ],
+  "severity": "high",
+  "titles": [
+   "syncOnce swallows IndexedDB failures from the push phase, so the status card can't tell them apart from a clean sync"
+  ],
+  "files": [
+   "lib/sync/client.ts"
+  ],
+  "rationale": "A pre-network IndexedDB throw inside drainOutbox/pushOutbox escapes syncOnce's error handling entirely, so the sync status card can't distinguish it from a clean sync."
+ },
+ {
+  "order": 23,
+  "slug": "fix-commitlogentry-unawaited-queue",
+  "riskArea": "sync",
+  "findings": [
+   49
+  ],
+  "severity": "high",
+  "titles": [
+   "commitLogEntry swallows queue() rejection only structurally, not really"
+  ],
+  "files": [
+   "lib/log-client.ts"
+  ],
+  "rationale": "commitLogEntry returns queue(req) without awaiting it in both branches, so an offline/IDB failure is structurally, not really, handled."
+ },
+ {
+  "order": 24,
+  "slug": "fix-health-dedupe-key-integrity",
+  "riskArea": "health",
+  "findings": [
+   19,
+   42,
+   91
+  ],
+  "severity": "high",
+  "titles": [
+   "Dedupe key omits device_label; same-hour multi-device HAE samples silently drop one device forever",
+   "Correction upsert never fires for HAE or Oura samples",
+   "Dedupe key has no type disambiguation when a source supplies its own vendor_sample_id"
+  ],
+  "files": [
+   "lib/health/dedupe.ts",
+   "supabase/migrations/20260911000400_privileged.sql",
+   "supabase/migrations/20260925000000_phase5_health_ingest.sql"
+  ],
+  "rationale": "All three are gaps in the same dedupe_key/correction-upsert design (SQL generated column plus lib/health/dedupe.ts): device_label is omitted (19), vendor_updated_at is never populated so the correction-upsert WHERE clause can't fire (42), and type is dropped from the key whenever vendor_sample_id is present (91)."
+ },
+ {
+  "order": 25,
+  "slug": "fix-oura-timezone-hardcode",
+  "riskArea": "health",
+  "findings": [
+   30
+  ],
+  "severity": "high",
+  "titles": [
+   "Oura samples hardcode tz='UTC', shifting sleep/RHR/HRV to the wrong local day"
+  ],
+  "files": [
+   "lib/oura/map.ts"
+  ],
+  "rationale": "lib/oura/map.ts hardcodes tz='UTC' on every Oura sample, shifting sleep/RHR/HRV into the wrong local day."
+ },
+ {
+  "order": 26,
+  "slug": "fix-bodymass-unit-trust",
+  "riskArea": "health",
+  "findings": [
+   53
+  ],
+  "severity": "high",
+  "titles": [
+   "Body-mass roll-up trusts the sample's unit is already kg without checking it"
+  ],
+  "files": [
+   "lib/health/daily.ts"
+  ],
+  "rationale": "rollUpDay trusts a body_mass sample's value is already in canonical kg without re-checking its unit field."
+ },
+ {
+  "order": 27,
+  "slug": "fix-sw-cache-masks-offline-state",
+  "riskArea": "health",
+  "findings": [
+   16
+  ],
+  "severity": "high",
+  "titles": [
+   "SW cache silently masks true offline state on Body dashboard"
+  ],
+  "files": [
+   "public/sw.js"
+  ],
+  "rationale": "The service worker's network-first fallback serves a stale cached 200 for /api/ health requests, masking true offline state on the Body dashboard."
+ },
+ {
+  "order": 28,
+  "slug": "fix-watercups-stale-field-read",
+  "riskArea": "health",
+  "findings": [
+   27
+  ],
+  "severity": "high",
+  "titles": [
+   "waterCups reads a field water logging no longer writes"
+  ],
+  "files": [
+   "lib/resolve.ts"
+  ],
+  "rationale": "resolveDay/MCP get_day read the retired StoredDay.waterMl field instead of the water_log row that water logging now actually writes to."
+ },
+ {
+  "order": 29,
+  "slug": "fix-morning-weight-save-validation",
+  "riskArea": "health",
+  "findings": [
+   41
+  ],
+  "severity": "high",
+  "titles": [
+   "Morning-weight Save silently no-ops on invalid input"
+  ],
+  "files": [
+   "components/QuickActions.tsx"
+  ],
+  "rationale": "QuickActions' morning-weight Save silently no-ops on invalid input with no visible failure state."
+ },
+ {
+  "order": 30,
+  "slug": "fix-job-runs-lock-lifecycle",
+  "riskArea": "expenditure",
+  "findings": [
+   15,
+   32,
+   63
+  ],
+  "severity": "high",
+  "titles": [
+   "Weekly-review job_runs lock is never released on failure",
+   "job_runs lock has no error-retry path \u2014 a clean job failure blocks the whole week",
+   "job_runs 'running' lock has no reaper \u2014 a crashed weekly-proposal run blocks all retries for that week"
+  ],
+  "files": [
+   "app/api/jobs/estimate/route.ts",
+   "app/api/jobs/weekly-review/route.ts"
+  ],
+  "rationale": "All three are the same job_runs takeLock/releaseLock mechanism failing in different ways across the cron jobs: weekly-review never releases its lock on failure (15), an error-status lock isn't reclaimable (32), and a crashed 'running' lock has no reaper (63) \u2014 one shared lock-lifecycle fix covers all three."
+ },
+ {
+  "order": 31,
+  "slug": "fix-weekly-proposal-missed-week",
+  "riskArea": "expenditure",
+  "findings": [
+   54
+  ],
+  "severity": "high",
+  "titles": [
+   "Missed/late weekly-proposal cron permanently skips that week's check-in"
+  ],
+  "files": [
+   "app/api/jobs/weekly-proposal/route.ts"
+  ],
+  "rationale": "A missed/late weekly-proposal cron run permanently skips that week's check-in because weekStart is derived from wall-clock now rather than a persisted high-water mark."
+ },
+ {
+  "order": 32,
+  "slug": "wire-approved-targets-into-resolveday",
+  "riskArea": "expenditure",
+  "findings": [
+   20
+  ],
+  "severity": "high",
+  "titles": [
+   "Approved weekly proposal never changes what Sasha actually eats"
+  ],
+  "files": [
+   "lib/resolve.ts"
+  ],
+  "rationale": "Approving a weekly target proposal writes a new target_profiles row but resolveDay/ratiosFor never reads it, so nothing on the Today screen actually changes."
+ },
+ {
+  "order": 33,
+  "slug": "wire-coach-expenditure-read",
+  "riskArea": "expenditure",
+  "findings": [
+   44
+  ],
+  "severity": "high",
+  "titles": [
+   "Coach's expenditure read is a permanent stub, never wired to the real estimator"
+  ],
+  "files": [
+   "lib/server/coach.ts"
+  ],
+  "rationale": "The coach's and weekly-review's expenditure read is a permanent stub, never wired to the real latestEstimate() the MCP tool already uses."
+ },
+ {
+  "order": 34,
+  "slug": "fix-tdee-stale-during-held",
+  "riskArea": "expenditure",
+  "findings": [
+   31
+  ],
+  "severity": "high",
+  "titles": [
+   "TdeeLines shows a confident stale number during held/blocked status"
+  ],
+  "files": [
+   "components/TdeeLines.tsx"
+  ],
+  "rationale": "TdeeLines renders a confident stale kcal number during held/blocked estimator status instead of gating on status the way the headline copy already does."
+ },
+ {
+  "order": 35,
+  "slug": "fix-nightly-backup-pagination-and-tables",
+  "riskArea": "export",
+  "findings": [
+   21,
+   83
+  ],
+  "severity": "high",
+  "titles": [
+   "Nightly cron backup silently truncates every table to 1000 rows",
+   "media_objects (photo/voice-capture metadata) missing from nightly backup"
+  ],
+  "files": [
+   "app/api/jobs/backup/route.ts"
+  ],
+  "rationale": "Both are gaps in the same nightly cron backup job: it silently truncates every table read at 1000 rows with no pagination (21), and its TABLES list is missing media_objects entirely (83)."
+ },
+ {
+  "order": 36,
+  "slug": "fix-export-pagination-truncation",
+  "riskArea": "export",
+  "findings": [
+   45,
+   65,
+   85
+  ],
+  "severity": "high",
+  "titles": [
+   "\"Download meals CSV\" silently truncates at 5000 rows with no signal",
+   "kind=weight export still paginates by offset with no tie-breaker column",
+   "Progress-export row cap assumes an unenforced 20-codes-per-date bound"
+  ],
+  "files": [
+   "app/api/export/route.ts",
+   "lib/server/export.ts"
+  ],
+  "rationale": "All three are silent-truncation bugs across the export subsystem's different kinds: meals CSV drops its cursor and truncates at 5000 rows (45), the weight export paginates by offset with no tie-breaker (65), and the progress export's truncation detection is based on an unenforced per-date row-count assumption (85)."
+ },
+ {
+  "order": 37,
+  "slug": "provision-ci-integration-test-branch",
+  "riskArea": "tests-ci",
+  "findings": [
+   18,
+   52
+  ],
+  "severity": "high",
+  "titles": [
+   "CI never runs the RLS / cross-user security test suite",
+   "Dozens of non-RLS correctness suites also go dark in CI \u2014 not just the RLS/cross-user suite"
+  ],
+  "files": [
+   ".github/workflows/ci.yml",
+   "tests/helpers/supabase.ts"
+  ],
+  "rationale": "Both trace to the same root cause: CI has no Supabase test-branch env vars, so the RLS/cross-user suite (18) and dozens of other correctness suites gated the same way (52) are silently skipped on every push."
+ },
+ {
+  "order": 38,
+  "slug": "fix-install-prompt-reminder-claim",
+  "riskArea": "ui",
+  "findings": [
+   17
+  ],
+  "severity": "high",
+  "titles": [
+   "Install prompt falsely claims installing turns on meal reminders"
+  ],
+  "files": [
+   "components/InstallPrompt.tsx"
+  ],
+  "rationale": "The install banner falsely tells Sasha that installing turns on meal reminders, when reminders actually require a separate Settings step."
+ },
+ {
+  "order": 39,
+  "slug": "fix-recipe-save-error-handling",
+  "riskArea": "ui",
+  "findings": [
+   37
+  ],
+  "severity": "high",
+  "titles": [
+   "Recipe save has no error handling \u2014 button sticks on 'Saving\u2026' forever"
+  ],
+  "files": [
+   "lib/recipes/use-recipe-sheet.ts"
+  ],
+  "rationale": "saveRecipe has no try/catch or finally, so a rejected save leaves the Save button stuck on 'Saving...' forever with no retry path."
+ },
+ {
+  "order": 40,
+  "slug": "fix-spoofable-xff-ratelimit-key",
+  "riskArea": "server-auth",
+  "findings": [
+   56
+  ],
+  "severity": "medium",
+  "titles": [
+   "Spoofable X-Forwarded-For used as rate-limit key on ~11 routes"
+  ],
+  "files": [
+   "app/api/log/propose/route.ts"
+  ],
+  "rationale": "Roughly 11 routes key their rate limiter off a client-spoofable X-Forwarded-For header instead of x-real-ip, letting an attacker bypass throttling for free."
+ },
+ {
+  "order": 41,
+  "slug": "fix-oura-callback-ratelimit-key",
+  "riskArea": "server-auth",
+  "findings": [
+   81
+  ],
+  "severity": "medium",
+  "titles": [
+   "Oura OAuth callback rate limit uses one global key"
+  ],
+  "files": [
+   "app/api/health/oura/callback/route.ts"
+  ],
+  "rationale": "The Oura OAuth callback's rate limit uses one global key shared by every caller, so an unauthenticated flood can lock out Sasha's own real OAuth redirect."
+ },
+ {
+  "order": 42,
+  "slug": "harden-legacy-sync-push-endpoint",
+  "riskArea": "sync",
+  "findings": [
+   57
+  ],
+  "severity": "medium",
+  "titles": [
+   "Legacy /api/sync push has no rate limit, no size cap, no schema validation"
+  ],
+  "files": [
+   "app/api/sync/route.ts"
+  ],
+  "rationale": "The legacy /api/sync push route (still live per AGENTS.md) has no rate limit, size cap, or schema validation on its request body."
+ },
+ {
+  "order": 43,
+  "slug": "fix-resolvefoodref-error-message",
+  "riskArea": "sync",
+  "findings": [
+   68
+  ],
+  "severity": "medium",
+  "titles": [
+   "resolveFoodRef misreports a DB/RPC failure as 'not signed in'"
+  ],
+  "files": [
+   "lib/log-client.ts"
+  ],
+  "rationale": "resolveFoodRef misreports a transient DB/RPC failure as 'not signed in,' giving Sasha a wrong and non-actionable error message while already authenticated."
+ },
+ {
+  "order": 44,
+  "slug": "fix-offline-scan-cache-verdict-downgrade",
+  "riskArea": "catalog",
+  "findings": [
+   64
+  ],
+  "severity": "medium",
+  "titles": [
+   "Offline scan-cache always downgrades a blocked verdict to a generic 'unverified' warning"
+  ],
+  "files": [
+   "lib/barcode/client.ts"
+  ],
+  "rationale": "The offline barcode-scan cache always downgrades a previously-blocked verdict to a generic 'unverified' warning instead of persisting and reconstructing the real policy verdict."
+ },
+ {
+  "order": 45,
+  "slug": "fix-catalog-search-plural-matching",
+  "riskArea": "catalog",
+  "findings": [
+   69
+  ],
+  "severity": "medium",
+  "titles": [
+   "Bundled-catalog search misses plain plural queries like \"eggs\""
+  ],
+  "files": [
+   "lib/food-db.ts"
+  ],
+  "rationale": "The bundled offline catalog search misses plain plural queries like 'eggs' against singular USDA entries."
+ },
+ {
+  "order": 46,
+  "slug": "fix-notesheet-offplan-line",
+  "riskArea": "catalog",
+  "findings": [
+   70
+  ],
+  "severity": "medium",
+  "titles": [
+   "NoteSheet drops the off-plan line for catalog (Phase 2) logged entries"
+  ],
+  "files": [
+   "components/NoteSheet.tsx"
+  ],
+  "rationale": "NoteSheet drops the specific off-plan allergen line for catalog (Phase 2) logged entries, the one place she goes to read details about a flagged item."
+ },
+ {
+  "order": 47,
+  "slug": "fix-capturesheet-savedraft-failure",
+  "riskArea": "ai",
+  "findings": [
+   58
+  ],
+  "severity": "medium",
+  "titles": [
+   "CaptureSheet ignores saveDraft's own failure signal"
+  ],
+  "files": [
+   "components/CaptureSheet.tsx"
+  ],
+  "rationale": "CaptureSheet ignores saveDraft's 'too_large'/'unavailable' return value and proceeds as if the draft persisted."
+ },
+ {
+  "order": 48,
+  "slug": "harden-ai-adapter-guardrails",
+  "riskArea": "ai",
+  "findings": [
+   60,
+   94
+  ],
+  "severity": "medium",
+  "titles": [
+   "Runtime SDK pin (assertPinnedSdk) is never called outside tests/canary",
+   "AI spend cap and capture daily cap are check-then-act, not atomic"
+  ],
+  "files": [
+   "lib/ai/adapter.ts"
+  ],
+  "rationale": "Both are guardrails in lib/ai/adapter.ts that are weaker than documented: the SDK version pin is only enforced at build time, never at runtime (60), and the spend/capture daily caps are check-then-act rather than atomic (94)."
+ },
+ {
+  "order": 49,
+  "slug": "fix-circuit-breaker-serverless-state",
+  "riskArea": "ai",
+  "findings": [
+   71
+  ],
+  "severity": "medium",
+  "titles": [
+   "Provider circuit breaker is per-instance in-memory state on a serverless deployment"
+  ],
+  "files": [
+   "lib/ai/circuit.ts"
+  ],
+  "rationale": "The AI provider circuit breaker keeps its failure counter in module-level memory, which resets on every fresh serverless instance and never actually trips."
+ },
+ {
+  "order": 50,
+  "slug": "fix-voicecapture-keyboard-and-errors",
+  "riskArea": "ai",
+  "findings": [
+   73
+  ],
+  "severity": "medium",
+  "titles": [
+   "Voice capture has no keyboard path and conflates permission-denied with unsupported device"
+  ],
+  "files": [
+   "components/VoiceCapture.tsx"
+  ],
+  "rationale": "VoiceCapture has no keyboard-operable path and conflates a denied mic permission with an unsupported device in its error messaging."
+ },
+ {
+  "order": 51,
+  "slug": "fix-ai-canary-coach-model-probe",
+  "riskArea": "ai",
+  "findings": [
+   87
+  ],
+  "severity": "medium",
+  "titles": [
+   "ai-canary never probes the Coach's own pinned model"
+  ],
+  "files": [
+   "scripts/ai-canary.ts"
+  ],
+  "rationale": "ai-canary only probes the text-to-items model, never the Coach's own separately-pinned model, so a Coach-only outage reports as healthy."
+ },
+ {
+  "order": 52,
+  "slug": "fix-health-token-clipboard-feedback",
+  "riskArea": "health",
+  "findings": [
+   86
+  ],
+  "severity": "medium",
+  "titles": [
+   "Health ingest token 'shown once' copy has no failure feedback"
+  ],
+  "files": [
+   "components/HealthSourcesSheet.tsx"
+  ],
+  "rationale": "The health ingest token sheet's 'Copy it now' action has no failure feedback if the clipboard write silently rejects."
+ },
+ {
+  "order": 53,
+  "slug": "fix-hae-basal-energy-invariant",
+  "riskArea": "health",
+  "findings": [
+   92
+  ],
+  "severity": "medium",
+  "titles": [
+   "Health Auto Export can write basal_energy samples, contradicting the documented Oura-only invariant"
+  ],
+  "files": [
+   "lib/health/normalize.ts"
+  ],
+  "rationale": "Health Auto Export can write basal_energy samples through an unvalidated path, contradicting the documented Oura-only invariant enforced elsewhere."
+ },
+ {
+  "order": 54,
+  "slug": "fix-proposalcard-error-handling",
+  "riskArea": "expenditure",
+  "findings": [
+   59,
+   62
+  ],
+  "severity": "medium",
+  "titles": [
+   "ProposalCard approve/reject has no error handling",
+   "ProposalCard swallows a stale-proposal 409 with no user feedback"
+  ],
+  "files": [
+   "components/ProposalCard.tsx"
+  ],
+  "rationale": "Both are the same decide() function in ProposalCard.tsx: it has no catch for a network failure (59) or for a stale-proposal 409 (62), leaving either failure silent."
+ },
+ {
+  "order": 55,
+  "slug": "fix-targets-fetch-error-state",
+  "riskArea": "expenditure",
+  "findings": [
+   77
+  ],
+  "severity": "medium",
+  "titles": [
+   "Failed targets fetch is indistinguishable from 'nothing to show'"
+  ],
+  "files": [
+   "lib/estimator-client.ts"
+  ],
+  "rationale": "Settings' failed targets fetch resolves to the same null value as a legitimate 'no active targets yet' state, so a real error is indistinguishable from nothing-to-show."
+ },
+ {
+  "order": 56,
+  "slug": "fix-burnin-graduation-unlatch",
+  "riskArea": "expenditure",
+  "findings": [
+   82
+  ],
+  "severity": "medium",
+  "titles": [
+   "Burn-in graduation un-latches after a >120-day logging gap"
+  ],
+  "files": [
+   "lib/server/expenditure.ts"
+  ],
+  "rationale": "A logging gap longer than the fixed history window re-derives qualifiedTotal from scratch, un-latching an already-graduated burn-in status."
+ },
+ {
+  "order": 57,
+  "slug": "add-backup-staleness-alerting",
+  "riskArea": "export",
+  "findings": [
+   84
+  ],
+  "severity": "medium",
+  "titles": [
+   "Real (retained) backup has no failure or staleness alerting"
+  ],
+  "files": [
+   "scripts/backup.sh"
+  ],
+  "rationale": "The real (retained) Mac backup script has no failure or staleness alerting if it stops running silently."
+ },
+ {
+  "order": 58,
+  "slug": "fix-lint-ci-max-warnings",
+  "riskArea": "tests-ci",
+  "findings": [
+   74
+  ],
+  "severity": "medium",
+  "titles": [
+   "Lint CI step cannot fail \u2014 eslint-config-next rules are warn-level, no --max-warnings"
+  ],
+  "files": [
+   ".github/workflows/ci.yml"
+  ],
+  "rationale": "The lint CI step can never fail because eslint-config-next rules are warn-level with no --max-warnings enforcement."
+ },
+ {
+  "order": 59,
+  "slug": "add-down-migration-test-coverage",
+  "riskArea": "tests-ci",
+  "findings": [
+   93
+  ],
+  "severity": "medium",
+  "titles": [
+   "Six down migrations have zero test coverage of any kind"
+  ],
+  "files": [
+   "supabase/migrations/down/20260912090200_catalog_grants.down.sql"
+  ],
+  "rationale": "Six down migrations have zero test coverage of any kind, unlike the pattern already used for other rollback scripts."
+ },
+ {
+  "order": 60,
+  "slug": "fix-sheet-modal-focus-and-scroll",
+  "riskArea": "ui",
+  "findings": [
+   61,
+   88
+  ],
+  "severity": "medium",
+  "titles": [
+   "Sheet has no focus trap or Escape-to-close",
+   "Bottom sheets never lock background scroll"
+  ],
+  "files": [
+   "components/Sheet.tsx"
+  ],
+  "rationale": "Both are the same Sheet.tsx component missing standard modal behavior: no focus trap or Escape-to-close (61), and no background scroll lock (88)."
+ },
+ {
+  "order": 61,
+  "slug": "fix-water-log-error-handling",
+  "riskArea": "ui",
+  "findings": [
+   66
+  ],
+  "severity": "medium",
+  "titles": [
+   "Water tap has no error handling; failed write is silent"
+  ],
+  "files": [
+   "lib/water-client.ts"
+  ],
+  "rationale": "The water-logging FAB action has no error handling, so a failed IndexedDB write vanishes silently."
+ },
+ {
+  "order": 62,
+  "slug": "fix-favorites-strip-idb-failure",
+  "riskArea": "ui",
+  "findings": [
+   67
+  ],
+  "severity": "medium",
+  "titles": [
+   "Favorites strip vanishes silently on an IndexedDB read failure"
+  ],
+  "files": [
+   "components/FavoritesStrip.tsx"
+  ],
+  "rationale": "FavoritesStrip vanishes silently on an IndexedDB read failure instead of distinguishing 'no favorites' from 'failed to load.'"
+ },
+ {
+  "order": 63,
+  "slug": "fix-mealcard-design-contract-drift",
+  "riskArea": "ui",
+  "findings": [
+   72
+  ],
+  "severity": "medium",
+  "titles": [
+   "Meal cards never use the DESIGN.md charcoal/olive meal-card recipe"
+  ],
+  "files": [
+   "components/SlotCard.tsx"
+  ],
+  "rationale": "NEEDS HUMAN RULING: meal cards render as a plain shell instead of DESIGN.md's specified charcoal/olive meal-card recipe. The finding's own proposed fix has two branches \u2014 apply the existing DESIGN.md tokens, or update DESIGN.md itself and delete the unused CSS if the flatter card is now intended \u2014 and the second path changes a DESIGN.md token, which per project convention needs Devin's sign-off before a fix agent touches it."
+ },
+ {
+  "order": 64,
+  "slug": "fix-coachchat-message-state-a11y",
+  "riskArea": "ui",
+  "findings": [
+   76,
+   78
+  ],
+  "severity": "medium",
+  "titles": [
+   "Failed coach turn leaves a permanent ghost 'sending' bubble",
+   "Coach replies never announced to screen readers"
+  ],
+  "files": [
+   "components/CoachChat.tsx"
+  ],
+  "rationale": "Both are the same CoachChat.tsx message-list state handling: a failed turn leaves a permanent ghost 'sending' bubble (76), and new assistant replies are never announced via aria-live the way the transient 'Thinking' state already is (78)."
+ },
+ {
+  "order": 65,
+  "slug": "fix-tabbar-body-capability-jump",
+  "riskArea": "ui",
+  "findings": [
+   79
+  ],
+  "severity": "medium",
+  "titles": [
+   "Tab bar row count jumps once Body capability resolves"
+  ],
+  "files": [
+   "components/TabBar.tsx"
+  ],
+  "rationale": "The tab bar's column count jumps once the async Body capability check resolves after first paint."
+ },
+ {
+  "order": 66,
+  "slug": "fix-weekgrid-missed-day-indicator",
+  "riskArea": "ui",
+  "findings": [
+   89
+  ],
+  "severity": "medium",
+  "titles": [
+   "Week view can't visually tell 'missed' from 'not due yet'"
+  ],
+  "files": [
+   "components/WeekGrid.tsx"
+  ],
+  "rationale": "WeekGrid renders a missed day and a not-yet-due day with the same neutral grey dot, defeating the at-a-glance purpose of the view."
+ },
+ {
+  "order": 67,
+  "slug": "fix-media-upload-url-expiry",
+  "riskArea": "server-auth",
+  "findings": [
+   97
+  ],
+  "severity": "low",
+  "titles": [
+   "Signed media upload URL is valid far longer than the 60s the app promises"
+  ],
+  "files": [
+   "lib/server/media.ts"
+  ],
+  "rationale": "The signed media upload URL stays valid far longer than the 60 seconds the app's own response claims."
+ },
+ {
+  "order": 68,
+  "slug": "fix-duplicate-groups-upsert-race",
+  "riskArea": "sync",
+  "findings": [
+   96
+  ],
+  "severity": "low",
+  "titles": [
+   "duplicate_groups upsert only guards the id primary key, not the (user_id, fingerprint) unique constraint two devices can race"
+  ],
+  "files": [
+   "supabase/migrations/20260919090300_phase3_sync_entities.sql"
+  ],
+  "rationale": "duplicate_groups' upsert only guards the id primary key, not the (user_id, fingerprint) unique constraint two devices can race to insert against."
+ },
+ {
+  "order": 69,
+  "slug": "wire-catalog-cache-eviction",
+  "riskArea": "catalog",
+  "findings": [
+   98
+  ],
+  "severity": "low",
+  "titles": [
+   "Offline catalog-cache eviction is dead code; stale scan snapshots never expire"
+  ],
+  "files": [
+   "lib/db/catalog-cache.ts"
+  ],
+  "rationale": "The offline catalog-cache eviction function exists but is dead code, so stale scan snapshots never expire."
+ },
+ {
+  "order": 70,
+  "slug": "fix-status-bar-contrast",
+  "riskArea": "ui",
+  "findings": [
+   95
+  ],
+  "severity": "low",
+  "titles": [
+   "black-translucent status bar is unreadable on the light NeuForm ground"
+  ],
+  "files": [
+   "app/layout.tsx"
+  ],
+  "rationale": "The PWA's black-translucent status bar style renders unreadable white icons over the light NeuForm ground in standalone mode."
+ }
+]

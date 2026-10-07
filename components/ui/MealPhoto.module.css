@@ -1,0 +1,19 @@
+/* components/ui/MealPhoto.tsx. The clip is a size container so the photo can cover it from its own
+   aspect (--a, width over height) with container units, centred, at any shape the card takes. */
+.clip {
+  display: block;
+  overflow: hidden;
+  container-type: size;
+  background: var(--grad-produce);
+}
+
+.cover {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100cqw, 100cqh * var(--a));
+  height: max(100cqh, 100cqw / var(--a));
+  max-width: none;
+  margin-top: calc(max(100cqh, 100cqw / var(--a)) / -2);
+  margin-left: calc(max(100cqw, 100cqh * var(--a)) / -2);
+}

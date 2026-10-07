@@ -1,0 +1,1413 @@
+{
+  "generatedAt": "2026-09-20T05:55:34.630Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 11,
+  "case": {
+    "id": "block-protein-or-fibre",
+    "category": "block",
+    "sentence": "can you change my breakfast?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "quick_replies"
+    ],
+    "expected_quick_replies": {
+      "min": 2,
+      "max": 4
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 8855,
+    "actions": [],
+    "blocks": [
+      "food_ideas"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "215bfbfb-6652-4c19-8a7b-c5e069aeb692",
+        "kind": "food_ideas",
+        "ideas": [
+          {
+            "slot": null,
+            "wish": "Pork tenderloin, roasted meal",
+            "items": [
+              {
+                "name": "Pork tenderloin, roasted",
+                "grams": 130,
+                "macros": {
+                  "fat": 4.6,
+                  "kcal": 186,
+                  "carbs": 0,
+                  "protein": 33.8
+                },
+                "verdict": "allowed",
+                "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+                "fatPer100g": 3.5,
+                "kcalPer100g": 143,
+                "carbsPer100g": 0,
+                "proteinPer100g": 26,
+                "catalogFoodRevisionId": 9
+              },
+              {
+                "name": "Avocado, raw",
+                "grams": 70,
+                "macros": {
+                  "fat": 10.3,
+                  "kcal": 112,
+                  "carbs": 6,
+                  "protein": 1.4
+                },
+                "verdict": "allowed",
+                "addedFor": "fat",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "fatPer100g": 14.7,
+                "kcalPer100g": 160,
+                "carbsPer100g": 8.5,
+                "proteinPer100g": 2,
+                "catalogFoodRevisionId": 16
+              },
+              {
+                "name": "Banana, raw",
+                "grams": 100,
+                "macros": {
+                  "fat": 0.3,
+                  "kcal": 89,
+                  "carbs": 22.8,
+                  "protein": 1.1
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 89,
+                "carbsPer100g": 22.8,
+                "proteinPer100g": 1.1,
+                "catalogFoodRevisionId": 14
+              },
+              {
+                "name": "Corn tortilla",
+                "grams": 40,
+                "macros": {
+                  "fat": 1.2,
+                  "kcal": 87,
+                  "carbs": 17.8,
+                  "protein": 2.3
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "fatPer100g": 2.9,
+                "kcalPer100g": 218,
+                "carbsPer100g": 44.6,
+                "proteinPer100g": 5.7,
+                "catalogFoodRevisionId": 15
+              }
+            ],
+            "target": {
+              "fat": 15,
+              "kcal": 465,
+              "carbs": 47,
+              "protein": 34
+            },
+            "totals": {
+              "fat": 16.4,
+              "kcal": 474,
+              "carbs": 46.6,
+              "protein": 38.6
+            },
+            "fitNote": "Over on protein by 5 g for this slot",
+            "flagged": [],
+            "rankNote": "fits 94 %",
+            "fitsTarget": false,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ],
+            "anchorProtein": "Pork tenderloin, roasted",
+            "allItemsOnEats": true
+          },
+          {
+            "slot": null,
+            "wish": "Tuna, light, canned in water meal",
+            "items": [
+              {
+                "name": "Tuna, light, canned in water",
+                "grams": 135,
+                "macros": {
+                  "fat": 1.1,
+                  "kcal": 157,
+                  "carbs": 0,
+                  "protein": 34.4
+                },
+                "verdict": "allowed",
+                "foodRefId": "24c60ca1-de2c-4630-b66e-ea67f38ca484",
+                "fatPer100g": 0.8,
+                "kcalPer100g": 116,
+                "carbsPer100g": 0,
+                "proteinPer100g": 25.5,
+                "catalogFoodRevisionId": 3
+              },
+              {
+                "name": "Avocado, raw",
+                "grams": 95,
+                "macros": {
+                  "fat": 14,
+                  "kcal": 152,
+                  "carbs": 8.1,
+                  "protein": 1.9
+                },
+                "verdict": "allowed",
+                "addedFor": "fat",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "fatPer100g": 14.7,
+                "kcalPer100g": 160,
+                "carbsPer100g": 8.5,
+                "proteinPer100g": 2,
+                "catalogFoodRevisionId": 16
+              },
+              {
+                "name": "Banana, raw",
+                "grams": 100,
+                "macros": {
+                  "fat": 0.3,
+                  "kcal": 89,
+                  "carbs": 22.8,
+                  "protein": 1.1
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 89,
+                "carbsPer100g": 22.8,
+                "proteinPer100g": 1.1,
+                "catalogFoodRevisionId": 14
+              },
+              {
+                "name": "Corn tortilla",
+                "grams": 35,
+                "macros": {
+                  "fat": 1,
+                  "kcal": 76,
+                  "carbs": 15.6,
+                  "protein": 2
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "fatPer100g": 2.9,
+                "kcalPer100g": 218,
+                "carbsPer100g": 44.6,
+                "proteinPer100g": 5.7,
+                "catalogFoodRevisionId": 15
+              }
+            ],
+            "target": {
+              "fat": 15,
+              "kcal": 465,
+              "carbs": 47,
+              "protein": 34
+            },
+            "totals": {
+              "fat": 16.4,
+              "kcal": 474,
+              "carbs": 46.5,
+              "protein": 39.4
+            },
+            "fitNote": "Over on protein by 5 g for this slot",
+            "flagged": [],
+            "rankNote": "fits 93 %",
+            "fitsTarget": false,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ],
+            "anchorProtein": "Tuna, light, canned in water",
+            "allItemsOnEats": true
+          },
+          {
+            "slot": null,
+            "wish": "Beef sirloin, grilled meal",
+            "items": [
+              {
+                "name": "Beef sirloin, grilled",
+                "grams": 125,
+                "macros": {
+                  "fat": 15,
+                  "kcal": 271,
+                  "carbs": 0,
+                  "protein": 33.8
+                },
+                "verdict": "allowed",
+                "foodRefId": "f84f7f07-46b6-4a2f-9c5d-d2a140a038df",
+                "fatPer100g": 12,
+                "kcalPer100g": 217,
+                "carbsPer100g": 0,
+                "proteinPer100g": 27,
+                "catalogFoodRevisionId": 6
+              },
+              {
+                "name": "Banana, raw",
+                "grams": 100,
+                "macros": {
+                  "fat": 0.3,
+                  "kcal": 89,
+                  "carbs": 22.8,
+                  "protein": 1.1
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 89,
+                "carbsPer100g": 22.8,
+                "proteinPer100g": 1.1,
+                "catalogFoodRevisionId": 14
+              },
+              {
+                "name": "Corn tortilla",
+                "grams": 55,
+                "macros": {
+                  "fat": 1.6,
+                  "kcal": 120,
+                  "carbs": 24.5,
+                  "protein": 3.1
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "fatPer100g": 2.9,
+                "kcalPer100g": 218,
+                "carbsPer100g": 44.6,
+                "proteinPer100g": 5.7,
+                "catalogFoodRevisionId": 15
+              }
+            ],
+            "target": {
+              "fat": 15,
+              "kcal": 465,
+              "carbs": 47,
+              "protein": 34
+            },
+            "totals": {
+              "fat": 16.9,
+              "kcal": 480,
+              "carbs": 47.3,
+              "protein": 38
+            },
+            "fitNote": "Over on protein by 4 g, over on fat by 2 g for this slot",
+            "flagged": [],
+            "rankNote": "fits 93 %",
+            "fitsTarget": false,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ],
+            "anchorProtein": "Beef sirloin, grilled",
+            "allItemsOnEats": true
+          }
+        ]
+      }
+    ],
+    "cards": 3,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.09,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 0-0; got 3"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 8855 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.09"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Here are 3 options using pork tenderloin, tuna, and grilled beef sirloin with avocado, banana, or corn tortillas added for fats and carbs.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [quick_replies]; got [food_ideas]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected quick-reply count",
+      "passed": false,
+      "detail": "expected 2-4; got []"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "1ef0d263-711f-4978-923c-11b6ca046f4d",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "Pork tenderloin, roasted",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Tuna, light, canned in water",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Beef sirloin, grilled",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [
+      {
+        "wish": "Pork tenderloin, roasted meal",
+        "slot": null,
+        "items": [
+          {
+            "name": "Pork tenderloin, roasted",
+            "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+            "catalogFoodRevisionId": 9,
+            "grams": 130,
+            "kcalPer100g": 143,
+            "proteinPer100g": 26,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.5,
+            "macros": {
+              "kcal": 186,
+              "protein": 33.8,
+              "carbs": 0,
+              "fat": 4.6
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Avocado, raw",
+            "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+            "catalogFoodRevisionId": 16,
+            "grams": 70,
+            "kcalPer100g": 160,
+            "proteinPer100g": 2,
+            "carbsPer100g": 8.5,
+            "fatPer100g": 14.7,
+            "macros": {
+              "kcal": 112,
+              "protein": 1.4,
+              "carbs": 6,
+              "fat": 10.3
+            },
+            "verdict": "allowed",
+            "addedFor": "fat"
+          },
+          {
+            "name": "Banana, raw",
+            "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+            "catalogFoodRevisionId": 14,
+            "grams": 100,
+            "kcalPer100g": 89,
+            "proteinPer100g": 1.1,
+            "carbsPer100g": 22.8,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 89,
+              "protein": 1.1,
+              "carbs": 22.8,
+              "fat": 0.3
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          },
+          {
+            "name": "Corn tortilla",
+            "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+            "catalogFoodRevisionId": 15,
+            "grams": 40,
+            "kcalPer100g": 218,
+            "proteinPer100g": 5.7,
+            "carbsPer100g": 44.6,
+            "fatPer100g": 2.9,
+            "macros": {
+              "kcal": 87,
+              "protein": 2.3,
+              "carbs": 17.8,
+              "fat": 1.2
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          }
+        ],
+        "totals": {
+          "kcal": 474,
+          "protein": 38.6,
+          "carbs": 46.6,
+          "fat": 16.4
+        },
+        "target": {
+          "kcal": 465,
+          "protein": 34,
+          "carbs": 47,
+          "fat": 15
+        },
+        "flagged": [],
+        "fitsTarget": false,
+        "fitNote": "Over on protein by 5 g for this slot",
+        "anchorProtein": "Pork tenderloin, roasted",
+        "allItemsOnEats": true,
+        "pendingSlots": [
+          {
+            "slot": "meal-1",
+            "label": "Meal 1"
+          },
+          {
+            "slot": "meal-2",
+            "label": "Meal 2"
+          },
+          {
+            "slot": "meal-3",
+            "label": "Meal 3"
+          }
+        ],
+        "rankNote": "fits 94 %"
+      },
+      {
+        "wish": "Tuna, light, canned in water meal",
+        "slot": null,
+        "items": [
+          {
+            "name": "Tuna, light, canned in water",
+            "foodRefId": "24c60ca1-de2c-4630-b66e-ea67f38ca484",
+            "catalogFoodRevisionId": 3,
+            "grams": 135,
+            "kcalPer100g": 116,
+            "proteinPer100g": 25.5,
+            "carbsPer100g": 0,
+            "fatPer100g": 0.8,
+            "macros": {
+              "kcal": 157,
+              "protein": 34.4,
+              "carbs": 0,
+              "fat": 1.1
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Avocado, raw",
+            "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+            "catalogFoodRevisionId": 16,
+            "grams": 95,
+            "kcalPer100g": 160,
+            "proteinPer100g": 2,
+            "carbsPer100g": 8.5,
+            "fatPer100g": 14.7,
+            "macros": {
+              "kcal": 152,
+              "protein": 1.9,
+              "carbs": 8.1,
+              "fat": 14
+            },
+            "verdict": "allowed",
+            "addedFor": "fat"
+          },
+          {
+            "name": "Banana, raw",
+            "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+            "catalogFoodRevisionId": 14,
+            "grams": 100,
+            "kcalPer100g": 89,
+            "proteinPer100g": 1.1,
+            "carbsPer100g": 22.8,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 89,
+              "protein": 1.1,
+              "carbs": 22.8,
+              "fat": 0.3
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          },
+          {
+            "name": "Corn tortilla",
+            "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+            "catalogFoodRevisionId": 15,
+            "grams": 35,
+            "kcalPer100g": 218,
+            "proteinPer100g": 5.7,
+            "carbsPer100g": 44.6,
+            "fatPer100g": 2.9,
+            "macros": {
+              "kcal": 76,
+              "protein": 2,
+              "carbs": 15.6,
+              "fat": 1
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          }
+        ],
+        "totals": {
+          "kcal": 474,
+          "protein": 39.4,
+          "carbs": 46.5,
+          "fat": 16.4
+        },
+        "target": {
+          "kcal": 465,
+          "protein": 34,
+          "carbs": 47,
+          "fat": 15
+        },
+        "flagged": [],
+        "fitsTarget": false,
+        "fitNote": "Over on protein by 5 g for this slot",
+        "anchorProtein": "Tuna, light, canned in water",
+        "allItemsOnEats": true,
+        "pendingSlots": [
+          {
+            "slot": "meal-1",
+            "label": "Meal 1"
+          },
+          {
+            "slot": "meal-2",
+            "label": "Meal 2"
+          },
+          {
+            "slot": "meal-3",
+            "label": "Meal 3"
+          }
+        ],
+        "rankNote": "fits 93 %"
+      },
+      {
+        "wish": "Beef sirloin, grilled meal",
+        "slot": null,
+        "items": [
+          {
+            "name": "Beef sirloin, grilled",
+            "foodRefId": "f84f7f07-46b6-4a2f-9c5d-d2a140a038df",
+            "catalogFoodRevisionId": 6,
+            "grams": 125,
+            "kcalPer100g": 217,
+            "proteinPer100g": 27,
+            "carbsPer100g": 0,
+            "fatPer100g": 12,
+            "macros": {
+              "kcal": 271,
+              "protein": 33.8,
+              "carbs": 0,
+              "fat": 15
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Banana, raw",
+            "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+            "catalogFoodRevisionId": 14,
+            "grams": 100,
+            "kcalPer100g": 89,
+            "proteinPer100g": 1.1,
+            "carbsPer100g": 22.8,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 89,
+              "protein": 1.1,
+              "carbs": 22.8,
+              "fat": 0.3
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          },
+          {
+            "name": "Corn tortilla",
+            "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+            "catalogFoodRevisionId": 15,
+            "grams": 55,
+            "kcalPer100g": 218,
+            "proteinPer100g": 5.7,
+            "carbsPer100g": 44.6,
+            "fatPer100g": 2.9,
+            "macros": {
+              "kcal": 120,
+              "protein": 3.1,
+              "carbs": 24.5,
+              "fat": 1.6
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          }
+        ],
+        "totals": {
+          "kcal": 480,
+          "protein": 38,
+          "carbs": 47.3,
+          "fat": 16.9
+        },
+        "target": {
+          "kcal": 465,
+          "protein": 34,
+          "carbs": 47,
+          "fat": 15
+        },
+        "flagged": [],
+        "fitsTarget": false,
+        "fitNote": "Over on protein by 4 g, over on fat by 2 g for this slot",
+        "anchorProtein": "Beef sirloin, grilled",
+        "allItemsOnEats": true,
+        "pendingSlots": [
+          {
+            "slot": "meal-1",
+            "label": "Meal 1"
+          },
+          {
+            "slot": "meal-2",
+            "label": "Meal 2"
+          },
+          {
+            "slot": "meal-3",
+            "label": "Meal 3"
+          }
+        ],
+        "rankNote": "fits 93 %"
+      }
+    ],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 359,
+      "model": 4511,
+      "ground": 6
+    },
+    "messages": [
+      {
+        "id": "e1a21dda-010d-4861-9523-9b8a0eed3b18",
+        "role": "user",
+        "content": "I'm not sure what to eat next — give me two or three quick options to pick from",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "619095f0-0e21-4f44-95f4-9eab85e209a1",
+        "role": "assistant",
+        "content": "Here are 3 options using pork tenderloin, tuna, and grilled beef sirloin with avocado, banana, or corn tortillas added for fats and carbs.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "food_ideas",
+            "v": 1,
+            "id": "215bfbfb-6652-4c19-8a7b-c5e069aeb692",
+            "ideas": [
+              {
+                "wish": "Pork tenderloin, roasted meal",
+                "slot": null,
+                "items": [
+                  {
+                    "name": "Pork tenderloin, roasted",
+                    "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+                    "catalogFoodRevisionId": 9,
+                    "grams": 130,
+                    "kcalPer100g": 143,
+                    "proteinPer100g": 26,
+                    "carbsPer100g": 0,
+                    "fatPer100g": 3.5,
+                    "macros": {
+                      "kcal": 186,
+                      "protein": 33.8,
+                      "carbs": 0,
+                      "fat": 4.6
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Avocado, raw",
+                    "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                    "catalogFoodRevisionId": 16,
+                    "grams": 70,
+                    "kcalPer100g": 160,
+                    "proteinPer100g": 2,
+                    "carbsPer100g": 8.5,
+                    "fatPer100g": 14.7,
+                    "macros": {
+                      "kcal": 112,
+                      "protein": 1.4,
+                      "carbs": 6,
+                      "fat": 10.3
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "fat"
+                  },
+                  {
+                    "name": "Banana, raw",
+                    "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                    "catalogFoodRevisionId": 14,
+                    "grams": 100,
+                    "kcalPer100g": 89,
+                    "proteinPer100g": 1.1,
+                    "carbsPer100g": 22.8,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 89,
+                      "protein": 1.1,
+                      "carbs": 22.8,
+                      "fat": 0.3
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  },
+                  {
+                    "name": "Corn tortilla",
+                    "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                    "catalogFoodRevisionId": 15,
+                    "grams": 40,
+                    "kcalPer100g": 218,
+                    "proteinPer100g": 5.7,
+                    "carbsPer100g": 44.6,
+                    "fatPer100g": 2.9,
+                    "macros": {
+                      "kcal": 87,
+                      "protein": 2.3,
+                      "carbs": 17.8,
+                      "fat": 1.2
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  }
+                ],
+                "totals": {
+                  "kcal": 474,
+                  "protein": 38.6,
+                  "carbs": 46.6,
+                  "fat": 16.4
+                },
+                "target": {
+                  "kcal": 465,
+                  "protein": 34,
+                  "carbs": 47,
+                  "fat": 15
+                },
+                "flagged": [],
+                "fitsTarget": false,
+                "fitNote": "Over on protein by 5 g for this slot",
+                "rankNote": "fits 94 %",
+                "anchorProtein": "Pork tenderloin, roasted",
+                "allItemsOnEats": true,
+                "pendingSlots": [
+                  {
+                    "slot": "meal-1",
+                    "label": "Meal 1"
+                  },
+                  {
+                    "slot": "meal-2",
+                    "label": "Meal 2"
+                  },
+                  {
+                    "slot": "meal-3",
+                    "label": "Meal 3"
+                  }
+                ]
+              },
+              {
+                "wish": "Tuna, light, canned in water meal",
+                "slot": null,
+                "items": [
+                  {
+                    "name": "Tuna, light, canned in water",
+                    "foodRefId": "24c60ca1-de2c-4630-b66e-ea67f38ca484",
+                    "catalogFoodRevisionId": 3,
+                    "grams": 135,
+                    "kcalPer100g": 116,
+                    "proteinPer100g": 25.5,
+                    "carbsPer100g": 0,
+                    "fatPer100g": 0.8,
+                    "macros": {
+                      "kcal": 157,
+                      "protein": 34.4,
+                      "carbs": 0,
+                      "fat": 1.1
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Avocado, raw",
+                    "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                    "catalogFoodRevisionId": 16,
+                    "grams": 95,
+                    "kcalPer100g": 160,
+                    "proteinPer100g": 2,
+                    "carbsPer100g": 8.5,
+                    "fatPer100g": 14.7,
+                    "macros": {
+                      "kcal": 152,
+                      "protein": 1.9,
+                      "carbs": 8.1,
+                      "fat": 14
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "fat"
+                  },
+                  {
+                    "name": "Banana, raw",
+                    "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                    "catalogFoodRevisionId": 14,
+                    "grams": 100,
+                    "kcalPer100g": 89,
+                    "proteinPer100g": 1.1,
+                    "carbsPer100g": 22.8,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 89,
+                      "protein": 1.1,
+                      "carbs": 22.8,
+                      "fat": 0.3
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  },
+                  {
+                    "name": "Corn tortilla",
+                    "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                    "catalogFoodRevisionId": 15,
+                    "grams": 35,
+                    "kcalPer100g": 218,
+                    "proteinPer100g": 5.7,
+                    "carbsPer100g": 44.6,
+                    "fatPer100g": 2.9,
+                    "macros": {
+                      "kcal": 76,
+                      "protein": 2,
+                      "carbs": 15.6,
+                      "fat": 1
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  }
+                ],
+                "totals": {
+                  "kcal": 474,
+                  "protein": 39.4,
+                  "carbs": 46.5,
+                  "fat": 16.4
+                },
+                "target": {
+                  "kcal": 465,
+                  "protein": 34,
+                  "carbs": 47,
+                  "fat": 15
+                },
+                "flagged": [],
+                "fitsTarget": false,
+                "fitNote": "Over on protein by 5 g for this slot",
+                "rankNote": "fits 93 %",
+                "anchorProtein": "Tuna, light, canned in water",
+                "allItemsOnEats": true,
+                "pendingSlots": [
+                  {
+                    "slot": "meal-1",
+                    "label": "Meal 1"
+                  },
+                  {
+                    "slot": "meal-2",
+                    "label": "Meal 2"
+                  },
+                  {
+                    "slot": "meal-3",
+                    "label": "Meal 3"
+                  }
+                ]
+              },
+              {
+                "wish": "Beef sirloin, grilled meal",
+                "slot": null,
+                "items": [
+                  {
+                    "name": "Beef sirloin, grilled",
+                    "foodRefId": "f84f7f07-46b6-4a2f-9c5d-d2a140a038df",
+                    "catalogFoodRevisionId": 6,
+                    "grams": 125,
+                    "kcalPer100g": 217,
+                    "proteinPer100g": 27,
+                    "carbsPer100g": 0,
+                    "fatPer100g": 12,
+                    "macros": {
+                      "kcal": 271,
+                      "protein": 33.8,
+                      "carbs": 0,
+                      "fat": 15
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Banana, raw",
+                    "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                    "catalogFoodRevisionId": 14,
+                    "grams": 100,
+                    "kcalPer100g": 89,
+                    "proteinPer100g": 1.1,
+                    "carbsPer100g": 22.8,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 89,
+                      "protein": 1.1,
+                      "carbs": 22.8,
+                      "fat": 0.3
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  },
+                  {
+                    "name": "Corn tortilla",
+                    "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                    "catalogFoodRevisionId": 15,
+                    "grams": 55,
+                    "kcalPer100g": 218,
+                    "proteinPer100g": 5.7,
+                    "carbsPer100g": 44.6,
+                    "fatPer100g": 2.9,
+                    "macros": {
+                      "kcal": 120,
+                      "protein": 3.1,
+                      "carbs": 24.5,
+                      "fat": 1.6
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  }
+                ],
+                "totals": {
+                  "kcal": 480,
+                  "protein": 38,
+                  "carbs": 47.3,
+                  "fat": 16.9
+                },
+                "target": {
+                  "kcal": 465,
+                  "protein": 34,
+                  "carbs": 47,
+                  "fat": 15
+                },
+                "flagged": [],
+                "fitsTarget": false,
+                "fitNote": "Over on protein by 4 g, over on fat by 2 g for this slot",
+                "rankNote": "fits 93 %",
+                "anchorProtein": "Beef sirloin, grilled",
+                "allItemsOnEats": true,
+                "pendingSlots": [
+                  {
+                    "slot": "meal-1",
+                    "label": "Meal 1"
+                  },
+                  {
+                    "slot": "meal-2",
+                    "label": "Meal 2"
+                  },
+                  {
+                    "slot": "meal-3",
+                    "label": "Meal 3"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "composed": [
+          {
+            "wish": "Pork tenderloin, roasted meal",
+            "slot": null,
+            "items": [
+              {
+                "name": "Pork tenderloin, roasted",
+                "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+                "catalogFoodRevisionId": 9,
+                "grams": 130,
+                "kcalPer100g": 143,
+                "proteinPer100g": 26,
+                "carbsPer100g": 0,
+                "fatPer100g": 3.5,
+                "macros": {
+                  "kcal": 186,
+                  "protein": 33.8,
+                  "carbs": 0,
+                  "fat": 4.6
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Avocado, raw",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "catalogFoodRevisionId": 16,
+                "grams": 70,
+                "kcalPer100g": 160,
+                "proteinPer100g": 2,
+                "carbsPer100g": 8.5,
+                "fatPer100g": 14.7,
+                "macros": {
+                  "kcal": 112,
+                  "protein": 1.4,
+                  "carbs": 6,
+                  "fat": 10.3
+                },
+                "verdict": "allowed",
+                "addedFor": "fat"
+              },
+              {
+                "name": "Banana, raw",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "catalogFoodRevisionId": 14,
+                "grams": 100,
+                "kcalPer100g": 89,
+                "proteinPer100g": 1.1,
+                "carbsPer100g": 22.8,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 89,
+                  "protein": 1.1,
+                  "carbs": 22.8,
+                  "fat": 0.3
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              },
+              {
+                "name": "Corn tortilla",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "catalogFoodRevisionId": 15,
+                "grams": 40,
+                "kcalPer100g": 218,
+                "proteinPer100g": 5.7,
+                "carbsPer100g": 44.6,
+                "fatPer100g": 2.9,
+                "macros": {
+                  "kcal": 87,
+                  "protein": 2.3,
+                  "carbs": 17.8,
+                  "fat": 1.2
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              }
+            ],
+            "totals": {
+              "kcal": 474,
+              "protein": 38.6,
+              "carbs": 46.6,
+              "fat": 16.4
+            },
+            "target": {
+              "kcal": 465,
+              "protein": 34,
+              "carbs": 47,
+              "fat": 15
+            },
+            "flagged": [],
+            "fitsTarget": false,
+            "fitNote": "Over on protein by 5 g for this slot",
+            "rankNote": "fits 94 %",
+            "anchorProtein": "Pork tenderloin, roasted",
+            "allItemsOnEats": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ]
+          },
+          {
+            "wish": "Tuna, light, canned in water meal",
+            "slot": null,
+            "items": [
+              {
+                "name": "Tuna, light, canned in water",
+                "foodRefId": "24c60ca1-de2c-4630-b66e-ea67f38ca484",
+                "catalogFoodRevisionId": 3,
+                "grams": 135,
+                "kcalPer100g": 116,
+                "proteinPer100g": 25.5,
+                "carbsPer100g": 0,
+                "fatPer100g": 0.8,
+                "macros": {
+                  "kcal": 157,
+                  "protein": 34.4,
+                  "carbs": 0,
+                  "fat": 1.1
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Avocado, raw",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "catalogFoodRevisionId": 16,
+                "grams": 95,
+                "kcalPer100g": 160,
+                "proteinPer100g": 2,
+                "carbsPer100g": 8.5,
+                "fatPer100g": 14.7,
+                "macros": {
+                  "kcal": 152,
+                  "protein": 1.9,
+                  "carbs": 8.1,
+                  "fat": 14
+                },
+                "verdict": "allowed",
+                "addedFor": "fat"
+              },
+              {
+                "name": "Banana, raw",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "catalogFoodRevisionId": 14,
+                "grams": 100,
+                "kcalPer100g": 89,
+                "proteinPer100g": 1.1,
+                "carbsPer100g": 22.8,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 89,
+                  "protein": 1.1,
+                  "carbs": 22.8,
+                  "fat": 0.3
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              },
+              {
+                "name": "Corn tortilla",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "catalogFoodRevisionId": 15,
+                "grams": 35,
+                "kcalPer100g": 218,
+                "proteinPer100g": 5.7,
+                "carbsPer100g": 44.6,
+                "fatPer100g": 2.9,
+                "macros": {
+                  "kcal": 76,
+                  "protein": 2,
+                  "carbs": 15.6,
+                  "fat": 1
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              }
+            ],
+            "totals": {
+              "kcal": 474,
+              "protein": 39.4,
+              "carbs": 46.5,
+              "fat": 16.4
+            },
+            "target": {
+              "kcal": 465,
+              "protein": 34,
+              "carbs": 47,
+              "fat": 15
+            },
+            "flagged": [],
+            "fitsTarget": false,
+            "fitNote": "Over on protein by 5 g for this slot",
+            "rankNote": "fits 93 %",
+            "anchorProtein": "Tuna, light, canned in water",
+            "allItemsOnEats": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ]
+          },
+          {
+            "wish": "Beef sirloin, grilled meal",
+            "slot": null,
+            "items": [
+              {
+                "name": "Beef sirloin, grilled",
+                "foodRefId": "f84f7f07-46b6-4a2f-9c5d-d2a140a038df",
+                "catalogFoodRevisionId": 6,
+                "grams": 125,
+                "kcalPer100g": 217,
+                "proteinPer100g": 27,
+                "carbsPer100g": 0,
+                "fatPer100g": 12,
+                "macros": {
+                  "kcal": 271,
+                  "protein": 33.8,
+                  "carbs": 0,
+                  "fat": 15
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Banana, raw",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "catalogFoodRevisionId": 14,
+                "grams": 100,
+                "kcalPer100g": 89,
+                "proteinPer100g": 1.1,
+                "carbsPer100g": 22.8,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 89,
+                  "protein": 1.1,
+                  "carbs": 22.8,
+                  "fat": 0.3
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              },
+              {
+                "name": "Corn tortilla",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "catalogFoodRevisionId": 15,
+                "grams": 55,
+                "kcalPer100g": 218,
+                "proteinPer100g": 5.7,
+                "carbsPer100g": 44.6,
+                "fatPer100g": 2.9,
+                "macros": {
+                  "kcal": 120,
+                  "protein": 3.1,
+                  "carbs": 24.5,
+                  "fat": 1.6
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              }
+            ],
+            "totals": {
+              "kcal": 480,
+              "protein": 38,
+              "carbs": 47.3,
+              "fat": 16.9
+            },
+            "target": {
+              "kcal": 465,
+              "protein": 34,
+              "carbs": 47,
+              "fat": 15
+            },
+            "flagged": [],
+            "fitsTarget": false,
+            "fitNote": "Over on protein by 4 g, over on fat by 2 g for this slot",
+            "rankNote": "fits 93 %",
+            "anchorProtein": "Beef sirloin, grilled",
+            "allItemsOnEats": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

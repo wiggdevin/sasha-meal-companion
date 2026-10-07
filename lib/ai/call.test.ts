@@ -1,0 +1,62 @@
+/**
+ * 2026-10-02 DeepSeek audit: callModel's failure record (the `attempt` loop's final `record` call)
+ * priced a failed call from `billed` tokens alone, dropping `surchargeUsd` — the real dollar cost
+ * OpenRouter (or any surcharge-priced lane) already billed on an ANSWERED attempt whose own
+ * `accept()` then rejected it (a 200 whose JSON fails the schema). The daily spend cap
+ * (lib/ai/spend.ts assertUnderSpendCap) reads this `cost_estimate`, so it silently under-counted
+ * real spend on every schema-invalid OpenRouter reply.
+ *
+ * Generic to callModel, not OpenRouter-specific: a hand-built ModelCall with its own `retryable`,
+ * so the test controls exactly how many attempts answer and how many of those answers accept.
+ */
+import { createHash } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { callModel, SchemaRejection } from "@/lib/ai/call";
+import { coachOpenRouterPayload, openRouterProvenance } from "@/lib/ai/openrouter-payloads";
+import { spendAdmin } from "@/tests/ai/spend-admin";
+
+function attest(): void {
+  vi.stubEnv("OPENROUTER_ATTESTED", "1");
+}
+
+type FakeResult = { inputTokens: number; outputTokens: number; costUsd: number };
+
+describe("callModel's failure record carries every answered attempt's real surcharge cost", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("accumulates two schema-invalid OpenRouter answers' $0.01 surcharges into one $0.02 failure row", async () => {
+    attest();
+    const inserted: Record<string, unknown>[] = [];
+    const admin = spendAdmin([], inserted);
+    const payload = coachOpenRouterPayload(["USER: hi"]);
+    let sent = 0;
+
+    const error = await callModel<FakeResult, never>({
+      payload,
+      provenance: openRouterProvenance,
+      target: () => ({ provider: "openrouter", model: "openai/gpt-5-mini", sdkVersion: "test" }),
+      ledger: () => ({ userId: "u1", admin: admin as never }),
+      inputHash: () => `\\x${createHash("sha256").update(payload.text).digest("hex")}`,
+      policy: {
+        attempts: 2, budgetMs: 5_000, attemptMs: 2_000, backoffMs: [0],
+        // A schema rejection is normally ours and not worth a retry (lib/ai/openrouter.ts); this
+        // test retries it on purpose, to prove callModel's generic accounting across TWO answered
+        // attempts, not to claim OpenRouter itself retries this way.
+        retryable: (e) => e instanceof SchemaRejection,
+      },
+      transport: {
+        send: async () => { sent += 1; return { inputTokens: 10, outputTokens: 5, costUsd: 0.01 }; },
+      },
+      accept: () => { throw new SchemaRejection("model output failed the schema"); },
+      price: () => 0,
+      surchargeUsd: (result) => result.costUsd,
+      maxAttemptCostUsd: () => 0.05,
+    }).catch((e: unknown) => e);
+
+    expect(sent).toBe(2);
+    expect(error).toBeInstanceOf(SchemaRejection);
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ status: "schema_invalid", input_tokens: 20, output_tokens: 10 });
+    expect(inserted[0].cost_estimate).toBeCloseTo(0.02, 6);
+  });
+});

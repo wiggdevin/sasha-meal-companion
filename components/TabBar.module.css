@@ -1,0 +1,178 @@
+/* The floating dock (DESIGN.md Cards and Surfaces › Dock). Two matte charcoal bodies, after the
+   reference's quantity pill: the four-tab capsule and the assistant bubble, grained, bevelled and
+   lifted on a warm drop. The nav carries the global `matte` scope, so text roles inside read cream. */
+
+.dock {
+  transform: translateY(calc(-1 * var(--dock-lift, 0px)));
+  transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.glass {
+  isolation: isolate;
+  border-radius: 9999px;
+  /* farthest-side fits the tint ellipse to each body's own shape: dense in the middle, clear at the rim. */
+  background: linear-gradient(180deg, rgb(36 36 34 / 0.96), rgb(29 29 28 / 0.96));
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.1),
+    inset 0 -1px 1px rgb(0 0 0 / 0.2),
+    0 0 0 1px rgb(255 255 255 / 0.04),
+    0 20px 40px -18px rgb(29 29 28 / 0.6),
+    0 2px 6px rgb(29 29 28 / 0.12);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The refracting lens (components/dock/liquid-lens) read as sci-fi glass, so Chromium gets the same
+   matte body as every other engine. */
+.dock[data-lens="on"] .glass {
+  backdrop-filter: blur(12px);
+}
+
+/* Light that gathers under the finger (TabBar sheen() writes --lx/--ly/--lo). */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(90px 64px at var(--lx, 50%) var(--ly, 0%), rgb(226 220 208 / 0.08), transparent 72%);
+  opacity: var(--lo, 0);
+  transition: opacity 320ms ease;
+  pointer-events: none;
+}
+
+.tab {
+  color: rgb(226 220 208 / 0.6);
+  transition: color 150ms ease;
+}
+
+.tab:hover { color: #f3eee2; }
+
+/* The olive selection lens (DESIGN.md: the dock's active pill is the primary fill). */
+.lens {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  height: 52px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.1),
+    inset 0 -1px 1px rgb(0 0 0 / 0.2);
+  transform-origin: center;
+  will-change: transform, width;
+  pointer-events: none;
+}
+
+/* A second copy of the tab faces in cream, clipped to the lens: an icon turns cream exactly where
+   the lens covers it, so the colour travels with the lens instead of switching in one frame. */
+.ink {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  color: var(--color-on-primary);
+  pointer-events: none;
+}
+
+.assistant[data-current="true"]:not([data-open]) {
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.1),
+    inset 0 0 0 1.5px rgb(138 162 110 / 0.55),
+    0 20px 40px -18px rgb(29 29 28 / 0.6);
+}
+
+/* The charcoal composer the bubble becomes (DESIGN.md: a thin olive → sage → wheat rim). */
+.composerSkin {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #262624, #1d1d1c);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.1), 0 20px 40px -18px rgb(29 29 28 / 0.6);
+  pointer-events: none;
+}
+
+.composerSkin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--grad-coach-composer-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.9;
+}
+
+.assistant:focus-within .composerSkin {
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.1), 0 20px 40px -18px rgb(29 29 28 / 0.6),
+    0 0 0 3px rgb(138 162 110 / 0.25);
+}
+
+.assistant form {
+  z-index: 1;
+}
+
+.coachInput {
+  height: 48px;
+  color: var(--color-text-primary);
+  line-height: 24px;
+}
+
+.coachInput::placeholder {
+  color: currentColor;
+  opacity: 0.58;
+}
+
+/* Record at rest is a bare glyph (it saves the room a second circle would take); Send keeps the
+   olive fill and Stop keeps its red. Each glyph swap pops in on the house press spring. */
+.micButton [data-composer-main][aria-pressed="false"] {
+  color: var(--color-text-secondary) !important;
+  background: transparent !important;
+}
+
+.micButton [data-composer-main] {
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.micButton [data-composer-main] > * {
+  animation: glyph-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes glyph-in {
+  from { opacity: 0; transform: scale(0.6) rotate(-20deg); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The attach tray the field grows into. */
+.tray {
+  z-index: 1;
+  align-content: start;
+}
+
+.trayTile {
+  height: 52px;
+  border-radius: 16px;
+  color: var(--color-text-secondary);
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.08), inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  transition: color 150ms ease;
+}
+
+.trayTile:hover,
+.trayTile:focus-visible { color: var(--color-text-primary); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: rgb(29 29 28 / 0.98);
+    backdrop-filter: none;
+  }
+  .glass::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .micButton [data-composer-main] > * { animation: none; }
+  .dock, .glass::after, .tab { transition: none; }
+}

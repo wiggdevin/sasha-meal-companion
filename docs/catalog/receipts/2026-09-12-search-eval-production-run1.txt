@@ -1,0 +1,29 @@
+# scripts/search-eval.ts --dry-run against PRODUCTION (fivatgdpuenszxxnijpc), 2026-09-12, run 1
+# Eval user: devs@example.com. Run by the driver (Claude Fable 5.1 session). Sanitized: key/password lines removed.
+# Before scripts/load-synonyms.ts (catalog_synonyms was empty in production).
+labelled queries : 66 (resolved 61, unresolved 5)
+top-1            : 42.6 %  (gate 85 %)
+top-3            : 77.0 %  (gate 95 %)
+  miss: canned albacore
+  miss: eggs
+  miss: white rice
+  miss: sweet potato
+  miss: salmon
+  miss: scallops
+  miss: carrot
+  miss: pumpkin puree
+  miss: rotisserie chicken
+  miss: chicken thigh roasted
+  miss: white rice cooked
+  miss: chkn brst
+  miss: sweet potatoe
+  miss: salmom
+  unresolved: jasmine rice (fdc_sr_legacy:)
+  unresolved: avocado mayo (fdc_sr_legacy:)
+  unresolved: fruit pouch (fdc_sr_legacy:)
+  unresolved: mct oil (fdc_sr_legacy:)
+  unresolved: duck fat (fdc_sr_legacy:)
+branded          : minScore 0.95, minMargin 0.3
+generic          : minScore 0.95, minMargin 0.3
+FAIL: top-1 42.6 % below the gate
+FAIL: top-3 77.0 % below the gate

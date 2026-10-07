@@ -1,0 +1,94 @@
+/* The outcome language on any control that is not a `Button` (a card, a chip, a raw button): the same
+   meanings the button system shows inside `components/ui/Button`, drawn on the control's edge
+   (DESIGN.md §Action feedback, 2026-10-04). Pending: a Dijon hairline. Committed: a sage ring that
+   blooms and fades. Changed: an olive hairline that holds. Transitions stay with the global press rule
+   (app/globals.css), so the spring release is never replaced by a flat ease. */
+.control[data-feedback-state="pending"] {
+  opacity: 1;
+  outline: 1px solid color-mix(in srgb, var(--color-feedback-pending) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.control[data-feedback-state="success"] {
+  opacity: 1;
+  animation: feedback-success 1.6s var(--ease-out-expo);
+}
+
+.control[data-feedback-state="changed"] {
+  outline: 1px solid color-mix(in srgb, var(--color-feedback-change) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* A `Button` draws the outcome inside itself; its edge stays quiet. */
+:global(.btn).control[data-feedback-state] {
+  outline: none;
+  animation: none;
+}
+
+.host {
+  position: fixed;
+  left: 50%;
+  z-index: 70;
+  width: min(calc(100% - 32px), 448px);
+  transform: translateX(-50%);
+}
+
+.top { top: calc(16px + var(--safe-top)); }
+/* Clear the 56px coach button, anchored 92px above the safe edge, with a 12px gap. */
+.bottom { bottom: calc(160px + var(--safe-bottom)); }
+
+.notice {
+  width: 100%;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--glass-border);
+}
+
+/* A notice rises out of the dock's edge on the bouncy spring (2026-10-01). */
+@media (prefers-reduced-motion: no-preference) {
+  .notice {
+    animation: notice-rise var(--dur-spring-bouncy) var(--ease-spring-bouncy) both;
+  }
+}
+
+@keyframes notice-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.92);
+  }
+}
+
+.error {
+  border-color: var(--color-feedback-failure);
+}
+
+.changed,
+.success {
+  border-color: color-mix(in srgb, var(--color-feedback-success) 50%, transparent);
+}
+
+.action,
+.dismiss {
+  min-height: 44px;
+  min-width: 44px;
+  flex: none;
+  color: inherit;
+}
+
+.action {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: -12px;
+}
+
+@keyframes feedback-success {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-feedback-success) 0%, transparent); }
+  20% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-feedback-success) 38%, transparent); }
+  100% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-feedback-success) 0%, transparent); }
+}

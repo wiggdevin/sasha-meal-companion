@@ -1,0 +1,18 @@
+{
+  "anonymous_status": 401,
+  "first": [
+    200,
+    {
+      "ok": true,
+      "bytes": 54866
+    }
+  ],
+  "second": [
+    409,
+    {
+      "error": "conflict",
+      "message": "today's backup is complete or already running"
+    }
+  ],
+  "source": "compiled candidate, isolated synthetic Supabase"
+}

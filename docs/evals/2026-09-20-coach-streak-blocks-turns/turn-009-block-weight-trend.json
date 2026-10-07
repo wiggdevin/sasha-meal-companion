@@ -1,0 +1,197 @@
+{
+  "generatedAt": "2026-09-20T05:54:54.940Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 9,
+  "case": {
+    "id": "block-weight-trend",
+    "category": "block",
+    "sentence": "how's my weight trending?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "weight_trend"
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 998,
+    "actions": [],
+    "blocks": [
+      "chart"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "4b2d5153-0830-4153-9080-0cf256755e25",
+        "days": 30,
+        "kind": "chart",
+        "unit": "lb",
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "2026-09-05",
+                "y": 130.5
+              },
+              {
+                "x": "2026-09-12",
+                "y": 131.4
+              },
+              {
+                "x": "2026-09-19",
+                "y": 132.3
+              }
+            ]
+          }
+        ],
+        "caption": "Weight over the last 30 days"
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 2000 ms; got 998 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Here is your weight trend.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [chart]; got [chart]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected chart subtype",
+      "passed": true,
+      "detail": "expected weight_trend; got [\"weight_trend\"]"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    },
+    {
+      "name": "B3 weight_trend chart subtype",
+      "passed": true,
+      "detail": "[\"weight_trend\"]"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "b5df927e-2ec8-4c24-a5e1-801d4cb8184a",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "deflected": false,
+    "toolsUsed": [
+      "show_chart"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 339,
+      "model": 0,
+      "ground": 68
+    },
+    "messages": [
+      {
+        "id": "7cd29d76-2ea3-4dd5-98c8-c384ace9cf3e",
+        "role": "user",
+        "content": "how's my weight trending?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "92525a36-1e1a-4a6a-850f-851d877f4f81",
+        "role": "assistant",
+        "content": "Here is your weight trend.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "chart",
+            "v": 1,
+            "id": "4b2d5153-0830-4153-9080-0cf256755e25",
+            "chart": "weight_trend",
+            "days": 30,
+            "series": [
+              {
+                "label": "Weight",
+                "points": [
+                  {
+                    "x": "2026-09-05",
+                    "y": 130.5
+                  },
+                  {
+                    "x": "2026-09-12",
+                    "y": 131.4
+                  },
+                  {
+                    "x": "2026-09-19",
+                    "y": 132.3
+                  }
+                ]
+              }
+            ],
+            "unit": "lb",
+            "caption": "Weight over the last 30 days"
+          }
+        ]
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

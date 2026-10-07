@@ -1,0 +1,22 @@
+**Verdict: DO NOT SHIP.** The revision closes the charge and renewal problems, but three timing paths can still lose spoken words.
+
+| Round-one finding | Status | Evidence |
+|---|---|---|
+| 1. Client time defeats minute cap | **CLOSED** | [SQL:58](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/supabase/migrations/20261104090000_voice_ears.sql:58) sums full reservations; [voice-ears.ts:126](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/server/voice-ears.ts:126) writes estimated cost at mint. Close no longer discounts either. |
+| 2. Release during socket setup loses speech | **PARTIAL** | [live-listen.ts:241](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:241) keeps buffered audio for a successful connection. The 5 s timeout can still discard it; see finding 2. |
+| 3. First final sends a partial turn | **PARTIAL** | [live-listen.ts:146](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:146) emits one aggregate final, but the 300 ms quiet cutoff can precede another segment; see finding 1. |
+| 4. Renewal loses audio | **CLOSED** | [live-listen.ts:181](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:181) caps one session at 30 s; the hold sends what it has. |
+| 5. Token setup incompletely locked | **CLOSED** | [voice-ears.ts:194](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/server/voice-ears.ts:194) omits `lockAdditionalFields`. Installed SDK [index.mjs:17466](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/node_modules/@google/genai/dist/web/index.mjs:17466) removes the field mask in that case. |
+| 6. Mic setup cannot be cancelled | **CLOSED** | [live-io.ts:64](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-io.ts:64) tears down on abort; [line 72](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-io.ts:72) requires a running context. |
+| 7. Integration claims lack proof | **PARTIAL** | Hold tests were added. [ears-mint.test.ts:10](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/tests/voice/ears-mint.test.ts:10) replaces `GoogleGenAI`, so it does not inspect the SDK’s serialized request; the installed iPhone gate remains unverified. |
+| 8. Documentation claim and spec | **PARTIAL** | [features.md:232](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/docs/features.md:232) now describes both ledger and cost row. Its Phase 14 spec is still absent from this checkout. |
+
+### New findings
+
+1. **[BLOCK] A 300 ms pause after one final can truncate the turn.** [live-listen.ts:196](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:196) closes 300 ms after any post-release final. If the next segment arrives later, `phase === "done"` drops it. The installed SDK describes input transcription as independent of the model turn; it gives no 300 ms completion guarantee. Keep a bounded post-end collection window and test finals separated by more than 300 ms.
+
+2. **[BLOCK] A valid slow mint can discard buffered speech.** [live-listen.ts:209](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:209) abandons opening after 5 s, while [fetch-with-deadline.ts:45](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/fetch-with-deadline.ts:45) permits the token request 6 s, before socket setup. A token returned at 5.5 s is charged but the first five seconds of captured audio have been discarded. Give the request and connection coherent deadlines, and test a late successful mint through the hold.
+
+3. **[BLOCK] Waiting for `/close` can outlast the hold’s finalisation timer.** [live-listen.ts:143](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:143) awaits the close report before delivering the final. That fetch may take 6 s; add the 1.5 s transcript wait and it exceeds the [7 s hold timer](/Users/zero-suminc./projects/clients/Sasha/mc-voice-s1/lib/voice/live-listen.ts:53). The hold can settle empty or send interim text before the final arrives. Deliver the transcript before awaiting the accounting report; report in the background.
+
+Type checking and `git diff --check` passed. Focused Vitest suites could not collect tests because the read-only environment denied Vite’s temporary `ssr` directory.

@@ -1,0 +1,116 @@
+/* The assistant at work (DESIGN.md §Motion › Thinking, 2026-10-03). Three harvest orbs (olive, sage,
+   wheat) orbit and breathe inside an SVG goo filter, so they merge and part like one soft body; the
+   label carries a slow shimmer. Every colour is a token, so the `.matte` scope (dock, charcoal
+   cards) remaps the text to cream on its own. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  vertical-align: middle;
+}
+.compact { gap: 6px; }
+
+.orbs {
+  flex: none;
+  overflow: visible;
+}
+.inline .orbs { width: 24px; height: 24px; }
+.compact .orbs { width: 16px; height: 16px; }
+
+.olive { fill: var(--color-primary); }
+.sage { fill: var(--color-sage); }
+.wheat { fill: var(--color-gauge-fat-end); }
+/* Olive vanishes on charcoal; inside the matte scope it lifts to the muted olive-cream. */
+:global(.matte) .olive { fill: var(--color-on-olive-muted); }
+
+/* Each orb rides its own orbit (different speed, one reversed) and breathes toward the centre, so
+   the three meet, melt together under the goo filter and part again: never the same shape twice. */
+.orbit {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+  animation: thinking-spin 2.4s linear infinite;
+}
+.orbit:nth-of-type(2) { animation-duration: 3.1s; animation-direction: reverse; }
+.orbit:nth-of-type(3) { animation-duration: 3.9s; }
+
+.orb {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: thinking-breathe 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.orbit:nth-of-type(2) .orb { animation-delay: -0.6s; }
+.orbit:nth-of-type(3) .orb { animation-delay: -1.2s; }
+
+@keyframes thinking-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes thinking-breathe {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(-6px) scale(0.82); }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A highlight sweeps across the words, ink to the stronger ink and back, so the line itself shows
+   life even where the orbs are small. */
+.label {
+  background: linear-gradient(100deg,
+    var(--color-text-muted) 0%, var(--color-text-muted) 40%,
+    var(--color-text-primary) 50%,
+    var(--color-text-muted) 60%, var(--color-text-muted) 100%);
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: thinking-shimmer 2.2s linear infinite;
+}
+@keyframes thinking-shimmer {
+  to { background-position: -150% 0; }
+}
+
+.hint {
+  color: var(--color-text-muted);
+  animation: thinking-arrive 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes thinking-arrive {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Reduced motion: one calm dot that slowly fades in and out, and still words. */
+.dot {
+  flex: none;
+  border-radius: 9999px;
+  background: var(--color-sage);
+  animation: thinking-pulse 2.4s ease-in-out infinite;
+}
+.inline .dot { width: 8px; height: 8px; margin: 0 8px; }
+.compact .dot { width: 6px; height: 6px; margin: 0 5px; }
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.reduced .label,
+.reduced .hint {
+  animation: none;
+  background: none;
+  color: var(--color-text-muted);
+}
+
+/* Before hydration the OS setting still wins. */
+@media (prefers-reduced-motion: reduce) {
+  .orbit, .orb, .label, .hint { animation: none; }
+  .label { background: none; color: var(--color-text-muted); }
+}
+
+@media (forced-colors: active) {
+  .label { background: none; color: CanvasText; }
+}

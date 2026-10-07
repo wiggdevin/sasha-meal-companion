@@ -1,0 +1,114 @@
+{
+  "old": [
+    {
+      "format": "EAN-8",
+      "result": [
+        {
+          "text": "96385074",
+          "format": "EAN-8"
+        }
+      ]
+    },
+    {
+      "format": "UPC-A",
+      "result": [
+        {
+          "text": "0049000006346",
+          "format": "UPC-A"
+        }
+      ]
+    },
+    {
+      "format": "UPC-E",
+      "result": [
+        {
+          "text": "0012345000065",
+          "format": "UPC-E"
+        }
+      ]
+    },
+    {
+      "format": "EAN-13",
+      "result": [
+        {
+          "text": "4006381333931",
+          "format": "EAN-13"
+        }
+      ]
+    },
+    {
+      "format": "ITF",
+      "result": [
+        {
+          "text": "123456789012",
+          "format": "ITF"
+        }
+      ]
+    },
+    {
+      "format": "Code128",
+      "result": [
+        {
+          "text": "123456789012",
+          "format": "Code128"
+        }
+      ]
+    }
+  ],
+  "updated": [
+    {
+      "format": "EAN-8",
+      "result": [
+        {
+          "text": "96385074",
+          "format": "EAN8"
+        }
+      ]
+    },
+    {
+      "format": "UPC-A",
+      "result": [
+        {
+          "text": "0049000006346",
+          "format": "UPCA"
+        }
+      ]
+    },
+    {
+      "format": "UPC-E",
+      "result": [
+        {
+          "text": "0012345000065",
+          "format": "UPCE"
+        }
+      ]
+    },
+    {
+      "format": "EAN-13",
+      "result": [
+        {
+          "text": "4006381333931",
+          "format": "EAN13"
+        }
+      ]
+    },
+    {
+      "format": "ITF",
+      "result": [
+        {
+          "text": "123456789012",
+          "format": "ITF"
+        }
+      ]
+    },
+    {
+      "format": "Code128",
+      "result": [
+        {
+          "text": "123456789012",
+          "format": "Code128"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "job": "com.zs.smc-backup",
+  "schedule": "03:15 Mac local time",
+  "installed": true,
+  "execution": "launchctl kickstart of installed job",
+  "runs": 1,
+  "last_exit_code": 0,
+  "sql": {
+    "format": "postgresql-plain-v1",
+    "file": "2026-09-15T204656Z-d63739ff.sql",
+    "bytes": 16683632,
+    "sha256": "695f5d765cf5f12c25d5ea7c205604df1bfd30dd957c27789581c379f747a647",
+    "postgres_major": 17,
+    "taken_at": "2026-09-15T204656Z",
+    "host": "aws-0-us-west-1.pooler.supabase.com",
+    "database": "postgres"
+  },
+  "storage_objects": 2,
+  "storage_bytes": 694540,
+  "storage_directory": "/Users/zero-suminc./Backups/supabase/meal-companion/2026-09-15T204715Z-storage-1e927cf8",
+  "staleness_hours": 0
+}

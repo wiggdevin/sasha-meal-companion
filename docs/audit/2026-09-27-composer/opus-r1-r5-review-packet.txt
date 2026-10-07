@@ -1,0 +1,1691 @@
+Independent narrow review of R1-R5 correction only. No tools, delegation or edits. Return compact JSON with resolved R1-R5 each YES/NO, exact evidence, new_concrete_defects array (severity/file:line/trigger/impact), and scope limitations. Source/tests are attached. Parent reports319 focused tests+tsc+lint passed; you did not execute them. Do not approve all ten annotations, entire release, browser or physical behavior. R1 intended solution: pointer guard persists after pointerUp, clears on click/cancel, compatibility-order tests for main Record and secondary Send. R2/R5: two empty onEnd/no-speech events end current tap session with notice but retain native-listener preference for next tap and preserve existing words. R3 busy: focusable aria-disabled control ignores activation. R4: settling label Finishing recording, server transcription label Transcribing. Interim-promotion/final-tail deltas previously passed; re-review those only if changed code introduces concrete defect.
+
+
+PRIOR R1-R5
+[
+  {
+    "id": "R1",
+    "severity": "medium-high (source-derived; needs device proof)",
+    "location": "components/coach/use-composer-input.ts:32-36, 55-56; components/CoachMic.tsx:126-128; components/coach/Composer.tsx:41-43",
+    "issue": "The blur guard depends on pointerdown -> blur -> pointerup, which is the desktop mouse order. On iOS touch, the compatibility mousedown that moves focus off the textarea fires after pointerup/touchend. By then onRecordPointerDone has cleared the flag. The button usually does not take focus, so relatedTarget is null and editing becomes false. With a typed draft, readyToSend becomes true and React commits a re-render before the click. Tapping Record can then run the 'send' branch and submit the draft instead of recording. The editing Send can also unmount before its click. The tests encode only the desktop order.",
+    "fix": "Keep focus in the textarea by calling preventDefault on mousedown for [data-composer-action] buttons. Alternatively, clear the guard in the click handler or after it, not on pointerup. Add a test in the order pointerDown, pointerUp, blur(relatedTarget:null), click that asserts Record starts and nothing is sent."
+  },
+  {
+    "id": "R2",
+    "severity": "medium",
+    "location": "lib/coach/hold.ts:221-224 with lib/coach/dictation.ts:153-158",
+    "issue": "In tap mode, two consecutive empty session ends (onEnd or no-speech) terminate through {type:'fallback'}. This sets fallback:true for the page load, so later taps skip on-device or live recognition and record to the server. When nothing was heard it also stops silently, with no NO_SPEECH notice. An ordinary long silence therefore downgrades capability. That contradicts dictation.ts, where no-speech and max-duration are explicitly not fallback reasons.",
+    "fix": "In tap mode, terminate without setting fallback. Settle if words exist; otherwise show the no-speech notice. Reserve fallback for listen()===null and FALLBACK_ERRORS. Add a test that the next tap calls listen() again."
+  },
+  {
+    "id": "R3",
+    "severity": "low",
+    "location": "components/CoachMic.tsx:138",
+    "issue": "The main control is disabled while busy/settling, so a keyboard user whose focus is on Stop loses focus. Browsers move it to body. The user must re-navigate to reach Send.",
+    "fix": "Use aria-disabled and ignore clicks in the handler while busy, keeping the button focusable."
+  },
+  {
+    "id": "R4",
+    "severity": "low",
+    "location": "components/CoachMic.tsx:139",
+    "issue": "The busy label says 'Transcribing voice message' during on-device or live finalise, not only during server transcription.",
+    "fix": "Use a neutral label such as 'Finishing recording' while view.settling is true and view.busy is false."
+  },
+  {
+    "id": "R5",
+    "severity": "low (test gap)",
+    "location": "tests/coach/tap-dictation.test.ts:127-146",
+    "issue": "The silent-termination test asserts only unlocked and does not check the fallback flag, the next listener choice or the notice, so R2 is not detected. No test checks that reduced-motion CSS applies.",
+    "fix": "Assert that the next toggleTap calls listen() again and that a no-speech notice is shown."
+  }
+]
+
+DIFF FROM PRECEDING PACKET
+--- preceding/components/CoachMic.tsx
++++ current/components/CoachMic.tsx
+@@ -119,29 +119,29 @@
+   if (!available && mode === "record") return null;
+
+   return (
+     <button
+       type="button"
+       data-composer-action
+       data-composer-main
+       onPointerDown={() => { if (mode === "record") onRecordPointerDown(); }}
+-      onPointerUp={onRecordPointerDone}
+       onPointerCancel={onRecordPointerDone}
+       onKeyDown={(event) => {
+         if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+       }}
+       onClick={(event) => {
+         onRecordPointerDone();
+         if (mode === "send" && event.detail > 1) return;
+         if (mode === "send") onSend(readBox());
+         else if (mode === "record" || mode === "stop") hold.toggleTap();
+       }}
+-      disabled={mode === "busy" || (mode !== "stop" && disabled)}
+-      aria-label={mode === "busy" ? "Transcribing voice message"
++      disabled={mode !== "stop" && disabled}
++      aria-disabled={mode === "busy" ? true : undefined}
++      aria-label={mode === "busy" ? view.busy ? "Transcribing voice message" : "Finishing recording"
+         : mode === "stop" ? "Stop recording" : mode === "send" ? "Send" : "Record message"}
+       aria-pressed={mode === "record" || mode === "stop" ? mode === "stop" : undefined}
+       className={`tap flex shrink-0 items-center justify-center rounded-full disabled:opacity-40${mode === "stop" ? " coach-recording-button" : ""}`}
+       style={{
+         width: 44, height: 44,
+         // At rest the same round white button as the chat box's others; red while it records.
+         color: mode === "stop" ? "var(--color-text-primary)" : "var(--color-on-primary)",
+         background: mode === "stop" ? "var(--color-alert)" : "var(--grad-ink)",
+
+--- preceding/components/coach/Composer.tsx
++++ current/components/coach/Composer.tsx
+@@ -32,19 +32,19 @@
+           {...controls.textEvents}
+         />
+         <div data-testid="coach-composer-row" className="flex items-center justify-between gap-2">
+           <div className="flex min-w-0 items-center gap-1">
+             {toolbar && <div data-testid="coach-composer-toolbar">{toolbar}</div>}
+           </div>
+           <div className="flex shrink-0 items-center gap-1">
+             {editing && draft.trim() && !listening && <button type="button" aria-label="Send"
+-              data-composer-action disabled={disabled} onClick={() => send(readBox())}
++              data-composer-action disabled={disabled}
++              onClick={() => { controls.micEvents.onRecordPointerDone(); send(readBox()); }}
+               onPointerDown={controls.micEvents.onRecordPointerDown}
+-              onPointerUp={controls.micEvents.onRecordPointerDone}
+               onPointerCancel={controls.micEvents.onRecordPointerDone}
+               className="tap flex shrink-0 items-center justify-center bg-transparent disabled:opacity-40">
+               <Round><SendGlyph /></Round>
+             </button>}
+             <CoachMic {...controls.micEvents} disabled={disabled} />
+           </div>
+         </div>
+       </div>
+
+
+--- preceding/lib/coach/hold.ts
++++ current/lib/coach/hold.ts
+@@ -1,11 +1,9 @@
+ "use client";
+-
+-/** One speech session. Hold preserves T7 behavior; tap records until the next click. */
+
+ import {
+   EMPTY_COPY, EMPTY_MS, FINALISE_MS, NO_SPEECH_COPY, TAP_MS,
+   initialDictation, nextDictation, transcriptOf,
+   type DictationEvent, type DictationNotice, type DictationState,
+ } from "@/lib/coach/dictation";
+ import type { SpeechHandlers, SpeechSession } from "@/lib/coach/speech-api";
+ import type { MicRecorder } from "@/lib/capture-mic";
+@@ -167,19 +165,16 @@
+         if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+         this.ports.writeBox(this.interaction === "tap"
+           ? this.withDraft(transcriptOf(next)) : transcriptOf(next));
+         this.publish();
+       },
+       onError: (code) => {
+         if (!active || gen !== this.gen) return;
+         if (this.interaction === "tap" && this.holding && code === "no-speech") {
+-          if (this.state.interim.trim()) {
+-            this.apply({ type: "segment", text: this.state.interim, final: true });
+-          }
+           active = false;
+           this.session?.abort();
+           this.session = null;
+           this.handleSessionEnd(gen);
+           return;
+         }
+         const next = this.apply({ type: "error", code });
+         if (next.phase === "listening" || next.phase === "finalising") return;
+@@ -203,27 +198,40 @@
+   }
+
+   private handleSessionEnd(gen: number): void {
+     this.session = null;
+     if (!this.holding) {
+       if (this.state.phase === "finalising") this.settleSpeech(this.apply({ type: "finalised" }));
+       return;
+     }
++    if (this.interaction === "tap" && this.state.interim.trim()) {
++      this.apply({ type: "segment", text: this.state.interim, final: true });
++    }
+     if (this.restarts < 1) {
+       this.restarts += 1;
+       const session = this.ports.listen(this.handlers(gen));
+       if (gen !== this.gen) { session?.abort(); return; }
+       this.session = session;
+       if (session !== null || !this.holding) return;
+       this.carried = transcriptOf(this.state);
+       void this.startRecording();
+       return;
+     }
+     this.holding = false;
++    if (this.interaction === "tap") {
++      if (!transcriptOf(this.state).trim()) {
++        this.abandon({ text: NO_SPEECH_COPY, ms: 0 });
++      } else {
++        this.releasedAt = this.now();
++        this.state = { ...this.state, phase: "finalising" };
++        this.settleSpeech(this.apply({ type: "finalised" }));
++      }
++      return;
++    }
+     const next = this.apply({ type: "fallback" });
+     if (next.phase === "sent") { this.settleSpeech(next); return; }
+     this.quiet();
+   }
+
+   private async startRecording(): Promise<void> {
+     const gen = this.gen;
+     this.wantClip = true;
+@@ -280,29 +288,27 @@
+     this.publish();
+   }
+
+   private async consumeClip(clip: Blob): Promise<void> {
+     const gen = this.gen;
+     this.recorder = null;
+     this.elapsed = 0;
+     if (!this.wantClip) { this.clipState = "none"; discardRun("coach-turn"); this.publish(); return; }
+-    // The 30 s ceiling can end a clip the user is still holding; the hop is measured from there.
+     if (this.releasedAt === 0) this.releasedAt = this.now();
+     this.clipState = "transcribing";
+     this.publish();
+     const outcome = await this.ports.transcribe(clip);
+     if (gen !== this.gen) return;
+     this.clipState = "none";
+     this.holding = false;
+     if (!outcome.ok) { this.abandon({ text: outcome.message, ms: 0 }); return; }
+     const text = outcome.text.trim();
+     if (text.length === 0) { this.abandon({ text: EMPTY_COPY, ms: EMPTY_MS }); return; }
+     this.closeDictation();
+-    // The fallback does not send: the joined turn goes in the box for them to read and tap Send.
+     this.ports.writeBox(this.withDraft(text));
+     this.gen += 1;
+     this.showNotice(null);
+     this.apply({ type: "settled" });
+     this.publish();
+   }
+
+   private settleSpeech(next: DictationState): void {
+@@ -314,42 +320,39 @@
+     const text = this.withDraft(next.text);
+     this.gen += 1;
+     this.apply({ type: "settled" });
+     if (this.interaction === "tap") this.ports.writeBox(text);
+     this.publish();
+     if (this.interaction === "hold") this.ports.send(text);
+   }
+
+-  /** Append speech to the user's draft; tap mode retains the draft's exact whitespace. */
+   private withDraft(text: string): string {
+     if (this.interaction === "tap") {
+       const spoken = [this.carried.trim(), text.trim()].filter(Boolean).join(" ");
+       return this.typed + (this.typed && spoken && !/\s$/.test(this.typed) ? " " : "") + spoken;
+     }
+     return [this.typed.trim(), this.carried.trim(), text.trim()]
+       .filter((part) => part.length > 0).join(" ");
+   }
+
+-  /** Discard the run; tap mode keeps what was already visible. */
+   private abandon(notice: DictationNotice | null): void {
+     if (this.interaction === "tap") this.typed = this.ports.readBox();
+     this.gen += 1;
+     this.ports.writeBox(this.typed);
+     discardRun("coach-turn");
+     this.showNotice(notice);
+     this.apply({ type: "settled" });
+     this.publish();
+   }
+
+   private quiet(): void {
+     this.abandon(null);
+   }
+
+-  /** §4's budget: release → the transcript. It joins the run the turn's own `sent` opens. */
+   private closeDictation(): void {
+     markMs("coach-turn", "dictation", Math.max(0, this.now() - this.releasedAt));
+   }
+
+   private apply(event: DictationEvent): DictationState {
+     this.state = nextDictation(this.state, event);
+     return this.state;
+   }
+@@ -375,18 +378,16 @@
+     this.ports.publish(this.view());
+   }
+
+   private now(): number {
+     return (this.ports.now ?? Date.now)();
+   }
+
+   private releaseEventTime(): number {
+-    // The hold machine treats a sub-300 ms release as an accidental tap. In tap mode the
+-    // second click is always deliberate, including a fast Stop after permission is denied.
+     return this.interaction === "tap"
+       ? Math.max(this.releasedAt, (this.state.pressedAt ?? 0) + TAP_MS)
+       : this.releasedAt;
+   }
+
+   private setTimer(fn: () => void, ms: number): unknown {
+     return (this.ports.setTimer ?? ((f: () => void, m: number) => setTimeout(f, m)))(fn, ms);
+   }
+
+--- preceding/tests/coach/tap-dictation.test.ts
++++ current/tests/coach/tap-dictation.test.ts
+@@ -119,16 +119,30 @@
+     h.speech[1].onEnd();
+     expect(h.speech).toHaveLength(3);
+     h.speech[2].onSegment({ text: "third", final: true });
+     h.hold.toggleTap();
+     expect(h.box.value).toBe("first second third");
+     expect(h.sent).not.toHaveBeenCalled();
+   });
+
++  it("keeps an interim phrase across an ordinary recognizer restart", () => {
++    const h = harness();
++    h.hold.toggleTap();
++    h.speech[0].onSegment({ text: "one", final: false });
++    h.speech[0].onEnd();
++    expect(h.speech).toHaveLength(2);
++    h.speech[1].onSegment({ text: "two", final: true });
++    h.hold.toggleTap();
++    h.speech[1].onEnd();
++    expect(h.box.value).toBe("one two");
++    expect(h.hold.view().locked).toBe(false);
++    expect(h.sent).not.toHaveBeenCalled();
++  });
++
+   it("treats mid-recording no-speech as one bounded restart", () => {
+     const h = harness();
+     h.hold.toggleTap();
+     h.speech[0].onSegment({ text: "first", final: false });
+     h.speech[0].onError("no-speech");
+     h.speech[0].onEnd(); // The aborted session may still report its end.
+     expect(h.speech).toHaveLength(2);
+     expect(h.hold.view().listening).toBe(true);
+@@ -138,16 +152,43 @@
+
+     const silent = harness();
+     silent.hold.toggleTap();
+     silent.speech[0].onError("no-speech");
+     expect(silent.speech).toHaveLength(2);
+     silent.speech[1].onError("no-speech");
+     expect(silent.speech).toHaveLength(2);
+     expect(silent.hold.view().locked).toBe(false);
++    expect(silent.hold.view().notice).toBe("I did not hear anything. Tap Record to try again.");
++    silent.hold.toggleTap();
++    expect(silent.speech).toHaveLength(3);
++    expect(silent.recorders).toHaveLength(0);
++  });
++
++  it("keeps the native listener after two empty endings, retaining earlier words", () => {
++    const silent = harness();
++    silent.hold.toggleTap();
++    silent.speech[0].onEnd();
++    silent.speech[1].onEnd();
++    expect(silent.hold.view().locked).toBe(false);
++    expect(silent.hold.view().notice).toBe("I did not hear anything. Tap Record to try again.");
++    silent.hold.toggleTap();
++    expect(silent.speech).toHaveLength(3);
++    expect(silent.recorders).toHaveLength(0);
++
++    const heard = harness();
++    heard.hold.toggleTap();
++    heard.speech[0].onSegment({ text: "saved words", final: false });
++    heard.speech[0].onEnd();
++    heard.speech[1].onEnd();
++    expect(heard.box.value).toBe("saved words");
++    expect(heard.hold.view().locked).toBe(false);
++    expect(heard.sent).not.toHaveBeenCalled();
++    heard.hold.toggleTap();
++    expect(heard.speech).toHaveLength(3);
+   });
+
+   it("preserves visible transcript on cancellation and typed whitespace on completion", () => {
+     const h = harness();
+     h.box.value = "Typed\n";
+     h.hold.toggleTap();
+     const handler = h.speech[0];
+     handler.onSegment({ text: "visible words", final: false });
+
+--- preceding/tests/coach/composer/tap-control.test.tsx
++++ current/tests/coach/composer/tap-control.test.tsx
+@@ -26,39 +26,46 @@
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const main = screen.getByRole("button", { name: "Record message" });
+     fireEvent.click(main);
+     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+     expect(main.className).toContain("coach-recording-button");
+     expect(main.style.background).toBe("var(--color-alert)");
+     act(() => speech.handlers[0].onSegment({ text: "I ate lunch", final: true }));
++    main.focus();
+     fireEvent.click(main);
+-    expect(main.getAttribute("aria-label")).toBe("Transcribing voice message");
++    expect(main.getAttribute("aria-label")).toBe("Finishing recording");
++    expect(main.getAttribute("aria-disabled")).toBe("true");
++    expect((main as HTMLButtonElement).disabled).toBe(false);
++    expect(document.activeElement).toBe(main);
++    fireEvent.click(main);
++    expect(main.getAttribute("aria-label")).toBe("Finishing recording");
++    expect(onSend).not.toHaveBeenCalled();
+     act(() => speech.handlers[0].onEnd());
+     expect(main.getAttribute("aria-label")).toBe("Send");
+     expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(1);
+     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("I ate lunch");
+     expect(onSend).not.toHaveBeenCalled();
+     fireEvent.click(main);
+     expect(onSend).toHaveBeenCalledExactlyOnceWith("I ate lunch");
+     expect(main.getAttribute("aria-label")).toBe("Record message");
+   });
+
+-  it("preserves typed text when pointer blur precedes the Record click", () => {
++  it("preserves typed text when touch pointerup precedes blur and Record click", () => {
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const input = screen.getByRole("textbox");
+     fireEvent.focus(input);
+     fireEvent.change(input, { target: { value: "typed first" } });
+     const main = screen.getByRole("button", { name: "Record message" });
+     expect(screen.getByRole("button", { name: "Send" })).not.toBe(main);
+     fireEvent.pointerDown(main);
++    fireEvent.pointerUp(main);
+     fireEvent.blur(input, { relatedTarget: null });
+-    fireEvent.pointerUp(main);
+     fireEvent.click(main);
+     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+     expect(onSend).not.toHaveBeenCalled();
+     act(() => speech.handlers[0].onSegment({ text: "then spoken", final: true }));
+     fireEvent.click(main);
+     act(() => speech.handlers[0].onEnd());
+     expect(main.getAttribute("aria-label")).toBe("Send");
+     expect((input as HTMLTextAreaElement).value).toBe("typed first then spoken");
+@@ -121,27 +128,27 @@
+     fireEvent.focus(input);
+     fireEvent.change(input, { target: { value: "new draft" } });
+     expect(main.getAttribute("aria-label")).toBe("Record message");
+     act(() => vi.advanceTimersByTime(3_100));
+     expect(main.getAttribute("aria-label")).toBe("Record message");
+     expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
+   });
+
+-  it("keeps the secondary Send mounted through mobile pointer blur", () => {
++  it("keeps secondary Send mounted when touch pointerup precedes blur", () => {
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const input = screen.getByRole("textbox");
+     fireEvent.focus(input);
+     fireEvent.change(input, { target: { value: "mobile draft" } });
+     const send = screen.getByRole("button", { name: "Send" });
+     fireEvent.pointerDown(send);
++    fireEvent.pointerUp(send);
+     fireEvent.blur(input, { relatedTarget: null });
+     expect(screen.getByRole("button", { name: "Send" })).toBe(send);
+-    fireEvent.pointerUp(send);
+     fireEvent.click(send);
+     expect(onSend).toHaveBeenCalledExactlyOnceWith("mobile draft");
+   });
+
+   it("rejects the second click of a Stop double tap before explicit Send", () => {
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const main = screen.getByRole("button", { name: "Record message" });
+
+
+EXECUTION RECEIPT
+# Tap composer implementation checks
+
+Branch `feat/sasha-tap-composer`, base `aa7946c`; checks run 2026-09-27 in the isolated worktree. Source is uncommitted pending independent review.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Focused controller, DOM, legacy hold, live voice, toolbar and file-size tests | `mise exec -- pnpm exec vitest run tests/coach/tap-dictation.test.ts tests/coach/composer/toolbar.test.tsx tests/coach/composer/tap-control.test.tsx tests/coach/hold.test.ts tests/voice/hold-live.test.ts tests/speed/file-size.test.ts --reporter=dot` | 6 files, 303 tests passed |
+| Type check | `mise exec -- pnpm exec tsc --noEmit` | Exit 0 |
+| Focused lint | `mise exec -- pnpm exec eslint --max-warnings 0 components/CoachMic.tsx components/coach/Composer.tsx components/coach/use-composer-input.ts lib/coach/hold.ts tests/coach/tap-dictation.test.ts tests/coach/composer/tap-control.test.tsx tests/coach/composer/toolbar.test.tsx` | Exit 0 |
+| Enforced file sizes | `wc -l lib/coach/hold.ts components/coach/Composer.tsx` | 398 and 52 lines; focused guard passed |
+
+The focused tests cover explicit Send after speech, typed draft preservation, pointer blur, cursor return, IME Enter, permission denial, late callbacks, cancellation, listener max-duration signal, recorder ceiling, and the busy state while a clip transcribes. The browser permission prompt is awaiting user handling; the live microphone flow is not yet browser verified. The full suite and independent review are separate gates.
+
+## Post-review implementation delta
+
+The current focused result supersedes the 303-test result above. Opus review led to fixes for reduced-motion pulse, bounded native restarts after speech, no-speech restart, preservation of visible words on cancel or provider failure, typed whitespace, keyboard repeat, double-click Send, mobile pointer blur, and waiting for the complete final-result batch after Stop. The existing live listener's finalise deadline is retained.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Focused controller, DOM, legacy hold, real live-listener rig, toolbar and file-size tests | `mise exec -- pnpm exec vitest run tests/coach/tap-dictation.test.ts tests/coach/composer/tap-control.test.tsx tests/coach/composer/toolbar.test.tsx tests/coach/hold.test.ts tests/voice/hold-live.test.ts tests/speed/file-size.test.ts --reporter=dot` | 6 files, 317 tests passed |
+| Type check | `mise exec -- pnpm exec tsc --noEmit` | Exit 0 |
+| Focused lint | `mise exec -- pnpm exec eslint --max-warnings 0 components/CoachMic.tsx components/coach/Composer.tsx components/coach/use-composer-input.ts lib/coach/hold.ts tests/coach/tap-dictation.test.ts tests/coach/composer/tap-control.test.tsx tests/coach/composer/toolbar.test.tsx tests/voice/hold-live.test.ts` | Exit 0 |
+| Enforced file sizes | `wc -l lib/coach/hold.ts components/coach/Composer.tsx` | 398 and 55 lines; guard passed |
+
+Current source and focused-test SHA-256 hashes (`shasum -a 256`):
+
+```text
+b3e60fded04eb53226b210cc07d4b7397ba001e010fa4d3d4a0cff75a28403e1  app/globals.css
+2051810e91e0c49239c48f593b6e638f18f9425ca621f67c0f24b1033925f5bd  components/CoachMic.tsx
+b8779cd43620d0f3e16920bd4e657324ad959534c572712c5c16cb69c78b00fd  components/coach/Composer.tsx
+0e9cab79f602b113b897700cf1ccd176d292fb2b09e2dbd0aebe210293a66cc2  components/coach/use-composer-input.ts
+e7864dce1835748d5451e495b0a5486521300eee5d94e26aa53679e58632f2f5  lib/coach/hold.ts
+14d8d18f542016aac18422f1f9e955313dbf7eb343769536c620eb5382f4a9a4  tests/coach/tap-dictation.test.ts
+f9b9d0793113b21c1f59ce8cfa16b7c7a763e38628c85ea895a12a9067b02187  tests/coach/composer/tap-control.test.tsx
+f0860f91fe94d781f590f4ec966cfa658f18d5b9194a843a3b4d359e29ebb139  tests/coach/composer/toolbar.test.tsx
+b20abb72517c31ea1b307b2b0675297da81de07a2c5365a7991b732536f59437  tests/voice/hold-live.test.ts
+```
+
+These checks do not verify physical-device recognition, real microphone permission, Safari or Firefox blur order, or production behavior. The browser prompt still awaits user handling. No spoken-reply subsystem was added.
+
+## Interim restart correction
+
+Tap mode now promotes a pending interim phrase in the shared session-end path, so both ordinary `onEnd` and `no-speech` restarts retain it. New regression: interim “one” → recognizer end → final “two” → explicit Stop/end leaves “one two” in the draft, with no send.
+
+`mise exec -- pnpm exec vitest run tests/coach/tap-dictation.test.ts tests/speed/file-size.test.ts --reporter=dot` passed: 2 files, 248 tests. `mise exec -- pnpm exec tsc --noEmit` exited 0. `lib/coach/hold.ts` remains 398 lines; `components/coach/Composer.tsx` remains 55 lines. This was a targeted delta check; the six-file 317-test result above predates this correction.
+
+Updated SHA-256 hashes for the only changed source and test files:
+
+```text
+4e1c6e0db113d82a1f7d7161c91158f2334ef3db51cdeb4e2622ee1889896006  lib/coach/hold.ts
+0d63f36eab3a305bf9596fac28bd45b91b133bd1f88f16b701487a116e66c510  tests/coach/tap-dictation.test.ts
+```
+
+## Touch order and silent listener delta
+
+The action guard now remains through pointerup and clears on click or pointercancel. DOM regressions cover `pointerdown → pointerup → blur(null) → click` for both Record and the editing Send action. Two consecutive empty native endings now leave the listener eligible on the next tap, show the tap-mode no-speech line, and do not silently switch to the server recorder. The main button stays focusable with `aria-disabled` while finishing; the label distinguishes Finishing recording from Transcribing voice message.
+
+`mise exec -- pnpm exec vitest run tests/coach/tap-dictation.test.ts tests/coach/composer/tap-control.test.tsx tests/coach/composer/toolbar.test.tsx tests/coach/hold.test.ts tests/voice/hold-live.test.ts tests/speed/file-size.test.ts --reporter=dot` passed: 6 files, 319 tests. `mise exec -- pnpm exec tsc --noEmit` and the focused ESLint command above exited 0. `lib/coach/hold.ts` is 399 lines; `components/coach/Composer.tsx` is 55 lines. These checks supersede the earlier counts.
+
+Updated SHA-256 hashes for this delta:
+
+```text
+14c2b2c53e9ae9754700e0f429f183760ddde22f60c898d29ea9568247f61fa5  components/CoachMic.tsx
+3e8c3ddd831884a8aff973b39802c8a853ac484223ae72a472617d3caa8b3701  components/coach/Composer.tsx
+1449534c40ab7ec46c10bda8e9ca48219c1bf97498311f915165876018559ccd  lib/coach/hold.ts
+cc28ffbbb2e7cb84ae136f9b03badd86dcf650865307d290df12f0b66674eb65  tests/coach/tap-dictation.test.ts
+4dc875bea3239df865d30ec8519173135f613fbde71f9c459bb4962bd96f365e  tests/coach/composer/tap-control.test.tsx
+```
+
+
+CURRENT FULL FILE components/CoachMic.tsx
+1: "use client";
+2:
+3: /**
+4:  * Tap to record on the coach composer. The existing controller still owns all three
+5:  * listening routes; this button only starts and stops a session.
+6:  *
+7:  * A button, and nothing else. The controller reports its state through `view()`.
+8:  *
+9:  * ONE controller, for the life of the component. The parent hands its callbacks down as inline
+10:  * arrows, so they are new on every render; the controller reads them through a ref that is
+11:  * refreshed after each one (`lib/coach/hold-ports.ts`). A controller keyed on those callbacks was
+12:  * rebuilt — and the hold in progress cancelled — by the very re-render the press itself caused.
+13:  */
+14:
+15: import { useEffect, useState, useSyncExternalStore } from "react";
+16: import { HoldController, type HoldView } from "@/lib/coach/hold";
+17: import { latestCallbackPorts, type HoldCallbacks } from "@/lib/coach/hold-ports";
+18: import { micAvailable, startListening } from "@/lib/coach/speech-api";
+19: import { openMicRecorder } from "@/lib/capture-mic";
+20: import { transcribeClip } from "@/lib/coach-transcribe-client";
+21: import { createListener, isStandalone, liveCapable } from "@/lib/voice/choose-listener";
+22: import { preloadLive, startLive } from "@/lib/voice/live-io";
+23: import { SendGlyph } from "@/components/coach/round-button";
+24:
+25: export type CoachMicProps = {
+26:   /** What is in the composer right now, so a failed recording can put it back. */
+27:   readBox: () => string;
+28:   /** Put the live transcript — or the fallback's answer — into the composer. */
+29:   writeBox: (text: string) => void;
+30:   /** The composer's disabled state — offline, restoring, or a turn in flight. */
+31:   disabled: boolean;
+32:   /** The typed path's explicit Send action. */
+33:   onSend: (text: string) => void;
+34:   /** A draft outside active editing makes the one main control Send. */
+35:   readyToSend: boolean;
+36:   onRecordPointerDown: () => void;
+37:   onRecordPointerDone: () => void;
+38:   /** True while dictation owns the composer: textarea read-only, Send disabled. */
+39:   onListening: (locked: boolean) => void;
+40:   /** One line under the composer, or null. */
+41:   onNotice: (copy: string | null) => void;
+42: };
+43:
+44: const IDLE: HoldView = {
+45:   locked: false, listening: false, recording: false, secondsLeft: 0, busy: false,
+46:   settling: false, notice: null,
+47: };
+48:
+49: /** Never subscribes: the answer is a fact about this page load, asked once on the client. */
+50: const noSubscription = (): (() => void) => () => {};
+51:
+52: export default function CoachMic({
+53:   readBox, writeBox, disabled, onSend, readyToSend,
+54:   onRecordPointerDown, onRecordPointerDone, onListening, onNotice,
+55: }: CoachMicProps) {
+56:   const [view, setView] = useState<HoldView>(IDLE);
+57:
+58:   /**
+59:    * §3's last row. The server renders neither API, so it renders no mic; the phone answers for
+60:    * itself after hydration. Whether the mic WORKS is asked again at press time.
+61:    */
+62:   const available = useSyncExternalStore(noSubscription, micAvailable, () => false);
+63:
+64:   /**
+65:    * The controller and its ports, built ONCE together. The ports hold the parent's callbacks in a
+66:    * closure and the component refreshes them by calling `update` after every render — so the
+67:    * parent may hand down new inline arrows as often as it likes and the controller never changes.
+68:    */
+69:   const [rig] = useState(() => {
+70:     // Phase 14 slice 1: in the installed app a hold streams to live dictation first; in a browser
+71:     // tab the on-device recogniser stays first (lib/voice/choose-listener.ts).
+72:     const listener = createListener({
+73:       standalone: () => isStandalone(), liveCapable: () => liveCapable(),
+74:       startDevice: (handlers) => startListening(handlers), startLive,
+75:     });
+76:     const built = latestCallbackPorts(
+77:       { readBox, writeBox, send: onSend, publish: () => {} } as HoldCallbacks,
+78:       {
+79:         listen: (handlers) => listener.listen(handlers),
+80:         record: (handlers) => openMicRecorder(handlers),
+81:         transcribe: (clip) => transcribeClip(clip),
+82:       },
+83:     );
+84:     return { update: built.update, hold: new HoldController(built.ports, "tap") };
+85:   });
+86:   const hold = rig.hold;
+87:
+88:   // No dependency array on purpose: the parent passes inline arrows, so its callbacks are new on
+89:   // every render and the controller must always be holding the current ones. They are read only
+90:   // from an event handler, which runs after this has refreshed them.
+91:   useEffect(() => {
+92:     rig.update({
+93:       readBox, writeBox, send: onSend,
+94:       publish: (next) => { setView(next); onListening(next.locked); onNotice(next.notice); },
+95:     });
+96:   });
+97:
+98:   // Fetch the Live SDK while the user is still reading, so the first tap does not wait for it.
+99:   useEffect(() => { if (isStandalone() && liveCapable()) preloadLive(); }, []);
+100:
+101:   useEffect(() => {
+102:     // A recording that outlives the page is a microphone left on. `pagehide` is the one iOS Safari
+103:     // reliably fires; `visibilitychange` covers a tab switch on everything else. `hold` is stable,
+104:     // so this cleanup runs on unmount and nowhere else.
+105:     const end = (): void => hold.cancel();
+106:     const hidden = (): void => { if (document.visibilityState === "hidden") hold.cancel(); };
+107:     window.addEventListener("pagehide", end);
+108:     document.addEventListener("visibilitychange", hidden);
+109:     return () => {
+110:       window.removeEventListener("pagehide", end);
+111:       document.removeEventListener("visibilitychange", hidden);
+112:       hold.cancel();
+113:     };
+114:   }, [hold]);
+115:
+116:   const mode = view.busy || view.settling ? "busy"
+117:     : view.listening ? "stop"
+118:     : readyToSend ? "send" : "record";
+119:   if (!available && mode === "record") return null;
+120:
+121:   return (
+122:     <button
+123:       type="button"
+124:       data-composer-action
+125:       data-composer-main
+126:       onPointerDown={() => { if (mode === "record") onRecordPointerDown(); }}
+127:       onPointerCancel={onRecordPointerDone}
+128:       onKeyDown={(event) => {
+129:         if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+130:       }}
+131:       onClick={(event) => {
+132:         onRecordPointerDone();
+133:         if (mode === "send" && event.detail > 1) return;
+134:         if (mode === "send") onSend(readBox());
+135:         else if (mode === "record" || mode === "stop") hold.toggleTap();
+136:       }}
+137:       disabled={mode !== "stop" && disabled}
+138:       aria-disabled={mode === "busy" ? true : undefined}
+139:       aria-label={mode === "busy" ? view.busy ? "Transcribing voice message" : "Finishing recording"
+140:         : mode === "stop" ? "Stop recording" : mode === "send" ? "Send" : "Record message"}
+141:       aria-pressed={mode === "record" || mode === "stop" ? mode === "stop" : undefined}
+142:       className={`tap flex shrink-0 items-center justify-center rounded-full disabled:opacity-40${mode === "stop" ? " coach-recording-button" : ""}`}
+143:       style={{
+144:         width: 44, height: 44,
+145:         // At rest the same round white button as the chat box's others; red while it records.
+146:         color: mode === "stop" ? "var(--color-text-primary)" : "var(--color-on-primary)",
+147:         background: mode === "stop" ? "var(--color-alert)" : "var(--grad-ink)",
+148:       }}
+149:     >
+150:       {mode === "busy" ? <span aria-hidden="true">…</span> : mode === "send" ? <SendGlyph /> : mode === "stop" ? (
+151:         <span className=" tabular-nums" style={{ fontSize: 14, fontWeight: 400 }}>
+152:           {view.recording ? view.secondsLeft : <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>}
+153:         </span>
+154:       ) : (
+155:         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+156:           stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+157:           <rect x="9" y="3" width="6" height="12" rx="3" />
+158:           <path d="M5 11a7 7 0 0 0 14 0" />
+159:           <path d="M12 18v3" />
+160:         </svg>
+161:       )}
+162:     </button>
+163:   );
+164: }
+
+CURRENT FULL FILE components/coach/Composer.tsx
+1: "use client";
+2:
+3: import type { ReactNode } from "react";
+4: import CoachMic from "@/components/CoachMic";
+5: import { Round, SendGlyph } from "@/components/coach/round-button";
+6: import { useComposerInput } from "@/components/coach/use-composer-input";
+7: import { COMPOSER_OFFLINE_COPY } from "@/lib/coach/chat-state";
+8: import { ASSISTANT_NAME } from "@/lib/brand";
+9:
+10: export default function Composer({
+11:   disabled, offline, onSend, toolbar,
+12: }: {
+13:   disabled: boolean;
+14:   offline: boolean;
+15:   onSend: (text: string) => void | boolean;
+16:   toolbar?: ReactNode;
+17: }) {
+18:   const controls = useComposerInput(disabled, onSend);
+19:   const { input, draft, editing, listening, micNotice, readBox, send } = controls;
+20:
+21:   return (
+22:     <div data-testid="coach-composer" className="relative flex shrink-0 flex-col gap-1">
+23:       <div data-testid="coach-composer-box" className="glass flex flex-col gap-2 rounded-3xl"
+24:         style={{ padding: 12 }}>
+25:         <label htmlFor="coach-message" className="px-1 text-tiny font-normal text-muted"><span>Message {ASSISTANT_NAME}</span></label>
+26:         <textarea id="coach-message" ref={input} rows={1} maxLength={2000}
+27:           disabled={disabled} readOnly={listening}
+28:           placeholder={offline ? COMPOSER_OFFLINE_COPY : `Ask ${ASSISTANT_NAME}`}
+29:           aria-label={`Message ${ASSISTANT_NAME}`}
+30:           className="min-h-[44px] w-full resize-none bg-transparent px-1 outline-none placeholder:text-muted disabled:opacity-40"
+31:           style={{ fontSize: "var(--text-body-md)", fontWeight: "var(--font-weight-body-md)", color: "var(--color-text-primary)" }}
+32:           {...controls.textEvents}
+33:         />
+34:         <div data-testid="coach-composer-row" className="flex items-center justify-between gap-2">
+35:           <div className="flex min-w-0 items-center gap-1">
+36:             {toolbar && <div data-testid="coach-composer-toolbar">{toolbar}</div>}
+37:           </div>
+38:           <div className="flex shrink-0 items-center gap-1">
+39:             {editing && draft.trim() && !listening && <button type="button" aria-label="Send"
+40:               data-composer-action disabled={disabled}
+41:               onClick={() => { controls.micEvents.onRecordPointerDone(); send(readBox()); }}
+42:               onPointerDown={controls.micEvents.onRecordPointerDown}
+43:               onPointerCancel={controls.micEvents.onRecordPointerDone}
+44:               className="tap flex shrink-0 items-center justify-center bg-transparent disabled:opacity-40">
+45:               <Round><SendGlyph /></Round>
+46:             </button>}
+47:             <CoachMic {...controls.micEvents} disabled={disabled} />
+48:           </div>
+49:         </div>
+50:       </div>
+51:       {micNotice && <p role="status" className="m-0"
+52:         style={{ fontSize: 12, fontWeight: 400, color: "var(--color-text-muted)" }}>{micNotice}</p>}
+53:     </div>
+54:   );
+55: }
+
+CURRENT FULL FILE components/coach/use-composer-input.ts
+1: "use client";
+2:
+3: import { useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+4:
+5: export function useComposerInput(disabled: boolean, onSend: (text: string) => void | boolean) {
+6:   const input = useRef<HTMLTextAreaElement>(null);
+7:   const composing = useRef(false);
+8:   const recordPointerDown = useRef(false);
+9:   const wasListening = useRef(false);
+10:   const [draft, setDraft] = useState("");
+11:   const [editing, setEditing] = useState(false);
+12:   const [listening, setListening] = useState(false);
+13:   const [micNotice, setMicNotice] = useState<string | null>(null);
+14:
+15:   const send = (text: string) => {
+16:     if (!text.trim() || disabled || listening) return;
+17:     if (onSend(text) !== false && input.current) {
+18:       input.current.value = "";
+19:       setDraft("");
+20:       setEditing(false);
+21:     }
+22:   };
+23:   const readBox = () => input.current?.value ?? "";
+24:   const textEvents = {
+25:     onChange: (event: { currentTarget: HTMLTextAreaElement }) => {
+26:       setDraft(event.currentTarget.value);
+27:       setEditing(true);
+28:     },
+29:     onFocus: () => setEditing(true),
+30:     onClick: () => setEditing(true),
+31:     onSelect: () => setEditing(true),
+32:     onBlur: (event: FocusEvent<HTMLTextAreaElement>) => {
+33:       const toAction = (event.relatedTarget as HTMLElement | null)
+34:         ?.closest?.("[data-composer-action]");
+35:       if (!recordPointerDown.current && !toAction) setEditing(false);
+36:     },
+37:     onCompositionStart: () => { composing.current = true; },
+38:     onCompositionEnd: () => { composing.current = false; },
+39:     onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
+40:       if (event.key === "Enter" && !event.shiftKey && !composing.current
+41:         && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+42:         event.preventDefault();
+43:         send(event.currentTarget.value);
+44:       }
+45:     },
+46:   };
+47:   const micEvents = {
+48:     readBox,
+49:     writeBox: (text: string) => {
+50:       if (input.current) input.current.value = text;
+51:       setDraft(text);
+52:     },
+53:     onSend: send,
+54:     readyToSend: Boolean(draft.trim()) && !editing,
+55:     onRecordPointerDown: () => { recordPointerDown.current = true; },
+56:     onRecordPointerDone: () => { recordPointerDown.current = false; },
+57:     onListening: (locked: boolean) => {
+58:       setListening(locked);
+59:       if (wasListening.current && !locked) setEditing(false);
+60:       wasListening.current = locked;
+61:     },
+62:     onNotice: setMicNotice,
+63:   };
+64:   return { input, draft, editing, listening, micNotice, readBox, send, textEvents, micEvents };
+65: }
+
+CURRENT FULL FILE lib/coach/hold.ts
+1: "use client";
+2:
+3: import {
+4:   EMPTY_COPY, EMPTY_MS, FINALISE_MS, NO_SPEECH_COPY, TAP_MS,
+5:   initialDictation, nextDictation, transcriptOf,
+6:   type DictationEvent, type DictationNotice, type DictationState,
+7: } from "@/lib/coach/dictation";
+8: import type { SpeechHandlers, SpeechSession } from "@/lib/coach/speech-api";
+9: import type { MicRecorder } from "@/lib/capture-mic";
+10: import { MAX_RECORDING_SECONDS } from "@/lib/capture-mic";
+11: import { discardRun, markMs } from "@/lib/timing";
+12: import type { HoldPorts, HoldView } from "@/lib/coach/hold-ports";
+13:
+14: export type { HoldPorts, HoldView } from "@/lib/coach/hold-ports";
+15:
+16: /** Where the fallback's clip is. "flushing" and "transcribing" both mean: it is coming, use it. */
+17: type ClipState = "none" | "opening" | "recording" | "flushing" | "transcribing";
+18:
+19: /** The keyboard's stand-in for a pointer id, so a Space keyup cannot end a finger's hold. */
+20: const KEYBOARD_POINTER = -1;
+21:
+22: export class HoldController {
+23:   private state: DictationState = initialDictation();
+24:   private pointer: number | null = null;
+25:   private holding = false;
+26:   private session: SpeechSession | null = null;
+27:   private recorder: MicRecorder | null = null;
+28:   private clipState: ClipState = "none";
+29:   private startTimer: unknown = null;
+30:   private finaliseTimer: unknown = null;
+31:   private noticeTimer: unknown = null;
+32:   private audioStarted = false;
+33:   private heard = false;
+34:   private restarts = 0;
+35:   private wantClip = false;
+36:   private typed = "";
+37:   private releasedAt = 0;
+38:   private elapsed = 0;
+39:   private notice: string | null = null;
+40:   /** Guards late callbacks and awaited work after cancel or a new session. */
+41:   private gen = 0;
+42:   private carried = "";
+43:
+44:   constructor(private readonly ports: HoldPorts, private readonly interaction: "hold" | "tap" = "hold") {}
+45:
+46:   view(): HoldView {
+47:     return {
+48:       locked: this.holding || this.state.phase === "finalising" || this.clipState !== "none",
+49:       listening: this.holding && this.state.phase === "listening",
+50:       settling: !this.holding && (this.state.phase === "finalising" || this.clipState !== "none"),
+51:       recording: this.clipState === "recording",
+52:       secondsLeft: Math.max(0, Math.ceil(MAX_RECORDING_SECONDS - this.elapsed)),
+53:       busy: this.clipState === "transcribing",
+54:       notice: this.notice,
+55:     };
+56:   }
+57:
+58:   press(pointerId?: number): void {
+59:     if (this.holding || this.clipState !== "none" || this.state.phase === "finalising") return;
+60:     this.gen += 1;
+61:     this.carried = "";
+62:     this.pointer = pointerId ?? KEYBOARD_POINTER;
+63:     this.typed = this.ports.readBox();
+64:     this.holding = true;
+65:     this.heard = false;
+66:     this.audioStarted = false;
+67:     this.restarts = 0;
+68:     this.releasedAt = 0;
+69:     this.apply({ type: "press", at: this.now() });
+70:     this.showNotice(null);
+71:     if (this.interaction === "tap") {
+72:       this.begin();
+73:     } else {
+74:       this.startTimer = this.setTimer(() => { this.startTimer = null; this.begin(); }, TAP_MS);
+75:     }
+76:     this.publish();
+77:   }
+78:
+79:   toggleTap(): void {
+80:     if (this.interaction !== "tap") return;
+81:     if (this.holding) this.release();
+82:     else this.press();
+83:   }
+84:
+85:   release(pointerId?: number): void {
+86:     if (!this.holding) return;
+87:     if (this.pointer !== null && (pointerId ?? KEYBOARD_POINTER) !== this.pointer) return;
+88:     this.holding = false;
+89:     this.pointer = null;
+90:     this.releasedAt = this.now();
+91:
+92:     if (this.startTimer !== null) {
+93:       this.clearTimer(this.startTimer);
+94:       this.startTimer = null;
+95:       this.abandon(this.apply({ type: "release", at: this.releasedAt }).notice);
+96:       return;
+97:     }
+98:     if (this.clipState !== "none") { this.releaseRecording(); return; }
+99:
+100:     if (this.interaction === "tap") {
+101:       this.state = { ...this.state, phase: "finalising" };
+102:       this.session?.stop();
+103:       if (this.state.phase !== "finalising") return;
+104:     } else {
+105:       this.session?.stop();
+106:       const next = this.apply({ type: "release", at: this.releasedAt });
+107:       if (next.phase === "idle") { this.abandon(next.notice); return; }
+108:       if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+109:     }
+110:     if (!this.heard && !this.audioStarted) {
+111:       // The microphone never opened. This was the permission sheet lifting their finger.
+112:       this.session?.abort();
+113:       this.session = null;
+114:       this.quiet();
+115:       return;
+116:     }
+117:     this.finaliseTimer = this.setTimer(() => {
+118:       this.finaliseTimer = null;
+119:       this.settleSpeech(this.apply({ type: "finalised" }));
+120:     }, this.session?.finaliseMs ?? FINALISE_MS);
+121:     this.publish();
+122:   }
+123:
+124:   cancel(): void {
+125:     if (this.interaction === "tap") this.typed = this.ports.readBox();
+126:     this.gen += 1;
+127:     this.wantClip = false;
+128:     this.clearTimer(this.startTimer);
+129:     this.clearTimer(this.finaliseTimer);
+130:     this.startTimer = null;
+131:     this.finaliseTimer = null;
+132:     this.session?.abort();
+133:     this.session = null;
+134:     this.recorder?.cancel();
+135:     this.recorder = null;
+136:     this.clipState = "none";
+137:     this.holding = false;
+138:     this.pointer = null;
+139:     if (this.state.phase === "idle") this.publish();
+140:     else this.abandon(null);
+141:   }
+142:
+143:   private begin(): void {
+144:     if (!this.holding) return;
+145:     if (this.state.fallback) { void this.startRecording(); return; }
+146:     const gen = this.gen;
+147:     const session = this.ports.listen(this.handlers(gen));
+148:     if (gen !== this.gen) { session?.abort(); return; }
+149:     this.session = session;
+150:     if (this.session === null && this.holding) void this.startRecording();
+151:   }
+152:
+153:   private handlers(gen: number): SpeechHandlers {
+154:     let active = true;
+155:     return {
+156:       onSegment: (segment) => {
+157:         if (!active || gen !== this.gen) return;
+158:         if (this.interaction === "tap" && segment.text.trim()) this.restarts = 0;
+159:         this.heard = true;
+160:         this.audioStarted = true;
+161:         const next = this.interaction === "tap" && this.state.phase === "finalising"
+162:           ? (this.state = { ...nextDictation({ ...this.state, phase: "listening" },
+163:             { type: "segment", ...segment }), phase: "finalising" })
+164:           : this.apply({ type: "segment", ...segment });
+165:         if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+166:         this.ports.writeBox(this.interaction === "tap"
+167:           ? this.withDraft(transcriptOf(next)) : transcriptOf(next));
+168:         this.publish();
+169:       },
+170:       onError: (code) => {
+171:         if (!active || gen !== this.gen) return;
+172:         if (this.interaction === "tap" && this.holding && code === "no-speech") {
+173:           active = false;
+174:           this.session?.abort();
+175:           this.session = null;
+176:           this.handleSessionEnd(gen);
+177:           return;
+178:         }
+179:         const next = this.apply({ type: "error", code });
+180:         if (next.phase === "listening" || next.phase === "finalising") return;
+181:         this.session?.abort();
+182:         this.session = null;
+183:         this.holding = false;
+184:         if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+185:         this.abandon(next.notice);
+186:       },
+187:       onEnd: () => {
+188:         if (!active || gen !== this.gen) return;
+189:         active = false;
+190:         this.handleSessionEnd(gen);
+191:       },
+192:       onAudioStart: () => {
+193:         if (!active || gen !== this.gen) return;
+194:         this.audioStarted = true;
+195:         if (!this.holding && !this.heard) this.quiet();
+196:       },
+197:     };
+198:   }
+199:
+200:   private handleSessionEnd(gen: number): void {
+201:     this.session = null;
+202:     if (!this.holding) {
+203:       if (this.state.phase === "finalising") this.settleSpeech(this.apply({ type: "finalised" }));
+204:       return;
+205:     }
+206:     if (this.interaction === "tap" && this.state.interim.trim()) {
+207:       this.apply({ type: "segment", text: this.state.interim, final: true });
+208:     }
+209:     if (this.restarts < 1) {
+210:       this.restarts += 1;
+211:       const session = this.ports.listen(this.handlers(gen));
+212:       if (gen !== this.gen) { session?.abort(); return; }
+213:       this.session = session;
+214:       if (session !== null || !this.holding) return;
+215:       this.carried = transcriptOf(this.state);
+216:       void this.startRecording();
+217:       return;
+218:     }
+219:     this.holding = false;
+220:     if (this.interaction === "tap") {
+221:       if (!transcriptOf(this.state).trim()) {
+222:         this.abandon({ text: NO_SPEECH_COPY, ms: 0 });
+223:       } else {
+224:         this.releasedAt = this.now();
+225:         this.state = { ...this.state, phase: "finalising" };
+226:         this.settleSpeech(this.apply({ type: "finalised" }));
+227:       }
+228:       return;
+229:     }
+230:     const next = this.apply({ type: "fallback" });
+231:     if (next.phase === "sent") { this.settleSpeech(next); return; }
+232:     this.quiet();
+233:   }
+234:
+235:   private async startRecording(): Promise<void> {
+236:     const gen = this.gen;
+237:     this.wantClip = true;
+238:     this.clipState = "opening";
+239:     this.publish();
+240:     const handle = await this.ports.record({
+241:       onClip: (clip) => { if (gen === this.gen) void this.consumeClip(clip); },
+242:       onFailure: (_reason, copy) => {
+243:         if (gen !== this.gen) return;
+244:         this.holding = false;
+245:         this.clipState = "none";
+246:         this.abandon({ text: copy, ms: 0 });
+247:       },
+248:       onElapsed: (seconds) => {
+249:         if (gen !== this.gen) return;
+250:         this.elapsed = seconds;
+251:         this.publish();
+252:       },
+253:     });
+254:     if (gen !== this.gen) { handle?.cancel(); return; }
+255:     if (handle === null) return;
+256:     if (!this.holding) {
+257:       handle.cancel();
+258:       if (this.clipState === "opening") { this.clipState = "none"; this.quiet(); }
+259:       return;
+260:     }
+261:     this.recorder = handle;
+262:     this.clipState = "recording";
+263:     this.publish();
+264:   }
+265:
+266:   private releaseRecording(): void {
+267:     const next = this.apply({ type: "release", at: this.releaseEventTime() });
+268:     if (this.clipState === "recording" && this.recorder !== null) {
+269:       if (next.phase === "idle") {
+270:         this.wantClip = false;
+271:         this.recorder.cancel();
+272:         this.recorder = null;
+273:         this.clipState = "none";
+274:         this.abandon(next.notice);
+275:         return;
+276:       }
+277:       this.clipState = "flushing";
+278:       this.recorder.stop();
+279:       this.recorder = null;
+280:       this.publish();
+281:       return;
+282:     }
+283:     if (this.clipState === "opening") {
+284:       this.clipState = "none";
+285:       this.quiet();
+286:       return;
+287:     }
+288:     this.publish();
+289:   }
+290:
+291:   private async consumeClip(clip: Blob): Promise<void> {
+292:     const gen = this.gen;
+293:     this.recorder = null;
+294:     this.elapsed = 0;
+295:     if (!this.wantClip) { this.clipState = "none"; discardRun("coach-turn"); this.publish(); return; }
+296:     if (this.releasedAt === 0) this.releasedAt = this.now();
+297:     this.clipState = "transcribing";
+298:     this.publish();
+299:     const outcome = await this.ports.transcribe(clip);
+300:     if (gen !== this.gen) return;
+301:     this.clipState = "none";
+302:     this.holding = false;
+303:     if (!outcome.ok) { this.abandon({ text: outcome.message, ms: 0 }); return; }
+304:     const text = outcome.text.trim();
+305:     if (text.length === 0) { this.abandon({ text: EMPTY_COPY, ms: EMPTY_MS }); return; }
+306:     this.closeDictation();
+307:     this.ports.writeBox(this.withDraft(text));
+308:     this.gen += 1;
+309:     this.showNotice(null);
+310:     this.apply({ type: "settled" });
+311:     this.publish();
+312:   }
+313:
+314:   private settleSpeech(next: DictationState): void {
+315:     this.clearTimer(this.finaliseTimer);
+316:     this.finaliseTimer = null;
+317:     this.holding = false;
+318:     if (next.phase !== "sent") { this.abandon(next.notice); return; }
+319:     this.closeDictation();
+320:     const text = this.withDraft(next.text);
+321:     this.gen += 1;
+322:     this.apply({ type: "settled" });
+323:     if (this.interaction === "tap") this.ports.writeBox(text);
+324:     this.publish();
+325:     if (this.interaction === "hold") this.ports.send(text);
+326:   }
+327:
+328:   private withDraft(text: string): string {
+329:     if (this.interaction === "tap") {
+330:       const spoken = [this.carried.trim(), text.trim()].filter(Boolean).join(" ");
+331:       return this.typed + (this.typed && spoken && !/\s$/.test(this.typed) ? " " : "") + spoken;
+332:     }
+333:     return [this.typed.trim(), this.carried.trim(), text.trim()]
+334:       .filter((part) => part.length > 0).join(" ");
+335:   }
+336:
+337:   private abandon(notice: DictationNotice | null): void {
+338:     if (this.interaction === "tap") this.typed = this.ports.readBox();
+339:     this.gen += 1;
+340:     this.ports.writeBox(this.typed);
+341:     discardRun("coach-turn");
+342:     this.showNotice(notice);
+343:     this.apply({ type: "settled" });
+344:     this.publish();
+345:   }
+346:
+347:   private quiet(): void {
+348:     this.abandon(null);
+349:   }
+350:
+351:   private closeDictation(): void {
+352:     markMs("coach-turn", "dictation", Math.max(0, this.now() - this.releasedAt));
+353:   }
+354:
+355:   private apply(event: DictationEvent): DictationState {
+356:     this.state = nextDictation(this.state, event);
+357:     return this.state;
+358:   }
+359:
+360:   private showNotice(notice: DictationNotice | null): void {
+361:     this.clearTimer(this.noticeTimer);
+362:     this.noticeTimer = null;
+363:     this.notice = this.interaction === "tap" && notice?.text === EMPTY_COPY
+364:       ? "I did not catch that. Tap Record to try again."
+365:       : this.interaction === "tap" && notice?.text === NO_SPEECH_COPY
+366:         ? "I did not hear anything. Tap Record to try again."
+367:         : notice?.text ?? null;
+368:     if (notice === null || notice.ms === 0) return;
+369:     this.noticeTimer = this.setTimer(() => {
+370:       this.noticeTimer = null;
+371:       this.notice = null;
+372:       this.apply({ type: "notice_expired" });
+373:       this.publish();
+374:     }, notice.ms);
+375:   }
+376:
+377:   private publish(): void {
+378:     this.ports.publish(this.view());
+379:   }
+380:
+381:   private now(): number {
+382:     return (this.ports.now ?? Date.now)();
+383:   }
+384:
+385:   private releaseEventTime(): number {
+386:     return this.interaction === "tap"
+387:       ? Math.max(this.releasedAt, (this.state.pressedAt ?? 0) + TAP_MS)
+388:       : this.releasedAt;
+389:   }
+390:
+391:   private setTimer(fn: () => void, ms: number): unknown {
+392:     return (this.ports.setTimer ?? ((f: () => void, m: number) => setTimeout(f, m)))(fn, ms);
+393:   }
+394:
+395:   private clearTimer(handle: unknown): void {
+396:     if (handle === null || handle === undefined) return;
+397:     (this.ports.clearTimer ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>)))(handle);
+398:   }
+399: }
+
+CURRENT FULL FILE tests/coach/tap-dictation.test.ts
+1: import { describe, expect, it, vi } from "vitest";
+2: import { HoldController } from "@/lib/coach/hold";
+3: import type { SpeechHandlers, SpeechSession } from "@/lib/coach/speech-api";
+4: import type { MicHandlers, MicRecorder } from "@/lib/capture-mic";
+5: import { FINALISE_MS, PERMISSION_COPY } from "@/lib/coach/dictation";
+6:
+7: function harness() {
+8:   const box = { value: "" };
+9:   const sent = vi.fn();
+10:   const speech: SpeechHandlers[] = [];
+11:   const mics: MicHandlers[] = [];
+12:   const recorders: { stop: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> }[] = [];
+13:   let useRecorder = false;
+14:   let open: (() => void) | null = null;
+15:   const transcribe = vi.fn(async () => ({ ok: true as const, text: "from clip", ms: 1 }));
+16:   const hold = new HoldController({
+17:     listen: (handlers) => {
+18:       if (useRecorder) return null;
+19:       speech.push(handlers);
+20:       return { stop: vi.fn(), abort: vi.fn() } as SpeechSession;
+21:     },
+22:     record: async (handlers) => {
+23:       mics.push(handlers);
+24:       if (open) await new Promise<void>((resolve) => { open = resolve; });
+25:       const recorder = { stop: vi.fn(), cancel: vi.fn() };
+26:       recorders.push(recorder);
+27:       return { ...recorder, mimeType: "audio/mp4" } as MicRecorder;
+28:     },
+29:     transcribe,
+30:     readBox: () => box.value,
+31:     writeBox: (value) => { box.value = value; },
+32:     send: sent,
+33:     publish: vi.fn(),
+34:   }, "tap");
+35:   return {
+36:     hold, box, sent, speech, mics, recorders, transcribe,
+37:     recorderOnly: () => { useRecorder = true; },
+38:     pendingPermission: () => { open = () => {}; },
+39:     allowPermission: () => { open?.(); open = null; },
+40:   };
+41: }
+42:
+43: describe("tap dictation", () => {
+44:   it("starts on one tap and leaves speech plus the typed draft for explicit Send", () => {
+45:     const h = harness();
+46:     h.box.value = "I would like";
+47:     h.hold.toggleTap();
+48:     expect(h.speech).toHaveLength(1);
+49:     expect(h.hold.view().listening).toBe(true);
+50:     h.speech[0].onAudioStart?.();
+51:     h.speech[0].onSegment({ text: "a snack", final: true });
+52:     expect(h.box.value).toBe("I would like a snack");
+53:     h.hold.toggleTap();
+54:     h.speech[0].onEnd();
+55:     expect(h.hold.view().locked).toBe(false);
+56:     expect(h.box.value).toBe("I would like a snack");
+57:     expect(h.sent).not.toHaveBeenCalled();
+58:   });
+59:
+60:   it("does not send after a late final result or a native duration cap", () => {
+61:     const h = harness();
+62:     h.hold.toggleTap();
+63:     const handler = h.speech[0];
+64:     handler.onAudioStart?.();
+65:     h.hold.toggleTap();
+66:     handler.onSegment({ text: "last words", final: true });
+67:     handler.onEnd();
+68:     expect(h.box.value).toBe("last words");
+69:     expect(h.sent).not.toHaveBeenCalled();
+70:
+71:     h.hold.toggleTap();
+72:     h.speech[1].onSegment({ text: "full duration", final: true });
+73:     h.speech[1].onError("max-duration");
+74:     expect(h.box.value).toBe("last words full duration");
+75:     expect(h.hold.view().locked).toBe(false);
+76:     expect(h.sent).not.toHaveBeenCalled();
+77:   });
+78:
+79:   it("keeps every final in the recognizer batch after Stop", () => {
+80:     const h = harness();
+81:     h.hold.toggleTap();
+82:     const handler = h.speech[0];
+83:     handler.onSegment({ text: "before stop", final: true });
+84:     h.hold.toggleTap();
+85:     expect(h.hold.view().settling).toBe(true);
+86:     handler.onSegment({ text: "tail one", final: true });
+87:     handler.onSegment({ text: "tail two", final: true });
+88:     handler.onEnd();
+89:     expect(h.box.value).toBe("before stop tail one tail two");
+90:     expect(h.hold.view().locked).toBe(false);
+91:     expect(h.sent).not.toHaveBeenCalled();
+92:   });
+93:
+94:   it("flushes all final segments on the existing finalise timeout", () => {
+95:     vi.useFakeTimers();
+96:     try {
+97:       const h = harness();
+98:       h.hold.toggleTap();
+99:       const handler = h.speech[0];
+100:       handler.onSegment({ text: "first", final: true });
+101:       h.hold.toggleTap();
+102:       handler.onSegment({ text: "last", final: true });
+103:       vi.advanceTimersByTime(FINALISE_MS);
+104:       expect(h.box.value).toBe("first last");
+105:       expect(h.hold.view().locked).toBe(false);
+106:       expect(h.sent).not.toHaveBeenCalled();
+107:     } finally {
+108:       vi.useRealTimers();
+109:     }
+110:   });
+111:
+112:   it("restarts after repeated speech-separated pauses until Stop", () => {
+113:     const h = harness();
+114:     h.hold.toggleTap();
+115:     h.speech[0].onSegment({ text: "first", final: true });
+116:     h.speech[0].onEnd();
+117:     expect(h.hold.view().listening).toBe(true);
+118:     h.speech[1].onSegment({ text: "second", final: true });
+119:     h.speech[1].onEnd();
+120:     expect(h.speech).toHaveLength(3);
+121:     h.speech[2].onSegment({ text: "third", final: true });
+122:     h.hold.toggleTap();
+123:     expect(h.box.value).toBe("first second third");
+124:     expect(h.sent).not.toHaveBeenCalled();
+125:   });
+126:
+127:   it("keeps an interim phrase across an ordinary recognizer restart", () => {
+128:     const h = harness();
+129:     h.hold.toggleTap();
+130:     h.speech[0].onSegment({ text: "one", final: false });
+131:     h.speech[0].onEnd();
+132:     expect(h.speech).toHaveLength(2);
+133:     h.speech[1].onSegment({ text: "two", final: true });
+134:     h.hold.toggleTap();
+135:     h.speech[1].onEnd();
+136:     expect(h.box.value).toBe("one two");
+137:     expect(h.hold.view().locked).toBe(false);
+138:     expect(h.sent).not.toHaveBeenCalled();
+139:   });
+140:
+141:   it("treats mid-recording no-speech as one bounded restart", () => {
+142:     const h = harness();
+143:     h.hold.toggleTap();
+144:     h.speech[0].onSegment({ text: "first", final: false });
+145:     h.speech[0].onError("no-speech");
+146:     h.speech[0].onEnd(); // The aborted session may still report its end.
+147:     expect(h.speech).toHaveLength(2);
+148:     expect(h.hold.view().listening).toBe(true);
+149:     h.speech[1].onSegment({ text: "second", final: true });
+150:     h.hold.toggleTap();
+151:     expect(h.box.value).toBe("first second");
+152:
+153:     const silent = harness();
+154:     silent.hold.toggleTap();
+155:     silent.speech[0].onError("no-speech");
+156:     expect(silent.speech).toHaveLength(2);
+157:     silent.speech[1].onError("no-speech");
+158:     expect(silent.speech).toHaveLength(2);
+159:     expect(silent.hold.view().locked).toBe(false);
+160:     expect(silent.hold.view().notice).toBe("I did not hear anything. Tap Record to try again.");
+161:     silent.hold.toggleTap();
+162:     expect(silent.speech).toHaveLength(3);
+163:     expect(silent.recorders).toHaveLength(0);
+164:   });
+165:
+166:   it("keeps the native listener after two empty endings, retaining earlier words", () => {
+167:     const silent = harness();
+168:     silent.hold.toggleTap();
+169:     silent.speech[0].onEnd();
+170:     silent.speech[1].onEnd();
+171:     expect(silent.hold.view().locked).toBe(false);
+172:     expect(silent.hold.view().notice).toBe("I did not hear anything. Tap Record to try again.");
+173:     silent.hold.toggleTap();
+174:     expect(silent.speech).toHaveLength(3);
+175:     expect(silent.recorders).toHaveLength(0);
+176:
+177:     const heard = harness();
+178:     heard.hold.toggleTap();
+179:     heard.speech[0].onSegment({ text: "saved words", final: false });
+180:     heard.speech[0].onEnd();
+181:     heard.speech[1].onEnd();
+182:     expect(heard.box.value).toBe("saved words");
+183:     expect(heard.hold.view().locked).toBe(false);
+184:     expect(heard.sent).not.toHaveBeenCalled();
+185:     heard.hold.toggleTap();
+186:     expect(heard.speech).toHaveLength(3);
+187:   });
+188:
+189:   it("preserves visible transcript on cancellation and typed whitespace on completion", () => {
+190:     const h = harness();
+191:     h.box.value = "Typed\n";
+192:     h.hold.toggleTap();
+193:     const handler = h.speech[0];
+194:     handler.onSegment({ text: "visible words", final: false });
+195:     expect(h.box.value).toBe("Typed\nvisible words");
+196:     h.hold.cancel();
+197:     handler.onSegment({ text: "late", final: true });
+198:     expect(h.box.value).toBe("Typed\nvisible words");
+199:     expect(h.hold.view().locked).toBe(false);
+200:     expect(h.sent).not.toHaveBeenCalled();
+201:
+202:     h.box.value = "  another draft\n";
+203:     h.hold.toggleTap();
+204:     h.speech[1].onSegment({ text: "spoken", final: true });
+205:     h.hold.toggleTap();
+206:     expect(h.box.value).toBe("  another draft\nspoken");
+207:   });
+208:
+209:   it("keeps partial speech after a provider failure and ignores late callbacks", () => {
+210:     const h = harness();
+211:     h.box.value = "typed ";
+212:     h.hold.toggleTap();
+213:     const handler = h.speech[0];
+214:     handler.onSegment({ text: "partly heard", final: false });
+215:     handler.onError("network");
+216:     expect(h.box.value).toBe("typed partly heard");
+217:     expect(h.hold.view().locked).toBe(false);
+218:     handler.onSegment({ text: "late", final: true });
+219:     expect(h.box.value).toBe("typed partly heard");
+220:     expect(h.sent).not.toHaveBeenCalled();
+221:   });
+222:
+223:   it("keeps the draft and ignores callbacks after permission is denied", () => {
+224:     const h = harness();
+225:     h.box.value = "typed";
+226:     h.hold.toggleTap();
+227:     const handler = h.speech[0];
+228:     handler.onError("not-allowed");
+229:     expect(h.box.value).toBe("typed");
+230:     expect(h.hold.view().notice).toBe(PERMISSION_COPY);
+231:     handler.onSegment({ text: "late", final: true });
+232:     expect(h.box.value).toBe("typed");
+233:     expect(h.sent).not.toHaveBeenCalled();
+234:   });
+235:
+236:   it("cancels a pending recorder permission request after a rapid second tap", async () => {
+237:     const h = harness();
+238:     h.recorderOnly();
+239:     h.pendingPermission();
+240:     h.box.value = "draft";
+241:     h.hold.toggleTap();
+242:     expect(h.hold.view().locked).toBe(true);
+243:     h.hold.toggleTap();
+244:     expect(h.hold.view().locked).toBe(false);
+245:     h.allowPermission();
+246:     await Promise.resolve();
+247:     await Promise.resolve();
+248:     expect(h.recorders[0].cancel).toHaveBeenCalledOnce();
+249:     h.mics[0].onFailure("permission-denied", "late failure");
+250:     expect(h.box.value).toBe("draft");
+251:     expect(h.hold.view().notice).toBeNull();
+252:   });
+253:
+254:   it("isolates a new recording from stale callbacks and cancellation", () => {
+255:     const h = harness();
+256:     h.hold.toggleTap();
+257:     const first = h.speech[0];
+258:     h.hold.cancel();
+259:     h.hold.toggleTap();
+260:     first.onSegment({ text: "stale", final: true });
+261:     first.onError("not-allowed");
+262:     expect(h.box.value).toBe("");
+263:     expect(h.hold.view().listening).toBe(true);
+264:     h.speech[1].onSegment({ text: "new", final: true });
+265:     h.hold.toggleTap();
+266:     expect(h.box.value).toBe("new");
+267:     expect(h.sent).not.toHaveBeenCalled();
+268:   });
+269:
+270:   it("keeps the recorder's ceiling clip, even before a Stop tap", async () => {
+271:     const h = harness();
+272:     h.recorderOnly();
+273:     h.hold.toggleTap();
+274:     await Promise.resolve();
+275:     h.mics[0].onElapsed?.(30);
+276:     expect(h.hold.view().secondsLeft).toBe(0);
+277:     h.mics[0].onClip(new Blob(["voice"]));
+278:     await Promise.resolve();
+279:     await Promise.resolve();
+280:     expect(h.transcribe).toHaveBeenCalledOnce();
+281:     expect(h.box.value).toBe("from clip");
+282:     expect(h.hold.view().locked).toBe(false);
+283:     expect(h.sent).not.toHaveBeenCalled();
+284:   });
+285:
+286:   it("stays locked while a ceiling clip is transcribing", async () => {
+287:     const h = harness();
+288:     h.recorderOnly();
+289:     let finish: ((value: { ok: true; text: string; ms: number }) => void) | undefined;
+290:     h.transcribe.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+291:     h.hold.toggleTap();
+292:     await Promise.resolve();
+293:     h.mics[0].onElapsed?.(30);
+294:     h.mics[0].onClip(new Blob(["voice"]));
+295:     expect(h.hold.view()).toMatchObject({ busy: true, locked: true, secondsLeft: 30 });
+296:     h.hold.toggleTap();
+297:     expect(h.transcribe).toHaveBeenCalledOnce();
+298:     finish?.({ ok: true, text: "heard at limit", ms: 1 });
+299:     await Promise.resolve();
+300:     expect(h.box.value).toBe("heard at limit");
+301:     expect(h.hold.view().locked).toBe(false);
+302:     expect(h.sent).not.toHaveBeenCalled();
+303:   });
+304: });
+
+CURRENT FULL FILE tests/coach/composer/tap-control.test.tsx
+1: // @vitest-environment jsdom
+2:
+3: import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+4: import { afterEach, describe, expect, it, vi } from "vitest";
+5: import Composer from "@/components/coach/Composer";
+6: import type { SpeechHandlers } from "@/lib/coach/speech-api";
+7:
+8: const speech = vi.hoisted(() => ({ handlers: [] as SpeechHandlers[], available: true }));
+9: vi.mock("@/lib/coach/speech-api", () => ({
+10:   micAvailable: () => speech.available,
+11:   startListening: (handlers: SpeechHandlers) => {
+12:     speech.handlers.push(handlers);
+13:     return { stop: vi.fn(), abort: vi.fn() };
+14:   },
+15: }));
+16:
+17: afterEach(() => {
+18:   cleanup();
+19:   speech.handlers.length = 0;
+20:   speech.available = true;
+21:   vi.useRealTimers();
+22: });
+23:
+24: describe("tap composer controls", () => {
+25:   it("switches one main control Record → Stop → Send and waits for explicit Send", () => {
+26:     const onSend = vi.fn();
+27:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+28:     const main = screen.getByRole("button", { name: "Record message" });
+29:     fireEvent.click(main);
+30:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+31:     expect(main.className).toContain("coach-recording-button");
+32:     expect(main.style.background).toBe("var(--color-alert)");
+33:     act(() => speech.handlers[0].onSegment({ text: "I ate lunch", final: true }));
+34:     main.focus();
+35:     fireEvent.click(main);
+36:     expect(main.getAttribute("aria-label")).toBe("Finishing recording");
+37:     expect(main.getAttribute("aria-disabled")).toBe("true");
+38:     expect((main as HTMLButtonElement).disabled).toBe(false);
+39:     expect(document.activeElement).toBe(main);
+40:     fireEvent.click(main);
+41:     expect(main.getAttribute("aria-label")).toBe("Finishing recording");
+42:     expect(onSend).not.toHaveBeenCalled();
+43:     act(() => speech.handlers[0].onEnd());
+44:     expect(main.getAttribute("aria-label")).toBe("Send");
+45:     expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(1);
+46:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("I ate lunch");
+47:     expect(onSend).not.toHaveBeenCalled();
+48:     fireEvent.click(main);
+49:     expect(onSend).toHaveBeenCalledExactlyOnceWith("I ate lunch");
+50:     expect(main.getAttribute("aria-label")).toBe("Record message");
+51:   });
+52:
+53:   it("preserves typed text when touch pointerup precedes blur and Record click", () => {
+54:     const onSend = vi.fn();
+55:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+56:     const input = screen.getByRole("textbox");
+57:     fireEvent.focus(input);
+58:     fireEvent.change(input, { target: { value: "typed first" } });
+59:     const main = screen.getByRole("button", { name: "Record message" });
+60:     expect(screen.getByRole("button", { name: "Send" })).not.toBe(main);
+61:     fireEvent.pointerDown(main);
+62:     fireEvent.pointerUp(main);
+63:     fireEvent.blur(input, { relatedTarget: null });
+64:     fireEvent.click(main);
+65:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+66:     expect(onSend).not.toHaveBeenCalled();
+67:     act(() => speech.handlers[0].onSegment({ text: "then spoken", final: true }));
+68:     fireEvent.click(main);
+69:     act(() => speech.handlers[0].onEnd());
+70:     expect(main.getAttribute("aria-label")).toBe("Send");
+71:     expect((input as HTMLTextAreaElement).value).toBe("typed first then spoken");
+72:     fireEvent.click(input);
+73:     expect(main.getAttribute("aria-label")).toBe("Record message");
+74:     expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
+75:   });
+76:
+77:   it("keeps the editing Send action through blur and ignores IME Enter", () => {
+78:     const onSend = vi.fn();
+79:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+80:     const input = screen.getByRole("textbox");
+81:     fireEvent.focus(input);
+82:     fireEvent.change(input, { target: { value: "draft" } });
+83:     const send = screen.getByRole("button", { name: "Send" });
+84:     fireEvent.compositionStart(input);
+85:     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+86:     fireEvent.compositionEnd(input);
+87:     fireEvent.keyDown(input, { key: "Enter", code: "Enter", shiftKey: true });
+88:     expect(onSend).not.toHaveBeenCalled();
+89:     fireEvent.blur(input, { relatedTarget: send });
+90:     expect(screen.getByRole("button", { name: "Send" })).toBe(send);
+91:     fireEvent.click(send);
+92:     expect(onSend).toHaveBeenCalledExactlyOnceWith("draft");
+93:   });
+94:
+95:   it("blocks repeated Enter and Space activation on each main-control state", () => {
+96:     const onSend = vi.fn();
+97:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+98:     const main = screen.getByRole("button", { name: "Record message" });
+99:     const repeatedKeys = () => {
+100:       expect(fireEvent.keyDown(main, { key: "Enter", repeat: true })).toBe(false);
+101:       expect(fireEvent.keyDown(main, { key: " ", repeat: true })).toBe(false);
+102:     };
+103:     repeatedKeys();
+104:     expect(main.getAttribute("aria-label")).toBe("Record message");
+105:     expect(fireEvent.keyDown(main, { key: "Enter", repeat: false })).toBe(true);
+106:     fireEvent.click(main);
+107:     repeatedKeys();
+108:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+109:     act(() => speech.handlers[0].onSegment({ text: "voice", final: true }));
+110:     fireEvent.click(main);
+111:     act(() => speech.handlers[0].onEnd());
+112:     repeatedKeys();
+113:     expect(main.getAttribute("aria-label")).toBe("Send");
+114:     expect(onSend).not.toHaveBeenCalled();
+115:     fireEvent.click(main);
+116:     expect(onSend).toHaveBeenCalledExactlyOnceWith("voice");
+117:   });
+118:
+119:   it("keeps Record while editing after an idle notice expires", () => {
+120:     vi.useFakeTimers();
+121:     render(<Composer disabled={false} offline={false} onSend={vi.fn()} />);
+122:     const main = screen.getByRole("button", { name: "Record message" });
+123:     fireEvent.click(main);
+124:     act(() => speech.handlers[0].onAudioStart?.());
+125:     fireEvent.click(main);
+126:     act(() => speech.handlers[0].onEnd());
+127:     const input = screen.getByRole("textbox");
+128:     fireEvent.focus(input);
+129:     fireEvent.change(input, { target: { value: "new draft" } });
+130:     expect(main.getAttribute("aria-label")).toBe("Record message");
+131:     act(() => vi.advanceTimersByTime(3_100));
+132:     expect(main.getAttribute("aria-label")).toBe("Record message");
+133:     expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
+134:   });
+135:
+136:   it("keeps secondary Send mounted when touch pointerup precedes blur", () => {
+137:     const onSend = vi.fn();
+138:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+139:     const input = screen.getByRole("textbox");
+140:     fireEvent.focus(input);
+141:     fireEvent.change(input, { target: { value: "mobile draft" } });
+142:     const send = screen.getByRole("button", { name: "Send" });
+143:     fireEvent.pointerDown(send);
+144:     fireEvent.pointerUp(send);
+145:     fireEvent.blur(input, { relatedTarget: null });
+146:     expect(screen.getByRole("button", { name: "Send" })).toBe(send);
+147:     fireEvent.click(send);
+148:     expect(onSend).toHaveBeenCalledExactlyOnceWith("mobile draft");
+149:   });
+150:
+151:   it("rejects the second click of a Stop double tap before explicit Send", () => {
+152:     const onSend = vi.fn();
+153:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+154:     const main = screen.getByRole("button", { name: "Record message" });
+155:     fireEvent.click(main, { detail: 1 });
+156:     act(() => speech.handlers[0].onSegment({ text: "spoken", final: true }));
+157:     fireEvent.click(main, { detail: 1 });
+158:     act(() => speech.handlers[0].onEnd());
+159:     expect(main.getAttribute("aria-label")).toBe("Send");
+160:     fireEvent.click(main, { detail: 2 });
+161:     expect(onSend).not.toHaveBeenCalled();
+162:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("spoken");
+163:     fireEvent.click(main, { detail: 1 });
+164:     expect(onSend).toHaveBeenCalledExactlyOnceWith("spoken");
+165:   });
+166:
+167:   it("retains typed Send when the microphone is unavailable", () => {
+168:     speech.available = false;
+169:     const onSend = vi.fn();
+170:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+171:     expect(screen.queryByRole("button", { name: "Record message" })).toBeNull();
+172:     const input = screen.getByRole("textbox");
+173:     fireEvent.focus(input);
+174:     fireEvent.change(input, { target: { value: "typed without mic" } });
+175:     fireEvent.blur(input, { relatedTarget: null });
+176:     const send = screen.getByRole("button", { name: "Send" });
+177:     fireEvent.click(send);
+178:     expect(onSend).toHaveBeenCalledExactlyOnceWith("typed without mic");
+179:   });
+180:
+181:   it("disables Record and text while the composer is disabled", () => {
+182:     render(<Composer disabled offline onSend={vi.fn()} />);
+183:     expect((screen.getByRole("button", { name: "Record message" }) as HTMLButtonElement).disabled).toBe(true);
+184:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).disabled).toBe(true);
+185:     expect(speech.handlers).toHaveLength(0);
+186:   });
+187: });

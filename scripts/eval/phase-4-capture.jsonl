@@ -1,0 +1,40 @@
+{"method":"text","slot":"meal-1","localDate":"2026-09-11","text":"two eggs, half an avocado and a bowl of white rice","expect":[{"label":"egg","grams":100},{"label":"avocado","grams":100},{"label":"rice","grams":158}]}
+{"method":"text","slot":"meal-2","localDate":"2026-09-11","text":"150 g chicken breast and a cup of butternut squash","expect":[{"label":"chicken breast","grams":150},{"label":"butternut squash","grams":205}]}
+{"method":"text","slot":"meal-3","localDate":"2026-09-11","text":"6 oz sirloin steak with a white potato","expect":[{"label":"sirloin","grams":170},{"label":"potato","grams":100}]}
+{"method":"text","slot":"meal-1","localDate":"2026-09-11","text":"a can of albacore tuna drained","expect":[{"label":"albacore","grams":100}]}
+{"method":"text","slot":"meal-2","localDate":"2026-09-11","text":"two rice cakes with sunflower butter","expect":[{"label":"rice cake","grams":18},{"label":"sunflower butter","grams":16}]}
+{"method":"text","slot":"meal-3","localDate":"2026-09-11","text":"salmon, cooked, about 140 grams","expect":[{"label":"salmon","grams":140}]}
+{"method":"text","slot":"meal-1","localDate":"2026-09-11","text":"one banana and a tablespoon of mct oil","expect":[{"label":"banana","grams":118},{"label":"mct oil","grams":14}]}
+{"method":"text","slot":"meal-2","localDate":"2026-09-11","text":"cod with sweet potato and olives","expect":[{"label":"cod","grams":100},{"label":"sweet potato","grams":100},{"label":"olives","grams":30}]}
+{"method":"text","slot":"post-refuel","localDate":"2026-09-11","text":"a fruit pouch, pear base","expect":[{"label":"fruit pouch","grams":90}]}
+{"method":"text","slot":"meal-3","localDate":"2026-09-11","text":"pork tenderloin, cassava and duck fat","expect":[{"label":"pork tenderloin","grams":100},{"label":"cassava","grams":100},{"label":"duck fat","grams":13}]}
+{"method":"voice","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-01-eggs-avocado.m4a","expect":[]}
+{"method":"voice","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-02-chicken-squash.m4a","expect":[]}
+{"method":"voice","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-03-steak-potato.m4a","expect":[]}
+{"method":"voice","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-04-tuna.m4a","expect":[]}
+{"method":"voice","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-05-rice-cakes.m4a","expect":[]}
+{"method":"voice","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-06-salmon.m4a","expect":[]}
+{"method":"voice","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-07-banana-mct.m4a","expect":[]}
+{"method":"voice","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-08-cod-sweet-potato.m4a","expect":[]}
+{"method":"voice","slot":"post-refuel","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-09-pouch.m4a","expect":[]}
+{"method":"voice","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/voice-10-pork-cassava.m4a","expect":[]}
+{"method":"label","slot":"post-refuel","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-01-fruit-pouch.jpg","expect":[]}
+{"method":"label","slot":"post-refuel","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-02-rice-cake.jpg","expect":[]}
+{"method":"label","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-03-sunflower-butter.jpg","expect":[]}
+{"method":"label","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-04-canned-salmon.jpg","expect":[]}
+{"method":"label","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-05-sardines.jpg","expect":[]}
+{"method":"label","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-06-avocado-mayo.jpg","expect":[]}
+{"method":"label","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-07-olives.jpg","expect":[]}
+{"method":"label","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-08-mct-oil.jpg","expect":[]}
+{"method":"label","slot":"coffee","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-09-hot-chocolate.jpg","expect":[]}
+{"method":"label","slot":"post-refuel","localDate":"2026-09-11","media":"scripts/eval/fixtures/label-10-apple-pouch.jpg","expect":[]}
+{"method":"photo","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-01-eggs-avocado.jpg","expect":[]}
+{"method":"photo","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-02-chicken-rice.jpg","expect":[]}
+{"method":"photo","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-03-steak-potato.jpg","expect":[]}
+{"method":"photo","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-04-salmon-squash.jpg","expect":[]}
+{"method":"photo","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-05-cod-sweet-potato.jpg","expect":[]}
+{"method":"photo","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-06-tuna-salad.jpg","expect":[]}
+{"method":"photo","slot":"meal-1","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-07-rice-cakes.jpg","expect":[]}
+{"method":"photo","slot":"meal-2","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-08-pork-cassava.jpg","expect":[]}
+{"method":"photo","slot":"meal-3","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-09-lamb-melon.jpg","expect":[]}
+{"method":"photo","slot":"post-refuel","localDate":"2026-09-11","media":"scripts/eval/fixtures/plate-10-banana-pouch.jpg","expect":[]}

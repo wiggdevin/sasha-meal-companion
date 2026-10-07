@@ -1,0 +1,210 @@
+{
+  "generatedAt": "2026-10-03T20:50:36.833Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 25,
+  "case": {
+    "id": "jev-recipe-excludes-soy",
+    "category": "jev",
+    "sentence": "make a recipe from smoked tofu, rice, and avocado",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "recipe_exclusion",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30548,
+    "actions": [],
+    "blocks": [
+      "recipe_results"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "04bdbb74-62ed-4f27-9602-d4329f9d44cf",
+        "kind": "recipe_results",
+        "recipes": [],
+        "limitations": [
+          "Shared recipe discovery is not available for this account yet."
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "That took too long and I stopped. Ask me again.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "suggest_options",
+            "result": {
+              "ok": true,
+              "block": "recipe_results",
+              "recipes": [],
+              "limitations": [
+                "Shared recipe discovery is not available for this account yet."
+              ]
+            }
+          }
+        ],
+        "blocks": [
+          {
+            "v": 1,
+            "id": "04bdbb74-62ed-4f27-9602-d4329f9d44cf",
+            "kind": "recipe_results",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ],
+        "actions": [],
+        "composed": [],
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [
+        {
+          "v": 1,
+          "id": "04bdbb74-62ed-4f27-9602-d4329f9d44cf",
+          "kind": "recipe_results",
+          "recipes": [],
+          "limitations": [
+            "Shared recipe discovery is not available for this account yet."
+          ]
+        }
+      ],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-intent",
+        "coach",
+        "coach"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30548 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected []; got [recipe_results]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "Jev persisted recipe excludes soy",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted recipe names facet and preference",
+      "passed": false,
+      "detail": "That took too long and I stopped. Ask me again."
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "dab63331-3b22-4dd8-98e1-50391d0de794",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 491,
+      "model": 29112,
+      "ground": 3
+    },
+    "messages": [
+      {
+        "id": "2b76e9e6-eb1d-4b9e-b5fb-28cbdf22c3dd",
+        "role": "user",
+        "content": "make a recipe from smoked tofu, rice, and avocado",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "a1cb68c0-3821-46ac-a821-b718ab80f4f2",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "recipe_results",
+            "v": 1,
+            "id": "04bdbb74-62ed-4f27-9602-d4329f9d44cf",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

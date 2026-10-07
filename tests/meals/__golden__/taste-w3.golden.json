@@ -1,0 +1,192 @@
+{
+  "version": "taste-1",
+  "asOf": "2026-10-06",
+  "windowDays": 180,
+  "m": 28.9207,
+  "episodes": 31,
+  "rulesRevision": 7,
+  "items": [
+    {
+      "key": "u:banana",
+      "name": "Banana",
+      "days180": 13,
+      "lastOn": "2026-10-06",
+      "favored": false,
+      "favorable": true,
+      "h": 11.0889,
+      "q": 1,
+      "provenance": {
+        "match": "universe",
+        "estimated": false,
+        "sources": {
+          "log": 10,
+          "recipe": 0,
+          "tick": 5,
+          "mixed_dish": 0
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 1
+        }
+      }
+    },
+    {
+      "key": "u:chicken-breast-roasted",
+      "name": "Chicken breast, roasted",
+      "days180": 8,
+      "lastOn": "2026-10-06",
+      "favored": true,
+      "favorable": true,
+      "h": 7.4531,
+      "q": 0,
+      "provenance": {
+        "match": "universe",
+        "estimated": false,
+        "sources": {
+          "log": 5,
+          "recipe": 1,
+          "tick": 5,
+          "mixed_dish": 0
+        },
+        "collapsed": 2,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 0
+        }
+      }
+    },
+    {
+      "key": "f:mom's dal",
+      "name": "Mom's dal",
+      "days180": 8,
+      "lastOn": "2026-10-02",
+      "favored": true,
+      "favorable": true,
+      "h": 3.5112,
+      "q": 0,
+      "provenance": {
+        "match": "family",
+        "estimated": false,
+        "sources": {
+          "log": 3,
+          "recipe": 0,
+          "tick": 5,
+          "mixed_dish": 0
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 0
+        }
+      }
+    },
+    {
+      "key": "f:greek yogurt",
+      "name": "Greek yogurt, plain",
+      "days180": 5,
+      "lastOn": "2026-10-01",
+      "favored": false,
+      "favorable": true,
+      "h": 2.245,
+      "q": 0.5,
+      "provenance": {
+        "match": "family",
+        "estimated": false,
+        "sources": {
+          "log": 2,
+          "recipe": 0,
+          "tick": 5,
+          "mixed_dish": 0
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 1
+        }
+      }
+    },
+    {
+      "key": "u:broccoli-cooked",
+      "name": "Broccoli, cooked",
+      "days180": 2,
+      "lastOn": "2026-09-24",
+      "favored": false,
+      "favorable": false,
+      "h": 1.2093,
+      "q": 0,
+      "provenance": {
+        "match": "universe",
+        "estimated": true,
+        "sources": {
+          "log": 0,
+          "recipe": 1,
+          "tick": 0,
+          "mixed_dish": 1
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 0
+        }
+      }
+    },
+    {
+      "key": "u:spinach-raw",
+      "name": "Spinach, raw",
+      "days180": 1,
+      "lastOn": "2026-09-14",
+      "favored": false,
+      "favorable": false,
+      "h": 0.7126,
+      "q": 0,
+      "provenance": {
+        "match": "universe",
+        "estimated": false,
+        "sources": {
+          "log": 0,
+          "recipe": 1,
+          "tick": 0,
+          "mixed_dish": 0
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 0
+        }
+      }
+    },
+    {
+      "key": "u:spinach-cooked",
+      "name": "Spinach, cooked",
+      "days180": 1,
+      "lastOn": "2026-09-24",
+      "favored": false,
+      "favorable": false,
+      "h": 0.4156,
+      "q": 0,
+      "provenance": {
+        "match": "universe",
+        "estimated": true,
+        "sources": {
+          "log": 0,
+          "recipe": 0,
+          "tick": 0,
+          "mixed_dish": 1
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 0
+        }
+      }
+    }
+  ]
+}

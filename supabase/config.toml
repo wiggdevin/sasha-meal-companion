@@ -1,0 +1,59 @@
+# Supabase CLI project config. Applied to preview branches by `supabase db push`.
+# Production auth settings are managed in the dashboard; this file governs branches and local runs.
+project_id = "meal-companion"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+# Test-only helpers live in supabase/seed/ and are applied explicitly by scripts/db-branch.sh.
+# Never seeded by default, so a stray `supabase db reset --linked` cannot install them.
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3105"
+additional_redirect_urls = [
+  "http://127.0.0.1:3105/auth/callback",
+  "http://127.0.0.1:3105/auth/callback\\?next=**",
+  "http://localhost:3105/auth/callback",
+  "http://localhost:3105/auth/callback\\?next=**",
+  "http://127.0.0.1:3000/auth/callback",
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+minimum_password_length = 12
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+double_confirm_changes = true
+otp_length = 6
+otp_expiry = 3600
+
+[studio]
+enabled = false
+
+[storage]
+# Production uses Storage (media_objects / signed upload URLs), and migration
+# 20260911000700 inserts the 'backups' bucket, so a fresh local or preview branch
+# cannot apply migrations with Storage disabled.
+enabled = true
+
+[realtime]
+enabled = false

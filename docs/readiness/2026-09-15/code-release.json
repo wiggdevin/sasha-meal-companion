@@ -1,0 +1,39 @@
+{
+  "checked_at": "2026-09-15T15:07:34.712287+00:00",
+  "source_sha": "9848195064844f7a40b645c99d50121ebd3a6937",
+  "deployment_id": 6461941737,
+  "deployment_state": "success",
+  "deployment_url": "https://sasha-meal-companion-mj5p51bxf-devin-wiggins-projects.vercel.app",
+  "public_origin": "https://sasha-meal-companion.vercel.app",
+  "http": [
+    {
+      "path": "/sign-in",
+      "status": 200
+    },
+    {
+      "path": "/manifest.webmanifest",
+      "status": 200
+    },
+    {
+      "path": "/sw.js",
+      "status": 200
+    },
+    {
+      "path": "/api/coach/threads",
+      "status": 401
+    },
+    {
+      "path": "/api/sync/changes",
+      "status": 401
+    },
+    {
+      "path": "/api/export",
+      "status": 401
+    },
+    {
+      "path": "/api/dev/sign-in",
+      "status": 404
+    }
+  ],
+  "limits": "Anonymous checks only; successful production login and coach reply remain unverified."
+}

@@ -1,0 +1,11 @@
+{
+  "base": "aa7946c15c6a5754cca7ebc7e47296329c25a342",
+  "files": {
+    "components/CoachMic.tsx": "51ca7742e6f7fe2243013108ebea248c3109483e3b4e90ee6bc54fbe6c626497",
+    "components/coach/Composer.tsx": "6ab56567f0744667982accf65cee44fd9557f81d3eff7117cecbb77e10066e41",
+    "components/coach/use-composer-input.ts": "c7733bba2a80b1eadb64bd9d4a91cb7a688eef3a8200089abb44f85510098e8f",
+    "tests/coach/composer/tap-control.test.tsx": "41cd54b8be18a087d1651f5a0d4133a8c1669f7dc2aa9216e84ccf92746fbe16",
+    "lib/coach/hold.ts": "1449534c40ab7ec46c10bda8e9ca48219c1bf97498311f915165876018559ccd"
+  },
+  "packetSha256": "598a0edf5c2d1723c1349fb5abb76e5eef60462552cbbe1cf567b9acbc4a07b8"
+}

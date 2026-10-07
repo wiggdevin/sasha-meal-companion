@@ -1,0 +1,1066 @@
+{
+  "one": [
+    {
+      "actions": [
+        {
+          "kind": "log_meal",
+          "date": "2026-09-18",
+          "slot": "meal-1",
+          "title": "Chicken",
+          "items": [
+            {
+              "name": "chicken",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "allowed",
+              "grams": 150
+            }
+          ],
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "log_meal",
+          "date": "2026-09-18",
+          "slot": "snack",
+          "items": [
+            {
+              "name": "chicken",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "allowed",
+              "grams": 150
+            },
+            {
+              "name": "cake",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 390,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "blocked",
+              "grams": 80
+            }
+          ],
+          "at": "15:30",
+          "note": "after the run",
+          "title": "Chicken & cake",
+          "actionId": "g1",
+          "flagged": [
+            "cake"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I could not find \"mystery\" — what should I log it as?"
+      ]
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "300 g of Protein powder, whey is 10 portions of 1 scoop (30 g) — how much of it, or which ingredients make the shake?"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "log_meal",
+          "date": "2026-09-18",
+          "slot": "meal-1",
+          "title": "Shake",
+          "items": [
+            {
+              "name": "protein shake",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000013",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "unverified",
+              "marks": [
+                {
+                  "facet": "gluten",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "dairy",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "apple",
+                  "source": "floor",
+                  "outcome": "unknown"
+                }
+              ],
+              "grams": 30
+            }
+          ],
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I could not find \"nullref\" — what should I log it as?"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "add_slot_item",
+          "date": "2026-09-18",
+          "slot": "meal-2",
+          "item": {
+            "name": "cake",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 390,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "blocked",
+            "grams": 80
+          },
+          "actionId": "g1",
+          "flagged": [
+            "cake"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "remove_slot_item",
+          "date": "2026-09-18",
+          "slot": "meal-2",
+          "name": "chicken",
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 165,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "allowed",
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I could not find \"mystery\" — what should I log it as?"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "set_slot_item",
+          "date": "2026-09-18",
+          "slot": "meal-2",
+          "name": "cake",
+          "grams": 40,
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 390,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "blocked",
+          "actionId": "g1",
+          "flagged": [
+            "cake"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "move_slot",
+          "date": "2026-09-18",
+          "slot": "meal-3",
+          "time": "19:30",
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "add_to_avoid",
+          "name": "Watermelon, raw",
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 165,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "blocked",
+          "actionId": "g1",
+          "flagged": [],
+          "alsoFoodRefIds": [
+            "3f1b1a2c-0000-4000-8000-000000000011",
+            "3f1b1a2c-0000-4000-8000-000000000013"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "remove_from_avoid",
+          "name": "Cake, chocolate",
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 390,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "blocked",
+          "actionId": "g1",
+          "flagged": [
+            "cake"
+          ],
+          "alsoFoodRefIds": [
+            "3f1b1a2c-0000-4000-8000-000000000011",
+            "3f1b1a2c-0000-4000-8000-000000000013"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "add_to_eats",
+          "name": "Cake, chocolate",
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 390,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "blocked",
+          "actionId": "g1",
+          "flagged": [
+            "cake"
+          ],
+          "alsoFoodRefIds": [
+            "3f1b1a2c-0000-4000-8000-000000000011",
+            "3f1b1a2c-0000-4000-8000-000000000013"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "remove_from_eats",
+          "name": "Cake, chocolate",
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 390,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "blocked",
+          "actionId": "g1",
+          "flagged": [],
+          "alsoFoodRefIds": [
+            "3f1b1a2c-0000-4000-8000-000000000011",
+            "3f1b1a2c-0000-4000-8000-000000000013"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I could not find \"mystery\" — what should I log it as?"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "set_slot_meal",
+          "from": "2026-09-18",
+          "through": "2026-09-24",
+          "weekdays": [
+            1,
+            3
+          ],
+          "slot": "meal-1",
+          "title": "Yogurt bowl",
+          "items": [
+            {
+              "name": "yogurt",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000013",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "blocked",
+              "grams": 150
+            },
+            {
+              "name": "chicken",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "allowed",
+              "grams": 120
+            }
+          ],
+          "actionId": "g1",
+          "flagged": [
+            "yogurt"
+          ],
+          "date": "2026-09-18",
+          "dates": [
+            "2026-09-21",
+            "2026-09-23"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "set_slot_meal",
+          "date": "2026-09-18",
+          "slot": "meal-1",
+          "items": [
+            {
+              "name": "chicken",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "allowed",
+              "grams": 100
+            }
+          ],
+          "from": "2026-09-18",
+          "through": "2026-09-18",
+          "title": "Chicken",
+          "actionId": "g1",
+          "flagged": [],
+          "dates": [
+            "2026-09-18"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "How much plainrice?"
+      ]
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I can plan at most 31 calendar days at once. Shorten the range and try again."
+      ]
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "The meal-plan end date must be on or after its start date."
+      ]
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "That date range has none of the selected weekdays."
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "delete_entry",
+          "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
+          "what": "eggs at 09:00",
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I could not find that entry — which one do you mean?"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "move_entry",
+          "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
+          "at": "13:30",
+          "what": "eggs at 09:00",
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "save_recipe",
+          "name": "Bowl",
+          "items": [
+            {
+              "name": "chicken",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "allowed",
+              "grams": 150
+            },
+            {
+              "name": "cake",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 390,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "blocked",
+              "grams": 30
+            }
+          ],
+          "actionId": "g1",
+          "flagged": [
+            "cake"
+          ]
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [],
+      "clarifications": [
+        "I could not find \"mystery\" — what should I log it as?"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "kind": "shift_schedule",
+          "date": "2026-09-18",
+          "minutes": 30,
+          "scope": "remaining",
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "log_water",
+          "ml": 480,
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "log_weight",
+          "date": "2026-09-18",
+          "kg": 58.1,
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "update_profile",
+          "birthYear": 1992,
+          "sex": "female",
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "set_targets",
+          "dayType": "both",
+          "kcal": 2100,
+          "proteinG": null,
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "add_to_shopping_list",
+          "names": [
+            "eggs",
+            "oat milk"
+          ],
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    }
+  ],
+  "batch": {
+    "actions": [
+      {
+        "kind": "log_meal",
+        "date": "2026-09-18",
+        "slot": "meal-1",
+        "title": "Chicken",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 150
+          }
+        ],
+        "actionId": "g1",
+        "flagged": []
+      },
+      {
+        "kind": "log_meal",
+        "date": "2026-09-18",
+        "slot": "snack",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 150
+          },
+          {
+            "name": "cake",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 390,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "blocked",
+            "grams": 80
+          }
+        ],
+        "at": "15:30",
+        "note": "after the run",
+        "title": "Chicken & cake",
+        "actionId": "g2",
+        "flagged": [
+          "cake"
+        ]
+      },
+      {
+        "kind": "log_meal",
+        "date": "2026-09-18",
+        "slot": "meal-1",
+        "title": "Shake",
+        "items": [
+          {
+            "name": "protein shake",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000013",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "unverified",
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "grams": 30
+          }
+        ],
+        "actionId": "g3",
+        "flagged": []
+      },
+      {
+        "kind": "add_slot_item",
+        "date": "2026-09-18",
+        "slot": "meal-2",
+        "item": {
+          "name": "cake",
+          "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+          "catalogFoodRevisionId": 77,
+          "kcalPer100g": 390,
+          "proteinPer100g": 31,
+          "carbsPer100g": 0,
+          "fatPer100g": 3.6,
+          "verdict": "blocked",
+          "grams": 80
+        },
+        "actionId": "g4",
+        "flagged": [
+          "cake"
+        ]
+      },
+      {
+        "kind": "remove_slot_item",
+        "date": "2026-09-18",
+        "slot": "meal-2",
+        "name": "chicken",
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 165,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "allowed",
+        "actionId": "g5",
+        "flagged": []
+      },
+      {
+        "kind": "set_slot_item",
+        "date": "2026-09-18",
+        "slot": "meal-2",
+        "name": "cake",
+        "grams": 40,
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 390,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "blocked",
+        "actionId": "g6",
+        "flagged": [
+          "cake"
+        ]
+      },
+      {
+        "kind": "move_slot",
+        "date": "2026-09-18",
+        "slot": "meal-3",
+        "time": "19:30",
+        "actionId": "g7",
+        "flagged": []
+      },
+      {
+        "kind": "add_to_avoid",
+        "name": "Watermelon, raw",
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 165,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "blocked",
+        "actionId": "g8",
+        "flagged": [],
+        "alsoFoodRefIds": [
+          "3f1b1a2c-0000-4000-8000-000000000011",
+          "3f1b1a2c-0000-4000-8000-000000000013"
+        ]
+      },
+      {
+        "kind": "remove_from_avoid",
+        "name": "Cake, chocolate",
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 390,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "blocked",
+        "actionId": "g9",
+        "flagged": [
+          "cake"
+        ],
+        "alsoFoodRefIds": [
+          "3f1b1a2c-0000-4000-8000-000000000011",
+          "3f1b1a2c-0000-4000-8000-000000000013"
+        ]
+      },
+      {
+        "kind": "add_to_eats",
+        "name": "Cake, chocolate",
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 390,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "blocked",
+        "actionId": "g10",
+        "flagged": [
+          "cake"
+        ],
+        "alsoFoodRefIds": [
+          "3f1b1a2c-0000-4000-8000-000000000011",
+          "3f1b1a2c-0000-4000-8000-000000000013"
+        ]
+      },
+      {
+        "kind": "remove_from_eats",
+        "name": "Cake, chocolate",
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 390,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "blocked",
+        "actionId": "g11",
+        "flagged": [],
+        "alsoFoodRefIds": [
+          "3f1b1a2c-0000-4000-8000-000000000011",
+          "3f1b1a2c-0000-4000-8000-000000000013"
+        ]
+      },
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-18",
+        "through": "2026-09-24",
+        "weekdays": [
+          1,
+          3
+        ],
+        "slot": "meal-1",
+        "title": "Yogurt bowl",
+        "items": [
+          {
+            "name": "yogurt",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000013",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "blocked",
+            "grams": 150
+          },
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 120
+          }
+        ],
+        "actionId": "g12",
+        "flagged": [
+          "yogurt"
+        ],
+        "date": "2026-09-18"
+      },
+      {
+        "kind": "set_slot_meal",
+        "date": "2026-09-18",
+        "slot": "meal-1",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 100
+          }
+        ],
+        "from": "2026-09-18",
+        "through": "2026-09-18",
+        "title": "Chicken",
+        "actionId": "g13",
+        "flagged": []
+      },
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-18",
+        "through": "2026-11-30",
+        "slot": "meal-1",
+        "title": "Long",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 100
+          }
+        ],
+        "actionId": "g14",
+        "flagged": [],
+        "date": "2026-09-18"
+      },
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-18",
+        "through": "2026-09-10",
+        "slot": "meal-1",
+        "title": "Back",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 100
+          }
+        ],
+        "actionId": "g15",
+        "flagged": [],
+        "date": "2026-09-18"
+      },
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-18",
+        "through": "2026-09-18",
+        "weekdays": [
+          0
+        ],
+        "slot": "meal-1",
+        "title": "None",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 100
+          }
+        ],
+        "actionId": "g16",
+        "flagged": [],
+        "date": "2026-09-18"
+      },
+      {
+        "kind": "delete_entry",
+        "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
+        "what": "eggs at 09:00",
+        "actionId": "g17",
+        "flagged": []
+      },
+      {
+        "kind": "move_entry",
+        "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
+        "at": "13:30",
+        "what": "eggs at 09:00",
+        "actionId": "g18",
+        "flagged": []
+      },
+      {
+        "kind": "save_recipe",
+        "name": "Bowl",
+        "items": [
+          {
+            "name": "chicken",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 150
+          },
+          {
+            "name": "cake",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 390,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "blocked",
+            "grams": 30
+          }
+        ],
+        "actionId": "g19",
+        "flagged": [
+          "cake"
+        ]
+      },
+      {
+        "kind": "shift_schedule",
+        "date": "2026-09-18",
+        "minutes": 30,
+        "scope": "remaining",
+        "actionId": "g20",
+        "flagged": []
+      },
+      {
+        "kind": "log_water",
+        "ml": 480,
+        "actionId": "g21",
+        "flagged": []
+      },
+      {
+        "kind": "log_weight",
+        "date": "2026-09-18",
+        "kg": 58.1,
+        "actionId": "g22",
+        "flagged": []
+      },
+      {
+        "kind": "update_profile",
+        "birthYear": 1992,
+        "sex": "female",
+        "actionId": "g23",
+        "flagged": []
+      },
+      {
+        "kind": "set_targets",
+        "dayType": "both",
+        "kcal": 2100,
+        "proteinG": null,
+        "actionId": "g24",
+        "flagged": []
+      },
+      {
+        "kind": "add_to_shopping_list",
+        "names": [
+          "eggs",
+          "oat milk"
+        ],
+        "actionId": "g25",
+        "flagged": []
+      }
+    ],
+    "clarifications": [
+      "I could not find \"mystery\" — what should I log it as?",
+      "300 g of Protein powder, whey is 10 portions of 1 scoop (30 g) — how much of it, or which ingredients make the shake?",
+      "I could not find \"nullref\" — what should I log it as?",
+      "I could not find \"mystery\" — what should I log it as?",
+      "I could not find \"mystery\" — what should I log it as?",
+      "How much plainrice?",
+      "I could not find that entry — which one do you mean?",
+      "I could not find \"mystery\" — what should I log it as?"
+    ]
+  },
+  "noEntries": {
+    "actions": [],
+    "clarifications": [
+      "I could not check your entries just now — try that again in a moment.",
+      "I could not check your entries just now — try that again in a moment.",
+      "I could not check your entries just now — try that again in a moment."
+    ]
+  },
+  "noWiden": {
+    "actions": [
+      {
+        "kind": "add_to_avoid",
+        "name": "Watermelon, raw",
+        "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+        "catalogFoodRevisionId": 77,
+        "kcalPer100g": 165,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "blocked",
+        "actionId": "g1",
+        "flagged": [],
+        "alsoFoodRefIds": []
+      }
+    ],
+    "clarifications": []
+  }
+}

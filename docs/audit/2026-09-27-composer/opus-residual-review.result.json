@@ -1,0 +1,35 @@
+{
+  "residual_drag_guard_resolved": "NO",
+  "autonomous_completion_send_risk_resolved": "YES",
+  "activation_timing_safe": "YES",
+  "evidence": {
+    "drag_guard_mouse_pen": "Resolved. Mouse and pen give pointerleave with buttons!==0 while the button is held and the pointer leaves. CoachMic.tsx:145-147 and Composer.tsx:43 then clear recordPointerDown, and the main control also clears activationMode.",
+    "drag_guard_touch": "Not resolved. Touch has implicit pointer capture, so no pointerleave fires while the finger is down. After pointerup and lostpointercapture, pointerout and pointerleave fire with buttons=0. That is the case the code deliberately keeps. A touch drag-off with no scroll (so no pointercancel) and no click still leaves recordPointerDown=true. The test at tap-control.test.tsx:155-175 fires a touch pointerLeave with buttons=1 before pointerUp. A real touch browser does not send that sequence, so the test proves the mouse case only. The impact is unchanged from the prior finding: low, a label problem only. The secondary Send stays reachable, and the next click on any composer action clears the guard. This follows from the requested trade-off, which keeps the guard on buttons=0.",
+    "autonomous_review_gate": "Resolved. publish (CoachMic.tsx:100-103) sets reviewNeeded on every locked\u2192unlocked transition that is not a manual Stop and has text: silence, error, max-duration and pagehide. mode puts review ahead of send (:132). send() refuses while reviewNeeded (use-composer-input.ts:17). The secondary Send is hidden (Composer.tsx:39), which also blocks textarea Enter. Acknowledging Review only moves the control to Send (:163) and never sends in the same click. Tests at tap-control.test.tsx:177-274 cover pointer, keyboard Enter, pointerdown after completion, failure, max-duration and pagehide.",
+    "manual_stop_path": "The Stop branch sets manualStop=true (:165). The unlock publish then gives reviewNeeded=false and resets manualStop, so the control goes busy, then Send. The detail>1 guard (:161) and the latch cover the second click of a double tap.",
+    "latch_pointer": "pointerdown records the committed mode. If a re-render between pointerdown and click changes the mode, the click is dropped (:157-160). Stop/busy \u2192 Review/Send is blocked, and the latch resets on click, cancel, active leave and blur.",
+    "latch_keyboard": "Enter fires click during keydown, so the latch is set and read in the same task. Space fires click on keyup, so a Stop keydown held across an automatic completion gives a keyup click that the mismatch drops. Repeated keydown is prevented (:152).",
+    "lifecycle": "pagehide and visibilitychange call hold.cancel(), then abandon, then an unlocked publish, which sets Review when the box has text. Unmount calls cancel as well. The busy/settling state is aria-disabled and no click branch acts on it."
+  },
+  "new_concrete_bugs": [
+    {
+      "severity": "low",
+      "file_line": "components/CoachMic.tsx:130-133,156-165; lib/coach/hold.ts:79-83,219-227",
+      "trigger": "Automatic silence completion runs setState from a non-React SpeechRecognition 'end' callback. That update has default priority and is not flushed until a later task, so a pointerdown, pointerup and click can all land before the commit. Both the latch and the click closure then still see mode 'stop'.",
+      "impact": "It does not send and does not acknowledge Review. The Stop branch sets manualStop=true and calls toggleTap(). The controller is no longer holding, so press() starts a NEW recording where the user meant to stop. manualStop stays true through that new session. If the new session then ends by itself, the gate treats it as manual: reviewNeeded=false and the control goes straight to Send, so the original risk comes back through a chained case. Possible fix: in the Stop branch, act only when hold.view().listening is true (or derive the mode from hold.view() at click time), and set manualStop only when a release really happens."
+    },
+    {
+      "severity": "low",
+      "file_line": "components/CoachMic.tsx:61,141-144,149,157-160",
+      "trigger": "A touch drag-off leaves activationMode set, because implicit capture means no buttons!==0 leave arrives and a tap on iOS does not focus the button, so onBlur does not fire either. A later activation arrives with no fresh pointerdown or keydown, for example an assistive-technology click, in a different mode.",
+      "impact": "The mismatch drops one activation silently, and the next one works. It cannot cause a send or a Review acknowledgement."
+    }
+  ],
+  "limits": [
+    "I reviewed only the attached source and tests. I ran nothing. The reported 326/326, tsc 0 and lint 0 results are not independently verified.",
+    "There is no browser or device proof of the pointer event order: iOS Safari compatibility focus and click after pointerup, Android Chrome with pointercancel on pan, and Windows or desktop pointerleave. The touch analysis relies on the Pointer Events implicit-capture rules.",
+    "The jsdom tests wrap controller callbacks in act(), which flushes updates at once. They cannot show the render-lag window in the first bug.",
+    "While Review is pending, textarea Enter does nothing and shows no feedback. This follows from the design (acknowledge before Send) and is not treated as a defect.",
+    "Only voice input was in scope. No TTS, no land and no all-annotation approval were assessed."
+  ]
+}

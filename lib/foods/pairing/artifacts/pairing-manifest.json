@@ -1,0 +1,216 @@
+{
+  "activation": {},
+  "artifactHash": "51663977a0285ed8898ba661a5e5eb94d6a0f62062bd329b4bc932fdb8591052",
+  "co": {
+    "file": "co-consumption.json",
+    "rows": 3718,
+    "sha256": "845a8d39e3c0d27844f74f9db013b7d90dda88d9414d9e14e78375de62ff2951"
+  },
+  "curated": {
+    "excluded": 1000,
+    "hash": "ecf63656125ac83060ec99b991ad113547beca87bd9553c4b864ed88664f049e",
+    "pairs": 10255,
+    "scored": 9255
+  },
+  "jev": {
+    "calibration": {
+      "reason": "0 yes/no labels; the gate needs at least 400 (+12 more)",
+      "report": "docs/pairing/w1c-calibration-report.md",
+      "status": "frozen"
+    },
+    "labels": 60,
+    "model": "jev-latest",
+    "promptVersion": "pair-prompt-1",
+    "purpose": "pair_plausibility",
+    "rubricVersion": "pair-rubric-1",
+    "targetWeight": 0.15,
+    "weight": 0
+  },
+  "licenceCheck": "pass",
+  "nhanes": {
+    "day": 1,
+    "gramsThreshold": {
+      "anchor": 10,
+      "fat": 3,
+      "side": 10
+    },
+    "minEffectiveN": 30,
+    "occasions": "Day 1 recall, one respondent's foods sharing a recall time and an eating-occasion name; breakfast = Breakfast, Brunch, Desayuno; main = Lunch, Dinner, Supper, Almuerzo, Comida, Cena; snack = Snack, Merienda, Entre comida, Botana, Bocadillo, Tentempie; drinks and the rest left out",
+    "pairsConsidered": 9255,
+    "pairsShipped": 3718,
+    "population": "U.S. adults 18 and over",
+    "report": "docs/pairing/w1c-pairing-report.md",
+    "requires": "co weight > 0 requires holdout + replay (the human pair holdout and the W8 replay)",
+    "targetWeight": 0.2,
+    "transform": "co = lift / (1 + lift), lift = rate / base_rate",
+    "weight": 0
+  },
+  "ruling": {
+    "path": "docs/decisions/2026-10-05-nhanes-aggregate-use.md",
+    "sha256": "ba75320567a14be34538ad7564037f1660ed5db2f036dd9b3a520722dd945578"
+  },
+  "schema": 1,
+  "sources": [
+    {
+      "files": [
+        {
+          "path": "raw/P_DEMO.xpt",
+          "sha256": "2e46c6c26bf77cd8989f64011ace12cbf42c0f3e03414eb59acc5328c8f87913"
+        },
+        {
+          "path": "raw/P_DR1TOT.xpt",
+          "sha256": "02cf0fcb15cdef9442594747a6699c43a65fd280f0f807e82ca0b888b0d97b5e"
+        },
+        {
+          "path": "raw/P_DR1IFF.xpt",
+          "sha256": "264a4dfd66455f106a8ac25a745ebb4e065564b049b45000a5f9c44296d48dec"
+        },
+        {
+          "path": "raw/P_DR2TOT.xpt",
+          "sha256": "2013d36582131ffc810bb025e11c8a0c6533b5e59197ad2aa76f4d52db81bb5a"
+        },
+        {
+          "path": "raw/P_DR2IFF.xpt",
+          "sha256": "6f5807d841fb9e183ba5ad6a9e0ebcef534f96c4ffb8e59afd01293dc7cf55e0"
+        }
+      ],
+      "id": "nhanes-2017-2020",
+      "kind": "nhanes",
+      "licence": "nchs-dua",
+      "name": "NHANES/WWEIA August 2017-March 2020 pre-pandemic",
+      "terms": "NCHS public-use data; statistical reporting and analysis only; no attempt to identify anyone; no linkage to identifiable data (NCHS data user agreement)",
+      "url": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/",
+      "use": "Day 1 individual foods and occasions: the co-consumption pair rates"
+    },
+    {
+      "files": [
+        {
+          "path": "raw/DEMO_L.xpt",
+          "sha256": "ca4374a158b493b8b0163e1388da21d57a18d1b9cecff2aa4e2fa2bec494fe23"
+        },
+        {
+          "path": "raw/DR1TOT_L.xpt",
+          "sha256": "73a3097aab64000f9c1d138367363ca605968b691e349981132bd6032ca6c9ef"
+        },
+        {
+          "path": "raw/DR1IFF_L.xpt",
+          "sha256": "97177395e5fd1322ec8cb72d271a3f8d46e6a83b1105f89f6ef6f39f156037b3"
+        },
+        {
+          "path": "raw/DR2TOT_L.xpt",
+          "sha256": "516b2d97e87bbf2b4f9b35611050d328924db9cd1494eadcf8503a520c795862"
+        },
+        {
+          "path": "raw/DR2IFF_L.xpt",
+          "sha256": "7c06a8ed008e3ea063a62cd97fe26bf3b59322e31dda4b5bc9c217a6a5482a04"
+        }
+      ],
+      "id": "nhanes-2021-2023",
+      "kind": "nhanes",
+      "licence": "nchs-dua",
+      "name": "NHANES/WWEIA August 2021-August 2023",
+      "terms": "NCHS public-use data; statistical reporting and analysis only; no attempt to identify anyone; no linkage to identifiable data (NCHS data user agreement)",
+      "url": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/",
+      "use": "Day 1 individual foods and occasions: the co-consumption pair rates"
+    },
+    {
+      "files": [
+        {
+          "path": "fndds/2021-2023/input_food.csv",
+          "sha256": "8aeb63c33452a501d0af942a6c9da8a771ee929f5366d7462de037fee3f9acb8"
+        },
+        {
+          "path": "fndds/2021-2023/survey_fndds_food.csv",
+          "sha256": "c18efa0dc39d04b7e175be3f843521babbb3e8d68de3b6e43b49a1fbb0a6d5fe"
+        }
+      ],
+      "id": "fndds-2021-2023",
+      "kind": "fndds",
+      "licence": "cc0-1.0",
+      "name": "FNDDS 2021-2023 (FoodData Central survey foods, 2024-10-31)",
+      "terms": "U.S. government work; FoodData Central data are published under CC0 1.0",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_csv_2024-10-31.zip",
+      "use": "Ingredient grams for 2021-2023 food codes; the FNDDS code hierarchy for the tax term"
+    },
+    {
+      "files": [
+        {
+          "path": "fndds/2019-2020/input_food.csv",
+          "sha256": "63977e95453371927bb2748850dbb84bca4a14cc40504bbdf5b7aab4562760bc"
+        },
+        {
+          "path": "fndds/2019-2020/survey_fndds_food.csv",
+          "sha256": "08716403e2ebd77d632b2fea3c78808fa69ee55ba410dfd7af6025c8b6966791"
+        }
+      ],
+      "id": "fndds-2019-2020",
+      "kind": "fndds",
+      "licence": "cc0-1.0",
+      "name": "FNDDS 2019-2020 (FoodData Central survey foods, 2022-10-28)",
+      "terms": "U.S. government work; FoodData Central data are published under CC0 1.0",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_csv_2022-10-28.zip",
+      "use": "Ingredient grams for 2017-March 2020 food codes (first lookup)"
+    },
+    {
+      "files": [
+        {
+          "path": "fndds/2017-2018/input_food.csv",
+          "sha256": "c9d87ed0b028b4da084633e6fcfdbd4d97ae9ff3d83746d994ea0a908f7d651f"
+        },
+        {
+          "path": "fndds/2017-2018/survey_fndds_food.csv",
+          "sha256": "7367e5a24d68c4d4529f8c583fa09be274ebb6a729e1f16d8e15c856011c8c8e"
+        }
+      ],
+      "id": "fndds-2017-2018",
+      "kind": "fndds",
+      "licence": "cc0-1.0",
+      "name": "FNDDS 2017-2018 (FoodData Central survey foods, 2020-10-30)",
+      "terms": "U.S. government work; FoodData Central data are published under CC0 1.0",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_csv_2020-10-30.zip",
+      "use": "Ingredient grams for 2017-2018 food codes not in FNDDS 2019-2020 (second lookup)"
+    },
+    {
+      "files": [
+        {
+          "path": "sr_legacy/sr_legacy_food.csv",
+          "sha256": "ff0fe85a469aa6d6702d68348850fc79dee35e9515324026964f1209a0e3544d"
+        },
+        {
+          "path": "sr_legacy/food_nutrient.csv",
+          "sha256": "6d07e6fc062b09750c4d95112be5a5cdb56a2346efcfd0c96b7a7d705812d4bd"
+        }
+      ],
+      "id": "fdc-sr-legacy",
+      "kind": "fdc",
+      "licence": "cc0-1.0",
+      "name": "FoodData Central SR Legacy (2018-04)",
+      "terms": "U.S. government work; FoodData Central data are published under CC0 1.0",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+      "use": "SR numbers of universe items (crosswalk) and nutrient profiles (the nutr term)"
+    }
+  ],
+  "table": {
+    "absent": [
+      "co",
+      "jev",
+      "comp"
+    ],
+    "file": "pairing-table.json",
+    "rows": 0,
+    "rowsHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256": "6e0b8b0d6a35912ecff7702c6ea027b2593d099709a72d6d54793d325cf95993"
+  },
+  "universe": {
+    "hash": "15505315ca8a18e75f37ab751f8475b0ee4f2aed0f7b5e6cfcd7a158e2b95be3",
+    "version": "1.0.0"
+  },
+  "version": "pairing-1.0.0",
+  "withheld": [
+    {
+      "id": "ahn-2011",
+      "name": "Ahn et al. 2011 flavor network (Scientific Reports 1:196)",
+      "reason": "The article and its supplementary data are published under CC BY-NC-SA 3.0 (non-commercial; nature.com/articles/srep00196, read 2026-10-06), not the CC BY 4.0 the spec assumed. The ctx and comp terms are absent until the owner rules on it."
+    }
+  ]
+}

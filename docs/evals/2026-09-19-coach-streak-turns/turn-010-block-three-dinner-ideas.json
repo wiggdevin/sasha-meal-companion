@@ -1,0 +1,119 @@
+{
+  "generatedAt": "2026-10-03T20:35:26.334Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 10,
+  "case": {
+    "id": "block-three-dinner-ideas",
+    "category": "block",
+    "sentence": "three dinner ideas",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_ideas"
+    ]
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 20110,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.02,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 1-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 20110 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.02"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I could not answer that one. Ask me again, more specifically.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_ideas]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "ad193fe9-1100-4f39-ab4d-7b21f69acae2",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 481,
+      "model": 18034,
+      "ground": 10
+    },
+    "messages": [
+      {
+        "id": "0faf4c5d-710e-464a-bf1e-be24b1829e99",
+        "role": "user",
+        "content": "three dinner ideas",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "4666ec22-ceb8-4c0a-abeb-f52df5b7b4e0",
+        "role": "assistant",
+        "content": "I could not answer that one. Ask me again, more specifically.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

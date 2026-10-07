@@ -1,0 +1,32 @@
+{
+  "bought": true,
+  "fields": [
+    {
+      "label": "Bought",
+      "value": "on",
+      "checked": true,
+      "disabled": false
+    },
+    {
+      "label": "Item name",
+      "value": "QA shopping apples edited",
+      "disabled": false
+    },
+    {
+      "label": "Keep this ingredient in my plan",
+      "value": "on",
+      "checked": false,
+      "disabled": true
+    },
+    {
+      "label": "Note",
+      "value": "QA note retained",
+      "disabled": false
+    },
+    {
+      "label": "Add a shopping item",
+      "value": "",
+      "disabled": false
+    }
+  ]
+}

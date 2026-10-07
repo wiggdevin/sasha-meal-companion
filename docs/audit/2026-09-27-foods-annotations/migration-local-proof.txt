@@ -1,0 +1,48 @@
+Loopback cloned database only. Root applied up successfully before this runner.
+up_sha256=8e993ee4018a00666800cd5f8d8227efc40afcaef2e083f032dc521651966d76
+down_sha256=3c92cff2045173c6b7808695539cd421c13280aa7b6534c612d3415b9284cd26
+validator valid + malformed8
+exit=0
+DO
+         result
+------------------------
+ validator_cases_passed
+(1 row)
+
+
+
+empty down
+exit=0
+BEGIN
+DO
+ALTER TABLE
+ALTER TABLE
+DROP FUNCTION
+COMMIT
+
+
+up again
+exit=0
+BEGIN
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+COMMENT
+COMMIT
+
+
+nonempty rollback refusal
+exit=3
+BEGIN
+DO
+UPDATE 1
+
+ERROR:  custom_food_rules rollback refused: account rules remain
+CONTEXT:  PL/pgSQL function inline_code_block line 3 at RAISE
+
+refusal preserved schema, transaction rolled back
+exit=0
+ nonempty_rules | profiles
+----------------+----------
+              0 |        7
+(1 row)

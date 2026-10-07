@@ -1,0 +1,170 @@
+/**
+ * Phase 18 W2b: `POST /api/foods/world`, `GET /api/foods/rules-version` and the condition gate on
+ * every generating surface, over the in-memory PostgREST double. The database half (the trigger
+ * that closes an open account in the same write as a new condition) is proved on the migrated
+ * schema by tests/migrations/food-world-clocks-db.test.ts; here the rows are set the way it leaves them.
+ *
+ * Acceptance 5: an unconfirmed condition gets 409 condition_review; a held account gets 423.
+ * Acceptance 10 (the app half): after a condition is added to an open account, no surface
+ * generates (bread included, though bread is Favored) until the user confirms; after the celiac
+ * pack's gluten rule is confirmed, bread is blocked and never admitted.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HttpError } from "@/lib/server/auth";
+import { fakeDb, type Row } from "@/tests/helpers/occasion-fake-db";
+import { A, eatsEvidence, worldTables, type WorldOptions } from "@/tests/helpers/world-fixtures";
+
+const state = vi.hoisted(() => ({ client: null as unknown }));
+vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: async () => undefined }));
+vi.mock("@/lib/server/admin", () => ({ adminClient: () => state.client }));
+vi.mock("@/lib/server/auth", async (original) => ({
+  ...(await original<typeof import("@/lib/server/auth")>()),
+  requireUser: async () => ({ userId: A, client: state.client }),
+}));
+vi.mock("@/lib/coach/suggest-policy", async (original) => ({
+  ...(await original<typeof import("@/lib/coach/suggest-policy")>()),
+  loadSuggestionEvidence: async () => eatsEvidence(),
+}));
+
+const { POST } = await import("@/app/api/foods/world/route");
+const { GET: rulesVersion } = await import("@/app/api/foods/rules-version/route");
+const { candidateFoods } = await import("@/lib/server/candidate-foods");
+const { eligibleFoods } = await import("@/lib/server/eligible-foods");
+const { getRuleReviewStatus } = await import("@/lib/server/constraints");
+
+const RELEASED = { OPEN_WORLD_ENABLED: "1", CONDITION_PACKS_ENABLED: "1" };
+let tables: Record<string, Row[]>;
+
+function loadWorld(options: WorldOptions = {}) {
+  const fake = fakeDb(worldTables(options));
+  tables = fake.tables;
+  state.client = fake.client;
+}
+
+async function post(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+  const res = await POST(new Request("https://app.test/api/foods/world", { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+  return { status: res.status, body: await res.json() as Record<string, unknown> };
+}
+
+async function code(run: Promise<unknown>): Promise<string> {
+  try { await run; return "generated"; } catch (error) {
+    return error instanceof HttpError ? `${error.status} ${error.code}` : String(error);
+  }
+}
+
+beforeEach(() => {
+  vi.unstubAllEnvs();
+  for (const [key, value] of Object.entries(RELEASED)) vi.stubEnv(key, value);
+  vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", "");
+  loadWorld();
+});
+
+describe("POST /api/foods/world (W2b acceptance 5)", () => {
+  it("opens an account with no stated condition once the open world is released", async () => {
+    expect(await post({ world: "open" })).toEqual({ status: 200, body: { world: "open" } });
+    expect(tables.user_settings[0].food_world).toBe("open");
+  });
+
+  it("answers 409 condition_review for an unconfirmed condition, and stays closed", async () => {
+    loadWorld({ conditions: ["Celiac"] });
+    expect(await post({ world: "open" })).toEqual({ status: 409,
+      body: { error: "condition_review", conditions: ["Celiac"] } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+  });
+
+  it("answers 423 held for a held account, before reading anything", async () => {
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", `someone-else, ${A}`);
+    expect(await post({ world: "open" })).toEqual({ status: 423, body: { error: "held" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+  });
+
+  it("answers 423 while the open world is unreleased (the default)", async () => {
+    vi.stubEnv("OPEN_WORLD_ENABLED", "");
+    expect(await post({ world: "open" })).toEqual({ status: 423, body: { error: "open_world_not_released" } });
+  });
+
+  it("accepts no confirmation until the reviewed wording is live (owner decision Q4)", async () => {
+    loadWorld({ conditions: ["Celiac"] });
+    vi.stubEnv("CONDITION_PACKS_ENABLED", "");
+    const answer = await post({ world: "open", confirmations: [{ condition: "Celiac", choice: "no_limit" }] });
+    expect(answer).toEqual({ status: 409, body: { error: "condition_review", conditions: ["Celiac"],
+      reason: "packs_disabled" } });
+    expect(tables.food_world_condition_confirmations).toEqual([]);
+  });
+
+  it("refuses a confirmation for a condition the account does not state, or a pack that does not exist", async () => {
+    loadWorld({ conditions: ["Gout"] });
+    expect((await post({ world: "open", confirmations: [{ condition: "Celiac", choice: "pack" }] })).body)
+      .toMatchObject({ error: "condition_review", reason: "unknown_condition" });
+    expect((await post({ world: "open", confirmations: [{ condition: "gout", choice: "pack" }] })).body)
+      .toMatchObject({ error: "condition_review", reason: "no_pack" });
+  });
+
+  it("always allows closing: the stop switch", async () => {
+    loadWorld({ world: "open" });
+    vi.stubEnv("OPEN_WORLD_ENABLED", "");
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A);
+    expect(await post({ world: "closed" })).toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+  });
+
+  it("rejects an unknown field or world", async () => {
+    expect((await post({ world: "wide" })).status).toBe(400);
+    expect((await post({ world: "open", userId: "someone-else" })).status).toBe(400);
+  });
+});
+
+describe("GET /api/foods/rules-version", () => {
+  it("returns the two counters, no-store", async () => {
+    const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2 });
+  });
+
+  it("reads an account with no rule write yet as rulesVersion 0", async () => {
+    tables.account_rules_clock = [];
+    const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
+    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2 });
+  });
+});
+
+describe("a condition added after opening (W2b acceptance 10, app half)", () => {
+  /** What the database leaves after a second client saves "Celiac" on an open account. */
+  function conditionAddedOnOpenAccount() {
+    loadWorld({ world: "open" });
+    Object.assign(tables.constraint_profiles[0], { conditions: ["Celiac"], condition_review_required: true, rev: 3 });
+    Object.assign(tables.user_settings[0], { food_world: "closed" });
+  }
+
+  it("pauses every generating surface, Favored bread included, until the user confirms", async () => {
+    conditionAddedOnOpenAccount();
+    const client = state.client as never;
+    expect(await getRuleReviewStatus(client, A)).toMatchObject({ required: true, conditionReview: true });
+    expect(await code(eligibleFoods(client, A))).toBe("409 rule_review_required");
+    expect(await code(candidateFoods(client, A))).toBe("409 rule_review_required");
+    expect(await post({ world: "open" })).toEqual({ status: 409, body: { error: "condition_review", conditions: ["Celiac"] } });
+  });
+
+  it("after the celiac pack's gluten rule is confirmed, bread is blocked and never admitted", async () => {
+    conditionAddedOnOpenAccount();
+    expect(await post({ world: "open", confirmations: [{ condition: "Celiac", choice: "pack" }] }))
+      .toEqual({ status: 200, body: { world: "open" } });
+    expect(tables.constraint_profiles[0]).toMatchObject({ avoid_allergens: ["gluten"], condition_review_required: false });
+    expect(tables.food_world_condition_confirmations).toMatchObject([{ user_id: A, condition_key: "celiac", choice: "pack" }]);
+    const client = state.client as never;
+    const eligible = await eligibleFoods(client, A);
+    expect(eligible.eligibleRefIds).toEqual(["ref-chicken"]);
+    expect(eligible.excluded).toMatchObject([{ refId: "ref-bread", verdict: "blocked" }]);
+    const admitted = await candidateFoods(client, A);
+    expect(admitted.admittedRefIds).toEqual(["ref-chicken"]);
+    expect(admitted.admittedUniverseIds.filter((id) => /bread|wheat|pita|rye/.test(id))).toEqual([]);
+  });
+
+  it("a no_limit confirmation lifts the pause without adding a rule", async () => {
+    conditionAddedOnOpenAccount();
+    expect((await post({ world: "closed", confirmations: [{ condition: "celiac ", choice: "no_limit" }] })).status).toBe(200);
+    expect(tables.constraint_profiles[0]).toMatchObject({ avoid_allergens: [], condition_review_required: false });
+    expect(await getRuleReviewStatus(state.client as never, A)).toMatchObject({ required: false });
+  });
+});

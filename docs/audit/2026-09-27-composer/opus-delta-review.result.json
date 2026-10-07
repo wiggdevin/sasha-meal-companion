@@ -1,0 +1,120 @@
+{
+  "scope_note": "Static review of the frozen source and supplied tests only. I did not run the 317 tests, tsc or lint, and I did not use a browser, device or production. Talk-to-talk (V8) is out of scope. None of the ten missing annotations is approved.",
+  "verdicts": {
+    "V1": {
+      "verdict": "YES",
+      "evidence": "CoachMic.tsx:132-137 routes the main control through onClick -> hold.toggleTap(). No pointerup, keyup or release handler stops a session. hold.ts:73-74 calls begin() at once in tap mode, and toggleTap (81-85) is the only path to release(). tap-dictation.test.ts:44-58 and tap-control.test.tsx:25-44 cover this.",
+      "remaining_proof_boundary": "Real-browser activation paths. On iOS, when a typed draft exists, see R1: the tap can reach a different control than Record."
+    },
+    "V2": {
+      "verdict": "YES",
+      "evidence": "hold.ts:102-105 puts tap mode into 'finalising' without the hold release rule, so an all-final state no longer settles synchronously. hold.ts:163-166 accumulates finals while in finalising. handleSessionEnd (205-209) and the finalise timer (119-122, which uses session.finaliseMs) settle, and settleSpeech (317-319) writes the text and sends nothing in tap mode. Tests: tap-dictation.test.ts:60-110 and hold-live.test.ts:203-233.",
+      "remaining_proof_boundary": "Real Web Speech and Live provider tail timing on devices."
+    },
+    "V3": {
+      "verdict": "YES",
+      "evidence": "CoachMic.tsx:116-118 derives record/stop/send/busy for one button. readyToSend = draft && !editing (use-composer-input.ts:54). While editing, Composer.tsx:39-46 adds a secondary Send and the main control stays Record. Test: tap-control.test.tsx:25-68.",
+      "remaining_proof_boundary": "Rendered appearance. Minor: during on-device finalise, the busy label reads 'Transcribing voice message' (R4)."
+    },
+    "V4": {
+      "verdict": "YES",
+      "evidence": "press() publishes holding plus 'listening' synchronously, so mode becomes 'stop' on the same click. The red background and .coach-recording-button pulse are at CoachMic.tsx:142-147 and globals.css:381-388. globals.css:454-455 sets animation:none under reduced motion, after the base rule at equal specificity.",
+      "remaining_proof_boundary": "Motion and reduced-motion rendering are unverified in a real browser. In recorder mode the glyph is a seconds countdown, not a square (the aria label stays 'Stop recording')."
+    },
+    "V5": {
+      "verdict": "YES",
+      "evidence": "Tap-mode withDraft (hold.ts:323-327) keeps the typed text byte-for-byte and adds a separator only when needed. abandon() and cancel() in tap mode re-read the box first (hold.ts:127, 334), so visible words survive. After Stop, a click on the textarea returns to editing (tap-control.test.tsx:65-67). Tests: tap-dictation.test.ts:148-180.",
+      "remaining_proof_boundary": "Spoken text always appends at the end; caret-position insertion is not implemented, and the cursor wording is still ambiguous. The iOS event-order risk in R1 can defeat draft preservation."
+    },
+    "V6": {
+      "verdict": "YES",
+      "evidence": "use-composer-input.ts:39-45 handles Enter, excludes Shift and excludes composition via the composing ref, nativeEvent.isComposing and keyCode 229. send() refuses while listening. The secondary Send is guarded by pointerdown (Composer.tsx:41-43). Tests: tap-control.test.tsx:70-86, 129-142, 160-172.",
+      "remaining_proof_boundary": "Real IME and keyboards, and the iOS tap order (R1)."
+    },
+    "V7": {
+      "verdict": "YES",
+      "evidence": "The gen counter plus the per-session active flag drop late callbacks. Permission denial keeps the draft and shows PERMISSION_COPY. A pending recorder permission is cancelled by a second tap. cancel() preserves words. Stop is enabled even when disabled=true (CoachMic.tsx:138). A clip at the ceiling is kept, with a busy lock. Tests: tap-dictation.test.ts:168-262 and tap-control.test.tsx:174-179.",
+      "remaining_proof_boundary": "Real permission prompts and provider failures. R2: repeated silent session ends switch the page to the recorder and stop with no notice. R3: the busy state disables the focused control."
+    }
+  },
+  "resolutions": {
+    "B1": {
+      "resolved": "YES",
+      "reason": "globals.css:455 sets animation:none on .coach-recording-button inside prefers-reduced-motion, so the ring stays at its static 4px shadow."
+    },
+    "B2": {
+      "resolved": "NO",
+      "reason": "The bounded restart part is correct: the budget resets on non-empty speech (hold.ts:160), no-speech is a restart (174-183), and repeated empty ends terminate, which prevents a hot loop. But termination still applies {type:'fallback'} (hold.ts:221-224). That sets fallback:true for the rest of the page load, so every later tap uses the server recorder. When nothing was heard, quiet() also shows no notice. The original B2 complaint about the page-wide fallback switch therefore remains. The deliberate contract asks for termination, not a capability downgrade. See R2."
+    },
+    "B3": {
+      "resolved": "YES",
+      "reason": "Tap-mode cancel() and abandon() re-read the box before restoring it (hold.ts:127, 334), so pagehide/visibilitychange keep the visible transcript. Test: tap-dictation.test.ts:148-158."
+    },
+    "B4": {
+      "resolved": "YES",
+      "reason": "Stop now enters 'busy' (disabled) until onEnd or the timeout, so a second tap usually lands on a disabled button. Send also ignores click.detail>1 (CoachMic.tsx:134) and keydown repeat (129-131). No arbitrary delay is added. The effect of detail on iOS touch double-taps is unverified."
+    },
+    "B5": {
+      "resolved": "YES",
+      "reason": "CoachMic.tsx:129-131 calls preventDefault on repeated Enter/Space keydown in every mode. Test: tap-control.test.tsx:88-110."
+    },
+    "B6": {
+      "resolved": "YES",
+      "reason": "The editing Send now sets the same pointer guard (Composer.tsx:41-43), and relatedTarget=null is tested (tap-control.test.tsx:129-142). This covers the desktop order pointerdown -> blur -> pointerup. The iOS order is not covered (R1)."
+    },
+    "B7": {
+      "resolved": "YES",
+      "reason": "Tap-mode withDraft keeps typed text untrimmed. Test: '  another draft\\n' + 'spoken'."
+    },
+    "B8": {
+      "resolved": "YES",
+      "reason": "use-composer-input.ts:57-61 clears editing only when locked changes from true to false. Notice expiry no longer flips the control. Test: tap-control.test.tsx:112-127."
+    },
+    "B9": {
+      "resolved": "YES",
+      "reason": "The F-154 row now describes one tap to start, a second tap to stop and an explicit Send, with no auto-send. This matches F-131."
+    }
+  },
+  "final_tail_case": {
+    "verdict": "YES",
+    "evidence": "After Stop, tap mode sets phase='finalising' directly (hold.ts:103) and never applies the hold release rule, so an all-final state does not settle at once. Each final segment in finalising is added through a 'listening'-phase transition and then forced back to 'finalising' (163-165), so the first final does not trigger settle(). Settlement happens only on onEnd (handleSessionEnd:207-208) or when the finalise timer fires with session?.finaliseMs ?? FINALISE_MS (119-122). That preserves the live session's longer deadline. A non-aborted error after Stop with words present settles through failed() -> settle -> settleSpeech; 'aborted' is ignored. Tests: the multi-final batch (tap-dictation.test.ts:79-92), the timeout flush (94-110), the live multi-final (hold-live.test.ts:203-216) and a slow live token beyond 800 ms (218-233).",
+    "note": "The timer is not extended by new finals. That matches the existing contract and is not a defect."
+  },
+  "remaining_problems": [
+    {
+      "id": "R1",
+      "severity": "medium-high (source-derived; needs device proof)",
+      "location": "components/coach/use-composer-input.ts:32-36, 55-56; components/CoachMic.tsx:126-128; components/coach/Composer.tsx:41-43",
+      "issue": "The blur guard depends on pointerdown -> blur -> pointerup, which is the desktop mouse order. On iOS touch, the compatibility mousedown that moves focus off the textarea fires after pointerup/touchend. By then onRecordPointerDone has cleared the flag. The button usually does not take focus, so relatedTarget is null and editing becomes false. With a typed draft, readyToSend becomes true and React commits a re-render before the click. Tapping Record can then run the 'send' branch and submit the draft instead of recording. The editing Send can also unmount before its click. The tests encode only the desktop order.",
+      "fix": "Keep focus in the textarea by calling preventDefault on mousedown for [data-composer-action] buttons. Alternatively, clear the guard in the click handler or after it, not on pointerup. Add a test in the order pointerDown, pointerUp, blur(relatedTarget:null), click that asserts Record starts and nothing is sent."
+    },
+    {
+      "id": "R2",
+      "severity": "medium",
+      "location": "lib/coach/hold.ts:221-224 with lib/coach/dictation.ts:153-158",
+      "issue": "In tap mode, two consecutive empty session ends (onEnd or no-speech) terminate through {type:'fallback'}. This sets fallback:true for the page load, so later taps skip on-device or live recognition and record to the server. When nothing was heard it also stops silently, with no NO_SPEECH notice. An ordinary long silence therefore downgrades capability. That contradicts dictation.ts, where no-speech and max-duration are explicitly not fallback reasons.",
+      "fix": "In tap mode, terminate without setting fallback. Settle if words exist; otherwise show the no-speech notice. Reserve fallback for listen()===null and FALLBACK_ERRORS. Add a test that the next tap calls listen() again."
+    },
+    {
+      "id": "R3",
+      "severity": "low",
+      "location": "components/CoachMic.tsx:138",
+      "issue": "The main control is disabled while busy/settling, so a keyboard user whose focus is on Stop loses focus. Browsers move it to body. The user must re-navigate to reach Send.",
+      "fix": "Use aria-disabled and ignore clicks in the handler while busy, keeping the button focusable."
+    },
+    {
+      "id": "R4",
+      "severity": "low",
+      "location": "components/CoachMic.tsx:139",
+      "issue": "The busy label says 'Transcribing voice message' during on-device or live finalise, not only during server transcription.",
+      "fix": "Use a neutral label such as 'Finishing recording' while view.settling is true and view.busy is false."
+    },
+    {
+      "id": "R5",
+      "severity": "low (test gap)",
+      "location": "tests/coach/tap-dictation.test.ts:127-146",
+      "issue": "The silent-termination test asserts only unlocked and does not check the fallback flag, the next listener choice or the notice, so R2 is not detected. No test checks that reduced-motion CSS applies.",
+      "fix": "Assert that the next toggleTap calls listen() again and that a no-speech notice is shown."
+    }
+  ]
+}

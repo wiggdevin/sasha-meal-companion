@@ -1,0 +1,288 @@
+{
+  "version": 1,
+  "generated": "2026-10-07",
+  "style": "Soft, almost-3D studio renders: shared 45-degree upper-left light, slightly top-down three-quarter camera, oat/olive/persimmon/Dijon color grade, transparent background, sized for a ~96px disc at 3x (384px webp, under 40KB each).",
+  "source": "lib/foods/starter.ts STARTERS catalog (food-key = Starter.id)",
+  "items": [
+    {
+      "key": "almonds",
+      "file": "almonds.webp",
+      "name": "Almonds",
+      "role": "fat",
+      "group": "snack"
+    },
+    {
+      "key": "apple-with-skin",
+      "file": "apple-with-skin.webp",
+      "name": "Apple, with skin",
+      "role": "carb",
+      "group": "fruit"
+    },
+    {
+      "key": "avocado-oil",
+      "file": "avocado-oil.webp",
+      "name": "Avocado oil",
+      "role": "fat",
+      "group": "snack"
+    },
+    {
+      "key": "avocado",
+      "file": "avocado.webp",
+      "name": "Avocado",
+      "role": "fat",
+      "group": "snack"
+    },
+    {
+      "key": "banana",
+      "file": "banana.webp",
+      "name": "Banana",
+      "role": "carb",
+      "group": "fruit"
+    },
+    {
+      "key": "black-beans-cooked",
+      "file": "black-beans-cooked.webp",
+      "name": "Black beans, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "blueberries",
+      "file": "blueberries.webp",
+      "name": "Blueberries",
+      "role": "carb",
+      "group": "fruit"
+    },
+    {
+      "key": "broccoli-cooked",
+      "file": "broccoli-cooked.webp",
+      "name": "Broccoli, cooked",
+      "role": "carb",
+      "group": "veg"
+    },
+    {
+      "key": "brown-rice-cooked",
+      "file": "brown-rice-cooked.webp",
+      "name": "Brown rice, cooked",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "butter",
+      "file": "butter.webp",
+      "name": "Butter",
+      "role": "fat",
+      "group": "dairy"
+    },
+    {
+      "key": "chicken-breast-roasted",
+      "file": "chicken-breast-roasted.webp",
+      "name": "Chicken breast, roasted",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "chickpeas-cooked",
+      "file": "chickpeas-cooked.webp",
+      "name": "Chickpeas, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "cod-cooked",
+      "file": "cod-cooked.webp",
+      "name": "Cod, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "corn-tortilla",
+      "file": "corn-tortilla.webp",
+      "name": "Corn tortilla",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "edamame-cooked",
+      "file": "edamame-cooked.webp",
+      "name": "Edamame, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "egg-white",
+      "file": "egg-white.webp",
+      "name": "Egg white",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "egg-whole-large",
+      "file": "egg-whole-large.webp",
+      "name": "Egg, whole, large",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "greek-yogurt-plain-nonfat",
+      "file": "greek-yogurt-plain-nonfat.webp",
+      "name": "Greek yogurt, plain nonfat",
+      "role": "protein",
+      "group": "dairy"
+    },
+    {
+      "key": "green-beans-cooked",
+      "file": "green-beans-cooked.webp",
+      "name": "Green beans, cooked",
+      "role": "carb",
+      "group": "veg"
+    },
+    {
+      "key": "ground-beef-90-10-cooked",
+      "file": "ground-beef-90-10-cooked.webp",
+      "name": "Ground beef 90/10, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "lentils-cooked",
+      "file": "lentils-cooked.webp",
+      "name": "Lentils, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "oatmeal-cooked",
+      "file": "oatmeal-cooked.webp",
+      "name": "Oatmeal, cooked",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "olive-oil",
+      "file": "olive-oil.webp",
+      "name": "Olive oil",
+      "role": "fat",
+      "group": "snack"
+    },
+    {
+      "key": "peanut-butter",
+      "file": "peanut-butter.webp",
+      "name": "Peanut butter",
+      "role": "fat",
+      "group": "snack"
+    },
+    {
+      "key": "pork-tenderloin-roasted",
+      "file": "pork-tenderloin-roasted.webp",
+      "name": "Pork tenderloin, roasted",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "potato-baked-with-skin",
+      "file": "potato-baked-with-skin.webp",
+      "name": "Potato, baked, with skin",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "pumpkin-seeds",
+      "file": "pumpkin-seeds.webp",
+      "name": "Pumpkin seeds",
+      "role": "fat",
+      "group": "snack"
+    },
+    {
+      "key": "quinoa-cooked",
+      "file": "quinoa-cooked.webp",
+      "name": "Quinoa, cooked",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "salmon-wild-sockeye-cooked",
+      "file": "salmon-wild-sockeye-cooked.webp",
+      "name": "Salmon, wild sockeye, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "spinach-cooked",
+      "file": "spinach-cooked.webp",
+      "name": "Spinach, cooked",
+      "role": "carb",
+      "group": "veg"
+    },
+    {
+      "key": "sweet-potato-baked",
+      "file": "sweet-potato-baked.webp",
+      "name": "Sweet potato, baked",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "tempeh",
+      "file": "tempeh.webp",
+      "name": "Tempeh",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "tofu-firm",
+      "file": "tofu-firm.webp",
+      "name": "Tofu, firm",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "tuna-canned-in-water-light",
+      "file": "tuna-canned-in-water-light.webp",
+      "name": "Tuna, canned in water, light",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "turkey-breast-roasted",
+      "file": "turkey-breast-roasted.webp",
+      "name": "Turkey breast, roasted",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "whey-protein-powder",
+      "file": "whey-protein-powder.webp",
+      "name": "Whey protein powder",
+      "role": "protein",
+      "group": "dairy"
+    },
+    {
+      "key": "white-beans-cooked",
+      "file": "white-beans-cooked.webp",
+      "name": "White beans, cooked",
+      "role": "protein",
+      "group": "protein"
+    },
+    {
+      "key": "white-bread",
+      "file": "white-bread.webp",
+      "name": "White bread",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "white-rice-cooked",
+      "file": "white-rice-cooked.webp",
+      "name": "White rice, cooked",
+      "role": "carb",
+      "group": "carb"
+    },
+    {
+      "key": "whole-wheat-bread",
+      "file": "whole-wheat-bread.webp",
+      "name": "Whole wheat bread",
+      "role": "carb",
+      "group": "carb"
+    }
+  ]
+}

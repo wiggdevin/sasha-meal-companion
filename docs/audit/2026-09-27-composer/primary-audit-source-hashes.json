@@ -1,0 +1,12 @@
+{
+  "app/globals.css": "b3e60fded04eb53226b210cc07d4b7397ba001e010fa4d3d4a0cff75a28403e1",
+  "components/CoachMic.tsx": "51ca7742e6f7fe2243013108ebea248c3109483e3b4e90ee6bc54fbe6c626497",
+  "components/coach/Composer.tsx": "6ab56567f0744667982accf65cee44fd9557f81d3eff7117cecbb77e10066e41",
+  "components/coach/use-composer-input.ts": "c7733bba2a80b1eadb64bd9d4a91cb7a688eef3a8200089abb44f85510098e8f",
+  "lib/coach/hold.ts": "1449534c40ab7ec46c10bda8e9ca48219c1bf97498311f915165876018559ccd",
+  "tests/coach/tap-dictation.test.ts": "cc28ffbbb2e7cb84ae136f9b03badd86dcf650865307d290df12f0b66674eb65",
+  "tests/coach/composer/tap-control.test.tsx": "41cd54b8be18a087d1651f5a0d4133a8c1669f7dc2aa9216e84ccf92746fbe16",
+  "tests/coach/composer/toolbar.test.tsx": "f0860f91fe94d781f590f4ec966cfa658f18d5b9194a843a3b4d359e29ebb139",
+  "tests/coach/history-source-compose.test.tsx": "5b8e9fbcb0274f9ec4c92b75a0e82dbcca24b161aacf09e634e50eb45673ed07",
+  "tests/voice/hold-live.test.ts": "b20abb72517c31ea1b307b2b0675297da81de07a2c5365a7991b732536f59437"
+}

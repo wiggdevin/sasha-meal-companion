@@ -1,0 +1,15 @@
+DO NOT SHIP
+
+1. **r4 #1 — NOT RESOLVED.** The worker leaves an old-build tab running for three seconds after requesting a reload, then silently ignores a failed navigation. During that window, the old tab can still handle an A→B auth event over its shared store. [sw.js](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/public/sw.js:133), [old AuthGate at `origin/main`, lines 273–317](https://github.com/wiggdevin/sasha-meal-companion/blob/main/components/AuthGate.tsx).
+
+2. **r4 #2 — RESOLVED.** A confirmed `account_mismatch` now calls departure without a `getSession()` wait. Departure closes the account and switches the gate to its neutral leaving screen immediately. [AuthGate.tsx](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/components/AuthGate.tsx:353), [boot.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/device/boot.ts:167), [departure.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/device/departure.ts:181).
+
+3. **r4 #3 — ACCEPT for Sasha’s stated device.** The disputed lease path is used only without Web Locks; [WebKit added Web Locks in Safari 15.4](https://webkit.org/blog/12445/new-webkit-features-in-safari-15-4/). Safari 17+ takes the Web Lock path. [writer-lock.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/device/writer-lock.ts:159).
+
+4. **r4 #4 — ACCEPT for this release.** The plan operation is queued durably before the store projection. A stalled sign-out can leave Today stale while offline, but the queued change appears after sync; this is a narrow display gap, not permanent loss. [plan-day-client.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/plan-day-client.ts:129), [plan-cache.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/sync/plan-cache.ts:31).
+
+5. **NEW [BLOCK] — forced navigation can lose an old tab’s unsaved edit.** The old store keeps a storage-refused save only in memory (`origin/main:lib/store.ts:173–191`). The new worker navigates that tab without a durability check after three seconds. This can affect Safari 17+. [sw.js](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/public/sw.js:135).
+
+6. **NEW [BLOCK] — a current tab can be mistaken for an old one.** Concurrent `smc:hello` messages read and rewrite one shared client list; one write can erase the other, and write failures are ignored. The worker then force-navigates the unlisted tab, bypassing its blocked-save Retry path. [sw.js](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/public/sw.js:86), [departure.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/device/departure.ts:161).
+
+This is a source review. The focused Vitest run could not start because the read-only workspace denied its temporary-directory writes. Ego Lite also reported an available update.

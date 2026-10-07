@@ -1,0 +1,182 @@
+[
+  {
+    "path": "/api/constraints",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/constraints",
+    "method": "PUT",
+    "status": 401
+  },
+  {
+    "path": "/api/targets",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/targets",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/coach",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/sync",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/sync",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/export",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/expenditure",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/proposals",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/health/ingest",
+    "method": "POST",
+    "status": 503
+  },
+  {
+    "path": "/api/health/daily",
+    "method": "GET",
+    "status": 503
+  },
+  {
+    "path": "/api/health/tokens",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/health/oura/start",
+    "method": "GET",
+    "status": 503
+  },
+  {
+    "path": "/api/health/oura/callback",
+    "method": "GET",
+    "status": 200
+  },
+  {
+    "path": "/api/health/oura/disconnect",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/health/tokens/00000000-0000-4000-8000-000000000000",
+    "method": "DELETE",
+    "status": 401
+  },
+  {
+    "path": "/api/coach/threads",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/coach/threads",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/coach/threads/00000000-0000-4000-8000-000000000000",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/coach/threads/00000000-0000-4000-8000-000000000000",
+    "method": "DELETE",
+    "status": 401
+  },
+  {
+    "path": "/api/log/propose",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/log/commit",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/dev/sign-in",
+    "method": "GET",
+    "status": 404
+  },
+  {
+    "path": "/api/foods/search",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/foods/barcode",
+    "method": "POST",
+    "status": 404
+  },
+  {
+    "path": "/api/foods/00000000-0000-4000-8000-000000000000",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/sync/changes",
+    "method": "GET",
+    "status": 401
+  },
+  {
+    "path": "/api/sync/ops",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/jobs/oura-pull",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/jobs/weekly-review",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/jobs/estimate",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/jobs/backup",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/jobs/weekly-proposal",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/proposals/00000000-0000-4000-8000-000000000000/decide",
+    "method": "POST",
+    "status": 401
+  },
+  {
+    "path": "/api/media/sign",
+    "method": "POST",
+    "status": 401
+  }
+]

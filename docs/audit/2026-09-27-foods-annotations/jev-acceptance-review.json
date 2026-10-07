@@ -1,0 +1,144 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "A01": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.99,
+      "probabilities": {
+        "no": 1.0,
+        "yes": 0.0
+      }
+    },
+    "A02": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.29,
+      "probabilities": {
+        "no": 0.64,
+        "yes": 0.36
+      }
+    },
+    "A03": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.17,
+      "probabilities": {
+        "no": 0.58,
+        "yes": 0.42
+      }
+    },
+    "A04": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.53,
+      "probabilities": {
+        "no": 0.76,
+        "yes": 0.24
+      }
+    },
+    "A05": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.94,
+      "probabilities": {
+        "no": 0.97,
+        "yes": 0.03
+      }
+    },
+    "A06": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.72,
+      "probabilities": {
+        "no": 0.86,
+        "yes": 0.14
+      }
+    },
+    "A07": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.36,
+      "probabilities": {
+        "no": 0.68,
+        "yes": 0.32
+      }
+    },
+    "A08": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.99,
+      "probabilities": {
+        "no": 0.99,
+        "yes": 0.01
+      }
+    },
+    "A09": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.71,
+      "probabilities": {
+        "no": 0.85,
+        "yes": 0.15
+      }
+    },
+    "A10": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 1.0,
+      "probabilities": {
+        "no": 1.0,
+        "yes": 0.0
+      }
+    },
+    "A11": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.98,
+      "probabilities": {
+        "no": 0.99,
+        "yes": 0.01
+      }
+    },
+    "A12": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.99,
+      "probabilities": {
+        "no": 1.0,
+        "yes": 0.0
+      }
+    },
+    "A13": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 1.0,
+      "probabilities": {
+        "no": 1.0,
+        "yes": 0.0
+      }
+    },
+    "A14": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.31,
+      "probabilities": {
+        "no": 0.65,
+        "yes": 0.35
+      }
+    },
+    "A15": {
+      "type": "choice",
+      "choice": "no",
+      "confidence": 0.97,
+      "probabilities": {
+        "no": 0.99,
+        "yes": 0.01
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 20231,
+    "output_tokens": 453
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "recipe_plan_bump_food_ref_state()": {
+    "class": "private_trigger",
+    "table": "food_refs",
+    "trigger": "recipe_state_food_refs"
+  },
+  "recipe_consumed_guard_plan_day()": {
+    "class": "private_trigger",
+    "table": "plan_days",
+    "trigger": "recipe_consumed_guard"
+  },
+  "rules_clock_bump()": {
+    "class": "private_trigger",
+    "table": "user_food_prefs",
+    "trigger": "rules_clock_user_food_prefs"
+  },
+  "evidence_clock_bump()": {
+    "class": "private_trigger",
+    "table": "food_allergen_evidence",
+    "trigger": "evidence_clock_food_allergen_evidence_ins"
+  },
+  "constraint_profiles_condition_gate()": {
+    "class": "private_trigger",
+    "table": "constraint_profiles",
+    "trigger": "constraint_profiles_condition_gate"
+  },
+  "user_settings_food_world_guard()": {
+    "class": "private_trigger",
+    "table": "user_settings",
+    "trigger": "user_settings_food_world_guard",
+    "definer": false,
+    "reason": "Security invoker on purpose: it reads current_user to refuse a direct authenticated or anon write of food_world."
+  },
+  "_coach_action_receipts_immutable()": {
+    "class": "private_trigger",
+    "table": "coach_action_receipts",
+    "trigger": "coach_action_receipts_immutable"
+  },
+  "_coach_action_undos_mode_fixed()": {
+    "class": "private_trigger",
+    "table": "coach_action_undos",
+    "trigger": "coach_action_undos_mode_fixed"
+  },
+  "_taste_chip_receipts_guard()": {
+    "class": "private_trigger",
+    "table": "taste_chip_receipts",
+    "trigger": "taste_chip_receipts_guard"
+  },
+  "_taste_chip_holds_release()": {
+    "class": "private_trigger",
+    "table": "user_settings",
+    "trigger": "taste_chip_holds_release"
+  }
+}

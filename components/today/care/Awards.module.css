@@ -1,0 +1,283 @@
+/* Award player and notes (components/today/care/*). One 350 × 420 box like the pond; every position is
+   a percentage of it. Crisp, glowing, wet: never milky. */
+
+.player {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  border-radius: inherit;
+  isolation: isolate;
+  --tone: var(--color-on-olive);
+}
+.player[data-material="stone"] { --tone: var(--color-on-olive); }
+.player[data-material="earth"] { --tone: var(--color-gauge-calories-end); }
+.player[data-material="grass"] { --tone: var(--color-gauge-carbs-end); }
+.player[data-material="wood"] { --tone: var(--color-gauge-fat-end); }
+.player[data-material="metal"] { --tone: var(--color-gauge-water-end); }
+.player[data-material="neon"] { --tone: var(--color-gauge-protein-end); }
+
+/* The room dims around the moment: a deep vignette with the award's own light at its heart. */
+.dim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 45% at 50% 45%, color-mix(in oklab, var(--tone) 22%, transparent), transparent 70%),
+    color-mix(in oklab, var(--color-charcoal-deep) 95%, transparent);
+}
+
+.box {
+  position: absolute;
+  inset: 0;
+}
+
+.token {
+  position: absolute;
+  width: 30%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  filter: drop-shadow(0 0 14px color-mix(in oklab, var(--tone) 70%, transparent))
+    drop-shadow(0 10px 18px color-mix(in oklab, var(--color-charcoal-deep) 80%, transparent));
+}
+.token img { width: 100%; height: 100%; object-fit: contain; }
+
+/* The lock: a ring of light that opens out from the token. */
+.ring {
+  position: absolute;
+  left: 50%;
+  top: 45.24%;
+  width: 34%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--tone) 90%, transparent),
+    0 0 24px 6px color-mix(in oklab, var(--tone) 60%, transparent);
+  pointer-events: none;
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, var(--color-on-olive), transparent 60%);
+  pointer-events: none;
+}
+
+.sparks {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  --flame-hot: var(--color-gauge-fat-end);
+  --flame-mid: var(--color-gauge-calories-end);
+  --flame-deep: var(--color-gauge-calories);
+}
+
+.words {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 66%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 32px;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  text-shadow: 0 0 18px color-mix(in oklab, var(--tone) 55%, transparent);
+}
+.line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-muted);
+}
+
+.controls {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.controls > div { display: flex; gap: 8px; }
+
+/* ------------------------------------------------------------------------- the buff workout */
+
+.sprout {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 52%;
+  translate: -50% -50%;
+}
+.sprout img { width: 100%; height: auto; }
+/* Effort: a red heat behind Sprout that pulses as it flexes harder. */
+.heat {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 70%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-gauge-calories) 70%, transparent), transparent 65%);
+  pointer-events: none;
+}
+.badge {
+  position: absolute;
+  width: 22%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  z-index: 4;
+  filter: drop-shadow(0 0 12px color-mix(in oklab, var(--tone) 70%, transparent));
+}
+.badge img { width: 100%; height: 100%; object-fit: contain; }
+
+/* ---------------------------------------------------------------------------- the bat night */
+
+.night { position: absolute; inset: 0; }
+.night img { object-fit: cover; }
+.eyes {
+  position: absolute;
+  display: flex;
+  gap: 7px;
+  translate: -50% -50%;
+}
+.eye {
+  width: 6px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--color-on-olive), color-mix(in oklab, var(--color-gauge-fat-end) 70%, transparent));
+  box-shadow: 0 0 6px color-mix(in oklab, var(--color-gauge-fat-end) 80%, transparent);
+}
+.bat {
+  position: absolute;
+  width: 22%;
+  translate: -50% -100%;
+  z-index: 3;
+}
+.bat img { width: 100%; height: auto; }
+.speech {
+  position: absolute;
+  z-index: 6;
+  max-width: 52%;
+  padding: 8px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-charcoal-deep);
+  background: var(--color-on-olive);
+  box-shadow: 0 6px 18px -6px color-mix(in oklab, var(--color-charcoal-deep) 80%, transparent);
+  translate: -50% -100%;
+}
+
+/* ------------------------------------------------------------------------------------- notes */
+
+.notes {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.note {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  color: var(--color-text-primary);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--color-charcoal-deep) 70%, var(--note-tone)),
+    var(--color-charcoal-deep));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 20%, transparent),
+    inset 0 0 0 1px color-mix(in oklab, var(--note-tone) 40%, transparent),
+    0 10px 24px -10px color-mix(in oklab, var(--color-charcoal-deep) 90%, transparent);
+  --note-tone: var(--color-on-olive);
+}
+.note[data-type="tip"] { --note-tone: var(--color-gauge-carbs-end); }
+.note[data-type="accolade"] { --note-tone: var(--color-gauge-fat-end); }
+.note[data-type="observation"] { --note-tone: var(--color-gauge-water-end); }
+.note[data-type="system"] { --note-tone: var(--color-gauge-calories-end); }
+.note[data-type="shop"] { --note-tone: var(--color-gauge-protein-end); }
+.note[data-type="streak"] { --note-tone: var(--color-gauge-fat); }
+.noteIcon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--note-tone) 22%, transparent);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--note-tone) 35%, transparent);
+}
+.noteIcon img { width: 30px; height: 30px; object-fit: contain; }
+.noteGlyph {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--note-tone);
+  box-shadow: 0 0 8px var(--note-tone);
+}
+.noteBody { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.noteTitle { font-size: 14px; font-weight: 600; line-height: 20px; }
+.noteText { font-size: 14px; line-height: 20px; color: var(--color-text-muted); }
+.noteActions { display: flex; gap: 6px; margin-top: 6px; }
+.beads { display: flex; gap: 4px; margin-top: 4px; }
+.bead {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--note-tone) 30%, transparent);
+}
+.bead[data-on] { background: var(--note-tone); box-shadow: 0 0 6px var(--note-tone); }
+
+/* The collapsed pill: a glint runs across it and a small glyph waits beside Sprout. */
+.glint {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.glint::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -30%;
+  width: 30%;
+  background: linear-gradient(100deg, transparent, color-mix(in oklab, var(--color-on-olive) 40%, transparent), transparent);
+  animation: glint 1.2s var(--ease-out-expo) 2;
+}
+@keyframes glint {
+  from { transform: translateX(0); }
+  to { transform: translateX(450%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glint::after { animation: none; opacity: 0; }
+}
+
+/* The night scene keeps its lamplight clear: the words sit below it, in the dark. */
+.player[data-scene="bat"] .words { top: 71%; }
+.player[data-scene="flex"] .words { top: 69%; }

@@ -1,0 +1,79 @@
+{
+  "actions": [
+    {
+      "kind": "shift_schedule",
+      "date": "2026-09-18",
+      "minutes": 30,
+      "scope": "remaining"
+    },
+    {
+      "kind": "shift_schedule",
+      "date": "2026-09-18",
+      "minutes": -45,
+      "scope": "all"
+    },
+    null,
+    null,
+    null,
+    {
+      "kind": "add_to_eats",
+      "name": "salmon"
+    },
+    {
+      "kind": "add_to_avoid",
+      "name": "cake"
+    },
+    {
+      "kind": "remove_from_eats",
+      "name": "salmon"
+    },
+    {
+      "kind": "remove_from_avoid",
+      "name": "x"
+    },
+    null,
+    {
+      "kind": "log_water",
+      "ml": 480
+    },
+    null,
+    null,
+    {
+      "kind": "log_weight",
+      "kg": 58.06
+    },
+    null,
+    null,
+    null,
+    null
+  ],
+  "replies": [
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "Adding Watermelon, raw to your Avoid list.",
+    "Removing Watermelon, raw from your Avoid list.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "Moving your remaining meals 30 minutes later.",
+    "Moving your planned meals 45 minutes earlier.",
+    "Logging 2 cups (16 oz) of water.",
+    "Logging 6 cups (48 oz) of water.",
+    "Logging 58.1 kg.",
+    "Logging 1234.5 kg.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "That change is ready.",
+    "Adding salmon to your Eats list.",
+    "Removing salmon from your Eats list.",
+    "That change is ready.",
+    "That change is ready."
+  ]
+}

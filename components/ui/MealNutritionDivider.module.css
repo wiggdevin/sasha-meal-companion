@@ -1,0 +1,108 @@
+/* The meal card's nutrition (DESIGN.md Cards and Surfaces › Meal card): on the charcoal card, between
+   the title and the beige tray. */
+.divider {
+  position: relative;
+  z-index: 2;
+  padding: 0 16px;
+}
+
+/* The reference's ornament: a hairline, a small cream diamond, a short hairline. */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 4px 16px;
+  opacity: .6;
+}
+.ornament span {
+  height: 1px;
+  flex: 1;
+  background: #6a6f59;
+}
+.ornament span:last-child {
+  flex: none;
+  width: 56px;
+}
+.ornament i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: #f3eee2;
+  transform: rotate(45deg);
+}
+
+/* The reference's olive spec panel. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 6px 12px;
+  border-radius: 24px;
+  background: #4f5343;
+  box-shadow: var(--bevel), 0 10px 20px -12px rgba(0, 0, 0, .6);
+}
+
+.specs {
+  align-items: start;
+}
+
+.spec {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.spec + .spec {
+  border-left: 1px solid rgba(255, 255, 255, .1);
+}
+
+.specLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px; /* KIT §14: nothing on a card under 12 px */
+  letter-spacing: .06em;
+  color: #b1b2a9;
+}
+
+.specValue {
+  font-size: 14px;
+  font-weight: 400;
+  color: #e2dcd0;
+}
+
+/* The proportional split: a hairline-thin bar. Inside the panel it is inset; on a compact card it
+   sits at the foot of the hero's text column (MealMacroBar, AfterDarkCards.module.css .heroBar). */
+.bar {
+  display: flex;
+  gap: 2px;
+  height: 3px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+}
+.panel .bar {
+  width: auto;
+  margin: 0 12px;
+}
+
+.bar > span {
+  min-width: 4px;
+  height: 100%;
+}
+
+.calorie {
+  min-width: 72px;
+}
+
+.kcalUnit {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 370px) {
+  .calorie { min-width: 68px; }
+  .specLabel { letter-spacing: .1em; }
+}

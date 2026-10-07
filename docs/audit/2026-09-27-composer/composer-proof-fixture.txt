@@ -1,0 +1,17 @@
+"use client";
+
+// Temporary local verification entry. Remove before committing or shipping.
+import { useState } from "react";
+import Composer from "@/components/coach/Composer";
+import ComposerToolbar from "@/components/coach/ComposerToolbar";
+
+export default function ComposerProof() {
+  const [sent, setSent] = useState<string[]>([]);
+  return <main data-section="coach" style={{ maxWidth: 440, margin: "48px auto", padding: 20 }}>
+    <p>Local composer verification</p>
+    <Composer disabled={false} offline={false} onSend={(text) => setSent((old) => [...old, text])}
+      toolbar={<ComposerToolbar capabilities={{ scan: false, captureMethods: [] }} weightUnit="lb"
+        onAttachment={() => {}} onSendText={() => {}} />} />
+    <output data-testid="sent-output">{JSON.stringify(sent)}</output>
+  </main>;
+}

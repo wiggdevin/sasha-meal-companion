@@ -1,0 +1,55 @@
+/* A food row and its Remove (U13, owner 2026-10-04: "the favorites button … should be pressed freely
+   without the remove button coming up every time"). Remove used to sit in the row's flow after the
+   star and grow from 0 to 72 px whenever anything in the row took focus, so a tap on the star pushed
+   the star 72 px left and put Remove under the finger. Now Remove lies OVER the row's right end and
+   nothing in the row moves for it: it is revealed only by the swipe (or the card's Edit toggle,
+   `data-open`), by keyboard focus on the row's face, or by its own keyboard focus. While it shows,
+   the star and the calorie figure it covers fade out, and it is opaque, so nothing reads through. */
+.row {
+  position: relative;
+}
+.remove {
+  --remove-width: 72px;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: var(--remove-width);
+  padding: 0 8px;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  /* The selected wash over the card face, so the overlay is solid. */
+  background: linear-gradient(var(--color-selected-soft), var(--color-selected-soft)), var(--color-surface);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(12px, -50%);
+  transition:
+    opacity 150ms var(--ease-out-expo),
+    transform var(--dur-spring-snappy) var(--ease-spring-snappy);
+}
+/* "Clear marks" on an Other food needs more room than "Remove". */
+.remove.wide {
+  --remove-width: 96px;
+}
+.row[data-open="true"] .remove,
+.row:has(.face:focus-visible) .remove,
+.remove:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(0, -50%);
+}
+/* What Remove covers steps out of its way instead of showing through or being pushed. */
+.covered {
+  transition: opacity 150ms var(--ease-out-expo);
+}
+.row[data-open="true"] .covered,
+.row:has(.face:focus-visible) .covered,
+.row:has(.remove:focus-visible) .covered {
+  opacity: 0;
+}
+.row[data-open="true"] [data-row-star],
+.row:has(.remove:focus-visible) [data-row-star] {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .remove, .covered { transition: none; }
+}

@@ -1,0 +1,22 @@
+/* VISUAL-SPEC.md §4's chip-surface fix, moved out of a JSX `style` object: `tests/design/
+   inline-style.test.ts` (Sol review round 3, BLOCK) rejects a `border*Color` set inline anywhere in
+   app/ or components/ — presentation belongs in CSS, not a style object, even a token-only one.
+   `--ink-rgb` is the `.matte` scope's own triplet (app/globals.css), never a literal. */
+.chipSurface {
+  border-color: rgb(var(--ink-rgb) / 0.18);
+  background: rgb(var(--ink-rgb) / 0.08);
+}
+
+/* Orchestrator review, 2026-10-07: a screenshot caught the dock clipped to its two-row chip
+   content — `height` starts at `MIN_HEIGHT` (64px) every mount and only grows once
+   `ResizeObserver` reports the real measurement one tick later; a frame rendered in that window
+   (or any device slow enough to make that window visible) showed only the first row. `min-height`
+   beats an explicit `height` in CSS's own cascade, so this floor holds the frame open wide enough
+   for two 44px chip rows from the very first paint, before any measurement runs at all — the
+   animate-to-measured-height behavior for every other mode, and for a chip row that genuinely
+   needs only one row, is unchanged. */
+.dockFrame[data-mode="chips"] {
+  /* Two 44px chip rows (`min-h-11`) + the 8px row gap + the content div's own 12px top/bottom
+     padding (`p-3`) = 120px; a few px of headroom against rounding. */
+  min-height: 124px;
+}

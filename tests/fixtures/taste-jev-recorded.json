@@ -1,0 +1,964 @@
+{
+ "recordedAt": "2026-10-06",
+ "via": "TypeSafe System One (jev_evaluate, model jev-latest), the exact state and questions tastePayload builds",
+ "cases": [
+  {
+   "text": "I can't stand mushy textures",
+   "families": [],
+   "request": {
+    "model": "jev-latest",
+    "state": {
+     "text": "I can't stand mushy textures",
+     "foods": []
+    },
+    "questions": {
+     "tag_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is soft or mushy in texture?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_1": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is slimy in texture?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_2": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is spicy hot (chili heat)?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_3": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is strongly fishy in taste or smell?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_4": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is bitter?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_5": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is crunchy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_6": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is chewy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_7": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is pungent or strong-smelling?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_8": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is sour?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_9": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is creamy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_10": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is gamey (a strong wild-meat taste)?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_11": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is organ meat, such as liver or kidney?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "cuisine_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating American food (including Southern, soul food and barbecue)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_1": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Mexican and Latin American food (including Tex-Mex)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_2": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Italian food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_3": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Mediterranean and Middle Eastern food (including Greek, Turkish, Lebanese and Persian)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_4": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Indian and South Asian food (including Pakistani, Bangladeshi and Sri Lankan)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_5": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Chinese food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_6": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Japanese food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_7": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Korean food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_8": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Southeast Asian food (including Thai, Vietnamese, Filipino and Indonesian)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_9": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Caribbean food (including Jamaican, Cuban and Puerto Rican)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_10": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating African food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_11": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating European (other) food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     }
+    }
+   },
+   "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+     "tag_4": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_6": {
+      "type": "noul",
+      "noul": 0.06
+     },
+     "tag_10": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_11": {
+      "type": "noul",
+      "noul": 0.04
+     },
+     "cuisine_3": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_10": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_0": {
+      "type": "noul",
+      "noul": 0.97
+     },
+     "tag_8": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_2": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_4": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_6": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_7": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_8": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_1": {
+      "type": "noul",
+      "noul": 0.32
+     },
+     "tag_3": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_5": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_7": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_9": {
+      "type": "noul",
+      "noul": 0.37
+     },
+     "cuisine_0": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "cuisine_1": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_5": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_2": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "cuisine_9": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_11": {
+      "type": "noul",
+      "noul": 0.02
+     }
+    },
+    "usage": {
+     "input_tokens": 890,
+     "output_tokens": 464
+    }
+   }
+  },
+  {
+   "text": "I grew up on Tex-Mex",
+   "families": [],
+   "request": {
+    "model": "jev-latest",
+    "state": {
+     "text": "I grew up on Tex-Mex",
+     "foods": []
+    },
+    "questions": {
+     "tag_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is soft or mushy in texture?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_1": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is slimy in texture?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_2": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is spicy hot (chili heat)?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_3": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is strongly fishy in taste or smell?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_4": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is bitter?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_5": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is crunchy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_6": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is chewy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_7": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is pungent or strong-smelling?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_8": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is sour?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_9": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is creamy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_10": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is gamey (a strong wild-meat taste)?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_11": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is organ meat, such as liver or kidney?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "cuisine_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating American food (including Southern, soul food and barbecue)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_1": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Mexican and Latin American food (including Tex-Mex)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_2": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Italian food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_3": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Mediterranean and Middle Eastern food (including Greek, Turkish, Lebanese and Persian)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_4": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Indian and South Asian food (including Pakistani, Bangladeshi and Sri Lankan)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_5": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Chinese food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_6": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Japanese food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_7": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Korean food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_8": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Southeast Asian food (including Thai, Vietnamese, Filipino and Indonesian)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_9": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Caribbean food (including Jamaican, Cuban and Puerto Rican)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_10": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating African food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_11": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating European (other) food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     }
+    }
+   },
+   "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+     "tag_0": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_1": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_2": {
+      "type": "noul",
+      "noul": 0.05
+     },
+     "tag_3": {
+      "type": "noul",
+      "noul": 0.04
+     },
+     "tag_4": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_5": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_6": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_7": {
+      "type": "noul",
+      "noul": 0.04
+     },
+     "tag_8": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_9": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_10": {
+      "type": "noul",
+      "noul": 0.04
+     },
+     "tag_11": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "cuisine_0": {
+      "type": "noul",
+      "noul": 0.1
+     },
+     "cuisine_1": {
+      "type": "noul",
+      "noul": 0.94
+     },
+     "cuisine_2": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_3": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_4": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_5": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_6": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_7": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_8": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_9": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_10": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_11": {
+      "type": "noul",
+      "noul": 0.02
+     }
+    },
+    "usage": {
+     "input_tokens": 890,
+     "output_tokens": 464
+    }
+   }
+  },
+  {
+   "text": "I love salmon",
+   "families": [
+    "salmon"
+   ],
+   "request": {
+    "model": "jev-latest",
+    "state": {
+     "text": "I love salmon",
+     "foods": [
+      "salmon"
+     ]
+    },
+    "questions": {
+     "like_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, loves or enjoys eating state.foods[0] (\"salmon\")?",
+      "criteria": {
+       "yes": "The text states a liking for this food.",
+       "no": "The text states no liking for it, or a dislike."
+      }
+     },
+     "dislike_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes, hates or cannot stand eating state.foods[0] (\"salmon\")?",
+      "criteria": {
+       "yes": "The text states a dislike of this food.",
+       "no": "The text states no dislike of it, or a liking."
+      }
+     },
+     "tag_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is soft or mushy in texture?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_1": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is slimy in texture?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_2": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is spicy hot (chili heat)?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_3": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is strongly fishy in taste or smell?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_4": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is bitter?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_5": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is crunchy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_6": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is chewy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_7": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is pungent or strong-smelling?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_8": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is sour?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_9": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is creamy?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_10": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is gamey (a strong wild-meat taste)?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "tag_11": {
+      "type": "noul",
+      "instructions": "Does state.text say the person dislikes food that is organ meat, such as liver or kidney?",
+      "criteria": {
+       "yes": "The text states a dislike of food with this quality.",
+       "no": "The text states no dislike of this quality, or a liking for it."
+      }
+     },
+     "cuisine_0": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating American food (including Southern, soul food and barbecue)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_1": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Mexican and Latin American food (including Tex-Mex)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_2": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Italian food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_3": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Mediterranean and Middle Eastern food (including Greek, Turkish, Lebanese and Persian)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_4": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Indian and South Asian food (including Pakistani, Bangladeshi and Sri Lankan)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_5": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Chinese food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_6": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Japanese food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_7": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Korean food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_8": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Southeast Asian food (including Thai, Vietnamese, Filipino and Indonesian)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_9": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating Caribbean food (including Jamaican, Cuban and Puerto Rican)?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_10": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating African food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     },
+     "cuisine_11": {
+      "type": "noul",
+      "instructions": "Does state.text say the person likes, enjoys or grew up eating European (other) food?",
+      "criteria": {
+       "yes": "The text states a liking for, or a background in, this cuisine.",
+       "no": "The text says nothing about this cuisine, or states a dislike of it."
+      }
+     }
+    }
+   },
+   "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+     "like_0": {
+      "type": "noul",
+      "noul": 0.99
+     },
+     "dislike_0": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "tag_0": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_1": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_2": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_3": {
+      "type": "noul",
+      "noul": 0.04
+     },
+     "tag_4": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_5": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_6": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_7": {
+      "type": "noul",
+      "noul": 0.04
+     },
+     "tag_8": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "tag_9": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "tag_10": {
+      "type": "noul",
+      "noul": 0.06
+     },
+     "tag_11": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "cuisine_0": {
+      "type": "noul",
+      "noul": 0.07
+     },
+     "cuisine_1": {
+      "type": "noul",
+      "noul": 0.01
+     },
+     "cuisine_2": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "cuisine_3": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_4": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_5": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_6": {
+      "type": "noul",
+      "noul": 0.22
+     },
+     "cuisine_7": {
+      "type": "noul",
+      "noul": 0.03
+     },
+     "cuisine_8": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_9": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_10": {
+      "type": "noul",
+      "noul": 0.02
+     },
+     "cuisine_11": {
+      "type": "noul",
+      "noul": 0.11
+     }
+    },
+    "usage": {
+     "input_tokens": 951,
+     "output_tokens": 501
+    }
+   }
+  }
+ ]
+}

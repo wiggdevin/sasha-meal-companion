@@ -1,0 +1,335 @@
+{
+  "migrations": [
+    {
+      "version": "20260911000100"
+    },
+    {
+      "version": "20260911000200"
+    },
+    {
+      "version": "20260911000300"
+    },
+    {
+      "version": "20260911000400"
+    },
+    {
+      "version": "20260911000500"
+    },
+    {
+      "version": "20260911000600"
+    },
+    {
+      "version": "20260911000700"
+    },
+    {
+      "version": "20260911000710"
+    },
+    {
+      "version": "20260912090000"
+    },
+    {
+      "version": "20260912090050"
+    },
+    {
+      "version": "20260912090100"
+    },
+    {
+      "version": "20260912090200"
+    },
+    {
+      "version": "20260918090000"
+    },
+    {
+      "version": "20260918090100"
+    },
+    {
+      "version": "20260918090200"
+    },
+    {
+      "version": "20260918090300"
+    },
+    {
+      "version": "20260919090000"
+    },
+    {
+      "version": "20260919090100"
+    },
+    {
+      "version": "20260919090200"
+    },
+    {
+      "version": "20260919090300"
+    },
+    {
+      "version": "20260920090000"
+    },
+    {
+      "version": "20260920090100"
+    },
+    {
+      "version": "20260921090000"
+    },
+    {
+      "version": "20260925000000"
+    },
+    {
+      "version": "20260926000000"
+    },
+    {
+      "version": "20261001000000"
+    },
+    {
+      "version": "20261003000000"
+    },
+    {
+      "version": "20261006090100"
+    },
+    {
+      "version": "20261007090000"
+    },
+    {
+      "version": "20261008090000"
+    },
+    {
+      "version": "20261012090000"
+    },
+    {
+      "version": "20261013090000"
+    },
+    {
+      "version": "20261013090200"
+    },
+    {
+      "version": "20261014090000"
+    },
+    {
+      "version": "20261014090001"
+    },
+    {
+      "version": "20261015000000"
+    },
+    {
+      "version": "20261016090000"
+    },
+    {
+      "version": "20261016090100"
+    },
+    {
+      "version": "20261017090000"
+    }
+  ],
+  "public_rls": [
+    {
+      "table_name": "ai_calls",
+      "rls": true
+    },
+    {
+      "table_name": "api_tokens",
+      "rls": true
+    },
+    {
+      "table_name": "backup_runs",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_barcode_lookups",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_barcodes",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_dri",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_food_nutrients",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_food_revisions",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_foods",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_ingredients",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_nutrients",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_portions",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_synonyms",
+      "rls": true
+    },
+    {
+      "table_name": "catalog_versions",
+      "rls": true
+    },
+    {
+      "table_name": "change_log",
+      "rls": true
+    },
+    {
+      "table_name": "change_seq",
+      "rls": true
+    },
+    {
+      "table_name": "coach_messages",
+      "rls": true
+    },
+    {
+      "table_name": "coach_threads",
+      "rls": true
+    },
+    {
+      "table_name": "constraint_profiles",
+      "rls": true
+    },
+    {
+      "table_name": "days",
+      "rls": true
+    },
+    {
+      "table_name": "duplicate_group_members",
+      "rls": true
+    },
+    {
+      "table_name": "duplicate_groups",
+      "rls": true
+    },
+    {
+      "table_name": "expenditure_estimates",
+      "rls": true
+    },
+    {
+      "table_name": "favorites_foods",
+      "rls": true
+    },
+    {
+      "table_name": "favorites_meal_items",
+      "rls": true
+    },
+    {
+      "table_name": "favorites_meals",
+      "rls": true
+    },
+    {
+      "table_name": "favorites_recipes",
+      "rls": true
+    },
+    {
+      "table_name": "food_refs",
+      "rls": true
+    },
+    {
+      "table_name": "foods",
+      "rls": true
+    },
+    {
+      "table_name": "gut_log",
+      "rls": true
+    },
+    {
+      "table_name": "health_samples",
+      "rls": true
+    },
+    {
+      "table_name": "health_sources",
+      "rls": true
+    },
+    {
+      "table_name": "ingest_events",
+      "rls": true
+    },
+    {
+      "table_name": "job_runs",
+      "rls": true
+    },
+    {
+      "table_name": "legacy_backfill_rows",
+      "rls": true
+    },
+    {
+      "table_name": "log_entries",
+      "rls": true
+    },
+    {
+      "table_name": "log_items",
+      "rls": true
+    },
+    {
+      "table_name": "media_objects",
+      "rls": true
+    },
+    {
+      "table_name": "oauth_states",
+      "rls": true
+    },
+    {
+      "table_name": "plan_days",
+      "rls": true
+    },
+    {
+      "table_name": "recipe_items",
+      "rls": true
+    },
+    {
+      "table_name": "recipe_revisions",
+      "rls": true
+    },
+    {
+      "table_name": "recipes",
+      "rls": true
+    },
+    {
+      "table_name": "settings",
+      "rls": true
+    },
+    {
+      "table_name": "target_profiles",
+      "rls": true
+    },
+    {
+      "table_name": "target_proposals",
+      "rls": true
+    },
+    {
+      "table_name": "user_food_prefs",
+      "rls": true
+    },
+    {
+      "table_name": "user_foods",
+      "rls": true
+    },
+    {
+      "table_name": "user_settings",
+      "rls": true
+    },
+    {
+      "table_name": "water_log",
+      "rls": true
+    }
+  ],
+  "legacy_counts": [
+    {
+      "foods": 0,
+      "days": 0,
+      "settings": 0
+    }
+  ],
+  "backups": [
+    {
+      "count": 0
+    }
+  ]
+}

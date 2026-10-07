@@ -1,0 +1,16 @@
+{
+  "base": "aa7946c15c6a5754cca7ebc7e47296329c25a342",
+  "files": {
+    "components/CoachMic.tsx": "2051810e91e0c49239c48f593b6e638f18f9425ca621f67c0f24b1033925f5bd",
+    "components/coach/Composer.tsx": "b8779cd43620d0f3e16920bd4e657324ad959534c572712c5c16cb69c78b00fd",
+    "components/coach/use-composer-input.ts": "0e9cab79f602b113b897700cf1ccd176d292fb2b09e2dbd0aebe210293a66cc2",
+    "lib/coach/hold.ts": "e7864dce1835748d5451e495b0a5486521300eee5d94e26aa53679e58632f2f5",
+    "lib/coach/dictation.ts": "3a596450e780524e79a593ee57fee2146d96dc024055cc610a6e7a296e6d2e01",
+    "tests/coach/tap-dictation.test.ts": "14d8d18f542016aac18422f1f9e955313dbf7eb343769536c620eb5382f4a9a4",
+    "tests/coach/composer/tap-control.test.tsx": "f9b9d0793113b21c1f59ce8cfa16b7c7a763e38628c85ea895a12a9067b02187",
+    "tests/voice/hold-live.test.ts": "b20abb72517c31ea1b307b2b0675297da81de07a2c5365a7991b732536f59437",
+    "app/globals.css": "b3e60fded04eb53226b210cc07d4b7397ba001e010fa4d3d4a0cff75a28403e1",
+    "docs/features.md": "85923cdd442d4bbfd9d0bb24b72bf5b63b2739b8bed1bc0e7c9e53fbb44fe0c3"
+  },
+  "packetSha256": "daacc0bb4e4d83d15595d636058af0946ccbc8a3df76c287c96ce639ea57c0bc"
+}

@@ -1,0 +1,231 @@
+{
+  "generatedAt": "2026-09-20T06:02:08.833Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 22,
+  "case": {
+    "id": "block-week-review",
+    "category": "block",
+    "sentence": "how did this week go?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "kcal_week"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6334,
+    "actions": [],
+    "blocks": [
+      "chart"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "21870e5a-fc97-4f3f-81ca-92d3ddd19b38",
+        "days": 3,
+        "kind": "chart",
+        "unit": "kcal",
+        "chart": "kcal_week",
+        "series": [
+          {
+            "label": "Consumed",
+            "points": [
+              {
+                "x": "2026-09-15",
+                "y": 500
+              },
+              {
+                "x": "2026-09-18",
+                "y": 460
+              },
+              {
+                "x": "2026-09-20",
+                "y": 420
+              }
+            ]
+          },
+          {
+            "label": "Target",
+            "points": [
+              {
+                "x": "2026-09-15",
+                "y": 1814
+              },
+              {
+                "x": "2026-09-18",
+                "y": 2046
+              },
+              {
+                "x": "2026-09-20",
+                "y": 1814
+              }
+            ]
+          }
+        ],
+        "caption": "Calories over 3 logged days"
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.31,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6334 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.31"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Here is your calorie intake for the week. You logged meals on September 15th, 18th, and 20th, while the other days have no entries recorded.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [chart]; got [chart]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected chart subtype",
+      "passed": true,
+      "detail": "expected kcal_week; got [\"kcal_week\"]"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    },
+    {
+      "name": "B3 week chart subtype",
+      "passed": true,
+      "detail": "[\"kcal_week\"]"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "20193578-1eef-49ef-8ed1-b878e59f43ee",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "show_chart",
+      "get_week_totals"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 327,
+      "model": 4320,
+      "ground": 330
+    },
+    "messages": [
+      {
+        "id": "0b65a07d-f2db-45b3-930f-97a9e6821009",
+        "role": "user",
+        "content": "how did this week go?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "a326a3e1-ec3d-49c0-9443-8b6d48a2bb1e",
+        "role": "assistant",
+        "content": "Here is your calorie intake for the week. You logged meals on September 15th, 18th, and 20th, while the other days have no entries recorded.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "chart",
+            "v": 1,
+            "id": "21870e5a-fc97-4f3f-81ca-92d3ddd19b38",
+            "chart": "kcal_week",
+            "days": 3,
+            "series": [
+              {
+                "label": "Consumed",
+                "points": [
+                  {
+                    "x": "2026-09-15",
+                    "y": 500
+                  },
+                  {
+                    "x": "2026-09-18",
+                    "y": 460
+                  },
+                  {
+                    "x": "2026-09-20",
+                    "y": 420
+                  }
+                ]
+              },
+              {
+                "label": "Target",
+                "points": [
+                  {
+                    "x": "2026-09-15",
+                    "y": 1814
+                  },
+                  {
+                    "x": "2026-09-18",
+                    "y": 2046
+                  },
+                  {
+                    "x": "2026-09-20",
+                    "y": 1814
+                  }
+                ]
+              }
+            ],
+            "unit": "kcal",
+            "caption": "Calories over 3 logged days"
+          }
+        ]
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

@@ -1,0 +1,83 @@
+{
+  "packet_sha256": "88b351a9fecdd81f445a56bd07ccfe2c10268a399eaf2becade4c210a3770d96",
+  "source_sha256": {
+    "components/CoachMic.tsx": "df979d931a633639ae7827dbb8bf58c58959ad83083de46572cc2ad2c1f2c8ac",
+    "components/coach/Composer.tsx": "fc48ade2fe88c664cee7cfab716744ea63e6749fa8e27f58c1af9a9a4e45b631",
+    "components/coach/use-composer-input.ts": "444dbf838c76bf58a3919feb3e3b37fc5747a70cf2072b8331b109494a5c77f6",
+    "lib/coach/hold.ts": "ba5255012da003b7c89abd7bafa04416cc4f05b026117fc42b55222a30195bf2",
+    "tests/coach/tap-dictation.test.ts": "82f2b26a7211a9b4bc1982423eaee983465c03b26adfe0efe6d2255f955b2d21",
+    "tests/coach/composer/tap-control.test.tsx": "d4ffcb1ffeb473dbc6a46b689189418827536be5e3674f3b36591b75636247b4"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "V1": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.38,
+        "probabilities": {
+          "no": 0.31,
+          "yes": 0.69
+        }
+      },
+      "V2": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.96,
+        "probabilities": {
+          "no": 0.02,
+          "yes": 0.98
+        }
+      },
+      "V3": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.72,
+        "probabilities": {
+          "no": 0.14,
+          "yes": 0.86
+        }
+      },
+      "V4_static": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.01,
+        "probabilities": {
+          "no": 0.5,
+          "yes": 0.5
+        }
+      },
+      "V5": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.63,
+        "probabilities": {
+          "no": 0.18,
+          "yes": 0.82
+        }
+      },
+      "V6": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.22,
+        "probabilities": {
+          "no": 0.39,
+          "yes": 0.61
+        }
+      },
+      "V7": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 0.73,
+        "probabilities": {
+          "no": 0.14,
+          "yes": 0.86
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 12169,
+      "output_tokens": 207
+    }
+  }
+}

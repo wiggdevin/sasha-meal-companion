@@ -1,0 +1,336 @@
+{
+  "generatedAt": "2026-09-20T08:18:46.867Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 8,
+  "case": {
+    "id": "jev-recipe-excludes-soy",
+    "category": "jev",
+    "sentence": "make a recipe from smoked tofu, rice, and avocado",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "recipe_exclusion",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5323,
+    "actions": [
+      "save_recipe"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.18,
+      "verifier": "jev"
+    },
+    "jev": {
+      "assistantContent": "I have the other item ready. Skipped smoked tofu: contains soy (your no-soy preference).",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [],
+        "actions": [
+          {
+            "kind": "save_recipe",
+            "name": "Smoked tofu rice bowl with avocado",
+            "items": [
+              {
+                "name": "cooked white rice",
+                "grams": 160,
+                "verdict": "allowed",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 12
+              },
+              {
+                "name": "avocado",
+                "grams": 50,
+                "verdict": "allowed",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "fatPer100g": 14.7,
+                "kcalPer100g": 160,
+                "carbsPer100g": 8.5,
+                "proteinPer100g": 2,
+                "catalogFoodRevisionId": 16
+              }
+            ],
+            "flagged": [],
+            "actionId": "4627dfcc-71a6-4e94-884b-aa67b64b9dc8",
+            "refusals": [
+              "Skipped smoked tofu: contains soy (your no-soy preference)."
+            ]
+          }
+        ],
+        "composed": [],
+        "suggestions": [
+          {
+            "name": "smoked tofu",
+            "grams": 150,
+            "reason": null,
+            "verdict": "unverified",
+            "foodRefId": null
+          },
+          {
+            "name": "cooked white rice",
+            "grams": 160,
+            "reason": null,
+            "verdict": "unverified",
+            "foodRefId": null
+          },
+          {
+            "name": "avocado",
+            "grams": 50,
+            "reason": null,
+            "verdict": "unverified",
+            "foodRefId": null
+          }
+        ],
+        "recipeRefusals": [
+          "Skipped smoked tofu: contains soy (your no-soy preference)."
+        ]
+      },
+      "actions": [
+        {
+          "kind": "save_recipe",
+          "name": "Smoked tofu rice bowl with avocado",
+          "items": [
+            {
+              "name": "cooked white rice",
+              "grams": 160,
+              "verdict": "allowed",
+              "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+              "fatPer100g": 0.3,
+              "kcalPer100g": 130,
+              "carbsPer100g": 28,
+              "proteinPer100g": 2.7,
+              "catalogFoodRevisionId": 12
+            },
+            {
+              "name": "avocado",
+              "grams": 50,
+              "verdict": "allowed",
+              "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+              "fatPer100g": 14.7,
+              "kcalPer100g": 160,
+              "carbsPer100g": 8.5,
+              "proteinPer100g": 2,
+              "catalogFoodRevisionId": 16
+            }
+          ],
+          "flagged": [],
+          "actionId": "4627dfcc-71a6-4e94-884b-aa67b64b9dc8",
+          "refusals": [
+            "Skipped smoked tofu: contains soy (your no-soy preference)."
+          ]
+        }
+      ],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-intent",
+        "coach"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [save_recipe]; got [save_recipe]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5323 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.18"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I have the other item ready. Skipped smoked tofu: contains soy (your no-soy preference).\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted recipe excludes soy",
+      "passed": true,
+      "detail": "{\"kind\":\"save_recipe\",\"name\":\"Smoked tofu rice bowl with avocado\",\"items\":[{\"name\":\"cooked white rice\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12},{\"name\":\"avocado\",\"grams\":50,\"verdict\":\"allowed\",\"foodRefId\":\"08b3fb89-69eb-4b74-abae-308c0d56bbe2\",\"fatPer100g\":14.7,\"kcalPer100g\":160,\"carbsPer100g\":8.5,\"proteinPer100g\":2,\"catalogFoodRevisionId\":16}],\"flagged\":[],\"actionId\":\"4627dfcc-71a6-4e94-884b-aa67b64b9dc8\",\"refusals\":[\"Skipped smoked tofu: contains soy (your no-soy preference).\"]}"
+    },
+    {
+      "name": "Jev persisted recipe names facet and preference",
+      "passed": true,
+      "detail": "I have the other item ready. Skipped smoked tofu: contains soy (your no-soy preference). Skipped smoked tofu: contains soy (your no-soy preference)."
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "b8fc1cee-3672-45ec-a296-b47bab32a932",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "smoked tofu",
+        "grams": 150,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "cooked white rice",
+        "grams": 160,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "avocado",
+        "grams": 50,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "save_recipe",
+        "name": "Smoked tofu rice bowl with avocado",
+        "items": [
+          {
+            "name": "cooked white rice",
+            "grams": 160,
+            "verdict": "allowed",
+            "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+            "fatPer100g": 0.3,
+            "kcalPer100g": 130,
+            "carbsPer100g": 28,
+            "proteinPer100g": 2.7,
+            "catalogFoodRevisionId": 12
+          },
+          {
+            "name": "avocado",
+            "grams": 50,
+            "verdict": "allowed",
+            "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+            "fatPer100g": 14.7,
+            "kcalPer100g": 160,
+            "carbsPer100g": 8.5,
+            "proteinPer100g": 2,
+            "catalogFoodRevisionId": 16
+          }
+        ],
+        "flagged": [],
+        "actionId": "4627dfcc-71a6-4e94-884b-aa67b64b9dc8",
+        "refusals": [
+          "Skipped smoked tofu: contains soy (your no-soy preference)."
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 371,
+      "model": 3288,
+      "ground": 688
+    },
+    "messages": [
+      {
+        "id": "b25c18f9-e30f-4210-bf62-8b5b7b64bcd4",
+        "role": "user",
+        "content": "make a recipe from smoked tofu, rice, and avocado",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "0e8a09f4-67bb-4c51-b6d6-81ede5d08fb8",
+        "role": "assistant",
+        "content": "I have the other item ready. Skipped smoked tofu: contains soy (your no-soy preference).",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "4627dfcc-71a6-4e94-884b-aa67b64b9dc8",
+            "flagged": [],
+            "kind": "save_recipe",
+            "name": "Smoked tofu rice bowl with avocado",
+            "items": [
+              {
+                "name": "cooked white rice",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "catalogFoodRevisionId": 12,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "allowed",
+                "grams": 160
+              },
+              {
+                "name": "avocado",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "catalogFoodRevisionId": 16,
+                "kcalPer100g": 160,
+                "proteinPer100g": 2,
+                "carbsPer100g": 8.5,
+                "fatPer100g": 14.7,
+                "verdict": "allowed",
+                "grams": 50
+              }
+            ],
+            "refusals": [
+              "Skipped smoked tofu: contains soy (your no-soy preference)."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

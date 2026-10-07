@@ -1,0 +1,138 @@
+{
+  "scope": "Frozen-packet source review only. I ran no tools and no tests, and I made no edits. I did not verify the parent's report of 303 passing tests, typecheck and ESLint. No physical device, real microphone, speech provider, IME or deployed build was checked.",
+  "annotations_1_to_10": "NOT EVALUATED. The exact ten-annotation inventory is missing, so no annotation is approved.",
+  "talk_to_talk_V8": "Out of scope and not implemented. It is not graded here.",
+  "verdicts": {
+    "V1": {
+      "outcome": "YES",
+      "evidence": "CoachMic.tsx:126-133: pointerup and pointercancel only clear the blur guard. Only a click calls hold.toggleTap(). In tap mode, press() calls begin() at once, with no 300 ms timer (hold.ts:74-75). release() needs the keyboard pointer id, and tap mode always uses it (hold.ts:65, 91). Test: tap-dictation.test.ts:44-57.",
+      "proof_gaps": "Not run on a real device. No test covers a held Enter key on the button (see bug B5)."
+    },
+    "V2": {
+      "outcome": "NO",
+      "evidence": "The basic path is sound. A second tap calls release(). settleSpeech in tap mode writes the text and never calls send (hold.ts:312-317). consumeClip writes the text only (hold.ts:295-301). Tests: tap-dictation.test.ts:44-75 and 124-157, and tap-control.test.tsx:20-37.",
+      "defects": [
+        "B2: A provider can end a recording without a second tap. The Safari recogniser gets only one restart.",
+        "B4: The main control changes from Stop to Send at once. A double tap or a repeated Enter sends text the user has not reviewed."
+      ],
+      "proof_gaps": "No test covers a second onEnd, a no-speech error in the middle of a recording, or a double tap."
+    },
+    "V3": {
+      "outcome": "YES",
+      "evidence": "CoachMic.tsx:116-119 picks one mode: busy, then stop, then send (when readyToSend), then record. readyToSend is draft && !editing (use-composer-input.ts:53). Tests: tap-control.test.tsx:20-37 (the same element goes Record \u2192 Stop \u2192 Send) and toolbar.test.tsx:44-61.",
+      "proof_gaps": "When no mic API exists, the main control hides in record mode but still renders Send. This is correct in source but has no test."
+    },
+    "V4": {
+      "outcome": "NO",
+      "evidence": "Red Stop appears at once in source, because listening is true synchronously after press() (hold.ts:52, 67, 72). The class and alert background are asserted in tap-control.test.tsx:25-27.",
+      "defects": [
+        "B1: With reduced motion on, the pulse does not stop. It flickers."
+      ],
+      "proof_gaps": "No test covers reduced motion. The Gemini still images cannot prove motion."
+    },
+    "V5": {
+      "outcome": "YES",
+      "evidence": "The draft is captured at press (hold.ts:66) and joined with the transcript by withDraft (hold.ts:325-328, 164-165). A failure puts the typed draft back through abandon (hold.ts:333). The textarea is read-only only while locked. After a stop, a click sets editing again and brings back Record plus Send (tap-control.test.tsx:39-60).",
+      "defects": [
+        "B7 (low): withDraft trims the draft, which drops trailing newlines and spaces.",
+        "B3: Leaving the page loses the spoken words (graded under V7)."
+      ],
+      "proof_gaps": "The caret or cursor requirement is still unclear. The user cannot type while recording; that fits the current reversible interpretation."
+    },
+    "V6": {
+      "outcome": "NO",
+      "evidence": "The keydown handler checks shiftKey, a composing ref, nativeEvent.isComposing and keyCode 229, which also covers Safari's compositionend-before-keydown order (use-composer-input.ts:38-44). Test: tap-control.test.tsx:62-78, jsdom only.",
+      "defects": [
+        "B6: On desktop Safari and Firefox, pressing the editing Send button can remove it before its click arrives, so the tap is lost."
+      ],
+      "proof_gaps": "No real IME, iOS keyboard or Android keyboard was checked. The test passes relatedTarget=send, which is Chrome-only behavior."
+    },
+    "V7": {
+      "outcome": "NO",
+      "evidence": "Every provider callback, recorder callback and awaited step checks gen (hold.ts:147-149, 159-210, 222-235, 289). gen goes up on press, abandon, settle, cancel and a used clip. Stop stays enabled while the composer is disabled (CoachMic.tsx:134). Tests cover native permission denial, stale callbacks after cancel, a pending recorder permission with a fast second tap, and the ceiling clip.",
+      "defects": [
+        "B3: Cancelling on visibilitychange or pagehide writes the old typed draft over the words already dictated."
+      ],
+      "proof_gaps": "No tap-mode test covers the live listener (installed-PWA route): socket failure \u2192 recorder fallback, the busy retry, or the up-to-13 s finalising lock (LIVE_FINALISE_MS). No test covers the composer turning disabled during a recording. A synchronous start error (for example InvalidStateError) makes the first tap a silent no-op and switches the session to the fallback (hold.ts:148-149 with dictation.ts:125). This path has no test."
+    }
+  },
+  "bugs": [
+    {
+      "id": "B1",
+      "severity": "medium",
+      "location": "app/globals.css:381-388, app/globals.css:454-460",
+      "issue": "The reduced-motion reset sets animation-duration to 0.01ms but does not change iteration-count. The pulse is infinite, so each frame lands at a random point in the cycle and the ring flickers between 4px and 8px instead of standing still.",
+      "fix": "Add @media (prefers-reduced-motion: reduce) { .coach-recording-button { animation: none; } }, or add animation-iteration-count: 1 !important to the global reset."
+    },
+    {
+      "id": "B2",
+      "severity": "medium",
+      "location": "lib/coach/hold.ts:189-204 (also dictation.ts:117-124)",
+      "issue": "In tap mode, Safari ends a continuous session after a pause. Only one restart is allowed (restarts < 1). The second onEnd auto-stops the recording and applies 'fallback', which switches the rest of the page load to the recorder. A no-speech error during a pause also auto-settles. Tap mode makes pauses more likely, so recording often ends without the user's second tap.",
+      "fix": "In tap mode, keep restarting while holding. Allow unlimited restarts, or cap them by elapsed time rather than count. Treat mid-recording no-speech as a restart, not a settle. Add a test for repeated onEnd."
+    },
+    {
+      "id": "B3",
+      "severity": "medium",
+      "location": "components/CoachMic.tsx:105-112 \u2192 lib/coach/hold.ts:124-140, 331-333",
+      "issue": "cancel() on visibilitychange (hidden) or pagehide calls abandon(null), which writes this.typed. The live transcript already in the box is replaced by the pre-recording draft. Switching apps during a recording loses the spoken words. This conflicts with the F-131 promise that newer drafts are not overwritten.",
+      "fix": "When the page hides in tap mode, stop and keep withDraft(transcriptOf(state)) instead of restoring typed."
+    },
+    {
+      "id": "B4",
+      "severity": "medium",
+      "location": "components/CoachMic.tsx:129-133, lib/coach/hold.ts:106-108",
+      "issue": "When every segment is final, Stop settles synchronously and the same button becomes Send. touch-action: manipulation removes the double-tap delay, so a double tap on Stop sends at once without review. A repeated Enter keydown on the focused button does the same.",
+      "fix": "Ignore Send activation for about 300-500 ms after a stop, or require a new pointerdown or keydown after the mode change."
+    },
+    {
+      "id": "B5",
+      "severity": "low",
+      "location": "components/CoachMic.tsx:129-133",
+      "issue": "The old onKeyDown guard against e.repeat was removed. Holding Enter on a focused button repeats clicks, which toggles Record/Stop repeatedly or reaches Send. Not verified in a browser.",
+      "fix": "Add onKeyDown={(e) => { if (e.repeat) e.preventDefault(); }}."
+    },
+    {
+      "id": "B6",
+      "severity": "medium",
+      "location": "components/coach/Composer.tsx:39-43, components/coach/use-composer-input.ts:31-35",
+      "issue": "The blur guard covers only Record's pointerdown. In Safari and Firefox on macOS, a click on a button does not focus it, so relatedTarget is null. On mousedown the textarea blurs, editing becomes false, and the editing Send unmounts before the click. The click is lost. iOS behavior is not verified.",
+      "fix": "Give the editing Send the same guard (onPointerDown \u2192 recordPointerDown), or call preventDefault on mousedown. Add a test with relatedTarget null."
+    },
+    {
+      "id": "B7",
+      "severity": "low",
+      "location": "lib/coach/hold.ts:325-328",
+      "issue": "withDraft trims the typed draft, so leading or trailing whitespace and newlines are lost after a recording.",
+      "fix": "Keep typed as it is and add a separator only when needed."
+    },
+    {
+      "id": "B8",
+      "severity": "low",
+      "location": "components/coach/use-composer-input.ts:56-59 with lib/coach/hold.ts:366-371",
+      "issue": "Every publish with locked=false calls setEditing(false). This includes notice expiry and an idle cancel on visibilitychange. A user typing within about 3 s of a notice sees the controls flip to Send-main until the next keystroke.",
+      "fix": "Call setEditing(false) only on a true\u2192false change of locked."
+    },
+    {
+      "id": "B9",
+      "severity": "low (doc drift)",
+      "location": "docs/features.md F-154 row",
+      "issue": "The row still says 'a hold' and 'release sends them'. F-131 and AGENTS.md now describe tap and explicit Send.",
+      "fix": "Change the F-154 row to tap-to-record and no auto-send."
+    }
+  ],
+  "confirmed_sound": [
+    "No auto-send in tap mode on any traced path. ports.send is called only when interaction === 'hold' (hold.ts:317). The recorder path never sends.",
+    "A fast second tap during recorder permission cancels the late handle, and a late onFailure is ignored (hold.ts:235, 222-228). A test covers it.",
+    "The live cap emits its final then max-duration, and that settles to the box without sending (dictation.ts:117-121). A test covers the native equivalent.",
+    "In tap mode, releaseEventTime stops the 300 ms 'Hold to talk' tap rule from firing (hold.ts:382-388).",
+    "Recording starts synchronously inside the click, which keeps the user-activation requirement for SpeechRecognition and getUserMedia."
+  ],
+  "unexecuted_physical_checks": [
+    "iOS Safari tab and installed PWA: Record/Stop, permission sheet, recogniser restart after pauses, the live socket route, and a 30 s recorder clip",
+    "Android Chrome: keyboard Enter and the reachable Send while the keyboard is open",
+    "A real IME (Japanese or Chinese) committing with Enter",
+    "Reduced-motion rendering and the actual pulse motion",
+    "Blur and click order when pressing the editing Send in desktop Safari and Firefox"
+  ]
+}

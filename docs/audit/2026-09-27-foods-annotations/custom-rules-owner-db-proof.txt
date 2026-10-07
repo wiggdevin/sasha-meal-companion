@@ -1,0 +1,24 @@
+Local synthetic accounts only. Transaction rolled back.
+BEGIN
+SET
+              set_config
+--------------------------------------
+ 091df4e2-6de9-4524-9875-d13ed1c4e430
+(1 row)
+
+ visible_owner_rows
+--------------------
+                  1
+(1 row)
+
+UPDATE 1
+UPDATE 0
+ other_owner_visible
+---------------------
+                   0
+(1 row)
+
+ROLLBACK
+
+exit=0
+Privileged existence check of both exact synthetic owner IDs: count2. Thus UPDATE0/visible0 targets an existing other-owner row.

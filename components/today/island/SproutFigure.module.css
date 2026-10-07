@@ -1,0 +1,55 @@
+/* Sprout on its own (SproutFigure.tsx): the art, a slow breath, a soft contact shadow. Only transform
+   and opacity animate. Light from the upper left, like the well. */
+
+.figure {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* The same idle breath as the well's Sprout (Sprout.module.css, 3.2 s): one pet, one breathing rate.
+   An idle loop, not a transition, so it is not one of the four springs. */
+.breath {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 92%;
+  animation: breathe 3.2s ease-in-out infinite;
+}
+.breath[data-still] { animation: none; }
+
+.frame {
+  position: absolute;
+  inset: 0;
+}
+
+.img {
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* The contact shadow under the feet, breathing with the body. */
+.shadow {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 3%;
+  height: 8%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.3), transparent);
+  animation: shadow 3.2s ease-in-out infinite;
+}
+.shadow[data-still] { animation: none; }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.012, 0.985) translateY(0.6%); }
+}
+@keyframes shadow {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(1.04); opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breath, .shadow { animation: none; }
+}

@@ -1,0 +1,218 @@
+{
+  "generatedAt": "2026-09-20T05:59:27.039Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 16,
+  "case": {
+    "id": "block-search-greek-yogurt-eats",
+    "category": "block",
+    "sentence": "find greek yogurt and put it on my eats",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "eats"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 7944,
+    "actions": [
+      "add_to_eats"
+    ],
+    "blocks": [
+      "food_search"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "6a5b564a-c919-4950-bc81-33370a684f9f",
+        "kind": "food_search",
+        "query": "greek yogurt",
+        "intent": "eats",
+        "results": [
+          {
+            "name": "Greek yogurt, plain",
+            "status": "neutral",
+            "blocked": true,
+            "foodRefId": "bfbc6a32-91cb-4c50-ac2c-19f653440c7e",
+            "revisionId": "11",
+            "kcalPer100g": 97
+          }
+        ],
+        "truncated": false
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.21,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_eats]; got [add_to_eats]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 7944 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.21"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Greek yogurt, plain is on your Eats list now. Note that dairy is on your banned list, so it is marked off-plan.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [food_search]; got [food_search]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected food-search intent",
+      "passed": true,
+      "detail": "expected eats; got [\"eats\"]"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "dbfe9a67-c0c8-4748-a2f2-62757cb29721",
+    "suggestions": [
+      {
+        "foodRefId": "bfbc6a32-91cb-4c50-ac2c-19f653440c7e",
+        "name": "Greek yogurt, plain",
+        "grams": null,
+        "reason": "allergen:dairy",
+        "verdict": "blocked"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "add_to_eats",
+        "name": "Greek yogurt, plain",
+        "foodRefId": "bfbc6a32-91cb-4c50-ac2c-19f653440c7e",
+        "catalogFoodRevisionId": 11,
+        "kcalPer100g": 97,
+        "proteinPer100g": 9,
+        "carbsPer100g": 3.9,
+        "fatPer100g": 5,
+        "verdict": "blocked",
+        "actionId": "e3b6a697-5b3c-4c3f-a4d1-6c5289010a4b",
+        "flagged": [
+          "Greek yogurt, plain"
+        ],
+        "alsoFoodRefIds": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 365,
+      "model": 5134,
+      "ground": 809
+    },
+    "messages": [
+      {
+        "id": "692b101b-af62-4c8f-ad57-da0d417e64b1",
+        "role": "user",
+        "content": "find greek yogurt and put it on my eats",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "510bbc0e-9fe6-473d-8b7d-60c55dd5bac6",
+        "role": "assistant",
+        "content": "Greek yogurt, plain is on your Eats list now. Note that dairy is on your banned list, so it is marked off-plan.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "food_search",
+            "v": 1,
+            "id": "6a5b564a-c919-4950-bc81-33370a684f9f",
+            "query": "greek yogurt",
+            "intent": "eats",
+            "results": [
+              {
+                "foodRefId": "bfbc6a32-91cb-4c50-ac2c-19f653440c7e",
+                "revisionId": "11",
+                "name": "Greek yogurt, plain",
+                "kcalPer100g": 97,
+                "status": "neutral",
+                "blocked": true
+              }
+            ],
+            "truncated": false
+          }
+        ],
+        "actions": [
+          {
+            "name": "Greek yogurt, plain",
+            "foodRefId": "bfbc6a32-91cb-4c50-ac2c-19f653440c7e",
+            "catalogFoodRevisionId": 11,
+            "kcalPer100g": 97,
+            "proteinPer100g": 9,
+            "carbsPer100g": 3.9,
+            "fatPer100g": 5,
+            "verdict": "blocked",
+            "actionId": "e3b6a697-5b3c-4c3f-a4d1-6c5289010a4b",
+            "flagged": [
+              "Greek yogurt, plain"
+            ],
+            "kind": "add_to_eats",
+            "alsoFoodRefIds": []
+          }
+        ]
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

@@ -1,0 +1,115 @@
+/* The liquid macro rings (components/today/island/LiquidRings.tsx; owner, 2026-10-06: "the cool jelly
+   macro rings view ... with the character in the middle"). Restored from the glass well's third pass
+   as a view of the live island. Only transform, opacity and stroke-dashoffset animate. */
+
+/* One vivid colour per macro: each gauge colour at a vivid lightness and chroma, turned a little
+   toward its neighbour from the arc's deep start (a) to its hot head (b). The plain token is the
+   fallback where relative colour is not supported. */
+.rings [data-macro] {
+  --tone: var(--color-gauge-calories);
+  --la: 0.63; --ca: 0.21; --ha: -15;
+  --lb: 0.74; --cb: 0.22; --hb: 2;
+}
+.rings [data-macro="protein"] {
+  --tone: var(--color-gauge-protein); --la: 0.6; --ca: 0.21; --ha: 15; --lb: 0.74; --cb: 0.2; --hb: 30;
+}
+.rings [data-macro="carbs"] {
+  --tone: var(--color-gauge-carbs); --la: 0.68; --ca: 0.18; --ha: 12; --lb: 0.8; --cb: 0.18; --hb: 27;
+}
+.rings [data-macro="fat"] {
+  --tone: var(--color-gauge-fat); --la: 0.72; --ca: 0.17; --ha: -8; --lb: 0.84; --cb: 0.17; --hb: 8;
+}
+
+.rings {
+  position: relative;
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+.ringsSvg { display: block; overflow: visible; }
+.ringsCentre {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.arcs { transition: opacity 260ms ease; }
+.ring[data-dim] .arcs { opacity: 0.3; }
+.stopA {
+  stop-color: var(--tone);
+  stop-color: oklch(from var(--tone) var(--la) var(--ca) calc(h + var(--ha)));
+}
+.stopB {
+  stop-color: var(--tone);
+  stop-color: oklch(from var(--tone) var(--lb) var(--cb) calc(h + var(--hb)));
+}
+.groove { stroke: rgb(255 255 255 / 0.045); }
+.rings[data-mini] .groove { stroke: rgb(255 255 255 / 0.14); }
+.glow { opacity: 0.32; }
+/* The gloss along the top of each filled arc (GPT Sol): a thin near-white line, faded out lower down. */
+.gloss { stroke: rgb(255 255 255 / 0.3); }
+.droplets { animation: ring-flow 10s linear infinite; }
+.head {
+  fill: var(--tone);
+  fill: oklch(from var(--tone) var(--lb) var(--cb) calc(h + var(--hb)));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ring-bead 2.6s ease-in-out infinite alternate;
+}
+.spark { fill: rgb(255 255 255 / 0.95); }
+
+@keyframes ring-flow {
+  to { stroke-dashoffset: -100; }
+}
+@keyframes ring-bead {
+  from { transform: scale(0.9); }
+  to { transform: scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .droplets, .head { animation: none; }
+}
+
+/* ------------------------------------------------------------------------------ the rings view */
+
+.ringsPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+/* Sprout stands in the middle of the rings, scaled to the inner ring. */
+.pet {
+  display: block;
+  transform: scale(0.62);
+  transform-origin: 50% 58%;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+}
+.legendItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+.legendDot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  align-self: center;
+  border-radius: 9999px;
+  background: var(--tone);
+  background: oklch(from var(--tone) var(--lb) var(--cb) calc(h + var(--hb)));
+}
+.legendFigure {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--color-text-primary);
+}

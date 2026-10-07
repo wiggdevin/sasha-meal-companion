@@ -1,0 +1,12 @@
+/* The shop gallery's stand-in for the open well: the Day card's dark glass at its open size. */
+.well {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 350 / 460;
+  overflow: hidden;
+  border-radius: 28px;
+  background: radial-gradient(80% 60% at 50% 35%, color-mix(in oklab, var(--color-gauge-water) 18%, var(--color-charcoal-deep)),
+    var(--color-charcoal-deep));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 20%, transparent),
+    0 18px 40px -18px color-mix(in oklab, var(--color-charcoal-deep) 90%, transparent);
+}

@@ -1,0 +1,158 @@
+{
+  "generatedAt": "2026-09-20T06:02:30.861Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 23,
+  "case": {
+    "id": "block-protein-or-fibre",
+    "category": "block",
+    "sentence": "can you change my breakfast?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "quick_replies"
+    ],
+    "expected_quick_replies": {
+      "min": 2,
+      "max": 4
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 10232,
+    "actions": [],
+    "blocks": [
+      "quick_replies"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "121d6bc5-cee2-48e9-812b-5d4115fd4b69",
+        "kind": "quick_replies",
+        "options": [
+          "Swap to eggs & white potato",
+          "Build a custom meal",
+          "Suggest breakfast ideas"
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 10232 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Sure, what would you like to change your breakfast to?\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [quick_replies]; got [quick_replies]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected quick-reply count",
+      "passed": true,
+      "detail": "expected 2-4; got [3]"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "18350098-2d2d-4643-b118-432f0a5f231e",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "quick_replies"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 317,
+      "model": 8603,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "93124034-4553-4f99-8ae2-9c905a16c2e8",
+        "role": "user",
+        "content": "can you change my breakfast?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "e544373a-0342-4407-b3cb-41a7910f981c",
+        "role": "assistant",
+        "content": "Sure, what would you like to change your breakfast to?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "quick_replies",
+            "v": 1,
+            "id": "121d6bc5-cee2-48e9-812b-5d4115fd4b69",
+            "options": [
+              "Swap to eggs & white potato",
+              "Build a custom meal",
+              "Suggest breakfast ideas"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

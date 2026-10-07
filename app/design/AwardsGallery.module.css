@@ -1,0 +1,66 @@
+/* The awards gallery's stand-ins: a dark glass well and a collapsed pill, like the Day card's. */
+.well {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 350 / 420;
+  overflow: hidden;
+  border-radius: 28px;
+  background: radial-gradient(80% 60% at 50% 30%, color-mix(in oklab, var(--color-gauge-water) 18%, var(--color-charcoal-deep)),
+    var(--color-charcoal-deep));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 20%, transparent),
+    0 18px 40px -18px color-mix(in oklab, var(--color-charcoal-deep) 90%, transparent);
+}
+.sprout {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  translate: -50% 0;
+}
+.pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 16px 0 10px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--color-charcoal-deep);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 20%, transparent);
+}
+.pillText {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--color-gauge-calories);
+}
+.pillWord { font-family: inherit; font-size: 14px; color: var(--color-text-muted); }
+.pillGlyph {
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  border-radius: 9999px;
+  background: var(--color-gauge-fat-end);
+  box-shadow: 0 0 10px var(--color-gauge-fat-end);
+}
+.glint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.glint::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -30%;
+  width: 30%;
+  background: linear-gradient(100deg, transparent, color-mix(in oklab, var(--color-on-olive) 40%, transparent), transparent);
+  animation: glint 1.2s var(--ease-out-expo) 2;
+}
+@keyframes glint {
+  from { transform: translateX(0); }
+  to { transform: translateX(450%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glint::after { animation: none; opacity: 0; }
+}

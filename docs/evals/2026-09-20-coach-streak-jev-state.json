@@ -1,0 +1,1296 @@
+{
+  "version": 1,
+  "seed": "20260919",
+  "branch": "chat-first-2026-09-19",
+  "category": "jev",
+  "startedAt": "2026-09-20T08:09:25.311Z",
+  "updatedAt": "2026-09-20T09:11:47.134Z",
+  "status": "success",
+  "streak": 6,
+  "totalTurns": 18,
+  "turns": [
+    {
+      "turn": 1,
+      "caseId": "jev-three-dinner-ideas",
+      "sentence": "give me three dinner ideas that fit my preferences",
+      "path": "llm",
+      "elapsedMs": 10577,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 3-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 10577 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner options featuring turkey breast, pork tenderloin, or canned tuna, served with corn tortillas, banana, and avocado for fat.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "Jev exactly one persisted ranking call",
+          "passed": true,
+          "detail": "[\"coach-intent\",\"coach\",\"suggest-options\",\"coach\",\"coach-verify\"]"
+        },
+        {
+          "name": "Jev persisted cards are policy-clean",
+          "passed": true,
+          "detail": "{\"ideas\":3,\"verdicts\":[\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\"]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-001-jev-three-dinner-ideas.json"
+    },
+    {
+      "turn": 2,
+      "caseId": "jev-tiny-rice-log",
+      "sentence": "log 1 g of rice",
+      "path": "llm",
+      "elapsedMs": 4694,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4694 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.07"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 1 g of rice.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted tiny-portion warning",
+          "passed": true,
+          "detail": "{\"name\":\"rice\",\"grams\":1,\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"1abdf0c5-7a15-481d-a9bf-dcb18daae45d:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}"
+        },
+        {
+          "name": "Jev tiny log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"9d8b2aff-de6a-4240-8c19-ce1e3583241c\",\"rev\":1,\"items\":[{\"id\":\"8240490e-8aa4-4a10-9b5f-c5b75169bbda\",\"entry_id\":\"9d8b2aff-de6a-4240-8c19-ce1e3583241c\",\"seq\":1,\"food_ref_id\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":12,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":1.3,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-002-jev-tiny-rice-log.json"
+    },
+    {
+      "turn": 3,
+      "caseId": "jev-log-soy-mark",
+      "sentence": "log 100 g of smoked tofu for lunch",
+      "path": "llm",
+      "elapsedMs": 7659,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7659 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.05"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 100 g of smoked tofu for lunch.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted soy verdict",
+          "passed": false,
+          "detail": "{\"date\":\"2026-09-20\",\"kind\":\"log_meal\",\"slot\":\"meal-2\",\"items\":[{\"name\":\"Smoked tofu\",\"grams\":100,\"sanity\":{\"status\":\"pending\",\"warnings\":[]},\"verdict\":\"unverified\",\"foodRefId\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"fatPer100g\":9,\"kcalPer100g\":170,\"carbsPer100g\":3,\"proteinPer100g\":19,\"catalogFoodRevisionId\":467}],\"flagged\":[],\"actionId\":\"cc5a05f2-cd80-4920-8a61-e20087fb4c00\"}"
+        },
+        {
+          "name": "Jev persisted soy reply mark",
+          "passed": false,
+          "detail": "Logged 100 g of smoked tofu for lunch."
+        },
+        {
+          "name": "Jev soy log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"762230b4-151d-4e17-8c29-187a44bdd9c8\",\"rev\":1,\"items\":[{\"id\":\"380e3fb5-b461-4fe1-92dd-f288d2f5ee04\",\"entry_id\":\"762230b4-151d-4e17-8c29-187a44bdd9c8\",\"seq\":1,\"food_ref_id\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"qty\":100,\"unit\":\"g\",\"grams\":100,\"portion_id\":null,\"food_revision_id\":467,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":19,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":9,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":170,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":3,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":37,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":75,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":170,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":17,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+        },
+        {
+          "name": "Jev commit carries soy facet mark",
+          "passed": false,
+          "detail": "[]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-003-jev-log-soy-mark.json"
+    },
+    {
+      "turn": 4,
+      "caseId": "jev-role-advice-unconfirmed",
+      "sentence": "add blue pea crunch to my Eats list",
+      "path": "llm",
+      "elapsedMs": 7132,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [add_to_eats]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7132 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I could not find \\\"blue pea crunch\\\" — what should I log it as?\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted role advice requires confirmation",
+          "passed": false,
+          "detail": "null"
+        },
+        {
+          "name": "Jev role unchanged before confirmation",
+          "passed": true,
+          "detail": "{\"before\":{\"status\":\"avoid\",\"role\":null},\"after\":{\"status\":\"avoid\",\"role\":null}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-004-jev-role-advice-unconfirmed.json"
+    },
+    {
+      "turn": 5,
+      "caseId": "jev-low-fodmap-unverified",
+      "sentence": "make a recipe from mystery broth, rice, and chicken",
+      "path": "llm",
+      "elapsedMs": 9446,
+      "actions": [
+        "save_recipe"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [save_recipe]; got [save_recipe]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9446 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.11"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes unverified food",
+          "passed": true,
+          "detail": "{\"kind\":\"save_recipe\",\"name\":\"Chicken Rice Broth Bowl\",\"items\":[{\"name\":\"Rice, white, cooked\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12},{\"name\":\"Chicken breast, roasted\",\"grams\":140,\"verdict\":\"allowed\",\"foodRefId\":\"e0fa09a9-7589-4174-85e1-f45724dbc32c\",\"fatPer100g\":3.6,\"kcalPer100g\":165,\"carbsPer100g\":0,\"proteinPer100g\":31,\"catalogFoodRevisionId\":1}],\"flagged\":[],\"actionId\":\"fb8678a2-868b-49ee-bece-95025dfcc2b0\",\"refusals\":[\"Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\"]}"
+        },
+        {
+          "name": "Jev persisted Not verified low-FODMAP copy",
+          "passed": true,
+          "detail": "I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-005-jev-low-fodmap-unverified.json"
+    },
+    {
+      "turn": 6,
+      "caseId": "jev-recipe-excludes-soy",
+      "sentence": "make a recipe from smoked tofu, rice, and avocado",
+      "path": "llm",
+      "elapsedMs": 10043,
+      "actions": [
+        "save_recipe"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [save_recipe]; got [save_recipe]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 10043 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.12"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I have the other item ready. Skipped Smoked tofu: contains soy (your no-soy preference).\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes soy",
+          "passed": true,
+          "detail": "{\"kind\":\"save_recipe\",\"name\":\"Smoked Tofu Rice Bowl\",\"items\":[{\"name\":\"Rice, white, cooked\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12},{\"name\":\"Avocado, raw\",\"grams\":50,\"verdict\":\"allowed\",\"foodRefId\":\"08b3fb89-69eb-4b74-abae-308c0d56bbe2\",\"fatPer100g\":14.7,\"kcalPer100g\":160,\"carbsPer100g\":8.5,\"proteinPer100g\":2,\"catalogFoodRevisionId\":16}],\"flagged\":[],\"actionId\":\"42824a82-9907-47fc-8571-6b3faa8c9b5d\",\"refusals\":[\"Skipped Smoked tofu: contains soy (your no-soy preference).\"]}"
+        },
+        {
+          "name": "Jev persisted recipe names facet and preference",
+          "passed": true,
+          "detail": "I have the other item ready. Skipped Smoked tofu: contains soy (your no-soy preference). Skipped Smoked tofu: contains soy (your no-soy preference)."
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-006-jev-recipe-excludes-soy.json"
+    },
+    {
+      "turn": 7,
+      "caseId": "jev-three-dinner-ideas",
+      "sentence": "give me three dinner ideas that fit my preferences",
+      "path": "llm",
+      "elapsedMs": 9795,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 3-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9795 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner ideas using turkey breast, pork tenderloin, and canned light tuna, served with avocado for fat, plus banana and corn tortillas for carbs.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "Jev exactly one persisted ranking call",
+          "passed": true,
+          "detail": "[\"coach-intent\",\"coach\",\"suggest-options\",\"coach\",\"coach-verify\"]"
+        },
+        {
+          "name": "Jev persisted cards are policy-clean",
+          "passed": true,
+          "detail": "{\"ideas\":3,\"verdicts\":[\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\"]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-007-jev-three-dinner-ideas.json"
+    },
+    {
+      "turn": 8,
+      "caseId": "jev-recipe-excludes-soy",
+      "sentence": "make a recipe from smoked tofu, rice, and avocado",
+      "path": "llm",
+      "elapsedMs": 5323,
+      "actions": [
+        "save_recipe"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [save_recipe]; got [save_recipe]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5323 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.18"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I have the other item ready. Skipped smoked tofu: contains soy (your no-soy preference).\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes soy",
+          "passed": true,
+          "detail": "{\"kind\":\"save_recipe\",\"name\":\"Smoked tofu rice bowl with avocado\",\"items\":[{\"name\":\"cooked white rice\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12},{\"name\":\"avocado\",\"grams\":50,\"verdict\":\"allowed\",\"foodRefId\":\"08b3fb89-69eb-4b74-abae-308c0d56bbe2\",\"fatPer100g\":14.7,\"kcalPer100g\":160,\"carbsPer100g\":8.5,\"proteinPer100g\":2,\"catalogFoodRevisionId\":16}],\"flagged\":[],\"actionId\":\"4627dfcc-71a6-4e94-884b-aa67b64b9dc8\",\"refusals\":[\"Skipped smoked tofu: contains soy (your no-soy preference).\"]}"
+        },
+        {
+          "name": "Jev persisted recipe names facet and preference",
+          "passed": true,
+          "detail": "I have the other item ready. Skipped smoked tofu: contains soy (your no-soy preference). Skipped smoked tofu: contains soy (your no-soy preference)."
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-008-jev-recipe-excludes-soy.json"
+    },
+    {
+      "turn": 9,
+      "caseId": "jev-log-soy-mark",
+      "sentence": "log 100 g of smoked tofu for lunch",
+      "path": "llm",
+      "elapsedMs": 7141,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7141 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.2"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 100 g smoked tofu for lunch (Meal 2). Note that tofu is a legume, which is on your category avoid list. Off-plan: Smoked tofu.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted soy verdict",
+          "passed": true,
+          "detail": "{\"date\":\"2026-09-20\",\"kind\":\"log_meal\",\"slot\":\"meal-2\",\"items\":[{\"name\":\"Smoked tofu\",\"grams\":100,\"sanity\":{\"status\":\"pending\",\"warnings\":[]},\"verdict\":\"blocked\",\"foodRefId\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"fatPer100g\":9,\"kcalPer100g\":170,\"carbsPer100g\":3,\"proteinPer100g\":19,\"catalogFoodRevisionId\":467}],\"flagged\":[\"Smoked tofu\"],\"actionId\":\"3ffcb031-f05f-4a03-b511-7709d601e4fb\"}"
+        },
+        {
+          "name": "Jev persisted soy reply mark",
+          "passed": true,
+          "detail": "Logged 100 g smoked tofu for lunch (Meal 2). Note that tofu is a legume, which is on your category avoid list. Off-plan: Smoked tofu."
+        },
+        {
+          "name": "Jev soy log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"2ea2c265-67cc-4126-be3d-950bf1c35980\",\"rev\":1,\"items\":[{\"id\":\"07eaf814-7e0b-4a9f-bff3-5b75ed754eaf\",\"entry_id\":\"2ea2c265-67cc-4126-be3d-950bf1c35980\",\"seq\":1,\"food_ref_id\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"qty\":100,\"unit\":\"g\",\"grams\":100,\"portion_id\":null,\"food_revision_id\":467,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":19,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":9,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":170,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":3,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":37,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":75,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":170,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":17,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+        },
+        {
+          "name": "Jev commit carries soy facet mark",
+          "passed": false,
+          "detail": "[]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-009-jev-log-soy-mark.json"
+    },
+    {
+      "turn": 10,
+      "caseId": "jev-tiny-rice-log",
+      "sentence": "log 1 g of rice",
+      "path": "llm",
+      "elapsedMs": 5020,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5020 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 1 g of rice.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted tiny-portion warning",
+          "passed": true,
+          "detail": "{\"name\":\"rice\",\"grams\":1,\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"092c7bf3-ac93-453d-8f6b-f02d14646395:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}"
+        },
+        {
+          "name": "Jev tiny log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"11aeeb09-b5d6-428c-8fd1-c050d7fc2a64\",\"rev\":1,\"items\":[{\"id\":\"8be58a33-6e8d-46aa-adcb-a443262da212\",\"entry_id\":\"11aeeb09-b5d6-428c-8fd1-c050d7fc2a64\",\"seq\":1,\"food_ref_id\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":12,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":1.3,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-010-jev-tiny-rice-log.json"
+    },
+    {
+      "turn": 11,
+      "caseId": "jev-low-fodmap-unverified",
+      "sentence": "make a recipe from mystery broth, rice, and chicken",
+      "path": "llm",
+      "elapsedMs": 9270,
+      "actions": [
+        "save_recipe"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [save_recipe]; got [save_recipe]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9270 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.13"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes unverified food",
+          "passed": true,
+          "detail": "{\"kind\":\"save_recipe\",\"name\":\"Chicken Rice Soup\",\"items\":[{\"name\":\"Chicken breast, roasted\",\"grams\":140,\"verdict\":\"allowed\",\"foodRefId\":\"e0fa09a9-7589-4174-85e1-f45724dbc32c\",\"fatPer100g\":3.6,\"kcalPer100g\":165,\"carbsPer100g\":0,\"proteinPer100g\":31,\"catalogFoodRevisionId\":1},{\"name\":\"Rice, white, cooked\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}],\"flagged\":[],\"actionId\":\"0f8ad5a9-98b3-4e1f-b727-232f434e16b0\",\"refusals\":[\"Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\"]}"
+        },
+        {
+          "name": "Jev persisted Not verified low-FODMAP copy",
+          "passed": true,
+          "detail": "I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-011-jev-low-fodmap-unverified.json"
+    },
+    {
+      "turn": 12,
+      "caseId": "jev-role-advice-unconfirmed",
+      "sentence": "add blue pea crunch to my Eats list",
+      "path": "fast",
+      "elapsedMs": 1298,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1298 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Adding Blue pea crunch to your Eats list.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted role advice requires confirmation",
+          "passed": false,
+          "detail": "{\"kind\":\"add_to_eats\",\"name\":\"Blue pea crunch\",\"flagged\":[\"blue pea crunch\"],\"verdict\":\"blocked\",\"actionId\":\"13de01bd-9814-438a-90fe-cf88eda8a502\",\"foodRefId\":\"7a83fbff-bb40-44f6-83c3-1d1ededb6f83\",\"fatPer100g\":3,\"kcalPer100g\":167,\"carbsPer100g\":5,\"alsoFoodRefIds\":[],\"proteinPer100g\":30,\"catalogFoodRevisionId\":null}"
+        },
+        {
+          "name": "Jev role unchanged before confirmation",
+          "passed": true,
+          "detail": "{\"before\":{\"status\":\"avoid\",\"role\":null},\"after\":{\"status\":\"avoid\",\"role\":null}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-012-jev-role-advice-unconfirmed.json"
+    },
+    {
+      "turn": 13,
+      "caseId": "jev-role-advice-unconfirmed",
+      "sentence": "add blue pea crunch to my Eats list",
+      "path": "fast",
+      "elapsedMs": 1859,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1859 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Adding Blue pea crunch to your Eats list.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted role advice requires confirmation",
+          "passed": true,
+          "detail": "{\"kind\":\"add_to_eats\",\"name\":\"Blue pea crunch\",\"flagged\":[\"blue pea crunch\"],\"verdict\":\"blocked\",\"actionId\":\"f3b05a34-3b93-403a-b362-6902d908c766\",\"foodRefId\":\"790881bc-3225-4544-a974-fe548ca98395\",\"fatPer100g\":3,\"roleAdvice\":{\"foodRefId\":\"790881bc-3225-4544-a974-fe548ca98395\",\"confidence\":0.91,\"suggestedRole\":\"protein_anchor\",\"requiresConfirmation\":true},\"kcalPer100g\":167,\"carbsPer100g\":5,\"alsoFoodRefIds\":[],\"proteinPer100g\":30,\"catalogFoodRevisionId\":null}"
+        },
+        {
+          "name": "Jev role unchanged before confirmation",
+          "passed": true,
+          "detail": "{\"before\":{\"status\":\"avoid\",\"role\":null},\"after\":{\"status\":\"avoid\",\"role\":null}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-013-jev-role-advice-unconfirmed.json"
+    },
+    {
+      "turn": 14,
+      "caseId": "jev-log-soy-mark",
+      "sentence": "log 100 g of smoked tofu for lunch",
+      "path": "llm",
+      "elapsedMs": 4940,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4940 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.22"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 100 g of smoked tofu for Meal 2. Tofu is a legume, so it is marked off-plan. Off-plan: smoked tofu.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted soy verdict",
+          "passed": true,
+          "detail": "{\"date\":\"2026-09-20\",\"kind\":\"log_meal\",\"slot\":\"meal-2\",\"items\":[{\"name\":\"smoked tofu\",\"grams\":100,\"sanity\":{\"status\":\"pending\",\"warnings\":[]},\"verdict\":\"blocked\",\"foodRefId\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"fatPer100g\":9,\"kcalPer100g\":170,\"carbsPer100g\":3,\"proteinPer100g\":19,\"catalogFoodRevisionId\":467}],\"flagged\":[\"smoked tofu\"],\"actionId\":\"b86da7e0-832d-4536-a088-7d29f9175b0e\"}"
+        },
+        {
+          "name": "Jev persisted soy reply mark",
+          "passed": true,
+          "detail": "Logged 100 g of smoked tofu for Meal 2. Tofu is a legume, so it is marked off-plan. Off-plan: smoked tofu."
+        },
+        {
+          "name": "Jev soy log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"ff43dd33-598a-4bea-9bd0-eb612af8e076\",\"rev\":1,\"items\":[{\"id\":\"960c27bf-e641-4118-a36f-ae1cec14776a\",\"entry_id\":\"ff43dd33-598a-4bea-9bd0-eb612af8e076\",\"seq\":1,\"food_ref_id\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"qty\":100,\"unit\":\"g\",\"grams\":100,\"portion_id\":null,\"food_revision_id\":467,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":19,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":9,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":170,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":3,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":37,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":75,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":170,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":17,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0},\"flagged\":[{\"path\":\"items.0\",\"message\":\"blocked:facet:contains_soy\"}]}"
+        },
+        {
+          "name": "Jev commit carries soy facet mark",
+          "passed": true,
+          "detail": "[{\"path\":\"items.0\",\"message\":\"blocked:facet:contains_soy\"}]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-014-jev-log-soy-mark.json"
+    },
+    {
+      "turn": 15,
+      "caseId": "jev-low-fodmap-unverified",
+      "sentence": "make a recipe from mystery broth, rice, and chicken",
+      "path": "llm",
+      "elapsedMs": 9571,
+      "actions": [
+        "save_recipe"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [save_recipe]; got [save_recipe]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9571 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.12"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes unverified food",
+          "passed": true,
+          "detail": "{\"kind\":\"save_recipe\",\"name\":\"Chicken and rice soup\",\"items\":[{\"name\":\"Chicken breast, roasted\",\"grams\":140,\"verdict\":\"allowed\",\"foodRefId\":\"e0fa09a9-7589-4174-85e1-f45724dbc32c\",\"fatPer100g\":3.6,\"kcalPer100g\":165,\"carbsPer100g\":0,\"proteinPer100g\":31,\"catalogFoodRevisionId\":1},{\"name\":\"Rice, white, cooked\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}],\"flagged\":[],\"actionId\":\"634b4bfe-02a5-4457-b165-06f0b8836d19\",\"refusals\":[\"Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\"]}"
+        },
+        {
+          "name": "Jev persisted Not verified low-FODMAP copy",
+          "passed": true,
+          "detail": "I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-015-jev-low-fodmap-unverified.json"
+    },
+    {
+      "turn": 16,
+      "caseId": "jev-tiny-rice-log",
+      "sentence": "log 1 g of rice",
+      "path": "llm",
+      "elapsedMs": 4560,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4560 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 1 g of cooked white rice.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted tiny-portion warning",
+          "passed": true,
+          "detail": "{\"name\":\"Rice, white, cooked\",\"grams\":1,\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"dd261d90-6023-4945-940a-0e82e882d863:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}"
+        },
+        {
+          "name": "Jev tiny log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"ed4664c2-de0a-425b-90b1-4edd8a977e62\",\"rev\":1,\"items\":[{\"id\":\"8f52a3b3-9e14-4e09-b439-dc6866575178\",\"entry_id\":\"ed4664c2-de0a-425b-90b1-4edd8a977e62\",\"seq\":1,\"food_ref_id\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":12,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":12,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":1.3,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-016-jev-tiny-rice-log.json"
+    },
+    {
+      "turn": 17,
+      "caseId": "jev-three-dinner-ideas",
+      "sentence": "give me three dinner ideas that fit my preferences",
+      "path": "llm",
+      "elapsedMs": 9509,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 3-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9509 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner ideas based on your Eats list, with avocado for fat and banana or corn tortillas for carbs.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "Jev exactly one persisted ranking call",
+          "passed": true,
+          "detail": "[\"coach-intent\",\"coach\",\"suggest-options\",\"coach\",\"coach-verify\"]"
+        },
+        {
+          "name": "Jev persisted cards are policy-clean",
+          "passed": true,
+          "detail": "{\"ideas\":3,\"verdicts\":[\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\",\"allowed\"]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-017-jev-three-dinner-ideas.json"
+    },
+    {
+      "turn": 18,
+      "caseId": "jev-recipe-excludes-soy",
+      "sentence": "make a recipe from smoked tofu, rice, and avocado",
+      "path": "llm",
+      "elapsedMs": 10001,
+      "actions": [
+        "save_recipe"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [save_recipe]; got [save_recipe]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 10001 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.11"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I have the other item ready. Skipped Smoked tofu: contains soy (your no-soy preference).\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes soy",
+          "passed": true,
+          "detail": "{\"kind\":\"save_recipe\",\"name\":\"Smoked Tofu Rice Bowl\",\"items\":[{\"name\":\"Rice, white, cooked\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12},{\"name\":\"Avocado, raw\",\"grams\":50,\"verdict\":\"allowed\",\"foodRefId\":\"08b3fb89-69eb-4b74-abae-308c0d56bbe2\",\"fatPer100g\":14.7,\"kcalPer100g\":160,\"carbsPer100g\":8.5,\"proteinPer100g\":2,\"catalogFoodRevisionId\":16}],\"flagged\":[],\"actionId\":\"8a753cdf-14df-4c36-9c00-b3354841f6ef\",\"refusals\":[\"Skipped Smoked tofu: contains soy (your no-soy preference).\"]}"
+        },
+        {
+          "name": "Jev persisted recipe names facet and preference",
+          "passed": true,
+          "detail": "I have the other item ready. Skipped Smoked tofu: contains soy (your no-soy preference). Skipped Smoked tofu: contains soy (your no-soy preference)."
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-018-jev-recipe-excludes-soy.json"
+    }
+  ],
+  "failures": [
+    {
+      "id": "F001",
+      "turn": 3,
+      "caseId": "jev-log-soy-mark",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-003-jev-log-soy-mark.json",
+      "status": "resolved",
+      "diagnosis": "code defect",
+      "resolution": "Cached facet evidence was never loaded for final log actions. Added a cache-only log policy pass that marks rather than refuses, persists the blocked verdict and flagged name, and appends an off-plan notice; unavailable evidence remains unverified.",
+      "regressionTest": "tests/coach/streak-jev-soy-log.test.ts"
+    },
+    {
+      "id": "F002",
+      "turn": 4,
+      "caseId": "jev-role-advice-unconfirmed",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-004-jev-role-advice-unconfirmed.json",
+      "status": "resolved",
+      "diagnosis": "code defect",
+      "resolution": "Coach grounding searched only catalog rows, so the exact role-less custom food was dropped before C4 role advice. Added an exact account-scoped user-food fallback and a read-only Jev role-advice pass for grounded Eats/Avoid additions; the synthetic food now has unambiguous protein-anchor macros.",
+      "regressionTest": "tests/coach/streak-jev-role-advice.test.ts"
+    },
+    {
+      "id": "F003",
+      "turn": 9,
+      "caseId": "jev-log-soy-mark",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-009-jev-log-soy-mark.json",
+      "status": "resolved",
+      "diagnosis": "code defect",
+      "resolution": "The commit path recomputed policy from allergen and Avoid evidence only, so it erased the cached soy mark even after action grounding was fixed. It now merges cache-only preference facets at commit with facetAction mark and keeps the existing write-through behavior.",
+      "regressionTest": "tests/coach/streak-jev-soy-log.test.ts"
+    },
+    {
+      "id": "F004",
+      "turn": 12,
+      "caseId": "jev-role-advice-unconfirmed",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-jev-turns/turn-012-jev-role-advice-unconfirmed.json",
+      "status": "resolved",
+      "diagnosis": "code defect",
+      "resolution": "The fast action path returned immediately after basic grounding and bypassed the post-grounding role-advice pipeline. Both fast and LLM action paths now share the same log-mark, role-advice, and recipe-policy application before persistence.",
+      "regressionTest": "tests/coach/run-turn-role-advice.test.ts"
+    }
+  ],
+  "blockers": [],
+  "warming": {
+    "foods": 20,
+    "calls": 4,
+    "costUsd": 0.002075724,
+    "targetLine": "target: branch klxabxejwktevxewtvqi.supabase.co"
+  }
+}

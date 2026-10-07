@@ -1,0 +1,29 @@
+UP 96a025822df37d6c9c2dabdc9467a8c13dedc4fbb08b3ec12a055cd2dad7d5ea
+DOWN f79d3bd619ee60a0382f2e97ef2fff8831fcc9e151e73590d1383efec83195e2
+down empty exit=0
+BEGIN
+LOCK TABLE
+SET
+DO
+REVOKE
+REVOKE
+ALTER TABLE
+ALTER TABLE
+DROP FUNCTION
+COMMIT
+
+up with column grants exit=0
+BEGIN
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+COMMENT
+GRANT
+GRANT
+COMMIT
+
+privilege boundary exit=0
+ custom_rules_allowed | review_flag_blocked
+----------------------+---------------------
+ t                    | f
+(1 row)

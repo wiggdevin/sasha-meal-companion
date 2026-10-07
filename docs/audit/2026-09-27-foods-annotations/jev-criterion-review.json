@@ -1,0 +1,317 @@
+[
+  {
+    "id": "A01",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0.0,
+            "no": 1.0
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 612,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A02",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.27,
+          "probabilities": {
+            "yes": 0.37,
+            "no": 0.63
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 602,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A03",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.06,
+          "probabilities": {
+            "yes": 0.53,
+            "no": 0.47
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 537,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A04",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.08,
+          "probabilities": {
+            "yes": 0.46,
+            "no": 0.54
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 638,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A05",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.17,
+          "probabilities": {
+            "yes": 0.41,
+            "no": 0.59
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 549,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A06",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.96,
+          "probabilities": {
+            "yes": 0.02,
+            "no": 0.98
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 547,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A07",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.09,
+          "probabilities": {
+            "no": 0.55,
+            "yes": 0.45
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 551,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A08",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 1.0,
+          "probabilities": {
+            "no": 1.0,
+            "yes": 0.0
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 645,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A09",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.29,
+          "probabilities": {
+            "yes": 0.64,
+            "no": 0.36
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 640,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A10",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.97,
+          "probabilities": {
+            "no": 0.98,
+            "yes": 0.02
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 597,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A11",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.9,
+          "probabilities": {
+            "yes": 0.05,
+            "no": 0.95
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 883,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A12",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.05,
+          "probabilities": {
+            "yes": 0.47,
+            "no": 0.53
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 650,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A13",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.94,
+          "probabilities": {
+            "yes": 0.03,
+            "no": 0.97
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 625,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A14",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.48,
+          "probabilities": {
+            "no": 0.26,
+            "yes": 0.74
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 544,
+        "output_tokens": 31
+      }
+    }
+  },
+  {
+    "id": "A15",
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "accept": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.25,
+          "probabilities": {
+            "yes": 0.62,
+            "no": 0.38
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 745,
+        "output_tokens": 31
+      }
+    }
+  }
+]

@@ -1,0 +1,3 @@
+$ eslint --max-warnings 0 && pnpm lint:docs
+$ tsx scripts/check-features.ts
+docs/features.md: 156 rows, 0 problem(s).

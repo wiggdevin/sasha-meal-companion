@@ -1,0 +1,382 @@
+/* Health Overview Orbit (components/HealthOrbit.tsx, 2026-09-30; Harvest retint 2026-10-01). The
+   card is the shared ivory card; this file owns the fixed stage, the unframed overview orb, the seven borderless entities,
+   their motion, and the detail that fills the stage under a chosen entity. Colour comes from tokens only: the five gauge hues, the blue data accent, the
+   steel, and the orb's three roles (--orb-core-rgb, --orb-rim-rgb, --orb-fire-rgb in app/globals.css). */
+
+.card {
+  overflow: hidden;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+}
+
+/* The ring's centre. Zero-sized, so the orb and every node position from one point. */
+.hub {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+/* The orb has no frame, fill or word: only the living phosphor and its glow. */
+.orbWrap {
+  position: absolute;
+  left: -52px;
+  top: -52px;
+  width: 104px;
+  height: 104px;
+}
+
+.orb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  isolation: isolate;
+  cursor: pointer;
+  transition: transform 150ms ease;
+}
+.orb:active {
+  transform: scale(0.98);
+}
+.orb:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 4px;
+}
+
+.orbArt {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+}
+
+/* The glow under the canvas, and the whole orb without WebGL2. */
+.orbGlow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 9999px;
+  /* Harvest: an ivory sphere marbled in olive and sage — the look the shader draws, so no flash. */
+  background:
+    radial-gradient(circle at 34% 30%, #fbf8f1 0%, transparent 38%),
+    radial-gradient(circle at 60% 65%, rgb(var(--orb-fire-rgb) / 0.35) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgb(var(--orb-rim-rgb) / 0.45) 0%, rgb(var(--orb-core-rgb) / 0.55) 70%);
+  box-shadow: 0 6px 14px -8px rgb(var(--orb-core-rgb) / 0.6);
+}
+
+.orbCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  /* Feathers the shader's disc so no edge reads as a ring. */
+  mask-image: radial-gradient(circle closest-side, currentColor 78%, transparent 100%);
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+.orbCanvas[data-ready="true"] {
+  opacity: 1;
+}
+
+.ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* The card's light (2026-09-30): the orb's colours pooled under the ring, the orbit track the
+   entities ride, and one ripple as the Day card's orb arrives at the ring's centre. None of them
+   takes a tap. */
+.pool {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgb(var(--orb-core-rgb) / 0.08) 0%, rgb(var(--orb-rim-rgb) / 0.04) 45%,
+    transparent 100%);
+}
+.track {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+.trackLine {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.12);
+  stroke-width: 1;
+}
+.trackDots {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.28);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 0.01 10;
+}
+.ripple {
+  position: absolute;
+  left: -46px;
+  top: -46px;
+  width: 92px;
+  height: 92px;
+  border-radius: 9999px;
+  pointer-events: none;
+  border: 1.5px solid rgb(var(--orb-core-rgb) / 0.55);
+}
+
+.node {
+  position: absolute;
+  left: -36px;
+  top: -40px;
+  width: 72px;
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* The whole 72 × 80 button is the hit area; the entity itself carries no frame or fill. */
+.nodeMark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  transition: transform 150ms ease;
+}
+.node:active .nodeMark {
+  transform: scale(0.96);
+}
+.node:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+  border-radius: 16px;
+}
+
+.nodeAmount {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.node[data-state="off"] .nodeAmount,
+.node[data-state="empty"] .nodeAmount,
+.node[data-state="loading"] .nodeAmount {
+  color: var(--color-text-muted);
+}
+.node[data-over] .nodeAmount,
+.node[data-over] .nodeLabel {
+  color: var(--color-alert);
+}
+
+.nodeLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  line-height: 14px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* A lower-bound label ("At least", "At least, over"; #21) keeps to the node's 72 px: a longer one
+   wraps under itself rather than running into the next node. */
+.nodeLabel[data-bound] {
+  max-width: 72px;
+  white-space: normal;
+  text-align: center;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .node:hover .nodeMark,
+  .entity:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* A chosen metric: its entity at the top centre of the same fixed stage, as the back control, and
+   its detail in the fixed area beneath. Positions match HEADER_TOP and HEADER_SIZE in
+   lib/today/orbit-geometry.ts. */
+.detailStage {
+  position: absolute;
+  inset: 0;
+}
+.entity {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: none;
+  cursor: pointer;
+}
+.entity:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+.detailBody {
+  position: absolute;
+  top: 108px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 12px 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--grad-recess);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+}
+
+.meter {
+  height: 4px;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  overflow: hidden;
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--mark);
+  transition: width 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.meter > span[data-over] {
+  background: var(--color-alert);
+}
+
+.route {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.route:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+
+.vessel {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+}
+
+/* ---- The living entities (components/HealthOrbitMarks.tsx) ---- */
+/* Harvest: flat-lit food colours on ivory. No glow — a soft contact shadow in the entity's own hue,
+   a light tint for the lit side, a deeper shade for the far side. A CSS drop-shadow, never an SVG
+   blur filter (WebKit rasterises those at 1× and smeared every entity on a phone, 2026-09-30). */
+.mark {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px color-mix(in srgb, currentColor 28%, transparent));
+}
+.sheen {
+  stroke: #ffffff;
+  stroke-opacity: 0.7;
+}
+.stopHot {
+  stop-color: currentColor;
+  stop-color: color-mix(in srgb, currentColor 45%, #ffffff);
+  stop-opacity: 1;
+}
+.stopDeep {
+  stop-color: currentColor;
+  stop-color: color-mix(in srgb, currentColor 78%, var(--color-charcoal));
+}
+/* Animated parts turn about the entity's centre. Parts placed by a transform attribute keep the
+   SVG default origin, or the attribute's own rotation centre would be applied twice. */
+.mark :where(g, path, circle, ellipse):not([transform]) {
+  transform-box: view-box;
+  transform-origin: 24px 24px;
+}
+/* The wheat sways from the root of its stem; the apple leaf from where it meets the stem. */
+.mark .sway { transform-origin: 24px 44px; }
+.mark .leaf { transform-origin: 26.4px 10.6px; }
+.hot {
+  fill: #ffffff;
+  fill-opacity: 0.85;
+}
+.hotStroke {
+  stroke: #ffffff;
+  stroke-opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .core { animation: orbit-pulse 2.4s ease-in-out infinite; }
+  .sway { animation: orbit-sway 4s ease-in-out infinite alternate; }
+  .leaf { animation: orbit-leaf 3s ease-in-out infinite alternate; }
+  .molten { animation: orbit-molten 5s ease-in-out infinite; }
+  .globule { animation: orbit-morph 3.4s ease-in-out infinite; transform-origin: 24px 40px; }
+  .slosh { animation: orbit-slosh 2.2s linear infinite; }
+  .bob { animation: orbit-bob 2.8s ease-in-out infinite; }
+  .flameOuter { animation: orbit-flicker 1.3s ease-in-out infinite; transform-origin: 24px 39px; }
+  .flameInner { animation: orbit-flicker-in 0.9s ease-in-out infinite; transform-origin: 24px 39px; }
+  .ember { animation: orbit-ember 1.8s ease-out infinite; }
+  .moon { animation: orbit-glow 5s ease-in-out infinite; }
+  .cloud { animation: orbit-drift 6s ease-in-out infinite alternate; }
+  .star { animation: orbit-twinkle 2.6s ease-in-out infinite; transform-origin: 40px 9.5px; }
+  .orbGlow { animation: orbit-breathe 5s ease-in-out infinite; }
+}
+
+@keyframes orbit-pulse { 50% { transform: scale(0.94); } }
+@keyframes orbit-sway { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@keyframes orbit-leaf { from { transform: rotate(-8deg); } to { transform: rotate(6deg); } }
+@keyframes orbit-molten {
+  33% { transform: rotate(-4deg); }
+  66% { transform: rotate(3deg); }
+}
+@keyframes orbit-morph {
+  33% { transform: scale(1.05, 0.95); }
+  66% { transform: scale(0.96, 1.05); }
+}
+@keyframes orbit-slosh { to { transform: translateX(-14px); } }
+@keyframes orbit-bob { 50% { transform: translateY(-3px) scale(0.85); } }
+@keyframes orbit-flicker {
+  33% { transform: scale(0.96, 1.07) skewX(-3deg); }
+  66% { transform: scale(1.03, 0.96) skewX(3deg); }
+}
+@keyframes orbit-flicker-in {
+  50% { transform: scale(0.94, 1.1) skewX(2deg); }
+}
+@keyframes orbit-ember {
+  0% { opacity: 0; transform: translateY(6px); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes orbit-glow { 50% { opacity: 0.7; } }
+@keyframes orbit-drift { from { transform: translateX(-2px); } to { transform: translateX(2.5px); } }
+@keyframes orbit-breathe { 50% { transform: scale(0.92); } }
+@keyframes orbit-twinkle { 50% { opacity: 0.35; transform: scale(0.6); } }

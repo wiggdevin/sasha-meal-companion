@@ -1,0 +1,82 @@
+/**
+ * Deterministic meals built only from the current account's Eats and target revision.
+ *
+ * Each slot gets the best coherent plate for its occasion (lib/meals, Phase 17 O1): the slot's
+ * clock picks the occasion and template, the curated table picks anchor and sides, every item is
+ * sized inside its portion band, and the day prefers distinct anchors; a protein repeats when that
+ * scores better, never in neighbouring slots unless the other choice is an empty slot (D5,
+ * amended). A slot nothing coherent fits is left empty with a shortage reason naming the missing
+ * part.
+ */
+import type { Food } from "@/lib/foods";
+import { planDay, type DayPlan } from "@/lib/meals/day";
+import type { OccasionOverrides } from "@/lib/meals/occasion";
+import { evidenceKey, type MealEvidence } from "@/lib/meals/snapshot";
+import { plateChips, type OpenWorldInputs } from "@/lib/meals/open-world";
+import type { Macros, Meal, SlotId } from "@/lib/types";
+
+export { usableForGeneration } from "@/lib/meals/pool";
+
+export type LayoutSlot = { id: SlotId; target: Macros; clock?: string | null };
+
+export type LayoutResult = {
+  meals: { slot: SlotId; meal: Meal }[];
+  shortages: DayPlan["shortages"];
+  misses: DayPlan["misses"];
+};
+
+/** Today renders the same day several times (cards, notice, today's totals): plan it once. */
+const MEMO_SIZE = 12;
+const memo = new Map<string, DayPlan>();
+
+function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
+  overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs): string {
+  const foodPart = Object.values(foods).map((food) => [food.id, food.name, food.role, food.status,
+    food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat].join("|")).sort().join(";");
+  // A closed account's key is exactly main's; an open one adds its snapshot's identity.
+  return JSON.stringify([date, slots, overrides ?? null, foodPart, evidenceKey(evidence),
+    ...(open ? [open.key] : [])]);
+}
+
+/**
+ * The generator with its shortage reasons: one computation for the cards and the notice.
+ * `evidence`: the account's snapshot evidence (lib/meals/snapshot.ts); see `planDay`.
+ *
+ * `open` (Phase 18 W8): an open food-world account's admitted pool, taste values and search
+ * (lib/meals/open-world.ts). The caller passes `open.foods` as `foods` and `open.evidence` as
+ * `evidence`; each generated meal then carries its reason chips. Absent: main's generator.
+ */
+export function planMealsForDay(
+  date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
+  overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
+): LayoutResult {
+  const key = memoKey(date, slots, foods, overrides, evidence, open);
+  let plan = memo.get(key);
+  if (!plan) {
+    plan = open ? planDay(date, slots, foods, overrides, evidence, open.taste, open.ranking)
+      : planDay(date, slots, foods, overrides, evidence);
+    if (memo.size >= MEMO_SIZE) memo.delete(memo.keys().next().value as string);
+    memo.set(key, plan);
+  }
+  // Fresh objects every call: a caller may edit what it is handed, never the memo.
+  return {
+    meals: plan.plates.map(({ slot, plate }) => {
+      const reasons = open ? plateChips(plate, open.chips) : [];
+      return { slot, meal: {
+        id: `suggested:${date}:${slot}`, name: plate.name, slot,
+        components: plate.components.map((part) => ({ ...part, macros: { ...part.macros } })),
+        macros: { ...plate.macros }, prepMinutes: 0, tags: [], ...(reasons.length ? { reasons } : {}),
+      } satisfies Meal };
+    }),
+    shortages: plan.shortages.map(({ slot, shortage }) => ({ slot,
+      shortage: { missing: [...shortage.missing], reason: shortage.reason } })),
+    misses: plan.misses.map((miss) => ({ ...miss })),
+  };
+}
+
+/** The generated meals only. A slot's optional `clock` ("07:30") sets its occasion. */
+export function layoutMealsForDay(
+  date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>, evidence?: MealEvidence | null,
+): { slot: SlotId; meal: Meal }[] {
+  return planMealsForDay(date, slots, foods, undefined, evidence).meals;
+}

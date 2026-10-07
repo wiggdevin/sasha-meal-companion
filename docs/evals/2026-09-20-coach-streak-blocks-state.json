@@ -1,0 +1,1717 @@
+{
+  "version": 1,
+  "seed": "20260919",
+  "branch": "chat-first-2026-09-19",
+  "category": "block",
+  "startedAt": "2026-09-20T05:46:02.666Z",
+  "updatedAt": "2026-09-20T06:18:02.489Z",
+  "status": "success",
+  "streak": 6,
+  "totalTurns": 24,
+  "turns": [
+    {
+      "turn": 1,
+      "caseId": "block-search-watermelon-avoid",
+      "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+      "path": "llm",
+      "elapsedMs": 7527,
+      "actions": [
+        "add_to_avoid"
+      ],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected []; got [add_to_avoid]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7527 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Watermelon is on your avoid list now.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected avoid; got [\"avoid\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-001-block-search-watermelon-avoid.json"
+    },
+    {
+      "turn": 2,
+      "caseId": "block-search-greek-yogurt-eats",
+      "sentence": "find greek yogurt and put it on my eats",
+      "path": "llm",
+      "elapsedMs": 7447,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7447 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.19"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Plain Greek yogurt is on your Eats list. Note that dairy is one of your avoided categories, so it will be marked off-plan.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected eats; got [\"eats\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-002-block-search-greek-yogurt-eats.json"
+    },
+    {
+      "turn": 3,
+      "caseId": "block-weight-trend",
+      "sentence": "how's my weight trending?",
+      "path": "fast",
+      "elapsedMs": 1279,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1279 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your weight trend.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected weight_trend; got [\"weight_trend\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 weight_trend chart subtype",
+          "passed": true,
+          "detail": "[\"weight_trend\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-003-block-weight-trend.json"
+    },
+    {
+      "turn": 4,
+      "caseId": "block-three-dinner-ideas",
+      "sentence": "three dinner ideas",
+      "path": "llm",
+      "elapsedMs": 9559,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 1-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9559 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner ideas using shrimp, egg whites, or chicken breast, with avocado for the fat.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-004-block-three-dinner-ideas.json"
+    },
+    {
+      "turn": 5,
+      "caseId": "block-protein-or-fibre",
+      "sentence": "can you change my breakfast?",
+      "path": "llm",
+      "elapsedMs": 3902,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3902 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Focus on protein first. You have 102 g of protein remaining to reach your target today.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [quick_replies]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected quick-reply count",
+          "passed": false,
+          "detail": "expected 2-4; got []"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-005-block-protein-or-fibre.json"
+    },
+    {
+      "turn": 6,
+      "caseId": "block-week-review",
+      "sentence": "how did this week go?",
+      "path": "llm",
+      "elapsedMs": 8259,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8259 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.14"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your weekly calorie summary. Logging was sparse this week, with entries recorded on only three days.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected kcal_week; got [\"kcal_week\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 week chart subtype",
+          "passed": true,
+          "detail": "[\"kcal_week\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-006-block-week-review.json"
+    },
+    {
+      "turn": 7,
+      "caseId": "block-search-watermelon-avoid",
+      "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+      "path": "llm",
+      "elapsedMs": 6703,
+      "actions": [],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6703 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is raw watermelon from the catalog.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected avoid; got [\"avoid\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-007-block-search-watermelon-avoid.json"
+    },
+    {
+      "turn": 8,
+      "caseId": "block-week-review",
+      "sentence": "how did this week go?",
+      "path": "llm",
+      "elapsedMs": 6689,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6689 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.18"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"You logged meals on three days this week, with entries recorded on Monday, Thursday, and today. The remaining days have no meal logs recorded.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected kcal_week; got [\"kcal_week\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 week chart subtype",
+          "passed": true,
+          "detail": "[\"kcal_week\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-008-block-week-review.json"
+    },
+    {
+      "turn": 9,
+      "caseId": "block-weight-trend",
+      "sentence": "how's my weight trending?",
+      "path": "fast",
+      "elapsedMs": 998,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 998 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your weight trend.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected weight_trend; got [\"weight_trend\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 weight_trend chart subtype",
+          "passed": true,
+          "detail": "[\"weight_trend\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-009-block-weight-trend.json"
+    },
+    {
+      "turn": 10,
+      "caseId": "block-search-greek-yogurt-eats",
+      "sentence": "find greek yogurt and put it on my eats",
+      "path": "llm",
+      "elapsedMs": 7556,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7556 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.1"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Greek yogurt, plain is on your Eats list now. Note that dairy is off-plan for your constraints.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected eats; got [\"eats\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-010-block-search-greek-yogurt-eats.json"
+    },
+    {
+      "turn": 11,
+      "caseId": "block-protein-or-fibre",
+      "sentence": "can you change my breakfast?",
+      "path": "llm",
+      "elapsedMs": 8855,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 0-0; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8855 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.09"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 options using pork tenderloin, tuna, and grilled beef sirloin with avocado, banana, or corn tortillas added for fats and carbs.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [quick_replies]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected quick-reply count",
+          "passed": false,
+          "detail": "expected 2-4; got []"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-011-block-protein-or-fibre.json"
+    },
+    {
+      "turn": 12,
+      "caseId": "block-three-dinner-ideas",
+      "sentence": "three dinner ideas",
+      "path": "llm",
+      "elapsedMs": 8945,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 1-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8945 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner options from your Eats list.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-012-block-three-dinner-ideas.json"
+    },
+    {
+      "turn": 13,
+      "caseId": "block-three-dinner-ideas",
+      "sentence": "three dinner ideas",
+      "path": "llm",
+      "elapsedMs": 9335,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 1-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 9335 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.33"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner options, each with avocado added for fat.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-013-block-three-dinner-ideas.json"
+    },
+    {
+      "turn": 14,
+      "caseId": "block-weight-trend",
+      "sentence": "how's my weight trending?",
+      "path": "fast",
+      "elapsedMs": 1022,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1022 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your weight trend.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected weight_trend; got [\"weight_trend\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 weight_trend chart subtype",
+          "passed": true,
+          "detail": "[\"weight_trend\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-014-block-weight-trend.json"
+    },
+    {
+      "turn": 15,
+      "caseId": "block-protein-or-fibre",
+      "sentence": "can you change my breakfast?",
+      "path": "llm",
+      "elapsedMs": 5904,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5904 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"What would you like to change your breakfast to?\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [quick_replies]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected quick-reply count",
+          "passed": false,
+          "detail": "expected 2-4; got []"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-015-block-protein-or-fibre.json"
+    },
+    {
+      "turn": 16,
+      "caseId": "block-search-greek-yogurt-eats",
+      "sentence": "find greek yogurt and put it on my eats",
+      "path": "llm",
+      "elapsedMs": 7944,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7944 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.21"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Greek yogurt, plain is on your Eats list now. Note that dairy is on your banned list, so it is marked off-plan.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected eats; got [\"eats\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-016-block-search-greek-yogurt-eats.json"
+    },
+    {
+      "turn": 17,
+      "caseId": "block-search-watermelon-avoid",
+      "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+      "path": "llm",
+      "elapsedMs": 6172,
+      "actions": [],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6172 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is watermelon from the catalog. Let me know if you would like to add it to your avoid list.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected avoid; got [\"avoid\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-017-block-search-watermelon-avoid.json"
+    },
+    {
+      "turn": 18,
+      "caseId": "block-week-review",
+      "sentence": "how did this week go?",
+      "path": "llm",
+      "elapsedMs": 6094,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6094 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.44"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your calorie breakdown for the week. You logged meals on Monday, Thursday, and today.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [chart]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": false,
+          "detail": "expected kcal_week; got []"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 week chart subtype",
+          "passed": false,
+          "detail": "[]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-018-block-week-review.json"
+    },
+    {
+      "turn": 19,
+      "caseId": "block-search-greek-yogurt-eats",
+      "sentence": "find greek yogurt and put it on my eats",
+      "path": "llm",
+      "elapsedMs": 7768,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7768 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.21"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Greek yogurt is on your Eats list now. Note that dairy is on your avoid list, so it is marked off-plan.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected eats; got [\"eats\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-019-block-search-greek-yogurt-eats.json"
+    },
+    {
+      "turn": 20,
+      "caseId": "block-weight-trend",
+      "sentence": "how's my weight trending?",
+      "path": "fast",
+      "elapsedMs": 1106,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1106 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your weight trend.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected weight_trend; got [\"weight_trend\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 weight_trend chart subtype",
+          "passed": true,
+          "detail": "[\"weight_trend\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-020-block-weight-trend.json"
+    },
+    {
+      "turn": 21,
+      "caseId": "block-search-watermelon-avoid",
+      "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+      "path": "llm",
+      "elapsedMs": 8558,
+      "actions": [],
+      "blocks": [
+        "food_search"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8558 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is watermelon from the catalogue.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_search]; got [food_search]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": true,
+          "detail": "expected avoid; got [\"avoid\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-021-block-search-watermelon-avoid.json"
+    },
+    {
+      "turn": 22,
+      "caseId": "block-week-review",
+      "sentence": "how did this week go?",
+      "path": "llm",
+      "elapsedMs": 6334,
+      "actions": [],
+      "blocks": [
+        "chart"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6334 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.31"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here is your calorie intake for the week. You logged meals on September 15th, 18th, and 20th, while the other days have no entries recorded.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [chart]; got [chart]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": true,
+          "detail": "expected kcal_week; got [\"kcal_week\"]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        },
+        {
+          "name": "B3 week chart subtype",
+          "passed": true,
+          "detail": "[\"kcal_week\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-022-block-week-review.json"
+    },
+    {
+      "turn": 23,
+      "caseId": "block-protein-or-fibre",
+      "sentence": "can you change my breakfast?",
+      "path": "llm",
+      "elapsedMs": 10232,
+      "actions": [],
+      "blocks": [
+        "quick_replies"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 10232 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Sure, what would you like to change your breakfast to?\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [quick_replies]; got [quick_replies]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "expected quick-reply count",
+          "passed": true,
+          "detail": "expected 2-4; got [3]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-023-block-protein-or-fibre.json"
+    },
+    {
+      "turn": 24,
+      "caseId": "block-three-dinner-ideas",
+      "sentence": "three dinner ideas",
+      "path": "llm",
+      "elapsedMs": 8761,
+      "actions": [],
+      "blocks": [
+        "food_ideas"
+      ],
+      "cards": 3,
+      "category": "block",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 1-3; got 3"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8761 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Here are 3 dinner ideas based on your Eats list, with avocado for fat and banana or corn tortillas for carbs.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected [food_ideas]; got [food_ideas]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "persisted block proof",
+          "passed": true,
+          "detail": "actual.persistedBlocks is present"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-024-block-three-dinner-ideas.json"
+    }
+  ],
+  "failures": [
+    {
+      "id": "F001",
+      "turn": 1,
+      "caseId": "block-search-watermelon-avoid",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-001-block-search-watermelon-avoid.json",
+      "status": "resolved",
+      "diagnosis": "corpus expectation wrong",
+      "resolution": "The sentence stated the avoid intent, so Gemini acting (add_to_avoid) alongside the food_search block was acceptable model behaviour; the case now asks for a lookup before deciding: 'show me watermelon in the catalog so I can decide whether to avoid it'.",
+      "regressionTest": null
+    },
+    {
+      "id": "F002",
+      "turn": 2,
+      "caseId": "block-search-greek-yogurt-eats",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-002-block-search-greek-yogurt-eats.json",
+      "status": "resolved",
+      "diagnosis": "corpus expectation wrong",
+      "resolution": "The sentence explicitly asks to put greek yogurt on Eats; Gemini did so (add_to_eats) with the food_search block and named the dairy off-plan mark. The case now expects add_to_eats plus the block.",
+      "regressionTest": null
+    },
+    {
+      "id": "F003",
+      "turn": 5,
+      "caseId": "block-protein-or-fibre",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-005-block-protein-or-fibre.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "Gemini answered 'should I eat more protein or more fibre?' directly and correctly (protein first, 102 g remaining) instead of offering quick replies — acceptable. Mitigation: the case now asks explicitly for two or three quick options to pick from, which is what the quick_replies block is for; the prompt is unchanged.",
+      "regressionTest": null
+    },
+    {
+      "id": "F004",
+      "turn": 11,
+      "caseId": "block-protein-or-fibre",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-011-block-protein-or-fibre.json",
+      "status": "resolved",
+      "diagnosis": "corpus expectation wrong",
+      "resolution": "The reworded sentence asked for 'two or three quick options', which in a food coach means meal options; Gemini answered correctly with three composed meals and a food_ideas block. quick_replies is for a clarifying question with choices, so the case now asks 'can you change my breakfast?' (move it, swap the foods, or skip it) and keeps the quick_replies expectation; id kept for history.",
+      "regressionTest": null
+    },
+    {
+      "id": "F005",
+      "turn": 15,
+      "caseId": "block-protein-or-fibre",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-015-block-protein-or-fibre.json",
+      "status": "resolved",
+      "diagnosis": "code defect",
+      "resolution": "Third failure of the quick_replies kind with the block's own trigger present (the coach asked a clarifying question with no choices). Prompt guidance now binds quick_replies to the coach's own question in the same step with 2–4 choices; regression test pins the wording; wire.ts untouched.",
+      "regressionTest": "tests/coach/streak-block-quick-replies.test.ts"
+    },
+    {
+      "id": "F006",
+      "turn": 18,
+      "caseId": "block-week-review",
+      "proofPath": "docs/evals/2026-09-20-coach-streak-blocks-turns/turn-018-block-week-review.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "First failure of this kind: for 'how did this week go?' Gemini called get_week_totals but not show_chart (the two earlier passes called both) and its reply still said 'Here is your calorie breakdown for the week'. Prompt unchanged on one occurrence. Mitigation noted for follow-up: extend the no-unsupported-claim verifier to block claims (a reply that says 'here is your chart/breakdown' must carry a block).",
+      "regressionTest": null
+    }
+  ],
+  "blockers": [
+    {
+      "reason": "Error: test_reset_user: Could not find the function public.test_reset_user(p_user_id) in the schema cache",
+      "resolution": "driver applied supabase/seed/test_helpers.sql to the branch and reloaded the PostgREST schema cache"
+    }
+  ],
+  "evaluation": {
+    "mode": "offline",
+    "storedTurns": 24
+  }
+}

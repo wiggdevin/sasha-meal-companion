@@ -1,0 +1,92 @@
+[
+  {
+    "path": "/sign-in",
+    "method": "GET",
+    "status": 200,
+    "body": "omitted"
+  },
+  {
+    "path": "/manifest.webmanifest",
+    "method": "GET",
+    "status": 200,
+    "body": "omitted"
+  },
+  {
+    "path": "/sw.js",
+    "method": "GET",
+    "status": 200,
+    "body": "omitted"
+  },
+  {
+    "path": "/api/export",
+    "method": "GET",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/coach",
+    "method": "POST",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/coach/threads",
+    "method": "GET",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/sync/changes",
+    "method": "GET",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/sync/ops",
+    "method": "POST",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/foods/search?q=chicken",
+    "method": "GET",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/constraints",
+    "method": "GET",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/targets",
+    "method": "GET",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Sign in to continue.\"}"
+  },
+  {
+    "path": "/api/dev/sign-in",
+    "method": "POST",
+    "status": 405,
+    "body": ""
+  },
+  {
+    "path": "/api/jobs/backup",
+    "method": "POST",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"bad cron secret\"}"
+  },
+  {
+    "path": "/api/mcp",
+    "method": "POST",
+    "status": 401,
+    "body": "{\"error\":\"unauthorized\",\"message\":\"Bearer token required.\"}"
+  },
+  {
+    "path": "/api/dev/sign-in",
+    "method": "GET",
+    "status": 404,
+    "body": "not found"
+  }
+]

@@ -1,0 +1,229 @@
+/* The board's water tile (components/today/WaterTile.tsx, WaterLiquid.tsx; 2026-10-03). The water is
+   the gauge's slate (DESIGN.md §Colors, --color-gauge-water) leaned a little toward sage, a soft
+   blue-green that sits on the ivory card beside olive. Text stays ink; the liquid is pale enough
+   that the count reads over it at every level. */
+
+.tile {
+  --water-deep: color-mix(in srgb, var(--color-gauge-water) 82%, var(--color-gauge-carbs));
+  --water-light: color-mix(in srgb, var(--color-gauge-water-end) 86%, var(--color-gauge-carbs-end));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  /* No height of its own: the board's water-and-tip row sets it (DayBoard.module.css `.pairCell`),
+     and the liquid (WaterLiquid.tsx, absolutely inset) fills all of it. */
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-gauge-water) 8%, var(--color-surface));
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  isolation: isolate;
+  /* Vertical scrolling stays the browser's until a hold matures; the scrub owns horizontal travel. */
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tile:disabled {
+  cursor: default;
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tile > :not(.liquid):not(.ripple) {
+  position: relative;
+  z-index: 1;
+}
+
+.liquid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.waveBack {
+  fill: color-mix(in srgb, var(--water-light) 42%, transparent);
+}
+
+.stopTop {
+  stop-color: var(--water-light);
+  stop-opacity: 0.6;
+}
+
+.stopBottom {
+  stop-color: var(--water-deep);
+  stop-opacity: 0.55;
+}
+
+.bubble {
+  fill: color-mix(in srgb, var(--color-surface) 45%, transparent);
+  stroke: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  stroke-width: 1;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.count {
+  display: inline-block;
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 44px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "+ Cup" reads as the tile's button (the whole tile is the control), so it takes the system's small
+   size: 36 px (DESIGN.md §Buttons; no button height outside 36 / 44 / 52). */
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 12px 0 10px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--bevel);
+}
+
+.ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: 88px;
+  height: 88px;
+  margin: -44px 0 0 -44px;
+  border: 2px solid color-mix(in srgb, var(--water-deep) 70%, transparent);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+/* ---- The scrub bar: a card above the tile while a hold slides ---- */
+
+.scrubLayer {
+  --water-deep: color-mix(in srgb, var(--color-gauge-water) 82%, var(--color-gauge-carbs));
+  --water-light: color-mix(in srgb, var(--color-gauge-water-end) 86%, var(--color-gauge-carbs-end));
+  position: fixed;
+  right: 16px;
+  left: 16px;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scrubCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 358px;
+  padding: 12px 16px 14px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  border-radius: 24px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.scrubLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.scrubTotal {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.scrubTrack {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.06);
+}
+
+.scrubBase,
+.scrubAdd {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 9999px;
+}
+
+.scrubBase {
+  left: 0;
+  background: var(--water-deep);
+}
+
+.scrubAdd {
+  background: var(--water-light);
+}
+
+.scrubAdd[data-remove] {
+  background: rgb(var(--ink-rgb) / 0.12);
+}
+
+.scrubGoal {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgb(var(--ink-rgb) / 0.3);
+}
+
+.scrubHint {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+}
+
+/* The keyboard's pending amount, shown in place of the add pill until Enter or Escape. */
+.pending {
+  background: var(--water-deep);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple {
+    display: none;
+  }
+}

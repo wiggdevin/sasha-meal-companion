@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm lint)",
+      "Bash(pnpm test)",
+      "Bash(pnpm exec tsc --noEmit)",
+      "Bash(pnpm build)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git diff)",
+      "Bash(git diff:*)",
+      "Bash(git log)",
+      "Bash(git log:*)",
+      "Bash(gh pr view)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr checks)",
+      "Bash(gh pr checks:*)"
+    ],
+    "deny": [
+      "Bash(vercel --prod)",
+      "Bash(vercel --prod:*)",
+      "Bash(*service_role*)"
+    ]
+  }
+}

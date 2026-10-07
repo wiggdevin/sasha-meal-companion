@@ -1,0 +1,17 @@
+drop table if exists public.shopping_purchase_window_edits;
+drop table if exists public.shopping_purchase_windows;
+drop table if exists public.shopping_pantry;
+drop table if exists public.shopping_lines;
+drop table if exists public.shopping_periods;
+drop table if exists public.favorites_catalog_recipes;
+drop table if exists public.recipe_catalog_steps;
+drop table if exists public.recipe_catalog_items;
+drop table if exists public.recipe_catalog_seals;
+drop table if exists public.recipe_catalog_revisions cascade;
+drop table if exists public.recipe_catalog;
+drop function if exists public.recipe_catalog_immutable();
+drop function if exists public.recipe_catalog_publish_guard();
+drop function if exists public.recipe_catalog_content_guard();
+drop function if exists public.recipe_catalog_search_doc();
+drop function if exists public.shopping_create_receipt_guard();
+drop function if exists public.shopping_patch_purchase_window(uuid, uuid, integer, uuid, jsonb);

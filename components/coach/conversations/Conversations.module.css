@@ -1,0 +1,154 @@
+/* The Conversations list (U20, DESIGN.md §Components › Conversations, 2026-10-04). Rows are flat
+   list rows inside the sheet, not pills: a title line, a time, a snippet when a search found one.
+   Swiping a row left uncovers Delete behind it. */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 16px;
+  background: rgb(var(--ink-rgb) / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.06);
+  overflow: clip;
+}
+
+.item { overflow: clip; }
+.item + .item { border-top: 1px solid var(--color-hairline); }
+
+.row {
+  position: relative;
+  overflow: clip;
+}
+
+/* The row clips its sliding face, and the open button and the … menu fill it edge to edge, so their
+   keyboard rings are drawn inside rather than cut by the clip (owner, 2026-10-04: highlights are
+   never clipped; the meal hinge does the same). */
+.row :is(button, a):focus-visible,
+.item :is(button, a):focus-visible {
+  outline-offset: -3px;
+}
+
+/* What a swipe uncovers: Delete, standing on a faint red wash behind the row. */
+.behind {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  background: color-mix(in srgb, var(--color-red-wash) 60%, transparent);
+}
+
+.face {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 60px;
+  padding: 0 4px 0 0;
+  background: var(--grad-sheet);
+  touch-action: pan-y;
+}
+/* The chat on screen now: the section hue, faintly. */
+.face[data-current="true"] {
+  background: linear-gradient(rgb(var(--section-rgb) / 0.08), rgb(var(--section-rgb) / 0.08)), var(--grad-sheet);
+}
+
+.open {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: 10px 8px 10px 16px;
+  text-align: left;
+  color: var(--color-text-primary);
+  -webkit-tap-highlight-color: transparent;
+}
+.open:disabled { opacity: 0.4; }
+/* The one picked in "Ask from history": the olive wash and an olive edge. */
+.open[data-selected="true"] {
+  background: rgb(var(--primary-rgb) / 0.1);
+  box-shadow: inset 3px 0 0 rgb(var(--primary-rgb));
+}
+
+.line {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* The unread dot sits on the title's centre line, not its baseline. */
+.unread { align-self: center; }
+
+.title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.time {
+  flex: none;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.snippet mark {
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* The row's actions: they share each line evenly, so a wrapped Delete spans the row under the
+   others instead of hanging at one end. */
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 16px 12px;
+}
+.menu > button { flex: 1 1 auto; }
+
+.rename {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+/* A two-step button keeps both of its words in one cell, so arming it never changes its width. */
+.twoStep {
+  display: inline-grid;
+}
+.twoStep > * {
+  grid-area: 1 / 1;
+  transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1); /* FADES.quick */
+}
+.twoStep > [data-shown="false"] {
+  opacity: 0;
+}
+
+.limit {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,122 @@
+{
+  "generatedAt": "2026-10-03T20:51:22.486Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 26,
+  "case": {
+    "id": "meals-p2-future-breakfast",
+    "category": "meals",
+    "sentence": "What's my breakfast on 2026-10-05?",
+    "expected_path": "llm",
+    "note": "P2 follows P1 in the same thread: report Sourdough toast, bacon & eggs from the materialized plan",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30682,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30682 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 future plan materialized",
+      "passed": false,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":null}"
+    },
+    {
+      "name": "C9 future plan reported",
+      "passed": false,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"That took too long and I stopped. Ask me again.\"}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "1944bc42-6587-4714-8165-8ce5b302209a",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "get_plan"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 398,
+      "model": 29119,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "c4fda712-2952-4d48-b716-8063313a47f3",
+        "role": "user",
+        "content": "What's my breakfast on 2026-10-05?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "317d3cf3-0f97-4561-b4a9-edf22592557c",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,329 @@
+{
+  "generatedAt": "2026-09-20T15:17:48.526Z",
+  "branch": "meals-2-2026-09-20",
+  "seed": "20260919",
+  "turn": 1,
+  "case": {
+    "id": "meals-p1-month-breakfast",
+    "category": "meals",
+    "sentence": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+    "expected_path": "llm",
+    "note": "P1: exactly one set_slot_meal with 31 dates and title Sourdough toast, bacon & eggs",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5616,
+    "actions": [
+      "set_slot_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.36,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [set_slot_meal]; got [set_slot_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5616 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.36"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Set sourdough toast, bacon, and eggs as your meal 1 through October 20, 2026. Note that sourdough bread contains gluten, so it is off-plan.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": true,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":\"set_slot_meal\"}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": true,
+      "detail": "{\"expected\":\"meal-1\",\"actual\":\"meal-1\"}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": true,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"Sourdough toast, bacon & eggs\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": true,
+      "detail": "{\"expected\":[\"2026-09-20\",\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-26\",\"2026-09-27\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\",\"2026-10-03\",\"2026-10-04\",\"2026-10-05\",\"2026-10-06\",\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\",\"2026-10-18\",\"2026-10-19\",\"2026-10-20\"],\"actual\":[\"2026-09-20\",\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-26\",\"2026-09-27\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\",\"2026-10-03\",\"2026-10-04\",\"2026-10-05\",\"2026-10-06\",\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\",\"2026-10-18\",\"2026-10-19\",\"2026-10-20\"]}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": true,
+      "detail": "{\"expected\":{\"min\":570,\"max\":700},\"actual\":604}"
+    },
+    {
+      "name": "C9 phone-side materialization",
+      "passed": true,
+      "detail": "{\"dates\":31,\"title\":\"Sourdough toast, bacon & eggs\",\"slot\":\"meal-1\"}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "f214b0f8-1a23-446e-ae5b-3922d0993fb7",
+    "suggestions": [
+      {
+        "foodRefId": "fd71ec7d-f261-41ce-9df3-d4103ce07cd5",
+        "name": "Sourdough bread, toasted",
+        "grams": 76,
+        "reason": "allergen:gluten",
+        "verdict": "blocked"
+      },
+      {
+        "foodRefId": "9adf1d76-3b82-494a-95dc-fc876e55f28d",
+        "name": "Bacon, cooked",
+        "grams": 24,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": "67a93dd4-fa34-4325-966d-2aa98a0b5a2b",
+        "name": "Eggs, cooked",
+        "grams": 200,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-20",
+        "through": "2026-10-20",
+        "slot": "meal-1",
+        "title": "Sourdough toast, bacon & eggs",
+        "items": [
+          {
+            "name": "Sourdough bread, toasted",
+            "foodRefId": "fd71ec7d-f261-41ce-9df3-d4103ce07cd5",
+            "catalogFoodRevisionId": 3,
+            "kcalPer100g": 274,
+            "proteinPer100g": 10.7,
+            "carbsPer100g": 52,
+            "fatPer100g": 2.4,
+            "verdict": "blocked",
+            "grams": 76
+          },
+          {
+            "name": "Bacon, cooked",
+            "foodRefId": "9adf1d76-3b82-494a-95dc-fc876e55f28d",
+            "catalogFoodRevisionId": 4,
+            "kcalPer100g": 358,
+            "proteinPer100g": 30,
+            "carbsPer100g": 0,
+            "fatPer100g": 25,
+            "verdict": "unverified",
+            "grams": 24
+          },
+          {
+            "name": "Eggs, cooked",
+            "foodRefId": "ce0c1965-7c1f-4f47-a44a-fe2c8954aad5",
+            "catalogFoodRevisionId": 137,
+            "kcalPer100g": 155,
+            "proteinPer100g": 12.6,
+            "carbsPer100g": 1.1,
+            "fatPer100g": 10.6,
+            "verdict": "allowed",
+            "grams": 200
+          }
+        ],
+        "actionId": "8ece11d0-e807-4f29-a3c2-5fbfb7c4f13a",
+        "flagged": [
+          "Sourdough bread, toasted"
+        ],
+        "date": "2026-09-20",
+        "dates": [
+          "2026-09-20",
+          "2026-09-21",
+          "2026-09-22",
+          "2026-09-23",
+          "2026-09-24",
+          "2026-09-25",
+          "2026-09-26",
+          "2026-09-27",
+          "2026-09-28",
+          "2026-09-29",
+          "2026-09-30",
+          "2026-10-01",
+          "2026-10-02",
+          "2026-10-03",
+          "2026-10-04",
+          "2026-10-05",
+          "2026-10-06",
+          "2026-10-07",
+          "2026-10-08",
+          "2026-10-09",
+          "2026-10-10",
+          "2026-10-11",
+          "2026-10-12",
+          "2026-10-13",
+          "2026-10-14",
+          "2026-10-15",
+          "2026-10-16",
+          "2026-10-17",
+          "2026-10-18",
+          "2026-10-19",
+          "2026-10-20"
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 358,
+      "model": 4965,
+      "ground": 41
+    },
+    "messages": [
+      {
+        "id": "72c32b42-d99b-4264-a448-1683237fcf41",
+        "role": "user",
+        "content": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "f90d66e3-6b91-4622-b7bf-c6dd31f06411",
+        "role": "assistant",
+        "content": "Set sourdough toast, bacon, and eggs as your meal 1 through October 20, 2026. Note that sourdough bread contains gluten, so it is off-plan.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "8ece11d0-e807-4f29-a3c2-5fbfb7c4f13a",
+            "flagged": [
+              "Sourdough bread, toasted"
+            ],
+            "kind": "set_slot_meal",
+            "date": "2026-09-20",
+            "from": "2026-09-20",
+            "through": "2026-10-20",
+            "dates": [
+              "2026-09-20",
+              "2026-09-21",
+              "2026-09-22",
+              "2026-09-23",
+              "2026-09-24",
+              "2026-09-25",
+              "2026-09-26",
+              "2026-09-27",
+              "2026-09-28",
+              "2026-09-29",
+              "2026-09-30",
+              "2026-10-01",
+              "2026-10-02",
+              "2026-10-03",
+              "2026-10-04",
+              "2026-10-05",
+              "2026-10-06",
+              "2026-10-07",
+              "2026-10-08",
+              "2026-10-09",
+              "2026-10-10",
+              "2026-10-11",
+              "2026-10-12",
+              "2026-10-13",
+              "2026-10-14",
+              "2026-10-15",
+              "2026-10-16",
+              "2026-10-17",
+              "2026-10-18",
+              "2026-10-19",
+              "2026-10-20"
+            ],
+            "title": "Sourdough toast, bacon & eggs",
+            "slot": "meal-1",
+            "items": [
+              {
+                "name": "Sourdough bread, toasted",
+                "foodRefId": "fd71ec7d-f261-41ce-9df3-d4103ce07cd5",
+                "catalogFoodRevisionId": 3,
+                "kcalPer100g": 274,
+                "proteinPer100g": 10.7,
+                "carbsPer100g": 52,
+                "fatPer100g": 2.4,
+                "verdict": "blocked",
+                "grams": 76
+              },
+              {
+                "name": "Bacon, cooked",
+                "foodRefId": "9adf1d76-3b82-494a-95dc-fc876e55f28d",
+                "catalogFoodRevisionId": 4,
+                "kcalPer100g": 358,
+                "proteinPer100g": 30,
+                "carbsPer100g": 0,
+                "fatPer100g": 25,
+                "verdict": "unverified",
+                "grams": 24
+              },
+              {
+                "name": "Eggs, cooked",
+                "foodRefId": "ce0c1965-7c1f-4f47-a44a-fe2c8954aad5",
+                "catalogFoodRevisionId": 137,
+                "kcalPer100g": 155,
+                "proteinPer100g": 12.6,
+                "carbsPer100g": 1.1,
+                "fatPer100g": 10.6,
+                "verdict": "allowed",
+                "grams": 200
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

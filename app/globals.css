@@ -1,0 +1,1417 @@
+@import "tailwindcss";
+@import "./design-tokens.css";
+
+/*
+  Sasha — theme "Harvest" (2026-10-01; DESIGN.md), from Devin's Premium Meal Card reference. An oat
+  stone ground with a matte grain, ivory cards, matte charcoal meal cards and dock, one olive primary
+  with cream text and an inset bevel, beige trays, Fraunces over Plus Jakarta Sans. It follows "Fresh"
+  and replaces "Motion" on feat/nutrition-look; Natural stays archived at
+  docs/design/archive/natural-2026-09-22/.
+
+  `app/design-tokens.css` (imported above) is exported from DESIGN.md. This file's @theme comes
+  after it, so its values win where names collide. The legacy Foodnoms names (paper, fog,
+  graphite, charcoal, muted …) survive so no component changes a class name; their meaning is:
+    paper    the ground (and light text on an ink fill)   fog      the beige tray: skeletons, tracks
+    charcoal primary ink text (and the ink button fill)   graphite secondary text
+    muted    muted text
+  `.matte` (the meal card, the dock) remaps the text roles to cream; `.matte-reset` maps them back.
+  Components never name a colour: ESLint rejects hex and tinted rgb() literals in app/ and
+  components/. A theme edits the values in this file and DESIGN.md, nothing else.
+*/
+
+@theme {
+  /* ---- Neutrals ---- */
+  --color-paper: #e0dcd1; /* the oat ground; also the light text on an ink (charcoal) fill */
+  --color-fog: #eae5d9; /* the beige tray: skeletons, tracks */
+  --color-graphite: #3f3e3a; /* secondary text */
+  --color-charcoal: #1d1d1c; /* primary ink text; the ink button fill */
+  --color-muted: #5e5c55;
+  --color-hairline: rgba(29, 29, 28, 0.1);
+  --color-scrim: rgba(29, 29, 28, 0.45); /* behind an open sheet */
+
+  /* ---- Actions ---- */
+  --color-tangerine: #5b7f99; /* legacy names: slate data colour, never a fill */
+  --color-signal: #5b7f99;
+
+  /* ---- Macro + status (data colours) ---- */
+  --color-green: #c9a24e;
+  --color-sky: #8aa26e;
+  --color-slate-ink: #46667d; /* recipe time facet glyph: the data slate, deepened for 3:1 on its wash */
+  --color-rosewood-ink: #7d5048; /* recipe servings facet glyph */
+  --color-plum: #665682; /* coach plum as text: ≥ 4.5:1 on oat (DESIGN.md §Contrast) */
+  --color-amber: #7a5a10; /* the Dijon ink (DESIGN.md §Contrast) */
+  --color-alert: #a6382f; /* the red ink (DESIGN.md §Colors) */
+  --color-clay: var(--color-tertiary);
+
+  /* ---- Role colours ---- */
+  --color-on-primary: #e2dcd0; /* cream text and icons on the olive primary fill */
+  --color-icon: #6a685f; /* line icons in sheets */
+  --color-icon-off: #bdb7aa; /* an unset toggle icon (favourite off) */
+  --color-text-hint: #5e5c55; /* the quietest label on the ground, 4.9:1 */
+  --color-warning: #7a5a10; /* unverified / needs-a-look text */
+  --color-caution: #7a5a10; /* off-plan flags */
+  --color-feedback-pending: var(--color-warning);
+  --color-feedback-failure: var(--color-alert);
+  --color-feedback-change: #4f5343; /* olive: a change that holds (2026-10-04, was plum) */
+  --color-feedback-success: #7e9a62; /* sage: a commit that landed (the Button tick, a ring) */
+  --color-well-dark: #1d1d1c; /* the camera viewfinder well */
+  --color-selected: #4f5343; /* a chosen chip (unit, weekday): the olive primary fill */
+  --color-on-selected: #e2dcd0; /* its label */
+  --color-selected-soft: rgba(79, 83, 67, 0.12); /* a chosen option card, text unchanged */
+
+  /* design-tokens.css exports --spacing-{xs..xl}; Tailwind 4 resolves
+     max-w-md / w-sm etc. through that namespace, so main.max-w-md became
+     12px wide. Reset the five named keys so they fall back to --container-*.
+     The exported radius keys are kept on purpose (DESIGN.md radii). */
+  --spacing-xs: initial;
+  --spacing-sm: initial;
+  --spacing-md: initial;
+  --spacing-lg: initial;
+  --spacing-xl: initial;
+
+  --radius-card: 24px;
+  --radius-pill: 999px;
+
+  /* ---- Type ---- */
+  --font-sans: var(--font-text-face), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display-face), Georgia, "Times New Roman", serif;
+
+  --text-tiny: 12px;
+  --text-caption: 14px;
+  --text-body-sm: 16px;
+  --text-body: 16px;
+  --text-subheading: 20px;
+  --text-heading-sm: 20px;
+  --text-heading: 28px;
+  --text-display: 40px;
+
+  /* Text roles: one utility sets the size, the weight and the tracking (a `font-*` or `tracking-*`
+     utility beside it still wins). `text-title`: a card title. `text-overline`: tracked capitals
+     over a group (add `uppercase`). Components use these instead of inline font styles
+     (tests/design/inline-style.test.ts). */
+  --text-title: 20px;
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.01em;
+  --text-overline: 12px;
+  --text-overline--font-weight: 500;
+  --text-overline--letter-spacing: 0.2em;
+}
+
+/* The section hue as a colour utility (`text-section`, `border-section`), resolved where it is used
+   so a section's own --section-rgb applies. */
+@theme inline {
+  --color-section: rgb(var(--section-rgb));
+}
+
+:root {
+  /* Floating chrome that is not the dock (the update notice, toasts): ivory, lightly frosted. */
+  --glass-bg: rgba(246, 242, 233, 0.92);
+  --glass-blur: 16px;
+  --glass-border: rgba(29, 29, 28, 0.08);
+  --highlight: rgba(255, 255, 255, 0.7); /* the inner top edge on a raised light surface */
+
+  /* The reference's matte finish: fractal noise, drawn once as an inline SVG and laid at 3 %. */
+  --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* The reference's inset bevel on olive and charcoal: light above, shade below. */
+  --bevel: inset 0 1px 1px rgba(255, 255, 255, 0.1), inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+
+  /* ---- Role recipes: whole gradients and shadows components name by role ---- */
+  /* Section hue: each tab colours its headings and eaten tint; components/SectionHue.tsx writes
+     <html data-section>. Olive is the default (Today). */
+  --section-rgb: 79 83 67;
+  /* The overview orb (components/PhosphorOrb.tsx): an ivory sphere marbled in olive, sage and
+     wheat, fixed so it reads the same on every tab. */
+  --orb-core-rgb: 96 104 78;
+  --orb-rim-rgb: 138 162 110;
+  --orb-fire-rgb: 201 162 78;
+
+  --ink-rgb: 29 29 28; /* the hairline ring in card and button shadows: ink on light */
+  --on-olive-rgb: 29 29 28;
+  --charcoal-deep-rgb: 20 20 19;
+  --primary-rgb: 79 83 67;
+  --cream-rgb: 226 220 208;
+  --grad-ink: linear-gradient(180deg, #565b49 0%, #474b3c 100%); /* primary fill: olive */
+  --grad-panel: linear-gradient(180deg, #f6f2e9 0%, #f3efe5 100%); /* ivory card body */
+  --grad-recess: linear-gradient(180deg, #eae5d9 0%, #ede8dd 100%); /* beige trays inside a card */
+  --grad-card: linear-gradient(180deg, #f7f3ea 0%, #f4f0e6 100%);
+  --grad-sheet: linear-gradient(180deg, #f7f3ea 0%, #f2eee4 100%);
+  --grad-matte: linear-gradient(180deg, #222220 0%, #1d1d1c 100%); /* the meal card and dock */
+  --grad-sheet-shell: linear-gradient(180deg, rgba(29, 29, 28, 0.12) 0%, rgba(29, 29, 28, 0.06) 50%,
+    rgba(29, 29, 28, 0.03) 100%);
+  --grad-bubble: linear-gradient(180deg, rgb(var(--section-rgb) / 0.12) 0%, rgb(var(--section-rgb) / 0.08) 100%); /* the coach's bubble */
+  --grad-coach-composer-rim: linear-gradient(90deg, #4f5343 0%, #8aa26e 55%, #c9a24e 100%);
+  --grad-coach-composer-fill: linear-gradient(180deg, #f7f3ea 0%, #f4f0e6 100%);
+  --coach-composer-control-bg: rgba(29, 29, 28, 0.05);
+  --coach-composer-control-border: rgba(29, 29, 28, 0.1);
+  --shadow-coach-composer: 0 1px 2px rgba(29, 29, 28, 0.06), 0 16px 36px -20px rgba(60, 52, 36, 0.45);
+  --shadow-coach-composer-focus: 0 1px 2px rgba(29, 29, 28, 0.06), 0 16px 36px -20px rgba(60, 52, 36, 0.5), 0 0 0 3px rgba(79, 83, 67, 0.18);
+  --shadow-coach-menu: 0 24px 48px -24px rgba(29, 29, 28, 0.4), 0 0 0 1px rgba(29, 29, 28, 0.06);
+  --grad-olive: linear-gradient(180deg, rgba(29, 29, 28, 0.12) 0%, rgba(29, 29, 28, 0.06) 50%,
+    rgba(29, 29, 28, 0.03) 100%); /* the proposal card's hairline shell */
+  --grad-gold: linear-gradient(180deg, #e3c477 0%, #cfa038 100%); /* training-day tile: Dijon yellow */
+  --grad-fab: linear-gradient(180deg, #565b49, #474b3c); /* coach button: olive, cream glyph */
+  --grad-produce: radial-gradient(110% 90% at 15% 0%, rgba(138, 162, 110, 0.45) 0%, transparent 60%),
+    radial-gradient(80% 70% at 100% 100%, rgba(201, 162, 78, 0.25) 0%, transparent 65%),
+    linear-gradient(150deg, #4f5343 0%, #33352c 100%); /* olive artwork for an unknown dish */
+  --shadow-button: 0 1px 2px rgba(29, 29, 28, 0.06), 0 0 0 1px rgba(29, 29, 28, 0.12);
+  --shadow-card: 0 1px 2px rgba(29, 29, 28, 0.05), 0 16px 32px -22px rgba(60, 52, 36, 0.4);
+  --shadow-float: 0 2px 6px rgba(29, 29, 28, 0.08), 0 20px 40px -20px rgba(40, 36, 26, 0.5);
+  --shadow-hero: 0 2px 4px rgba(29, 29, 28, 0.1), 0 25px 50px -18px rgba(29, 29, 28, 0.45);
+
+  /* iOS safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Liquid motion (DESIGN.md §Motion; lib/design/motion.ts holds the same springs for Motion).
+     Each spring is a damped step response sampled into linear(), paired with the duration it
+     needs to settle. smooth: containers, no overshoot. snappy: controls, a trace of give.
+     bouncy: things with weight. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring-smooth: linear(0, 0.0374, 0.1233, 0.2299, 0.3405, 0.4458, 0.541, 0.6243, 0.6953, 0.7549, 0.8041, 0.8443, 0.8769, 0.903, 0.9239, 0.9405, 0.9536, 0.9639, 0.972, 0.9784, 0.9833, 0.9871, 0.9901, 0.9924, 0.9942, 0.9955, 0.9966, 0.9974, 1);
+  --dur-spring-smooth: 520ms;
+  --ease-spring-snappy: linear(0, 0.0196, 0.0707, 0.1433, 0.2291, 0.3214, 0.4152, 0.5065, 0.5925, 0.6715, 0.7423, 0.8044, 0.8577, 0.9025, 0.9393, 0.9688, 0.9919, 1.0093, 1.0218, 1.0303, 1.0354, 1.0379, 1.0384, 1.0372, 1.035, 1.0321, 1.0287, 1.0251, 1.0215, 1.0181, 1.0148, 1.0119, 1.0092, 1.0069, 1.005, 1.0033, 1);
+  --dur-spring-snappy: 420ms;
+  --ease-spring-bouncy: linear(0, 0.0305, 0.1098, 0.2213, 0.3504, 0.4853, 0.6167, 0.7377, 0.844, 0.933, 1.0038, 1.0568, 1.0933, 1.1153, 1.1252, 1.1253, 1.1181, 1.1058, 1.0904, 1.0736, 1.0566, 1.0406, 1.0262, 1.0138, 1.0037, 0.9959, 0.9903, 0.9866, 0.9846, 0.984, 0.9845, 0.9858, 0.9876, 0.9896, 0.9918, 0.9939, 0.9958, 0.9975, 0.9989, 1.0001, 1.0009, 1.0015, 1.0018, 1.002, 1);
+  --dur-spring-bouncy: 650ms;
+  /* gentle: large shape changes (a card opening, a panel joining it), a trace of give. */
+  --ease-spring-gentle: linear(0, 0.0117, 0.0417, 0.0853, 0.1380, 0.1954, 0.2565, 0.3184, 0.3787, 0.4380, 0.4945, 0.5470, 0.5968, 0.6427, 0.6842, 0.7226, 0.7573, 0.7881, 0.8161, 0.8410, 0.8627, 0.8822, 0.8993, 0.9141, 0.9272, 0.9385, 0.9482, 0.9567, 0.9639, 0.9701, 0.9754, 0.9799, 0.9836, 0.9868, 0.9895, 0.9917, 1);
+  --dur-spring-gentle: 600ms;
+
+  color-scheme: light;
+}
+/* Section hues: headings, the eaten tint, the coach bubble. Muted, readable as text on oat. */
+[data-section="body"] { --section-rgb: 68 100 106; }
+[data-section="foods"] { --section-rgb: 142 74 66; }
+[data-section="coach"] { --section-rgb: 102 86 130; }
+[data-section="settings"] { --section-rgb: 94 92 85; }
+[data-section="today"] { --section-rgb: 79 83 67; }
+
+/* The matte scope (DESIGN.md §Colors): inside the meal card and the dock the text roles turn cream,
+   so components keep their class names. `.matte-reset` (the beige tray) maps them back to ink. */
+.matte {
+  --color-charcoal: #f3eee2;
+  --color-graphite: #d6d0c3;
+  --color-muted: #a8a7a2;
+  --color-text-primary: #f3eee2;
+  --color-text-secondary: #d6d0c3;
+  --color-text-muted: #a8a7a2;
+  --color-text-faint: #9a9993;
+  --color-text-hint: #a8a7a2;
+  --color-on-olive: #e2dcd0;
+  --color-on-charcoal: #f3eee2;
+  --color-icon: #b1b2a9;
+  --color-hairline: rgba(255, 255, 255, 0.1);
+  --ink-rgb: 243 238 226;
+  color: var(--color-charcoal);
+}
+.matte-reset,
+.notice {
+  --color-charcoal: #1d1d1c;
+  --color-graphite: #3f3e3a;
+  --color-muted: #5e5c55;
+  --color-text-primary: #1d1d1c;
+  --color-text-secondary: #3f3e3a;
+  --color-text-muted: #5e5c55;
+  --color-text-faint: #6a685f;
+  --color-text-hint: #5e5c55;
+  --color-on-olive: #1d1d1c;
+  --color-on-charcoal: #1d1d1c;
+  --color-icon: #6a685f;
+  --color-hairline: rgba(29, 29, 28, 0.1);
+  --ink-rgb: 29 29 28;
+  color: var(--color-charcoal);
+}
+/* The matte grain over a charcoal surface. */
+.matte-grain {
+  position: relative;
+  isolation: isolate;
+}
+.matte-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--grain);
+  opacity: 0.04;
+}
+
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+/* No scrollbars anywhere (2026-10-04, owner: "Remove the scroll side bar indicators, we don't like
+   those"). Every element still scrolls by touch, wheel, trackpad and keyboard (arrows, Page Up/Down,
+   Space, Home/End on a focused scroller); only the indicator is gone. DESIGN.md §Layout. */
+html,
+body,
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-paper);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  /* Fraunces' softness axis, half way: rounder terminals for the warm food voice. Inherited, and
+     ignored by Plus Jakarta Sans, which has no such axis. */
+  font-variation-settings: "SOFT" 50;
+  /* Room for the floating dock. The dock sits at bottom: safe + 12px and is ~64px tall, so
+     content needs to clear ~76px before it even starts — 136px leaves a real gap rather than
+     tucking the last card under it. */
+  padding-bottom: calc(136px + var(--safe-bottom)); /* clears the persistent morphing dock */
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Titles speak in the menu's voice (DESIGN.md §Typography): Fraunces, tight. */
+h1,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+/* The reference's tracked capitals: chips, spec labels, units. */
+.eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Frosted chrome. Used only where content scrolls under it. */
+.glass {
+  background: var(--glass-bg);
+  /* Unprefixed ONLY. Lightning CSS (Tailwind v4 / Turbopack) merges a
+     hand-written -webkit-backdrop-filter into this declaration and then
+     emitted only the prefixed form, which Chromium ignores — the built CSS
+     shipped with no blur at all outside Safari. It adds the prefix itself. */
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+}
+
+/* Browsers without backdrop-filter get an opaque fallback. */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background: rgba(246, 242, 233, 0.98);
+  }
+}
+
+/* Card wrapper: rounds, isolates and lifts. The ivory face lives on .surface. */
+.shell {
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+/* `isolation: isolate` keeps each card's layers (the edit overlay, the tick button) inside it
+   (2026-09-18: a stacking-context bug once routed every tick into the editor). */
+.shell,
+.meal-card {
+  isolation: isolate;
+}
+.surface,
+.meal-card-in,
+.logged-card-in {
+  position: relative;
+}
+.surface {
+  border-radius: 24px;
+  background: var(--grad-card);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+}
+
+.pill {
+  border-radius: 9999px;
+}
+
+/* A pill track: segmented controls, chip rows. Beige and recessed, so the chosen chip lifts off it. */
+.pill-in {
+  border-radius: 9999px;
+  background: var(--color-fog);
+  border: 1px solid rgb(var(--ink-rgb) / 0.05);
+  box-shadow: inset 0 1px 2px rgb(var(--ink-rgb) / 0.06);
+}
+
+/* Meal card: an eaten plan slot takes a light tint of the section hue. */
+.meal-card {
+  border-radius: 24px;
+}
+
+.meal-card-in {
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgb(var(--section-rgb) / 0.1) 0%, rgb(var(--section-rgb) / 0.05) 100%), #f6f2e9;
+  border: 1px solid rgb(var(--section-rgb) / 0.22);
+  overflow: hidden;
+  display: flex;
+}
+
+/* Logged extra: a food logged on top of the plan. Ivory with a hairline. */
+.logged-card-in {
+  border-radius: 24px;
+  background: #f6f2e9;
+  border: 1px solid rgb(var(--ink-rgb) / 0.07);
+  overflow: hidden;
+  display: flex;
+}
+
+/* Well: inputs and the quiet second button. Recessed fill; a typed field also carries a hairline
+   and a faint inner shadow, so an input never looks like a button. */
+.well {
+  box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.06);
+  border-radius: 16px;
+  background: var(--color-fog);
+}
+/* One field look (2026-10-04, input tier 1): a bare field and a well that wraps its field (a search
+   pill with an icon) are the same paper with the same hairline and inner shadow. They used to differ —
+   the wrapped pill rested on beige with a 6 % ring — so two fields side by side looked like two
+   systems. */
+input.well,
+select.well,
+textarea.well,
+.well:has(> :is(input, textarea, select)) {
+  background: #fbf9f4;
+  box-shadow:
+    inset 0 1px 2px rgb(var(--ink-rgb) / 0.06),
+    0 0 0 1px rgb(var(--ink-rgb) / 0.14);
+}
+/* A focused field stays quiet, the way an iOS text field does (2026-10-01: the 1.5 px dark ring and
+   halo read as a box flashing on every tap). The blinking olive caret marks where typing goes; the
+   hairline only warms to olive and the fill lifts a shade. The same rule lights a well that wraps
+   its field (a search pill with an icon), so every text field in the app focuses alike. */
+input.well,
+select.well,
+textarea.well,
+.well:has(> :is(input, textarea, select)) {
+  transition: box-shadow 160ms ease, background-color 160ms ease;
+}
+input.well:focus,
+select.well:focus,
+textarea.well:focus,
+.well:has(> :is(input, textarea, select):focus) {
+  background-color: #fffdf8;
+  box-shadow:
+    inset 0 1px 2px rgb(var(--ink-rgb) / 0.04),
+    0 0 0 1px rgb(var(--primary-rgb) / 0.42);
+}
+
+/* Input tiers (DESIGN.md §Text fields, 2026-10-04). Tier 1 `.field-search` (components/ui/SearchField):
+   lookup only — paper, the magnifier, a clear button, no send. Tier 2 is the component ask box
+   (components/plan/PlanComposer: paper with the AI rim, no spark); tier 3 the dock's charcoal bar
+   (components/dock/AssistantField). Layered, so a caller's width or margin utility applies. */
+@layer components {
+  .field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 0 4px 0 14px;
+    border-radius: 16px;
+    background: #fbf9f4;
+    color: var(--color-charcoal);
+    box-shadow:
+      inset 0 1px 2px rgb(var(--ink-rgb) / 0.06),
+      0 0 0 1px rgb(var(--ink-rgb) / 0.14);
+    transition: box-shadow 160ms ease, background-color 160ms ease;
+  }
+  .field-lg { min-height: 48px; }
+  .field:focus-within {
+    background: #fffdf8;
+    box-shadow:
+      inset 0 1px 2px rgb(var(--ink-rgb) / 0.04),
+      0 0 0 1px rgb(var(--primary-rgb) / 0.42);
+  }
+  .field-glyph { display: inline-flex; flex: none; color: var(--color-text-muted); }
+  .field-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    font-size: 16px;
+    line-height: 24px;
+    color: inherit;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .field-input::placeholder { color: var(--color-text-muted); opacity: 1; }
+  .field-input::-webkit-search-cancel-button,
+  .field-input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+  .field-clear {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    color: var(--color-text-muted);
+  }
+
+  /* Elevation (DESIGN.md §Elevation & Depth, 2026-10-04). E0 inset: wells, trays and fields, no drop.
+     E1 card: every card standing on the ground (`.shell` carries it). E2 floating: pop-ups, the chat
+     overlay, the dock. Never a shadow inside a shadow: a card inside a card is E0. */
+  .elev-0 { box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.06); }
+  .elev-1 { box-shadow: var(--shadow-card); }
+  .elev-2 { box-shadow: var(--shadow-float); }
+}
+
+/* Panel: the note card and macro panel. A light wash of the section hue, so its text is ink (cream
+   inside a .matte card, where the text roles remap). Never `text-on-olive` here: cream on a 7 % tint
+   of ivory is 1.1:1 (2026-10-04, the Settings protein card; DESIGN.md §Contrast). A panel sits on a
+   card, not on the bare oat ground. */
+.olive-panel {
+  background: rgb(var(--section-rgb) / 0.07);
+  border: 1px solid rgb(var(--section-rgb) / 0.16);
+  color: var(--color-text-primary);
+  border-radius: 24px;
+}
+
+/* Floating tab bar chrome. Unprefixed backdrop-filter only — see the .glass comment. */
+.tab-glass {
+  background: var(--grad-matte);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: var(--bevel), var(--shadow-float);
+}
+
+.morphing-dock {
+  transition: opacity 150ms ease, transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+/* While a field outside the dock has the keyboard, the dock steps aside so it never covers what is
+   being typed (components/TabBar.tsx useStepAsideWhileTyping). */
+body[data-typing="field"] .morphing-dock:not(:focus-within) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(16px);
+}
+
+/* Buttons are pills (DESIGN.md §Buttons, the button system of 2026-10-04). `.btn-ink` is the legacy
+   name of the secondary button that `components/ui/Button` draws as `.btn-secondary`: a faint tint
+   of the ink with a hairline and a hairline shadow, so it never reads as bare text on a card (owner:
+   "some are too plain"). Inside a matte card the ink is cream, so the same rule tints cream. Quiet
+   (button.well): beige. Labels: 14 px, weight 500, sentence case. New code uses `Button`. */
+.btn-ink {
+  background: rgb(var(--ink-rgb) / 0.035);
+  color: var(--color-charcoal);
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  box-shadow: 0 1px 1px rgb(var(--ink-rgb) / 0.04);
+  transition: transform var(--dur-spring-snappy) var(--ease-spring-snappy), background-color 150ms ease, border-color 150ms ease;
+}
+@media (hover: hover) {
+  .btn-ink:hover:not(:disabled) {
+    background: rgb(var(--ink-rgb) / 0.07);
+    border-color: rgb(var(--ink-rgb) / 0.26);
+  }
+}
+.btn-ink,
+button.well {
+  font-size: 14px;
+  font-weight: 500;
+}
+button.well {
+  border-radius: 9999px;
+  color: var(--color-charcoal);
+  box-shadow: none;
+  transition: transform var(--dur-spring-snappy) var(--ease-spring-snappy), background-color 150ms ease;
+}
+@media (hover: hover) {
+  button.well:hover:not(:disabled) {
+    background: #e3ddd0;
+  }
+}
+
+/* A disabled action stays readable but clearly off (opacity 40 %, DESIGN.md scale). A button busy
+   with its own write is disabled too, but keeps full strength: its dots are the signal. */
+.btn-ink:disabled,
+button.well:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* The button system (components/ui/Button, DESIGN.md §Buttons, 2026-10-04). Layered, so a caller's
+   utility (a width, a margin) applies; variant and size own colour, height, padding and type. */
+@layer components {
+  .btn {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    white-space: nowrap;
+    color: var(--color-charcoal);
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform var(--dur-spring-snappy) var(--ease-spring-snappy),
+      background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  }
+  /* Small: 36 px to see, 44 px to hit. */
+  .btn-sm { min-height: 36px; padding: 0 12px; }
+  .btn-sm::before { content: ""; position: absolute; inset: -4px -2px; }
+  .btn-lg { min-height: 52px; padding: 0 20px; font-size: 16px; line-height: 24px; }
+  .btn-circle { width: 44px; height: 44px; min-width: 0; padding: 0; }
+  .btn-sm.btn-circle { width: 36px; height: 36px; }
+  .btn-sm.btn-circle::before { inset: -4px; }
+  .btn-lg.btn-circle { width: 52px; height: 52px; }
+  .btn-block { display: flex; width: 100%; }
+  a.btn { text-decoration: none; }
+  .btn:disabled:not([data-status]) { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+  /* Primary: olive with cream content and the inset bevel — the one action that completes a flow. */
+  .btn-primary {
+    background: var(--grad-ink);
+    color: var(--color-on-primary);
+    border-radius: 9999px;
+    border: 0;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    box-shadow: var(--bevel), 0 10px 20px -12px rgba(40, 42, 32, 0.7);
+    transition: transform var(--dur-spring-snappy) var(--ease-spring-snappy), background 300ms ease, box-shadow 160ms ease;
+  }
+  .btn-primary.btn-lg { font-size: 16px; }
+  .btn-primary:disabled:not([data-status]) { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  /* Secondary: a faint ink tint with a hairline (cream tint inside a matte card). */
+  .btn-secondary {
+    background: rgb(var(--ink-rgb) / 0.035);
+    box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.2), 0 1px 1px rgb(var(--ink-rgb) / 0.04);
+  }
+  /* Tertiary: the beige well. */
+  .btn-tertiary { background: var(--color-fog); box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.05); }
+  .matte .btn-tertiary { background: rgb(var(--ink-rgb) / 0.08); box-shadow: none; }
+  /* Ghost: words only, a soft wash under the finger. */
+  .btn-ghost { padding: 0 12px; font-weight: 600; }
+  /* Danger: red ink on a faint red wash; the fill deepens at the confirm step (data-armed). */
+  .btn-danger {
+    color: var(--color-red-ink);
+    background: color-mix(in srgb, var(--color-red-wash) 70%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-red) 28%, transparent);
+  }
+  .btn-danger[data-armed="true"] { background: var(--color-red); color: var(--color-surface); box-shadow: none; }
+  @media (hover: hover) {
+    .btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #474b3c 0%, #3a3d31 100%); }
+    .btn-secondary:hover:not(:disabled) { background: rgb(var(--ink-rgb) / 0.07); }
+    .btn-tertiary:hover:not(:disabled) { background: #e3ddd0; }
+    .matte .btn-tertiary:hover:not(:disabled) { background: rgb(var(--ink-rgb) / 0.12); }
+    .btn-ghost:hover:not(:disabled) { background: rgb(var(--ink-rgb) / 0.06); }
+    .btn-danger:hover:not(:disabled) { background: var(--color-red-wash); }
+  }
+
+  /* Outcome, in the button itself. Label, dots, confirmation and error share one grid cell, so the
+     button is as wide as the widest of them and never jumps when one gives way to another. */
+  .btn-stack { display: inline-grid; place-items: center; min-width: 0; }
+  .btn-stack > * { grid-area: 1 / 1; }
+  .btn-label,
+  .btn-confirm,
+  .btn-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition:
+      opacity 180ms var(--ease-out-expo),
+      filter 180ms var(--ease-out-expo),
+      transform var(--dur-spring-snappy) var(--ease-spring-snappy);
+  }
+  .btn-confirm { gap: 6px; }
+  .btn-confirm,
+  .btn-error { opacity: 0; filter: blur(4px); transform: translateY(5px) scale(0.96); pointer-events: none; }
+  .btn[data-status="pending"] .btn-label { opacity: 0; filter: blur(4px); }
+  .btn[data-status="success"] .btn-label { opacity: 0; filter: blur(4px); transform: translateY(-5px) scale(0.96); }
+  .btn[data-status="success"] .btn-confirm { opacity: 1; filter: none; transform: none; }
+  .btn[data-status="error"]:has(.btn-error) .btn-label { opacity: 0; filter: blur(4px); }
+  .btn[data-status="error"] .btn-error { opacity: 1; filter: none; transform: none; }
+  .btn-dots { display: inline-flex; gap: 4px; }
+  .btn-dots > span {
+    width: 5px; height: 5px; border-radius: 9999px; background: currentColor;
+    animation: btn-dot 900ms ease-in-out infinite both;
+  }
+  .btn-dots > span:nth-child(2) { animation-delay: 150ms; }
+  .btn-dots > span:nth-child(3) { animation-delay: 300ms; }
+  .btn-tick path { stroke-dasharray: 1; stroke-dashoffset: 0; }
+  .btn[data-status="success"] .btn-tick path { animation: btn-tick-draw 420ms var(--ease-out-expo) 90ms both; }
+  .btn-circle-tick { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0;
+    transition: opacity 180ms var(--ease-out-expo); }
+  .btn-circle[data-status="success"] .btn-label { opacity: 0; transform: scale(0.6); }
+  .btn-circle[data-status="success"] .btn-circle-tick { opacity: 1; }
+  /* Success tints sage on every light variant; the olive primary keeps its fill and lets a soft
+     sheen cross it once. Error: red ink and a single 3 px shake. */
+  .btn-secondary[data-status="success"],
+  .btn-tertiary[data-status="success"],
+  .btn-ghost[data-status="success"] {
+    color: var(--color-sage-ink);
+    background: var(--color-sage-wash);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-sage) 45%, transparent);
+  }
+  .btn-primary[data-status="success"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.22) 50%, transparent 80%) no-repeat;
+    background-size: 200% 100%;
+    animation: btn-sheen 900ms var(--ease-out-expo) both;
+  }
+  .btn[data-status="error"] {
+    color: var(--color-red-ink);
+    animation: btn-shake 360ms var(--ease-out-expo);
+  }
+  .btn-secondary[data-status="error"],
+  .btn-tertiary[data-status="error"] {
+    background: var(--color-red-wash);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-red) 32%, transparent);
+  }
+  .btn-primary[data-status="error"] { color: var(--color-on-primary); }
+}
+@keyframes btn-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+@keyframes btn-tick-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes btn-sheen { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes btn-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+}
+/* Round icon button: the same fill in a 44 px circle (the coach composer, send). */
+.btn-icon {
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+  border-radius: 9999px;
+  box-shadow: var(--bevel), 0 8px 18px -10px rgba(40, 42, 32, 0.7);
+}
+/* Chip: one choice in a pill-in row (components/ui/Chip). */
+.chip-on {
+  background: var(--grad-ink);
+  color: var(--color-on-selected);
+  box-shadow: var(--bevel), 0 4px 10px -6px rgba(40, 42, 32, 0.6);
+}
+.chip-off {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+/* A toggle pill that is off but must still read as a control (training days): a shaped, hairlined
+   pill on the card rather than bare text. */
+.chip-idle {
+  background: rgb(var(--ink-rgb) / 0.035);
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.12);
+}
+.day-pill {
+  transition-property: background-color, color, box-shadow, transform;
+  transition-duration: var(--dur-spring-snappy);
+  transition-timing-function: var(--ease-spring-snappy);
+}
+/* "Needs a look" notice (DESIGN.md: yellow is the warning role): the Dijon wash with ink text and a
+   round Dijon mark, so a pending step reads as a to-do rather than a stray line of text. */
+.notice-attention {
+  border-radius: 24px;
+  background: var(--color-yellow-wash);
+  color: var(--color-yellow-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-yellow) 32%, transparent);
+}
+.notice-attention-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: var(--color-yellow-ink);
+  color: var(--color-yellow-wash);
+  font-weight: 700;
+  line-height: 1;
+}
+/* Notice (components/ui/Notice): the one inline message card. A soft wash per tone, ink text, a round
+   mark in the tone's ink. The .matte-reset rule above also scopes it, so it reads the same inside a
+   matte card. Every pair here is in tests/design/contrast.test.ts. */
+.notice {
+  --notice-bg: var(--color-sage-wash);
+  --notice-ink: var(--color-sage-ink);
+  --notice-rim: color-mix(in srgb, var(--color-sage) 28%, transparent);
+  border-radius: 16px;
+  background: var(--notice-bg);
+  box-shadow: inset 0 0 0 1px var(--notice-rim);
+}
+.notice[data-tone="attention"] {
+  --notice-bg: var(--color-yellow-wash);
+  --notice-ink: var(--color-yellow-ink);
+  --notice-rim: color-mix(in srgb, var(--color-yellow) 32%, transparent);
+}
+.notice[data-tone="error"] {
+  --notice-bg: var(--color-red-wash);
+  --notice-ink: var(--color-red-ink);
+  --notice-rim: color-mix(in srgb, var(--color-red) 24%, transparent);
+}
+.notice[data-tone="neutral"] {
+  --notice-bg: var(--color-fog);
+  --notice-ink: var(--color-text-primary);
+  --notice-rim: rgb(var(--ink-rgb) / 0.06);
+}
+.notice-title {
+  color: var(--notice-ink);
+}
+.notice[data-tone="neutral"] .notice-title {
+  color: var(--color-text-primary);
+}
+.notice-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  color: var(--notice-ink);
+  box-shadow: inset 0 0 0 1.5px var(--notice-ink);
+}
+.notice[data-tone="success"] .notice-mark,
+.notice[data-tone="error"] .notice-mark,
+.notice[data-tone="attention"] .notice-mark {
+  background: var(--notice-ink);
+  color: var(--notice-bg);
+  box-shadow: none;
+}
+.notice[data-tone="neutral"] .notice-mark {
+  color: var(--color-text-muted);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--ink-rgb) / 0.2);
+}
+
+/* The Plan / Log panel header (components/plan/PlanSheetHeader): a soft wash band tinted by the
+   slot's meal type, a round glyph in the same hue, and target chips. --meal-rgb is the tint;
+   --meal-ink is the glyph's readable shade. */
+/* A raised ivory card inside the panel (owner, 2026-10-04: it read as part of the panel behind it):
+   the meal tint washes across a lifted surface with a tinted hairline and the card shadow. */
+.plan-head {
+  --meal-rgb: 79 83 67;
+  --meal-ink: var(--color-primary);
+  border-radius: 18px;
+  /* The tint stays at 0.12: every text role on it keeps 4.5:1 (tests/design/contrast-table.ts). */
+  background: linear-gradient(100deg, rgb(var(--meal-rgb) / 0.12) 0%, rgb(var(--meal-rgb) / 0.05) 75%),
+    var(--grad-card);
+  box-shadow: inset 0 0 0 1px rgb(var(--meal-rgb) / 0.24), var(--shadow-card);
+}
+.plan-head[data-meal="breakfast"] { --meal-rgb: 207 160 56; --meal-ink: var(--color-yellow-ink); }
+.plan-head[data-meal="lunch"] { --meal-rgb: 138 162 110; --meal-ink: var(--color-sage-ink); }
+.plan-head[data-meal="dinner"] { --meal-rgb: 79 83 67; --meal-ink: var(--color-primary); }
+.plan-head[data-meal="snack"] { --meal-rgb: 138 118 176; --meal-ink: var(--color-plum); }
+.plan-head[data-meal="other"] { --meal-rgb: 94 92 85; --meal-ink: var(--color-text-muted); }
+.plan-head-glyph {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: rgb(var(--meal-rgb) / 0.2);
+  color: var(--meal-ink);
+}
+/* Recipe facets (components/nutrition/RecipeFacets.tsx, owner 2026-10-04): cuisine olive, time slate,
+   servings rosewood, three hues kept apart from the four macro hues so a facet never reads as a
+   nutrient. The hue tints the pill and colours the glyph; the words stay graphite (well over 4.5:1). */
+[data-facet] { --facet-rgb: 79 83 67; --facet-ink: var(--color-primary); }
+[data-facet="time"] { --facet-rgb: 91 127 153; --facet-ink: var(--color-slate-ink); }
+[data-facet="servings"] { --facet-rgb: 150 104 96; --facet-ink: var(--color-rosewood-ink); }
+.facet { background: rgb(var(--facet-rgb) / 0.12); }
+.facet-glyph { color: var(--facet-ink); }
+/* Method steps (components/RecipeDetails.tsx, owner 2026-10-04): each step a different soft wash so
+   neighbours read apart, starting grey and cycling slate, rosewood, olive (the facet hues, never a
+   macro's; grey and olive, the closest pair, never sit side by side). The number badge takes a
+   stronger wash of the same hue and its ink. */
+.step-card { --step-rgb: 94 92 85; --step-ink: var(--color-graphite); background: rgb(var(--step-rgb) / 0.1); }
+.step-card[data-step-tone="1"] { --step-rgb: 91 127 153; --step-ink: var(--color-slate-ink); background: rgb(var(--step-rgb) / 0.16); }
+.step-card[data-step-tone="2"] { --step-rgb: 150 104 96; --step-ink: var(--color-rosewood-ink); background: rgb(var(--step-rgb) / 0.15); }
+.step-card[data-step-tone="3"] { --step-rgb: 106 128 72; --step-ink: var(--color-primary); background: rgb(var(--step-rgb) / 0.16); }
+.step-num { background: rgb(var(--step-rgb) / 0.22); color: var(--step-ink); }
+.plan-chip {
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.7);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.06);
+}
+
+/* Macro figures as text: the readable ink shade of each gauge hue on light surfaces, the gauge hue
+   itself (or its lighter end) inside the matte. The bare `.macro-*` gauge classes are for fills and
+   dots (`bg-current`), never small text: sage carbs is 2.5:1 on ivory (DESIGN.md §Contrast). */
+.macro-ink-kcal { color: var(--color-orange-ink); }
+.macro-ink-protein { color: var(--color-plum); }
+.macro-ink-carbs { color: var(--color-sage-ink); }
+.macro-ink-fat { color: var(--color-yellow-ink); }
+.matte .macro-ink-kcal { color: var(--color-gauge-calories); }
+.matte .macro-ink-protein { color: var(--color-gauge-protein-end); }
+.matte .macro-ink-carbs { color: var(--color-gauge-carbs); }
+.matte .macro-ink-fat { color: var(--color-gauge-fat); }
+.matte-reset .macro-ink-kcal { color: var(--color-orange-ink); }
+.matte-reset .macro-ink-protein { color: var(--color-plum); }
+.matte-reset .macro-ink-carbs { color: var(--color-sage-ink); }
+.matte-reset .macro-ink-fat { color: var(--color-yellow-ink); }
+
+/* List row: a hairline between rows, none after the last (components/ui/ListRow). */
+.list-row + .list-row {
+  border-top: 1px solid var(--color-hairline);
+}
+/* Sheet surface (components/Sheet, components/ui/Surface sheet): an ivory pop-up card over a light
+   scrim, rounded on every corner with a soft shadow all round (2026-10-03: no bottom sheets). */
+.sheet-surface {
+  background: var(--grad-sheet);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  border-radius: 28px;
+  box-shadow: 0 2px 6px rgb(var(--ink-rgb) / 0.08), 0 24px 48px -16px rgb(var(--ink-rgb) / 0.38);
+}
+/* The modal pop-up's full-screen layer (components/Sheet ModalSheet). Its padding is never seen —
+   absolute children ignore it — but lib/dom/use-popover-placement.ts reads it as the band the card
+   must stay inside: below the safe top, above the safe bottom and the floating dock (bottom:
+   safe + 12 px, ~64 px tall). While a field has the keyboard the dock steps aside, so only the
+   safe area is kept. */
+.sheet-popover-root {
+  padding-top: var(--safe-top);
+  padding-bottom: calc(76px + var(--safe-bottom));
+}
+body[data-typing="field"] .sheet-popover-root {
+  padding-bottom: var(--safe-bottom);
+}
+.sheet-popover-scrim {
+  background: rgba(29, 29, 28, 0.28); /* fixed ink: a sheet opened inside a matte card keeps it */
+}
+/* A sheet opened from a meal card renders as its own rounded card right under that card
+   (components/Sheet AttachedSheet), so the flow stays on the card and reads like the cards around
+   it. It never scrolls inside (DESIGN.md §Layout, scroll ownership): it grows, and the page scrolls. */
+.attached-sheet {
+  position: relative;
+  margin-top: 8px;
+  background: var(--grad-panel);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+}
+/* A flow takes focus as a whole when it opens, so the next Tab lands inside it; the region itself is
+   not a control, so it draws no ring (its controls do). The global :focus-visible ring is unlayered,
+   which a utility cannot override. */
+.attached-sheet:focus-visible,
+[data-inset-sheet]:focus-visible {
+  outline: none;
+}
+/* A sheet's scrolling body clips what it holds, so it gives its content 6 px of room on every side
+   and takes the same back with a negative margin: focus rings and soft shadows of fields, chips and
+   cards show in full instead of being cut at the scroll edge, and nothing moves. */
+.sheet-body {
+  margin: -6px;
+  padding: 6px;
+}
+/* The sheet's close button, ink on ivory. */
+.sheet-close {
+  width: 44px; height: 44px; border-radius: 9999px;
+  background: transparent;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  color: var(--color-text-primary);
+}
+/* The close × over a card's photo (CloseButton onPhoto; KIT §14): a 44 px target holding a 32 px,
+   nearly solid ivory disc with a faint keyline and a soft drop, so the × reads over a bright plate or
+   a dark pan alike. The photo never shows through enough to weaken it. */
+.photo-close {
+  width: 44px; height: 44px; border-radius: 9999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  isolation: isolate;
+}
+.photo-close::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  z-index: -1;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-paper) 92%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgb(var(--ink-rgb) / 0.1);
+  box-shadow: 0 4px 12px -4px rgb(var(--ink-rgb) / 0.4);
+}
+/* A toast floats over content: matte charcoal with cream text, never the beige track it shares a
+   class with. */
+.toast {
+  box-shadow: var(--shadow-float);
+}
+.toast.pill-in {
+  background: var(--grad-matte);
+  border-color: rgba(255, 255, 255, 0.06);
+  --color-charcoal: #f3eee2;
+  --color-text-primary: #f3eee2;
+  --color-muted: #a8a7a2;
+  color: #e2dcd0;
+  box-shadow: var(--bevel), var(--shadow-float);
+}
+
+/* Disclosure (components/ui/Disclosure): the summary is a full-width button; its height, body and
+   chevron are sprung by Motion, so no transition lives here. */
+.disclosure-summary {
+  width: 100%;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A section heading carries the section hue, in the menu's voice. */
+.section-title {
+  color: rgb(var(--section-rgb));
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+/* Native form controls (date picker, inputs) follow the light scheme. */
+input,
+textarea {
+  color-scheme: light;
+}
+
+/* Keyboard focus is always visible: an olive ring that never shifts layout. */
+:focus-visible {
+  outline: 2px solid rgb(var(--primary-rgb) / 0.8);
+  outline-offset: 2px;
+}
+
+/* Text fields never take the ring above: a typing field matches :focus-visible on every tap, and an
+   outline drawn around it is the square box reported twice on 2026-10-01. Their focus is the
+   caret plus the well's warm hairline. */
+:is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"],
+    [type="button"], [type="submit"], [type="reset"]), textarea, select) {
+  caret-color: rgb(var(--primary-rgb));
+}
+:is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"],
+    [type="button"], [type="submit"], [type="reset"]), textarea, select):focus-visible {
+  outline: none;
+}
+
+/* iOS Safari zooms the whole page into any text field set under 16 px and leaves it zoomed after
+   the keyboard closes. On touch screens every typing field is at least 16 px, whatever its class. */
+@media (pointer: coarse) {
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"],
+      [type="button"], [type="submit"], [type="reset"]), textarea, select) {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Every tap target ≥44px — PRD acceptance criterion 10 */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.coach-recording-button {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-alert) 22%, transparent);
+  animation: coach-recording-pulse 2s ease-in-out infinite;
+}
+
+@keyframes coach-recording-pulse {
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-alert) 8%, transparent); }
+}
+
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Ground (DESIGN.md §Techniques): still, pure CSS. Oat stone with a lighter wash at the top and
+   the reference's 3 % matte grain. */
+.harvest-ground {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 50% at 50% -10%, rgba(236, 232, 222, 0.9) 0%, transparent 65%),
+    radial-gradient(90% 60% at 100% 110%, rgba(211, 205, 192, 0.6) 0%, transparent 70%),
+    #e0dcd1;
+}
+.harvest-ground::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  opacity: 0.035;
+}
+
+/* The Motion ribbon clip (components/GroundVideo.tsx) is retired since Fresh; the class stays so the
+   component still renders a calm ground if anything mounts it. */
+.ground-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--color-paper);
+}
+.ground-layer video {
+  display: none;
+}
+
+/* Text on the bare ground: ink, no halo (no blurry text anywhere); the classes stay so screens
+   keep naming the role. */
+.ground {
+  color: var(--color-on-charcoal);
+}
+.ground-muted {
+  color: var(--color-on-charcoal-muted);
+}
+
+/* Press: a button or tappable link settles 3 % smaller at once while it is held, and springs back
+   with a trace of overshoot when let go (DESIGN.md §Motion, 2026-10-01). The press transition sits
+   on :active and the release on the resting rule, so each direction has its own feel. Disabled
+   controls do not move. */
+button,
+a.tap,
+a.btn,
+[role="button"] {
+  transition:
+    transform var(--dur-spring-snappy) var(--ease-spring-snappy),
+    background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+button:active:not(:disabled),
+a.tap:active,
+a.btn:active,
+[role="button"]:active {
+  transform: scale(0.97);
+  transition:
+    transform 90ms var(--ease-out-expo),
+    background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+/* Tab bar: the olive pill that slides under the active tab (components/TabBar.tsx). */
+.tab-pill {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  box-shadow: var(--bevel);
+  transition: left 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Meal-card macros take their gauge's hue (components/SlotCardDetail.tsx). */
+.macro-kcal { color: var(--color-gauge-calories); }
+/* Calorie figures everywhere (owner, 2026-10-03: "the calories a specific colour, bold, orange-red so it
+   stands out"): persimmon ink on ivory (≥ 4.5:1), the brighter persimmon base inside the matte
+   (charcoal) scope. Pair with font-semibold or bolder. */
+.kcal { color: var(--color-orange-ink); }
+.matte .kcal { color: var(--color-gauge-calories); }
+/* A section-tinted panel inside the matte lifts the ground a step, so its calorie figures take the
+   lighter persimmon (the base is 4.3:1 there; DESIGN.md §Contrast). */
+.matte .olive-panel .kcal,
+.matte .olive-panel .macro-ink-kcal { color: var(--color-gauge-calories-end); }
+.matte-reset .kcal { color: var(--color-orange-ink); }
+.macro-protein { color: var(--color-gauge-protein); }
+.macro-carbs { color: var(--color-gauge-carbs); }
+.macro-fat { color: var(--color-gauge-fat); }
+
+.meal-detail-tray {
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  background: var(--grad-recess);
+  box-shadow: inset 0 1px 2px rgb(var(--ink-rgb) / 0.04);
+}
+
+/* Three stemless chevrons on the "Still to eat" line (components/MacroRings.tsx). They point where
+   the macro detail will go; their tint runs in sequence toward that end, a few times, then rests. */
+.macro-chevrons { display: flex; flex-direction: column; align-items: center; }
+.macro-chevron {
+  width: 8px; height: 8px; margin-top: -3px;
+  border-top: 1.5px solid currentColor; border-left: 1.5px solid currentColor;
+  transform: rotate(45deg); opacity: 0.55;
+}
+.macro-chevron:first-child { margin-top: 0; }
+.macro-chevrons[data-chevrons="down"] .macro-chevron { transform: rotate(225deg); }
+@keyframes macro-chevron-glow {
+  0%, 100% { opacity: 0.55; }
+  40% { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .macro-chevron { animation: macro-chevron-glow 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) 3; }
+  .macro-chevrons[data-chevrons="up"] .macro-chevron:nth-child(2),
+  .macro-chevrons[data-chevrons="down"] .macro-chevron:nth-child(2) { animation-delay: 180ms; }
+  .macro-chevrons[data-chevrons="up"] .macro-chevron:nth-child(1),
+  .macro-chevrons[data-chevrons="down"] .macro-chevron:nth-child(3) { animation-delay: 360ms; }
+}
+
+/* The inline month grid slides open under the day strip (components/TodayMonthCalendar.tsx);
+   under reduced motion the component drops the class and the grid simply appears. */
+@keyframes today-month-enter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .today-month-enter { animation: today-month-enter 350ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+
+/* The meal-time sheet (components/TimeWheelSheet.tsx): ivory like every sheet. */
+.time-sheet-surface {
+  background: var(--grad-sheet);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  border-radius: 28px;
+  box-shadow: 0 2px 6px rgb(var(--ink-rgb) / 0.08), 0 24px 48px -16px rgb(var(--ink-rgb) / 0.35);
+}
+.time-wheel-band {
+  border-radius: 12px;
+  background: rgb(var(--section-rgb) / 0.08);
+  border: 1px solid rgb(var(--section-rgb) / 0.25);
+}
+
+/* A pop-up with no presence wrapper (components/TimeWheelSheet.tsx) still scales out of its trigger
+   (its inline transform-origin) on the snappy spring and its scrim still fades in. Reduced motion:
+   a fade only. */
+@keyframes popover-scale {
+  from { transform: scale(0.86); }
+}
+@keyframes sheet-scrim-in {
+  from { opacity: 0; }
+}
+.popover-pop { animation: sheet-scrim-in 160ms ease-out both; }
+@media (prefers-reduced-motion: no-preference) {
+  .popover-pop {
+    animation: popover-scale var(--dur-spring-snappy) var(--ease-spring-snappy) both,
+      sheet-scrim-in 180ms ease-out both;
+  }
+  .sheet-scrim-in { animation: sheet-scrim-in 220ms ease-out both; }
+}
+
+/* The update notice (components/ServiceWorkerRegistrar.tsx): the frosted pill, pinned to the
+   top so it never covers the bottom action toasts or the tab bar. It stays until Reload or dismiss. */
+.update-notice {
+  position: fixed;
+  top: calc(12px + var(--safe-top));
+  left: 50%;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: min(calc(100% - 32px), 448px);
+  padding-left: 16px;
+  transform: translateX(-50%);
+}
+.update-notice-reload {
+  padding: 0 8px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.update-notice-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-recording-button { animation: none; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* In-place dropdown (components/DayTypeMenu): an ivory menu, lifted. */
+.menu-glass {
+  background: #f6f2e9;
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: 24px;
+  box-shadow: var(--shadow-float);
+}
+
+/* The segmented control's lens (components/Segmented.tsx): the olive primary pill that slides. */
+.segment-lens {
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  box-shadow: var(--bevel), 0 4px 10px -6px rgba(40, 42, 32, 0.6);
+}
+.segment-label {
+  transition: color 200ms ease;
+}
+
+/* The selected day's lens (components/TodayDayStrip, TodayMonthCalendar; 2026-10-01): the olive
+   primary with its bevel, so the chosen day reads like a pressed key under glass. */
+.day-lens {
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  box-shadow: var(--bevel), 0 6px 14px -8px rgba(40, 42, 32, 0.6);
+}
+
+/* The Day card orb's box (components/today/DayCard.tsx): an ivory disc. The orb shows only in the
+   overview, where DayCard.module.css melts the disc away at the ring's centre; the disc is left
+   only for the moment the orb steps back, unseen, on the other faces. */
+.orb-dock {
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 35%, #fbf8f1 0%, #ece7db 80%);
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    0 12px 24px -12px rgba(40, 36, 26, 0.5),
+    0 0 0 4px rgb(var(--primary-rgb) / 0.06);
+}
+
+/* Input tier 2, the component ask box (components/plan/PlanComposer): the paper of a lookup field
+   with the AI's thin olive → sage → wheat rim, lifting to cream with a soft olive glow on focus. Its
+   SVG body (PlanComposer.module.css) repeats these layers once the box is measured. */
+.plan-ask {
+  position: relative;
+  border-radius: 9999px;
+  background: var(--color-field);
+  box-shadow: inset 0 1px 2px rgb(var(--ink-rgb) / 0.06);
+  transition: box-shadow 200ms ease, background 200ms ease;
+}
+.plan-ask::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  padding: 2px;
+  border-radius: inherit;
+  background: var(--grad-coach-composer-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.plan-ask:focus-within {
+  background: #fffdf8;
+  box-shadow:
+    inset 0 1px 2px rgb(var(--ink-rgb) / 0.04),
+    0 0 0 5px rgb(var(--primary-rgb) / 0.12);
+}
+
+/* ---------------------------------------------------------------- Liquid glass (KIT §15)
+   Owner, 2026-10-05: the Day card's widget is a charcoal floor, the readings sit on it as raised
+   pieces, and a glass lid lies over them — the viewer looks through the glass at 3D pieces on a
+   black floor. Synthesised from Gemini 3.1 Pro, Gemini 3.8 Flash and GPT-6 Sol. WebKit cannot refract
+   a backdrop through an SVG filter, so the lens is drawn: a rim light, one soft reflection from the
+   upper left, a thickness shadow along the bottom, and a blur confined to the rim so the numbers under
+   the middle stay sharp. The Overview's wells are the same glass on the ivory card. */
+.glass-floor {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--grad-matte);
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.55),
+    inset 0 10px 24px rgb(0 0 0 / 0.3),
+    0 3px 10px rgb(0 0 0 / 0.16);
+}
+/* A reading raised off the floor: a lit top edge, a darker underside and a cast shadow. */
+.glass-raised {
+  position: relative;
+  z-index: 1;
+  border-radius: 16px;
+  background:
+    linear-gradient(160deg, rgb(255 255 255 / 0.075), rgb(0 0 0 / 0.2) 72%),
+    color-mix(in srgb, var(--color-paper) 6%, #1d1d1c);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.13),
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),
+    0 5px 10px -3px rgb(0 0 0 / 0.65),
+    0 1px 2px rgb(0 0 0 / 0.5);
+}
+/* A channel cut into a raised piece (a meter's track) and the bead of colour inside it. */
+.glass-channel {
+  position: relative;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.45);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.7), 0 1px 0 rgb(255 255 255 / 0.06);
+  overflow: hidden;
+}
+.glass-bead {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  /* Its colour is the measure's fill class (bg-gauge-*, or a macro fill with bg-current). */
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.45), inset 0 -1px 1px rgb(0 0 0 / 0.25);
+}
+/* The lid: never takes a tap; its rim blurs, its middle stays clear. */
+.glass-lid {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background:
+    radial-gradient(ellipse 72% 70% at 16% -14%, rgb(255 255 255 / 0.17), transparent 62%),
+    linear-gradient(112deg, transparent 40%, rgb(255 255 255 / 0.045) 47%, transparent 55%);
+  box-shadow:
+    inset 0 1.5px 1px rgb(255 255 255 / 0.24),
+    inset 0 -12px 18px -6px rgb(0 0 0 / 0.45),
+    inset 0 0 0 1px rgb(255 255 255 / 0.03);
+}
+.glass-lid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  -webkit-backdrop-filter: blur(5px) saturate(1.15);
+  backdrop-filter: blur(5px) saturate(1.15);
+  -webkit-mask: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 74%, #000 100%);
+  mask: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 74%, #000 100%);
+}
+/* The Overview's wells: a pane of the same glass laid on the ivory card. */
+.glass-well {
+  position: relative;
+  isolation: isolate;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.045), rgb(var(--ink-rgb) / 0.02));
+  border: 1px solid rgb(var(--ink-rgb) / 0.07);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.75),
+    inset 0 -10px 16px -12px rgb(var(--ink-rgb) / 0.22),
+    0 1px 0 rgb(255 255 255 / 0.6);
+}
+.glass-well::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse 60% 80% at 12% -20%, rgb(255 255 255 / 0.55), transparent 60%);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-lid, .glass-well::after { background: none; }
+  .glass-lid::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

@@ -1,0 +1,439 @@
+{
+  "note": "Synthetic D0/D1 fixtures for scripts/eval/lane-bench.ts (Phase 13 \u00a73.2). No real account's data, no names, no conditions, no allergies. The converse instruction is fixed in scripts/eval/lane-bench.ts; expectations are exact values. ui_chart and ui_replies belong to the retired DeepSeek ui lane and are kept only to rescore the 2026-09-23 run.",
+  "converse": {
+    "cases": [
+      {
+        "id": "c1",
+        "values": {
+          "question": "How many calories do I have left today?",
+          "eaten_kcal": 1450,
+          "target_kcal": 2000
+        },
+        "expect": {
+          "number": 550
+        }
+      },
+      {
+        "id": "c2",
+        "values": {
+          "question": "How many grams of protein are left?",
+          "eaten_protein_g": 92,
+          "target_protein_g": 140
+        },
+        "expect": {
+          "number": 48
+        }
+      },
+      {
+        "id": "c3",
+        "values": {
+          "question": "Did I hit my protein target?",
+          "eaten_protein_g": 151,
+          "target_protein_g": 140
+        },
+        "expect": {
+          "boolean": true
+        }
+      },
+      {
+        "id": "c4",
+        "values": {
+          "question": "What was my average daily kcal this week?",
+          "daily_kcal": [
+            1800,
+            2000,
+            2200,
+            1900,
+            2100,
+            2000,
+            2000
+          ]
+        },
+        "expect": {
+          "number": 2000
+        }
+      },
+      {
+        "id": "c5",
+        "values": {
+          "question": "Which meal had the most protein?",
+          "meals": [
+            "breakfast 22 g",
+            "lunch 41 g",
+            "dinner 35 g"
+          ]
+        },
+        "expect": {
+          "word": "lunch"
+        }
+      },
+      {
+        "id": "c6",
+        "values": {
+          "question": "Did I stay under my carb target?",
+          "eaten_carbs_g": 248,
+          "target_carbs_g": 230
+        },
+        "expect": {
+          "boolean": false
+        }
+      }
+    ]
+  },
+  "ui_chart": {
+    "cases": [
+      {
+        "id": "u1",
+        "values": {
+          "question": "Show my calories this week",
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "kcal": [
+            1800,
+            2000,
+            2200,
+            1900,
+            2100,
+            2000,
+            2000
+          ]
+        },
+        "expect": {
+          "chart": "kcal_week",
+          "points": [
+            [
+              "Mon",
+              1800
+            ],
+            [
+              "Tue",
+              2000
+            ],
+            [
+              "Wed",
+              2200
+            ],
+            [
+              "Thu",
+              1900
+            ],
+            [
+              "Fri",
+              2100
+            ],
+            [
+              "Sat",
+              2000
+            ],
+            [
+              "Sun",
+              2000
+            ]
+          ],
+          "unit": "kcal",
+          "label": [
+            "kcal",
+            "calorie"
+          ]
+        }
+      },
+      {
+        "id": "u2",
+        "values": {
+          "question": "Show today's macros",
+          "macros": [
+            "protein",
+            "carbs",
+            "fat"
+          ],
+          "grams": [
+            140,
+            230,
+            60
+          ]
+        },
+        "expect": {
+          "chart": "macros_today",
+          "points": [
+            [
+              "protein",
+              140
+            ],
+            [
+              "carbs",
+              230
+            ],
+            [
+              "fat",
+              60
+            ]
+          ],
+          "unit": "g",
+          "label": [
+            "macro"
+          ]
+        }
+      },
+      {
+        "id": "u3",
+        "values": {
+          "question": "How is my weight trending?",
+          "weeks": [
+            "W1",
+            "W2",
+            "W3",
+            "W4",
+            "W5"
+          ],
+          "kg": [
+            82.1,
+            81.6,
+            81.4,
+            80.9,
+            80.7
+          ]
+        },
+        "expect": {
+          "chart": "weight_trend",
+          "points": [
+            [
+              "W1",
+              82.1
+            ],
+            [
+              "W2",
+              81.6
+            ],
+            [
+              "W3",
+              81.4
+            ],
+            [
+              "W4",
+              80.9
+            ],
+            [
+              "W5",
+              80.7
+            ]
+          ],
+          "unit": "kg",
+          "label": [
+            "weight"
+          ]
+        }
+      },
+      {
+        "id": "u4",
+        "values": {
+          "question": "Chart my weight over the last six weigh-ins",
+          "dates": [
+            "09-01",
+            "09-05",
+            "09-09",
+            "09-13",
+            "09-17",
+            "09-21"
+          ],
+          "kg": [
+            70.2,
+            70.0,
+            69.8,
+            69.9,
+            69.5,
+            69.4
+          ]
+        },
+        "expect": {
+          "chart": "weight_trend",
+          "points": [
+            [
+              "09-01",
+              70.2
+            ],
+            [
+              "09-05",
+              70.0
+            ],
+            [
+              "09-09",
+              69.8
+            ],
+            [
+              "09-13",
+              69.9
+            ],
+            [
+              "09-17",
+              69.5
+            ],
+            [
+              "09-21",
+              69.4
+            ]
+          ],
+          "unit": "kg",
+          "label": [
+            "weight"
+          ]
+        }
+      }
+    ]
+  },
+  "ui_replies": {
+    "cases": [
+      {
+        "id": "r1",
+        "values": {
+          "question": "Which meal should I move?",
+          "choices": [
+            "breakfast",
+            "lunch",
+            "dinner"
+          ]
+        },
+        "expect": {
+          "replies": {
+            "allowed": [
+              "breakfast",
+              "lunch",
+              "dinner"
+            ],
+            "include": [
+              "breakfast",
+              "lunch",
+              "dinner"
+            ]
+          }
+        }
+      },
+      {
+        "id": "r2",
+        "values": {
+          "question": "Log it as which slot?",
+          "choices": [
+            "meal 1",
+            "meal 2"
+          ]
+        },
+        "expect": {
+          "replies": {
+            "allowed": [
+              "meal 1",
+              "meal 2"
+            ],
+            "include": [
+              "meal 1",
+              "meal 2"
+            ]
+          }
+        }
+      },
+      {
+        "id": "r3",
+        "values": {
+          "question": "How much water did you drink?",
+          "choices": [
+            "1 cup",
+            "2 cups",
+            "a bottle"
+          ]
+        },
+        "expect": {
+          "replies": {
+            "allowed": [
+              "1 cup",
+              "2 cups",
+              "a bottle"
+            ],
+            "include": [
+              "1 cup",
+              "2 cups"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "capture_text": {
+    "cases": [
+      {
+        "id": "k1",
+        "text": "two eggs and a slice of toast",
+        "expect": {
+          "labels": [
+            "egg",
+            "toast"
+          ],
+          "items": 2,
+          "qty": [2, 1],
+          "grams": [100, 30]
+        }
+      },
+      {
+        "id": "k2",
+        "text": "a bowl of oatmeal with blueberries",
+        "expect": {
+          "labels": [
+            ["oat", "oats", "oatmeal"],
+            ["blueberry", "blueberries"]
+          ],
+          "items": 2
+        }
+      },
+      {
+        "id": "k3",
+        "text": "150 g grilled chicken breast and a cup of rice",
+        "expect": {
+          "labels": [
+            "chicken",
+            "rice"
+          ],
+          "items": 2,
+          "grams": [
+            150
+          ]
+        }
+      },
+      {
+        "id": "k4",
+        "text": "a banana",
+        "expect": {
+          "labels": [
+            "banana"
+          ],
+          "items": 1,
+          "qty": [1]
+        }
+      },
+      {
+        "id": "k5",
+        "text": "greek yogurt with a spoon of honey and some walnuts",
+        "expect": {
+          "labels": [
+            "yogurt",
+            "honey",
+            "walnut"
+          ],
+          "items": 3
+        }
+      },
+      {
+        "id": "k6",
+        "text": "a tuna salad sandwich",
+        "expect": {
+          "labels": [
+            "tuna"
+          ]
+        }
+      }
+    ]
+  }
+}

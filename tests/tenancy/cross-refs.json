@@ -1,0 +1,20 @@
+{
+  "coach_action_undos.message_id": { "writer": "service_role" },
+  "coach_action_undos.thread_id": { "writer": "service_role" },
+  "coach_messages.ai_call_id": { "writer": "user" },
+  "coach_messages.thread_id": { "writer": "user" },
+  "duplicate_group_members.entry_id": { "writer": "user" },
+  "duplicate_groups.merged_into_entry_id": { "writer": "user" },
+  "favorites_foods.food_ref_id": { "writer": "user" },
+  "favorites_meal_items.food_ref_id": { "writer": "user" },
+  "favorites_recipes.recipe_id": { "writer": "user" },
+  "health_samples.ingest_event_id": { "writer": "service_role", "align": { "source_id": "source_id" } },
+  "health_samples.source_id": { "writer": "service_role" },
+  "ingest_events.source_id": { "writer": "service_role" },
+  "log_items.food_ref_id": { "writer": "user" },
+  "media_objects.entry_id": { "writer": "user" },
+  "recipe_items.food_ref_id": { "writer": "user" },
+  "recipe_plan_selections.target_revision_id": { "writer": "service_role" },
+  "target_proposals.based_on_estimate_id": { "writer": "service_role" },
+  "user_food_prefs.food_ref_id": { "writer": "user" }
+}

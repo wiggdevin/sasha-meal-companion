@@ -1,0 +1,351 @@
+{
+  "generatedAt": "2026-09-20T08:25:03.720Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 15,
+  "case": {
+    "id": "jev-low-fodmap-unverified",
+    "category": "jev",
+    "sentence": "make a recipe from mystery broth, rice, and chicken",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "unverified_recipe",
+      "preference": "low_fodmap"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 9571,
+    "actions": [
+      "save_recipe"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.12,
+      "verifier": "jev"
+    },
+    "jev": {
+      "assistantContent": "I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "search_foods"
+          },
+          {
+            "ok": true,
+            "name": "search_foods"
+          },
+          {
+            "ok": true,
+            "name": "search_foods"
+          }
+        ],
+        "blocks": [],
+        "actions": [
+          {
+            "kind": "save_recipe",
+            "name": "Chicken and rice soup",
+            "items": [
+              {
+                "name": "Chicken breast, roasted",
+                "grams": 140,
+                "verdict": "allowed",
+                "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+                "fatPer100g": 3.6,
+                "kcalPer100g": 165,
+                "carbsPer100g": 0,
+                "proteinPer100g": 31,
+                "catalogFoodRevisionId": 1
+              },
+              {
+                "name": "Rice, white, cooked",
+                "grams": 160,
+                "verdict": "allowed",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 12
+              }
+            ],
+            "flagged": [],
+            "actionId": "634b4bfe-02a5-4457-b165-06f0b8836d19",
+            "refusals": [
+              "Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+            ]
+          }
+        ],
+        "composed": [],
+        "suggestions": [
+          {
+            "name": "Chicken breast, roasted",
+            "grams": 140,
+            "reason": null,
+            "verdict": "allowed",
+            "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c"
+          },
+          {
+            "name": "Rice, white, cooked",
+            "grams": 160,
+            "reason": null,
+            "verdict": "allowed",
+            "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d"
+          },
+          {
+            "name": "Mystery broth",
+            "grams": 240,
+            "reason": null,
+            "verdict": "allowed",
+            "foodRefId": "6512b806-e5aa-47fd-9978-e158cfaece99"
+          }
+        ],
+        "recipeRefusals": [
+          "Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+        ]
+      },
+      "actions": [
+        {
+          "kind": "save_recipe",
+          "name": "Chicken and rice soup",
+          "items": [
+            {
+              "name": "Chicken breast, roasted",
+              "grams": 140,
+              "verdict": "allowed",
+              "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+              "fatPer100g": 3.6,
+              "kcalPer100g": 165,
+              "carbsPer100g": 0,
+              "proteinPer100g": 31,
+              "catalogFoodRevisionId": 1
+            },
+            {
+              "name": "Rice, white, cooked",
+              "grams": 160,
+              "verdict": "allowed",
+              "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+              "fatPer100g": 0.3,
+              "kcalPer100g": 130,
+              "carbsPer100g": 28,
+              "proteinPer100g": 2.7,
+              "catalogFoodRevisionId": 12
+            }
+          ],
+          "flagged": [],
+          "actionId": "634b4bfe-02a5-4457-b165-06f0b8836d19",
+          "refusals": [
+            "Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+          ]
+        }
+      ],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-intent",
+        "coach",
+        "coach"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [save_recipe]; got [save_recipe]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 9571 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.12"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted recipe excludes unverified food",
+      "passed": true,
+      "detail": "{\"kind\":\"save_recipe\",\"name\":\"Chicken and rice soup\",\"items\":[{\"name\":\"Chicken breast, roasted\",\"grams\":140,\"verdict\":\"allowed\",\"foodRefId\":\"e0fa09a9-7589-4174-85e1-f45724dbc32c\",\"fatPer100g\":3.6,\"kcalPer100g\":165,\"carbsPer100g\":0,\"proteinPer100g\":31,\"catalogFoodRevisionId\":1},{\"name\":\"Rice, white, cooked\",\"grams\":160,\"verdict\":\"allowed\",\"foodRefId\":\"adb3c96f-f6dc-4b63-b418-db32fcccd02d\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":12}],\"flagged\":[],\"actionId\":\"634b4bfe-02a5-4457-b165-06f0b8836d19\",\"refusals\":[\"Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.\"]}"
+    },
+    {
+      "name": "Jev persisted Not verified low-FODMAP copy",
+      "passed": true,
+      "detail": "I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "b1fc6ffc-edfb-4dac-bfa5-edac0dab37b9",
+    "suggestions": [
+      {
+        "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+        "name": "Chicken breast, roasted",
+        "grams": 140,
+        "reason": null,
+        "verdict": "allowed"
+      },
+      {
+        "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+        "name": "Rice, white, cooked",
+        "grams": 160,
+        "reason": null,
+        "verdict": "allowed"
+      },
+      {
+        "foodRefId": "6512b806-e5aa-47fd-9978-e158cfaece99",
+        "name": "Mystery broth",
+        "grams": 240,
+        "reason": null,
+        "verdict": "allowed"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "save_recipe",
+        "name": "Chicken and rice soup",
+        "items": [
+          {
+            "name": "Chicken breast, roasted",
+            "grams": 140,
+            "verdict": "allowed",
+            "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+            "fatPer100g": 3.6,
+            "kcalPer100g": 165,
+            "carbsPer100g": 0,
+            "proteinPer100g": 31,
+            "catalogFoodRevisionId": 1
+          },
+          {
+            "name": "Rice, white, cooked",
+            "grams": 160,
+            "verdict": "allowed",
+            "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+            "fatPer100g": 0.3,
+            "kcalPer100g": 130,
+            "carbsPer100g": 28,
+            "proteinPer100g": 2.7,
+            "catalogFoodRevisionId": 12
+          }
+        ],
+        "flagged": [],
+        "actionId": "634b4bfe-02a5-4457-b165-06f0b8836d19",
+        "refusals": [
+          "Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 421,
+      "model": 6389,
+      "ground": 676
+    },
+    "messages": [
+      {
+        "id": "71d835ed-25d0-4160-9fa0-47958bfd32d7",
+        "role": "user",
+        "content": "make a recipe from mystery broth, rice, and chicken",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "4b1520eb-4249-41af-9dd4-9096c91a3585",
+        "role": "assistant",
+        "content": "I have the other item ready. Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "634b4bfe-02a5-4457-b165-06f0b8836d19",
+            "flagged": [],
+            "kind": "save_recipe",
+            "name": "Chicken and rice soup",
+            "items": [
+              {
+                "name": "Chicken breast, roasted",
+                "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+                "catalogFoodRevisionId": 1,
+                "kcalPer100g": 165,
+                "proteinPer100g": 31,
+                "carbsPer100g": 0,
+                "fatPer100g": 3.6,
+                "verdict": "allowed",
+                "grams": 140
+              },
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "catalogFoodRevisionId": 12,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "allowed",
+                "grams": 160
+              }
+            ],
+            "refusals": [
+              "Cannot verify Mystery broth for your low-FODMAP preference — marked Not verified."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

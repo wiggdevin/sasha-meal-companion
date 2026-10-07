@@ -1,0 +1,131 @@
+{
+  "generatedAt": "2026-09-20T05:52:58.103Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 5,
+  "case": {
+    "id": "block-protein-or-fibre",
+    "category": "block",
+    "sentence": "can you change my breakfast?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "quick_replies"
+    ],
+    "expected_quick_replies": {
+      "min": 2,
+      "max": 4
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3902,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3902 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Focus on protein first. You have 102 g of protein remaining to reach your target today.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [quick_replies]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected quick-reply count",
+      "passed": false,
+      "detail": "expected 2-4; got []"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "9c708758-345c-44c3-807b-76a8b05eeada",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 301,
+      "model": 2380,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "a3c9c918-bf68-46b7-8a50-11ac2fa04a09",
+        "role": "user",
+        "content": "should I eat more protein or more fibre?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "e37f321b-d9a5-426d-8832-a4009170f643",
+        "role": "assistant",
+        "content": "Focus on protein first. You have 102 g of protein remaining to reach your target today.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

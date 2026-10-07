@@ -1,0 +1,7 @@
+{
+  "date": "2026-09-23",
+  "approver": "Devin",
+  "openItem": "PR #247 body, Open items for Devin: pending admin-client entry points",
+  "note": "Each entry here has no cross-user canary test yet. The tenancy gate fails for any uncovered entry not listed here, and for any listed entry that is now covered. Remove an entry when its canary lands; never add one without naming it in the PR body.",
+  "entries": {}
+}

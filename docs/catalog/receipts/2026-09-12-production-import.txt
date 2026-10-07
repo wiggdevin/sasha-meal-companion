@@ -1,0 +1,17 @@
+# Production catalog counts, 2026-09-12 ~22:45Z, psql over the session pooler as postgres (driver)
+versions=3 active=3
+foods=13694
+revisions=13694
+portions=36681
+nutrients=259377
+db_size=95 MB
+synonyms (before load)=0 ; synonyms (after scripts/load-synonyms.ts)=67
+# Import log excerpt (scripts/import-fdc.py --version-label 2026-09-12):
+warning: fdc_foundation: macro coverage 0.8038 below 0.9
+  {"revisions": 469, "portions": 187, "with_macros": 377, "macro_coverage": 0.8038, "atwater_incomplete": 92, "energy_mismatch": 22, "energy_mismatch_rate": 0.0584, "warnings": ["fdc_foundation: macro coverage 0.8038 below 0.9"]}
+warning: fdc_sr_legacy: energy mismatch rate 0.1322 above 0.1
+  {"revisions": 7793, "portions": 14449, "with_macros": 7793, "macro_coverage": 1.0, "atwater_incomplete": 0, "energy_mismatch": 1030, "energy_mismatch_rate": 0.1322, "warnings": ["fdc_sr_legacy: energy mismatch rate 0.1322 above 0.1"]}
+warning: fdc_fndds: energy mismatch rate 0.1193 above 0.1
+  {"revisions": 5432, "portions": 22045, "with_macros": 5431, "macro_coverage": 0.9998, "atwater_incomplete": 1, "energy_mismatch": 648, "energy_mismatch_rate": 0.1193, "warnings": ["fdc_fndds: energy mismatch rate 0.1193 above 0.1"]}
+activated 2026-09-12
+    "warnings": [

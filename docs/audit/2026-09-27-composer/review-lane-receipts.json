@@ -1,0 +1,58 @@
+{
+  "recordedAt": "2026-09-27T23:00:27Z",
+  "purpose": "availability probes only; not change acceptance reviews",
+  "sourceBase": "aa7946c15c6a5754cca7ebc7e47296329c25a342",
+  "opus": {
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "requestedModel": "opus",
+    "canonicalModel": "claude-opus-5-5",
+    "result": "READY",
+    "is_error": false,
+    "duration_ms": 3881,
+    "session_id": "5ad29ec6-aeda-49fc-a931-7e97046bed6d"
+  },
+  "jev": {
+    "httpStatus": 200,
+    "requestedModel": "jev-latest",
+    "model": "jev-1.13.0",
+    "answers": {
+      "ready": {
+        "type": "choice",
+        "choice": "yes",
+        "confidence": 1.0,
+        "probabilities": { "no": 0.0, "yes": 1.0 }
+      }
+    },
+    "usage": { "input_tokens": 333, "output_tokens": 31 }
+  },
+  "geminiVisual": {
+    "requestedModel": "gemini-3.8-flash-low",
+    "artifact": "original-composer.png",
+    "conversation_id": "d7d7d120-e7e4-402f-a182-1132dafd7f97",
+    "status": "SUCCESS",
+    "responseExcerpt": "there are three round action buttons: a tray/box icon and a microphone icon on the bottom left, and a paper plane (send) icon on the bottom right.",
+    "duration_seconds": 5.364525,
+    "num_turns": 1,
+    "usage": { "input_tokens": 40475, "output_tokens": 173, "thinking_tokens": 0, "cache_read_tokens": 36753, "total_tokens": 40648 },
+    "warning": "--mode plan has no effect while slash command expansion is disabled."
+  },
+  "kimiText": {
+    "httpStatus": 200,
+    "model": "moonshotai/kimi-k3",
+    "content": "READY",
+    "finish_reason": "stop",
+    "usage": { "prompt_tokens": 97, "completion_tokens": 33, "total_tokens": 130, "cost": 0.0003983387, "reasoning_tokens": 22 }
+  },
+  "kimiVisual": {
+    "httpStatus": 402,
+    "requestedModel": "moonshotai/kimi-k3",
+    "artifact": "original-composer.png",
+    "max_tokens": 200,
+    "errorMessage": "This request requires more credits, or fewer max_tokens. You requested up to 200 tokens, but can only afford 52. To increase, visit https://openrouter.ai/settings/credits and add more credits",
+    "limit_source": "openrouter_credits",
+    "previousProviderAffordableTokens": [88, 52],
+    "visualAnswerObtained": false
+  }
+}

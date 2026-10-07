@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  # No `branches:` filter here on purpose: stacked PRs (e.g. a fix PR based on another
+  # open feature/test branch instead of main) still need CI. `branches:` on `pull_request`
+  # matches against the PR's base branch, so restricting it to `main` silently skips CI
+  # for every PR whose base isn't main.
+  #
+  # No `push` trigger to main. zs-land only squash-merges a green PR, so the merge commit
+  # already ran this exact suite on the PR's own pull_request run — re-running it on push
+  # duplicated the full ~25-minute, 6-job suite on every merge (536 runs in 6 days against
+  # this repo's Actions budget, 2026-10-06). The one job that only makes sense post-merge
+  # — Migration drift, checked against production — moved to its own push-to-main
+  # workflow: .github/workflows/migration-drift.yml.
+  #
+  # `schedule` + `workflow_dispatch` give main a cheap periodic signal instead: each PR run
+  # only proves its own branch is good against the main it forked from, so two PRs that are
+  # each green on their own can still break main once both land (this happened after #470).
+  # One nightly run (~25 billed min/day) catches that within a day for ~170 fewer
+  # runs/week than push-to-main gave us. Trigger one on demand right after landing a
+  # cluster of PRs with:
+  #   gh workflow run ci.yml --repo wiggdevin/sasha-meal-companion --ref main
+  # Longer term, once this repo is public and branch protection supports it, a merge queue
+  # (tests the post-merge result before merging, instead of after) replaces this entirely.
+  pull_request: {}
+  schedule:
+    - cron: "17 9 * * *" # ~09:17 UTC daily
+  workflow_dispatch: {}
+
+concurrency:
+  # github.ref for a pull_request run is refs/pull/<PR>/merge, so this already scopes to
+  # one concurrency group per PR — a new push to the PR cancels the stale run. For
+  # `schedule` and `workflow_dispatch`, github.ref is refs/heads/main for both, so they
+  # share one `ci-refs/heads/main` group: at most one main-branch run is ever in flight,
+  # and a manual run started right after the nightly one cancels it, which is fine — the
+  # newer run is a superset check of the same branch.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Every job starts at once (2026-10-04: the chain Quality → Integration took ~27 min). The
+  # three required checks — Quality, Integration, Build — keep their names; Quality is a small
+  # gate over parallel jobs, so branch protection is unchanged.
+  static:
+    name: Lint and types
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install catalog worker dependencies
+        run: python3 -m pip install -r scripts/requirements.txt pytest
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+        env:
+          # The project's type graph outgrew Node's default heap on the 7 GB hosted runner (OOM, 2026-10-05).
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Test catalog import worker
+        run: python3 -m pytest tests/catalog/test_import_fdc.py -q
+
+  unit:
+    name: Unit tests (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Every shard reports, so one red run shows all of its failures at once.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test --shard=${{ matrix.shard }}/4
+
+  # A partial rerun is safe: rerunning one failed shard reruns this gate too, and
+  # needs.unit.result stays failure until every shard's latest attempt passed (checked live on
+  # 2026-10-04, wiggdevin/zs-land-sandbox run 37248882225, attempts 1-3).
+  quality:
+    name: Quality
+    needs: [static, unit]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require lint, types and every unit shard
+        run: |
+          test "${{ needs.static.result }}" = success
+          test "${{ needs.unit.result }}" = success
+
+  # Only the ~100 files that use a database (scripts/ci-integration-files.ts); the unit shards
+  # run the rest. One runner, one disposable database, files one at a time.
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate local integration setup
+        run: python3 -m unittest discover -s tests/ci -p 'test_*.py'
+
+      # The installed, lockfile-pinned CLI applies migrations to disposable Docker containers.
+      # No hosted project credentials are required, and missing setup is a failure.
+      - name: Start local Supabase and seed test helpers
+        timeout-minutes: 12
+        run: python3 scripts/ci-local-supabase.py start
+
+      - name: Run integration suite
+        timeout-minutes: 15
+        run: pnpm test:integration
+
+      - name: Stop local Supabase
+        if: always()
+        run: pnpm exec supabase stop --no-backup
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder

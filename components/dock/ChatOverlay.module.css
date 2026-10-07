@@ -1,0 +1,57 @@
+/* The dock's chat overlay (U22, DESIGN.md §Components › Chat overlay, 2026-10-04): an ivory E2 card
+   rising from the dock over the page, which stays where it was under a charcoal scrim. */
+
+.root {
+  position: fixed;
+  inset: 0;
+  /* Above every page layer (the tallest is 30), below the dock (40), which stays the composer, and
+     below modal sheets (60) a chat may open. */
+  z-index: 35;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: var(--color-scrim);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The card stops above the dock (its 64 px body, 12 px lift and a 12 px gap) and above the
+   keyboard while the dock rides it (--dock-lift, components/TabBar.tsx). */
+.card {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  max-width: 420px;
+  margin-inline: auto;
+  top: calc(var(--safe-top) + 12px);
+  bottom: calc(var(--safe-bottom) + 88px + var(--dock-lift, 0px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 32px;
+  background: var(--grad-sheet);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  box-shadow: var(--shadow-float);
+  transform-origin: 50% 100%;
+  overscroll-behavior: contain;
+}
+
+.content {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.head {
+  padding: 16px 12px 12px 16px;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .scrim { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

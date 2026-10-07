@@ -1,0 +1,201 @@
+{
+  "generatedAt": "2026-09-20T15:18:04.537Z",
+  "branch": "meals-2-2026-09-20",
+  "seed": "20260919",
+  "turn": 4,
+  "case": {
+    "id": "meals-p4-spaghetti-snack",
+    "category": "meals",
+    "sentence": "I just ate spaghetti bolognese as a snack.",
+    "expected_path": "llm",
+    "note": "P4: one log_meal with title Spaghetti bolognese",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4334,
+    "actions": [
+      "log_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.16,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_meal]; got [log_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4334 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.16"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 1 serving (350 g) of spaghetti bolognese as a snack. Note that standard spaghetti contains gluten, so this is marked off-plan. Off-plan: Spaghetti bolognese.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": true,
+      "detail": "{\"expected\":\"log_meal\",\"actual\":\"log_meal\"}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": true,
+      "detail": "{\"expected\":\"snack\",\"actual\":\"snack\"}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": true,
+      "detail": "{\"expected\":\"Spaghetti bolognese\",\"actual\":\"Spaghetti bolognese\"}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": true,
+      "detail": "{\"expected\":{\"min\":350,\"max\":600},\"actual\":480}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "d0a4a534-57eb-4917-bad1-abe7f3dff12b",
+    "suggestions": [
+      {
+        "foodRefId": "51a394b5-6ef2-4214-8c78-316d3381543f",
+        "name": "Spaghetti bolognese",
+        "grams": 350,
+        "reason": "allergen:gluten",
+        "verdict": "blocked"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "log_meal",
+        "date": "2026-09-20",
+        "slot": "snack",
+        "title": "Spaghetti bolognese",
+        "items": [
+          {
+            "name": "Spaghetti bolognese",
+            "foodRefId": "51a394b5-6ef2-4214-8c78-316d3381543f",
+            "catalogFoodRevisionId": 5,
+            "kcalPer100g": 137,
+            "proteinPer100g": 6,
+            "carbsPer100g": 17.5,
+            "fatPer100g": 4.5,
+            "verdict": "blocked",
+            "grams": 350,
+            "sanity": {
+              "status": "pending",
+              "warnings": []
+            }
+          }
+        ],
+        "at": "09:17",
+        "actionId": "7815def1-0578-418c-b52d-67f8fcfe82a4",
+        "flagged": [
+          "Spaghetti bolognese"
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 185,
+      "model": 3938,
+      "ground": 92
+    },
+    "messages": [
+      {
+        "id": "bb15c51b-1444-4702-8b93-a2f398bed604",
+        "role": "user",
+        "content": "I just ate spaghetti bolognese as a snack.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "27703646-8b74-4706-9012-33b58be63745",
+        "role": "assistant",
+        "content": "Logged 1 serving (350 g) of spaghetti bolognese as a snack. Note that standard spaghetti contains gluten, so this is marked off-plan. Off-plan: Spaghetti bolognese.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "7815def1-0578-418c-b52d-67f8fcfe82a4",
+            "flagged": [
+              "Spaghetti bolognese"
+            ],
+            "kind": "log_meal",
+            "date": "2026-09-20",
+            "slot": "snack",
+            "title": "Spaghetti bolognese",
+            "items": [
+              {
+                "name": "Spaghetti bolognese",
+                "foodRefId": "51a394b5-6ef2-4214-8c78-316d3381543f",
+                "catalogFoodRevisionId": 5,
+                "kcalPer100g": 137,
+                "proteinPer100g": 6,
+                "carbsPer100g": 17.5,
+                "fatPer100g": 4.5,
+                "verdict": "blocked",
+                "grams": 350,
+                "sanity": {
+                  "status": "pending",
+                  "warnings": []
+                }
+              }
+            ],
+            "at": "09:17"
+          }
+        ]
+      }
+    ]
+  }
+}

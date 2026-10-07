@@ -1,0 +1,234 @@
+/* The Day card (components/today/DayCard.tsx, 2026-10-01). One ivory card with three faces; the
+   card's corners are 32 px so they run concentric with the phone's own corners 16 px away, and
+   everything inside it steps down from there (the face switch and lens are pills, the board's
+   tiles 16 px: 32 − the 16 px inset). Motion comes from lib/design/motion.ts; this file only
+   places things. */
+
+.card {
+  position: relative;
+  border-radius: 32px;
+}
+
+.surface {
+  border-radius: 32px;
+  overflow: hidden;
+}
+
+/* ---- Header: the viewed day, and the face switch ---- */
+
+/* The face switch drops to its own line, right-aligned, once the heading would get less than 96 px
+   (a 320 px phone), so the title and its day type never run under it. */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  min-height: 72px;
+  padding: 14px 14px 6px 20px;
+}
+
+.heading {
+  position: relative;
+  flex: 1 1 96px;
+  min-width: 0;
+  container-type: inline-size;
+}
+.heading + * {
+  margin-left: auto;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 26px;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+/* On a narrow phone the day's type drops under the title instead of running under the face switch
+   (owner, 2026-10-04: no overlapping text; at 320 px "Training" sat under "Calendar"). */
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+/* The day's type beside its name. Training wears the persimmon wash and ink (DESIGN.md: orange marks
+   training days); rest stays a quiet neutral. */
+.dayType {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  background: var(--color-fog);
+  color: var(--color-text-muted);
+}
+
+.dayType[data-day-type="training"] {
+  background: var(--color-orange-wash);
+  color: var(--color-orange-ink);
+}
+
+/* The full date ("Wednesday 30 September") when the heading has room, else the short one ("Wed
+   30 Sep"); never an ellipsis (owner, 2026-10-05: no cut-off text). The hidden form is display:none,
+   so a screen reader hears one date. The heading is the container (above). */
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-muted);
+}
+
+.subtitleShort {
+  display: none;
+}
+
+@container (max-width: 179px) {
+  .subtitleFull {
+    display: none;
+  }
+
+  .subtitleShort {
+    display: inline;
+  }
+}
+
+/* ---- Faces: the active one is in flow and sizes the card; the others wait on top of it ---- */
+
+.faces {
+  position: relative;
+  /* clip, not hidden: a hidden box can still be scrolled by focus moving inside it (the widget's
+     bubbles and toggle), which slid the week strip out of view (2026-10-05). */
+  overflow: clip;
+}
+
+.face {
+  position: absolute;
+  inset: 0 0 auto 0;
+  transform-origin: 50% 0;
+}
+
+.face[data-active] {
+  position: relative;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--color-hairline);
+}
+
+/* ---- The orb's box ---- */
+
+/* The box is the orb's full 104 px, so its canvas renders sharp at the ring's centre. Off the
+   overview it has stepped back unseen (DayCard.tsx); nothing hangs from the card's lower edge. */
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  z-index: 10;
+  width: 104px;
+  height: 104px;
+  margin-left: -52px;
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+/* At the ring's centre the orb is unframed, like the overview's own orb: the disc melts away. */
+.dock[data-orb-state="centre"],
+.dock[data-orb-state="aside"] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* ---- Face switch (components/today/FaceSwitch.tsx) ---- */
+
+.track {
+  position: relative;
+  flex: none;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--color-fog);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink-rgb) / 0.05),
+    inset 0 1px 2px rgb(var(--ink-rgb) / 0.08);
+}
+
+.switchLens {
+  position: absolute;
+  left: 0;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  box-shadow: var(--bevel), 0 4px 10px -6px rgba(40, 42, 32, 0.6);
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 9999px;
+  color: var(--color-text-muted);
+}
+
+.segmentButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+/* The glyph is 36 px; its hit area is the full 44 px track height. */
+.segmentButton::before {
+  content: "";
+  position: absolute;
+  inset: -4px -1px;
+}
+
+.segmentButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .segmentButton:hover {
+    color: var(--color-text-primary);
+  }
+}
+
+/* Cream wherever the lens covers a glyph, even mid-flight. */
+.switchInk {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  color: var(--color-on-primary);
+  pointer-events: none;
+}
+
+.switchInk .segment {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock {
+    transition: none;
+  }
+}

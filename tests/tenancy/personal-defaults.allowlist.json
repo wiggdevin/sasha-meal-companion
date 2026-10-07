@@ -1,0 +1,10 @@
+[
+  {
+    "followUpId": "brand-name-2026-09-24",
+    "ruleId": "PERSON_NAME",
+    "path": "lib/brand.ts",
+    "line": 6,
+    "lineSha256": "080a7b2eb5190427b89233c013da8b8fdec3c58f36fc8500eac4c2f73ca0fec3",
+    "reason": "The app and its assistant are named Sasha (Supportive Assistant for Smart Health Awareness). This is the one line that spells the product name; every other runtime file imports it."
+  }
+]

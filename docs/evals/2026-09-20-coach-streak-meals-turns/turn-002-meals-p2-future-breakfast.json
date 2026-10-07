@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-09-20T15:17:54.249Z",
+  "branch": "meals-2-2026-09-20",
+  "seed": "20260919",
+  "turn": 2,
+  "case": {
+    "id": "meals-p2-future-breakfast",
+    "category": "meals",
+    "sentence": "What's my breakfast on 2026-10-05?",
+    "expected_path": "llm",
+    "note": "P2 follows P1 in the same thread: report Sourdough toast, bacon & eggs from the materialized plan",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5586,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.11,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5586 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.11"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Your breakfast on October 5, 2026 is Sourdough toast, bacon & eggs at 11:30.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 future plan materialized",
+      "passed": true,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"Sourdough toast, bacon & eggs\"}"
+    },
+    {
+      "name": "C9 future plan reported",
+      "passed": true,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"Your breakfast on October 5, 2026 is Sourdough toast, bacon & eggs at 11:30.\"}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "f214b0f8-1a23-446e-ae5b-3922d0993fb7",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "Sourdough bread, toasted",
+        "grams": 76,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Bacon, cooked",
+        "grams": 24,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Eggs, cooked",
+        "grams": 200,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "get_plan"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 195,
+      "model": 5096,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "8913285d-ca77-4109-8289-8aa0ce81b2a4",
+        "role": "user",
+        "content": "What's my breakfast on 2026-10-05?",
+        "seq": 3,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "3f502f2e-2290-4fac-b6cc-a893afee5aa8",
+        "role": "assistant",
+        "content": "Your breakfast on October 5, 2026 is Sourdough toast, bacon & eggs at 11:30.",
+        "seq": 4,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

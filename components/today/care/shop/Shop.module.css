@@ -1,0 +1,168 @@
+/* Sprout's shop (CareShop.tsx, DressedSprout.tsx): Seeds, Sprout trying things on, the item row. It
+   sits in the open well's dark glass; text uses the matte roles. Only transform and opacity animate. */
+
+/* DressedSprout: worn parts in the pose's own frame. */
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.part {
+  position: absolute;
+  display: block;
+}
+.partImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* Shorts follow the body: the pose's own art is the mask, so nothing shows past Sprout's outline. */
+.bodyClip {
+  -webkit-mask-image: url("/pet/hero/sprout-content.webp");
+  mask-image: url("/pet/hero/sprout-content.webp");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.leaf { object-fit: contain; }
+
+/* CareShop. */
+.shop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 12px 14px;
+  gap: 8px;
+}
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+}
+.balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px 0 10px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--color-on-olive) 8%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 18%, transparent);
+  color: var(--color-on-olive);
+}
+.balanceNum {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+}
+.balanceWord { font-size: 14px; color: var(--color-text-muted); }
+.seed { width: 16px; height: 16px; color: var(--color-gauge-fat-end); flex-shrink: 0; }
+.pending { font-size: 12px; color: var(--color-text-muted); }
+
+/* Recent Seeds: a glass card over the stage, under the balance. */
+.ledger {
+  position: absolute;
+  top: 60px;
+  left: 12px;
+  right: 12px;
+  z-index: 3;
+  padding: 10px 14px;
+  border-radius: 20px;
+  background: color-mix(in oklab, var(--color-charcoal-deep) 88%, var(--color-gauge-water));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 18%, transparent),
+    0 18px 30px -18px var(--color-charcoal-deep);
+  transform-origin: 20% 0;
+}
+.ledgerList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ledgerRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-on-olive);
+}
+.ledgerDelta { min-width: 32px; font-variant-numeric: tabular-nums; color: var(--color-gauge-fat-end); }
+.ledgerDelta[data-spent] { color: var(--color-text-muted); }
+.ledgerWhat { flex: 1; }
+.ledgerWhen { font-size: 12px; color: var(--color-text-muted); }
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.stageBody {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* The item row: one swipe across, never a nested vertical scroller. */
+.tiles {
+  display: flex;
+  gap: 8px;
+  margin: 0 -12px;
+  padding: 2px 12px 4px;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+.tiles li { scroll-snap-align: start; flex-shrink: 0; }
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 72px;
+  padding: 6px 4px 6px;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--color-on-olive) 6%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-on-olive) 14%, transparent);
+  color: var(--color-on-olive);
+}
+.tile[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--color-gauge-fat-end) 18%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--color-gauge-fat-end);
+}
+.tileArt {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+.tileArt img { object-fit: contain; }
+.tilePrice {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.tilePrice .seed { width: 12px; height: 12px; }
+.tileMark { font-size: 12px; color: var(--color-gauge-carbs-end); }
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+}
+.actionText { display: flex; flex-direction: column; min-width: 0; }
+.actionName { font-size: 16px; color: var(--color-on-olive); }
+.actionNote { font-size: 12px; color: var(--color-text-muted); }
+.actionButtons { display: flex; gap: 6px; flex-shrink: 0; }

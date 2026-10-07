@@ -1,0 +1,419 @@
+{
+  "version": 1,
+  "seed": "20260919",
+  "branch": "meals-2-2026-09-20",
+  "category": "meals",
+  "startedAt": "2026-09-20T15:17:41.704Z",
+  "updatedAt": "2026-09-20T15:18:08.198Z",
+  "status": "success",
+  "streak": 5,
+  "totalTurns": 5,
+  "turns": [
+    {
+      "turn": 1,
+      "caseId": "meals-p1-month-breakfast",
+      "sentence": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+      "path": "llm",
+      "elapsedMs": 5616,
+      "actions": [
+        "set_slot_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [set_slot_meal]; got [set_slot_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5616 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.36"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Set sourdough toast, bacon, and eggs as your meal 1 through October 20, 2026. Note that sourdough bread contains gluten, so it is off-plan.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": true,
+          "detail": "{\"expected\":\"set_slot_meal\",\"actual\":\"set_slot_meal\"}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": true,
+          "detail": "{\"expected\":\"meal-1\",\"actual\":\"meal-1\"}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": true,
+          "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"Sourdough toast, bacon & eggs\"}"
+        },
+        {
+          "name": "C9 selected dates",
+          "passed": true,
+          "detail": "{\"expected\":[\"2026-09-20\",\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-26\",\"2026-09-27\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\",\"2026-10-03\",\"2026-10-04\",\"2026-10-05\",\"2026-10-06\",\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\",\"2026-10-18\",\"2026-10-19\",\"2026-10-20\"],\"actual\":[\"2026-09-20\",\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-26\",\"2026-09-27\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\",\"2026-10-03\",\"2026-10-04\",\"2026-10-05\",\"2026-10-06\",\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\",\"2026-10-18\",\"2026-10-19\",\"2026-10-20\"]}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": true,
+          "detail": "{\"expected\":{\"min\":570,\"max\":700},\"actual\":604}"
+        },
+        {
+          "name": "C9 phone-side materialization",
+          "passed": true,
+          "detail": "{\"dates\":31,\"title\":\"Sourdough toast, bacon & eggs\",\"slot\":\"meal-1\"}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-meals-turns/turn-001-meals-p1-month-breakfast.json",
+      "threadId": "f214b0f8-1a23-446e-ae5b-3922d0993fb7"
+    },
+    {
+      "turn": 2,
+      "caseId": "meals-p2-future-breakfast",
+      "sentence": "What's my breakfast on 2026-10-05?",
+      "path": "llm",
+      "elapsedMs": 5586,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5586 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.11"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Your breakfast on October 5, 2026 is Sourdough toast, bacon & eggs at 11:30.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 future plan materialized",
+          "passed": true,
+          "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"Sourdough toast, bacon & eggs\"}"
+        },
+        {
+          "name": "C9 future plan reported",
+          "passed": true,
+          "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"Your breakfast on October 5, 2026 is Sourdough toast, bacon & eggs at 11:30.\"}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-meals-turns/turn-002-meals-p2-future-breakfast.json",
+      "threadId": "f214b0f8-1a23-446e-ae5b-3922d0993fb7"
+    },
+    {
+      "turn": 3,
+      "caseId": "meals-p3-next-tuesday-lunch",
+      "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+      "path": "llm",
+      "elapsedMs": 5398,
+      "actions": [
+        "set_slot_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [set_slot_meal]; got [set_slot_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5398 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Changed lunch on Tuesday, September 22 to grilled chicken breast (85 g) and white rice (160 g).\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": true,
+          "detail": "{\"expected\":\"set_slot_meal\",\"actual\":\"set_slot_meal\"}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": true,
+          "detail": "{\"expected\":\"meal-2\",\"actual\":\"meal-2\"}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": true,
+          "detail": "{\"expected\":\"Grilled chicken & rice\",\"actual\":\"Grilled chicken & rice\"}"
+        },
+        {
+          "name": "C9 selected dates",
+          "passed": true,
+          "detail": "{\"expected\":[\"2026-09-22\"],\"actual\":[\"2026-09-22\"]}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": true,
+          "detail": "{\"expected\":{\"min\":250,\"max\":450},\"actual\":348}"
+        },
+        {
+          "name": "C9 phone-side materialization",
+          "passed": true,
+          "detail": "{\"dates\":1,\"title\":\"Grilled chicken & rice\",\"slot\":\"meal-2\"}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-meals-turns/turn-003-meals-p3-next-tuesday-lunch.json",
+      "threadId": "dc3db7ad-93b0-4eaa-8d26-0534acff1c60"
+    },
+    {
+      "turn": 4,
+      "caseId": "meals-p4-spaghetti-snack",
+      "sentence": "I just ate spaghetti bolognese as a snack.",
+      "path": "llm",
+      "elapsedMs": 4334,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4334 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.16"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 1 serving (350 g) of spaghetti bolognese as a snack. Note that standard spaghetti contains gluten, so this is marked off-plan. Off-plan: Spaghetti bolognese.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": true,
+          "detail": "{\"expected\":\"log_meal\",\"actual\":\"log_meal\"}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": true,
+          "detail": "{\"expected\":\"snack\",\"actual\":\"snack\"}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": true,
+          "detail": "{\"expected\":\"Spaghetti bolognese\",\"actual\":\"Spaghetti bolognese\"}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": true,
+          "detail": "{\"expected\":{\"min\":350,\"max\":600},\"actual\":480}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-meals-turns/turn-004-meals-p4-spaghetti-snack.json",
+      "threadId": "d0a4a534-57eb-4917-bad1-abe7f3dff12b"
+    },
+    {
+      "turn": 5,
+      "caseId": "meals-p6-weekday-oatmeal",
+      "sentence": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+      "path": "llm",
+      "elapsedMs": 3364,
+      "actions": [
+        "set_slot_meal"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [set_slot_meal]; got [set_slot_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3364 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.36"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Set oatmeal with blueberries for breakfast every weekday for the next two weeks.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": true,
+          "detail": "{\"expected\":\"set_slot_meal\",\"actual\":\"set_slot_meal\"}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": true,
+          "detail": "{\"expected\":\"meal-1\",\"actual\":\"meal-1\"}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": true,
+          "detail": "{\"expected\":\"Oatmeal with blueberries\",\"actual\":\"Oatmeal with blueberries\"}"
+        },
+        {
+          "name": "C9 selected dates",
+          "passed": true,
+          "detail": "{\"expected\":[\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\"],\"actual\":[\"2026-09-21\",\"2026-09-22\",\"2026-09-23\",\"2026-09-24\",\"2026-09-25\",\"2026-09-28\",\"2026-09-29\",\"2026-09-30\",\"2026-10-01\",\"2026-10-02\"]}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": true,
+          "detail": "{\"expected\":{\"min\":150,\"max\":400},\"actual\":251}"
+        },
+        {
+          "name": "C9 phone-side materialization",
+          "passed": true,
+          "detail": "{\"dates\":10,\"title\":\"Oatmeal with blueberries\",\"slot\":\"meal-1\"}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-09-20-coach-streak-meals-turns/turn-005-meals-p6-weekday-oatmeal.json",
+      "threadId": "f60d92b2-bb74-41db-bc98-101dadd20336"
+    }
+  ],
+  "failures": [],
+  "blockers": [],
+  "providerSpend": {
+    "totalUsd": 0.058771559999999994,
+    "providers": [
+      {
+        "provider": "google",
+        "calls": 9,
+        "costUsd": 0.058333499999999996,
+        "modelIds": [
+          "gemini-3.6-flash"
+        ]
+      },
+      {
+        "provider": "typesafe",
+        "calls": 12,
+        "costUsd": 0.0004380600000000001,
+        "modelIds": [
+          "jev-1.13.0"
+        ]
+      }
+    ]
+  }
+}

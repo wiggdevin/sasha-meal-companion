@@ -1,0 +1,1406 @@
+{
+  "generatedAt": "2026-09-20T05:52:42.696Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 4,
+  "case": {
+    "id": "block-three-dinner-ideas",
+    "category": "block",
+    "sentence": "three dinner ideas",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_ideas"
+    ]
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 9559,
+    "actions": [],
+    "blocks": [
+      "food_ideas"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "77207b30-c2f4-464f-aa07-3b23f63d34b0",
+        "kind": "food_ideas",
+        "ideas": [
+          {
+            "slot": "meal-3",
+            "wish": "Shrimp, cooked meal",
+            "items": [
+              {
+                "name": "Shrimp, cooked",
+                "grams": 170,
+                "macros": {
+                  "fat": 0.5,
+                  "kcal": 168,
+                  "carbs": 0.3,
+                  "protein": 40.8
+                },
+                "verdict": "allowed",
+                "foodRefId": "87bb7c7e-d78a-4cd9-9069-cbc547ec05c3",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 99,
+                "carbsPer100g": 0.2,
+                "proteinPer100g": 24,
+                "catalogFoodRevisionId": 5
+              },
+              {
+                "name": "Rice, white, cooked",
+                "grams": 255,
+                "macros": {
+                  "fat": 0.8,
+                  "kcal": 332,
+                  "carbs": 71.4,
+                  "protein": 6.9
+                },
+                "verdict": "allowed",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 12
+              },
+              {
+                "name": "Avocado, raw",
+                "grams": 85,
+                "macros": {
+                  "fat": 12.5,
+                  "kcal": 136,
+                  "carbs": 7.2,
+                  "protein": 1.7
+                },
+                "verdict": "allowed",
+                "addedFor": "fat",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "fatPer100g": 14.7,
+                "kcalPer100g": 160,
+                "carbsPer100g": 8.5,
+                "proteinPer100g": 2,
+                "catalogFoodRevisionId": 16
+              }
+            ],
+            "target": {
+              "fat": 14,
+              "kcal": 606,
+              "carbs": 72,
+              "protein": 48
+            },
+            "totals": {
+              "fat": 13.8,
+              "kcal": 636,
+              "carbs": 78.9,
+              "protein": 49.4
+            },
+            "fitNote": null,
+            "flagged": [],
+            "rankNote": "fits 95 %",
+            "fitsTarget": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ],
+            "anchorProtein": "Shrimp, cooked",
+            "allItemsOnEats": true
+          },
+          {
+            "slot": "meal-3",
+            "wish": "Egg whites, cooked meal",
+            "items": [
+              {
+                "name": "Egg whites, cooked",
+                "grams": 300,
+                "macros": {
+                  "fat": 0.6,
+                  "kcal": 156,
+                  "carbs": 2.1,
+                  "protein": 32.7
+                },
+                "verdict": "allowed",
+                "foodRefId": "f42d8c35-25d9-4587-b3da-2ec1871feaac",
+                "fatPer100g": 0.2,
+                "kcalPer100g": 52,
+                "carbsPer100g": 0.7,
+                "proteinPer100g": 10.9,
+                "catalogFoodRevisionId": 8
+              },
+              {
+                "name": "Rice, white, cooked",
+                "grams": 255,
+                "macros": {
+                  "fat": 0.8,
+                  "kcal": 332,
+                  "carbs": 71.4,
+                  "protein": 6.9
+                },
+                "verdict": "allowed",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 12
+              },
+              {
+                "name": "Avocado, raw",
+                "grams": 85,
+                "macros": {
+                  "fat": 12.5,
+                  "kcal": 136,
+                  "carbs": 7.2,
+                  "protein": 1.7
+                },
+                "verdict": "allowed",
+                "addedFor": "fat",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "fatPer100g": 14.7,
+                "kcalPer100g": 160,
+                "carbsPer100g": 8.5,
+                "proteinPer100g": 2,
+                "catalogFoodRevisionId": 16
+              }
+            ],
+            "target": {
+              "fat": 14,
+              "kcal": 606,
+              "carbs": 72,
+              "protein": 48
+            },
+            "totals": {
+              "fat": 13.9,
+              "kcal": 624,
+              "carbs": 80.7,
+              "protein": 41.3
+            },
+            "fitNote": "Under on protein by 7 g, over on carbs by 9 g for this slot",
+            "flagged": [],
+            "rankNote": "fits 93 %",
+            "fitsTarget": false,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ],
+            "anchorProtein": "Egg whites, cooked",
+            "allItemsOnEats": true
+          },
+          {
+            "slot": "meal-3",
+            "wish": "Chicken breast, roasted meal",
+            "items": [
+              {
+                "name": "Chicken breast, roasted",
+                "grams": 75,
+                "macros": {
+                  "fat": 2.7,
+                  "kcal": 124,
+                  "carbs": 0,
+                  "protein": 23.3
+                },
+                "verdict": "allowed",
+                "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+                "fatPer100g": 3.6,
+                "kcalPer100g": 165,
+                "carbsPer100g": 0,
+                "proteinPer100g": 31,
+                "catalogFoodRevisionId": 1
+              },
+              {
+                "name": "Pork tenderloin, roasted",
+                "grams": 90,
+                "macros": {
+                  "fat": 3.2,
+                  "kcal": 129,
+                  "carbs": 0,
+                  "protein": 23.4
+                },
+                "verdict": "allowed",
+                "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+                "fatPer100g": 3.5,
+                "kcalPer100g": 143,
+                "carbsPer100g": 0,
+                "proteinPer100g": 26,
+                "catalogFoodRevisionId": 9
+              },
+              {
+                "name": "Avocado, raw",
+                "grams": 55,
+                "macros": {
+                  "fat": 8.1,
+                  "kcal": 88,
+                  "carbs": 4.7,
+                  "protein": 1.1
+                },
+                "verdict": "allowed",
+                "addedFor": "fat",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "fatPer100g": 14.7,
+                "kcalPer100g": 160,
+                "carbsPer100g": 8.5,
+                "proteinPer100g": 2,
+                "catalogFoodRevisionId": 16
+              },
+              {
+                "name": "Banana, raw",
+                "grams": 100,
+                "macros": {
+                  "fat": 0.3,
+                  "kcal": 89,
+                  "carbs": 22.8,
+                  "protein": 1.1
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 89,
+                "carbsPer100g": 22.8,
+                "proteinPer100g": 1.1,
+                "catalogFoodRevisionId": 14
+              },
+              {
+                "name": "Corn tortilla",
+                "grams": 100,
+                "macros": {
+                  "fat": 2.9,
+                  "kcal": 218,
+                  "carbs": 44.6,
+                  "protein": 5.7
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "fatPer100g": 2.9,
+                "kcalPer100g": 218,
+                "carbsPer100g": 44.6,
+                "proteinPer100g": 5.7,
+                "catalogFoodRevisionId": 15
+              }
+            ],
+            "target": {
+              "fat": 14,
+              "kcal": 606,
+              "carbs": 72,
+              "protein": 48
+            },
+            "totals": {
+              "fat": 17.2,
+              "kcal": 648,
+              "carbs": 72.1,
+              "protein": 54.6
+            },
+            "fitNote": "Over on protein by 7 g, over on fat by 3 g for this slot",
+            "flagged": [],
+            "rankNote": "fits 89 %",
+            "fitsTarget": false,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ],
+            "anchorProtein": "Chicken breast, roasted",
+            "allItemsOnEats": true
+          }
+        ]
+      }
+    ],
+    "cards": 3,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 1-3; got 3"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 9559 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Here are 3 dinner ideas using shrimp, egg whites, or chicken breast, with avocado for the fat.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [food_ideas]; got [food_ideas]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "persisted block proof",
+      "passed": true,
+      "detail": "actual.persistedBlocks is present"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "4d6995f7-92bd-417d-b53f-af7cac606d43",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "Shrimp, cooked",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Rice, white, cooked",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Avocado, raw",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Egg whites, cooked",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": null,
+        "name": "Chicken breast, roasted",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [
+      {
+        "wish": "Shrimp, cooked meal",
+        "slot": "meal-3",
+        "items": [
+          {
+            "name": "Shrimp, cooked",
+            "foodRefId": "87bb7c7e-d78a-4cd9-9069-cbc547ec05c3",
+            "catalogFoodRevisionId": 5,
+            "grams": 170,
+            "kcalPer100g": 99,
+            "proteinPer100g": 24,
+            "carbsPer100g": 0.2,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 168,
+              "protein": 40.8,
+              "carbs": 0.3,
+              "fat": 0.5
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Rice, white, cooked",
+            "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+            "catalogFoodRevisionId": 12,
+            "grams": 255,
+            "kcalPer100g": 130,
+            "proteinPer100g": 2.7,
+            "carbsPer100g": 28,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 332,
+              "protein": 6.9,
+              "carbs": 71.4,
+              "fat": 0.8
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Avocado, raw",
+            "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+            "catalogFoodRevisionId": 16,
+            "grams": 85,
+            "kcalPer100g": 160,
+            "proteinPer100g": 2,
+            "carbsPer100g": 8.5,
+            "fatPer100g": 14.7,
+            "macros": {
+              "kcal": 136,
+              "protein": 1.7,
+              "carbs": 7.2,
+              "fat": 12.5
+            },
+            "verdict": "allowed",
+            "addedFor": "fat"
+          }
+        ],
+        "totals": {
+          "kcal": 636,
+          "protein": 49.4,
+          "carbs": 78.9,
+          "fat": 13.8
+        },
+        "target": {
+          "kcal": 606,
+          "protein": 48,
+          "carbs": 72,
+          "fat": 14
+        },
+        "flagged": [],
+        "fitsTarget": true,
+        "fitNote": null,
+        "anchorProtein": "Shrimp, cooked",
+        "allItemsOnEats": true,
+        "pendingSlots": [
+          {
+            "slot": "meal-1",
+            "label": "Meal 1"
+          },
+          {
+            "slot": "meal-2",
+            "label": "Meal 2"
+          },
+          {
+            "slot": "meal-3",
+            "label": "Meal 3"
+          }
+        ],
+        "rankNote": "fits 95 %"
+      },
+      {
+        "wish": "Egg whites, cooked meal",
+        "slot": "meal-3",
+        "items": [
+          {
+            "name": "Egg whites, cooked",
+            "foodRefId": "f42d8c35-25d9-4587-b3da-2ec1871feaac",
+            "catalogFoodRevisionId": 8,
+            "grams": 300,
+            "kcalPer100g": 52,
+            "proteinPer100g": 10.9,
+            "carbsPer100g": 0.7,
+            "fatPer100g": 0.2,
+            "macros": {
+              "kcal": 156,
+              "protein": 32.7,
+              "carbs": 2.1,
+              "fat": 0.6
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Rice, white, cooked",
+            "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+            "catalogFoodRevisionId": 12,
+            "grams": 255,
+            "kcalPer100g": 130,
+            "proteinPer100g": 2.7,
+            "carbsPer100g": 28,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 332,
+              "protein": 6.9,
+              "carbs": 71.4,
+              "fat": 0.8
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Avocado, raw",
+            "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+            "catalogFoodRevisionId": 16,
+            "grams": 85,
+            "kcalPer100g": 160,
+            "proteinPer100g": 2,
+            "carbsPer100g": 8.5,
+            "fatPer100g": 14.7,
+            "macros": {
+              "kcal": 136,
+              "protein": 1.7,
+              "carbs": 7.2,
+              "fat": 12.5
+            },
+            "verdict": "allowed",
+            "addedFor": "fat"
+          }
+        ],
+        "totals": {
+          "kcal": 624,
+          "protein": 41.3,
+          "carbs": 80.7,
+          "fat": 13.9
+        },
+        "target": {
+          "kcal": 606,
+          "protein": 48,
+          "carbs": 72,
+          "fat": 14
+        },
+        "flagged": [],
+        "fitsTarget": false,
+        "fitNote": "Under on protein by 7 g, over on carbs by 9 g for this slot",
+        "anchorProtein": "Egg whites, cooked",
+        "allItemsOnEats": true,
+        "pendingSlots": [
+          {
+            "slot": "meal-1",
+            "label": "Meal 1"
+          },
+          {
+            "slot": "meal-2",
+            "label": "Meal 2"
+          },
+          {
+            "slot": "meal-3",
+            "label": "Meal 3"
+          }
+        ],
+        "rankNote": "fits 93 %"
+      },
+      {
+        "wish": "Chicken breast, roasted meal",
+        "slot": "meal-3",
+        "items": [
+          {
+            "name": "Chicken breast, roasted",
+            "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+            "catalogFoodRevisionId": 1,
+            "grams": 75,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "macros": {
+              "kcal": 124,
+              "protein": 23.3,
+              "carbs": 0,
+              "fat": 2.7
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Pork tenderloin, roasted",
+            "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+            "catalogFoodRevisionId": 9,
+            "grams": 90,
+            "kcalPer100g": 143,
+            "proteinPer100g": 26,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.5,
+            "macros": {
+              "kcal": 129,
+              "protein": 23.4,
+              "carbs": 0,
+              "fat": 3.2
+            },
+            "verdict": "allowed"
+          },
+          {
+            "name": "Avocado, raw",
+            "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+            "catalogFoodRevisionId": 16,
+            "grams": 55,
+            "kcalPer100g": 160,
+            "proteinPer100g": 2,
+            "carbsPer100g": 8.5,
+            "fatPer100g": 14.7,
+            "macros": {
+              "kcal": 88,
+              "protein": 1.1,
+              "carbs": 4.7,
+              "fat": 8.1
+            },
+            "verdict": "allowed",
+            "addedFor": "fat"
+          },
+          {
+            "name": "Banana, raw",
+            "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+            "catalogFoodRevisionId": 14,
+            "grams": 100,
+            "kcalPer100g": 89,
+            "proteinPer100g": 1.1,
+            "carbsPer100g": 22.8,
+            "fatPer100g": 0.3,
+            "macros": {
+              "kcal": 89,
+              "protein": 1.1,
+              "carbs": 22.8,
+              "fat": 0.3
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          },
+          {
+            "name": "Corn tortilla",
+            "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+            "catalogFoodRevisionId": 15,
+            "grams": 100,
+            "kcalPer100g": 218,
+            "proteinPer100g": 5.7,
+            "carbsPer100g": 44.6,
+            "fatPer100g": 2.9,
+            "macros": {
+              "kcal": 218,
+              "protein": 5.7,
+              "carbs": 44.6,
+              "fat": 2.9
+            },
+            "verdict": "allowed",
+            "addedFor": "carbs"
+          }
+        ],
+        "totals": {
+          "kcal": 648,
+          "protein": 54.6,
+          "carbs": 72.1,
+          "fat": 17.2
+        },
+        "target": {
+          "kcal": 606,
+          "protein": 48,
+          "carbs": 72,
+          "fat": 14
+        },
+        "flagged": [],
+        "fitsTarget": false,
+        "fitNote": "Over on protein by 7 g, over on fat by 3 g for this slot",
+        "anchorProtein": "Chicken breast, roasted",
+        "allItemsOnEats": true,
+        "pendingSlots": [
+          {
+            "slot": "meal-1",
+            "label": "Meal 1"
+          },
+          {
+            "slot": "meal-2",
+            "label": "Meal 2"
+          },
+          {
+            "slot": "meal-3",
+            "label": "Meal 3"
+          }
+        ],
+        "rankNote": "fits 89 %"
+      }
+    ],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 367,
+      "model": 4966,
+      "ground": 8
+    },
+    "messages": [
+      {
+        "id": "f0d9c1a3-cbf9-4fda-8178-0cd3fd151b63",
+        "role": "user",
+        "content": "three dinner ideas",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "f8934358-a0f7-42fc-9a31-caeca95bf8e5",
+        "role": "assistant",
+        "content": "Here are 3 dinner ideas using shrimp, egg whites, or chicken breast, with avocado for the fat.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "food_ideas",
+            "v": 1,
+            "id": "77207b30-c2f4-464f-aa07-3b23f63d34b0",
+            "ideas": [
+              {
+                "wish": "Shrimp, cooked meal",
+                "slot": "meal-3",
+                "items": [
+                  {
+                    "name": "Shrimp, cooked",
+                    "foodRefId": "87bb7c7e-d78a-4cd9-9069-cbc547ec05c3",
+                    "catalogFoodRevisionId": 5,
+                    "grams": 170,
+                    "kcalPer100g": 99,
+                    "proteinPer100g": 24,
+                    "carbsPer100g": 0.2,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 168,
+                      "protein": 40.8,
+                      "carbs": 0.3,
+                      "fat": 0.5
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Rice, white, cooked",
+                    "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                    "catalogFoodRevisionId": 12,
+                    "grams": 255,
+                    "kcalPer100g": 130,
+                    "proteinPer100g": 2.7,
+                    "carbsPer100g": 28,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 332,
+                      "protein": 6.9,
+                      "carbs": 71.4,
+                      "fat": 0.8
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Avocado, raw",
+                    "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                    "catalogFoodRevisionId": 16,
+                    "grams": 85,
+                    "kcalPer100g": 160,
+                    "proteinPer100g": 2,
+                    "carbsPer100g": 8.5,
+                    "fatPer100g": 14.7,
+                    "macros": {
+                      "kcal": 136,
+                      "protein": 1.7,
+                      "carbs": 7.2,
+                      "fat": 12.5
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "fat"
+                  }
+                ],
+                "totals": {
+                  "kcal": 636,
+                  "protein": 49.4,
+                  "carbs": 78.9,
+                  "fat": 13.8
+                },
+                "target": {
+                  "kcal": 606,
+                  "protein": 48,
+                  "carbs": 72,
+                  "fat": 14
+                },
+                "flagged": [],
+                "fitsTarget": true,
+                "fitNote": null,
+                "rankNote": "fits 95 %",
+                "anchorProtein": "Shrimp, cooked",
+                "allItemsOnEats": true,
+                "pendingSlots": [
+                  {
+                    "slot": "meal-1",
+                    "label": "Meal 1"
+                  },
+                  {
+                    "slot": "meal-2",
+                    "label": "Meal 2"
+                  },
+                  {
+                    "slot": "meal-3",
+                    "label": "Meal 3"
+                  }
+                ]
+              },
+              {
+                "wish": "Egg whites, cooked meal",
+                "slot": "meal-3",
+                "items": [
+                  {
+                    "name": "Egg whites, cooked",
+                    "foodRefId": "f42d8c35-25d9-4587-b3da-2ec1871feaac",
+                    "catalogFoodRevisionId": 8,
+                    "grams": 300,
+                    "kcalPer100g": 52,
+                    "proteinPer100g": 10.9,
+                    "carbsPer100g": 0.7,
+                    "fatPer100g": 0.2,
+                    "macros": {
+                      "kcal": 156,
+                      "protein": 32.7,
+                      "carbs": 2.1,
+                      "fat": 0.6
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Rice, white, cooked",
+                    "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                    "catalogFoodRevisionId": 12,
+                    "grams": 255,
+                    "kcalPer100g": 130,
+                    "proteinPer100g": 2.7,
+                    "carbsPer100g": 28,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 332,
+                      "protein": 6.9,
+                      "carbs": 71.4,
+                      "fat": 0.8
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Avocado, raw",
+                    "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                    "catalogFoodRevisionId": 16,
+                    "grams": 85,
+                    "kcalPer100g": 160,
+                    "proteinPer100g": 2,
+                    "carbsPer100g": 8.5,
+                    "fatPer100g": 14.7,
+                    "macros": {
+                      "kcal": 136,
+                      "protein": 1.7,
+                      "carbs": 7.2,
+                      "fat": 12.5
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "fat"
+                  }
+                ],
+                "totals": {
+                  "kcal": 624,
+                  "protein": 41.3,
+                  "carbs": 80.7,
+                  "fat": 13.9
+                },
+                "target": {
+                  "kcal": 606,
+                  "protein": 48,
+                  "carbs": 72,
+                  "fat": 14
+                },
+                "flagged": [],
+                "fitsTarget": false,
+                "fitNote": "Under on protein by 7 g, over on carbs by 9 g for this slot",
+                "rankNote": "fits 93 %",
+                "anchorProtein": "Egg whites, cooked",
+                "allItemsOnEats": true,
+                "pendingSlots": [
+                  {
+                    "slot": "meal-1",
+                    "label": "Meal 1"
+                  },
+                  {
+                    "slot": "meal-2",
+                    "label": "Meal 2"
+                  },
+                  {
+                    "slot": "meal-3",
+                    "label": "Meal 3"
+                  }
+                ]
+              },
+              {
+                "wish": "Chicken breast, roasted meal",
+                "slot": "meal-3",
+                "items": [
+                  {
+                    "name": "Chicken breast, roasted",
+                    "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+                    "catalogFoodRevisionId": 1,
+                    "grams": 75,
+                    "kcalPer100g": 165,
+                    "proteinPer100g": 31,
+                    "carbsPer100g": 0,
+                    "fatPer100g": 3.6,
+                    "macros": {
+                      "kcal": 124,
+                      "protein": 23.3,
+                      "carbs": 0,
+                      "fat": 2.7
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Pork tenderloin, roasted",
+                    "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+                    "catalogFoodRevisionId": 9,
+                    "grams": 90,
+                    "kcalPer100g": 143,
+                    "proteinPer100g": 26,
+                    "carbsPer100g": 0,
+                    "fatPer100g": 3.5,
+                    "macros": {
+                      "kcal": 129,
+                      "protein": 23.4,
+                      "carbs": 0,
+                      "fat": 3.2
+                    },
+                    "verdict": "allowed"
+                  },
+                  {
+                    "name": "Avocado, raw",
+                    "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                    "catalogFoodRevisionId": 16,
+                    "grams": 55,
+                    "kcalPer100g": 160,
+                    "proteinPer100g": 2,
+                    "carbsPer100g": 8.5,
+                    "fatPer100g": 14.7,
+                    "macros": {
+                      "kcal": 88,
+                      "protein": 1.1,
+                      "carbs": 4.7,
+                      "fat": 8.1
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "fat"
+                  },
+                  {
+                    "name": "Banana, raw",
+                    "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                    "catalogFoodRevisionId": 14,
+                    "grams": 100,
+                    "kcalPer100g": 89,
+                    "proteinPer100g": 1.1,
+                    "carbsPer100g": 22.8,
+                    "fatPer100g": 0.3,
+                    "macros": {
+                      "kcal": 89,
+                      "protein": 1.1,
+                      "carbs": 22.8,
+                      "fat": 0.3
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  },
+                  {
+                    "name": "Corn tortilla",
+                    "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                    "catalogFoodRevisionId": 15,
+                    "grams": 100,
+                    "kcalPer100g": 218,
+                    "proteinPer100g": 5.7,
+                    "carbsPer100g": 44.6,
+                    "fatPer100g": 2.9,
+                    "macros": {
+                      "kcal": 218,
+                      "protein": 5.7,
+                      "carbs": 44.6,
+                      "fat": 2.9
+                    },
+                    "verdict": "allowed",
+                    "addedFor": "carbs"
+                  }
+                ],
+                "totals": {
+                  "kcal": 648,
+                  "protein": 54.6,
+                  "carbs": 72.1,
+                  "fat": 17.2
+                },
+                "target": {
+                  "kcal": 606,
+                  "protein": 48,
+                  "carbs": 72,
+                  "fat": 14
+                },
+                "flagged": [],
+                "fitsTarget": false,
+                "fitNote": "Over on protein by 7 g, over on fat by 3 g for this slot",
+                "rankNote": "fits 89 %",
+                "anchorProtein": "Chicken breast, roasted",
+                "allItemsOnEats": true,
+                "pendingSlots": [
+                  {
+                    "slot": "meal-1",
+                    "label": "Meal 1"
+                  },
+                  {
+                    "slot": "meal-2",
+                    "label": "Meal 2"
+                  },
+                  {
+                    "slot": "meal-3",
+                    "label": "Meal 3"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "composed": [
+          {
+            "wish": "Shrimp, cooked meal",
+            "slot": "meal-3",
+            "items": [
+              {
+                "name": "Shrimp, cooked",
+                "foodRefId": "87bb7c7e-d78a-4cd9-9069-cbc547ec05c3",
+                "catalogFoodRevisionId": 5,
+                "grams": 170,
+                "kcalPer100g": 99,
+                "proteinPer100g": 24,
+                "carbsPer100g": 0.2,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 168,
+                  "protein": 40.8,
+                  "carbs": 0.3,
+                  "fat": 0.5
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "catalogFoodRevisionId": 12,
+                "grams": 255,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 332,
+                  "protein": 6.9,
+                  "carbs": 71.4,
+                  "fat": 0.8
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Avocado, raw",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "catalogFoodRevisionId": 16,
+                "grams": 85,
+                "kcalPer100g": 160,
+                "proteinPer100g": 2,
+                "carbsPer100g": 8.5,
+                "fatPer100g": 14.7,
+                "macros": {
+                  "kcal": 136,
+                  "protein": 1.7,
+                  "carbs": 7.2,
+                  "fat": 12.5
+                },
+                "verdict": "allowed",
+                "addedFor": "fat"
+              }
+            ],
+            "totals": {
+              "kcal": 636,
+              "protein": 49.4,
+              "carbs": 78.9,
+              "fat": 13.8
+            },
+            "target": {
+              "kcal": 606,
+              "protein": 48,
+              "carbs": 72,
+              "fat": 14
+            },
+            "flagged": [],
+            "fitsTarget": true,
+            "fitNote": null,
+            "rankNote": "fits 95 %",
+            "anchorProtein": "Shrimp, cooked",
+            "allItemsOnEats": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ]
+          },
+          {
+            "wish": "Egg whites, cooked meal",
+            "slot": "meal-3",
+            "items": [
+              {
+                "name": "Egg whites, cooked",
+                "foodRefId": "f42d8c35-25d9-4587-b3da-2ec1871feaac",
+                "catalogFoodRevisionId": 8,
+                "grams": 300,
+                "kcalPer100g": 52,
+                "proteinPer100g": 10.9,
+                "carbsPer100g": 0.7,
+                "fatPer100g": 0.2,
+                "macros": {
+                  "kcal": 156,
+                  "protein": 32.7,
+                  "carbs": 2.1,
+                  "fat": 0.6
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "adb3c96f-f6dc-4b63-b418-db32fcccd02d",
+                "catalogFoodRevisionId": 12,
+                "grams": 255,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 332,
+                  "protein": 6.9,
+                  "carbs": 71.4,
+                  "fat": 0.8
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Avocado, raw",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "catalogFoodRevisionId": 16,
+                "grams": 85,
+                "kcalPer100g": 160,
+                "proteinPer100g": 2,
+                "carbsPer100g": 8.5,
+                "fatPer100g": 14.7,
+                "macros": {
+                  "kcal": 136,
+                  "protein": 1.7,
+                  "carbs": 7.2,
+                  "fat": 12.5
+                },
+                "verdict": "allowed",
+                "addedFor": "fat"
+              }
+            ],
+            "totals": {
+              "kcal": 624,
+              "protein": 41.3,
+              "carbs": 80.7,
+              "fat": 13.9
+            },
+            "target": {
+              "kcal": 606,
+              "protein": 48,
+              "carbs": 72,
+              "fat": 14
+            },
+            "flagged": [],
+            "fitsTarget": false,
+            "fitNote": "Under on protein by 7 g, over on carbs by 9 g for this slot",
+            "rankNote": "fits 93 %",
+            "anchorProtein": "Egg whites, cooked",
+            "allItemsOnEats": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ]
+          },
+          {
+            "wish": "Chicken breast, roasted meal",
+            "slot": "meal-3",
+            "items": [
+              {
+                "name": "Chicken breast, roasted",
+                "foodRefId": "e0fa09a9-7589-4174-85e1-f45724dbc32c",
+                "catalogFoodRevisionId": 1,
+                "grams": 75,
+                "kcalPer100g": 165,
+                "proteinPer100g": 31,
+                "carbsPer100g": 0,
+                "fatPer100g": 3.6,
+                "macros": {
+                  "kcal": 124,
+                  "protein": 23.3,
+                  "carbs": 0,
+                  "fat": 2.7
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Pork tenderloin, roasted",
+                "foodRefId": "9f6cec94-a2d2-4352-b17e-e894cc510cae",
+                "catalogFoodRevisionId": 9,
+                "grams": 90,
+                "kcalPer100g": 143,
+                "proteinPer100g": 26,
+                "carbsPer100g": 0,
+                "fatPer100g": 3.5,
+                "macros": {
+                  "kcal": 129,
+                  "protein": 23.4,
+                  "carbs": 0,
+                  "fat": 3.2
+                },
+                "verdict": "allowed"
+              },
+              {
+                "name": "Avocado, raw",
+                "foodRefId": "08b3fb89-69eb-4b74-abae-308c0d56bbe2",
+                "catalogFoodRevisionId": 16,
+                "grams": 55,
+                "kcalPer100g": 160,
+                "proteinPer100g": 2,
+                "carbsPer100g": 8.5,
+                "fatPer100g": 14.7,
+                "macros": {
+                  "kcal": 88,
+                  "protein": 1.1,
+                  "carbs": 4.7,
+                  "fat": 8.1
+                },
+                "verdict": "allowed",
+                "addedFor": "fat"
+              },
+              {
+                "name": "Banana, raw",
+                "foodRefId": "871116ef-b373-4e12-91ea-5381cd599c23",
+                "catalogFoodRevisionId": 14,
+                "grams": 100,
+                "kcalPer100g": 89,
+                "proteinPer100g": 1.1,
+                "carbsPer100g": 22.8,
+                "fatPer100g": 0.3,
+                "macros": {
+                  "kcal": 89,
+                  "protein": 1.1,
+                  "carbs": 22.8,
+                  "fat": 0.3
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              },
+              {
+                "name": "Corn tortilla",
+                "foodRefId": "82f92689-f818-4084-b617-bbb9820a1ed0",
+                "catalogFoodRevisionId": 15,
+                "grams": 100,
+                "kcalPer100g": 218,
+                "proteinPer100g": 5.7,
+                "carbsPer100g": 44.6,
+                "fatPer100g": 2.9,
+                "macros": {
+                  "kcal": 218,
+                  "protein": 5.7,
+                  "carbs": 44.6,
+                  "fat": 2.9
+                },
+                "verdict": "allowed",
+                "addedFor": "carbs"
+              }
+            ],
+            "totals": {
+              "kcal": 648,
+              "protein": 54.6,
+              "carbs": 72.1,
+              "fat": 17.2
+            },
+            "target": {
+              "kcal": 606,
+              "protein": 48,
+              "carbs": 72,
+              "fat": 14
+            },
+            "flagged": [],
+            "fitsTarget": false,
+            "fitNote": "Over on protein by 7 g, over on fat by 3 g for this slot",
+            "rankNote": "fits 89 %",
+            "anchorProtein": "Chicken breast, roasted",
+            "allItemsOnEats": true,
+            "pendingSlots": [
+              {
+                "slot": "meal-1",
+                "label": "Meal 1"
+              },
+              {
+                "slot": "meal-2",
+                "label": "Meal 2"
+              },
+              {
+                "slot": "meal-3",
+                "label": "Meal 3"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "reevaluatedAt": "2026-09-20T06:18:01.903Z",
+  "evaluationMode": "offline_stored_turn"
+}

@@ -1,0 +1,12 @@
+{
+  "before": [
+    {
+      "kind": "audio",
+      "readyState": "live"
+    }
+  ],
+  "after": [
+    "ended"
+  ],
+  "recordedOrUploaded": false
+}

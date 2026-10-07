@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-10-03T21:02:03.815Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 37,
+  "case": {
+    "id": "question-protein-high",
+    "category": "no_action",
+    "sentence": "why is my protein so high?",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30617,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30617 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "cf8358cc-0ff9-4ac4-8177-4016037503cf",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 503,
+      "model": 29101,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "b8f30b52-6a11-42db-9151-8dce4824e345",
+        "role": "user",
+        "content": "why is my protein so high?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "953af4e6-51f6-49a1-bdcc-71851d22307f",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

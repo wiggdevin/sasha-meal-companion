@@ -1,0 +1,109 @@
+/* Input tier 2, the component ask box (DESIGN.md §Text fields, 2026-10-04): the same paper as a
+   lookup field (tier 1), marked as AI by a thin olive → sage → wheat rim (the dock bar's
+   `--grad-coach-composer-rim`, tier 3); no spark logo (owner, 2026-10-04). It is drawn as one SVG piece with
+   the tab that rises out of its top edge (components/plan/composer/ComposerShape.tsx). Until the box
+   is measured it wears `.plan-ask` from app/globals.css; once the SVG is drawn, `.shaped` hands the
+   paint to the SVG, which repeats `.plan-ask` layer for layer. Change the two together. */
+
+.form {
+  position: relative;
+  isolation: isolate;
+  /* The paper, named once here so the tab's tint can be mixed from it. */
+  --pill-top: var(--color-field);
+  --pill-bottom: var(--color-field);
+  --pill-focus: #fffdf8;
+  /* The raised tab: the same paper with a breath of sage, so it reads as a section of one shape. */
+  --tab-tint: color-mix(in srgb, var(--color-sage-wash) 45%, var(--pill-top));
+  --tab-tint-focus: color-mix(in srgb, var(--color-sage-wash) 30%, var(--pill-focus));
+}
+
+.form.shaped,
+.form.shaped:focus-within {
+  background: none;
+  box-shadow: none;
+  /* The SVG layers carry the focus transitions; the CSS paint just steps aside. */
+  transition: none;
+}
+.form.shaped::before { content: none; }
+
+.shape {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stopTop { stop-color: var(--pill-top); }
+.stopBottom { stop-color: var(--pill-bottom); }
+
+/* The tab's tint, top to the pill's edge: full tint, easing halfway to the paper so the section
+   reads without a seam (ComposerShape.tsx clips it to the tab's region). */
+.tabStopTop { stop-color: var(--tab-tint); }
+.tabStopBottom { stop-color: color-mix(in srgb, var(--tab-tint) 50%, var(--pill-top)); }
+
+/* The AI rim: olive, sage, wheat along the box, the tab included. Drawn under the fill at twice its
+   width, so 2 px shows outside the paper. */
+.rimOlive { stop-color: var(--color-primary); }
+.rimSage { stop-color: var(--color-gauge-carbs); }
+.rimWheat { stop-color: var(--color-green); }
+.rim {
+  fill: none;
+  stroke-width: 4;
+  opacity: 0.9;
+}
+
+/* `inset 0 1px 2px ink 6%`: the paper's faint inner shade (tier 1's). */
+.shade { flood-color: rgb(var(--ink-rgb)); flood-opacity: 0.06; }
+.shadeFocus { flood-color: rgb(var(--ink-rgb)); flood-opacity: 0.04; }
+
+/* Focus: the paper lifts to cream and a soft olive glow gathers outside the rim. */
+.focusFill { fill: var(--pill-focus); }
+/* Focused, the tab warms with the pill and keeps a lighter tint. */
+.tabFocusFill { fill: var(--tab-tint-focus); }
+.glow { fill: none; stroke: rgb(var(--primary-rgb) / 0.12); stroke-width: 10; }
+
+.focusFill,
+.tabFocusFill,
+.glow {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.form:focus-within .focusFill,
+.form:focus-within .tabFocusFill,
+.form:focus-within .glow { opacity: 1; }
+
+/* The tab's actions: bare glyphs (no backing), each centred in an equal share of the raised region
+   (composer/tab-shape.ts tabBox). The glyph is 22 px; the share is the 44 px it takes to hit it. */
+.tab {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.tabButton {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--color-graphite);
+  transition: color 150ms ease;
+}
+
+@media (hover: hover) {
+  .tabButton:hover:not(:disabled) { color: var(--color-charcoal); }
+}
+
+.tabButton:active:not(:disabled) { color: var(--color-primary); }
+
+.tabButton:disabled { opacity: 0.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .focusFill, .tabFocusFill, .glow, .tabButton { transition: none; }
+}

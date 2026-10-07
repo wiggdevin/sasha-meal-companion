@@ -1,0 +1,153 @@
+{
+  "generatedAt": "2026-10-03T21:00:03.788Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 35,
+  "case": {
+    "id": "devin-watermelon-avoid",
+    "category": "devin",
+    "sentence": "add watermelon to my avoid list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 2195,
+    "actions": [
+      "add_to_avoid"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.05,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_avoid]; got [add_to_avoid]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 2000 ms; got 2195 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.05"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Adding Watermelon, raw to your Avoid list.\""
+    },
+    {
+      "name": "C11 all same-name watermelon refs",
+      "passed": true,
+      "detail": "{\"expected\":[\"98537b0a-bc2f-4e95-8b8b-dcb452e8b540\",\"730ea48a-580e-40d8-89a1-f2f18f0ae952\"],\"actual\":[\"98537b0a-bc2f-4e95-8b8b-dcb452e8b540\",\"730ea48a-580e-40d8-89a1-f2f18f0ae952\"]}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "5ab273f0-993a-4cff-97f3-b41cd3e8d61a",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "add_to_avoid",
+        "name": "Watermelon, raw",
+        "foodRefId": "98537b0a-bc2f-4e95-8b8b-dcb452e8b540",
+        "catalogFoodRevisionId": 19,
+        "kcalPer100g": 30,
+        "proteinPer100g": 0.6,
+        "carbsPer100g": 7.6,
+        "fatPer100g": 0.2,
+        "verdict": "unverified",
+        "marks": [
+          {
+            "facet": "gluten",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "dairy",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "apple",
+            "source": "floor",
+            "outcome": "unknown"
+          }
+        ],
+        "actionId": "774baab5-c885-4b3e-b912-46656afce792",
+        "flagged": [],
+        "alsoFoodRefIds": [
+          "730ea48a-580e-40d8-89a1-f2f18f0ae952"
+        ],
+        "roleAdvice": {
+          "foodRefId": "98537b0a-bc2f-4e95-8b8b-dcb452e8b540",
+          "suggestedRole": "mixed_dish",
+          "confidence": 0,
+          "requiresConfirmation": true
+        }
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "intent": "add_to_avoid",
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 616,
+      "model": 0,
+      "ground": 1100
+    },
+    "messages": [
+      {
+        "id": "0eff7a31-0728-4324-b71d-d39a70b4ae71",
+        "role": "user",
+        "content": "add watermelon to my avoid list",
+        "seq": 1
+      },
+      {
+        "id": "32a03f4a-9151-436e-a9fd-bf14d7e3fa70",
+        "role": "assistant",
+        "content": "Adding Watermelon, raw to your Avoid list.",
+        "seq": 2
+      }
+    ]
+  }
+}

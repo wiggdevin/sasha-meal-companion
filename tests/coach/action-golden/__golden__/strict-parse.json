@@ -1,0 +1,390 @@
+[
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "meal-1",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 50
+        }
+      ]
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "meal-1",
+      "title": "Spaghetti bolognese",
+      "items": [
+        {
+          "name": "pasta",
+          "grams": 50
+        }
+      ]
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-18",
+      "slot": "meal-1",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "name": "pasta",
+          "grams": 50
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_slot_meal",
+      "from": "2026-09-18",
+      "through": "2026-09-18",
+      "slot": "meal-1",
+      "items": [
+        {
+          "name": "eggs"
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "update_profile",
+      "goalRateBpWeek": -50
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_targets",
+      "dayType": "both",
+      "kcal": null
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "save_recipe",
+      "name": "Big",
+      "items": [
+        {
+          "name": "f0",
+          "grams": 10
+        },
+        {
+          "name": "f1",
+          "grams": 10
+        },
+        {
+          "name": "f2",
+          "grams": 10
+        },
+        {
+          "name": "f3",
+          "grams": 10
+        },
+        {
+          "name": "f4",
+          "grams": 10
+        },
+        {
+          "name": "f5",
+          "grams": 10
+        },
+        {
+          "name": "f6",
+          "grams": 10
+        },
+        {
+          "name": "f7",
+          "grams": 10
+        },
+        {
+          "name": "f8",
+          "grams": 10
+        },
+        {
+          "name": "f9",
+          "grams": 10
+        },
+        {
+          "name": "f10",
+          "grams": 10
+        },
+        {
+          "name": "f11",
+          "grams": 10
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_eats",
+      "name": "salmon",
+      "foodRefId": "3f1b1a2c-0000-4000-8000-000000000011"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_shopping_list",
+      "names": [
+        "eggs",
+        "oat milk"
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_meal",
+      "date": "2026-09-20",
+      "slot": "meal-1",
+      "title": "Egg",
+      "items": [
+        {
+          "name": "eggs",
+          "grams": 50
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_avoid",
+      "name": "watermelon"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "remove_from_avoid",
+      "name": "watermelon"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "delete_entry",
+      "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "save_recipe",
+      "name": "Chicken bowl",
+      "items": [
+        {
+          "name": "chicken",
+          "grams": 150
+        }
+      ]
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_water",
+      "ml": 250
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_targets",
+      "dayType": "rest",
+      "kcal": null,
+      "proteinG": 150
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "add_to_eats",
+      "name": "salmon"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "remove_from_eats",
+      "name": "salmon"
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "remove_from_eats",
+      "name": "salmon"
+    }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "log_water",
+      "ml": 250
+    }
+  }
+]

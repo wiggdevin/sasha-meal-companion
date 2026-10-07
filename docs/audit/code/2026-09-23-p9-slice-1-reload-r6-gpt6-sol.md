@@ -1,0 +1,5 @@
+Verdict: SHIP — 0 NEW BLOCK
+
+1. **r5 #1 — RESOLVED.** The worker no longer claims, messages, or navigates open tabs. Current-build account changes start the page’s departure path. [public/sw.js](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/public/sw.js:74), [lib/device/boot.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/device/boot.ts:59)
+2. **r5 #5 — RESOLVED.** The forced navigation is gone. A page reload follows persistence; failure shows the blocked Retry state. [public/sw.js](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/public/sw.js:79), [lib/device/departure.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/lib/device/departure.ts:151)
+3. **r5 #6 — RESOLVED.** The worker has no client registry or message handler, and the test asserts no claim, navigation, or client message. [public/sw.js](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/public/sw.js:57), [tests/sw/sw-reload.test.ts](/Users/zero-suminc./projects/clients/Sasha/mc-p9-reload/tests/sw/sw-reload.test.ts:54)

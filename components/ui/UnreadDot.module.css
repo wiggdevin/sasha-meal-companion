@@ -1,0 +1,15 @@
+/* The unread mark (2026-10-05): a small Dijon dot, the "needs a look" role (DESIGN.md §Colors).
+   On ivory it is the ink shade, inside the matte dock the base shade, so it holds at least 3:1 on
+   either surface. Purely a picture: the words live in the control's own label. */
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--color-yellow-ink);
+}
+:global(.matte) .dot {
+  background: var(--color-yellow);
+  box-shadow: 0 0 0 2px var(--color-charcoal);
+}

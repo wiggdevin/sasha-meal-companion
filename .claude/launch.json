@@ -1,0 +1,51 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sasha-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "--port",
+        "3521"
+      ],
+      "port": 3521
+    },
+    {
+      "name": "sasha-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "next",
+        "start",
+        "--port",
+        "3520"
+      ],
+      "port": 3520
+    },
+    {
+      "name": "worktree-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "--port",
+        "3523"
+      ],
+      "port": 3523
+    },
+    {
+      "name": "ui-notes-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "../wt/ui-glass",
+        "exec",
+        "next",
+        "dev",
+        "--port",
+        "3524"
+      ],
+      "port": 3524
+    }
+  ]
+}

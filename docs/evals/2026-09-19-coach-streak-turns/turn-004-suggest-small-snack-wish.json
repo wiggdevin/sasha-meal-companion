@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-10-03T20:28:36.194Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 4,
+  "case": {
+    "id": "suggest-small-snack-wish",
+    "category": "suggestion",
+    "sentence": "a small snack",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30437,
+    "actions": [],
+    "blocks": [
+      "quick_replies"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "13486856-be0f-4b45-aeff-db05bd1ad636",
+        "kind": "quick_replies",
+        "options": [
+          "Banana",
+          "Hard-boiled egg",
+          "Avocado",
+          "Suggest a snack"
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 1-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30437 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "f7962b90-5d51-4cf7-a4af-eaf08380e631",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "quick_replies"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 579,
+      "model": 29047,
+      "ground": 0
+    },
+    "messages": [
+      {
+        "id": "71b79670-fb22-4c7a-b4ca-27b03251263e",
+        "role": "user",
+        "content": "a small snack",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "7242d873-b294-4c84-962f-5e6ee6d65f43",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "quick_replies",
+            "v": 1,
+            "id": "13486856-be0f-4b45-aeff-db05bd1ad636",
+            "options": [
+              "Banana",
+              "Hard-boiled egg",
+              "Avocado",
+              "Suggest a snack"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

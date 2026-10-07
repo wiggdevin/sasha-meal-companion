@@ -1,0 +1,257 @@
+/* Sprout in the glass well (components/today/island/Sprout.tsx; KIT §15). One light, from the upper
+   left, like the rest of the well. Only transform and opacity animate. */
+
+.stage, .mini {
+  --pet-tint: var(--color-gauge-water);
+}
+.stage {
+  display: flex;
+  min-height: 140px;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 8px 0 4px;
+}
+.stage[data-mood="joyful"], .mini[data-mood="joyful"] { --pet-tint: var(--color-gauge-carbs); }
+.stage[data-mood="droopy"], .mini[data-mood="droopy"] { --pet-tint: var(--color-gauge-calories); }
+.stage[data-mood="sleepy"], .mini[data-mood="sleepy"] { --pet-tint: var(--color-gauge-protein); }
+
+/* ----------------------------------------------------------------------------------- the pet */
+
+.pet {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  width: 108px;
+  height: 132px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 28px;
+}
+/* The puddle (round 7; a hard-edged dais read as a hockey puck, and an outer glow left a ring where it
+   is clipped under its own box): Sprout stands in a soft pool of its mood's light on the wet glass
+   floor, one gradient with no edge. The contact shadow and the reflection land in it. */
+.pet::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: 6px;
+  width: 136px;
+  height: 36px;
+  margin-left: -68px;
+  border-radius: 50%;
+  /* A hot core lighter than the tint, so the pool reads as light on glass, never a stain (Kimi K3,
+     round 8: the persimmon pool read brown when Sprout is low). */
+  background: radial-gradient(closest-side, color-mix(in oklab, color-mix(in oklab, var(--pet-tint), white 30%) 42%, transparent),
+    color-mix(in oklab, var(--pet-tint) 34%, transparent) 42%, color-mix(in oklab, var(--pet-tint) 12%, transparent) 70%,
+    transparent);
+  pointer-events: none;
+}
+.pet:focus-visible {
+  outline: 2px solid var(--pet-tint);
+  outline-offset: 2px;
+}
+/* The aura behind it: the mood's colour lit up in the liquid. */
+.pet::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: 10px;
+  bottom: 14px;
+  z-index: -1;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, color-mix(in oklab, var(--color-gauge-calories) 22%, transparent), transparent 72%),
+    radial-gradient(closest-side, color-mix(in oklab, var(--pet-tint) 30%, transparent), transparent 80%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.lean,
+.hop,
+.breath,
+.frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 100%;
+}
+.lean { bottom: 24px; top: auto; height: 104px; }
+.breath { animation: pet-breathe 3.2s ease-in-out infinite; }
+
+.img {
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Contact shadow: it widens as the pet settles, so the pet and its shadow never part. */
+.shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 19px;
+  width: 70px;
+  height: 12px;
+  margin-left: -35px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.85), rgb(0 0 0 / 0.35) 55%, transparent);
+  filter: blur(1.5px);
+  animation: pet-shadow 3.2s ease-in-out infinite;
+}
+
+/* Wet reflection: the pet mirrored in the liquid below its paws, faint, fading away from them. It is
+   the pet's own box flipped about its bottom edge (round 7, GPT Sol: flipped about the top, it drew
+   up behind the body and never showed). */
+.reflection {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  height: 104px;
+  opacity: 0.32;
+  transform: scaleY(-0.32);
+  transform-origin: 50% 100%;
+  filter: blur(1.5px);
+  mask-image: linear-gradient(to top, black 0%, transparent 60%);
+  -webkit-mask-image: linear-gradient(to top, black 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Low: the pool's hot core already lights the floor under the paws; a full reflection on it muddies. */
+.stage[data-mood="droopy"] .reflection { opacity: 0.26; }
+
+.breath[data-still],
+.shadow[data-still] { animation: none; }
+
+@keyframes pet-breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(0.985, 1.035); }
+}
+@keyframes pet-shadow {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(1.06); opacity: 0.85; }
+}
+
+/* -------------------------------------------------------------------------------- the status */
+
+.status {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+.name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+  color: var(--color-text-primary);
+}
+.line {
+  font-size: 14px;
+  line-height: 20px;
+  text-wrap: balance;
+  color: var(--color-text-muted);
+}
+
+.meterRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The wellbeing bar: a jelly fill in a carved groove. */
+.meter {
+  position: relative;
+  display: block;
+  height: 10px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.25));
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.7), inset 0 -1px 0 rgb(255 255 255 / 0.08), 0 1px 0 rgb(255 255 255 / 0.06);
+}
+/* One colour rule for the bar, by value, whatever the mood: low persimmon, middle Dijon, high sage. */
+.meter { --bar: var(--color-gauge-carbs); }
+.meter[data-band="low"] { --bar: var(--color-gauge-calories); }
+.meter[data-band="mid"] { --bar: var(--color-gauge-fat); }
+/* Round 6: the same jelly as the ring tubes — lit on top, deep below, glowing onto the groove, with
+   the rings' specular cap riding its leading end. */
+.meterFill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--bar), white 30%) 0%, var(--bar) 45%,
+    color-mix(in oklab, var(--bar), black 32%) 100%);
+  box-shadow: inset 0 1.5px 1px rgb(255 255 255 / 0.55), inset 0 -2px 3px rgb(0 0 0 / 0.35),
+    0 0 10px color-mix(in oklab, var(--bar) 55%, transparent);
+}
+.meterFill::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgb(255 255 255), rgb(255 255 255 / 0.5) 60%, transparent);
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.8);
+}
+
+/* ---------------------------------------------------------------------------------- the mini */
+
+/* Collapsed: the whole pet, 48 px, standing at the island's head with its own small shadow. */
+.mini {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 44px;
+  flex-shrink: 0;
+  margin: 0 0 -6px;
+}
+.miniShadow {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 28px;
+  height: 7px;
+  margin-left: -16px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.7), transparent);
+}
+/* Collapsed, the same physics: a small pool of the mood's light underfoot. */
+.mini::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 40px;
+  height: 12px;
+  margin-left: -20px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--pet-tint) 50%, transparent), transparent);
+}
+.mini .img { filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.6)); }
+.miniBreath {
+  position: absolute;
+  left: -3px;
+  bottom: 3px;
+  width: 42px;
+  height: 42px;
+  transform-origin: 50% 100%;
+  animation: pet-breathe 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breath, .shadow, .mini .img { filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.6)); }
+.miniBreath { animation: none; }
+}

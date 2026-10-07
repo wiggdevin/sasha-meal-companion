@@ -1,0 +1,22 @@
+{
+  "status": "frozen",
+  "reasons": [
+    "0 yes/no labels; the gate needs at least 400",
+    "american: 0 yes/no labels; at least 25 per cuisine",
+    "latin_american: 0 yes/no labels; at least 25 per cuisine",
+    "italian: 0 yes/no labels; at least 25 per cuisine",
+    "mediterranean: 0 yes/no labels; at least 25 per cuisine",
+    "south_asian: 0 yes/no labels; at least 25 per cuisine",
+    "chinese: 0 yes/no labels; at least 25 per cuisine",
+    "japanese: 0 yes/no labels; at least 25 per cuisine",
+    "korean: 0 yes/no labels; at least 25 per cuisine",
+    "southeast_asian: 0 yes/no labels; at least 25 per cuisine",
+    "caribbean: 0 yes/no labels; at least 25 per cuisine",
+    "african: 0 yes/no labels; at least 25 per cuisine",
+    "european_other: 0 yes/no labels; at least 25 per cuisine"
+  ],
+  "model": "jev-latest",
+  "labelled": 0,
+  "withJev": 0,
+  "platt": null
+}

@@ -1,0 +1,23 @@
+{
+  "requestedModel": "gemini-3.8-flash-low",
+  "lane": "direct AGY subscription",
+  "liveCatalogConfirmed": true,
+  "liveCatalogEntry": "gemini-3.8-flash-low\tGemini 3.8 Flash (Low)",
+  "returnedCanonicalModel": null,
+  "returnedCanonicalModelLimitation": "AGY JSON envelope has no model field; explicit CLI model and live catalog provide route provenance, not an independently echoed canonical model.",
+  "apiKeyOverridesCleared": [
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY"
+  ],
+  "conversation_id": "47cfa128-647f-4421-bace-54cbc94cac9f",
+  "status": "SUCCESS",
+  "duration_seconds": 18.763745,
+  "num_turns": 1,
+  "usage": {
+    "input_tokens": 51760,
+    "output_tokens": 1868,
+    "thinking_tokens": 0,
+    "cache_read_tokens": 81593,
+    "total_tokens": 53628
+  }
+}

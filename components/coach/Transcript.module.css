@@ -1,0 +1,7 @@
+/* The transcript's top edge: messages fade out under the header over 12 px instead of being cut by
+   a hard line (Kimi audit 2026-10-04). The first 12 px are the list's own padding, so nothing is
+   faded while the conversation sits at its top. */
+.scroller {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+}

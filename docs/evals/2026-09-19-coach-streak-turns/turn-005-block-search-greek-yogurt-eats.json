@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-03T20:30:00.164Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 5,
+  "caseId": "block-search-greek-yogurt-eats",
+  "sentence": "find greek yogurt and put it on my eats",
+  "passed": false,
+  "error": "HttpError: Sasha is unavailable right now. Try again in a minute."
+}

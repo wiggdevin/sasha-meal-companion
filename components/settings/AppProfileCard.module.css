@@ -1,0 +1,27 @@
+.avatarRing {
+  background: conic-gradient(
+    rgb(var(--section-rgb) / 0.95) var(--profile-progress),
+    rgb(var(--ink-rgb) / 0.12) var(--profile-progress)
+  );
+  box-shadow: 0 12px 30px -16px rgb(var(--section-rgb) / 0.8);
+}
+
+.avatarCore {
+  background: var(--grad-panel);
+  border: 3px solid var(--color-paper);
+}
+
+.statGrid {
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.1);
+  border-bottom: 1px solid rgb(var(--ink-rgb) / 0.1);
+}
+
+.stat + .stat {
+  border-left: 1px solid rgb(var(--ink-rgb) / 0.1);
+}
+
+.tag {
+  background: rgb(var(--section-rgb) / 0.1);
+  border: 1px solid rgb(var(--section-rgb) / 0.18);
+}
+

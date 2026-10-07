@@ -1,0 +1,12 @@
+{
+  "base": "aa7946c15c6a5754cca7ebc7e47296329c25a342",
+  "files": {
+    "components/CoachMic.tsx": "82c92815c8fa051d47931ef7067e3eed7a64a0b20752689eff54dbb043906da4",
+    "components/coach/Composer.tsx": "81641e40ee6251613a93a8071c4ffe0f4a264fa9bd950003877511a8268fbc0b",
+    "components/coach/use-composer-input.ts": "29575d268fae369ff6d9e949c1770b82c8102909301ec3e4ab6b43d8c4b72cbd",
+    "lib/coach/hold.ts": "1449534c40ab7ec46c10bda8e9ca48219c1bf97498311f915165876018559ccd",
+    "tests/coach/tap-dictation.test.ts": "cc28ffbbb2e7cb84ae136f9b03badd86dcf650865307d290df12f0b66674eb65",
+    "tests/coach/composer/tap-control.test.tsx": "0b2fdf1772ce230175e464da9152894e729101679a5468529f3d5b6556c91414"
+  },
+  "packetSha256": "5f226e058099a3f5c69905ef66bf81577855bf40ceb6f6cea62f066327422907"
+}

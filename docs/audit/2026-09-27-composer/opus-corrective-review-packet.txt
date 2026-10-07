@@ -1,0 +1,1319 @@
+NARROW CORRECTIVE REVIEW ONLY. No tools, delegation, edits or full-scope approval. Review only fixes to the attached prior residual findings and fresh-activation-after-cancel correction. Return compact JSON {captured_touch_drag_resolved:YES/NO, stale_stop_restart_resolved:YES/NO, canceled_activation_recovery_resolved:YES/NO, concrete_new_defects:[{severity,file_line,trigger,impact}],evidence:{...},limits:[...]}. Do not reopen entire history or suggest general refactors. Current design: shared pointerup hit geometry clears blur/activation guard if release outside even under implicit capture; trailing pointer click suppressed. Every fresh pointerdown resets cancellation. Detail0 assistive/keyboard click allowed. Live hold.view gates Stop and release only (never toggle); Record uses press; reviewPending ref guards before React commit. Tests include touch capture no active leave, stale Stop end+native click same act, rejected trailing pointer click, later fresh Send and AT clicks. Execution reported328 focused tests before final cancellation correction; after correction DOM20/20+tsc/lint pass. Original full suite once7174pass962skip3fail, then failing specs passed targeted. Those are reported not executed by you. No device proof, browser still user-owned, no Kimi/land/TTS.
+
+
+PRIOR RESIDUAL REVIEW
+{
+  "residual_drag_guard_resolved": "NO",
+  "autonomous_completion_send_risk_resolved": "YES",
+  "activation_timing_safe": "YES",
+  "evidence": {
+    "drag_guard_mouse_pen": "Resolved. Mouse and pen give pointerleave with buttons!==0 while the button is held and the pointer leaves. CoachMic.tsx:145-147 and Composer.tsx:43 then clear recordPointerDown, and the main control also clears activationMode.",
+    "drag_guard_touch": "Not resolved. Touch has implicit pointer capture, so no pointerleave fires while the finger is down. After pointerup and lostpointercapture, pointerout and pointerleave fire with buttons=0. That is the case the code deliberately keeps. A touch drag-off with no scroll (so no pointercancel) and no click still leaves recordPointerDown=true. The test at tap-control.test.tsx:155-175 fires a touch pointerLeave with buttons=1 before pointerUp. A real touch browser does not send that sequence, so the test proves the mouse case only. The impact is unchanged from the prior finding: low, a label problem only. The secondary Send stays reachable, and the next click on any composer action clears the guard. This follows from the requested trade-off, which keeps the guard on buttons=0.",
+    "autonomous_review_gate": "Resolved. publish (CoachMic.tsx:100-103) sets reviewNeeded on every locked\u2192unlocked transition that is not a manual Stop and has text: silence, error, max-duration and pagehide. mode puts review ahead of send (:132). send() refuses while reviewNeeded (use-composer-input.ts:17). The secondary Send is hidden (Composer.tsx:39), which also blocks textarea Enter. Acknowledging Review only moves the control to Send (:163) and never sends in the same click. Tests at tap-control.test.tsx:177-274 cover pointer, keyboard Enter, pointerdown after completion, failure, max-duration and pagehide.",
+    "manual_stop_path": "The Stop branch sets manualStop=true (:165). The unlock publish then gives reviewNeeded=false and resets manualStop, so the control goes busy, then Send. The detail>1 guard (:161) and the latch cover the second click of a double tap.",
+    "latch_pointer": "pointerdown records the committed mode. If a re-render between pointerdown and click changes the mode, the click is dropped (:157-160). Stop/busy \u2192 Review/Send is blocked, and the latch resets on click, cancel, active leave and blur.",
+    "latch_keyboard": "Enter fires click during keydown, so the latch is set and read in the same task. Space fires click on keyup, so a Stop keydown held across an automatic completion gives a keyup click that the mismatch drops. Repeated keydown is prevented (:152).",
+    "lifecycle": "pagehide and visibilitychange call hold.cancel(), then abandon, then an unlocked publish, which sets Review when the box has text. Unmount calls cancel as well. The busy/settling state is aria-disabled and no click branch acts on it."
+  },
+  "new_concrete_bugs": [
+    {
+      "severity": "low",
+      "file_line": "components/CoachMic.tsx:130-133,156-165; lib/coach/hold.ts:79-83,219-227",
+      "trigger": "Automatic silence completion runs setState from a non-React SpeechRecognition 'end' callback. That update has default priority and is not flushed until a later task, so a pointerdown, pointerup and click can all land before the commit. Both the latch and the click closure then still see mode 'stop'.",
+      "impact": "It does not send and does not acknowledge Review. The Stop branch sets manualStop=true and calls toggleTap(). The controller is no longer holding, so press() starts a NEW recording where the user meant to stop. manualStop stays true through that new session. If the new session then ends by itself, the gate treats it as manual: reviewNeeded=false and the control goes straight to Send, so the original risk comes back through a chained case. Possible fix: in the Stop branch, act only when hold.view().listening is true (or derive the mode from hold.view() at click time), and set manualStop only when a release really happens."
+    },
+    {
+      "severity": "low",
+      "file_line": "components/CoachMic.tsx:61,141-144,149,157-160",
+      "trigger": "A touch drag-off leaves activationMode set, because implicit capture means no buttons!==0 leave arrives and a tap on iOS does not focus the button, so onBlur does not fire either. A later activation arrives with no fresh pointerdown or keydown, for example an assistive-technology click, in a different mode.",
+      "impact": "The mismatch drops one activation silently, and the next one works. It cannot cause a send or a Review acknowledgement."
+    }
+  ],
+  "limits": [
+    "I reviewed only the attached source and tests. I ran nothing. The reported 326/326, tsc 0 and lint 0 results are not independently verified.",
+    "There is no browser or device proof of the pointer event order: iOS Safari compatibility focus and click after pointerup, Android Chrome with pointercancel on pan, and Windows or desktop pointerleave. The touch analysis relies on the Pointer Events implicit-capture rules.",
+    "The jsdom tests wrap controller callbacks in act(), which flushes updates at once. They cannot show the render-lag window in the first bug.",
+    "While Review is pending, textarea Enter does nothing and shows no feedback. This follows from the design (acknowledge before Send) and is not treated as a defect.",
+    "Only voice input was in scope. No TTS, no land and no all-annotation approval were assessed."
+  ]
+}
+
+DIFF FROM RESIDUAL SNAPSHOT
+--- preceding/components/CoachMic.tsx
++++ current/components/CoachMic.tsx
+@@ -34,12 +34,15 @@
+   /** A draft outside active editing makes the one main control Send. */
+   readyToSend: boolean;
+   reviewNeeded: boolean;
+   onReviewNeeded: (needed: boolean) => void;
+   onRecordPointerDown: () => void;
+   onRecordPointerDone: () => void;
++  onActionPointerUp: (event: import("react").PointerEvent<HTMLElement>) => boolean;
++  onActionStart: () => void;
++  onActionClick: (detail: number) => boolean;
+   /** True while dictation owns the composer: textarea read-only, Send disabled. */
+   onListening: (locked: boolean) => void;
+   /** One line under the composer, or null. */
+   onNotice: (copy: string | null) => void;
+ };
+
+@@ -50,17 +53,19 @@
+
+ /** Never subscribes: the answer is a fact about this page load, asked once on the client. */
+ const noSubscription = (): (() => void) => () => {};
+
+ export default function CoachMic({
+   readBox, writeBox, disabled, onSend, readyToSend, reviewNeeded, onReviewNeeded,
+-  onRecordPointerDown, onRecordPointerDone, onListening, onNotice,
++  onRecordPointerDown, onRecordPointerDone, onActionPointerUp,
++  onActionStart, onActionClick, onListening, onNotice,
+ }: CoachMicProps) {
+   const [view, setView] = useState<HoldView>(IDLE);
+   const wasLocked = useRef(false);
+   const manualStop = useRef(false);
++  const reviewPending = useRef(false);
+   const activationMode = useRef<"busy" | "stop" | "review" | "send" | "record" | null>(null);
+
+   /**
+    * §3's last row. The server renders neither API, so it renders no mic; the phone answers for
+    * itself after hydration. Whether the mic WORKS is asked again at press time.
+    */
+@@ -95,13 +100,14 @@
+   // from an event handler, which runs after this has refreshed them.
+   useEffect(() => {
+     rig.update({
+       readBox, writeBox, send: onSend,
+       publish: (next) => {
+         if (wasLocked.current && !next.locked) {
+-          onReviewNeeded(!manualStop.current && Boolean(readBox().trim()));
++          reviewPending.current = !manualStop.current && Boolean(readBox().trim());
++          onReviewNeeded(reviewPending.current);
+           manualStop.current = false;
+         }
+         wasLocked.current = next.locked;
+         setView(next);
+         onListening(next.locked);
+         onNotice(next.notice);
+@@ -136,36 +142,50 @@
+   return (
+     <button
+       type="button"
+       data-composer-action
+       data-composer-main
+       onPointerDown={() => {
++        onActionStart();
+         activationMode.current = mode;
+         if (mode === "record") onRecordPointerDown();
++      }}
++      onPointerUp={(event) => {
++        if (onActionPointerUp(event)) activationMode.current = null;
+       }}
+       onPointerLeave={(event) => {
+         if (event.buttons !== 0) { activationMode.current = null; onRecordPointerDone(); }
+       }}
+       onPointerCancel={() => { activationMode.current = null; onRecordPointerDone(); }}
+       onBlur={() => { activationMode.current = null; }}
+       onKeyDown={(event) => {
+         if (event.key === "Enter" || event.key === " ") {
+           if (event.repeat) event.preventDefault();
+-          else activationMode.current = mode;
++          else { onActionStart(); activationMode.current = mode; }
+         }
+       }}
+       onClick={(event) => {
+         const startedAs = activationMode.current;
+         activationMode.current = null;
+-        onRecordPointerDone();
++        if (onActionClick(event.detail)) return;
+         if (startedAs && startedAs !== mode) return;
+-        if (mode === "send" && event.detail > 1) return;
+-        if (mode === "send") onSend(readBox());
+-        else if (mode === "review") onReviewNeeded(false);
+-        else if (mode === "record") { manualStop.current = false; hold.toggleTap(); }
+-        else if (mode === "stop") { manualStop.current = true; hold.toggleTap(); }
++        const current = hold.view();
++        if (mode === "send") {
++          if (!current.locked && !reviewPending.current && event.detail <= 1) onSend(readBox());
++        } else if (mode === "review") {
++          if (current.locked || !reviewPending.current) return;
++          reviewPending.current = false;
++          onReviewNeeded(false);
++        } else if (mode === "record") {
++          if (current.locked || reviewPending.current) return;
++          manualStop.current = false;
++          hold.press();
++        } else if (mode === "stop" && current.listening) {
++          manualStop.current = true;
++          hold.release();
++        }
+       }}
+       disabled={mode !== "stop" && disabled}
+       aria-disabled={mode === "busy" ? true : undefined}
+       aria-label={mode === "busy" ? view.busy ? "Transcribing voice message" : "Finishing recording"
+         : mode === "stop" ? "Stop recording" : mode === "review" ? "Review recording"
+           : mode === "send" ? "Send" : "Record message"}
+
+--- preceding/components/coach/Composer.tsx
++++ current/components/coach/Composer.tsx
+@@ -35,16 +35,20 @@
+           <div className="flex min-w-0 items-center gap-1">
+             {toolbar && <div data-testid="coach-composer-toolbar">{toolbar}</div>}
+           </div>
+           <div className="flex shrink-0 items-center gap-1">
+             {editing && draft.trim() && !listening && !reviewNeeded && <button type="button" aria-label="Send"
+               data-composer-action disabled={disabled}
+-              onClick={() => { controls.micEvents.onRecordPointerDone(); send(readBox()); }}
++              onClick={(event) => { if (!controls.micEvents.onActionClick(event.detail)) send(readBox()); }}
+               onPointerDown={controls.micEvents.onRecordPointerDown}
++              onPointerUp={controls.micEvents.onActionPointerUp}
+               onPointerLeave={(event) => { if (event.buttons !== 0) controls.micEvents.onRecordPointerDone(); }}
+               onPointerCancel={controls.micEvents.onRecordPointerDone}
++              onKeyDown={(event) => {
++                if (event.key === "Enter" || event.key === " ") controls.micEvents.onActionStart();
++              }}
+               className="tap flex shrink-0 items-center justify-center bg-transparent disabled:opacity-40">
+               <Round><SendGlyph /></Round>
+             </button>}
+             <CoachMic {...controls.micEvents} disabled={disabled} />
+           </div>
+         </div>
+
+--- preceding/components/coach/use-composer-input.ts
++++ current/components/coach/use-composer-input.ts
+@@ -1,14 +1,15 @@
+ "use client";
+
+-import { useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
++import { useRef, useState, type FocusEvent, type KeyboardEvent, type PointerEvent } from "react";
+
+ export function useComposerInput(disabled: boolean, onSend: (text: string) => void | boolean) {
+   const input = useRef<HTMLTextAreaElement>(null);
+   const composing = useRef(false);
+   const recordPointerDown = useRef(false);
++  const cancelledPointerClick = useRef(false);
+   const wasListening = useRef(false);
+   const [draft, setDraft] = useState("");
+   const [editing, setEditing] = useState(false);
+   const [listening, setListening] = useState(false);
+   const [reviewNeeded, setReviewNeeded] = useState(false);
+   const [micNotice, setMicNotice] = useState<string | null>(null);
+@@ -55,14 +56,37 @@
+     reviewNeeded,
+     onReviewNeeded: (needed: boolean) => {
+       setReviewNeeded(needed);
+       if (!needed) setEditing(false);
+     },
+     readyToSend: Boolean(draft.trim()) && !editing,
+-    onRecordPointerDown: () => { recordPointerDown.current = true; },
+-    onRecordPointerDone: () => { recordPointerDown.current = false; },
++    onRecordPointerDown: () => {
++      cancelledPointerClick.current = false;
++      recordPointerDown.current = true;
++    },
++    onRecordPointerDone: () => {
++      recordPointerDown.current = false;
++      cancelledPointerClick.current = true;
++    },
++    onActionStart: () => { cancelledPointerClick.current = false; },
++    onActionClick: (detail: number) => {
++      recordPointerDown.current = false;
++      const cancelled = cancelledPointerClick.current;
++      cancelledPointerClick.current = false;
++      return cancelled && detail > 0;
++    },
++    onActionPointerUp: (event: PointerEvent<HTMLElement>) => {
++      const box = event.currentTarget.getBoundingClientRect();
++      const outside = event.clientX < box.left || event.clientX > box.right
++        || event.clientY < box.top || event.clientY > box.bottom;
++      if (outside) {
++        recordPointerDown.current = false;
++        cancelledPointerClick.current = true;
++      }
++      return outside;
++    },
+     onListening: (locked: boolean) => {
+       setListening(locked);
+       if (wasListening.current && !locked) setEditing(false);
+       wasListening.current = locked;
+     },
+     onNotice: setMicNotice,
+
+--- preceding/tests/coach/composer/tap-control.test.tsx
++++ current/tests/coach/composer/tap-control.test.tsx
+@@ -57,14 +57,15 @@
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const input = screen.getByRole("textbox");
+     fireEvent.focus(input);
+     fireEvent.change(input, { target: { value: "typed first" } });
+     const main = screen.getByRole("button", { name: "Record message" });
+     expect(screen.getByRole("button", { name: "Send" })).not.toBe(main);
+-    fireEvent.pointerDown(main);
+-    fireEvent.pointerUp(main);
++    vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
++    fireEvent.pointerDown(main);
++    fireEvent.pointerUp(main, { clientX: 22, clientY: 22, pointerType: "touch" });
+     fireEvent.pointerLeave(main, { buttons: 0, pointerType: "touch" });
+     fireEvent.blur(input, { relatedTarget: null });
+     fireEvent.click(main);
+     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+     expect(onSend).not.toHaveBeenCalled();
+     act(() => speech.handlers[0].onSegment({ text: "then spoken", final: true }));
+@@ -140,14 +141,15 @@
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const input = screen.getByRole("textbox");
+     fireEvent.focus(input);
+     fireEvent.change(input, { target: { value: "mobile draft" } });
+     const send = screen.getByRole("button", { name: "Send" });
++    vi.spyOn(send, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
+     fireEvent.pointerDown(send);
+-    fireEvent.pointerUp(send);
++    fireEvent.pointerUp(send, { clientX: 22, clientY: 22, pointerType: "touch" });
+     fireEvent.pointerLeave(send, { buttons: 0, pointerType: "touch" });
+     fireEvent.blur(input, { relatedTarget: null });
+     expect(screen.getByRole("button", { name: "Send" })).toBe(send);
+     fireEvent.click(send);
+     expect(onSend).toHaveBeenCalledExactlyOnceWith("mobile draft");
+   });
+@@ -156,25 +158,86 @@
+     render(<Composer disabled={false} offline={false} onSend={vi.fn()} />);
+     const input = screen.getByRole("textbox");
+     fireEvent.focus(input);
+     fireEvent.change(input, { target: { value: "kept draft" } });
+     const main = screen.getByRole("button", { name: "Record message" });
+     fireEvent.pointerDown(main);
+-    fireEvent.pointerLeave(main, { buttons: 1, pointerType: "touch" });
++    fireEvent.pointerLeave(main, { buttons: 1, pointerType: "mouse" });
+     fireEvent.pointerUp(main);
+     fireEvent.blur(input, { relatedTarget: null });
+     expect(main.getAttribute("aria-label")).toBe("Send");
+
+     fireEvent.focus(input);
+     const secondary = screen.getAllByRole("button", { name: "Send" }).find((button) => button !== main)!;
+     fireEvent.pointerDown(secondary);
+-    fireEvent.pointerLeave(secondary, { buttons: 1, pointerType: "touch" });
++    fireEvent.pointerLeave(secondary, { buttons: 1, pointerType: "mouse" });
+     fireEvent.pointerUp(secondary);
+     fireEvent.blur(input, { relatedTarget: null });
+     expect(main.getAttribute("aria-label")).toBe("Send");
+     expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(1);
++  });
++
++  it("clears both action guards after a captured touch releases outside without an active leave", () => {
++    const onSend = vi.fn();
++    render(<Composer disabled={false} offline={false} onSend={onSend} />);
++    const input = screen.getByRole("textbox");
++    fireEvent.focus(input);
++    fireEvent.change(input, { target: { value: "kept draft" } });
++    const main = screen.getByRole("button", { name: "Record message" });
++    vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 10, top: 10, right: 54, bottom: 54 } as DOMRect);
++    fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
++    fireEvent.pointerMove(main, { clientX: 90, clientY: 90, pointerType: "touch", buttons: 1 });
++    fireEvent.pointerUp(main, { clientX: 90, clientY: 90, pointerType: "touch" });
++    fireEvent.pointerLeave(main, { buttons: 0, pointerType: "touch" });
++    fireEvent.blur(input, { relatedTarget: null });
++    expect(main.getAttribute("aria-label")).toBe("Send");
++    fireEvent.click(main, { detail: 1 });
++    expect(onSend).not.toHaveBeenCalled();
++
++    fireEvent.focus(input);
++    const secondary = screen.getAllByRole("button", { name: "Send" }).find((button) => button !== main)!;
++    vi.spyOn(secondary, "getBoundingClientRect").mockReturnValue({ left: 10, top: 10, right: 54, bottom: 54 } as DOMRect);
++    fireEvent.pointerDown(secondary, { clientX: 20, clientY: 20, pointerType: "touch" });
++    fireEvent.pointerMove(secondary, { clientX: 90, clientY: 90, pointerType: "touch", buttons: 1 });
++    fireEvent.pointerUp(secondary, { clientX: 90, clientY: 90, pointerType: "touch" });
++    fireEvent.pointerLeave(secondary, { buttons: 0, pointerType: "touch" });
++    fireEvent.click(secondary, { detail: 1 });
++    expect(onSend).not.toHaveBeenCalled();
++    fireEvent.blur(input, { relatedTarget: null });
++    expect(main.getAttribute("aria-label")).toBe("Send");
++  });
++
++  it("accepts a fresh Send pointerdown after an outside release with no trailing click", () => {
++    const onSend = vi.fn();
++    render(<Composer disabled={false} offline={false} onSend={onSend} />);
++    const input = screen.getByRole("textbox");
++    fireEvent.change(input, { target: { value: "kept draft" } });
++    const main = screen.getByRole("button", { name: "Record message" });
++    vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
++    fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
++    fireEvent.pointerUp(main, { clientX: 90, clientY: 90, pointerType: "touch" });
++    fireEvent.blur(input, { relatedTarget: null });
++    expect(main.getAttribute("aria-label")).toBe("Send");
++    fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
++    fireEvent.pointerUp(main, { clientX: 20, clientY: 20, pointerType: "touch" });
++    fireEvent.click(main, { detail: 1 });
++    expect(onSend).toHaveBeenCalledExactlyOnceWith("kept draft");
++  });
++
++  it("accepts an assistive Send click after outside release without a pointer click", () => {
++    const onSend = vi.fn();
++    render(<Composer disabled={false} offline={false} onSend={onSend} />);
++    const input = screen.getByRole("textbox");
++    fireEvent.change(input, { target: { value: "kept draft" } });
++    const main = screen.getByRole("button", { name: "Record message" });
++    vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
++    fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
++    fireEvent.pointerUp(main, { clientX: 90, clientY: 90, pointerType: "touch" });
++    fireEvent.blur(input, { relatedTarget: null });
++    fireEvent.click(main, { detail: 0 });
++    expect(onSend).toHaveBeenCalledExactlyOnceWith("kept draft");
+   });
+
+   it("requires Review after automatic silence completion, even with a late Stop click", () => {
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const main = screen.getByRole("button", { name: "Record message" });
+@@ -192,12 +255,31 @@
+     expect(onSend).not.toHaveBeenCalled();
+     fireEvent.click(main);
+     expect(main.getAttribute("aria-label")).toBe("Send");
+     expect(onSend).not.toHaveBeenCalled();
+     fireEvent.click(main);
+     expect(onSend).toHaveBeenCalledExactlyOnceWith("spoken");
++  });
++
++  it("does not start a new recording when an old Stop click lands before auto-end renders", () => {
++    const onSend = vi.fn();
++    render(<Composer disabled={false} offline={false} onSend={onSend} />);
++    const main = screen.getByRole("button", { name: "Record message" });
++    fireEvent.click(main);
++    act(() => speech.handlers[0].onSegment({ text: "heard", final: true }));
++    act(() => speech.handlers[0].onEnd());
++    act(() => {
++      speech.handlers[1].onEnd();
++      expect(main.getAttribute("aria-label")).toBe("Stop recording");
++      main.click();
++    });
++    expect(speech.handlers).toHaveLength(2);
++    expect(main.getAttribute("aria-label")).toBe("Review recording");
++    fireEvent.click(main);
++    expect(main.getAttribute("aria-label")).toBe("Send");
++    expect(onSend).not.toHaveBeenCalled();
+   });
+
+   it("does not let a late keyboard Stop activation acknowledge automatic Review", () => {
+     const onSend = vi.fn();
+     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+     const main = screen.getByRole("button", { name: "Record message" });
+
+
+CURRENT FULL FILE components/CoachMic.tsx
+1: "use client";
+2:
+3: /**
+4:  * Tap to record on the coach composer. The existing controller still owns all three
+5:  * listening routes; this button only starts and stops a session.
+6:  *
+7:  * A button, and nothing else. The controller reports its state through `view()`.
+8:  *
+9:  * ONE controller, for the life of the component. The parent hands its callbacks down as inline
+10:  * arrows, so they are new on every render; the controller reads them through a ref that is
+11:  * refreshed after each one (`lib/coach/hold-ports.ts`). A controller keyed on those callbacks was
+12:  * rebuilt — and the hold in progress cancelled — by the very re-render the press itself caused.
+13:  */
+14:
+15: import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+16: import { HoldController, type HoldView } from "@/lib/coach/hold";
+17: import { latestCallbackPorts, type HoldCallbacks } from "@/lib/coach/hold-ports";
+18: import { micAvailable, startListening } from "@/lib/coach/speech-api";
+19: import { openMicRecorder } from "@/lib/capture-mic";
+20: import { transcribeClip } from "@/lib/coach-transcribe-client";
+21: import { createListener, isStandalone, liveCapable } from "@/lib/voice/choose-listener";
+22: import { preloadLive, startLive } from "@/lib/voice/live-io";
+23: import { SendGlyph } from "@/components/coach/round-button";
+24:
+25: export type CoachMicProps = {
+26:   /** What is in the composer right now, so a failed recording can put it back. */
+27:   readBox: () => string;
+28:   /** Put the live transcript — or the fallback's answer — into the composer. */
+29:   writeBox: (text: string) => void;
+30:   /** The composer's disabled state — offline, restoring, or a turn in flight. */
+31:   disabled: boolean;
+32:   /** The typed path's explicit Send action. */
+33:   onSend: (text: string) => void;
+34:   /** A draft outside active editing makes the one main control Send. */
+35:   readyToSend: boolean;
+36:   reviewNeeded: boolean;
+37:   onReviewNeeded: (needed: boolean) => void;
+38:   onRecordPointerDown: () => void;
+39:   onRecordPointerDone: () => void;
+40:   onActionPointerUp: (event: import("react").PointerEvent<HTMLElement>) => boolean;
+41:   onActionStart: () => void;
+42:   onActionClick: (detail: number) => boolean;
+43:   /** True while dictation owns the composer: textarea read-only, Send disabled. */
+44:   onListening: (locked: boolean) => void;
+45:   /** One line under the composer, or null. */
+46:   onNotice: (copy: string | null) => void;
+47: };
+48:
+49: const IDLE: HoldView = {
+50:   locked: false, listening: false, recording: false, secondsLeft: 0, busy: false,
+51:   settling: false, notice: null,
+52: };
+53:
+54: /** Never subscribes: the answer is a fact about this page load, asked once on the client. */
+55: const noSubscription = (): (() => void) => () => {};
+56:
+57: export default function CoachMic({
+58:   readBox, writeBox, disabled, onSend, readyToSend, reviewNeeded, onReviewNeeded,
+59:   onRecordPointerDown, onRecordPointerDone, onActionPointerUp,
+60:   onActionStart, onActionClick, onListening, onNotice,
+61: }: CoachMicProps) {
+62:   const [view, setView] = useState<HoldView>(IDLE);
+63:   const wasLocked = useRef(false);
+64:   const manualStop = useRef(false);
+65:   const reviewPending = useRef(false);
+66:   const activationMode = useRef<"busy" | "stop" | "review" | "send" | "record" | null>(null);
+67:
+68:   /**
+69:    * §3's last row. The server renders neither API, so it renders no mic; the phone answers for
+70:    * itself after hydration. Whether the mic WORKS is asked again at press time.
+71:    */
+72:   const available = useSyncExternalStore(noSubscription, micAvailable, () => false);
+73:
+74:   /**
+75:    * The controller and its ports, built ONCE together. The ports hold the parent's callbacks in a
+76:    * closure and the component refreshes them by calling `update` after every render — so the
+77:    * parent may hand down new inline arrows as often as it likes and the controller never changes.
+78:    */
+79:   const [rig] = useState(() => {
+80:     // Phase 14 slice 1: in the installed app a hold streams to live dictation first; in a browser
+81:     // tab the on-device recogniser stays first (lib/voice/choose-listener.ts).
+82:     const listener = createListener({
+83:       standalone: () => isStandalone(), liveCapable: () => liveCapable(),
+84:       startDevice: (handlers) => startListening(handlers), startLive,
+85:     });
+86:     const built = latestCallbackPorts(
+87:       { readBox, writeBox, send: onSend, publish: () => {} } as HoldCallbacks,
+88:       {
+89:         listen: (handlers) => listener.listen(handlers),
+90:         record: (handlers) => openMicRecorder(handlers),
+91:         transcribe: (clip) => transcribeClip(clip),
+92:       },
+93:     );
+94:     return { update: built.update, hold: new HoldController(built.ports, "tap") };
+95:   });
+96:   const hold = rig.hold;
+97:
+98:   // No dependency array on purpose: the parent passes inline arrows, so its callbacks are new on
+99:   // every render and the controller must always be holding the current ones. They are read only
+100:   // from an event handler, which runs after this has refreshed them.
+101:   useEffect(() => {
+102:     rig.update({
+103:       readBox, writeBox, send: onSend,
+104:       publish: (next) => {
+105:         if (wasLocked.current && !next.locked) {
+106:           reviewPending.current = !manualStop.current && Boolean(readBox().trim());
+107:           onReviewNeeded(reviewPending.current);
+108:           manualStop.current = false;
+109:         }
+110:         wasLocked.current = next.locked;
+111:         setView(next);
+112:         onListening(next.locked);
+113:         onNotice(next.notice);
+114:       },
+115:     });
+116:   });
+117:
+118:   // Fetch the Live SDK while the user is still reading, so the first tap does not wait for it.
+119:   useEffect(() => { if (isStandalone() && liveCapable()) preloadLive(); }, []);
+120:
+121:   useEffect(() => {
+122:     // A recording that outlives the page is a microphone left on. `pagehide` is the one iOS Safari
+123:     // reliably fires; `visibilitychange` covers a tab switch on everything else. `hold` is stable,
+124:     // so this cleanup runs on unmount and nowhere else.
+125:     const end = (): void => hold.cancel();
+126:     const hidden = (): void => { if (document.visibilityState === "hidden") hold.cancel(); };
+127:     window.addEventListener("pagehide", end);
+128:     document.addEventListener("visibilitychange", hidden);
+129:     return () => {
+130:       window.removeEventListener("pagehide", end);
+131:       document.removeEventListener("visibilitychange", hidden);
+132:       hold.cancel();
+133:     };
+134:   }, [hold]);
+135:
+136:   const mode = view.busy || view.settling ? "busy"
+137:     : view.listening ? "stop"
+138:     : reviewNeeded ? "review"
+139:     : readyToSend ? "send" : "record";
+140:   if (!available && mode === "record") return null;
+141:
+142:   return (
+143:     <button
+144:       type="button"
+145:       data-composer-action
+146:       data-composer-main
+147:       onPointerDown={() => {
+148:         onActionStart();
+149:         activationMode.current = mode;
+150:         if (mode === "record") onRecordPointerDown();
+151:       }}
+152:       onPointerUp={(event) => {
+153:         if (onActionPointerUp(event)) activationMode.current = null;
+154:       }}
+155:       onPointerLeave={(event) => {
+156:         if (event.buttons !== 0) { activationMode.current = null; onRecordPointerDone(); }
+157:       }}
+158:       onPointerCancel={() => { activationMode.current = null; onRecordPointerDone(); }}
+159:       onBlur={() => { activationMode.current = null; }}
+160:       onKeyDown={(event) => {
+161:         if (event.key === "Enter" || event.key === " ") {
+162:           if (event.repeat) event.preventDefault();
+163:           else { onActionStart(); activationMode.current = mode; }
+164:         }
+165:       }}
+166:       onClick={(event) => {
+167:         const startedAs = activationMode.current;
+168:         activationMode.current = null;
+169:         if (onActionClick(event.detail)) return;
+170:         if (startedAs && startedAs !== mode) return;
+171:         const current = hold.view();
+172:         if (mode === "send") {
+173:           if (!current.locked && !reviewPending.current && event.detail <= 1) onSend(readBox());
+174:         } else if (mode === "review") {
+175:           if (current.locked || !reviewPending.current) return;
+176:           reviewPending.current = false;
+177:           onReviewNeeded(false);
+178:         } else if (mode === "record") {
+179:           if (current.locked || reviewPending.current) return;
+180:           manualStop.current = false;
+181:           hold.press();
+182:         } else if (mode === "stop" && current.listening) {
+183:           manualStop.current = true;
+184:           hold.release();
+185:         }
+186:       }}
+187:       disabled={mode !== "stop" && disabled}
+188:       aria-disabled={mode === "busy" ? true : undefined}
+189:       aria-label={mode === "busy" ? view.busy ? "Transcribing voice message" : "Finishing recording"
+190:         : mode === "stop" ? "Stop recording" : mode === "review" ? "Review recording"
+191:           : mode === "send" ? "Send" : "Record message"}
+192:       aria-pressed={mode === "record" || mode === "stop" ? mode === "stop" : undefined}
+193:       className={`tap flex shrink-0 items-center justify-center rounded-full disabled:opacity-40${mode === "stop" ? " coach-recording-button" : ""}`}
+194:       style={{
+195:         width: 44, height: 44,
+196:         // At rest the same round white button as the chat box's others; red while it records.
+197:         color: mode === "stop" ? "var(--color-text-primary)" : "var(--color-on-primary)",
+198:         background: mode === "stop" ? "var(--color-alert)" : "var(--grad-ink)",
+199:       }}
+200:     >
+201:       {mode === "busy" ? <span aria-hidden="true">…</span> : mode === "send" ? <SendGlyph /> : mode === "review" ? (
+202:         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+203:           stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+204:           <path d="M4 12s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z" />
+205:           <circle cx="12" cy="12" r="2" />
+206:         </svg>
+207:       ) : mode === "stop" ? (
+208:         <span className=" tabular-nums" style={{ fontSize: 14, fontWeight: 400 }}>
+209:           {view.recording ? view.secondsLeft : <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>}
+210:         </span>
+211:       ) : (
+212:         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+213:           stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+214:           <rect x="9" y="3" width="6" height="12" rx="3" />
+215:           <path d="M5 11a7 7 0 0 0 14 0" />
+216:           <path d="M12 18v3" />
+217:         </svg>
+218:       )}
+219:     </button>
+220:   );
+221: }
+
+CURRENT FULL FILE components/coach/Composer.tsx
+1: "use client";
+2:
+3: import type { ReactNode } from "react";
+4: import CoachMic from "@/components/CoachMic";
+5: import { Round, SendGlyph } from "@/components/coach/round-button";
+6: import { useComposerInput } from "@/components/coach/use-composer-input";
+7: import { COMPOSER_OFFLINE_COPY } from "@/lib/coach/chat-state";
+8: import { ASSISTANT_NAME } from "@/lib/brand";
+9:
+10: export default function Composer({
+11:   disabled, offline, onSend, toolbar,
+12: }: {
+13:   disabled: boolean;
+14:   offline: boolean;
+15:   onSend: (text: string) => void | boolean;
+16:   toolbar?: ReactNode;
+17: }) {
+18:   const controls = useComposerInput(disabled, onSend);
+19:   const { input, draft, editing, listening, reviewNeeded, micNotice, readBox, send } = controls;
+20:
+21:   return (
+22:     <div data-testid="coach-composer" className="relative flex shrink-0 flex-col gap-1">
+23:       <div data-testid="coach-composer-box" className="glass flex flex-col gap-2 rounded-3xl"
+24:         style={{ padding: 12 }}>
+25:         <label htmlFor="coach-message" className="px-1 text-tiny font-normal text-muted"><span>Message {ASSISTANT_NAME}</span></label>
+26:         <textarea id="coach-message" ref={input} rows={1} maxLength={2000}
+27:           disabled={disabled} readOnly={listening}
+28:           placeholder={offline ? COMPOSER_OFFLINE_COPY : `Ask ${ASSISTANT_NAME}`}
+29:           aria-label={`Message ${ASSISTANT_NAME}`}
+30:           className="min-h-[44px] w-full resize-none bg-transparent px-1 outline-none placeholder:text-muted disabled:opacity-40"
+31:           style={{ fontSize: "var(--text-body-md)", fontWeight: "var(--font-weight-body-md)", color: "var(--color-text-primary)" }}
+32:           {...controls.textEvents}
+33:         />
+34:         <div data-testid="coach-composer-row" className="flex items-center justify-between gap-2">
+35:           <div className="flex min-w-0 items-center gap-1">
+36:             {toolbar && <div data-testid="coach-composer-toolbar">{toolbar}</div>}
+37:           </div>
+38:           <div className="flex shrink-0 items-center gap-1">
+39:             {editing && draft.trim() && !listening && !reviewNeeded && <button type="button" aria-label="Send"
+40:               data-composer-action disabled={disabled}
+41:               onClick={(event) => { if (!controls.micEvents.onActionClick(event.detail)) send(readBox()); }}
+42:               onPointerDown={controls.micEvents.onRecordPointerDown}
+43:               onPointerUp={controls.micEvents.onActionPointerUp}
+44:               onPointerLeave={(event) => { if (event.buttons !== 0) controls.micEvents.onRecordPointerDone(); }}
+45:               onPointerCancel={controls.micEvents.onRecordPointerDone}
+46:               onKeyDown={(event) => {
+47:                 if (event.key === "Enter" || event.key === " ") controls.micEvents.onActionStart();
+48:               }}
+49:               className="tap flex shrink-0 items-center justify-center bg-transparent disabled:opacity-40">
+50:               <Round><SendGlyph /></Round>
+51:             </button>}
+52:             <CoachMic {...controls.micEvents} disabled={disabled} />
+53:           </div>
+54:         </div>
+55:       </div>
+56:       {micNotice && <p role="status" className="m-0"
+57:         style={{ fontSize: 12, fontWeight: 400, color: "var(--color-text-muted)" }}>{micNotice}</p>}
+58:     </div>
+59:   );
+60: }
+
+CURRENT FULL FILE components/coach/use-composer-input.ts
+1: "use client";
+2:
+3: import { useRef, useState, type FocusEvent, type KeyboardEvent, type PointerEvent } from "react";
+4:
+5: export function useComposerInput(disabled: boolean, onSend: (text: string) => void | boolean) {
+6:   const input = useRef<HTMLTextAreaElement>(null);
+7:   const composing = useRef(false);
+8:   const recordPointerDown = useRef(false);
+9:   const cancelledPointerClick = useRef(false);
+10:   const wasListening = useRef(false);
+11:   const [draft, setDraft] = useState("");
+12:   const [editing, setEditing] = useState(false);
+13:   const [listening, setListening] = useState(false);
+14:   const [reviewNeeded, setReviewNeeded] = useState(false);
+15:   const [micNotice, setMicNotice] = useState<string | null>(null);
+16:
+17:   const send = (text: string) => {
+18:     if (!text.trim() || disabled || listening || reviewNeeded) return;
+19:     if (onSend(text) !== false && input.current) {
+20:       input.current.value = "";
+21:       setDraft("");
+22:       setEditing(false);
+23:     }
+24:   };
+25:   const readBox = () => input.current?.value ?? "";
+26:   const textEvents = {
+27:     onChange: (event: { currentTarget: HTMLTextAreaElement }) => {
+28:       setDraft(event.currentTarget.value);
+29:       setEditing(true);
+30:     },
+31:     onFocus: () => setEditing(true),
+32:     onClick: () => setEditing(true),
+33:     onSelect: () => setEditing(true),
+34:     onBlur: (event: FocusEvent<HTMLTextAreaElement>) => {
+35:       const toAction = (event.relatedTarget as HTMLElement | null)
+36:         ?.closest?.("[data-composer-action]");
+37:       if (!recordPointerDown.current && !toAction) setEditing(false);
+38:     },
+39:     onCompositionStart: () => { composing.current = true; },
+40:     onCompositionEnd: () => { composing.current = false; },
+41:     onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
+42:       if (event.key === "Enter" && !event.shiftKey && !composing.current
+43:         && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+44:         event.preventDefault();
+45:         send(event.currentTarget.value);
+46:       }
+47:     },
+48:   };
+49:   const micEvents = {
+50:     readBox,
+51:     writeBox: (text: string) => {
+52:       if (input.current) input.current.value = text;
+53:       setDraft(text);
+54:     },
+55:     onSend: send,
+56:     reviewNeeded,
+57:     onReviewNeeded: (needed: boolean) => {
+58:       setReviewNeeded(needed);
+59:       if (!needed) setEditing(false);
+60:     },
+61:     readyToSend: Boolean(draft.trim()) && !editing,
+62:     onRecordPointerDown: () => {
+63:       cancelledPointerClick.current = false;
+64:       recordPointerDown.current = true;
+65:     },
+66:     onRecordPointerDone: () => {
+67:       recordPointerDown.current = false;
+68:       cancelledPointerClick.current = true;
+69:     },
+70:     onActionStart: () => { cancelledPointerClick.current = false; },
+71:     onActionClick: (detail: number) => {
+72:       recordPointerDown.current = false;
+73:       const cancelled = cancelledPointerClick.current;
+74:       cancelledPointerClick.current = false;
+75:       return cancelled && detail > 0;
+76:     },
+77:     onActionPointerUp: (event: PointerEvent<HTMLElement>) => {
+78:       const box = event.currentTarget.getBoundingClientRect();
+79:       const outside = event.clientX < box.left || event.clientX > box.right
+80:         || event.clientY < box.top || event.clientY > box.bottom;
+81:       if (outside) {
+82:         recordPointerDown.current = false;
+83:         cancelledPointerClick.current = true;
+84:       }
+85:       return outside;
+86:     },
+87:     onListening: (locked: boolean) => {
+88:       setListening(locked);
+89:       if (wasListening.current && !locked) setEditing(false);
+90:       wasListening.current = locked;
+91:     },
+92:     onNotice: setMicNotice,
+93:   };
+94:   return { input, draft, editing, listening, reviewNeeded, micNotice, readBox, send, textEvents, micEvents };
+95: }
+
+CURRENT FULL FILE tests/coach/composer/tap-control.test.tsx
+1: // @vitest-environment jsdom
+2:
+3: import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+4: import { afterEach, describe, expect, it, vi } from "vitest";
+5: import Composer from "@/components/coach/Composer";
+6: import type { SpeechHandlers } from "@/lib/coach/speech-api";
+7:
+8: const speech = vi.hoisted(() => ({ handlers: [] as SpeechHandlers[], available: true }));
+9: vi.mock("@/lib/coach/speech-api", () => ({
+10:   micAvailable: () => speech.available,
+11:   startListening: (handlers: SpeechHandlers) => {
+12:     speech.handlers.push(handlers);
+13:     return { stop: vi.fn(), abort: vi.fn() };
+14:   },
+15: }));
+16:
+17: afterEach(() => {
+18:   cleanup();
+19:   speech.handlers.length = 0;
+20:   speech.available = true;
+21:   vi.useRealTimers();
+22: });
+23:
+24: describe("tap composer controls", () => {
+25:   it("switches one main control Record → Stop → Send and waits for explicit Send", () => {
+26:     const onSend = vi.fn();
+27:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+28:     const main = screen.getByRole("button", { name: "Record message" });
+29:     fireEvent.click(main);
+30:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+31:     expect(main.className).toContain("coach-recording-button");
+32:     expect(main.style.background).toBe("var(--color-alert)");
+33:     act(() => speech.handlers[0].onSegment({ text: "I ate lunch", final: true }));
+34:     main.focus();
+35:     fireEvent.pointerDown(main);
+36:     fireEvent.pointerUp(main);
+37:     fireEvent.click(main);
+38:     expect(main.getAttribute("aria-label")).toBe("Finishing recording");
+39:     expect(main.getAttribute("aria-disabled")).toBe("true");
+40:     expect((main as HTMLButtonElement).disabled).toBe(false);
+41:     expect(document.activeElement).toBe(main);
+42:     fireEvent.click(main);
+43:     expect(main.getAttribute("aria-label")).toBe("Finishing recording");
+44:     expect(onSend).not.toHaveBeenCalled();
+45:     act(() => speech.handlers[0].onEnd());
+46:     expect(main.getAttribute("aria-label")).toBe("Send");
+47:     expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(1);
+48:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("I ate lunch");
+49:     expect(onSend).not.toHaveBeenCalled();
+50:     fireEvent.click(main);
+51:     expect(onSend).toHaveBeenCalledExactlyOnceWith("I ate lunch");
+52:     expect(main.getAttribute("aria-label")).toBe("Record message");
+53:   });
+54:
+55:   it("preserves typed text when touch pointerup precedes blur and Record click", () => {
+56:     const onSend = vi.fn();
+57:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+58:     const input = screen.getByRole("textbox");
+59:     fireEvent.focus(input);
+60:     fireEvent.change(input, { target: { value: "typed first" } });
+61:     const main = screen.getByRole("button", { name: "Record message" });
+62:     expect(screen.getByRole("button", { name: "Send" })).not.toBe(main);
+63:     vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
+64:     fireEvent.pointerDown(main);
+65:     fireEvent.pointerUp(main, { clientX: 22, clientY: 22, pointerType: "touch" });
+66:     fireEvent.pointerLeave(main, { buttons: 0, pointerType: "touch" });
+67:     fireEvent.blur(input, { relatedTarget: null });
+68:     fireEvent.click(main);
+69:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+70:     expect(onSend).not.toHaveBeenCalled();
+71:     act(() => speech.handlers[0].onSegment({ text: "then spoken", final: true }));
+72:     fireEvent.click(main);
+73:     act(() => speech.handlers[0].onEnd());
+74:     expect(main.getAttribute("aria-label")).toBe("Send");
+75:     expect((input as HTMLTextAreaElement).value).toBe("typed first then spoken");
+76:     fireEvent.click(input);
+77:     expect(main.getAttribute("aria-label")).toBe("Record message");
+78:     expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
+79:   });
+80:
+81:   it("keeps the editing Send action through blur and ignores IME Enter", () => {
+82:     const onSend = vi.fn();
+83:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+84:     const input = screen.getByRole("textbox");
+85:     fireEvent.focus(input);
+86:     fireEvent.change(input, { target: { value: "draft" } });
+87:     const send = screen.getByRole("button", { name: "Send" });
+88:     fireEvent.compositionStart(input);
+89:     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+90:     fireEvent.compositionEnd(input);
+91:     fireEvent.keyDown(input, { key: "Enter", code: "Enter", shiftKey: true });
+92:     expect(onSend).not.toHaveBeenCalled();
+93:     fireEvent.blur(input, { relatedTarget: send });
+94:     expect(screen.getByRole("button", { name: "Send" })).toBe(send);
+95:     fireEvent.click(send);
+96:     expect(onSend).toHaveBeenCalledExactlyOnceWith("draft");
+97:   });
+98:
+99:   it("blocks repeated Enter and Space activation on each main-control state", () => {
+100:     const onSend = vi.fn();
+101:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+102:     const main = screen.getByRole("button", { name: "Record message" });
+103:     const repeatedKeys = () => {
+104:       expect(fireEvent.keyDown(main, { key: "Enter", repeat: true })).toBe(false);
+105:       expect(fireEvent.keyDown(main, { key: " ", repeat: true })).toBe(false);
+106:     };
+107:     repeatedKeys();
+108:     expect(main.getAttribute("aria-label")).toBe("Record message");
+109:     expect(fireEvent.keyDown(main, { key: "Enter", repeat: false })).toBe(true);
+110:     fireEvent.click(main);
+111:     repeatedKeys();
+112:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+113:     act(() => speech.handlers[0].onSegment({ text: "voice", final: true }));
+114:     fireEvent.click(main);
+115:     act(() => speech.handlers[0].onEnd());
+116:     repeatedKeys();
+117:     expect(main.getAttribute("aria-label")).toBe("Send");
+118:     expect(onSend).not.toHaveBeenCalled();
+119:     fireEvent.click(main);
+120:     expect(onSend).toHaveBeenCalledExactlyOnceWith("voice");
+121:   });
+122:
+123:   it("keeps Record while editing after an idle notice expires", () => {
+124:     vi.useFakeTimers();
+125:     render(<Composer disabled={false} offline={false} onSend={vi.fn()} />);
+126:     const main = screen.getByRole("button", { name: "Record message" });
+127:     fireEvent.click(main);
+128:     act(() => speech.handlers[0].onAudioStart?.());
+129:     fireEvent.click(main);
+130:     act(() => speech.handlers[0].onEnd());
+131:     const input = screen.getByRole("textbox");
+132:     fireEvent.focus(input);
+133:     fireEvent.change(input, { target: { value: "new draft" } });
+134:     expect(main.getAttribute("aria-label")).toBe("Record message");
+135:     act(() => vi.advanceTimersByTime(3_100));
+136:     expect(main.getAttribute("aria-label")).toBe("Record message");
+137:     expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
+138:   });
+139:
+140:   it("keeps secondary Send mounted when touch pointerup precedes blur", () => {
+141:     const onSend = vi.fn();
+142:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+143:     const input = screen.getByRole("textbox");
+144:     fireEvent.focus(input);
+145:     fireEvent.change(input, { target: { value: "mobile draft" } });
+146:     const send = screen.getByRole("button", { name: "Send" });
+147:     vi.spyOn(send, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
+148:     fireEvent.pointerDown(send);
+149:     fireEvent.pointerUp(send, { clientX: 22, clientY: 22, pointerType: "touch" });
+150:     fireEvent.pointerLeave(send, { buttons: 0, pointerType: "touch" });
+151:     fireEvent.blur(input, { relatedTarget: null });
+152:     expect(screen.getByRole("button", { name: "Send" })).toBe(send);
+153:     fireEvent.click(send);
+154:     expect(onSend).toHaveBeenCalledExactlyOnceWith("mobile draft");
+155:   });
+156:
+157:   it("clears the main and secondary pointer guards when a drag leaves without a click", () => {
+158:     render(<Composer disabled={false} offline={false} onSend={vi.fn()} />);
+159:     const input = screen.getByRole("textbox");
+160:     fireEvent.focus(input);
+161:     fireEvent.change(input, { target: { value: "kept draft" } });
+162:     const main = screen.getByRole("button", { name: "Record message" });
+163:     fireEvent.pointerDown(main);
+164:     fireEvent.pointerLeave(main, { buttons: 1, pointerType: "mouse" });
+165:     fireEvent.pointerUp(main);
+166:     fireEvent.blur(input, { relatedTarget: null });
+167:     expect(main.getAttribute("aria-label")).toBe("Send");
+168:
+169:     fireEvent.focus(input);
+170:     const secondary = screen.getAllByRole("button", { name: "Send" }).find((button) => button !== main)!;
+171:     fireEvent.pointerDown(secondary);
+172:     fireEvent.pointerLeave(secondary, { buttons: 1, pointerType: "mouse" });
+173:     fireEvent.pointerUp(secondary);
+174:     fireEvent.blur(input, { relatedTarget: null });
+175:     expect(main.getAttribute("aria-label")).toBe("Send");
+176:     expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(1);
+177:   });
+178:
+179:   it("clears both action guards after a captured touch releases outside without an active leave", () => {
+180:     const onSend = vi.fn();
+181:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+182:     const input = screen.getByRole("textbox");
+183:     fireEvent.focus(input);
+184:     fireEvent.change(input, { target: { value: "kept draft" } });
+185:     const main = screen.getByRole("button", { name: "Record message" });
+186:     vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 10, top: 10, right: 54, bottom: 54 } as DOMRect);
+187:     fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
+188:     fireEvent.pointerMove(main, { clientX: 90, clientY: 90, pointerType: "touch", buttons: 1 });
+189:     fireEvent.pointerUp(main, { clientX: 90, clientY: 90, pointerType: "touch" });
+190:     fireEvent.pointerLeave(main, { buttons: 0, pointerType: "touch" });
+191:     fireEvent.blur(input, { relatedTarget: null });
+192:     expect(main.getAttribute("aria-label")).toBe("Send");
+193:     fireEvent.click(main, { detail: 1 });
+194:     expect(onSend).not.toHaveBeenCalled();
+195:
+196:     fireEvent.focus(input);
+197:     const secondary = screen.getAllByRole("button", { name: "Send" }).find((button) => button !== main)!;
+198:     vi.spyOn(secondary, "getBoundingClientRect").mockReturnValue({ left: 10, top: 10, right: 54, bottom: 54 } as DOMRect);
+199:     fireEvent.pointerDown(secondary, { clientX: 20, clientY: 20, pointerType: "touch" });
+200:     fireEvent.pointerMove(secondary, { clientX: 90, clientY: 90, pointerType: "touch", buttons: 1 });
+201:     fireEvent.pointerUp(secondary, { clientX: 90, clientY: 90, pointerType: "touch" });
+202:     fireEvent.pointerLeave(secondary, { buttons: 0, pointerType: "touch" });
+203:     fireEvent.click(secondary, { detail: 1 });
+204:     expect(onSend).not.toHaveBeenCalled();
+205:     fireEvent.blur(input, { relatedTarget: null });
+206:     expect(main.getAttribute("aria-label")).toBe("Send");
+207:   });
+208:
+209:   it("accepts a fresh Send pointerdown after an outside release with no trailing click", () => {
+210:     const onSend = vi.fn();
+211:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+212:     const input = screen.getByRole("textbox");
+213:     fireEvent.change(input, { target: { value: "kept draft" } });
+214:     const main = screen.getByRole("button", { name: "Record message" });
+215:     vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
+216:     fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
+217:     fireEvent.pointerUp(main, { clientX: 90, clientY: 90, pointerType: "touch" });
+218:     fireEvent.blur(input, { relatedTarget: null });
+219:     expect(main.getAttribute("aria-label")).toBe("Send");
+220:     fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
+221:     fireEvent.pointerUp(main, { clientX: 20, clientY: 20, pointerType: "touch" });
+222:     fireEvent.click(main, { detail: 1 });
+223:     expect(onSend).toHaveBeenCalledExactlyOnceWith("kept draft");
+224:   });
+225:
+226:   it("accepts an assistive Send click after outside release without a pointer click", () => {
+227:     const onSend = vi.fn();
+228:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+229:     const input = screen.getByRole("textbox");
+230:     fireEvent.change(input, { target: { value: "kept draft" } });
+231:     const main = screen.getByRole("button", { name: "Record message" });
+232:     vi.spyOn(main, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 44, bottom: 44 } as DOMRect);
+233:     fireEvent.pointerDown(main, { clientX: 20, clientY: 20, pointerType: "touch" });
+234:     fireEvent.pointerUp(main, { clientX: 90, clientY: 90, pointerType: "touch" });
+235:     fireEvent.blur(input, { relatedTarget: null });
+236:     fireEvent.click(main, { detail: 0 });
+237:     expect(onSend).toHaveBeenCalledExactlyOnceWith("kept draft");
+238:   });
+239:
+240:   it("requires Review after automatic silence completion, even with a late Stop click", () => {
+241:     const onSend = vi.fn();
+242:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+243:     const main = screen.getByRole("button", { name: "Record message" });
+244:     fireEvent.click(main);
+245:     act(() => speech.handlers[0].onSegment({ text: "spoken", final: true }));
+246:     act(() => speech.handlers[0].onEnd());
+247:     expect(main.getAttribute("aria-label")).toBe("Stop recording");
+248:     fireEvent.pointerDown(main);
+249:     act(() => speech.handlers[1].onEnd());
+250:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+251:     fireEvent.pointerUp(main);
+252:     fireEvent.pointerLeave(main, { buttons: 0, pointerType: "touch" });
+253:     fireEvent.click(main);
+254:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+255:     expect(onSend).not.toHaveBeenCalled();
+256:     fireEvent.click(main);
+257:     expect(main.getAttribute("aria-label")).toBe("Send");
+258:     expect(onSend).not.toHaveBeenCalled();
+259:     fireEvent.click(main);
+260:     expect(onSend).toHaveBeenCalledExactlyOnceWith("spoken");
+261:   });
+262:
+263:   it("does not start a new recording when an old Stop click lands before auto-end renders", () => {
+264:     const onSend = vi.fn();
+265:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+266:     const main = screen.getByRole("button", { name: "Record message" });
+267:     fireEvent.click(main);
+268:     act(() => speech.handlers[0].onSegment({ text: "heard", final: true }));
+269:     act(() => speech.handlers[0].onEnd());
+270:     act(() => {
+271:       speech.handlers[1].onEnd();
+272:       expect(main.getAttribute("aria-label")).toBe("Stop recording");
+273:       main.click();
+274:     });
+275:     expect(speech.handlers).toHaveLength(2);
+276:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+277:     fireEvent.click(main);
+278:     expect(main.getAttribute("aria-label")).toBe("Send");
+279:     expect(onSend).not.toHaveBeenCalled();
+280:   });
+281:
+282:   it("does not let a late keyboard Stop activation acknowledge automatic Review", () => {
+283:     const onSend = vi.fn();
+284:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+285:     const main = screen.getByRole("button", { name: "Record message" });
+286:     fireEvent.click(main);
+287:     act(() => speech.handlers[0].onSegment({ text: "heard", final: true }));
+288:     act(() => speech.handlers[0].onEnd());
+289:     fireEvent.keyDown(main, { key: "Enter" });
+290:     act(() => speech.handlers[1].onEnd());
+291:     fireEvent.click(main, { detail: 0 });
+292:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+293:     expect(onSend).not.toHaveBeenCalled();
+294:   });
+295:
+296:   it("requires Review when silence completes before a late pointerdown", () => {
+297:     const onSend = vi.fn();
+298:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+299:     const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+300:     fireEvent.change(input, { target: { value: "typed before recording" } });
+301:     const main = screen.getByRole("button", { name: "Record message" });
+302:     fireEvent.click(main);
+303:     act(() => speech.handlers[0].onEnd());
+304:     act(() => speech.handlers[1].onEnd());
+305:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+306:     fireEvent.pointerDown(main);
+307:     fireEvent.pointerUp(main);
+308:     fireEvent.click(main);
+309:     expect(main.getAttribute("aria-label")).toBe("Send");
+310:     expect(input.value).toBe("typed before recording");
+311:     expect(onSend).not.toHaveBeenCalled();
+312:   });
+313:
+314:   it("shows Review after automatic failure with retained draft and speech", () => {
+315:     const onSend = vi.fn();
+316:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+317:     const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+318:     fireEvent.change(input, { target: { value: "typed" } });
+319:     const main = screen.getByRole("button", { name: "Record message" });
+320:     fireEvent.click(main);
+321:     act(() => speech.handlers[0].onSegment({ text: "partial", final: false }));
+322:     act(() => speech.handlers[0].onError("network"));
+323:     expect(input.value).toBe("typed partial");
+324:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+325:     fireEvent.click(input);
+326:     fireEvent.change(input, { target: { value: "typed partial corrected" } });
+327:     expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+328:     fireEvent.click(main);
+329:     expect(main.getAttribute("aria-label")).toBe("Send");
+330:     expect(input.value).toBe("typed partial corrected");
+331:     expect(onSend).not.toHaveBeenCalled();
+332:   });
+333:
+334:   it("shows Review after the native recording ceiling with words", () => {
+335:     const onSend = vi.fn();
+336:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+337:     const main = screen.getByRole("button", { name: "Record message" });
+338:     fireEvent.click(main);
+339:     act(() => speech.handlers[0].onSegment({ text: "up to the cap", final: true }));
+340:     act(() => speech.handlers[0].onError("max-duration"));
+341:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+342:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("up to the cap");
+343:     expect(onSend).not.toHaveBeenCalled();
+344:   });
+345:
+346:   it("shows Review when pagehide cancels a recording with observed words", () => {
+347:     const onSend = vi.fn();
+348:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+349:     const main = screen.getByRole("button", { name: "Record message" });
+350:     fireEvent.click(main);
+351:     act(() => speech.handlers[0].onSegment({ text: "saved", final: false }));
+352:     fireEvent(window, new Event("pagehide"));
+353:     expect(main.getAttribute("aria-label")).toBe("Review recording");
+354:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("saved");
+355:     expect(onSend).not.toHaveBeenCalled();
+356:   });
+357:
+358:   it("rejects the second click of a Stop double tap before explicit Send", () => {
+359:     const onSend = vi.fn();
+360:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+361:     const main = screen.getByRole("button", { name: "Record message" });
+362:     fireEvent.click(main, { detail: 1 });
+363:     act(() => speech.handlers[0].onSegment({ text: "spoken", final: true }));
+364:     fireEvent.click(main, { detail: 1 });
+365:     act(() => speech.handlers[0].onEnd());
+366:     expect(main.getAttribute("aria-label")).toBe("Send");
+367:     fireEvent.click(main, { detail: 2 });
+368:     expect(onSend).not.toHaveBeenCalled();
+369:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("spoken");
+370:     fireEvent.click(main, { detail: 1 });
+371:     expect(onSend).toHaveBeenCalledExactlyOnceWith("spoken");
+372:   });
+373:
+374:   it("retains typed Send when the microphone is unavailable", () => {
+375:     speech.available = false;
+376:     const onSend = vi.fn();
+377:     render(<Composer disabled={false} offline={false} onSend={onSend} />);
+378:     expect(screen.queryByRole("button", { name: "Record message" })).toBeNull();
+379:     const input = screen.getByRole("textbox");
+380:     fireEvent.focus(input);
+381:     fireEvent.change(input, { target: { value: "typed without mic" } });
+382:     fireEvent.blur(input, { relatedTarget: null });
+383:     const send = screen.getByRole("button", { name: "Send" });
+384:     fireEvent.click(send);
+385:     expect(onSend).toHaveBeenCalledExactlyOnceWith("typed without mic");
+386:   });
+387:
+388:   it("disables Record and text while the composer is disabled", () => {
+389:     render(<Composer disabled offline onSend={vi.fn()} />);
+390:     expect((screen.getByRole("button", { name: "Record message" }) as HTMLButtonElement).disabled).toBe(true);
+391:     expect((screen.getByRole("textbox") as HTMLTextAreaElement).disabled).toBe(true);
+392:     expect(speech.handlers).toHaveLength(0);
+393:   });
+394: });
+
+UNCHANGED CONTROLLER EXCERPT lib/coach/hold.ts
+1: "use client";
+2:
+3: import {
+4:   EMPTY_COPY, EMPTY_MS, FINALISE_MS, NO_SPEECH_COPY, TAP_MS,
+5:   initialDictation, nextDictation, transcriptOf,
+6:   type DictationEvent, type DictationNotice, type DictationState,
+7: } from "@/lib/coach/dictation";
+8: import type { SpeechHandlers, SpeechSession } from "@/lib/coach/speech-api";
+9: import type { MicRecorder } from "@/lib/capture-mic";
+10: import { MAX_RECORDING_SECONDS } from "@/lib/capture-mic";
+11: import { discardRun, markMs } from "@/lib/timing";
+12: import type { HoldPorts, HoldView } from "@/lib/coach/hold-ports";
+13:
+14: export type { HoldPorts, HoldView } from "@/lib/coach/hold-ports";
+15:
+16: /** Where the fallback's clip is. "flushing" and "transcribing" both mean: it is coming, use it. */
+17: type ClipState = "none" | "opening" | "recording" | "flushing" | "transcribing";
+18:
+19: /** The keyboard's stand-in for a pointer id, so a Space keyup cannot end a finger's hold. */
+20: const KEYBOARD_POINTER = -1;
+21:
+22: export class HoldController {
+23:   private state: DictationState = initialDictation();
+24:   private pointer: number | null = null;
+25:   private holding = false;
+26:   private session: SpeechSession | null = null;
+27:   private recorder: MicRecorder | null = null;
+28:   private clipState: ClipState = "none";
+29:   private startTimer: unknown = null;
+30:   private finaliseTimer: unknown = null;
+31:   private noticeTimer: unknown = null;
+32:   private audioStarted = false;
+33:   private heard = false;
+34:   private restarts = 0;
+35:   private wantClip = false;
+36:   private typed = "";
+37:   private releasedAt = 0;
+38:   private elapsed = 0;
+39:   private notice: string | null = null;
+40:   /** Guards late callbacks and awaited work after cancel or a new session. */
+41:   private gen = 0;
+42:   private carried = "";
+43:
+44:   constructor(private readonly ports: HoldPorts, private readonly interaction: "hold" | "tap" = "hold") {}
+45:
+46:   view(): HoldView {
+47:     return {
+48:       locked: this.holding || this.state.phase === "finalising" || this.clipState !== "none",
+49:       listening: this.holding && this.state.phase === "listening",
+50:       settling: !this.holding && (this.state.phase === "finalising" || this.clipState !== "none"),
+51:       recording: this.clipState === "recording",
+52:       secondsLeft: Math.max(0, Math.ceil(MAX_RECORDING_SECONDS - this.elapsed)),
+53:       busy: this.clipState === "transcribing",
+54:       notice: this.notice,
+55:     };
+56:   }
+57:
+58:   press(pointerId?: number): void {
+59:     if (this.holding || this.clipState !== "none" || this.state.phase === "finalising") return;
+60:     this.gen += 1;
+61:     this.carried = "";
+62:     this.pointer = pointerId ?? KEYBOARD_POINTER;
+63:     this.typed = this.ports.readBox();
+64:     this.holding = true;
+65:     this.heard = false;
+66:     this.audioStarted = false;
+67:     this.restarts = 0;
+68:     this.releasedAt = 0;
+69:     this.apply({ type: "press", at: this.now() });
+70:     this.showNotice(null);
+71:     if (this.interaction === "tap") {
+72:       this.begin();
+73:     } else {
+74:       this.startTimer = this.setTimer(() => { this.startTimer = null; this.begin(); }, TAP_MS);
+75:     }
+76:     this.publish();
+77:   }
+78:
+79:   toggleTap(): void {
+80:     if (this.interaction !== "tap") return;
+81:     if (this.holding) this.release();
+82:     else this.press();
+83:   }
+84:
+85:   release(pointerId?: number): void {
+86:     if (!this.holding) return;
+87:     if (this.pointer !== null && (pointerId ?? KEYBOARD_POINTER) !== this.pointer) return;
+88:     this.holding = false;
+89:     this.pointer = null;
+90:     this.releasedAt = this.now();
+91:
+92:     if (this.startTimer !== null) {
+93:       this.clearTimer(this.startTimer);
+94:       this.startTimer = null;
+95:       this.abandon(this.apply({ type: "release", at: this.releasedAt }).notice);
+96:       return;
+97:     }
+98:     if (this.clipState !== "none") { this.releaseRecording(); return; }
+99:
+100:     if (this.interaction === "tap") {
+101:       this.state = { ...this.state, phase: "finalising" };
+102:       this.session?.stop();
+103:       if (this.state.phase !== "finalising") return;
+104:     } else {
+105:       this.session?.stop();
+106:       const next = this.apply({ type: "release", at: this.releasedAt });
+107:       if (next.phase === "idle") { this.abandon(next.notice); return; }
+108:       if (next.phase === "sent" || next.phase === "empty") { this.settleSpeech(next); return; }
+109:     }
+110:     if (!this.heard && !this.audioStarted) {
+111:       // The microphone never opened. This was the permission sheet lifting their finger.
+112:       this.session?.abort();
+113:       this.session = null;
+114:       this.quiet();
+115:       return;
+116:     }
+117:     this.finaliseTimer = this.setTimer(() => {
+118:       this.finaliseTimer = null;
+119:       this.settleSpeech(this.apply({ type: "finalised" }));
+120:     }, this.session?.finaliseMs ?? FINALISE_MS);
+121:     this.publish();
+122:   }
+123:
+124:   cancel(): void {
+125:     if (this.interaction === "tap") this.typed = this.ports.readBox();
+126:     this.gen += 1;
+127:     this.wantClip = false;
+128:     this.clearTimer(this.startTimer);
+129:     this.clearTimer(this.finaliseTimer);
+130:     this.startTimer = null;
+131:     this.finaliseTimer = null;
+132:     this.session?.abort();
+133:     this.session = null;
+134:     this.recorder?.cancel();
+135:     this.recorder = null;
+136:     this.clipState = "none";
+137:     this.holding = false;
+138:     this.pointer = null;
+139:     if (this.state.phase === "idle") this.publish();
+140:     else this.abandon(null);

@@ -1,0 +1,95 @@
+/* The dock's weigh-in (U19, DESIGN.md §Components › Dock, 2026-10-04). An ivory E2 card that pops
+   above the dock. It carries `.matte-reset`, so inside the dock's matte scope its text is ink on
+   paper again (owner: "Can't see anything on it"). */
+
+.card {
+  border-radius: 24px;
+  background: var(--grad-sheet);
+  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  box-shadow: var(--shadow-float);
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+}
+
+/* The number sits in the shared paper field (`.field`); a refused number rings it in red. */
+.invalid {
+  box-shadow: inset 0 1px 2px rgb(var(--ink-rgb) / 0.04), 0 0 0 1px var(--color-alert);
+}
+.input {
+  caret-color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.after {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 8px 8px 12px;
+}
+
+.done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding-right: 52px;
+}
+
+.tick {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Undo's ring drains over its window, so the time left reads without a number and without an
+   underline (Kimi K3, 2026-10-04: a line under "Undo" read as a link). */
+.ring {
+  flex: none;
+  transform: rotate(-90deg);
+}
+.ringTrack,
+.ringLeft {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.ringTrack {
+  opacity: 0.2;
+}
+.ringLeft {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: weigh-undo-drain var(--undo-window, 8000ms) linear forwards;
+}
+@keyframes weigh-undo-drain {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1; }
+}
+
+.close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringLeft { animation: none; }
+}

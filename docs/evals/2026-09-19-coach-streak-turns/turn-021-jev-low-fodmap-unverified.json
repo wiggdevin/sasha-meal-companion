@@ -1,0 +1,211 @@
+{
+  "generatedAt": "2026-10-03T20:44:43.512Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 21,
+  "case": {
+    "id": "jev-low-fodmap-unverified",
+    "category": "jev",
+    "sentence": "make a recipe from mystery broth, rice, and chicken",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "unverified_recipe",
+      "preference": "low_fodmap"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 30424,
+    "actions": [],
+    "blocks": [
+      "recipe_results"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "f05376b3-dacf-479b-86fd-bff969c48eee",
+        "kind": "recipe_results",
+        "recipes": [],
+        "limitations": [
+          "Shared recipe discovery is not available for this account yet."
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "That took too long and I stopped. Ask me again.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "suggest_options",
+            "result": {
+              "ok": true,
+              "block": "recipe_results",
+              "recipes": [],
+              "limitations": [
+                "Shared recipe discovery is not available for this account yet."
+              ]
+            }
+          }
+        ],
+        "blocks": [
+          {
+            "v": 1,
+            "id": "f05376b3-dacf-479b-86fd-bff969c48eee",
+            "kind": "recipe_results",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ],
+        "actions": [],
+        "composed": [],
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [
+        {
+          "v": 1,
+          "id": "f05376b3-dacf-479b-86fd-bff969c48eee",
+          "kind": "recipe_results",
+          "recipes": [],
+          "limitations": [
+            "Shared recipe discovery is not available for this account yet."
+          ]
+        }
+      ],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-intent",
+        "coach",
+        "coach",
+        "coach"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 30424 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"That took too long and I stopped. Ask me again.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected []; got [recipe_results]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "Jev persisted recipe excludes unverified food",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted Not verified low-FODMAP copy",
+      "passed": false,
+      "detail": "That took too long and I stopped. Ask me again."
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "b2d0c7d9-8679-4481-a172-137fbe28bb19",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.8-flash",
+      "fellBackBecause": "capacity"
+    },
+    "timings": {
+      "intent": 475,
+      "model": 29125,
+      "ground": 1
+    },
+    "messages": [
+      {
+        "id": "aef4c092-c0f1-4e25-9e5b-152378e557c6",
+        "role": "user",
+        "content": "make a recipe from mystery broth, rice, and chicken",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "60ed65a1-68b3-449e-9f6a-99deb8e89477",
+        "role": "assistant",
+        "content": "That took too long and I stopped. Ask me again.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "recipe_results",
+            "v": 1,
+            "id": "f05376b3-dacf-479b-86fd-bff969c48eee",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

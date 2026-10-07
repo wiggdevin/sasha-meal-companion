@@ -1,0 +1,250 @@
+/** Code builds and sizes suggestion candidates; Jev only ranks the policy-clean set. */
+
+import { suggestPayload } from "@/lib/ai/payloads";
+import { systemOne as callSystemOne } from "@/lib/ai/typesafe";
+import { NOTHING_LEFT, type ComposePorts, type ComposedMeal } from "@/lib/coach/compose";
+import type { MealMacros } from "@/lib/coach/compose-size";
+import type { MealClockPorts } from "@/lib/coach/meal-type";
+import { buildCandidates, fitScore, NO_SAVED_FOODS, NO_TARGET, type SuggestionCandidate }
+  from "@/lib/coach/suggest-candidates";
+import {
+  asksForNoCook, filterSuggestionCandidates, loadSuggestionEvidence,
+  type SuggestionEvidencePort,
+} from "@/lib/coach/suggest-policy";
+import {
+  rankCandidates, rankingState, suggestionRank, type JevAnswers, type JevPort,
+}
+  from "@/lib/coach/suggest-rank";
+import {
+  LABELS_HIDDEN_MESSAGE, NOTHING_LEFT_MESSAGE, NO_MEAL_FIT_MESSAGE, NO_SAVED_FOODS_MESSAGE,
+  NO_SNACK_FIT_MESSAGE, NO_TARGET_SUGGEST_MESSAGE, REQUIRES_PREPARATION_MESSAGE,
+  RULE_REVIEW_SUGGEST_MESSAGE, SUGGEST_TIMEOUT_MESSAGE,
+} from "@/lib/coach/suggest-messages";
+import type { FoodHit, SuggestInput } from "@/lib/coach/executors";
+import type { ConstraintProfile } from "@/lib/policy/constraints";
+import { profileRuleFacets } from "@/lib/policy/profiles/account-rules";
+import { BY_APP, byJev } from "@/lib/provenance";
+
+export type { SuggestInput } from "@/lib/coach/executors";
+export { fitScore, suggestionRank };
+
+/**
+ * `slotClock` / `timeOfDay` (MealClockPorts) say which meal a card is for; lib/server/coach-ports.ts
+ * supplies both.
+ */
+export type SuggestPorts = ComposePorts & MealClockPorts & {
+  userId: string;
+  profile: ConstraintProfile;
+  /**
+   * The account's own food with exactly this name, or null (2026-10-02). An Eats name is theirs:
+   * the build takes it here and searches the catalog only on a miss — a search cost ~27 database
+   * requests, and ~100 of them per build missed the 5 s budget whenever the database was busy.
+   */
+  ownFood?: (userId: string, name: string, signal?: AbortSignal) => Promise<FoodHit | null>;
+  /**
+   * What one option is sized to. `null` means this day has no target — no revision yet, or one not
+   * effective on the turn's own date (lib/server/coach-ports.ts). A missing target is a fact to say
+   * out loud, never a reason to throw and never a number to invent: before this, that throw became
+   * "I couldn't build those suggestions right now" on a brand-new account.
+   */
+  target: (input: SuggestInput) => Promise<MealMacros | null>;
+  systemOne?: JevPort;
+  suggestionEvidence?: SuggestionEvidencePort;
+  pendingSlots?: () => Promise<{ slot: string; label: string }[]>;
+  /**
+   * The names a card may anchor on, in the order to try them: the account's protein marks first,
+   * then foods with no role. Absent, the Eats list is walked as it comes (2026-10-02: it ran out of
+   * budget searching non-proteins alphabetically before ever reaching "Chicken breast").
+   */
+  eatsAnchors?: (userId: string) => Promise<string[]>;
+  /**
+   * True while the account's inherited food rules await their one-time review (spec phase 15 R14).
+   * Generated suggestions wait for that review, as Today's generated meals and swaps already do.
+   * Takes `userId` explicitly, like every other port here (`ownFood`, `eatsNames`), rather than
+   * closing over one, and the same signal the rest of this build respects — a profile re-read sol
+   * found running unbounded ahead of `SUGGEST_BUDGET_MS` (2026-10-03 audit, finding #4).
+   */
+  ruleReviewRequired?: (userId: string, signal?: AbortSignal) => Promise<boolean>;
+};
+
+export const SUGGEST_BUDGET_MS = 8_000;
+/**
+ * Candidate building stops here and keeps what it has, leaving the rest of the budget for the
+ * evidence check and the Jev ranking. Before this, a long Eats list spent all 8 s searching and
+ * the cards it had already built were dropped with the retry line (production, 2026-09-29/30).
+ */
+export const SUGGEST_BUILD_BUDGET_MS = 5_000;
+export type SuggestionResult = ComposedMeal[] & { partial?: true; message?: string };
+
+/** Generate up to twelve safe candidates, then rank all of them in one System One request. */
+export async function suggestOptions<T extends SuggestPorts>(
+  input: SuggestInput,
+  ports: T,
+): Promise<SuggestionResult> {
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const buildController = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, SUGGEST_BUDGET_MS);
+  const buildTimer = setTimeout(() => buildController.abort(), SUGGEST_BUILD_BUDGET_MS);
+  const signal = controller.signal;
+  try {
+    // Raced through `abortable`, like every other signal-bounded read below: a port that
+    // ignores `signal` (or whose transport just doesn't honor an abort promptly) must not be
+    // able to hang this call past the suggest budget (round-4 audit, Codex MAJOR).
+    const ruleReview = ports.ruleReviewRequired
+      ? abortable(ports.ruleReviewRequired(ports.userId, signal), signal)
+      : Promise.resolve(false);
+    if (await ruleReview) {
+      return messageResult(RULE_REVIEW_SUGGEST_MESSAGE);
+    }
+    const built = await buildCandidates(input, ports, buildController.signal, abortable, isAbort);
+    if (built === NOTHING_LEFT) return nothingLeftResult();
+    if (built === NO_SAVED_FOODS) return messageResult(NO_SAVED_FOODS_MESSAGE);
+    if (built === NO_TARGET) return messageResult(NO_TARGET_SUGGEST_MESSAGE);
+    const { requested, pendingSlots } = built;
+    const needsNoCook = asksForNoCook(input.wish);
+    const evidencePort = ports.suggestionEvidence ?? loadSuggestionEvidence;
+    const evidence = await abortable(evidencePort(ports.userId,
+      built.candidates.flatMap((candidate) => candidate.meal.items),
+      { needsNoCook, facets: profileRuleFacets(ports.profile.profileRules) }), signal);
+    const filtered = filterSuggestionCandidates(
+      built.candidates, evidence, ports.profile, needsNoCook,
+    );
+    const candidates = filtered.candidates;
+    const withSlots = (meal: ComposedMeal): ComposedMeal => ({
+      ...meal,
+      ...(pendingSlots ? { pendingSlots } : {}),
+    });
+    const fitOrdered = fallbackCards(candidates, requested, withSlots);
+    // Unchecked labels that hid every food are the reason there are no cards, even when the build
+    // also ran out of time: telling the person "I ran out of time" sent them to retry a request that
+    // could never succeed (production Plan sheet, 2026-10-01).
+    if (candidates.length === 0 && filtered.unverified + built.hiddenUnverified > 0
+      && !(needsNoCook && filtered.requiresPreparation > 0)) {
+      return messageResult(LABELS_HIDDEN_MESSAGE);
+    }
+    if (timedOut || (built.interrupted && candidates.length === 0)) return partialResult(fitOrdered);
+    if (candidates.length === 0) {
+      if (needsNoCook && filtered.requiresPreparation > 0) {
+        return messageResult(REQUIRES_PREPARATION_MESSAGE);
+      }
+      if (filtered.unverified + built.hiddenUnverified > 0) {
+        return messageResult(LABELS_HIDDEN_MESSAGE);
+      }
+      // 2026-10-02 DeepSeek audit (MED, finding #3): every remaining branch above already says why
+      // there are no cards (preparation, hidden labels); a food blocked outright by the account's
+      // own rules is the one case that fell through to a bare, message-less empty array.
+      return messageResult(input.kind === "snack" ? NO_SNACK_FIT_MESSAGE : NO_MEAL_FIT_MESSAGE);
+    }
+
+    const state = rankingState(input, candidates, pendingSlots);
+    const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
+    const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
+    let answers: JevAnswers | null = null;
+    try {
+      answers = await abortable(ask(suggestPayload(state, input.kind), {
+        userId: ports.userId, deadlineMs: remainingMs, signal,
+      }), signal);
+    } catch (error) {
+      if (!isAbort(error)) throw error;
+    }
+    if (timedOut) return partialResult(fitOrdered);
+    const selected = rankCandidates(candidates, answers, input.kind)
+      .slice(0, requested).map(({ candidate, reason, jevRanked }) => ({
+        ...withSlots(candidate.meal),
+        rankNote: reason,
+        provenance: jevRanked ? byJev("suggest-options") : BY_APP,
+      }));
+    if (built.interrupted && selected.length < requested) return partialResult(selected);
+    if (selected.length === 0) {
+      // Jev rejected every built candidate. A note mapped over an empty list is lost, and the
+      // caller then falls back to "no calories left", which is not why there are no cards.
+      if (filtered.unverified + built.hiddenUnverified > 0) return messageResult(LABELS_HIDDEN_MESSAGE);
+      return messageResult(input.kind === "snack" ? NO_SNACK_FIT_MESSAGE : NO_MEAL_FIT_MESSAGE);
+    }
+    if (selected.length < requested) {
+      // §5: the verified alternatives it has, and one line when unchecked labels hid the rest.
+      const note = filtered.unverified + built.hiddenUnverified > 0 ? LABELS_HIDDEN_MESSAGE
+        : `${selected.length} of ${requested} fit your remaining macros`;
+      return selected.map((meal, index) => index === 0
+        ? { ...meal, shortfallNote: note }
+        : meal);
+    }
+    return selected as SuggestionResult;
+  } catch (error) {
+    if (isAbort(error) || timedOut) return partialResult([]);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    clearTimeout(buildTimer);
+  }
+}
+
+function fallbackCards(
+  candidates: readonly SuggestionCandidate[],
+  requested: number,
+  withSlots: (meal: ComposedMeal) => ComposedMeal,
+): ComposedMeal[] {
+  return [...candidates]
+    .sort((a, b) => b.fit - a.fit || a.index - b.index)
+    .slice(0, requested)
+    .map(({ meal, fit }) => ({ ...withSlots(meal), rankNote: `fits ${Math.round(fit * 100)} %`,
+      provenance: BY_APP }));
+}
+
+function nothingLeftResult(): ComposedMeal[] {
+  return messageResult(NOTHING_LEFT_MESSAGE);
+}
+
+function messageResult(message: string): ComposedMeal[] {
+  const cards = [] as ComposedMeal[] & { message?: string };
+  Object.defineProperty(cards, "message", { value: message });
+  Object.defineProperty(cards, "toJSON", {
+    value: () => ({ cards: [], message }),
+  });
+  return cards;
+}
+
+function partialResult(cards: ComposedMeal[]): SuggestionResult {
+  const message = cards.length === 0
+    ? SUGGEST_TIMEOUT_MESSAGE
+    : `Here are the ${cards.length} I could build in time — ask again for more.`;
+  const result = cards.map((meal, index) => index === 0
+    ? { ...meal, shortfallNote: message }
+    : meal) as SuggestionResult;
+  result.partial = true;
+  result.message = message;
+  Object.defineProperty(result, "toJSON", {
+    value: () => ({ cards: [...result], partial: true, message }),
+  });
+  return result;
+}
+
+function abortError(): Error {
+  const error = new Error("suggestion budget expired");
+  error.name = "AbortError";
+  return error;
+}
+
+function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then((value) => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(value);
+    }, (error: unknown) => {
+      signal.removeEventListener("abort", onAbort);
+      reject(error);
+    });
+  });
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "name": "automatic-review",
+    "main": "Review recording",
+    "text": "For tomorrow: a packed lunch",
+    "sent": [
+      "Please note: I had lunch."
+    ],
+    "status": "1Password menu is available. Press down arrow to select.",
+    "overflow": false
+  },
+  {
+    "name": "acknowledged",
+    "main": "Send",
+    "text": "For tomorrow: a packed lunch",
+    "sent": [
+      "Please note: I had lunch."
+    ],
+    "status": "1Password menu is available. Press down arrow to select.",
+    "overflow": false
+  },
+  {
+    "name": "shift-enter",
+    "main": "Record message",
+    "text": "Keyboard draft\n",
+    "sent": [
+      "Please note: I had lunch.",
+      "For tomorrow: a packed lunch"
+    ],
+    "status": "1Password menu is available. Press down arrow to select.",
+    "overflow": false
+  },
+  {
+    "name": "enter-sent",
+    "main": "Record message",
+    "text": "",
+    "sent": [
+      "Please note: I had lunch.",
+      "For tomorrow: a packed lunch",
+      "Keyboard draft\n"
+    ],
+    "status": "1Password menu is available. Press down arrow to select.",
+    "overflow": false
+  },
+  {
+    "name": "synthetic-permission-error",
+    "main": "Review recording",
+    "text": "Keep my typed draft",
+    "sent": [
+      "Please note: I had lunch.",
+      "For tomorrow: a packed lunch",
+      "Keyboard draft\n"
+    ],
+    "status": "Microphone access is off. Allow it in Settings, then try again.",
+    "overflow": false
+  }
+]

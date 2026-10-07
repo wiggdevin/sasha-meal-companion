@@ -1,0 +1,236 @@
+{
+  "generatedAt": "2026-09-20T15:17:59.913Z",
+  "branch": "meals-2-2026-09-20",
+  "seed": "20260919",
+  "turn": 3,
+  "case": {
+    "id": "meals-p3-next-tuesday-lunch",
+    "category": "meals",
+    "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+    "expected_path": "llm",
+    "note": "P3: one set_slot_meal for meal-2 with title Grilled chicken & rice",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5398,
+    "actions": [
+      "set_slot_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.08,
+      "verifier": "jev"
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [set_slot_meal]; got [set_slot_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5398 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.08"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Changed lunch on Tuesday, September 22 to grilled chicken breast (85 g) and white rice (160 g).\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": true,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":\"set_slot_meal\"}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": true,
+      "detail": "{\"expected\":\"meal-2\",\"actual\":\"meal-2\"}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": true,
+      "detail": "{\"expected\":\"Grilled chicken & rice\",\"actual\":\"Grilled chicken & rice\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": true,
+      "detail": "{\"expected\":[\"2026-09-22\"],\"actual\":[\"2026-09-22\"]}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": true,
+      "detail": "{\"expected\":{\"min\":250,\"max\":450},\"actual\":348}"
+    },
+    {
+      "name": "C9 phone-side materialization",
+      "passed": true,
+      "detail": "{\"dates\":1,\"title\":\"Grilled chicken & rice\",\"slot\":\"meal-2\"}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "dc3db7ad-93b0-4eaa-8d26-0534acff1c60",
+    "suggestions": [
+      {
+        "foodRefId": "7aa312a3-22fc-455c-bb9e-0b61b606afef",
+        "name": "Chicken breast, grilled",
+        "grams": 85,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": "30fc24ad-fe65-420b-ac5f-50579882064f",
+        "name": "Rice, white, cooked",
+        "grams": 160,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-22",
+        "through": "2026-09-22",
+        "slot": "meal-2",
+        "title": "Grilled chicken & rice",
+        "items": [
+          {
+            "name": "Chicken breast, grilled",
+            "foodRefId": "e45e3413-be92-41da-b822-101bae4d8d07",
+            "catalogFoodRevisionId": 131,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "allowed",
+            "grams": 85
+          },
+          {
+            "name": "Rice, white, cooked",
+            "foodRefId": "0dafa70c-6669-461b-b027-103d00d76303",
+            "catalogFoodRevisionId": 143,
+            "kcalPer100g": 130,
+            "proteinPer100g": 2.7,
+            "carbsPer100g": 28,
+            "fatPer100g": 0.3,
+            "verdict": "allowed",
+            "grams": 160
+          }
+        ],
+        "actionId": "11a7d2bd-c6cb-4187-b1d1-76f407bce926",
+        "flagged": [],
+        "date": "2026-09-22",
+        "dates": [
+          "2026-09-22"
+        ]
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 193,
+      "model": 5094,
+      "ground": 26
+    },
+    "messages": [
+      {
+        "id": "f623f6b7-69c4-4990-9f05-310e1fc6eab3",
+        "role": "user",
+        "content": "Change next Tuesday's lunch to grilled chicken and rice.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "f78a811e-cf14-4cb4-9a66-521ff3d93a48",
+        "role": "assistant",
+        "content": "Changed lunch on Tuesday, September 22 to grilled chicken breast (85 g) and white rice (160 g).",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "11a7d2bd-c6cb-4187-b1d1-76f407bce926",
+            "flagged": [],
+            "kind": "set_slot_meal",
+            "date": "2026-09-22",
+            "from": "2026-09-22",
+            "through": "2026-09-22",
+            "dates": [
+              "2026-09-22"
+            ],
+            "title": "Grilled chicken & rice",
+            "slot": "meal-2",
+            "items": [
+              {
+                "name": "Chicken breast, grilled",
+                "foodRefId": "e45e3413-be92-41da-b822-101bae4d8d07",
+                "catalogFoodRevisionId": 131,
+                "kcalPer100g": 165,
+                "proteinPer100g": 31,
+                "carbsPer100g": 0,
+                "fatPer100g": 3.6,
+                "verdict": "allowed",
+                "grams": 85
+              },
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "0dafa70c-6669-461b-b027-103d00d76303",
+                "catalogFoodRevisionId": 143,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "allowed",
+                "grams": 160
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

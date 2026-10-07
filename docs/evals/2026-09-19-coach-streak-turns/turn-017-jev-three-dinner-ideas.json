@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-03T20:41:09.367Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 17,
+  "caseId": "jev-three-dinner-ideas",
+  "sentence": "give me three dinner ideas that fit my preferences",
+  "passed": false,
+  "error": "HttpError: Sasha is unavailable right now. Try again in a minute."
+}

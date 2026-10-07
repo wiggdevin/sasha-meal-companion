@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-10-03T21:01:01.479Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 36,
+  "case": {
+    "id": "question-food-left",
+    "category": "no_action",
+    "sentence": "what do I have left to eat today?",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 21504,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.05,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": false,
+      "detail": "expected < 15000 ms; got 21504 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.05"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"You have 1,473 kcal left today: 112 g protein, 93 g carbs, and 61 g fat.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "eac6d3f7-2a24-4921-8c53-f85fd2412665",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 538,
+      "model": 19385,
+      "ground": 13
+    },
+    "messages": [
+      {
+        "id": "7f442406-f8a9-4a77-943a-bc9961992e64",
+        "role": "user",
+        "content": "what do I have left to eat today?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "5b6da414-8b70-42c3-989e-b79fd23fe125",
+        "role": "assistant",
+        "content": "You have 1,473 kcal left today: 112 g protein, 93 g carbs, and 61 g fat.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

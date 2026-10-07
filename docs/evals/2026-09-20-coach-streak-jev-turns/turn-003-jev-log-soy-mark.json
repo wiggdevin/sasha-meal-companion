@@ -1,0 +1,392 @@
+{
+  "generatedAt": "2026-09-20T08:10:33.101Z",
+  "branch": "chat-first-2026-09-19",
+  "seed": "20260919",
+  "turn": 3,
+  "case": {
+    "id": "jev-log-soy-mark",
+    "category": "jev",
+    "sentence": "log 100 g of smoked tofu for lunch",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "logged_facet_mark",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 7659,
+    "actions": [
+      "log_meal"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.05,
+      "verifier": "jev"
+    },
+    "jev": {
+      "assistantContent": "Logged 100 g of smoked tofu for lunch.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "search_foods"
+          }
+        ],
+        "blocks": [],
+        "actions": [
+          {
+            "date": "2026-09-20",
+            "kind": "log_meal",
+            "slot": "meal-2",
+            "items": [
+              {
+                "name": "Smoked tofu",
+                "grams": 100,
+                "sanity": {
+                  "status": "pending",
+                  "warnings": []
+                },
+                "verdict": "unverified",
+                "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+                "fatPer100g": 9,
+                "kcalPer100g": 170,
+                "carbsPer100g": 3,
+                "proteinPer100g": 19,
+                "catalogFoodRevisionId": 467
+              }
+            ],
+            "flagged": [],
+            "actionId": "cc5a05f2-cd80-4920-8a61-e20087fb4c00"
+          }
+        ],
+        "composed": [],
+        "suggestions": [
+          {
+            "name": "Smoked tofu",
+            "grams": 100,
+            "reason": null,
+            "verdict": "unverified",
+            "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "date": "2026-09-20",
+          "kind": "log_meal",
+          "slot": "meal-2",
+          "items": [
+            {
+              "name": "Smoked tofu",
+              "grams": 100,
+              "sanity": {
+                "status": "pending",
+                "warnings": []
+              },
+              "verdict": "unverified",
+              "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+              "fatPer100g": 9,
+              "kcalPer100g": 170,
+              "carbsPer100g": 3,
+              "proteinPer100g": 19,
+              "catalogFoodRevisionId": 467
+            }
+          ],
+          "flagged": [],
+          "actionId": "cc5a05f2-cd80-4920-8a61-e20087fb4c00"
+        }
+      ],
+      "blocks": [],
+      "commit": {
+        "status": "ok",
+        "entry_id": "762230b4-151d-4e17-8c29-187a44bdd9c8",
+        "rev": 1,
+        "items": [
+          {
+            "id": "380e3fb5-b461-4fe1-92dd-f288d2f5ee04",
+            "entry_id": "762230b4-151d-4e17-8c29-187a44bdd9c8",
+            "seq": 1,
+            "food_ref_id": "69bde986-e332-46db-99d4-643c02b7ffbb",
+            "qty": 100,
+            "unit": "g",
+            "grams": 100,
+            "portion_id": null,
+            "food_revision_id": 467,
+            "was_edited": false,
+            "confidence": null,
+            "snapshot": {
+              "protein": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 19,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              },
+              "fat_total": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 9,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              },
+              "energy_kcal": {
+                "unit": "kcal",
+                "basis": "per_100g",
+                "amount": 170,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              },
+              "carbohydrate": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 3,
+                "source": "fdc_branded",
+                "revision_id": 467,
+                "source_version": "coach-streak-1"
+              }
+            }
+          }
+        ],
+        "totals": {
+          "local_date": "2026-09-20",
+          "nutrients": [
+            {
+              "code": "energy_kcal_calc",
+              "amount": 420,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "protein",
+              "amount": 37,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "carbohydrate",
+              "amount": 75,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "energy_kcal",
+              "amount": 170,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "fat_total",
+              "amount": 17,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            }
+          ],
+          "micro_coverage_pct": 0
+        }
+      },
+      "logEntry": {
+        "id": "762230b4-151d-4e17-8c29-187a44bdd9c8",
+        "grams": [
+          100
+        ]
+      },
+      "rankingPurposes": [
+        "coach-intent",
+        "coach",
+        "coach",
+        "log_sanity"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_meal]; got [log_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 7659 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.05"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 100 g of smoked tofu for lunch.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted soy verdict",
+      "passed": false,
+      "detail": "{\"date\":\"2026-09-20\",\"kind\":\"log_meal\",\"slot\":\"meal-2\",\"items\":[{\"name\":\"Smoked tofu\",\"grams\":100,\"sanity\":{\"status\":\"pending\",\"warnings\":[]},\"verdict\":\"unverified\",\"foodRefId\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"fatPer100g\":9,\"kcalPer100g\":170,\"carbsPer100g\":3,\"proteinPer100g\":19,\"catalogFoodRevisionId\":467}],\"flagged\":[],\"actionId\":\"cc5a05f2-cd80-4920-8a61-e20087fb4c00\"}"
+    },
+    {
+      "name": "Jev persisted soy reply mark",
+      "passed": false,
+      "detail": "Logged 100 g of smoked tofu for lunch."
+    },
+    {
+      "name": "Jev soy log committed",
+      "passed": true,
+      "detail": "{\"status\":\"ok\",\"entry_id\":\"762230b4-151d-4e17-8c29-187a44bdd9c8\",\"rev\":1,\"items\":[{\"id\":\"380e3fb5-b461-4fe1-92dd-f288d2f5ee04\",\"entry_id\":\"762230b4-151d-4e17-8c29-187a44bdd9c8\",\"seq\":1,\"food_ref_id\":\"69bde986-e332-46db-99d4-643c02b7ffbb\",\"qty\":100,\"unit\":\"g\",\"grams\":100,\"portion_id\":null,\"food_revision_id\":467,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":19,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":9,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":170,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":3,\"source\":\"fdc_branded\",\"revision_id\":467,\"source_version\":\"coach-streak-1\"}}}],\"totals\":{\"local_date\":\"2026-09-20\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":37,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":75,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":170,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"fat_total\",\"amount\":17,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0}}"
+    },
+    {
+      "name": "Jev commit carries soy facet mark",
+      "passed": false,
+      "detail": "[]"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "1086c158-0234-4951-919c-e384a9dbda03",
+    "suggestions": [
+      {
+        "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+        "name": "Smoked tofu",
+        "grams": 100,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [
+      {
+        "date": "2026-09-20",
+        "kind": "log_meal",
+        "slot": "meal-2",
+        "items": [
+          {
+            "name": "Smoked tofu",
+            "grams": 100,
+            "sanity": {
+              "status": "pending",
+              "warnings": []
+            },
+            "verdict": "unverified",
+            "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+            "fatPer100g": 9,
+            "kcalPer100g": 170,
+            "carbsPer100g": 3,
+            "proteinPer100g": 19,
+            "catalogFoodRevisionId": 467
+          }
+        ],
+        "flagged": [],
+        "actionId": "cc5a05f2-cd80-4920-8a61-e20087fb4c00"
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "gemini",
+      "modelId": "gemini-3.6-flash"
+    },
+    "timings": {
+      "intent": 501,
+      "model": 5248,
+      "ground": 444
+    },
+    "messages": [
+      {
+        "id": "398d2e9a-3fdc-448b-9ba8-a3dbd04204b0",
+        "role": "user",
+        "content": "log 100 g of smoked tofu for lunch",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "4ed0bc2c-5c32-426d-a320-9509e2e5fb70",
+        "role": "assistant",
+        "content": "Logged 100 g of smoked tofu for lunch.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "cc5a05f2-cd80-4920-8a61-e20087fb4c00",
+            "flagged": [],
+            "kind": "log_meal",
+            "date": "2026-09-20",
+            "slot": "meal-2",
+            "items": [
+              {
+                "name": "Smoked tofu",
+                "foodRefId": "69bde986-e332-46db-99d4-643c02b7ffbb",
+                "catalogFoodRevisionId": 467,
+                "kcalPer100g": 170,
+                "proteinPer100g": 19,
+                "carbsPer100g": 3,
+                "fatPer100g": 9,
+                "verdict": "unverified",
+                "grams": 100,
+                "sanity": {
+                  "status": "pending",
+                  "warnings": []
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

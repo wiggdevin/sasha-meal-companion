@@ -1,0 +1,42 @@
+Local note migration proof — 2026-09-27
+
+Scope: Docker container supabase_db_meal-companion, verified running with host port 54322.
+Role: supabase_admin. Disposable clone: sasha_recipe_release_verify_1520.
+Working LOCAL database: postgres. No production database was accessed.
+Existing local backup: /Users/zero-suminc./Backups/sasha/local-foods-annotations-20260927/pre-custom-rules.dump (1,211,595 bytes).
+
+Exact sources:
+  forward supabase/migrations/20261204090000_food_note_sync.sql
+  SHA-256 85686f837109b140124638878c53c97bce43de8faddfcc2162de1637bfcdbc35
+  down supabase/migrations/down/20261204090000_food_note_sync.down.sql
+  SHA-256 83a067add0996c2fafcd4af3becc3d166c4badc5264145446dd16125e8abbf91
+  existing synthetic proof work/note-db-proof.sql
+  SHA-256 88e62e4c7beb42b3501409572fc5ec5d9b5ea37a3ecac80b5687e659c9cc2a60
+  extra grant/overwrite proof work/note-final-guard-proof.sql
+  SHA-256 d554d738d42182c7b63cc11b9461093efcf3ae4499200f81b862ce82033aa167
+
+Clone replay:
+  Before: old note migration present; food_note_authority row count 0.
+  Down: psql -v ON_ERROR_STOP=1, exit 0; BEGIN, ACCESS EXCLUSIVE LOCK, SET LOCAL
+    row_security=off, guarded DO, prior membership function restored, new function and table
+    dropped, COMMIT. Absence of function and table verified.
+  Final forward: psql --single-transaction -v ON_ERROR_STOP=1, exit 0; CREATE TABLE,
+    ALTER TABLE, REVOKE, CREATE FUNCTION, REVOKE, GRANT, CREATE FUNCTION, REVOKE, GRANT.
+  Existing proof: exit 0 and ROLLBACK. PASS trim/save; no invented membership revision;
+    clear; stale CAS refusal; legacy queued note replay fence; later deliberate note;
+    idempotent retry without duplicate change_log rows; complete sync row; cross-owner refusal.
+  Extra proof: exit 0 and ROLLBACK. PASS no anon/authenticated table privilege; with an
+    explicit note authority marker, both active and neutral membership changes leave a newer
+    user_foods.note and its rev untouched and emit no user_foods change. Synthetic fixture
+    changes did not persist.
+
+Working LOCAL apply:
+  Before: note authority table and save_food_note function absent; backup present.
+  Applied exact forward source using psql --single-transaction -v ON_ERROR_STOP=1,
+    exit 0 with the same nine DDL responses as clone. Sent NOTIFY pgrst, 'reload schema'.
+  After: note authority table and save_food_note function present, authority row count 0.
+  pg_get_functiondef MD5s match clone and working LOCAL database:
+    save_food_note 3a7af9a90694e5c346be37fbf6958a36
+    set_food_membership 794da03ad4b2ae2e6d3bad03cf975d9c
+
+No production apply, commit, push, or non-synthetic data mutation was performed by this worker.

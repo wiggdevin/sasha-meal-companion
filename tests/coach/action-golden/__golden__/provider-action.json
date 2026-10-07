@@ -1,0 +1,147 @@
+{
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "log_meal",
+        "add_slot_item",
+        "remove_slot_item",
+        "set_slot_item",
+        "move_slot",
+        "add_to_avoid",
+        "remove_from_avoid",
+        "set_slot_meal",
+        "delete_entry",
+        "move_entry",
+        "save_recipe",
+        "shift_schedule",
+        "log_water",
+        "log_weight",
+        "update_profile",
+        "set_targets",
+        "add_to_eats",
+        "remove_from_eats",
+        "add_to_shopping_list",
+        "skip_slot",
+        "restore_slot"
+      ]
+    },
+    "date": {
+      "type": "string"
+    },
+    "from": {
+      "type": "string"
+    },
+    "through": {
+      "type": "string"
+    },
+    "weekdays": {
+      "maxItems": 7,
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "slot": {
+      "type": "string",
+      "enum": [
+        "coffee",
+        "pouches-pre",
+        "post-refuel",
+        "meal-1",
+        "meal-2",
+        "meal-3",
+        "meal-4",
+        "meal-5",
+        "meal-6",
+        "hot-chocolate",
+        "snack"
+      ]
+    },
+    "items": {
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "grams": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "grams"
+        ]
+      }
+    },
+    "item": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "grams": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "grams"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "grams": {
+      "type": "number"
+    },
+    "entryId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "numericArgs": {
+      "maxItems": 11,
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Positional numbers: shift_schedule [minutes]; log_water [ml]; log_weight [kg]; update_profile [heightCm, weightKg, birthYear, bodyFatPct, ...trainingWeekdays] with zero placeholders; set_targets [kcal, proteinG]. Use [] otherwise."
+    },
+    "stringArgs": {
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "description": "Positional strings: log_meal [at, note], using an empty at placeholder for note-only logs; move_slot [time]; move_entry [at]; shift_schedule [scope]; update_profile [sex, activityLevel, goal] with empty placeholders; set_targets [dayType]; add/remove Eats [foodRefId] only when known; add_to_shopping_list [...names] — the shopping items to add, each in the user's own words. Use [] otherwise."
+    }
+  },
+  "required": [
+    "kind",
+    "date",
+    "from",
+    "through",
+    "weekdays",
+    "title",
+    "slot",
+    "items",
+    "item",
+    "name",
+    "grams",
+    "entryId",
+    "numericArgs",
+    "stringArgs"
+  ]
+}

@@ -1,0 +1,52 @@
+name: Model freshness
+
+# Phase 13 §3.4, slice 7: lists the Gemini and Jev models the API keys can see and compares
+# them with the pins in lib/ai/lanes.ts (scripts/model-freshness.ts, lib/ai/model-freshness.ts).
+# It only ever opens or updates one tracking issue — it never changes a pin. A pin changes only
+# through a PR carrying a lane-bench report (scripts/eval/lane-bench.ts, §3.2).
+
+on:
+  schedule:
+    # 09:00 UTC every Monday.
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+# One check at a time, so two overlapping runs can never both open the tracking issue.
+concurrency:
+  group: model-freshness
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # A safe no-op until the provider secrets are added to the repo: the script skips
+      # whichever provider has no key and logs that it did, the same pattern
+      # scripts/check-migration-drift.ts uses for its own missing secrets.
+      - name: List models and compare against lib/ai/lanes.ts pins
+        run: pnpm exec tsx scripts/model-freshness.ts
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

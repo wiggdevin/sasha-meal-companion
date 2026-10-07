@@ -1,0 +1,1477 @@
+[
+  {
+    "intent": "shift_schedule",
+    "confidence": 0.96,
+    "args": {
+      "minutes": 30,
+      "direction": "later",
+      "scope": "remaining"
+    },
+    "argConfidence": {
+      "minutes": 1,
+      "direction": 0.98,
+      "scope": 0.94
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "shift_schedule",
+        "probabilities": {
+          "shift_schedule": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "shift_schedule",
+    "confidence": 0.96,
+    "args": {
+      "minutes": 60,
+      "direction": "earlier",
+      "scope": "remaining"
+    },
+    "argConfidence": {
+      "minutes": 1,
+      "direction": 0.97,
+      "scope": 0.94
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "shift_schedule",
+        "probabilities": {
+          "shift_schedule": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "earlier",
+        "probabilities": {
+          "earlier": 0.97
+        },
+        "confidence": 0.97
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "shift_schedule",
+    "confidence": 0.96,
+    "args": {
+      "minutes": 20,
+      "direction": "later",
+      "scope": "one_slot",
+      "missing": [
+        "slot"
+      ]
+    },
+    "argConfidence": {
+      "minutes": 1,
+      "direction": 0.98,
+      "scope": 0.97
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "shift_schedule",
+        "probabilities": {
+          "shift_schedule": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "one_slot",
+        "probabilities": {
+          "one_slot": 0.97
+        },
+        "confidence": 0.97
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "shift_schedule",
+    "confidence": 0.96,
+    "args": {
+      "direction": "later",
+      "scope": "remaining",
+      "missing": [
+        "minutes"
+      ]
+    },
+    "argConfidence": {
+      "direction": 0.98,
+      "scope": 0.94
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "shift_schedule",
+        "probabilities": {
+          "shift_schedule": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "shift_schedule",
+    "confidence": 0.96,
+    "args": {
+      "minutes": 30,
+      "direction": "later",
+      "scope": "remaining",
+      "missing": [
+        "minutes"
+      ]
+    },
+    "argConfidence": {
+      "minutes": 0.8,
+      "direction": 0.98,
+      "scope": 0.94
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "shift_schedule",
+        "probabilities": {
+          "shift_schedule": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "which_number": {
+        "type": "choice",
+        "choice": "30 min",
+        "probabilities": {
+          "30 min": 0.8
+        },
+        "confidence": 0.8
+      }
+    }
+  },
+  {
+    "intent": "log_water",
+    "confidence": 0.96,
+    "args": {
+      "ml": 480
+    },
+    "argConfidence": {
+      "ml": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_water",
+        "probabilities": {
+          "log_water": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_water",
+    "confidence": 0.96,
+    "args": {
+      "ml": 500
+    },
+    "argConfidence": {
+      "ml": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_water",
+        "probabilities": {
+          "log_water": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_water",
+    "confidence": 0.96,
+    "args": {
+      "ml": 473.12
+    },
+    "argConfidence": {
+      "ml": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_water",
+        "probabilities": {
+          "log_water": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_water",
+    "confidence": 0.96,
+    "args": {
+      "missing": [
+        "ml"
+      ]
+    },
+    "argConfidence": {},
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_water",
+        "probabilities": {
+          "log_water": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_water",
+    "confidence": 0.96,
+    "args": {
+      "ml": 500
+    },
+    "argConfidence": {
+      "ml": 0.95
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_water",
+        "probabilities": {
+          "log_water": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "which_number": {
+        "type": "choice",
+        "choice": "500 ml",
+        "probabilities": {
+          "500 ml": 0.95
+        },
+        "confidence": 0.95
+      }
+    }
+  },
+  {
+    "intent": "log_water",
+    "confidence": 0.96,
+    "args": {
+      "missing": [
+        "ml"
+      ]
+    },
+    "argConfidence": {},
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_water",
+        "probabilities": {
+          "log_water": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_weight",
+    "confidence": 0.96,
+    "args": {
+      "kg": 58.06
+    },
+    "argConfidence": {
+      "kg": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_weight",
+        "probabilities": {
+          "log_weight": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_weight",
+    "confidence": 0.96,
+    "args": {
+      "kg": 58
+    },
+    "argConfidence": {
+      "kg": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_weight",
+        "probabilities": {
+          "log_weight": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "log_weight",
+    "confidence": 0.96,
+    "args": {
+      "missing": [
+        "kg"
+      ]
+    },
+    "argConfidence": {},
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "log_weight",
+        "probabilities": {
+          "log_weight": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "add_to_eats",
+    "confidence": 0.96,
+    "args": {
+      "name": "salmon"
+    },
+    "argConfidence": {
+      "name": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "add_to_eats",
+        "probabilities": {
+          "add_to_eats": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "add_to_avoid",
+    "confidence": 0.96,
+    "args": {
+      "name": "cake"
+    },
+    "argConfidence": {
+      "name": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "add_to_avoid",
+        "probabilities": {
+          "add_to_avoid": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "remove_from_eats",
+    "confidence": 0.96,
+    "args": {
+      "missing": [
+        "name"
+      ]
+    },
+    "argConfidence": {},
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "remove_from_eats",
+        "probabilities": {
+          "remove_from_eats": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "remove_from_avoid",
+    "confidence": 0.96,
+    "args": {
+      "name": "watermelon"
+    },
+    "argConfidence": {
+      "name": 1
+    },
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "remove_from_avoid",
+        "probabilities": {
+          "remove_from_avoid": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "update_profile",
+    "confidence": 0.96,
+    "args": {},
+    "argConfidence": {},
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "update_profile",
+        "probabilities": {
+          "update_profile": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  },
+  {
+    "intent": "set_targets",
+    "confidence": 0.96,
+    "args": {},
+    "argConfidence": {},
+    "raw": {
+      "intent": {
+        "type": "choice",
+        "choice": "set_targets",
+        "probabilities": {
+          "set_targets": 0.96
+        },
+        "confidence": 0.96
+      },
+      "direction": {
+        "type": "choice",
+        "choice": "later",
+        "probabilities": {
+          "later": 0.98
+        },
+        "confidence": 0.98
+      },
+      "scope": {
+        "type": "choice",
+        "choice": "remaining",
+        "probabilities": {
+          "remaining": 0.94
+        },
+        "confidence": 0.94
+      },
+      "suggest_kind": {
+        "type": "choice",
+        "choice": "meal",
+        "probabilities": {
+          "meal": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_count": {
+        "type": "choice",
+        "choice": "3",
+        "probabilities": {
+          "3": 0.9
+        },
+        "confidence": 0.9
+      },
+      "suggest_slot": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.99
+        },
+        "confidence": 0.99
+      },
+      "fit_remaining": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_specific_foods": {
+        "type": "noul",
+        "noul": 0.1
+      },
+      "mentions_size": {
+        "type": "noul",
+        "noul": 0.1
+      }
+    }
+  }
+]
