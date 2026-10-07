@@ -90,8 +90,11 @@ vi.mock("@/lib/settings/date", async (importOriginal) => {
 
 vi.mock("next/image", () => ({
   // Lazy, as next/image renders without `priority`, so React adds no preload link to the markup.
-  // eslint-disable-next-line @next/next/no-img-element -- a test double for next/image itself
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} loading="lazy" />,
+  default: ({ src, alt, className, sizes, draggable }: {
+    src: string; alt: string; className?: string; sizes?: string; draggable?: boolean;
+  }) =>
+    // eslint-disable-next-line @next/next/no-img-element -- a test double for next/image itself
+    <img src={src} alt={alt} className={className} sizes={sizes} draggable={draggable} loading="lazy" />,
 }));
 
 vi.mock("@/lib/store", async (importOriginal) => {
