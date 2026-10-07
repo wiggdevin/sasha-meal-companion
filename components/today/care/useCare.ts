@@ -64,7 +64,9 @@ export function useCare(active: boolean): CareData {
   useEffect(() => {
     if (!active) return;
     let live = true;
-    void readCareShop().then((answer) => { if (live) setShop(answer === "failed" ? null : answer); });
+    // A failed read keeps what is on screen (an open shop never vanishes under a refresh); only a
+    // fold forgets it (below), so a first read that fails still shows nothing.
+    void readCareShop().then((answer) => { if (live && answer !== "failed") setShop(answer); });
     return () => { live = false; };
   }, [active, reads]);
   useEffect(() => {

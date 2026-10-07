@@ -88,7 +88,8 @@ describe("messages as notes", () => {
   });
 });
 
-const layer = () => render(<MotionConfig reducedMotion="always"><CareLayer active /></MotionConfig>);
+const layer = () => render(<MotionConfig reducedMotion="always"><button type="button">Elsewhere on Today</button>
+  <div><CareLayer active /></div></MotionConfig>);
 
 describe("CareLayer", () => {
   it("shows the Seeds chip, opens the shop over the well, and Escape hands focus back", async () => {
@@ -100,6 +101,9 @@ describe("CareLayer", () => {
     expect(document.activeElement).toBe(screen.getByRole("dialog", { name: "Sprout's shop" }));
     expect(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Jetpack/ })).toBeNull();
+    // Modal (Sol r2): nothing outside the shop takes a pointer or the keyboard while it is open.
+    const elsewhere = screen.getByText("Elsewhere on Today").closest("button")!;
+    expect(elsewhere.inert).toBe(true);
     // Tab wraps inside the shop (Sol r1): from its last stop to its first, and back with Shift.
     const dialog = screen.getByRole("dialog", { name: "Sprout's shop" });
     expect(dialog.getAttribute("aria-modal")).toBe("true");
@@ -112,6 +116,18 @@ describe("CareLayer", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sprout's shop" })).toBeNull());
     expect(document.activeElement).toBe(chip);
+    expect(elsewhere.inert).toBe(false);
+  });
+
+  it("keeps the open shop when a refresh fails (Sol r2)", async () => {
+    layer();
+    const chip = await screen.findByRole("button", { name: /Open Sprout's shop/ });
+    await act(async () => { fireEvent.click(chip); });
+    serve(() => undefined);
+    // A purchase that fails asks for a refresh; the refresh fails too.
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Bucket hat, 25 Seeds" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Buy the bucket hat for 25 Seeds" })); });
+    expect(screen.getByRole("dialog", { name: "Sprout's shop" })).toBeTruthy();
   });
 
   it("reads points before the shop, so the shop carries the settled balance (Sol r1)", async () => {
