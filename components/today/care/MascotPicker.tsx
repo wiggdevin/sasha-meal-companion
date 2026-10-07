@@ -48,7 +48,8 @@ export default function MascotPicker({ value, onChange }: {
     <ul className={styles.row} aria-label="Companions">
       {MASCOT_KEYS.map((key) => <li key={key}>
         <button type="button" className={`tap ${styles.tile}`} aria-pressed={key === value} onClick={() => choose(key)}>
-          <SproutFigure mascot={key} mood="content" size={64} breathe={false} shadow={false} />
+          <SproutFigure mascot={key} mood="content" size={64} breathe={false} shadow={false}
+            className={styles.tileArt} />
           <span className={styles.tileName}>{MASCOTS[key].name}</span>
         </button>
       </li>)}
