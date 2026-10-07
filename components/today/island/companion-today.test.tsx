@@ -62,11 +62,12 @@ describe("the well's companion", () => {
 });
 
 describe("Settings › Your companion", () => {
-  it("syncs only the mascot field, keeps it on the phone, and tells an open well", async () => {
+  it("a companion chosen syncs only the mascot field, keeps it on the phone, and tells an open well", async () => {
     const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
     const told = vi.fn();
     window.addEventListener(MASCOT_EVENT, told);
     render(<MotionConfig reducedMotion="always"><CompanionSection settings={{ mascot: "sprout" } as never} /></MotionConfig>);
+    expect(screen.getByRole("button", { name: "Sprout" }).getAttribute("aria-pressed")).toBe("true");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Button" })); });
     expect(sync.calls[0][2]).toEqual(["mascot"]);
     expect((sync.calls[0][0] as { mascot: string }).mascot).toBe("mushroom");
@@ -75,7 +76,7 @@ describe("Settings › Your companion", () => {
     window.removeEventListener(MASCOT_EVENT, told);
   });
 
-  it("goes back to the companion the account still has when the save fails", async () => {
+  it("a save that fails goes back to the companion the account still has", async () => {
     const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
     sync.fail = true;
     render(<MotionConfig reducedMotion="always"><CompanionSection settings={{ mascot: "sprout" } as never} /></MotionConfig>);
