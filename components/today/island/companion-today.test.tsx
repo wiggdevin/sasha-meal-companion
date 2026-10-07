@@ -10,10 +10,21 @@ import SproutStage from "./Sprout";
 import { MASCOT_EVENT, useMascot, wellArt, wellPet } from "./well-pet";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 
+type Handle = { userId: string; epoch: number };
+const account = vi.hoisted(() => ({ current: { userId: "a", epoch: 1 } as Handle | null }));
+const sameAccount = (h: Handle) => account.current?.userId === h.userId && account.current.epoch === h.epoch;
+vi.mock("@/lib/device/account", async (original) => ({
+  ...(await original<typeof import("@/lib/device/account")>()),
+  currentAccountOrNull: () => account.current,
+  assertCurrent: (h: Handle) => { if (!sameAccount(h)) throw new Error("account changed"); },
+}));
 const store = vi.hoisted(() => ({ settings: { mascot: "sprout" } as Record<string, unknown> }));
 vi.mock("@/lib/store", () => ({
   loadStore: () => ({ settings: { ...store.settings } }),
-  saveStore: (next: { settings: Record<string, unknown> }) => { store.settings = { ...next.settings }; },
+  saveStoreFor: (h: Handle, next: { settings: Record<string, unknown> }) => {
+    if (!sameAccount(h)) throw new Error("account changed");
+    store.settings = { ...next.settings };
+  },
 }));
 const sync = vi.hoisted(() => ({ calls: [] as unknown[][], fail: false, gate: null as null | ((n: number) => Promise<void>) }));
 vi.mock("@/lib/coach/apply-profile", () => ({
@@ -30,7 +41,10 @@ vi.mock("@/components/settings/use-settings-write", () => ({
   }),
 }));
 
-beforeEach(() => { store.settings = { mascot: "sprout" }; sync.calls = []; sync.fail = false; sync.gate = null; });
+beforeEach(() => {
+  store.settings = { mascot: "sprout" }; sync.calls = []; sync.fail = false; sync.gate = null;
+  account.current = { userId: "a", epoch: 1 };
+});
 afterEach(cleanup);
 
 const DAY = { targets: { kcal: 2000, protein: 150, carbs: 200, fat: 70 },
@@ -113,5 +127,19 @@ describe("Settings › Your companion", () => {
     await act(async () => { release[1].go(); });
     expect(store.settings.mascot).toBe("mushroom");
     expect(screen.getByRole("button", { name: "Button" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("a choice waiting its turn when the account changes is never sent or kept for the next account", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    const release: Array<() => void> = [];
+    sync.gate = () => new Promise<void>((go) => { release.push(go); });
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Blu" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Button" })); });
+    account.current = { userId: "b", epoch: 2 };
+    await act(async () => { release[0](); });
+    expect(sync.calls).toHaveLength(1);
+    expect(sync.calls[0][1]).toEqual({ userId: "a", epoch: 1 });
+    expect(store.settings.mascot).toBe("sprout");
   });
 });
