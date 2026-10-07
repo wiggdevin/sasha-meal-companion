@@ -19,10 +19,11 @@
 --                    double-charging.
 --
 -- `care_purchase` and `care_equip` are the only writers. `care_purchase` takes the same
--- per-account `:care_points` advisory lock `care_points_sync` does, so a purchase can never race
--- an award into reading a stale balance. `care_equip` takes its own `:care_equip` lock (it never
--- reads or writes a balance, so sharing the points lock would only add needless contention; Sol
--- review NIT -- an earlier draft of this comment overclaimed a shared lock between all three).
+-- per-account `:care_points` advisory lock `care_points_sync` does, so a purchase and an award
+-- can never run concurrently and each read the other's stale balance. `care_equip` takes its own
+-- `:care_equip` lock (it never reads or writes a balance, so sharing the points lock would only
+-- add needless contention; Sol review NIT -- an earlier draft of this comment overclaimed a
+-- shared lock between all three).
 -- Nothing here trusts a price, balance or ownership claim from the caller -- every check
 -- re-reads the real rows under its own lock.
 --

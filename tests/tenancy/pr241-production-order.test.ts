@@ -37,6 +37,14 @@ const RATE_GOALS = "20261029090000_rate_goals";
 const MEAL_LAYOUT = "20261125090000_meal_layout";
 /** Phase 18 W5: extends the same sync branch after the meal-layout patch. */
 const PROFILE_SYNC = "20261217090200_profile_sync_cuisines_country";
+/**
+ * UI-NEEDS SPROUT-CARE: the mascot migration splices text into the middle of two of
+ * PROFILE_SYNC's own five anchors (the insert column list and the country_code SET clause), so
+ * it must come off before PROFILE_SYNC's down can match those anchors verbatim. Two files: the
+ * validate step (a no-op down) and the real one.
+ */
+const MASCOT = "20261225090000_user_settings_mascot";
+const MASCOT_VALIDATE = "20261225090010_user_settings_mascot_validate";
 
 const INTERNALS = [
   "_sync_current(uuid, text, text)",
@@ -79,10 +87,12 @@ function appliedState() {
     "select 'same_owner:' || exists (select 1 from pg_trigger where tgname = 'same_owner');",
     "select 'profile_sync:' || (position('cuisines' in pg_get_functiondef("
       + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)) > 0);",
+    "select 'mascot:' || (position('mascot' in pg_get_functiondef("
+      + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)) > 0);",
   ].join("\n")).split("\n");
   const flag = (key: string) => out.includes(`${key}:true`);
   return { bodyFat: flag("body_fat"), rateGoals: flag("rate_goals"), mealLayout: flag("meal_layout"), guard: flag("guard"),
-    sameOwner: flag("same_owner"), profileSync: flag("profile_sync") };
+    sameOwner: flag("same_owner"), profileSync: flag("profile_sync"), mascot: flag("mascot") };
 }
 
 describe.skipIf(!(HAS_DB && HAS_BRANCH))("PR #241 applied in production order, after PR #249 and #250", () => {
@@ -94,6 +104,8 @@ describe.skipIf(!(HAS_DB && HAS_BRANCH))("PR #241 applied in production order, a
     const stepBack = [
       // A later layout patch extends the same sync branch. Remove it before replaying the older
       // anchored migrations; the outer transaction restores the installed schema on rollback.
+      state.mascot ? down(MASCOT_VALIDATE) : "",
+      state.mascot ? down(MASCOT) : "",
       state.profileSync ? down(PROFILE_SYNC) : "",
       state.mealLayout ? down(MEAL_LAYOUT) : "",
       state.sameOwner ? down(SAME_OWNER) : "",
@@ -220,6 +232,8 @@ describe.skipIf(!(HAS_DB && HAS_BRANCH))("PR #241 applied in production order, a
     const out = runSql([
       "begin;",
       "set local app.allow_down_data_loss = 'on';",
+      state.mascot ? down(MASCOT_VALIDATE) : "",
+      state.mascot ? down(MASCOT) : "",
       state.profileSync ? down(PROFILE_SYNC) : "",
       state.mealLayout ? down(MEAL_LAYOUT) : "",
       state.sameOwner ? down(SAME_OWNER) : "",

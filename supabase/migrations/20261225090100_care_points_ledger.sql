@@ -12,8 +12,8 @@
 --                        time, 'settled' once it has, 'reversed' for a correction row (negative
 --                        delta, `reverses` the settled row it undoes). The spendable balance is
 --                        the settled-row sum; `care_purchase` (20261225090200) debits it under the
---                        same per-account advisory lock `care_points_sync` takes, so purchase and
---                        award can never race into a negative balance.
+--                        same per-account advisory lock `care_points_sync` takes, so a concurrent
+--                        purchase and award can never together push the balance negative.
 --
 -- Known approximations, flagged rather than silently guessed (owner may tune, per the brief):
 --   - "protein target reached" compares `daily_totals` (protein_g, already the app's own rollup)
