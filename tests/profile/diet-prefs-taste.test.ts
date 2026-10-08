@@ -216,6 +216,8 @@ describe("diet_prefs inventory", () => {
     "components/settings/CuisinesSection.tsx": "reader",
     "components/MyFoods.rule-marks.ts": "reader",
     "components/ShoppingRoot.tsx": "reader",
+    // Passes settings.dietPrefs to currentEligibleView to judge a heart's Favored marks.
+    "lib/favorite-meals-client.ts": "reader",
   };
 
   function sources(dir: string): string[] {
