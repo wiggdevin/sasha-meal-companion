@@ -306,8 +306,16 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   retry can never re-open an account a person already decided about. It then answers 200 with the
   account's own world, and the phone clears the intent on `closed` as well as `open`. An explicit
   Settings POST (no `intent`) always applies and restamps. The legacy zero-food auto-seed
-  (`lib/foods/today-starter.ts`) runs only on an affirmative `closed` read with no pending open
-  intent on the device; an open account, a failed read or a pending intent seeds nothing.
+  (`lib/foods/today-starter.ts`) is the SERVER's decision, so every device agrees: it runs only on
+  `GET /api/foods/world` answering `{ world: "closed", starterSeed: true }`
+  (`readFoodWorldState`). The same migration adds `food_world_default_due_at`, which a trigger
+  stamps in the write that first sets `onboarded_at` (and, like `food_world_set_at`, refuses from
+  the signed-in user); an account with that stamp, no `food_world_set_at`, still closed and
+  openable (released, not held, no unconfirmed condition) is `openDefaultPending` and never
+  seeds on any device — and a device that reads it takes the open default over. A legacy account
+  (no stamp), an explicit closed choice, or a default that can never open the account by policy
+  seeds as the closed world always did; an open account, a row the server has not onboarded, a
+  failed or partial read seeds nothing.
   An existing account keeps its Eats marks as Favored marks, unchanged, when it opts in —
   `POST /api/foods/world` never writes `user_food_prefs`. A held account
   (`OPEN_WORLD_HOLD_USER_IDS`) never sees the invitation (`GET /api/foods/world/invitation`) and
@@ -318,7 +326,7 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   star on another account's food, reads account rows with the owner's explicit `user_id`, runs
   under plain `tsx` (no `server-only` import), and converges to 0 further writes on a second run.
   Guarded by `tests/foods/food-world.test.ts`, `tests/foods/today-starter.test.ts`,
-  `tests/foods/star-to-favored.test.ts`, `tests/foods/star-to-favored-cli.test.ts` and
+  `tests/migrations/food-world-markers-db.test.ts`, `tests/foods/star-to-favored.test.ts`, `tests/foods/star-to-favored-cli.test.ts` and
   `tests/onboarding/open-food-world.test.ts`.
 
 ## Data model in one line
