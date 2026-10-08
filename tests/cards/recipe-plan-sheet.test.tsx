@@ -5,6 +5,12 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import PlanSheet from "@/components/PlanSheet";
 
 const postTurn = vi.hoisted(() => vi.fn());
+// Chips go to POST /api/plan/ideas; this double serves them from the same mocked coach reply.
+vi.mock("@/lib/plan/ideas-client", async (original) => ({
+  ...(await original<typeof import("@/lib/plan/ideas-client")>()),
+  requestPlanIdeas: async (...args: [unknown, { chip: string }]) =>
+    (await import("@/tests/helpers/plan-ideas")).ideasFromTurn(postTurn)(...args),
+}));
 const searchCatalogRecipes = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/recipe-access-client", () => ({ useRecipeAccess: () => ({ enabled: true, loading: false }) }));
 vi.mock("@/lib/coach-client", () => ({ postTurn }));
@@ -23,6 +29,7 @@ it("opens a dated meal with ideas and full recipes already showing", async () =>
     onClose={vi.fn()} onPlaced={vi.fn()} />);
   expect((await screen.findByTestId("catalog-plan")).textContent).toBe("2026-10-08:meal-3:1");
   await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
-  expect(postTurn.mock.calls[0][0]).toMatchObject({ scope: { kind: "component", slotId: "meal-3", date: "2026-10-08" } });
+  // The opening ideas are the "Choose for me" chip for this slot and date (POST /api/plan/ideas).
+  expect(postTurn.mock.calls[0][0]).toMatchObject({ chip: { chip: "choose", slot: "meal-3", date: "2026-10-08" } });
   expect(searchCatalogRecipes.mock.calls[0][0]).toMatchObject({ query: "", limit: 3 });
 });

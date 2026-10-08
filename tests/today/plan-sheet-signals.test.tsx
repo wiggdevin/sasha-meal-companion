@@ -12,6 +12,12 @@ import type { ComposedMeal } from "@/lib/coach/compose";
 import type { ResolvedSlot } from "@/lib/types";
 
 const postTurn = vi.hoisted(() => vi.fn());
+// Chips go to POST /api/plan/ideas; this double serves them from the same mocked coach reply.
+vi.mock("@/lib/plan/ideas-client", async (original) => ({
+  ...(await original<typeof import("@/lib/plan/ideas-client")>()),
+  requestPlanIdeas: async (...args: [unknown, { chip: string }]) =>
+    (await import("@/tests/helpers/plan-ideas")).ideasFromTurn(postTurn)(...args),
+}));
 const applyCoachAction = vi.hoisted(() => vi.fn());
 const mocked = vi.hoisted(() => ({ foodSignal: vi.fn(), sendFoodSignals: vi.fn() }));
 vi.mock("@/lib/coach-client", async (original) => ({

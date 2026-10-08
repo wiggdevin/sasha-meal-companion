@@ -19,6 +19,8 @@ describe("the deadline table", () => {
       timings: 10_000, transcribe: 8_000,
       // Coach Undo records, reads and server Undos (lib/coach/undo-client.ts).
       undo: 10_000,
+      // A Plan-sheet chip, POST /api/plan/ideas (lib/plan/ideas-client.ts), 2026-10-08.
+      ideas: 9_000,
     });
   });
 });

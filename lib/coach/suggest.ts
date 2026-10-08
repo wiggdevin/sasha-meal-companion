@@ -26,6 +26,8 @@ import { focusNameKey } from "@/lib/shopping/focus";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
 import { profileRuleFacets } from "@/lib/policy/profiles/account-rules";
 import { BY_APP, byJev } from "@/lib/provenance";
+import type { PoolInputs } from "@/lib/coach/suggest-pool";
+import type { OnHandEntry } from "@/lib/coach/suggest-shape";
 
 export type { SuggestInput } from "@/lib/coach/executors";
 export { fitScore, suggestionRank };
@@ -67,6 +69,18 @@ export type SuggestPorts = ComposePorts & MealClockPorts & {
    * found running unbounded ahead of `SUGGEST_BUDGET_MS` (2026-10-03 audit, finding #4).
    */
   ruleReviewRequired?: (userId: string, signal?: AbortSignal) => Promise<boolean>;
+  /**
+   * Plan-sheet chips (POST /api/plan/ideas): the account's admitted pool, closed or open, read
+   * once by the route. Present, the build ranks plates from it and never searches the catalog.
+   */
+  ideasPool?: (userId: string) => Promise<PoolInputs>;
+  /** "Use what I have": foods named in the sheet, in the pantry or on a live shopping list. */
+  onHand?: (userId: string) => Promise<OnHandEntry[]>;
+  /**
+   * A hard bound on the one Jev ranking call, ms. Past it the cards keep their formula order.
+   * Absent: whatever is left of SUGGEST_BUDGET_MS.
+   */
+  jevDeadlineMs?: number;
 };
 
 export const SUGGEST_BUDGET_MS = 8_000;
@@ -84,7 +98,7 @@ export const SUGGEST_SHORTLIST_MIN = 5;
  * the cards it had already built were dropped with the retry line (production, 2026-09-29/30).
  */
 export const SUGGEST_BUILD_BUDGET_MS = 5_000;
-export type SuggestionResult = ComposedMeal[] & { partial?: true; message?: string };
+export type SuggestionResult = ComposedMeal[] & { partial?: true; message?: string; offer?: "add_items" };
 
 /** Generate up to twelve safe candidates, then rank all of them in one System One request. */
 export async function suggestOptions<T extends SuggestPorts>(
@@ -121,6 +135,10 @@ export async function suggestOptions<T extends SuggestPorts>(
     if (built === NOTHING_LEFT) return nothingLeftResult();
     if (built === NO_SAVED_FOODS) return messageResult(NO_SAVED_FOODS_MESSAGE);
     if (built === NO_TARGET) return messageResult(NO_TARGET_SUGGEST_MESSAGE);
+    // A chip build's own line ("I don't know what you have yet") and offer ride on the result.
+    if (built.notice && built.candidates.length === 0) return messageResult(built.notice, built.offer);
+    const noticed = <R extends SuggestionResult>(result: R): R =>
+      (built.notice ? withNotice(result, built.notice, built.offer) : result);
     const { requested, pendingSlots } = built;
     const needsNoCook = asksForNoCook(input.wish);
     // Phase 18 W10: a pool-sourced candidate already passed a fresh admission read (D11) —
@@ -185,19 +203,34 @@ export async function suggestOptions<T extends SuggestPorts>(
     const shortlistSlots = new Set(shortlistIndices);
     const shortlist = shortlistIndices.map((position) => ordered[position]);
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
-    const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
+    const remainingMs = Math.min(Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt)),
+      ports.jevDeadlineMs ?? Number.POSITIVE_INFINITY);
     let answers: JevAnswers | null = null;
     // Owner ruling (W10b): acceptance 2 reads "on 5 to 8 admitted plates" as a real floor, not
     // just an upper bound — below 5, the call is skipped entirely (formula order, same as a
     // Jev-down answer). With 3-4 cards (acceptance 1's own minimum), that is simply the result.
     if (shortlist.length >= SUGGEST_SHORTLIST_MIN) {
       const state = rankingState(input, shortlist, pendingSlots);
+      // The Jev call is bounded twice: by the suggest budget's signal, and by `remainingMs` on its
+      // own (a chip's hard deadline), so a slow answer leaves the formula order standing.
+      const jevController = new AbortController();
+      const onOuterAbort = () => jevController.abort();
+      signal.addEventListener("abort", onOuterAbort, { once: true });
+      const jevTimer = setTimeout(() => jevController.abort(), remainingMs);
       try {
         answers = await abortable(ask(suggestPayload(state, input.kind), {
-          userId: ports.userId, deadlineMs: remainingMs, signal, noRetry: true,
-        }), signal);
+          userId: ports.userId, deadlineMs: remainingMs, signal: jevController.signal, noRetry: true,
+        }), jevController.signal);
       } catch (error) {
-        if (!isAbort(error)) throw error;
+        // Any Jev failure (an abort, a transport error, a bad answer) leaves the formula order: a
+        // ranking is never a reason to fail the suggestions themselves.
+        if (!isAbort(error)) {
+          console.warn("[suggest] Jev ranking failed; formula order", {
+            error: error instanceof Error ? error.name : "unknown" });
+        }
+      } finally {
+        clearTimeout(jevTimer);
+        signal.removeEventListener("abort", onOuterAbort);
       }
     }
     if (timedOut) return partialResult(fitOrdered);
@@ -240,11 +273,11 @@ export async function suggestOptions<T extends SuggestPorts>(
       // §5: the verified alternatives it has, and one line when unchecked labels hid the rest.
       const note = filtered.unverified + built.hiddenUnverified > 0 ? LABELS_HIDDEN_MESSAGE
         : `${selected.length} of ${requested} fit your remaining macros`;
-      return selected.map((meal, index) => index === 0
+      return noticed(selected.map((meal, index) => index === 0
         ? { ...meal, shortfallNote: note }
-        : meal);
+        : meal) as SuggestionResult);
     }
-    return selected as SuggestionResult;
+    return noticed(selected as SuggestionResult);
   } catch (error) {
     if (isAbort(error) || timedOut) return partialResult([]);
     throw error;
@@ -285,11 +318,26 @@ function nothingLeftResult(): ComposedMeal[] {
   return messageResult(NOTHING_LEFT_MESSAGE);
 }
 
-function messageResult(message: string): ComposedMeal[] {
-  const cards = [] as ComposedMeal[] & { message?: string };
+function messageResult(message: string, offer?: "add_items"): ComposedMeal[] {
+  const cards = [] as ComposedMeal[] & { message?: string; offer?: "add_items" };
   Object.defineProperty(cards, "message", { value: message });
+  if (offer) Object.defineProperty(cards, "offer", { value: offer });
   Object.defineProperty(cards, "toJSON", {
-    value: () => ({ cards: [], message }),
+    value: () => ({ cards: [], message, ...(offer ? { offer } : {}) }),
+  });
+  return cards;
+}
+
+/** Cards that carry a chip build's line (and offer) beside them. */
+function withNotice<R extends SuggestionResult>(result: R, message: string, offer?: "add_items"): R {
+  if (result.message) return result;
+  const cards = [...result] as unknown as R;
+  if (result.partial) cards.partial = true;
+  cards.message = message;
+  if (offer) cards.offer = offer;
+  Object.defineProperty(cards, "toJSON", {
+    value: () => ({ cards: [...cards], message, ...(offer ? { offer } : {}),
+      ...(result.partial ? { partial: true } : {}) }),
   });
   return cards;
 }

@@ -20,7 +20,7 @@ const IMPORT = /(?:import|export)\s[^;]*?from\s+["']([^"']+)["']|import\(\s*["']
 /** Expensive, model-calling or write-amplifying routes the policy names; fail closed always. */
 const EXPENSIVE = [
   "app/api/coach/route.ts", "app/api/coach/transcribe/route.ts", "app/api/log/propose/route.ts",
-  "app/api/plan/inspire/route.ts", "app/api/plan/document/route.ts", "app/api/media/sign/route.ts",
+  "app/api/plan/inspire/route.ts", "app/api/plan/document/route.ts", "app/api/plan/ideas/route.ts", "app/api/media/sign/route.ts",
   "app/api/export/route.ts", "app/api/foods/barcode/route.ts", "app/api/foods/facets/warm/route.ts",
   "app/api/health/ingest/route.ts", "app/api/sync/ops/route.ts", "app/api/log/commit/route.ts",
 ];

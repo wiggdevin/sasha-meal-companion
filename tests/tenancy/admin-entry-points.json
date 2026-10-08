@@ -131,6 +131,10 @@
     "test": "tests/tenancy/admin-media.test.ts",
     "via": "@/app/api/plan/document/route"
   },
+  "app/api/plan/ideas/route.ts": {
+    "test": "tests/tenancy/admin-plan-ideas.test.ts",
+    "via": "@/app/api/plan/ideas/route"
+  },
   "app/api/plan/inspire/route.ts": {
     "test": "tests/tenancy/admin-media.test.ts",
     "via": "@/app/api/plan/inspire/route"
@@ -337,6 +341,10 @@
   "lib/server/plan-document.ts": {
     "test": "tests/tenancy/admin-media.test.ts",
     "via": "@/app/api/plan/document/route"
+  },
+  "lib/server/plan-ideas.ts": {
+    "test": "tests/tenancy/admin-plan-ideas.test.ts",
+    "via": "@/lib/server/plan-ideas"
   },
   "lib/server/plan-inspire.ts": {
     "test": "tests/tenancy/admin-media.test.ts",

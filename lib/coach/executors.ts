@@ -20,6 +20,27 @@ export type SuggestInput = {
   slot?: SlotId;
   fitRemaining?: boolean;
   wish?: string;
+  /**
+   * Plan-sheet chips (lib/plan/chips.ts, POST /api/plan/ideas). Every field is optional and, when
+   * absent, the build is unchanged. They shape only the admitted-pool build
+   * (lib/coach/suggest-pool.ts, lib/coach/suggest-shape.ts); none is a model or wire field.
+   */
+  /** The viewed local date, for the plate rotation (else the server's UTC day). */
+  date?: string;
+  /** Title each card by its plate ("Eggs with toast") instead of the wish or kind. */
+  plateTitles?: boolean;
+  /** "High protein": plates that meet the slot's protein first, then by protein share. */
+  proteinFirst?: boolean;
+  /** "Ready in 15 min": only plates whose derived prep time (lib/plan/prep-minutes.ts) fits. */
+  maxMinutes?: number;
+  /** "Use what I have": build from the on-hand set (`SuggestPorts.onHand`), Favored as fallback. */
+  onHandOnly?: boolean;
+  /** "Something light": calories, carbs and fat scaled by this share (0.5-1). Protein never shrinks. */
+  sizeScale?: number;
+  /** "Surprise me": plates the account's history knows least rank first. */
+  novelty?: boolean;
+  /** Ideas said no to ("Not this"), by `ComposedMeal.ideaId`: never offered again. */
+  excludeIds?: readonly string[];
 };
 export type RecipeSuggestionResult = { candidates: RecipeCandidate[]; noResultReasons: string[];
   /** False when no recipe carries every word of the wish: the cards are the closest recipes. */
