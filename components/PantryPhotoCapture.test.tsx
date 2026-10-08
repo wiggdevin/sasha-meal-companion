@@ -83,6 +83,19 @@ describe("PantryPhotoCapture's draft (acceptance 1)", () => {
     const [, , items] = mocked.confirm.mock.calls[0];
     expect(items).toEqual([{ name: "Baby carrots", grams: null }, { name: "Butter", grams: null }]);
   });
+
+  it("parses a numeric weight but leaves unparseable text as null rather than 0", async () => {
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
+    await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Carrots weight in grams, optional"), { target: { value: "150" } });
+    fireEvent.change(screen.getByLabelText("Greek yogurt weight in grams, optional"), { target: { value: "abc" } });
+    mocked.confirm.mockResolvedValue({ items: [], failed: [] });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
+    const [, , items] = mocked.confirm.mock.calls[0];
+    expect(items).toEqual([{ name: "Carrots", grams: 150 }, { name: "Greek yogurt", grams: null }]);
+  });
 });
 
 describe("PantryPhotoCapture's confirmed result (acceptance 2, 3)", () => {

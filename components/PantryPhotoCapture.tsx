@@ -37,6 +37,18 @@ function toDraft(names: readonly string[]): DraftItem[] {
   return names.map((name) => ({ id: crypto.randomUUID(), name, grams: "" }));
 }
 
+/** Blank is "not confirmed" (null), same as never typing a weight at all. Text that doesn't parse
+ *  as a number ("abc") is ALSO left as null rather than silently coerced to 0 -- 0 g reads on the
+ *  pantry list as a known, confirmed zero quantity (ShoppingView.tsx: `confirmedGrams === null ?
+ *  "quantity not confirmed" : ...`), which is not what someone who typed garbage meant. A negative
+ *  number floors to 0 rather than being discarded, since it did parse. */
+function parseGrams(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? Math.max(0, n) : null;
+}
+
 export default function PantryPhotoCapture({ onConfirmed }: {
   /** The newly-written items (already rule-marked); the caller merges them into its own list. */
   onConfirmed: (items: PantryItem[]) => void;
@@ -96,7 +108,7 @@ export default function PantryPhotoCapture({ onConfirmed }: {
       const h = accountHandle();
       const payload = keepable.map((item) => ({
         name: item.name.trim(),
-        grams: item.grams.trim() === "" ? null : Math.max(0, Number(item.grams) || 0),
+        grams: parseGrams(item.grams),
       }));
       const result = await confirmPantryPhoto(h, requestId, payload);
       setWritten(result.items);

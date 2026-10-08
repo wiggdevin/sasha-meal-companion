@@ -11,6 +11,7 @@
  */
 import { signAndUpload } from "@/lib/capture-client";
 import { AccountChanged, accountFetch, accountJson, type AccountHandle } from "@/lib/device/account";
+import type { Budget } from "@/lib/fetch-with-deadline";
 import { withRuleMarks } from "@/lib/shopping/rule-mark-wire";
 import type { PantryItem } from "@/lib/shopping/types";
 
@@ -21,12 +22,12 @@ export class PantryPhotoError extends Error {}
 export type FailedPantryPhotoItem = { name: string; status: number; code: string; message: string };
 export type PantryPhotoConfirmItem = { name: string; grams: number | null };
 
-async function post<T>(h: AccountHandle, path: string, body: unknown): Promise<T> {
+async function post<T>(h: AccountHandle, path: string, body: unknown, budget: Budget): Promise<T> {
   let res: Response;
   try {
     res = await accountFetch(h, path, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    }, { budget: "commit" });
+    }, { budget });
   } catch (e) {
     if (e instanceof AccountChanged) throw e;
     throw new PantryPhotoError("That took too long. Try again.");
@@ -44,18 +45,23 @@ export async function uploadPantryPhoto(h: AccountHandle, photo: Blob): Promise<
   return uploaded.path;
 }
 
-/** The draft step (acceptance 1): ingredient names only, nothing written yet. */
+/** The draft step (acceptance 1): ingredient names only, nothing written yet. An AI vision read
+ *  (server-side `photoToIdeas` call, up to `PHOTO_TIMEOUT_MS` = 8 s plus route overhead under the
+ *  route's own 15 s `maxDuration`), so this uses "propose" (25 s) like every other photo-read call
+ *  (lib/plan/inspire-client.ts readPlanPhoto, lib/capture-client.ts captureMedia) -- "commit" (10 s)
+ *  would risk the client giving up on an otherwise-successful read. */
 export async function draftPantryPhoto(h: AccountHandle, mediaPath: string): Promise<string[]> {
-  const result = await post<{ items: string[] }>(h, "/api/pantry/photo", { mediaPath });
+  const result = await post<{ items: string[] }>(h, "/api/pantry/photo", { mediaPath }, "propose");
   return result.items;
 }
 
 /** The confirm step (acceptance 2, 3): writes one row per kept item; `failed` is never discarded
- *  into the caller's error path -- a 3-of-5 failure still returns the other 2 as `items`. */
+ *  into the caller's error path -- a 3-of-5 failure still returns the other 2 as `items`. A plain
+ *  write, like every other confirm/commit call, so "commit" (10 s) fits. */
 export async function confirmPantryPhoto(
   h: AccountHandle, requestId: string, items: readonly PantryPhotoConfirmItem[],
 ): Promise<{ items: PantryItem[]; failed: FailedPantryPhotoItem[] }> {
   const result = await post<{ items: PantryItem[]; failed: FailedPantryPhotoItem[] }>(
-    h, "/api/pantry/photo/confirm", { requestId, items });
+    h, "/api/pantry/photo/confirm", { requestId, items }, "commit");
   return { items: withRuleMarks(result.items), failed: result.failed ?? [] };
 }
