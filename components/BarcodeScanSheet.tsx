@@ -49,6 +49,8 @@ export default function BarcodeScanSheet({
   useEffect(() => () => { here.current = false; }, []);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
+  /** Takes the camera back if a hidden page let it go while a lookup ran (set by the camera effect). */
+  const resumeRef = useRef<() => void>(() => {});
 
   const resolve = useCallback(
     async (gtin: string) => {
@@ -64,6 +66,9 @@ export default function BarcodeScanSheet({
       busyRef.current = false;
       if (outcome.kind === "unreadable") setPhase("unreadable");
       else if (outcome.kind === "offline") setPhase("offline");
+      // Scanning goes on after an answer that is not a match, as before, even if the page was hidden
+      // (and the camera let go) while the lookup ran.
+      resumeRef.current();
     },
     [hint, onResolved]
   );
@@ -112,9 +117,16 @@ export default function BarcodeScanSheet({
 
     /* Camera permission is asked at the scan tap, never at app load, and is never required to
        log (spec "Security"). A hidden page lets the camera go and takes it back when shown. */
-    const start = (): void => { void navigator.mediaDevices
+    // One camera request at a time, so a quick hide and show can never leave two streams live.
+    let requesting = false;
+    /** `announce` false keeps the sheet's current line (an unreadable or offline answer) on resume. */
+    const start = (announce = true): void => {
+      if (requesting || streamRef.current) return;
+      requesting = true;
+      void navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } })
       .then((stream) => {
+        requesting = false;
         // Closed, or hidden while the camera was being asked for: let it go (a show starts it again).
         if (cancelled || document.visibilityState === "hidden") { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
@@ -125,7 +137,7 @@ export default function BarcodeScanSheet({
           videoRef.current.srcObject = stream;
           void videoRef.current.play().catch(() => setPhase("denied"));
         }
-        setPhase("scanning");
+        if (announce) setPhase("scanning");
         // The camera is live: `decode` is running from here until a reading is accepted (T0 §1).
         // Its own run, so a second scan started before this one has settled is its own tap.
         runRef.current = beginRun("barcode");
@@ -146,7 +158,7 @@ export default function BarcodeScanSheet({
         };
         raf = requestAnimationFrame(tick);
       })
-      .catch(() => { if (!cancelled) setPhase("denied"); }); };
+      .catch(() => { requesting = false; if (!cancelled) setPhase("denied"); }); };
     const stop = (): void => {
       cancelAnimationFrame(raf);
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -155,8 +167,9 @@ export default function BarcodeScanSheet({
     };
     const onVisibility = (): void => {
       if (document.visibilityState === "hidden") stop();
-      else if (!streamRef.current && !busyRef.current) { setPhase("starting"); start(); }
+      else if (!streamRef.current && !requesting && !busyRef.current) { setPhase("starting"); start(); }
     };
+    resumeRef.current = () => { if (!cancelled && document.visibilityState !== "hidden") start(false); };
     start();
     document.addEventListener("visibilitychange", onVisibility);
 

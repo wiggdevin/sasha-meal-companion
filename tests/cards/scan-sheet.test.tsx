@@ -208,4 +208,43 @@ describe("BarcodeScanSheet's lifecycle", () => {
     await waitFor(() => expect(opened).toBe(2));
     visibility.mockRestore();
   });
+
+  it("asks for the camera once through a quick hide and show, and never keeps two streams", async () => {
+    const pending: ((stream: MediaStream) => void)[] = [];
+    const stopped: number[] = [];
+    camera(() => new Promise((resolve) => { pending.push(resolve); }));
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    sheet();
+    visibility.mockReturnValue("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    visibility.mockReturnValue("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(pending).toHaveLength(1);
+    const track = { stop: () => { stopped.push(1); }, getCapabilities: () => ({}), applyConstraints: async () => {} };
+    await act(async () => { pending[0]({ getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream); });
+    expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy();
+    expect(stopped).toHaveLength(0);
+    visibility.mockRestore();
+  });
+
+  it("takes the camera back after an unreadable answer that came while hidden", async () => {
+    let opened = 0;
+    camera(async () => { opened += 1; return fakeStream(); });
+    scanGtin.mockRejectedValue(new BarcodeRejected("invalid_gtin"));
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    sheet();
+    await waitFor(() => expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy());
+    let answer!: (value: unknown) => void;
+    scanGtin.mockReturnValueOnce(new Promise((_resolve, reject) => { answer = reject; }));
+    await readTwice();
+    visibility.mockReturnValue("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    visibility.mockReturnValue("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(opened).toBe(1);
+    await act(async () => { answer(new BarcodeRejected("invalid_gtin")); });
+    await waitFor(() => expect(opened).toBe(2));
+    expect(screen.getByText(/That is not a barcode we can read/)).toBeTruthy();
+    visibility.mockRestore();
+  });
 });
