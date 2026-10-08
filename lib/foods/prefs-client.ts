@@ -460,6 +460,10 @@ export async function setFoodMembershipGuarded(
       await abortQuietly(tx, done);
       return { written: false };
     }
+    // Known limit, deferred (Sol r4 #2, logged as a follow-up): the revision clock is per tab, so
+    // two tabs writing the same name in the same millisecond can mint equal revisions. That is a
+    // property of the shared membership clock (`reserveFoodMembershipIntent`) and affects every
+    // `setFoodMembership` caller, not only this one.
     const rev = Math.max(at, (currentRev ?? -1) + 1, (clock ?? -1) + 1);
     const extra = guard.check({ rows, meta }, rev);
     if (!extra) {
@@ -504,6 +508,27 @@ export async function setFoodMembershipGuarded(
 async function abortQuietly(tx: { abort(): void }, done: Promise<void>): Promise<void> {
   try { tx.abort(); } catch { /* already finished */ }
   await done.catch(() => undefined);
+}
+
+/**
+ * Repair this device's mark cache from a durable record of a mark it queued (the meal card heart's
+ * `done` list, lib/favorite-meals-client.ts): the IndexedDB commit that queued the op lands before
+ * the localStorage cache write, so a crash between them leaves the cache behind. Writes only when
+ * the cache has no entry for the name or an OLDER revision; a newer choice is never overwritten.
+ * Returns true when the cache now holds exactly this mark.
+ */
+export function repairFoodMembershipCache(
+  h: AccountHandle, name: string, mark: { status: "eats"; rev: number },
+): boolean {
+  assertCurrent(h);
+  const nameNorm = normalizeFoodName(name);
+  const current = readFoodMembership(h.userId, nameNorm);
+  if (current && current.rev > mark.rev) return false;
+  if (!current || current.rev < mark.rev) {
+    rememberMembership(h.userId, nameNorm, { status: mark.status, note: null, rev: mark.rev });
+  }
+  const now = readFoodMembership(h.userId, nameNorm);
+  return now?.rev === mark.rev && now.status === mark.status;
 }
 
 /** A stale device lost to a newer server revision. Revert only if no newer local tap superseded it. */

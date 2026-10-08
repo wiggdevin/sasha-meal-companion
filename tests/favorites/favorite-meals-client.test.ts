@@ -668,3 +668,52 @@ describe("the guarded write: check and write in one transaction", () => {
     expect(await marksOf(first.id)).toMatchObject({ pending: [], done: [] });
   });
 });
+
+// ------------------------------------------------------------------ Sol round 4: done is the truth
+
+/** The crash between the IndexedDB commit and the cache write: the cache never heard of it. */
+function loseCachedMark(nameNorm: string): void {
+  const stored = JSON.parse(localStorage.getItem(FOOD_PREF_REFS_KEY) ?? "{}") as Record<string, Record<string, unknown>>;
+  delete stored[h.userId]?.[`membership:${nameNorm}`];
+  localStorage.setItem(FOOD_PREF_REFS_KEY, JSON.stringify(stored));
+  __resetFoodMembershipState();
+}
+
+describe("a crash between the commit and the cache write", () => {
+  it("Undo still clears the mark from its done record, repairing the cache first", async () => {
+    const first = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    const [op] = await membershipOps();
+    loseCachedMark("banana");
+    expect(readFoodMembership(h.userId, "banana")).toBeUndefined();
+    const undone = await undoSaveFavoriteMeal(first.id, first.newlyFavored, { account: h });
+    expect(undone).toMatchObject({ cleared: ["banana"], kept: [] });
+    const last = (await membershipOps()).at(-1);
+    expect(last?.payload).toMatchObject({ name_norm: "banana", status: null });
+    expect(Number(last?.payload.rev)).toBeGreaterThan(Number(op.payload.rev));
+    expect(readFoodMembership(h.userId, "banana")?.status).toBeNull();
+  });
+
+  it("the post-sync run repairs the cache from the done records", async () => {
+    const first = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    const [op] = await membershipOps();
+    loseCachedMark("banana");
+    const loader = vi.fn(async () => openSet(POOL));
+    await resumeFavoriteMealMarks(h, getFoods(), loader);
+    expect(readFoodMembership(h.userId, "banana")).toMatchObject({ status: "eats", rev: op.payload.rev });
+    expect(loader).not.toHaveBeenCalled(); // nothing pending: no rules read
+  });
+
+  it("never overwrites, or undoes, a newer cached choice", async () => {
+    const first = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    await setFoodMembership("Banana", "avoid", { account: h, note: null });
+    const avoidRev = readFoodMembership(h.userId, "banana")?.rev;
+    await resumeFavoriteMealMarks(h, getFoods(), async () => openSet(POOL));
+    expect(readFoodMembership(h.userId, "banana")).toMatchObject({ status: "avoid", rev: avoidRev });
+    const undone = await undoSaveFavoriteMeal(first.id, first.newlyFavored, { account: h });
+    expect(undone).toMatchObject({ cleared: [], kept: ["banana"] });
+    expect(readFoodMembership(h.userId, "banana")?.status).toBe("avoid");
+  });
+});

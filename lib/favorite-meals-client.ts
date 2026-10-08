@@ -50,7 +50,7 @@ import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import {
   foodRefsFor, readFoodMembership, readPrefRefCache,
-  membershipSeen, setFoodMembership, setFoodMembershipGuarded,
+  membershipSeen, repairFoodMembershipCache, setFoodMembership, setFoodMembershipGuarded,
 } from "@/lib/foods/prefs-client";
 import { componentRuleMark, currentEligibleView, openWorldOf } from "@/lib/foods/rule-marks";
 import { SYNCED_EVENT, foodRulesEpoch } from "@/lib/foods/rules-epoch";
@@ -315,11 +315,6 @@ function alreadyFavored(h: AccountHandle, foods: Record<string, Food>, nameNorm:
   return Object.values(foods).some((f) => f.status === "eats" && normalizeFoodName(f.name) === nameNorm);
 }
 
-function markedAt(h: AccountHandle, nameNorm: string, rev: number): boolean {
-  const now = readFoodMembership(h.userId, nameNorm);
-  return now?.status === "eats" && now.rev === rev;
-}
-
 /** Take one name out of `pending` with no mark written (already Favored, or skipped). */
 function dropPending(h: AccountHandle, mealId: string, nameNorm: string, skipped: boolean): Promise<unknown> {
   return updateMeta<MarkRecord>(h, marksKey(mealId), (current) => current && {
@@ -543,6 +538,10 @@ export async function resumeFavoriteMealMarks(
   const waiting: string[] = [];
   for (const key of keys) {
     const record = await getMeta<MarkRecord>(h, key);
+    // The marks this device queued: a cache left behind by a crash after the commit catches up.
+    for (const done of record?.done ?? []) {
+      if (!done.undone) repairFoodMembershipCache(h, done.nameNorm, { status: "eats", rev: done.rev });
+    }
     if (!record?.pending.length) continue;
     const mealId = key.slice(FAVORITE_MEAL_MARKS_PREFIX.length);
     if (liveRow(await getRow(h, "favorites_meals", mealId) as Record<string, unknown> | undefined)) {
@@ -649,7 +648,12 @@ export async function undoSaveFavoriteMeal(
       const done = record?.done.find((d) => d.nameNorm === name);
       if (!done) { kept.push(name); continue; }
       if (done.undone) { cleared.push(name); continue; }
-      if (!markedAt(h, name, done.rev)) { kept.push(name); continue; }
+      // The `done` record is the source of truth (Sol r4): the cache may lag it after a crash
+      // between the commit and the cache write. A HIGHER cached revision is a newer choice: kept.
+      if (!repairFoodMembershipCache(h, name, { status: "eats", rev: done.rev })) {
+        kept.push(name);
+        continue;
+      }
       await setFoodMembership(name, null, { note: null, account: h });
       assertCurrent(h);
       const local = done.localId ? foods[done.localId] : undefined;
