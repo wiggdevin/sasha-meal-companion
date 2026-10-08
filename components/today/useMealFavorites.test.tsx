@@ -92,7 +92,7 @@ describe("useMealFavorites", () => {
     await waitFor(() => expect(result.current.favoriteFor(planned)).toBeDefined());
     await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
     expect(fb.notify.mock.calls.at(-1)?.[0].message)
-      .toBe("Chicken and rice saved to favorite meals. Not favored under your food rules: almond butter.");
+      .toBe("Chicken and rice saved to favorite meals. Not favored yet: almond butter.");
   });
 
   it("removes by id only, and its Undo saves the plate again", async () => {
@@ -105,7 +105,7 @@ describe("useMealFavorites", () => {
     expect(api.removeFavoriteMeal).toHaveBeenCalledWith("saved-1");
     await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(false));
     const notice = fb.notify.mock.calls.at(-1)?.[0];
-    expect(notice.message).toBe("Chicken and rice removed from favorite meals. Its foods stay Favored.");
+    expect(notice.message).toBe("Chicken and rice removed from favorite meals. Your Favored foods are unchanged.");
     await act(async () => { notice.action.action(); });
     expect(api.saveFavoriteMeal).toHaveBeenCalledTimes(1);
   });
@@ -171,4 +171,59 @@ describe("useMealFavorites", () => {
         process.off("unhandledRejection", unhandled);
       }
     });
+
+  it("keeps a filled heart filled while a sync re-reads it", async () => {
+    api.favoriteMealFor.mockResolvedValueOnce("saved-1");
+    let answer: (id: string) => void = () => {};
+    api.favoriteMealFor.mockImplementation(() => new Promise<string>((resolve) => { answer = resolve; }));
+    const { result } = setup();
+    await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+    await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
+    await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(2));
+    expect(result.current.favoriteFor(planned)?.on).toBe(true);
+    await act(async () => { answer("saved-1"); });
+    expect(result.current.favoriteFor(planned)?.on).toBe(true);
+  });
+
+  it("never reads a failed lookup as 'not saved': no heart until a read succeeds", async () => {
+    api.favoriteMealFor.mockRejectedValueOnce(new Error("idb closed")).mockResolvedValue("saved-1");
+    const { result } = setup();
+    await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(result.current.favoriteFor(planned)).toBeUndefined();
+    await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
+    await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+  });
+
+  it("takes one write per plate: a second tap while the first runs does nothing", async () => {
+    api.favoriteMealFor.mockResolvedValue(null);
+    let finish: (value: unknown) => void = () => {};
+    api.saveFavoriteMeal.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const { result } = setup();
+    await waitFor(() => expect(result.current.favoriteFor(planned)).toBeDefined());
+    const toggle = result.current.favoriteFor(planned)!.onToggle;
+    act(() => { toggle(); toggle(); });
+    expect(api.saveFavoriteMeal).toHaveBeenCalledTimes(1);
+    await act(async () => { finish({ ok: true, id: "saved-9", newlyFavored: [], skipped: [] }); });
+  });
+
+  it("never lets a late Undo clear a newer save of the same plate", async () => {
+    api.favoriteMealFor.mockResolvedValue(null);
+    api.saveFavoriteMeal.mockResolvedValueOnce({ ok: true, id: "saved-9", newlyFavored: [], skipped: [] });
+    let undone: (value: unknown) => void = () => {};
+    api.undoSaveFavoriteMeal.mockImplementation(() => new Promise((resolve) => { undone = resolve; }));
+    const { result, fb } = setup();
+    await waitFor(() => expect(result.current.favoriteFor(planned)).toBeDefined());
+    await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
+    const undo = fb.notify.mock.calls.at(-1)?.[0].action.action as () => void;
+    act(() => { undo(); });
+    // Undo is running: the plate takes no other write until it settles.
+    expect(result.current.favoriteFor(planned)?.pending).toBe(true);
+    // A sync lands a newer saved meal for the plate while Undo is still out.
+    api.favoriteMealFor.mockResolvedValue("saved-10");
+    await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
+    await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+    await act(async () => { undone({ ok: true, id: "saved-9", cleared: [], kept: [] }); });
+    expect(result.current.favoriteFor(planned)?.on).toBe(true);
+  });
 });

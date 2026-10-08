@@ -31,7 +31,10 @@ export function useMealFavorites({ eligible, feedback }: {
   const [saved, setSaved] = useState<Record<string, string | null>>({});
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const asked = useRef(new Map<string, FavoriteMealSource>());
-  const reading = useRef(new Set<string>());
+  /** Plate → the token of its one read in flight; a finished read clears only its own token. */
+  const reading = useRef(new Map<string, { token: symbol; at: number }>());
+  /** Plates with a write or an Undo running: read synchronously, so a second tap never starts one. */
+  const writing = useRef(new Set<string>());
   const epoch = useRef(0);
   /** The sync epoch each plate was last read in: an older one is read again, its heart kept meanwhile. */
   const readAt = useRef(new Map<string, number>());
@@ -39,7 +42,7 @@ export function useMealFavorites({ eligible, feedback }: {
 
   useEffect(() => {
     // A sync re-reads every plate in place (never a blank cache, so no heart blinks off and on).
-    const onSynced = () => { epoch.current += 1; reading.current.clear(); setSyncs((value) => value + 1); };
+    const onSynced = () => { epoch.current += 1; setSyncs((value) => value + 1); };
     window.addEventListener(SYNCED_EVENT, onSynced);
     return () => window.removeEventListener(SYNCED_EVENT, onSynced);
   }, []);
@@ -47,15 +50,20 @@ export function useMealFavorites({ eligible, feedback }: {
   // After every render: read the plates the cards asked for that are not current nor in flight.
   useEffect(() => {
     for (const [key, source] of asked.current) {
-      if (readAt.current.get(key) === epoch.current || reading.current.has(key)) continue;
-      reading.current.add(key);
+      // A read from an older sync does not count: a newer one starts, and the older one's answer is dropped.
+      if (readAt.current.get(key) === epoch.current || reading.current.get(key)?.at === epoch.current) continue;
+      const token = Symbol(key);
       const at = epoch.current;
-      void favoriteMealFor(source).catch(() => null).then((id) => {
-        reading.current.delete(key);
-        if (at !== epoch.current) return;
-        readAt.current.set(key, at);
-        setSaved((value) => ({ ...value, [key]: id }));
-      });
+      reading.current.set(key, { token, at });
+      void favoriteMealFor(source).then((id) => ({ ok: true as const, id }), () => ({ ok: false as const }))
+        .then((read) => {
+          if (reading.current.get(key)?.token === token) reading.current.delete(key);
+          if (at !== epoch.current) return;
+          readAt.current.set(key, at);
+          // A failed read is not "not saved": the plate keeps what it last knew, or shows no heart
+          // (so a tap can never offer an Undo that removes a meal saved before), until the next sync.
+          if (read.ok) setSaved((value) => ({ ...value, [key]: read.id }));
+        });
     }
     asked.current.clear();
   });
@@ -64,11 +72,19 @@ export function useMealFavorites({ eligible, feedback }: {
     readAt.current.set(key, epoch.current);
     setSaved((value) => ({ ...value, [key]: id }));
   };
-  const busy = (key: string, on: boolean) => setPending((value) => {
-    const next = new Set(value);
-    if (on) next.add(key); else next.delete(key);
-    return next;
-  });
+  const busy = (key: string, on: boolean) => {
+    if (on) writing.current.add(key); else writing.current.delete(key);
+    setPending((value) => {
+      const next = new Set(value);
+      if (on) next.add(key); else next.delete(key);
+      return next;
+    });
+  };
+  /** Clears a plate only while it still holds this saved meal: a newer save is never undone by a late answer. */
+  const clearIf = (key: string, id: string) => {
+    readAt.current.set(key, epoch.current);
+    setSaved((value) => (value[key] === id ? { ...value, [key]: null } : value));
+  };
 
   const save = useCallback(async (slot: ResolvedSlot, source: FavoriteMealSource, withUndo: boolean) => {
     const key = keyOf(source);
@@ -80,14 +96,17 @@ export function useMealFavorites({ eligible, feedback }: {
       if (!result.ok) { feedback.notify({ tone: "error", message: result.message }); return; }
       setOne(key, result.id);
       if (!withUndo) return;
-      const skipped = result.skipped.length > 0
-        ? ` Not favored under your food rules: ${result.skipped.join(", ")}.` : "";
+      // `skipped` holds foods a rule kept out and foods still waiting on a rules check.
+      const skipped = result.skipped.length > 0 ? ` Not favored yet: ${result.skipped.join(", ")}.` : "";
       feedback.notify({ tone: "success", message: `${name} saved to favorite meals.${skipped}`,
         action: { label: "Undo", action: () => {
+          if (writing.current.has(key)) return;
+          busy(key, true);
           void undoSaveFavoriteMeal(result.id, result.newlyFavored).then((undone) => {
             if (!undone.ok) { feedback.notify({ tone: "error", message: undone.message }); return; }
-            setOne(key, null);
-          }).catch((error: unknown) => { if (!(error instanceof AccountChanged)) throw error; });
+            clearIf(key, result.id);
+          }).catch((error: unknown) => { if (!(error instanceof AccountChanged)) throw error; })
+            .finally(() => busy(key, false));
         } } });
     } catch (error) {
       // The write belongs to nobody now (account changed mid-write): settle quietly, as every
@@ -105,9 +124,9 @@ export function useMealFavorites({ eligible, feedback }: {
     try {
       const result = await removeFavoriteMeal(id);
       if (!result.ok) { feedback.notify({ tone: "error", message: result.message }); return; }
-      setOne(key, null);
-      feedback.notify({ tone: "success", message: `${name} removed from favorite meals. Its foods stay Favored.`,
-        action: { label: "Undo", action: () => { void save(slot, source, false); } } });
+      clearIf(key, id);
+      feedback.notify({ tone: "success", message: `${name} removed from favorite meals. Your Favored foods are unchanged.`,
+        action: { label: "Undo", action: () => { if (!writing.current.has(key)) void save(slot, source, false); } } });
     } catch (error) {
       if (!(error instanceof AccountChanged)) throw error;
     } finally {
@@ -125,7 +144,10 @@ export function useMealFavorites({ eligible, feedback }: {
     const id = saved[key];
     return {
       on: id !== null, pending: pending.has(key),
-      onToggle: () => { void (id ? remove(slot, source, id) : save(slot, source, true)); },
+      onToggle: () => {
+        if (writing.current.has(key)) return;
+        void (id ? remove(slot, source, id) : save(slot, source, true));
+      },
     };
   };
 
