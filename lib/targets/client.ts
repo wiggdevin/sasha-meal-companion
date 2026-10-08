@@ -122,11 +122,12 @@ export class TargetSaveRefusedError extends Error {
   }
 }
 
-async function refusalCode(response: Response): Promise<string | null> {
+async function refusalCode(h: AccountHandle, response: Response): Promise<string | null> {
   try {
-    const body = await response.clone().json() as { error?: unknown };
+    const body = await accountJson<{ error?: unknown }>(h, response);
     return typeof body?.error === "string" ? body.error : null;
-  } catch {
+  } catch (e) {
+    rethrowAccountChanged(e);
     return null;
   }
 }
@@ -141,7 +142,7 @@ async function postRevisionSet(
   }, { fetchImpl });
   if (!response.ok) {
     if (response.status >= 400 && response.status < 500) {
-      throw new TargetSaveRefusedError(response.status, await refusalCode(response));
+      throw new TargetSaveRefusedError(response.status, await refusalCode(h, response));
     }
     throw new Error(`save targets failed: ${response.status}`);
   }
