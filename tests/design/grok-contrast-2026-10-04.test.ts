@@ -168,13 +168,25 @@ describe("Grok audit 2026-10-04: InstallPrompt and ProposalCard paint --grad-pan
     for (const hex of gradMatte) expect(luminance(hexToRgb(hex))).toBeLessThan(0.15); // the real dark surface
   });
 
-  it("InstallPrompt.tsx paints var(--grad-panel) inline and never the matte gradient or scope", () => {
-    expect(INSTALL_PROMPT).toMatch(/background:\s*"var\(--grad-panel\)"/);
+  /**
+   * 2026-10-08: InstallPrompt stopped being one hand-rolled floating card with its own inline
+   * `background: "var(--grad-panel)"` — it is now several inline Today-list cards built from the
+   * house `.shell`/`.surface` wrapper (same ivory family, `--grad-card`) and `components/ui/Notice`
+   * (a light tone wash, already guarded by tests/design/contrast.test.ts), so this test was updated
+   * — rather than kept passing by re-adding an inline style the new structure does not need — to
+   * check the same rule (ivory panel, never the matte gradient or scope) against what it actually
+   * renders now.
+   */
+  it("InstallPrompt.tsx paints the ivory card system (.shell/.surface, --grad-card) and never the matte gradient or scope", () => {
+    expect(INSTALL_PROMPT).toMatch(/className="shell"/);
+    expect(INSTALL_PROMPT).toMatch(/className="surface /); // the hand-built iOS Share guide's own panel
     expect(INSTALL_PROMPT).not.toMatch(/--grad-matte|\bmatte\b/);
-    expect(INSTALL_PROMPT).toMatch(/text-body font-medium text-on-charcoal/); // title
-    expect(INSTALL_PROMPT).toMatch(/leading-\[1\.6\] text-graphite/); // instructions
-    expect(worst(ON_CHARCOAL, gradPanel)).toBeGreaterThanOrEqual(MIN.text);
-    expect(worst(GRAPHITE, gradPanel)).toBeGreaterThanOrEqual(MIN.text);
+    expect(INSTALL_PROMPT).not.toMatch(/background:\s*"var\(--grad-matte\)"/);
+    expect(INSTALL_PROMPT).toMatch(/text-charcoal/); // the guide's own title and labelled words
+    expect(INSTALL_PROMPT).toMatch(/text-graphite/); // the guide's own body copy
+    const gradCard = gradientStops("card");
+    expect(worst(CHARCOAL, gradCard)).toBeGreaterThanOrEqual(MIN.text);
+    expect(worst(GRAPHITE, gradCard)).toBeGreaterThanOrEqual(MIN.text);
   });
 
   it("ProposalCard.tsx's inner panel style is var(--grad-panel), with text-charcoal/text-graphite body text", () => {
