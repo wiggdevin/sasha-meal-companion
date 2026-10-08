@@ -30,6 +30,9 @@ const buildProposal = vi.fn();
 const activeProfile = vi.fn();
 vi.mock("@/lib/proposal", () => ({ buildProposal: (...a: unknown[]) => buildProposal(...a) }));
 vi.mock("@/lib/server/targets", () => ({ activeProfile: (...a: unknown[]) => activeProfile(...a) }));
+const readTargetEligibility = vi.fn();
+vi.mock("@/lib/server/target-eligibility", () => ({
+  readTargetEligibility: (...a: unknown[]) => readTargetEligibility(...a) }));
 const { GET: weeklyProposalGET, POST: weeklyProposalPOST } = await import("@/app/api/jobs/weekly-proposal/route");
 const { GET, POST } = await import("@/app/api/jobs/estimate/route");
 const { mondayOf, takeLock } = await import("@/lib/server/jobs");
@@ -282,6 +285,24 @@ describe("POST /api/jobs/weekly-proposal", () => {
   it.each([undefined, "wrong"])("GET 401s a missing or wrong cron secret (%s)", async (secret) => {
     expect((await weeklyProposalGET(request("GET", secret))).status).toBe(401);
     expect(runEstimate).not.toHaveBeenCalled();
+  });
+
+  it("proposes a held account at a 0 pace and a minor not at all (onboarding v2 G1)", async () => {
+    activeProfile.mockResolvedValue({ kcal_train: 2200, kcal_rest: 2000, goal_rate_bp_week: -50 });
+    readTargetEligibility.mockReset().mockResolvedValue({ holds: [], minor: false });
+    await call();
+    expect(buildProposal.mock.calls.at(-1)?.[0]).toMatchObject({ active: { goal_rate_bp_week: -50 } });
+    readTargetEligibility.mockResolvedValue({ holds: ["pregnancy"], minor: false });
+    await weeklyProposalPOST(new Request("https://x.test/api/jobs/weekly-proposal",
+      { method: "POST", headers: { authorization: "Bearer s3cret", "content-type": "application/json" },
+        body: JSON.stringify({ weekStart: "2026-09-07" }) }));
+    expect(buildProposal.mock.calls.at(-1)?.[0]).toMatchObject({ active: { goal_rate_bp_week: 0 } });
+    const calls = buildProposal.mock.calls.length;
+    readTargetEligibility.mockResolvedValue({ holds: [], minor: true });
+    await weeklyProposalPOST(new Request("https://x.test/api/jobs/weekly-proposal",
+      { method: "POST", headers: { authorization: "Bearer s3cret", "content-type": "application/json" },
+        body: JSON.stringify({ weekStart: "2026-09-14" }) }));
+    expect(buildProposal.mock.calls.length).toBe(calls);
   });
 
   it("GET runs the same proposal job and returns the same status as POST", async () => {

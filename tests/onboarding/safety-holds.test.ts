@@ -51,7 +51,7 @@ describe("a held account in onboarding", () => {
     const settings = buildCompletedSettings(defaultSettings(), losingState(), NOW, held);
     expect(settings.goal).toBe("lose_fat");
     expect(settings.goalRateBpWeek).toBeNull();
-    expect(settings.activeTargetProfile?.inputs.goalRateBpWeek).toBe(0);
+    expect(settings.activeTargetProfile?.inputs?.goalRateBpWeek).toBe(0);
     const free = buildCompletedSettings(defaultSettings(), losingState(), NOW);
     expect(free.goalRateBpWeek).toBe(-50);
     expect(settings.activeTargetProfile!.training.kcal)

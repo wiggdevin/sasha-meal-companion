@@ -9,11 +9,9 @@ import type { CuisineKey } from "./profile/cuisines";
 
 // ---------------------------------------------------------------- day types
 
-/** Each account's training weekdays are `training-10`, every other day `rest` (lib/plan.ts).
- *  `training-7-fasted` is historical: read only from an override a date already saved. */
 export type DayType = "training-10" | "training-7-fasted" | "rest";
 
-/** Historical ritual slot ids (the first client's week) plus the generic `meal-N` slots. */
+/** Ritual slot ids are historical; training weekdays are `training-10`, fasted is an override. */
 export type SlotId =
   | "coffee"
   | "pouches-pre"

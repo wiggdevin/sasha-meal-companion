@@ -57,7 +57,7 @@ async function writeProposal(
   // Pace holds (onboarding v2 G1): a held account's proposal follows its burn at a 0 pace, even
   // when the revision in force predates the hold. A minor's revision proposes nothing.
   let held = active;
-  if (active.goal_rate_bp_week !== 0) {
+  if (Number(active.goal_rate_bp_week ?? 0) !== 0) {
     const eligibility = await readTargetEligibility(admin, userId);
     if (eligibility.minor) return "none";
     if (!paceAllowed(eligibility)) held = { ...active, goal_rate_bp_week: 0 };

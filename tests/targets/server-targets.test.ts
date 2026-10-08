@@ -16,8 +16,8 @@ const PROFILE: TargetProfile = {
 };
 
 /** The account's stored safety answers the eligibility read sees (lib/server/target-eligibility.ts). */
-type Answers = { conditions?: string[]; profiles?: { profile_id: string; source: string }[];
-  birthYear?: number | null };
+type Answers = { conditions?: readonly string[];
+  profiles?: readonly { profile_id: string; source: string }[]; birthYear?: number | null };
 
 function clientWith(profile: TargetProfile | null, answers: Answers = {}) {
   const rpc = vi.fn(async (_name: string, args: { p_row?: Record<string, unknown> }) => ({
