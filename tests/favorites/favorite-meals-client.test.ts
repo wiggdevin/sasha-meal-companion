@@ -20,7 +20,6 @@ import { toggleFavorite } from "@/lib/favorites-client";
 import { StampedEligibleSet } from "@/lib/foods/eligible-client";
 import { foodRulesEpoch, noteFoodRulesChanged } from "@/lib/foods/rules-epoch";
 import { foodRulesKey } from "@/lib/foods/rule-marks";
-import { reserveFoodMembershipIntent } from "@/lib/foods/prefs-client";
 import { getMeta, outboxRow, putMeta } from "@/lib/sync/idb";
 import { loadStore } from "@/lib/store";
 import { resumeFavoriteMealMarks } from "@/lib/favorite-meals-client";
@@ -484,22 +483,6 @@ describe("#2 marks are resumable", () => {
     expect(await membershipOps()).toEqual([]);
   });
 
-  it("an op queued before a crash is recognised as this heart's, not re-marked", async () => {
-    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
-    if (!first.ok) throw new Error("setup");
-    // The crash: the revision was recorded and the op queued, but the run never settled it.
-    const intent = reserveFoodMembershipIntent("banana", h);
-    await putMeta(h, `favorite_meal_marks:${first.id}`,
-      { pending: [{ name: "Banana", nameNorm: "banana", rev: intent.rev }], done: [], skipped: [] });
-    await setFoodMembership("Banana", "eats", { account: h, note: null, intent });
-    const ops = (await membershipOps()).length;
-    const again = await save({ judge: allow }, [...PLATE, BANANA_C]);
-    expect(again).toMatchObject({ newlyFavored: ["banana"] });
-    expect(await membershipOps()).toHaveLength(ops);
-    const undone = await undoSaveFavoriteMeal(first.id, ["banana"], { account: h });
-    expect(undone).toMatchObject({ cleared: ["banana"] });
-  });
-
   it("the default judge Favors an admitted universe food under an open set", async () => {
     const outcome = await save({ eligible: openSet(FOODS) }, [...PLATE, BANANA_C]);
     expect(outcome).toMatchObject({ ok: true, newlyFavored: ["banana"], skipped: [] });
@@ -617,5 +600,71 @@ describe("the final check before each Eats op", () => {
     }
     expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
     expect(await membershipOps()).toEqual([]);
+  });
+});
+
+// ------------------------------------------------------------------ Sol round 3: one atomic write
+
+describe("the guarded write: check and write in one transaction", () => {
+  it("an Avoid tap between the verdict and the write wins: no Eats op, the name is skipped", async () => {
+    let tap: Promise<unknown> | undefined;
+    const judge = (): FavorVerdict => {
+      tap ??= setFoodMembership("Banana", "avoid", { account: h, note: null });
+      return "allowed";
+    };
+    const first = await save({ judge, foods: POOL }, [BANANA_C]);
+    await tap;
+    if (!first.ok) throw new Error("setup");
+    expect(first.newlyFavored).toEqual([]);
+    expect((await membershipOps()).map((op) => op.payload.status)).toEqual(["avoid"]);
+    expect(readFoodMembership(h.userId, "banana")?.status).toBe("avoid");
+    // Whether this run saw the Avoid land or not, the next one skips the name for good.
+    const again = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    expect(again).toMatchObject({ newlyFavored: [], skipped: ["banana"] });
+    expect((await marksOf(first.id))?.pending).toEqual([]);
+    expect((await membershipOps()).map((op) => op.payload.status)).toEqual(["avoid"]);
+  });
+
+  it("a crash before the transaction commits writes nothing and leaves the name pending", async () => {
+    const first = await save({ judge: () => "unverified", foods: POOL }, [BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    vi.mocked(outboxRow).mockImplementationOnce(() => { throw new Error("tab closed"); });
+    const crashed = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    expect(crashed).toMatchObject({ ok: true, newlyFavored: [], skipped: ["banana"] });
+    expect(await membershipOps()).toEqual([]);
+    expect(readFoodMembership(h.userId, "banana")).toBeUndefined();
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
+    expect((await marksOf(first.id))?.done).toEqual([]);
+    // The revision it took was released: the next run writes.
+    const again = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    expect(again).toMatchObject({ newlyFavored: ["banana"] });
+  });
+
+  it("records exactly the op's revision, and Undo clears exactly that one", async () => {
+    const first = await save({ judge: allow, foods: POOL }, [BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    const [op] = await membershipOps();
+    const record = await marksOf(first.id);
+    expect(record?.done).toEqual([{ nameNorm: "banana", rev: op.payload.rev }]);
+    expect(record?.pending).toEqual([]);
+    expect(readFoodMembership(h.userId, "banana")?.rev).toBe(op.payload.rev);
+    const undone = await undoSaveFavoriteMeal(first.id, first.newlyFavored, { account: h });
+    expect(undone).toMatchObject({ cleared: ["banana"], kept: [] });
+    const ops = await membershipOps();
+    expect(ops.at(-1)?.payload).toMatchObject({ name_norm: "banana", status: null });
+    expect(Number(ops.at(-1)?.payload.rev)).toBeGreaterThan(Number(op.payload.rev));
+  });
+
+  it("Heart OFF between the verdict and the write: the guard refuses, nothing is queued", async () => {
+    const first = await save({ judge: () => "unverified", foods: POOL }, [BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    let off: Promise<unknown> | undefined;
+    const judge = (): FavorVerdict => { off ??= removeFavoriteMeal(first.id, { account: h }); return "allowed"; };
+    const outcome = await save({ judge, foods: POOL }, [BANANA_C]);
+    await off;
+    expect(outcome).toMatchObject({ ok: true, newlyFavored: [] });
+    expect(await membershipOps()).toEqual([]);
+    expect(readFoodMembership(h.userId, "banana")).toBeUndefined();
+    expect(await marksOf(first.id)).toMatchObject({ pending: [], done: [] });
   });
 });
