@@ -294,16 +294,23 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   `status = 'eats'`, the sync op, `add_to_eats`/`remove_from_eats` and `/api/foods/eligible`
   never rename; only the copy a person reads changes, to "Favored". A new account opens
   (`food_world = 'open'`) at onboarding completion (`lib/profile/onboarding-client.ts`
-  `persistCompletedOnboarding`, first completion only) with 0 default or inherited Favored marks:
-  the legacy zero-food auto-seed (`lib/foods/today-starter.ts`) never runs for an open account.
+  `persistCompletedOnboarding` / `persistSkippedOnboarding`, first completion only) with 0
+  default or inherited Favored marks. The open is durable (`lib/foods/world-open-client.ts`): a
+  pending intent in the account's META store, re-posted after every successful sync
+  (`lib/sync/post-sync.ts`) until the server answers 200 open, 423, 409 `condition_review` or
+  another final 4xx. The legacy zero-food auto-seed (`lib/foods/today-starter.ts`) runs only on
+  an affirmative `closed` read; an open account or a failed read seeds nothing.
   An existing account keeps its Eats marks as Favored marks, unchanged, when it opts in —
   `POST /api/foods/world` never writes `user_food_prefs`. A held account
   (`OPEN_WORLD_HOLD_USER_IDS`) never sees the invitation (`GET /api/foods/world/invitation`) and
   stays `closed`. The one-time star merge (`scripts/star-to-favored.ts`) turns a live
   `favorites_foods` star into a Favored mark by name family, unless the family is already on
-  Avoid — never overriding it — and converges to 0 further writes on a second run. Guarded by
-  `tests/foods/food-world.test.ts`, `tests/foods/today-starter.test.ts` and
-  `tests/foods/star-to-favored.test.ts`.
+  Avoid (any Avoid pref of the family, never a capped ref set) — never overriding it — skips a
+  star on another account's food, reads account rows with the owner's explicit `user_id`, runs
+  under plain `tsx` (no `server-only` import), and converges to 0 further writes on a second run.
+  Guarded by `tests/foods/food-world.test.ts`, `tests/foods/today-starter.test.ts`,
+  `tests/foods/star-to-favored.test.ts`, `tests/foods/star-to-favored-cli.test.ts` and
+  `tests/onboarding/open-food-world.test.ts`.
 
 ## Data model in one line
 `Food { id, name, role: protein|carb|fat, unit, perUnit: {protein,carbs,fat}, status: eats|avoid, note?, noCook?, updatedAt }`.
