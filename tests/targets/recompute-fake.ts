@@ -91,6 +91,8 @@ export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: 
         orders.push([key, opts.ascending]); return builder;
       },
       limit: (n: number) => { limit = n; return builder; },
+      // A page of a paged read (lib/server/paged-read.ts): the fake serves every row on page one.
+      range: (from: number) => { if (from > 0) limit = 0; return builder; },
       maybeSingle: async () => ({ data: rows()[0] ?? null, error: null }),
       then: (resolve: (value: { data: Row[]; error: null }) => unknown) =>
         Promise.resolve({ data: rows(), error: null }).then(resolve),

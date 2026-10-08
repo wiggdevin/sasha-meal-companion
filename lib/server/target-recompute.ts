@@ -44,6 +44,7 @@ import type { Macros, Settings, TargetRevision } from "@/lib/types";
 import { settingsProfileFromRow, type UserSettingsProfileRow } from "@/lib/sync/user-settings";
 import { activeProfile, writeDerivedTargets, writeDerivedTargetsIfActive } from "@/lib/server/targets";
 import { resolveAccountDay } from "@/lib/server/account-day";
+import { fetchAllRows } from "@/lib/server/paged-read";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
 import { isMinorOn, paceAllowed } from "@/lib/profile/rate-eligibility";
 
@@ -155,21 +156,20 @@ function samePins(left: Pins, right: Pins): boolean {
     && left.proteinG === right.proteinG;
 }
 
-/** At most this many scheduled revisions are read; a phone ahead of its zone dates a few. */
-const FUTURE_LIMIT = 50;
-
 /** The revision that takes effect on each date after `after` (highest `rev` per date), in date
- *  order: a lower `rev` on the same date never comes into force. */
+ *  order: a lower `rev` on the same date never comes into force. Every scheduled row is read,
+ *  paged past the API's 1,000-row cap (lib/server/paged-read.ts) and failing whole, so a paced
+ *  revision can never sit beyond the read and take effect after a new hold. */
 async function futureRevisions(
   client: SupabaseClient, userId: string, after: string,
 ): Promise<TargetProfile[]> {
-  const { data, error } = await client.from("target_profiles").select("*")
-    .eq("user_id", userId).gt("effective_from", after)
+  const data = await fetchAllRows<TargetProfile>((from, to) => client.from("target_profiles")
+    .select("*").eq("user_id", userId).gt("effective_from", after)
     .order("effective_from", { ascending: true }).order("rev", { ascending: false })
-    .limit(FUTURE_LIMIT);
-  if (error) throw error;
+    .order("id", { ascending: true }).range(from, to) as unknown as PromiseLike<{
+      data: TargetProfile[] | null; error: { message: string } | null }>);
   const byDate = new Map<string, TargetProfile>();
-  for (const row of (data ?? []) as TargetProfile[]) {
+  for (const row of data) {
     const kept = byDate.get(row.effective_from);
     if (!kept || row.rev > kept.rev) byDate.set(row.effective_from, row);
   }

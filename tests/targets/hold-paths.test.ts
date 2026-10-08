@@ -22,7 +22,7 @@ function client(tables: Record<string, Row[]>,
     const filters: [string, unknown][] = [];
     const rows = () => (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
     const chain: Record<string, unknown> = {
-      select: () => chain, lte: () => chain, order: () => chain, limit: () => chain,
+      select: () => chain, lte: () => chain, order: () => chain, limit: () => chain, range: () => chain,
       eq: (k: string, v: unknown) => { filters.push([k, v]); return chain; },
       maybeSingle: async () => ({ data: rows()[0] ?? null, error: null }),
       then: (resolve: (v: unknown) => unknown) => Promise.resolve({ data: rows(), error: null }).then(resolve),
@@ -134,6 +134,20 @@ describe("a hold with a revision scheduled after today", () => {
     const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
     expect(outcome.status).toBe("written");
     for (const date of dates) expect(activeOn(fake.targets, date)?.goal_rate_bp_week).toBe(0);
+  });
+
+  it("reads every scheduled revision: a pace behind 60 others is still neutralised", async () => {
+    // Sol r3: the sweep read at most 50 future rows, so a paced revision past them survived.
+    const day = (n: number) => new Date(Date.parse("2026-10-12T00:00:00Z") + n * 86_400_000)
+      .toISOString().slice(0, 10);
+    const quiet = Array.from({ length: 60 }, (_, n) =>
+      staleTarget({ id: `q${n}`, rev: 10 + n, effective_from: day(n), goal_rate_bp_week: 0 }));
+    const last = day(70);
+    const fake = fakeClient(settingsRow(paced), [staleTarget(), ...quiet,
+      staleTarget({ id: "late", rev: 99, effective_from: last, goal_rate_bp_week: -50,
+        input_goal: "lose_fat" })], [], held);
+    await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    expect(activeOn(fake.targets, last)?.goal_rate_bp_week).toBe(0);
   });
 
   it("still leaves a scheduled revision alone when the account has no hold", async () => {
