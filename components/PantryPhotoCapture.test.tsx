@@ -74,7 +74,7 @@ describe("PantryPhotoCapture's draft (acceptance 1)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
     await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
     fireEvent.change(screen.getByDisplayValue("Carrots"), { target: { value: "Baby carrots" } });
-    fireEvent.click(screen.getByRole("button", { name: "Remove Greek yogurt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove item 2, Greek yogurt" }));
     fireEvent.change(screen.getByLabelText("Add an item"), { target: { value: "Butter" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     mocked.confirm.mockResolvedValue({ items: [], failed: [] });
@@ -88,8 +88,8 @@ describe("PantryPhotoCapture's draft (acceptance 1)", () => {
     open();
     fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
     await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Carrots weight in grams, optional"), { target: { value: "150" } });
-    fireEvent.change(screen.getByLabelText("Greek yogurt weight in grams, optional"), { target: { value: "abc" } });
+    fireEvent.change(screen.getByLabelText("Item 1 weight in grams, optional"), { target: { value: "150" } });
+    fireEvent.change(screen.getByLabelText("Item 2 weight in grams, optional"), { target: { value: "abc" } });
     mocked.confirm.mockResolvedValue({ items: [], failed: [] });
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
@@ -131,5 +131,44 @@ describe("PantryPhotoCapture's confirmed result (acceptance 2, 3)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(screen.getByText(/didn.t save/)).toBeTruthy());
     expect(screen.getByText("Milk: Already in your pantry.")).toBeTruthy();
+  });
+});
+
+describe("PantryPhotoCapture's request id (Sol BLOCK, verified)", () => {
+  // The server derives each write's idempotency key from requestId + the item's array position
+  // (lib/server/pantry-photo.ts itemRequestId) -- an EXACT retry safely no-ops into the rows
+  // already written, but a retry with an EDITED payload at the same positions must never reuse
+  // those ids, or it could write the wrong item where an earlier one already landed.
+  it("reuses the same request id on an unmodified retry", async () => {
+    const { PantryPhotoError } = await import("@/lib/shopping/pantry-photo-client");
+    mocked.confirm.mockRejectedValueOnce(new PantryPhotoError("That took too long. Try again."));
+    mocked.confirm.mockResolvedValueOnce({ items: [], failed: [] });
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
+    await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" })); // retry, nothing edited
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(2));
+    const [, firstId] = mocked.confirm.mock.calls[0];
+    const [, secondId] = mocked.confirm.mock.calls[1];
+    expect(secondId).toBe(firstId);
+  });
+
+  it("mints a fresh request id once the draft is edited after a failed attempt", async () => {
+    const { PantryPhotoError } = await import("@/lib/shopping/pantry-photo-client");
+    mocked.confirm.mockRejectedValueOnce(new PantryPhotoError("Couldn’t save those. Try again."));
+    mocked.confirm.mockResolvedValueOnce({ items: [], failed: [] });
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
+    await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByDisplayValue("Carrots"), { target: { value: "Baby carrots" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(2));
+    const [, firstId] = mocked.confirm.mock.calls[0];
+    const [, secondId] = mocked.confirm.mock.calls[1];
+    expect(secondId).not.toBe(firstId);
   });
 });

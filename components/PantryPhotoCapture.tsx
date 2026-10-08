@@ -17,7 +17,7 @@
  * `recipeAccess.enabled` gate (components/FoodsTabs.tsx) keeps off-screen for every other
  * account -- the same shopping-pilot boundary the backend's `requireRecipeUser` enforces.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import PhotoCapture from "@/components/PhotoCapture";
 import PhotoPrivacyNotice from "@/components/ui/PhotoPrivacyNotice";
 import Button from "@/components/ui/Button";
@@ -32,6 +32,12 @@ import type { PantryItem } from "@/lib/shopping/types";
 
 type DraftItem = { id: string; name: string; grams: string };
 type Phase = "closed" | "start" | "reading" | "draft" | "saving" | "done";
+
+/** Matches the confirm route's own ceiling (app/api/pantry/photo/confirm/route.ts Body schema):
+ *  1-40 items, each name 1-160 characters. Enforced here too so the draft never silently builds
+ *  a batch the route would reject whole. */
+const MAX_ITEMS = 40;
+const MAX_NAME_LENGTH = 160;
 
 function toDraft(names: readonly string[]): DraftItem[] {
   return names.map((name) => ({ id: crypto.randomUUID(), name, grams: "" }));
@@ -59,11 +65,21 @@ export default function PantryPhotoCapture({ onConfirmed }: {
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState<FailedPantryPhotoItem[]>([]);
   const [written, setWritten] = useState<PantryItem[]>([]);
-  const [requestId, setRequestId] = useState<string | null>(null);
+  /**
+   * The exact payload the last confirm attempt sent, keyed with the request id it used. The
+   * server derives each write's idempotency key from `requestId` + the item's position
+   * (lib/server/pantry-photo.ts itemRequestId) so an EXACT retry (same id, same array) safely
+   * no-ops into the rows already written -- but if the draft was edited since (a rename, a
+   * removal, reordering, a new item), the SAME positions now hold different content, and reusing
+   * that id could write the wrong item at an already-used position. A changed payload always
+   * mints a fresh id, mirroring the same "a changed selection is a new intent" rule
+   * components/coach/TasteChipsCard.tsx already uses for its own confirm (Sol BLOCK, verified).
+   */
+  const attempted = useRef<{ requestId: string; payload: string } | null>(null);
 
   function openFresh() {
     setPhase("start"); setItems([]); setNewName(""); setError(null); setFailed([]);
-    setWritten([]); setRequestId(null);
+    setWritten([]); attempted.current = null;
   }
 
   async function onPhoto(photo: Blob) {
@@ -73,8 +89,8 @@ export default function PantryPhotoCapture({ onConfirmed }: {
       const h = accountHandle();
       const mediaPath = await uploadPantryPhoto(h, photo);
       const names = await draftPantryPhoto(h, mediaPath);
-      setItems(toDraft(names));
-      setRequestId(crypto.randomUUID());
+      setItems(toDraft(names.slice(0, MAX_ITEMS)));
+      attempted.current = null;
       setPhase("draft");
     } catch (e) {
       setError(e instanceof PantryPhotoError ? e.message : "Couldn’t read that photo. Try again.");
@@ -86,8 +102,8 @@ export default function PantryPhotoCapture({ onConfirmed }: {
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
   function addItem() {
-    const name = newName.trim();
-    if (!name) return;
+    const name = newName.trim().slice(0, MAX_NAME_LENGTH);
+    if (!name || items.length >= MAX_ITEMS) return;
     setItems((prev) => [...prev, ...toDraft([name])]);
     setNewName("");
   }
@@ -101,15 +117,21 @@ export default function PantryPhotoCapture({ onConfirmed }: {
   const keepable = items.filter((item) => item.name.trim().length > 0);
 
   async function onConfirm() {
-    if (keepable.length === 0 || !requestId) return;
+    if (keepable.length === 0) return;
+    const payload = keepable.map((item) => ({
+      name: item.name.trim(),
+      grams: parseGrams(item.grams),
+    }));
+    const payloadKey = JSON.stringify(payload);
+    // Reuse the id only while it still names exactly this payload; any edit since the last
+    // attempt is a fresh intent and gets a fresh id (see the `attempted` docblock above).
+    const requestId = attempted.current?.payload === payloadKey
+      ? attempted.current.requestId : crypto.randomUUID();
+    attempted.current = { requestId, payload: payloadKey };
     setPhase("saving");
     setError(null);
     try {
       const h = accountHandle();
-      const payload = keepable.map((item) => ({
-        name: item.name.trim(),
-        grams: parseGrams(item.grams),
-      }));
       const result = await confirmPantryPhoto(h, requestId, payload);
       setWritten(result.items);
       setFailed(result.failed);
@@ -147,15 +169,16 @@ export default function PantryPhotoCapture({ onConfirmed }: {
         <div className="flex flex-col gap-2">
           <p className="m-0 text-caption font-medium text-charcoal">Is this right?</p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {items.map((item) => (
+            {items.map((item, index) => (
               <li key={item.id} className="flex items-center gap-2">
                 <input value={item.name} onChange={(event) => updateName(item.id, event.target.value)}
-                  aria-label="Item name" className="well min-h-11 flex-1 px-3 text-caption text-charcoal" />
+                  maxLength={MAX_NAME_LENGTH} aria-label={`Item ${index + 1} name`}
+                  className="well min-h-11 flex-1 px-3 text-caption text-charcoal" />
                 <input value={item.grams} onChange={(event) => updateGrams(item.id, event.target.value)}
                   inputMode="numeric" placeholder="g"
-                  aria-label={`${item.name.trim() || "Item"} weight in grams, optional`}
+                  aria-label={`Item ${index + 1} weight in grams, optional`}
                   className="well min-h-11 w-16 px-2 text-caption text-charcoal" />
-                <button type="button" aria-label={`Remove ${item.name.trim() || "item"}`}
+                <button type="button" aria-label={`Remove item ${index + 1}${item.name.trim() ? `, ${item.name.trim()}` : ""}`}
                   onClick={() => removeItem(item.id)}
                   className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted">
                   ×
@@ -166,13 +189,17 @@ export default function PantryPhotoCapture({ onConfirmed }: {
               <li className="text-tiny text-muted">Nothing recognised. Add what you have below.</li>
             )}
           </ul>
-          <div className="flex items-center gap-2">
-            <input value={newName} onChange={(event) => setNewName(event.target.value)}
-              placeholder="Add an item" aria-label="Add an item"
-              className="well min-h-11 flex-1 px-3 text-caption text-charcoal"
-              onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addItem(); } }} />
-            <Button variant="tertiary" size="sm" onClick={addItem}>Add</Button>
-          </div>
+          {items.length >= MAX_ITEMS ? (
+            <p className="m-0 text-tiny text-muted">Up to {MAX_ITEMS} items at a time.</p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input value={newName} onChange={(event) => setNewName(event.target.value)}
+                maxLength={MAX_NAME_LENGTH} placeholder="Add an item" aria-label="Add an item"
+                className="well min-h-11 flex-1 px-3 text-caption text-charcoal"
+                onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addItem(); } }} />
+              <Button variant="tertiary" size="sm" onClick={addItem}>Add</Button>
+            </div>
+          )}
           <Button variant="primary" status={phase === "saving" ? "pending" : undefined}
             disabled={keepable.length === 0} onClick={() => void onConfirm()}>
             Confirm
