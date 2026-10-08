@@ -253,7 +253,14 @@ export default function OnboardingDock(props: Props) {
   return <motion.div data-onboarding-dock="true" data-mode={mode} className={`${dockStyles.dockFrame} relative w-full`}
     style={{ borderRadius: 32, ...lensVar("pill") }}
     initial={false} animate={{ height: Math.max(MIN_HEIGHT, height) }}
-    transition={reduce ? INSTANT : SPRINGS.gentle}
+    // Polish pass (2026-10-07, "sync the motion across beats"): `SPRINGS.gentle` has a 0.55s
+    // visual duration — the frame was still visibly morphing height for ~300ms after the stream's
+    // own card had already finished its 0.24s CONTAINER_ENTER swap (above) and Sprout's pose had
+    // already cross-faded, so a beat change read as the dock lagging behind the rest of the
+    // screen. `SPRINGS.snappy` (0.3s) is the house spring closest to that 0.24s window while
+    // staying a real spring — the dock is still a liquid glass element, not a plain tween — so the
+    // frame settles inside the same beat-change window the content and Sprout already use.
+    transition={reduce ? INSTANT : SPRINGS.snappy}
     onPointerMove={sheen} onPointerLeave={sheenOff}>
     <div ref={glass} className={`${styles.glass} ${styles.assistant} matte absolute inset-0 overflow-hidden`}
       style={{ borderRadius: 32 }}>

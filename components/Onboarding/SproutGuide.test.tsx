@@ -41,9 +41,14 @@ describe("SproutGuide", () => {
   });
 
   it("sizes the figure from the caller's own per-beat lookup, not a size baked into the pose", () => {
+    // Polish pass (2026-10-07, "smooth Sprout's size transition"): the figure itself now always
+    // renders at a fixed base size and is scaled down via `transform`, so the caller's requested
+    // size shows up on the animated outer wrapper (which drives layout), not on SproutFigure's
+    // own element — see SproutGuide.tsx's top comment for why.
     const { container } = render(<SproutGuide pose="wave" line="…" size={168} />);
-    const figure = container.querySelector("[data-pose]") as HTMLElement | null;
-    expect(figure?.style.width).toBe("168px");
+    const wrapper = container.querySelector("[data-sprout-guide-size]") as HTMLElement | null;
+    expect(wrapper?.getAttribute("data-sprout-guide-size")).toBe("168");
+    expect(wrapper?.style.width).toBe("168px");
   });
 
   it("holds the figure still under reduced motion and still carries the text equivalent", () => {

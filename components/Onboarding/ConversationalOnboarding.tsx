@@ -11,7 +11,7 @@ import FallingFoodPile from "@/components/Onboarding/FallingFoodPile";
 import FoodsTopPickChips from "@/components/Onboarding/FoodsTopPickChips";
 import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
 import {
-  effectiveBand, emptyFacts, GoalPillRow, PlaybackSentence, SexChipRow,
+  effectiveBand, emptyFacts, firstMissingField, GoalPillRow, PlaybackSentence, SexChipRow,
   type Goal, type OnboardingFactKey,
 } from "@/components/Onboarding/facts";
 import RewardPlateCard, { type RewardPlateFood, type RewardPlateTargets }
@@ -75,7 +75,15 @@ export const ONBOARDING_SCOPE = { kind: "page", page: "onboarding" } as const;
  */
 export type OnboardingBeat = "opener" | "facts" | "safety" | "foods" | "reward";
 
-/** VISUAL-SPEC.md §2's hero-Sprout table, mapped onto this shell's five beats. */
+/** VISUAL-SPEC.md §2's hero-Sprout table, mapped onto this shell's five beats. "facts" is the one
+ *  row the table itself splits in two — "Facts sentence playback" (`thinking`) vs. "Gap-fill
+ *  prompt, one missing fact" (`pointing`) — both of which this shell renders as the same "facts"
+ *  beat; `guidePose` below (not this static table) picks between them per the current render, via
+ *  `PlaybackSentence`'s own `firstMissingField`. §2 also calls for mirroring `pointing` with
+ *  `scaleX(-1)` when its target sits to Sprout's LEFT: this shell's layout (VISUAL-SPEC.md §1, the
+ *  `.guide` stage always top-center with the beat's card centered below it, never beside Sprout)
+ *  never puts a target to either side — polish pass (2026-10-07), checked and intentionally not
+ *  applied here; it only matters for a side-by-side layout this shell doesn't have. */
 const BEAT_POSE: Record<OnboardingBeat, OnboardingPose> = {
   opener: "wave", facts: "thinking", safety: "content", foods: "content", reward: "joyful",
 };
@@ -665,6 +673,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       showNumbers={showNumbers} onToggleNumbers={() => setShowNumbers((value) => !value)} />;
   })();
 
+  /** VISUAL-SPEC.md §2: within the "facts" beat, `pointing` once a required field is still an
+   *  empty gap (the same field `PlaybackSentence`'s own `firstMissingField` already points Sprout
+   *  at in its own screen-reader copy, "Sprout is pointing at what's still missing") — `thinking`
+   *  otherwise, the general playback-review moment. Every other beat keeps its static §2 pose. */
+  const guidePose: OnboardingPose = beat === "facts"
+    ? (firstMissingField(facts) ? "pointing" : "thinking")
+    : BEAT_POSE[beat];
+
   return <div className={`${styles.shell} matte`} data-onboarding-v2="true"
     data-scope-kind={ONBOARDING_SCOPE.kind} data-scope-page={ONBOARDING_SCOPE.page}>
     {/* VISUAL-SPEC.md §1: matte charcoal, the same family as the meal card and dock — never flat
@@ -675,7 +691,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     <div className={styles.scroller}>
       <div className={styles.stream}>
         <div className={styles.guide}>
-          <SproutGuide pose={BEAT_POSE[beat]} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
+          <SproutGuide pose={guidePose} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
         </div>
         {/* Sol review round 2: a simultaneous crossfade kept two full beats (wildly different
             heights) in flow at once, which could shift the scroller under a control mid-tap — this
