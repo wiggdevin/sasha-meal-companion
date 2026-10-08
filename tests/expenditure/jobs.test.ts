@@ -263,6 +263,7 @@ describe("POST /api/jobs/weekly-proposal", () => {
 
   beforeEach(() => {
     activeProfile.mockReset().mockResolvedValue({ kcal_train: 2200, kcal_rest: 2000 });
+    readTargetEligibility.mockReset().mockResolvedValue({ holds: [], minor: false });
     buildProposal.mockReset().mockReturnValue({
       kind: "proposal",
       proposed: { kcalTrain: 2210, kcalRest: 2010, proteinG: 150, fatG: 60, carbG: 200,
@@ -303,6 +304,17 @@ describe("POST /api/jobs/weekly-proposal", () => {
       { method: "POST", headers: { authorization: "Bearer s3cret", "content-type": "application/json" },
         body: JSON.stringify({ weekStart: "2026-09-14" }) }));
     expect(buildProposal.mock.calls.length).toBe(calls);
+  });
+
+  it("never proposes for a minor even when the stale active revision is already at a 0 pace", async () => {
+    // A later-added minor profile (or a corrected birth year) can leave a 0-rate (maintenance)
+    // revision active without ever having been derived under the hold. The minor check must not
+    // be skipped just because the rate already reads 0.
+    activeProfile.mockResolvedValue({ kcal_train: 2000, kcal_rest: 2000, goal_rate_bp_week: 0 });
+    readTargetEligibility.mockReset().mockResolvedValue({ holds: [], minor: true });
+    const before = buildProposal.mock.calls.length;
+    await call();
+    expect(buildProposal.mock.calls.length).toBe(before);
   });
 
   it("GET runs the same proposal job and returns the same status as POST", async () => {

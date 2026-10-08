@@ -55,12 +55,14 @@ async function writeProposal(
   estimate: ExpenditureResult, active: TargetProfile, asOf: string,
 ): Promise<"proposed" | "none"> {
   // Pace holds (onboarding v2 G1): a held account's proposal follows its burn at a 0 pace, even
-  // when the revision in force predates the hold. A minor's revision proposes nothing.
+  // when the revision in force predates the hold. A minor's revision proposes nothing, even one
+  // already at a 0 pace (a maintenance goal, or a stale revision left behind by a later-added
+  // minor profile) — the minor check must never be skipped just because the rate is already 0.
   let held = active;
-  if (Number(active.goal_rate_bp_week ?? 0) !== 0) {
-    const eligibility = await readTargetEligibility(admin, userId);
-    if (eligibility.minor) return "none";
-    if (!paceAllowed(eligibility)) held = { ...active, goal_rate_bp_week: 0 };
+  const eligibility = await readTargetEligibility(admin, userId);
+  if (eligibility.minor) return "none";
+  if (Number(active.goal_rate_bp_week ?? 0) !== 0 && !paceAllowed(eligibility)) {
+    held = { ...active, goal_rate_bp_week: 0 };
   }
   const built = buildProposal({ estimate, active: held });
 
