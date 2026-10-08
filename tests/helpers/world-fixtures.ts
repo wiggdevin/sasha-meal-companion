@@ -8,7 +8,8 @@ import type { Row } from "@/tests/helpers/occasion-fake-db";
 export const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 export type WorldOptions = { world?: "open" | "closed"; conditions?: string[]; allergens?: string[];
-  review?: boolean; flags?: string[] };
+  review?: boolean; flags?: string[]; foodWorldSetAt?: string | null; onboardedAt?: string | null;
+  defaultDueAt?: string | null };
 
 export function worldTables(options: WorldOptions = {}): Record<string, Row[]> {
   const own = (id: string, name: string, per100: [number, number, number]) => ({ id, user_id: A, name,
@@ -17,6 +18,8 @@ export function worldTables(options: WorldOptions = {}): Record<string, Row[]> {
     own("chicken", "Chicken breast, roasted", [31, 0, 3.6]), own("brown-rice", "Rice, brown", [2.6, 23, 0.9])];
   return {
     user_settings: [{ user_id: A, food_world: options.world ?? "closed",
+      food_world_set_at: options.foodWorldSetAt ?? null, onboarded_at: options.onboardedAt ?? null,
+      food_world_default_due_at: options.defaultDueAt ?? null,
       diet_prefs: { flags: options.flags ?? [] }, rev: 3 }],
     constraint_profiles: [{ user_id: A, rev: 2, conditions: options.conditions ?? [], notes: null,
       avoid_allergens: options.allergens ?? [], avoid_food_ref_ids: [], banned_categories: [], custom_rules: [],

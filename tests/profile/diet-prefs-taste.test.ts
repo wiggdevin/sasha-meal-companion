@@ -178,6 +178,10 @@ describe("diet_prefs inventory", () => {
     // Phase 18 W5b-2: the confirm's wire contract names the column in prose only; the write is the
     // taste_chips_confirm RPC, which keeps every other diet_prefs key (tests/migrations/taste-chips-confirm-db.test.ts).
     "lib/profile/taste-confirm.ts": "reader",
+    // Followups #1: the remove/undo wire contract names the column in prose only (one error code);
+    // the write is the taste_dislike_remove / taste_dislike_remove_undo RPCs, which keep every
+    // other diet_prefs key the same way taste_chips_confirm does.
+    "lib/profile/taste-dislike-remove.ts": "reader",
     // The settings algebra replays a diet_prefs edit by the sub-keys it changed and keeps the rest of
     // the server's row, taste included (tests/sync/settings-subkey-intents.test.ts).
     "lib/sync/settings-intents.ts": "reader",

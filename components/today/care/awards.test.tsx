@@ -74,4 +74,12 @@ describe("CareNotes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Watch" }));
     expect(onWatch).toHaveBeenCalledWith(acc.award);
   });
+
+  it("names the chosen companion, as the award player does (UI audit 2026-10-07)", () => {
+    const week: CareNote = { id: "w", type: "accolade", award: awardByKey("seven-days")! };
+    render(<MotionConfig reducedMotion="always"><CareNotes note={week} mascot="peapod" onWatch={() => {}} onDismiss={() => {}} /></MotionConfig>);
+    const note = screen.getByRole("status");
+    expect(note.textContent).toContain("A week of days recorded with Pod.");
+    expect(note.textContent).not.toContain("Sprout");
+  });
 });

@@ -11,10 +11,10 @@ import type { CommitResult } from "@/lib/log-commit-client";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { TEST_USER } from "@/tests/helpers/account";
 
-const commit = vi.hoisted(() => ({ result: { status: "queued" } as unknown }));
+const commit = vi.hoisted(() => ({ result: { status: "queued" } as unknown, calls: [] as unknown[][] }));
 vi.mock("@/lib/log-commit-client", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  commitLogEntry: vi.fn(async () => commit.result),
+  commitLogEntry: vi.fn(async (...args: unknown[]) => { commit.calls.push(args); return commit.result; }),
 }));
 
 const ScanConfirmSheet = (await import("./ScanConfirmSheet")).default;
@@ -64,5 +64,19 @@ describe("ScanConfirmSheet save feedback", () => {
     expect(vibrate).not.toHaveBeenCalled();
     const logIt = screen.getByRole("button", { name: "Log it" }) as HTMLButtonElement;
     expect(logIt.disabled).toBe(false);
+  });
+});
+
+describe("ScanConfirmSheet on a past day (UI audit 2026-10-07)", () => {
+  it("files the scan on the day it was started from, card and request alike", async () => {
+    commit.result = { status: "queued" } satisfies Partial<CommitResult>;
+    commit.calls.length = 0;
+    const eatenAt = new Date("2026-10-05T08:30:00");
+    render(<ScanConfirmSheet response={RESPONSE} slot="meal-1" eatenAt={eatenAt} onLogged={() => {}} onClose={() => {}} />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Log it" })); });
+    const [req, opts] = commit.calls[0] as [{ local_date: string; eaten_at: string }, { optimistic: { date: string } }];
+    expect(req.local_date).toBe("2026-10-05");
+    expect(new Date(req.eaten_at).getTime()).toBe(eatenAt.getTime());
+    expect(opts.optimistic.date).toBe("2026-10-05");
   });
 });

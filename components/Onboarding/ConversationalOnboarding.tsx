@@ -11,7 +11,7 @@ import FallingFoodPile from "@/components/Onboarding/FallingFoodPile";
 import FoodsTopPickChips from "@/components/Onboarding/FoodsTopPickChips";
 import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
 import {
-  effectiveBand, emptyFacts, GoalPillRow, PlaybackSentence, SexChipRow,
+  effectiveBand, emptyFacts, firstMissingField, GoalPillRow, PlaybackSentence, SexChipRow,
   type Goal, type OnboardingFactKey,
 } from "@/components/Onboarding/facts";
 import RewardPlateCard, { type RewardPlateFood, type RewardPlateTargets }
@@ -85,7 +85,15 @@ export const ONBOARDING_SCOPE = { kind: "page", page: "onboarding" } as const;
  */
 export type OnboardingBeat = "opener" | "facts" | "safety" | "foods" | "reward";
 
-/** VISUAL-SPEC.md §2's hero-Sprout table, mapped onto this shell's five beats. */
+/** VISUAL-SPEC.md §2's hero-Sprout table, mapped onto this shell's five beats. "facts" is the one
+ *  row the table itself splits in two — "Facts sentence playback" (`thinking`) vs. "Gap-fill
+ *  prompt, one missing fact" (`pointing`) — both of which this shell renders as the same "facts"
+ *  beat; `guidePose` below (not this static table) picks between them per the current render, via
+ *  `PlaybackSentence`'s own `firstMissingField`. §2 also calls for mirroring `pointing` with
+ *  `scaleX(-1)` when its target sits to Sprout's LEFT: this shell's layout (VISUAL-SPEC.md §1, the
+ *  `.guide` stage always top-center with the beat's card centered below it, never beside Sprout)
+ *  never puts a target to either side — polish pass (2026-10-07), checked and intentionally not
+ *  applied here; it only matters for a side-by-side layout this shell doesn't have. */
 const BEAT_POSE: Record<OnboardingBeat, OnboardingPose> = {
   opener: "wave", facts: "thinking", safety: "content", foods: "content", reward: "joyful",
 };
@@ -794,6 +802,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       showNumbers={showNumbers} onToggleNumbers={() => setShowNumbers((value) => !value)} />;
   })();
 
+  /** VISUAL-SPEC.md §2: within the "facts" beat, `pointing` once a required field is still an
+   *  empty gap (the same field `PlaybackSentence`'s own `firstMissingField` already points Sprout
+   *  at in its own screen-reader copy, "Sprout is pointing at what's still missing") — `thinking`
+   *  otherwise, the general playback-review moment. Every other beat keeps its static §2 pose. */
+  const guidePose: OnboardingPose = beat === "facts"
+    ? (firstMissingField(facts) ? "pointing" : "thinking")
+    : BEAT_POSE[beat];
+
   return <div className={`${styles.shell} matte`} data-onboarding-v2="true"
     data-scope-kind={ONBOARDING_SCOPE.kind} data-scope-page={ONBOARDING_SCOPE.page}>
     {/* VISUAL-SPEC.md §1: matte charcoal, the same family as the meal card and dock — never flat
@@ -801,11 +817,24 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         on it). §3: a soft backdrop so the stage is never an empty field; it quiets to one glow for
         the reward beat, the deliberate exception to "always busy". */}
     <div className={styles.backdrop} data-reward={beat === "reward" || undefined} aria-hidden="true" />
-    <div className={styles.scroller}>
+    {/* ui-ux-buddy NIT: `.guide`'s `layout="position"` projects inside this scrolling ancestor —
+        `layoutScroll` keeps that projection correct if the account has scrolled mid-transition,
+        instead of animating from a stale offset. */}
+    <motion.div layoutScroll className={styles.scroller}>
       <div className={styles.stream}>
-        <div className={styles.guide}>
-          <SproutGuide pose={BEAT_POSE[beat]} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
-        </div>
+        {/* ui-ux-buddy's Sonnet lane (polish pass, 2026-10-07): `.stream`'s own `justify-content:
+            center` (below, the empty-middle fix) re-centers the whole block on every beat change,
+            and beats differ in height — without this, Sprout would jump straight to its new Y
+            position with no transition, fighting the sync this same pass is after. `layout` makes
+            Framer track that position shift and animate it via transform instead, on the same
+            CONTAINER_ENTER timing as the card swap beside it, so the whole stage settles together.
+            (`.guide`'s own box no longer changes size with BEAT_SIZE — SproutGuide.tsx now renders
+            a constant BASE_SIZE box and scales its child via transform — so this `layout` only ever
+            has a position shift to track here, never a size one.) */}
+        <motion.div layout="position" transition={reduce ? INSTANT : CONTAINER_ENTER}
+          className={styles.guide}>
+          <SproutGuide pose={guidePose} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
+        </motion.div>
         {/* Sol review round 2: a simultaneous crossfade kept two full beats (wildly different
             heights) in flow at once, which could shift the scroller under a control mid-tap — this
             is sequential, matching DESIGN.md's own rule ("content-then-frame on close"). The dock's
@@ -815,7 +844,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
           <BeatLayer key={beat} reduce={reduce}>{streamContent}</BeatLayer>
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
     {leaveError && <p role="alert" className="px-4 text-center text-caption text-alert">{leaveError}</p>}
     <div className={styles.skipLink}>
       <Button variant="ghost" size="sm" onClick={handleSkip}>Skip for now</Button>

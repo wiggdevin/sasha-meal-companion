@@ -139,9 +139,22 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
   const [cuisines, setCuisines] = useState<CuisineKey[] | null>(null);
   const [country, setCountry] = useState<string | null>(null);
   const [tasteChipsAvailable, setTasteChipsAvailable] = useState<TasteChipsAvailability>("unknown");
+  // Writes not yet settled (sent or waiting their turn). While none are, a change to the stored
+  // settings (a sync pull from another device) replaces what this section last showed, so the next
+  // tap builds on the account's current list, not an old one (UI audit r1).
+  const [inFlight, setInFlight] = useState(0);
+  const stored = JSON.stringify([settings.cuisines ?? null, settings.countryCode ?? null]);
+  const [seen, setSeen] = useState(stored);
+  if (seen !== stored) {
+    setSeen(stored);
+    if (inFlight === 0) { setCuisines(null); setCountry(null); }
+  }
   const shownCuisines = cuisines ?? cuisinesFrom(settings.cuisines);
   const shownCountry = country ?? countryValue(settings.countryCode);
-  const { feedback, write } = useSettingsWrite<PlacePatch>((patch) => savePlaceSetting(patch));
+  const { feedback, write: send } = useSettingsWrite<PlacePatch>(async (patch) => {
+    try { await savePlaceSetting(patch); } finally { setInFlight((n) => n - 1); }
+  });
+  const write = (patch: PlacePatch) => { setInFlight((n) => n + 1); send(patch); };
   // `Settings.dietPrefs` is typed as the plain wire `DietPrefs` (lib/types.ts); `taste` is carried on
   // the richer `ProfileDietPrefs` every sync writer actually reads and writes (lib/sync/user-settings.ts).
   const dislikes = (settings.dietPrefs as ProfileDietPrefs | null | undefined)?.taste?.dislikes ?? [];

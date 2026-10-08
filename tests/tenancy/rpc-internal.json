@@ -31,6 +31,13 @@
     "definer": false,
     "reason": "Security invoker on purpose: it reads current_user to refuse a direct authenticated or anon write of food_world."
   },
+  "user_settings_food_world_markers()": {
+    "class": "private_trigger",
+    "table": "user_settings",
+    "trigger": "user_settings_food_world_markers",
+    "definer": false,
+    "reason": "Security invoker on purpose: it reads current_user to refuse a direct authenticated or anon write of food_world_set_at or food_world_default_due_at, and stamps the default as due when onboarded_at is first set."
+  },
   "_coach_action_receipts_immutable()": {
     "class": "private_trigger",
     "table": "coach_action_receipts",
@@ -50,5 +57,17 @@
     "class": "private_trigger",
     "table": "user_settings",
     "trigger": "taste_chip_holds_release"
+  },
+  "_taste_dislike_removals_guard()": {
+    "class": "private_trigger",
+    "table": "taste_dislike_removals",
+    "trigger": "taste_dislike_removals_guard"
+  },
+  "user_settings_shopping_focus_guard()": {
+    "class": "private_trigger",
+    "table": "user_settings",
+    "trigger": "user_settings_shopping_focus_guard",
+    "definer": false,
+    "reason": "Security invoker on purpose: it reads current_user to refuse a direct authenticated or anon write of the shopping-focus columns."
   }
 }

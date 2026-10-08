@@ -24,6 +24,7 @@ import { logWeight } from "@/lib/coach/actions/log-weight";
 import { moveEntry } from "@/lib/coach/actions/move-entry";
 import { moveSlot } from "@/lib/coach/actions/move-slot";
 import { saveRecipe } from "@/lib/coach/actions/save-recipe";
+import { setShoppingFocus } from "@/lib/coach/actions/set-shopping-focus";
 import { setSlotMeal } from "@/lib/coach/actions/set-slot-meal";
 import { setTargets } from "@/lib/coach/actions/set-targets";
 import { restoreSlot, skipSlot } from "@/lib/coach/actions/skip-slot";
@@ -40,6 +41,8 @@ export const ACTION_SPECS = [
   setTargets, addToEats, removeFromEats, addToShoppingList,
   // Day rebalancing (2026-10-03): skip one meal for one date, or bring it back.
   skipSlot, restoreSlot,
+  // W11: "use my shopping list" / off, with Undo.
+  setShoppingFocus,
 ] as const;
 
 export type RegisteredTypes = TypesOf<(typeof ACTION_SPECS)[number]>;

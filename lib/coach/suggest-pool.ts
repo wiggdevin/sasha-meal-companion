@@ -87,9 +87,12 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
   const target = snack ?? available;
   const poolRefs = (await abortable(ports.poolRefs?.(ports.userId) ?? Promise.resolve({}), signal));
   const untimed = isUntimed(mealType, mealClock);
+  // W11 (D7): an active shopping focus (the turn's day) ranks by (fits, coverage, score).
+  const focus = await abortable(ports.focus?.(ports.userId) ?? Promise.resolve(undefined), signal);
   const { plates } = rankPlates({
     date: todayUtc(), slot: input.slot ?? "", occasion: mealType, untimed, target,
     foods: open.foods, evidence: open.evidence, taste: open.taste, open: open.ranking,
+    ...(focus ? { focus } : {}),
   });
   const wish = input.wish?.trim() || input.kind;
   const best = bestPerAnchor(plates).slice(0, MAX_CANDIDATES);

@@ -366,6 +366,24 @@
     "ok": false
   },
   {
+    "ok": true,
+    "data": {
+      "kind": "set_shopping_focus",
+      "on": true,
+      "days": 10
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "kind": "set_shopping_focus",
+      "on": false
+    }
+  },
+  {
+    "ok": false
+  },
+  {
     "ok": false
   },
   {

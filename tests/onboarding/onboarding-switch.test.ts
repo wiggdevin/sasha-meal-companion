@@ -36,6 +36,7 @@ function deps() {
     saveConstraints: vi.fn(async () => ({ status: "ok" }) as never),
     localDate: () => "2026-09-19",
     hasWeighIn: () => false,
+    openFoodWorld: async () => {},
   };
 }
 

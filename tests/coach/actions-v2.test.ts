@@ -34,7 +34,7 @@ describe("the coach action kinds", () => {
       "add_to_avoid", "remove_from_avoid", "set_slot_meal", "delete_entry", "move_entry",
       "save_recipe", "shift_schedule", "log_water", "log_weight", "update_profile",
       "set_targets", "add_to_eats", "remove_from_eats", "add_to_shopping_list",
-      "skip_slot", "restore_slot",
+      "skip_slot", "restore_slot", "set_shopping_focus",
     ]);
     expect(() => assertSupported(flatCoachActionSchema)).not.toThrow();
   });

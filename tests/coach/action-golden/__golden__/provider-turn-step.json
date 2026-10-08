@@ -56,7 +56,8 @@
               "remove_from_eats",
               "add_to_shopping_list",
               "skip_slot",
-              "restore_slot"
+              "restore_slot",
+              "set_shopping_focus"
             ]
           },
           "date": {
@@ -148,7 +149,7 @@
             "items": {
               "type": "number"
             },
-            "description": "Positional numbers: shift_schedule [minutes]; log_water [ml]; log_weight [kg]; update_profile [heightCm, weightKg, birthYear, bodyFatPct, ...trainingWeekdays] with zero placeholders; set_targets [kcal, proteinG]. Use [] otherwise."
+            "description": "Positional numbers: shift_schedule [minutes]; log_water [ml]; log_weight [kg]; update_profile [heightCm, weightKg, birthYear, bodyFatPct, ...trainingWeekdays] with zero placeholders; set_targets [kcal, proteinG]; set_shopping_focus [days] with zero placeholders. Use [] otherwise."
           },
           "stringArgs": {
             "maxItems": 8,
@@ -157,7 +158,7 @@
               "type": "string",
               "maxLength": 2000
             },
-            "description": "Positional strings: log_meal [at, note], using an empty at placeholder for note-only logs; move_slot [time]; move_entry [at]; shift_schedule [scope]; update_profile [sex, activityLevel, goal] with empty placeholders; set_targets [dayType]; add/remove Eats [foodRefId] only when known; add_to_shopping_list [...names] — the shopping items to add, each in the user's own words. Use [] otherwise."
+            "description": "Positional strings: log_meal [at, note], using an empty at placeholder for note-only logs; move_slot [time]; move_entry [at]; shift_schedule [scope]; update_profile [sex, activityLevel, goal] with empty placeholders; set_targets [dayType]; add/remove Eats [foodRefId] only when known; add_to_shopping_list [...names] — the shopping items to add, each in the user's own words; set_shopping_focus [on] with empty placeholders. Use [] otherwise."
           }
         },
         "required": [

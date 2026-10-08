@@ -40,6 +40,7 @@ type IntentArgs = ActionIntentArgs & {
   };
   update_profile: MissingArgs;
   set_targets: MissingArgs;
+  use_shopping_list: MissingArgs;
   show_chart: MissingArgs & { chart?: "weight_trend" | "macros_today" | "kcal_week" };
   question: MissingArgs;
   other: MissingArgs;

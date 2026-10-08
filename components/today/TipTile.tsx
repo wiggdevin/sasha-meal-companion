@@ -88,11 +88,18 @@ export default function TipTile({ tips, onOpen }: {
   onOpen?: (tip: BoardTip, from: HTMLElement) => void;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
-  const [offset, setOffset] = useState(0);
+  // The shown tip is held by id, not position: the tips reorder as the day changes (a first cup
+  // drops the water tip's relevance), and the tile must not switch tips, or announce one, on its own.
+  const [shownId, setShownId] = useState<string | null>(() => tips[0]?.id ?? null);
   const liveId = useId();
-  if (tips.length === 0) return null;
   const count = tips.length;
-  const index = offset % count;
+  const found = shownId === null ? -1 : tips.findIndex((item) => item.id === shownId);
+  const index = found < 0 ? 0 : found;
+  // The live region speaks when the shown tip changes, never when only the order around it moves.
+  const shownTip = tips[index];
+  const [said, setSaid] = useState(() => shownTip ? { id: shownTip.id, text: spoken(shownTip, index, count) } : null);
+  if (shownTip && said?.id !== shownTip.id) setSaid({ id: shownTip.id, text: spoken(shownTip, index, count) });
+  if (count === 0) return null;
   const previous = (index - 1 + count) % count;
   const tip = tips[index];
   const leaving = reduce ? INSTANT : { x: SPRINGS.smooth, opacity: FADES.quick, filter: FADES.quick };
@@ -116,7 +123,7 @@ export default function TipTile({ tips, onOpen }: {
       })}
     </div>
     <Dots tips={tips} index={index} />
-    <p id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">{spoken(tip, index, count)}</p>
+    <p id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">{said?.text}</p>
     {/* The whole tile opens the tip; Next sits above this control in its own corner. */}
     {onOpen && <button type="button" className={styles.open} {...{ [TIP_OPEN_ATTR]: tip.id }}
       aria-label={`Open tip: ${tip.title ?? tip.text}`}
@@ -124,7 +131,10 @@ export default function TipTile({ tips, onOpen }: {
     {/* The system's small secondary circle: 36 px to see, 44 px to hit (DESIGN.md §Buttons). Not the
         primary: paging tips completes nothing, and the board's one primary is "mark eaten". */}
     {count > 1 && <Button variant="secondary" shape="circle" size="sm" className={styles.next} aria-label="Next tip"
-      aria-controls={liveId} onClick={() => setOffset((n) => n + 1)}>
+      aria-controls={liveId} onClick={() => setShownId((prev) => {
+        const at = prev === null ? -1 : tips.findIndex((item) => item.id === prev);
+        return tips[((at < 0 ? 0 : at) + 1) % count].id;
+      })}>
       <NextGlyph />
     </Button>}
   </motion.div>;

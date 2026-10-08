@@ -86,6 +86,7 @@ export default function LogFoodSheet({
   onClose,
   onCapture,
   onScan,
+  at,
 }: {
   mode: "food" | "meal";
   mine: Record<string, Food>;
@@ -99,6 +100,8 @@ export default function LogFoodSheet({
    * (`nutrition_unchecked`: "Saved. Nutrition not fully checked.").
    */
   onAdd: (entry: LoggedFood, date?: string, notice?: string, saved?: string) => void;
+  /** When the meal was eaten: the day on screen when that is not today (app/page.tsx), else now. */
+  at?: Date;
   onSomethingElse: () => void;
   onClose: () => void;
   /** The FAB's capture flow: this sheet closes first, then app/page.tsx sets the mode. */
@@ -150,6 +153,7 @@ export default function LogFoodSheet({
   const [revision, setRevision] = useState<CachedRevision | null>(null);
   const [catPortion, setCatPortion] = useState<CachedPortion | null>(null);
   const [grams, setGrams] = useState(100);
+  const [typedPer, setTypedPer] = useState<number | null>(null);
   const [gramsText, setGramsText] = useState("100");
   const [blocked, setBlocked] = useState<string | null>(null);
   /** The wire detail behind the portion view, when it came from the network. Null on the cached path. */
@@ -180,6 +184,7 @@ export default function LogFoodSheet({
     const preferred = rev.portions.find((p) => p.isDefault) ?? rev.portions[0] ?? null;
     setRevision(rev);
     setCatPortion(preferred);
+    setTypedPer(null);
     setQty(1);
     const startGrams = preferred ? gramsForPortion({ gramWeight: preferred.gramWeight }, 1) : 100;
     setGrams(startGrams);
@@ -255,7 +260,12 @@ export default function LogFoodSheet({
   function setPortionQty(nextQty: number) {
     const q = Math.max(0.25, Math.round(nextQty * 4) / 4);
     setQty(q);
-    if (!catPortion) return;
+    // Grams typed by hand: the count scales them (150 g at 1 is 300 g at 2), so the stepper never
+    // moves alone while the grams and the numbers stay put (UI audit r1).
+    if (!catPortion) {
+      if (typedPer !== null) { const g = Math.round(typedPer * q); setGrams(g); setGramsText(String(g)); }
+      return;
+    }
     const g = gramsForPortion({ gramWeight: catPortion.gramWeight }, q);
     setGrams(g);
     setGramsText(String(g));
@@ -266,6 +276,8 @@ export default function LogFoodSheet({
     const n = Number(text);
     if (Number.isFinite(n) && n >= 0) {
       setGrams(n);
+      // What one count weighs, from the grams typed: the stepper scales from it without drift.
+      setTypedPer(qty > 0 ? n / qty : null);
       setCatPortion(null);
     }
   }
@@ -284,7 +296,7 @@ export default function LogFoodSheet({
     try {
       let prepared: Awaited<ReturnType<typeof preparePickedCommit>>;
       try {
-        prepared = await preparePickedCommit({ picks, slot, meal });
+        prepared = await preparePickedCommit({ picks, slot, meal, at });
       } catch (e) {
         // The account changed under the tap: nothing of the old account is shown or written.
         if (!(e instanceof AccountChanged)) {
@@ -339,7 +351,7 @@ export default function LogFoodSheet({
     const itemId = crypto.randomUUID();
     // The same card the scan sheet draws, from the same numbers the portion view is showing.
     const entry = catalogCard({
-      revision, entryId, itemId, foodRefId: foodRefId, grams, qty, portion: catPortion, at: new Date(),
+      revision, entryId, itemId, foodRefId: foodRefId, grams, qty, portion: catPortion, at: at ?? new Date(),
       flags: offPlanFlags(`${revision.description} ${revision.brand ?? ""}`),
     });
     const pick: LogPick = { source: "catalog", card: entry, itemId, foodRefId, revision, grams,
@@ -363,7 +375,7 @@ export default function LogFoodSheet({
 
   async function confirmPortion() {
     if (!picked || !portion || submitting) return;
-    const entry = sheetCard(picked, portion, qty, { id: newId("f"), at: new Date().toISOString() }, mine);
+    const entry = sheetCard(picked, portion, qty, { id: newId("f"), at: (at ?? new Date()).toISOString() }, mine);
     const chosen = pickForCard(picked, entry, mine);
     if (mode === "meal") {
       addToMeal(chosen);
@@ -382,7 +394,7 @@ export default function LogFoodSheet({
     setBlocked(null);
     // Only used when the meal cannot be sent: the whole meal, on this phone, with nothing committed
     // (`logPicks` marks it `localOnlyCard`, so an Undo owes the server nothing).
-    const local = mealCard({ entryId: crypto.randomUUID(), at: new Date(), items, catalogItems: [],
+    const local = mealCard({ entryId: crypto.randomUUID(), at: at ?? new Date(), items, catalogItems: [],
       name: mealName, note: mealNote });
     await logPicks(mealPicks, local, { name: mealName, note: mealNote });
   }
@@ -501,6 +513,7 @@ export default function LogFoodSheet({
           : "Sign in to log from the catalog."}
         onPortion={(p) => {
           setCatPortion(p);
+          setTypedPer(null);
           const g = gramsForPortion({ gramWeight: p.gramWeight }, qty || 1);
           setQty(qty || 1);
           setGrams(g);

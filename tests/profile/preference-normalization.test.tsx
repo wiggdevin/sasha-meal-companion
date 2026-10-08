@@ -56,6 +56,7 @@ describe("peanut preference normalization", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-09-20",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     });
 
     expect(savedForSync[0]?.dietPrefs?.flags).toEqual(["no_peanuts"]);
