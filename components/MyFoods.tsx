@@ -364,8 +364,9 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
     // queue keeps taps in order, so the cache an earlier write left is read as before). Once a newer
     // intent exists (the coach, a starter seed), the outcome is not this screen's to report: it settles
     // quietly, with no confirmation and no Undo.
-    // The row moving off this status (a newer tap, the coach) also ends this write's say: a queued one
-    // is never sent over the newer choice, and its Undo does nothing. A note edit does not count.
+    // Once the row has moved off this status (a newer tap, the coach, a sync pull), this write's Undo
+    // does nothing. A queued write is still sent in tap order, as before: a pull can project an older
+    // status over a newer tap, so the row alone cannot say the tap was overruled.
     let intent: ReturnType<typeof reserveFoodMembershipIntent> | undefined;
     const superseded = () => intent !== undefined && !isLatestFoodMembershipIntent(intent);
     const movedOn = () => loadStore().foods[id]?.status !== next;
@@ -385,7 +386,7 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
       return result;
     // The row's Remove (or the sheet) is gone by the time the write lands, so the confirmation
     // needs the notice even when there is nothing to undo (a neutral row's Clear marks).
-    }, { kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h) || superseded() || movedOn(),
+    }, { kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h) || superseded(),
       successMessage: membershipCopy(previous, next),
       failureMessage: foodMembershipError,
       undo: previous.status === next ? undefined

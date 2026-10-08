@@ -353,10 +353,9 @@ describe("Eats membership feedback", () => {
     seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
     await act(async () => { failFirst(new Error("offline")); });
     await act(async () => {});
-    // The failed first write must not put back "eats" over the newer local state, and with the row
-    // moved on, its failure is not this screen's to report: the newer choice owns the row.
+    // The failed first write must not put back "eats" over the newer local state.
     expect(seeded.foods.oats.status).toBe("avoid");
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("alert")).toBeTruthy();
   });
 });
 
@@ -431,24 +430,6 @@ describe("a superseded membership write", () => {
     await act(async () => {});
     expect(seeded.foods.oats.status).toBe("avoid");
     expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("never sends a queued move over a newer choice", async () => {
-    let failFirst!: () => void;
-    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = () => reject(new Error("offline")); }));
-    render(<EatsFoods />);
-    swipe(rowOf("Oats"), -200, 8);
-    await act(async () => {});
-    // A second move queues behind the first: back onto Eats from its sheet.
-    fireEvent.click(rowOf("Oats"));
-    fireEvent.click(await screen.findByRole("button", { name: "Add to Eats" }));
-    // The coach then moves it to Avoid on the phone before the queue gets to the second move.
-    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid", updatedAt: "2026-10-07T00:00:00.000Z" } };
-    await act(async () => { failFirst(); });
-    await act(async () => {});
-    // The queued Eats move was never sent, and nothing rolled back over the coach's Avoid.
-    expect(membership.set.mock.calls.some((call) => call[1] === "eats")).toBe(false);
-    expect(seeded.foods.oats.status).toBe("avoid");
   });
 
   it("still rolls back after a note edit of the same row", async () => {
