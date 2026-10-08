@@ -34,19 +34,19 @@ run("write_target_revision_if_active", () => {
   afterAll(async () => { if (userId) await resetUser(userId); });
 
   it("writes when nothing is active and null was expected, then refuses a stale expectation", async () => {
-    const first = await client.rpc("write_target_revision_if_active",
+    const first = await admin.rpc("write_target_revision_if_active",
       { p_user_id: userId, p_row: row("2026-09-22", 2104), p_expected_id: null });
     expect(first.error).toBeNull();
     const firstId = (first.data as { id: string }).id;
     expect(firstId).toBeTruthy();
 
     // A second writer still expecting "nothing active" is refused and writes nothing.
-    const stale = await client.rpc("write_target_revision_if_active",
+    const stale = await admin.rpc("write_target_revision_if_active",
       { p_user_id: userId, p_row: row("2026-10-03", 1960), p_expected_id: null });
     expect(stale.error).toBeNull();
     expect(stale.data).toEqual({ conflict: true, active_id: firstId });
 
-    const current = await client.rpc("write_target_revision_if_active",
+    const current = await admin.rpc("write_target_revision_if_active",
       { p_user_id: userId, p_row: row("2026-10-03", 1960), p_expected_id: firstId });
     expect(current.error).toBeNull();
     expect(current.data).toMatchObject({ kcal_train: 1960, effective_from: "2026-10-03" });
@@ -65,7 +65,7 @@ run("write_target_revision_if_active", () => {
       training_weekdays: [1, 3, 4, 5],
     });
     expect(settings.error).toBeNull();
-    const stale = await client.rpc("write_target_revision", { p_user_id: userId,
+    const stale = await admin.rpc("write_target_revision", { p_user_id: userId,
       p_row: { ...row("2026-09-22", 2104), kcal_min: 1200, kcal_min_source: "legacy_default" } });
     expect(stale.error).toBeNull();
 
@@ -73,7 +73,7 @@ run("write_target_revision_if_active", () => {
     const { data: settingsRow } = await client.from("user_settings").select("rev")
       .eq("user_id", userId).single();
     const staleId = (stale.data as { id: string }).id;
-    const fenced = await client.rpc("write_target_revision_if_active", { p_user_id: userId,
+    const fenced = await admin.rpc("write_target_revision_if_active", { p_user_id: userId,
       p_row: row("2026-10-03", 1960), p_expected_id: staleId,
       p_expected_settings_rev: Number(settingsRow?.rev ?? 0) + 1 });
     expect(fenced.error).toBeNull();
@@ -98,7 +98,7 @@ run("write_target_revision_if_active", () => {
       body_fat_pct: 32, weight_kg: 72.575, activity_level: "light", goal: "recomp",
       training_weekdays: [1, 3, 4, 5],
     });
-    await client.rpc("write_target_revision", { p_user_id: userId,
+    await admin.rpc("write_target_revision", { p_user_id: userId,
       p_row: { ...row("2026-09-22", 2104), target_source: "manual", pin_training_kcal: 2104 } });
     const pinned = await recomputeDerivedTarget(client, userId, { today: "2026-10-03" });
     expect(pinned.status).toBe("written");
@@ -107,7 +107,7 @@ run("write_target_revision_if_active", () => {
     await expect(recomputeDerivedTarget(client, userId, { today: "2026-10-03" }))
       .resolves.toMatchObject({ status: "unchanged" });
 
-    await client.rpc("write_target_revision", { p_user_id: userId,
+    await admin.rpc("write_target_revision", { p_user_id: userId,
       p_row: { ...row("2026-10-03", 2000), formula_name: "adaptive-tdee-v1" } });
     await expect(recomputeDerivedTarget(client, userId, { today: "2026-10-03" }))
       .resolves.toMatchObject({ status: "skipped", reason: "authoritative_formula" });

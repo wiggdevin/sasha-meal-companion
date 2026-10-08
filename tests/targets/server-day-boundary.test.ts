@@ -12,6 +12,8 @@ import { activeProfile } from "@/lib/server/targets";
 import { latestEstimate } from "@/lib/server/expenditure";
 import { USER, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
 
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
+
 const requireUser = vi.fn();
 vi.mock("@/lib/server/auth", async () => {
   const actual = await vi.importActual<typeof import("@/lib/server/auth")>("@/lib/server/auth");

@@ -1,6 +1,7 @@
 // Shared stand-ins for the server target recompute tests: a settings row, the stale production
 // target and a small chainable client for the reads the service makes and its two write RPCs.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { adminFake } from "@/tests/helpers/admin-fake";
 import type { TargetProfile } from "@/lib/api-types";
 
 export const USER = "40707946-0000-4000-8000-000000000001";
@@ -129,5 +130,7 @@ export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: 
     return { data: written, error: null };
   };
   fake.client = { from: query, rpc } as unknown as SupabaseClient;
+  // The target writes run on the service-role client (lib/server/target-writes.ts).
+  adminFake.client = fake.client;
   return fake;
 }

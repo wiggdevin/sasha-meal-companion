@@ -9,6 +9,10 @@ import { recomputeDerivedTarget, settingsFromRow } from "@/lib/server/target-rec
 import { AdultOnlyError, SAFETY_CONDITION_TEXT } from "@/lib/profile/rate-eligibility";
 import { TODAY, USER, activeOn, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
 
+import { adminFake } from "@/tests/helpers/admin-fake";
+
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
+
 type Row = Record<string, unknown>;
 
 /** Every chain method returns the chain; `maybeSingle` is the first matching row, `then` all. */
@@ -25,7 +29,9 @@ function client(tables: Record<string, Row[]>,
     };
     return chain;
   };
-  return { client: { from, rpc } as unknown as SupabaseClient, rpc };
+  const fake = { from, rpc } as unknown as SupabaseClient;
+  adminFake.client = fake;
+  return { client: fake, rpc };
 }
 
 const prior = staleTarget({ id: "t2", goal_rate_bp_week: -50, input_goal: "lose_fat",

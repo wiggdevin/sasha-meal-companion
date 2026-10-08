@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { adminFake } from "@/tests/helpers/admin-fake";
+
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
 import {
   activeTargets, authorTargets, floorsFor, FloorViolationError, today,
   writeTargetRevisionSet,
@@ -49,7 +52,9 @@ function clientWith(profile: TargetProfile | null, answers: Answers = {}) {
       limit: () => ({ maybeSingle: async () => ({ data: profile, error: null }) }),
     }) }) }) }) }) };
   });
-  return { client: { from, rpc } as never, rpc };
+  const client = { from, rpc } as never;
+  adminFake.client = client;
+  return { client, rpc };
 }
 
 describe("target authority", () => {
