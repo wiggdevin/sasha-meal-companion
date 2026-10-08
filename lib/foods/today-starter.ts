@@ -6,6 +6,7 @@ import { fetchProfileInstances } from "@/lib/profile/instances-client";
 import { loadRuleReview } from "@/lib/rule-review-client";
 import { loadStore, saveStoreFor } from "@/lib/store";
 import { seedZeroFoodAccount } from "@/lib/foods/starter-seed";
+import { isWorldOpenPending } from "@/lib/foods/world-open-client";
 
 export type StarterGate = "ready" | "review" | "unavailable";
 
@@ -44,6 +45,19 @@ async function foodWorld(account: ReturnType<typeof accountHandle>): Promise<Foo
   }
 }
 
+/**
+ * Sol round 3 BLOCK: a server `closed` is not enough while onboarding's open default is still
+ * pending on this device (its POST answered 503, say): the next retry opens the account, and the
+ * Favored marks seeded in between would persist. An unreadable intent counts as pending.
+ */
+async function openPending(account: ReturnType<typeof accountHandle>): Promise<boolean> {
+  try {
+    return await isWorldOpenPending(account);
+  } catch {
+    return true;
+  }
+}
+
 /** A successful server read is required before Today renders generated suggestions. */
 export async function refreshStarterGate(): Promise<StarterGate> {
   const h = accountHandle();
@@ -64,7 +78,7 @@ export async function refreshStarterGate(): Promise<StarterGate> {
     if (review.required) return "review";
     if (access === null) return "unavailable";
     setReady(true);
-    if (!access && world === "closed") await seedZeroFoodAccount(constraints.profile, profiles.instances).catch(() => false);
+    if (!access && world === "closed" && !await openPending(h)) await seedZeroFoodAccount(constraints.profile, profiles.instances).catch(() => false);
     assertCurrent(h);
     return "ready";
   } catch {

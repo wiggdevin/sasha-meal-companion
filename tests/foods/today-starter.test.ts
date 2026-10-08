@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocked = vi.hoisted(() => ({
   fetch: vi.fn(), seed: vi.fn(async () => true), saveStoreFor: vi.fn(),
+  pending: vi.fn(async (): Promise<boolean> => false),
 }));
 
 vi.mock("@/lib/device/account", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/lib/store", () => ({
   loadStore: () => ({ settings: {} }), saveStoreFor: mocked.saveStoreFor,
 }));
 vi.mock("@/lib/foods/starter-seed", () => ({ seedZeroFoodAccount: mocked.seed }));
+vi.mock("@/lib/foods/world-open-client", () => ({ isWorldOpenPending: () => mocked.pending() }));
 
 import { refreshStarterGate } from "@/lib/foods/today-starter";
 
@@ -36,6 +38,8 @@ const ok = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body),
 beforeEach(() => {
   mocked.fetch.mockReset();
   mocked.seed.mockClear();
+  mocked.pending.mockReset();
+  mocked.pending.mockResolvedValue(false);
   mocked.fetch.mockImplementation((url: string) => {
     if (url === "/api/recipes/access") return ok({ enabled: false });
     if (url === "/api/foods/world") return ok({ world: "closed" });
@@ -86,6 +90,21 @@ describe("refreshStarterGate", () => {
     });
     const status = await refreshStarterGate();
     expect(status).toBe("ready");
+    expect(mocked.seed).not.toHaveBeenCalled();
+  });
+
+  // Sol round 3 BLOCK: onboarding's open default answered 503 and is still pending on this
+  // device. The server still says `closed`, but the next retry opens the account, and Favored
+  // marks seeded in between would persist.
+  it("never seeds while this account's onboarding open default is still pending", async () => {
+    mocked.pending.mockResolvedValue(true);
+    expect(await refreshStarterGate()).toBe("ready");
+    expect(mocked.seed).not.toHaveBeenCalled();
+  });
+
+  it("never seeds when the pending intent cannot be read", async () => {
+    mocked.pending.mockRejectedValue(new Error("no indexeddb"));
+    expect(await refreshStarterGate()).toBe("ready");
     expect(mocked.seed).not.toHaveBeenCalled();
   });
 });
