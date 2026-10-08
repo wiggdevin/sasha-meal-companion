@@ -287,7 +287,8 @@ describe("Jev ranks and never blocks", () => {
     const pool = inputsFor(openSnapshot());
     const coach = (systemOne: SuggestPorts["systemOne"]) => suggestOptions({ kind: "meal", count: 3, slot: "meal-2" },
       { userId: "u1", profile: TEST_PROFILE, target: async () => MAIN, searchFoods: async () => [],
-        eatsNames: async () => [], openWorld: async () => pool, poolRefs: async () => ({}), systemOne });
+        eatsNames: async () => [], openWorld: async () => pool, poolRefs: async () => ({}),
+        universeRefs: async (_user, ids) => universeRefsOf(ids), systemOne });
     const formula = await coach(async () => null);
     const broken = await coach(async () => { throw new Error("HTTP 500"); });
     expect(broken.length).toBe(3);

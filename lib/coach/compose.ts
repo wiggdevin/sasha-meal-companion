@@ -81,12 +81,8 @@ export type ComposedMeal = {
   incomplete?: { reason: string };
   /** Why this option ranked where it did when it came from `suggest_options`. */
   rankNote?: string | null;
-  /** A Plan-sheet idea's stable id (its plate's foods), for "Not this" refills (`excludeIds`). */
-  ideaId?: string;
-  /** Where an idea's foods came from ("From your pantry photo"); absent for an ordinary card. */
-  sourceNote?: string;
-  /** "Ready in 15 min": the plate's derived prep minutes (lib/plan/prep-minutes.ts). */
-  prepMinutes?: number;
+  /** Plan-sheet chips (lib/plan/chips.ts): the idea's id for refills, its foods' source line, its prep minutes. */
+  ideaId?: string; sourceNote?: string; prepMinutes?: number;
   /** Said by the reply when fewer suggestions fit than the user requested. */
   shortfallNote?: string | null;
   /** The distinct Eats-list protein used to build a suggestion candidate. */

@@ -172,7 +172,8 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
       return {};
     })
     : {};
-  const refOf = (id: string) => (isUniverseRow(id) ? universeRefs[id]?.foodRefId : poolRefs[id]);
+  const ownRefs: Readonly<Record<string, string>> = poolRefs;
+  const refOf = (id: string) => (isUniverseRow(id) ? universeRefs[id]?.foodRefId : ownRefs[id]);
   const placeableFoods = foods.filter((food) => placeableRef(refOf(food.id)));
   const placeable = (plate: Plate) => plate.rows.every((row) => placeableRef(refOf(row.food.id)));
   const ranked = (pool: readonly Food[]) =>
