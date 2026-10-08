@@ -95,8 +95,18 @@ export async function buildCandidates(
   const cap = snackCap(input);
   // Phase 18 W10, acceptance 1: an open food-world account's admitted pool (D1) can build cards
   // even with 0 Favored foods — checked first, before the Eats-emptiness answer below would
-  // otherwise end the request on a brand-new open account.
-  const open = await abortable(ports.openWorld?.(ports.userId) ?? Promise.resolve(null), signal);
+  // otherwise end the request on a brand-new open account. A failed read degrades to the closed
+  // path below (never throws the whole build): that path still runs every candidate through the
+  // full rule/evidence recheck (`filterSuggestionCandidates`), so a real open account whose fresh
+  // read failed gets fewer cards, never an unchecked one — and the overwhelmingly common closed
+  // account (`OPEN_WORLD_ENABLED` unset in prod) must never depend on this read succeeding at all.
+  let open: Awaited<ReturnType<NonNullable<SuggestPorts["openWorld"]>>> | null = null;
+  try {
+    open = await abortable(ports.openWorld?.(ports.userId) ?? Promise.resolve(null), signal);
+  } catch (error) {
+    if (isAbort(error)) throw error;
+    console.warn("[suggest] open-world pool unavailable; building from Eats", { error });
+  }
   if (open) return buildPoolCandidates(input, ports, open, requested, cap, signal, abortable);
   // The Eats list first: an account with nothing saved is answered before the day's target is even
   // read, so a missing target cannot become an error on a brand-new account.
