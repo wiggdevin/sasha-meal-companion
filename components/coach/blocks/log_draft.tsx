@@ -172,6 +172,12 @@ export default function LogDraftBlock({ block, ctx }: {
     }
   }
 
+  /** A commit in flight owns the card: the entry lands either way, so a Dismiss must not hide it. */
+  function dismiss(): void {
+    if (claimed.current) return;
+    void update("dismissed").catch(() => setError("That card status did not save. Try again."));
+  }
+
   async function undo(): Promise<void> {
     if (claimed.current) return;
     claimed.current = true;
@@ -220,9 +226,8 @@ export default function LogDraftBlock({ block, ctx }: {
               ctx.commitBarcode
                 ? ctx.commitBarcode(block, edits)
                 : commitBarcode(block, edits, ctx.tz))}
-            onSearchManually={() => ctx.onSearchManually(block)}
-            onDismiss={() => void update("dismissed").catch(() =>
-              setError("That card status did not save. Try again."))}
+            onSearchManually={() => { if (!claimed.current) ctx.onSearchManually(block); }}
+            onDismiss={dismiss}
           />
         )}
         {status === "pending" && block.source === "capture"
@@ -236,9 +241,8 @@ export default function LogDraftBlock({ block, ctx }: {
               ctx.commitCapture
                 ? ctx.commitCapture(block, edits)
                 : commitCapture(block, edits, ctx.tz))}
-            onSearchManually={() => ctx.onSearchManually(block)}
-            onDismiss={() => void update("dismissed").catch(() =>
-              setError("That card status did not save. Try again."))}
+            onSearchManually={() => { if (!claimed.current) ctx.onSearchManually(block); }}
+            onDismiss={dismiss}
             onRerunAsLabel={block.method === "photo" ? () => ctx.rerunAsLabel(block) : undefined}
           />
         )}

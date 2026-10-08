@@ -228,13 +228,15 @@ export default function BarcodeDraftEditor({
         <button type="button" disabled={saving}
           onClick={() => onCommit({ match, portionId, qty, grams, slot })}
           className={`btn-ink tap w-full disabled:opacity-40 ${PRIMARY_CLASS}`} style={PRIMARY}>Log it</button>
+        {/* While Log it is saving, nothing else may move the card: the entry lands either way. */}
         {draft.showSearchManually !== false && (
-          <button type="button" disabled={draft.canSearchManually === false}
+          <button type="button" disabled={saving || draft.canSearchManually === false}
             onClick={() => onSearchManually(match.description)}
             className={`tap h-11 self-center px-4 disabled:opacity-40 ${SECTION}`}>Search manually</button>
         )}
         {draft.showDismiss !== false && (
-          <button type="button" onClick={onDismiss} className={`tap h-11 self-center px-4 ${SECTION}`}>Dismiss</button>
+          <button type="button" disabled={saving} onClick={onDismiss}
+            className={`tap h-11 self-center px-4 disabled:opacity-40 ${SECTION}`}>Dismiss</button>
         )}
       </div>
     </div>
