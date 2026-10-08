@@ -32,8 +32,7 @@ export default function ScanConfirmSheet({
   onClose: () => void;
   onSearch?: (hint: string) => void;
   onFavorite?: (foodRefId: string) => void;
-  /** When the meal was eaten: the day on screen when that is not today (app/page.tsx), else now. */
-  eatenAt?: Date;
+  eatenAt?: Date; // when it was eaten: a past day's slot time (lib/log/viewed-at.ts), else now
 }) {
   const feedback = useActionFeedback();
   const saving = feedback.phase === "pending";
