@@ -81,7 +81,7 @@ export default function RewardPlateCard({ targets, lovedFoods, meals = [], showN
   return <div className="matte-reset surface flex flex-col gap-4 rounded-[24px] p-5"
     data-testid="reward-plate-ready">
     <div className="flex flex-col gap-1">
-      <h1 className="m-0 font-display text-heading text-charcoal">Foods you&rsquo;ll see in your plan</h1>
+      <h1 className="m-0 text-balance font-display text-heading text-charcoal">Foods you&rsquo;ll see in your plan</h1>
       <p className="m-0 text-caption text-graphite">
         Your meals are built from these. Change them any time in Foods.
       </p>

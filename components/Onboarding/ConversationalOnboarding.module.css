@@ -103,7 +103,7 @@
   gap: 16px;
   /* Sol round 3: without --safe-top, Sprout could start under an iPhone's status area
      (viewport-fit: cover). */
-  padding: calc(24px + var(--safe-top)) 16px 32px;
+  padding: calc(24px + var(--safe-top)) 16px 44px;
 }
 
 .guide {
