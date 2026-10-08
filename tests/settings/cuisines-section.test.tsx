@@ -180,4 +180,66 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("keeps the Undo toast (and the original action id) across a parent re-render that drops the removed key", async () => {
+    // Sol BLOCK: a success applies the server's settings row and fires SYNCED_EVENT, which (in the
+    // real app) makes the parent re-render with the key already gone from `dislikes` -- unmounting
+    // the pill that used to own the toast/Undo state. Simulated here with `rerender`.
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("Removed.")).toBeTruthy());
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+      expect(screen.getByText("Removed.")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      expect(undoUrl).toBe("/api/profile/taste/dislikes/remove/undo");
+      expect(JSON.parse(String(undoInit.body))).toEqual({ actionId: "a1" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("reuses the same action id on a retry after a failed remove, instead of minting a new one", async () => {
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "whatever-the-server-says", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("That did not save. Try again.")).toBeTruthy());
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      const [, firstInit] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+      const [, secondInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      const firstId = JSON.parse(String(firstInit.body)).actionId;
+      const secondId = JSON.parse(String(secondInit.body)).actionId;
+      expect(secondId).toBe(firstId);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("ignores a second tap on the same pill before the pending state has had a chance to render", async () => {
+    const fetchImpl = vi.fn(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      const button = screen.getByRole("button", { name: "Remove Okra from your taste dislikes" });
+      fireEvent.click(button);
+      fireEvent.click(button); // synchronous double tap, before React re-renders `disabled`
+      await waitFor(() => expect(screen.getByText("Removed.")).toBeTruthy());
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
