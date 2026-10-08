@@ -392,7 +392,12 @@ export function foodsFromSyncRows(
       updatedAt: typeof pref?.updated_at === "string"
         ? pref.updated_at
         : typeof row.updated_at === "string" ? row.updated_at : new Date(0).toISOString(),
-      ...(Number.isSafeInteger(Number(row.catalog_food_id))
+      // A null or missing catalog link is no link: `Number(null)` is 0, and a phantom
+      // `catalogFoodId: 0` hid every pulled food from the eligible projection's food-id path
+      // (lib/foods/eligible-client.ts) until its ref cache filled in (onb3: Today right after
+      // onboarding planned from 0-2 of 11 verified foods).
+      ...(row.catalog_food_id != null && row.catalog_food_id !== ""
+        && Number.isSafeInteger(Number(row.catalog_food_id)) && Number(row.catalog_food_id) > 0
         ? { catalogFoodId: Number(row.catalog_food_id) } : {}),
     };
   }
