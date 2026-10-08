@@ -23,17 +23,39 @@
 #
 # Because port numbers alone have proven not to be enough — a stale assumption here is exactly
 # how the wrong database gets touched — every run also checks the real `docker ps` container
-# names before doing anything, and checks them again, plus the schema itself, before writing:
+# names (and, since not everything bound to a port is a Docker container, the OS-level socket
+# too) before doing anything, and checks them again, plus the schema itself, before writing:
 #
-#   1. Port-conflict check (pre-start): refuses to start if 56321/56322/56320 are already bound
-#      to a container whose name does not end in `_mc-care-test` (see `assert_no_port_conflict`).
-#   2. Container-identity check (pre-migration): refuses to migrate unless the DB container is
-#      exactly `supabase_db_mc-care-test` (see `assert_db_container_identity`).
-#   3. Schema-identity check (post-migration, pre-seed): refuses to seed unless
+#   1. Port-conflict check (pre-start, gates `supabase start` itself): refuses to start if
+#      56321/56322/56320 are already bound to a container belonging to a different project_id —
+#      OR to anything else listening there that `docker ps` doesn't explain at all (`lsof`; a
+#      plain process with no container wouldn't show up in `docker ps` output, so that alone is
+#      not a complete check). See `assert_no_port_conflict`.
+#   2. Scratch-config check (pre-start, gates `supabase start` itself): refuses to start unless
+#      the scratch config.toml we are about to hand `supabase start` actually says
+#      `project_id = "mc-care-test"`. Docker Compose keys containers off that project_id, so if
+#      this patch step ever silently failed and left some OTHER project's id in place,
+#      `supabase start` would attach to THAT project's already-running containers instead of
+#      creating fresh ones — this is the one check that has to run before `supabase start`,
+#      not after, because that failure mode is exactly "the write already happened under the
+#      wrong name". See `assert_scratch_project_id`.
+#   3. Container-identity check (post-start, gates the migration/reset call): refuses to migrate
+#      unless the DB container running is exactly `supabase_db_mc-care-test` (see
+#      `assert_db_container_identity`). This has to run after `supabase start`, since the
+#      container doesn't exist to inspect before that; checks 1 and 2 are what protect the
+#      `supabase start` call itself.
+#   4. Schema-identity check (post-migration, gates the seed step): refuses to seed unless
 #      `public.log_entries` — a real, meal-companion-specific table — exists on that database
 #      (see `verify_table_identity`).
 #   Every check prints the container name, project_id and host:port it resolved, in normal
-#   output, right before anything gets written.
+#   output, right before anything gets written. Each one is a hard gate on the write that
+#   follows it — `if ! check; then exit 1; fi` immediately before that write, not a check that
+#   merely logs a result afterward.
+#
+# TEST_STACK_DOCKER_PS_OUTPUT / TEST_STACK_PORT_LISTENING_OVERRIDE: fixture overrides read ONLY
+# under `--dry-run` (see tests/scripts/test-stack-dry-run.test.ts) — a real `start` or `stop`
+# always calls real `docker ps` / `lsof`, so a leftover env var can never bypass these checks on
+# an actual run.
 #
 # Usage:
 #   scripts/test-stack.sh [start]     start (or reuse) the isolated stack, migrate it, write env
@@ -82,6 +104,12 @@ FORBIDDEN_PORTS=(54320 54321 54322 55321 55322)
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing dependency: $1" >&2; exit 3; }; }
 
+# Set by main() before any check runs. Fixture env vars (TEST_STACK_DOCKER_PS_OUTPUT,
+# TEST_STACK_PORT_LISTENING_OVERRIDE) are honored ONLY while this is 1 — a real `start` or
+# `stop` always calls real `docker ps` / `lsof`, so an env var left over from a test run (or
+# inherited from a parent shell) can never silently bypass these checks on an actual run.
+DRY_RUN=0
+
 assert_safe_ports() {
   for p in "$API_PORT" "$DB_PORT" "$SHADOW_PORT"; do
     for bad in "${FORBIDDEN_PORTS[@]}"; do
@@ -93,12 +121,13 @@ assert_safe_ports() {
   done
 }
 
-# Real `docker ps` output, unless a test has injected a fixture via TEST_STACK_DOCKER_PS_OUTPUT —
-# this is the ONLY place that env var is read, and it exists purely so
+# Real `docker ps` output, unless running under --dry-run AND a test has injected a fixture via
+# TEST_STACK_DOCKER_PS_OUTPUT — this is the ONLY place that env var is read, it exists purely so
 # tests/scripts/test-stack-dry-run.test.ts can prove the conflict/identity checks refuse a
-# different project's container without needing a real one running. Production runs never set it.
+# different project's container without needing a real one running, and it has no effect at all
+# outside --dry-run (see DRY_RUN above).
 docker_ps_text() {
-  if [ -n "${TEST_STACK_DOCKER_PS_OUTPUT:-}" ]; then
+  if [ "$DRY_RUN" = "1" ] && [ -n "${TEST_STACK_DOCKER_PS_OUTPUT:-}" ]; then
     printf '%s' "$TEST_STACK_DOCKER_PS_OUTPUT"
   else
     docker ps --format '{{.Names}}\t{{.Ports}}'
@@ -106,7 +135,7 @@ docker_ps_text() {
 }
 
 docker_ps_names() {
-  if [ -n "${TEST_STACK_DOCKER_PS_OUTPUT:-}" ]; then
+  if [ "$DRY_RUN" = "1" ] && [ -n "${TEST_STACK_DOCKER_PS_OUTPUT:-}" ]; then
     printf '%s' "$TEST_STACK_DOCKER_PS_OUTPUT" | cut -f1
   else
     docker ps --format '{{.Names}}'
@@ -133,53 +162,101 @@ project_id_of_container() {
   fi
 }
 
-# Pre-start safety gate: refuses to start anything if one of our three ports is already bound to
-# a container belonging to a DIFFERENT project. A container already bound under mc-care-test
-# itself is fine — that is just this script reusing a stack it started before.
+# Is anything at all listening on this host port, Docker or not? `docker ps` only explains ports
+# Docker itself published; a plain process bound to the same port (another local tool, a stray
+# `supabase start` from a differently-configured workdir, etc.) never shows up there, and relying
+# on `docker ps` alone would wrongly call that port free. Overridable under --dry-run only, via
+# a comma-separated TEST_STACK_PORT_LISTENING_OVERRIDE list of "listening" ports.
+port_is_listening() {
+  local port="$1"
+  if [ "$DRY_RUN" = "1" ] && [ -n "${TEST_STACK_PORT_LISTENING_OVERRIDE:-}" ]; then
+    case ",${TEST_STACK_PORT_LISTENING_OVERRIDE}," in
+      *",${port},"*) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+# Pre-start safety gate — this is what protects the `supabase start` call itself, before it ever
+# runs: refuses to start anything if one of our three ports is already bound to a container
+# belonging to a DIFFERENT project (via `docker ps`), OR to anything else listening there that
+# isn't a container at all (via `lsof`, see `port_is_listening`). A container already bound
+# under mc-care-test itself is fine — that is just this script reusing a stack it started before.
 assert_no_port_conflict() {
   local ps_text owner owner_project
   ps_text="$(docker_ps_text)"
   for port in "$API_PORT" "$DB_PORT" "$SHADOW_PORT"; do
     owner="$(container_owner_for_port "$ps_text" "$port")"
-    [ -z "$owner" ] && continue
-    owner_project="$(project_id_of_container "$owner")"
-    if [ "$owner_project" != "$PROJECT_ID" ]; then
-      echo "refusing to start: port ${port} is already held by container '${owner}'" \
-        "(project_id '${owner_project:-unknown}'), not ${PROJECT_ID}." >&2
-      echo "not starting mc-care-test — stop that container or pick different ports." >&2
-      exit 3
+    if [ -n "$owner" ]; then
+      owner_project="$(project_id_of_container "$owner")"
+      if [ "$owner_project" != "$PROJECT_ID" ]; then
+        echo "refusing to start: port ${port} is already held by container '${owner}'" \
+          "(project_id '${owner_project:-unknown}'), not ${PROJECT_ID}." >&2
+        echo "not starting mc-care-test — stop that container or pick different ports." >&2
+        return 1
+      fi
+      continue
+    fi
+    # docker ps saw nothing on this port — but something non-Docker still might be listening.
+    if port_is_listening "$port"; then
+      echo "refusing to start: something is listening on 127.0.0.1:${port} that docker ps" \
+        "doesn't explain (not a container at all, or one docker ps didn't report)." >&2
+      echo "not starting mc-care-test — free that port first." >&2
+      return 1
     fi
   done
 }
 
-# Pre-migration identity gate: the DB container we are about to migrate must be exactly
-# `supabase_db_mc-care-test`, not merely "something answering on port $DB_PORT".
+# Gates `supabase start` itself (step 2 of the header's safety list): Docker Compose keys
+# containers off config.toml's project_id, so if the patch in write_scratch_config ever silently
+# failed to take, `supabase start --workdir $WORKDIR_SUPABASE` would attach to whatever project
+# that stale project_id names — possibly an already-running OTHER project's containers — instead
+# of creating fresh mc-care-test ones. This has to run, and pass, before `supabase start`;
+# checking the resulting container's name afterward (assert_db_container_identity) is too late to
+# stop that call, only to stop what comes after it.
+assert_scratch_project_id() {
+  local expected="project_id = \"${PROJECT_ID}\""
+  if ! grep -qxF "$expected" "$WORKDIR_SUPABASE/config.toml"; then
+    echo "refusing to start: ${WORKDIR_SUPABASE}/config.toml does not set ${expected}" \
+      "— the config patch step did not take, and starting anyway could attach to some other" \
+      "project's already-running containers." >&2
+    return 1
+  fi
+}
+
+# Post-start identity gate — gates the migration/reset call: the DB container we are about to
+# migrate must be exactly `supabase_db_mc-care-test`, not merely "something answering on port
+# $DB_PORT". This can only run after `supabase start` creates the container (nothing to inspect
+# before that); assert_no_port_conflict and assert_scratch_project_id are what protect the
+# `supabase start` call itself.
 assert_db_container_identity() {
   local expected="supabase_db_${PROJECT_ID}" names
   names="$(docker_ps_names)"
   if ! grep -qx "$expected" <<<"$names"; then
     echo "refusing to migrate: expected container '${expected}' to be running, but it is not" \
       "among: $(printf '%s' "$names" | tr '\n' ',')" >&2
-    exit 3
+    return 1
   fi
   echo "identity: container=${expected} project_id=${PROJECT_ID} host=127.0.0.1:${DB_PORT}"
 }
 
 db_url() { echo "postgresql://postgres:postgres@127.0.0.1:${DB_PORT}/postgres"; }
 
-# Post-migration schema gate: a missing core table here means wrong project, wrong port, or
-# migrations never actually ran — any of which is reason enough to stop before seeding.
+# Post-migration schema gate — gates the seed step: a missing core table here means wrong
+# project, wrong port, or migrations never actually ran — any of which is reason enough to stop
+# before seeding.
 verify_table_identity() {
   local found
   found="$(PGPASSWORD=postgres psql -h 127.0.0.1 -p "$DB_PORT" -U postgres -d postgres -At \
     -c "select to_regclass('public.${IDENTITY_TABLE}') is not null;" 2>&1)" || {
     echo "DB identity check failed: could not query 127.0.0.1:${DB_PORT} — ${found}" >&2
-    exit 3
+    return 1
   }
   if [ "$found" != "t" ]; then
     echo "DB identity check failed: public.${IDENTITY_TABLE} not found on 127.0.0.1:${DB_PORT}." >&2
     echo "This does not look like the mc-care-test database — refusing to seed." >&2
-    exit 3
+    return 1
   fi
   echo "identity: public.${IDENTITY_TABLE} exists on 127.0.0.1:${DB_PORT} (${PROJECT_ID})."
 }
@@ -278,26 +355,38 @@ EOF
 }
 
 dry_run() {
-  need docker
+  need docker; need lsof
   assert_safe_ports
-  assert_no_port_conflict
+  if ! assert_no_port_conflict; then exit 1; fi
   echo "dry run OK: no port conflict for ${API_PORT}/${DB_PORT}/${SHADOW_PORT} (${PROJECT_ID})."
 }
 
 start() {
-  need supabase; need docker; need jq; need psql; need rsync; need python3
+  need supabase; need docker; need jq; need psql; need rsync; need python3; need lsof
   assert_safe_ports
-  assert_no_port_conflict
+  # Gate 1: refuses before `supabase start` is ever invoked.
+  if ! assert_no_port_conflict; then exit 1; fi
   prepare_scratch
+  # Gate 2: also refuses before `supabase start` is ever invoked — see the comment on
+  # assert_scratch_project_id for why this specific check has to run this early.
+  if ! assert_scratch_project_id; then exit 1; fi
 
   echo "starting ${PROJECT_ID} on API ${API_PORT} / DB ${DB_PORT} / shadow ${SHADOW_PORT}..."
   # imgproxy and postgres-meta have no `enabled` toggle in this CLI's config.toml schema, so they
   # are excluded here instead of in the scratch config.
   supabase start --workdir "$WORKDIR_SUPABASE" --exclude imgproxy,postgres-meta
 
-  assert_db_container_identity
+  # Gate 3: refuses before the explicit migration/reset call below.
+  if ! assert_db_container_identity; then
+    echo "aborting before migrating — container-identity check failed." >&2
+    exit 1
+  fi
   apply_migrations
-  verify_table_identity
+  # Gate 4: refuses before the seed step below.
+  if ! verify_table_identity; then
+    echo "aborting before seeding — schema-identity check failed." >&2
+    exit 1
+  fi
   apply_seed
   write_env_file
   echo "${PROJECT_ID} is up."
@@ -318,6 +407,6 @@ stop() {
 case "${1:-start}" in
   start) start ;;
   stop) stop ;;
-  --dry-run|dry-run) dry_run ;;
+  --dry-run|dry-run) DRY_RUN=1; dry_run ;;
   *) echo "usage: scripts/test-stack.sh [start|stop|--dry-run]" >&2; exit 2 ;;
 esac
