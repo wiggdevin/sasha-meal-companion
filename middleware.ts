@@ -16,6 +16,9 @@ export const config = {
 
 export default async function middleware(req: NextRequest): Promise<NextResponse> {
   let res = NextResponse.next({ request: req });
+  // The /design galleries render static fixtures and answer 404 in production (app/design).
+  if (process.env.NODE_ENV !== "production"
+    && (req.nextUrl.pathname === "/design" || req.nextUrl.pathname.startsWith("/design/"))) return res;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

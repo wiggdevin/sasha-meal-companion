@@ -45,7 +45,7 @@ describe("an empty meal card's flow hands focus back", () => {
 
   it("leaves focus alone when it had already moved elsewhere on the page", () => {
     const { rerender } = render(<><input aria-label="Elsewhere" /><Card variant="focus" flow={false} /></>);
-    fireEvent.click(screen.getByRole("button", { name: "Plan with the coach" }));
+    fireEvent.click(screen.getByRole("button", { name: "Plan with Sasha" }));
     rerender(<><input aria-label="Elsewhere" /><Card variant="focus" flow /></>);
     const elsewhere = screen.getByRole("textbox", { name: "Elsewhere" });
     elsewhere.focus();

@@ -23,8 +23,8 @@
   position: relative;
   display: flex;
   align-items: flex-end;
-  /* The photo fills the top 184 px; the title and calories sit under it on charcoal. */
-  padding: 198px 20px 4px;
+  /* The photo fills the top 168 px; the title and calories sit under it on charcoal. */
+  padding: 182px 20px 4px;
   isolation: isolate;
 }
 
@@ -33,7 +33,7 @@
   pointer-events: auto;
 }
 
-/* The photo's clip (components/ui/MealPhoto.tsx): the top 184 px of a featured card. Its sweeping
+/* The photo's clip (components/ui/MealPhoto.tsx): the top 168 px of a featured card. Its sweeping
    corner is animated by the component so it stays round while the clip changes shape; an unknown
    dish shows the app-owned olive art, never a stranger's photo. */
 .heroPhoto {
@@ -42,7 +42,7 @@
   left: 0;
   z-index: 1;
   width: 100%;
-  height: 184px;
+  height: 168px;
 }
 
 .heroFooter {
@@ -93,8 +93,8 @@
   display: inline-flex;
   align-items: center;
   height: 28px;
-  padding: 0 14px 0 4px;
-  gap: 8px;
+  padding: 0 12px;
+  gap: 6px;
   border-radius: 9999px;
   background: rgba(77, 82, 64, .92);
   box-shadow: var(--bevel), 0 6px 14px -8px rgba(0, 0, 0, .6);
@@ -107,22 +107,64 @@
   line-height: 1;
 }
 
-.slotPillPosition {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, .2);
+/* Meal cards v2: the chip leads with a word (Now, Next, Eaten, or the slot's own name), then the time. */
+.slotPillStatus {
   color: #f3eee2;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.slotPillDot {
+  margin: 0 -2px;
+  color: #ded9cc;
+  opacity: .7;
 }
 
 .slotPillTime {
   color: #ded9cc;
+}
+
+/* The focus card's chip is the one cream object on the photo, so "Next" reads before anything else. */
+.slotPillFocus {
+  background: rgba(243, 238, 226, .94);
+  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .6);
+}
+.slotPillFocus .slotPillStatus,
+.slotPillFocus .slotPillTime,
+.slotPillFocus .slotPillDot {
+  color: #1d1d1c;
+}
+
+/* Eaten: the chip goes charcoal with a cream rim; the photo and the words keep their full colour. */
+.slotPillEaten {
+  background: rgba(29, 29, 28, .86);
+  box-shadow: inset 0 0 0 1px rgba(243, 238, 226, .28);
+}
+
+/* The figures beside the title: calories, and on a compact card the protein under them. */
+.figures {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.protein {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: #e2dcd0;
+  font-variant-numeric: tabular-nums;
+}
+/* The protein dot in its gauge hue (a dot, never text: DESIGN.md §Colors). */
+.protein > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-gauge-protein-end);
 }
 
 /* The beige tray: the reference's bottom bar, its upper corners curved alike (2026-10-01: a curve on
@@ -189,24 +231,6 @@
   text-overflow: ellipsis;
 }
 
-/* The expand hinge: a quiet chevron on the tray. */
-.hinge {
-  background: transparent;
-  color: var(--color-text-muted);
-}
-
-/* Visually 28 px; the button's ::before keeps the 44 px touch target. */
-.hinge:global(.tap) {
-  min-height: 0;
-}
-
-/* The hinge runs edge to edge inside the card's clip, so its keyboard ring is drawn inside it rather
-   than cut by the card (owner, 2026-10-04: highlights are never clipped). */
-.hinge:focus-visible {
-  outline-offset: -3px;
-  border-radius: 9999px;
-}
-
 /* Compact (other collapsed meals, and every card with a flow open): the photo fills the card's whole
    left side, its upper-right corner swept; the title, calories and the macro split sit beside it. The
    tray rises 24 px over the photo's foot, so its curved corner closes over the food rather than over
@@ -250,7 +274,14 @@
 }
 
 /* Beside a compact title the calories run inline: numeral, then unit. */
+.compact .figures {
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .compact .heroFooter :global([data-meal-calories]) {
+  min-height: 0;
   justify-content: flex-start;
   text-align: left;
 }
@@ -273,14 +304,9 @@
 
 .compact .slotPill {
   height: 24px;
-  padding-right: 10px;
-  gap: 6px;
-  letter-spacing: .14em;
-}
-
-.compact .slotPillPosition {
-  min-width: 16px;
-  height: 16px;
+  padding: 0 9px;
+  gap: 5px;
+  letter-spacing: .06em;
 }
 
 .compact .details {
@@ -320,7 +346,7 @@
 }
 
 @media (max-width: 370px) {
-  .hero { padding-top: 168px; }
-  .heroPhoto { height: 156px; }
+  .hero { padding-top: 156px; }
+  .heroPhoto { height: 144px; }
   .snackArt { width: 44px; }
 }

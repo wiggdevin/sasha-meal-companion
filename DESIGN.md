@@ -485,22 +485,29 @@ search, this is AI").
   it. Delete and Clear ask twice inside the button ("Delete" → "Delete for good"); there is no undo,
   because the server keeps no deleted chat.
 - **Meal card (Harvest, 2026-10-01):** matte charcoal, 32 px radius, the deep drop.
-  - Featured (focus or open): the photo fills the top 184 px in true colour, its lower-right corner
-    swept on a 72 px curve; the slot chip (olive, tracked capitals, "1 · 7:30 AM") sits on it. Below,
-    on charcoal: the cream Fraunces title (28 px) and the persimmon calorie numeral (the consume control), the
-    ornament, then the olive spec panel — Protein, Carbs, Fat as tracked labels over cream values,
-    split by hairlines — and the beige tray with both upper corners curved 32 px, holding the hinge
-    and, once open, the ivory panel (ingredients, food search, preparation, share of target) 16 px
-    clear of the tray's top and of the footer rule (the folding region is a flow root, so the gap
-    never collapses up through the tray), then one footer row: Ask Assistant (words only, no spark logo), Ate
-    something else and a round collapse button at its end, `Button`s sized to their words that never
-    wrap (a label that cannot fit ellipsises).
-    Closing runs in order: the tray folds with its words in place, then the card compacts.
+  - Meal cards v2 (2026-10-08, `docs/design/meal-cards-v2.md`): the slot chip leads with a word —
+    `Next · 12:30 PM`, `Now · …` on the focus card (a cream chip, the one light object on the photo),
+    `Eaten · …` once ticked off (charcoal with a cream rim), else the slot's own name (`Meal 3 · …`),
+    never a bare number. The beige tray's foot is the card's action strip on every planned card:
+    **Mark eaten** (olive primary; "Eaten", secondary and pressed, once ticked off — a tap undoes it),
+    **Swap** while the meal can still be swapped, and the round details control at its end. The calorie
+    numeral is a figure, not a control. Eaten keeps full colour and contrast (no dim). A generator's
+    plan miss sits in the tray under the rule mark as a "needs a look" line.
+  - Featured (focus or open): the photo fills the top 168 px in true colour, its lower-right corner
+    swept on a 72 px curve; the slot chip sits on it. Below, on charcoal: the cream Fraunces title
+    (28 px) and the persimmon calorie numeral, then the olive spec panel — Protein, Carbs, Fat as
+    tracked labels over cream 16 px values, split by hairlines — and the beige tray with both upper
+    corners curved 32 px, holding the action strip and, once open, the ivory panel (ingredients, food
+    search, preparation with an "Ask the assistant how to make it" button, daily share) 16 px clear of
+    the tray's top, then a second row above the strip: Ask Assistant (words only, no spark logo) and
+    Ate something else, `Button`s sized to their words that never wrap (a label that cannot fit
+    ellipsises). Closing runs in order: the tray folds with its words in place, then the card compacts.
   - Compact (other collapsed meals, and every card with a flow open): the photo fills the card's whole
     left side (38 %), its upper-right corner swept, and runs 24 px under the tray, whose curved corner
     closes over the food rather than over a band of charcoal; the title (20 px, two lines), calories
-    and the thin macro split sit beside it on charcoal; the beige hinge closes the card. Opening a
-    compact card morphs it into the featured form in place (§Motion).
+    with the protein under them (`36 g protein`, a plum dot) and the thin macro split sit beside it on
+    charcoal; the action strip closes the card. Opening a compact card morphs it into the featured
+    form in place (§Motion).
   - Flows (2026-10-04, owner: "one card with what's currently selected at the top"): Plan with
     Assistant, Log what you ate and Swap open inside the card, never as a second card under it. The
     card takes its compact form, so the meal the flow acts on stays on top, and the flow takes the

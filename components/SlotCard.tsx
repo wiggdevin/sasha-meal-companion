@@ -7,7 +7,8 @@ import dark from "./AfterDarkCards.module.css";
 import { useMealReschedule } from "./useMealReschedule";
 import { isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import MealNutritionDivider, { MealCalorieButton, MealMacroBar } from "@/components/ui/MealNutritionDivider";
+import MealNutritionDivider, { MealCalories, MealEatenButton, MealMacroBar } from "@/components/ui/MealNutritionDivider";
+import { ASSISTANT_NAME } from "@/lib/brand";
 import MealPhoto from "@/components/ui/MealPhoto";
 import AutoHeight from "@/components/ui/AutoHeight";
 import Fold from "@/components/ui/Fold";
@@ -71,19 +72,26 @@ export function formatTime(time: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-/** "meal-2" -> "2"; other slots keep their name ("Snack"). */
-function slotPosition(slot: Pick<ResolvedSlot, "slot" | "label">): string {
-  return slot.slot.startsWith("meal-") ? slot.slot.slice(5) : slot.label;
+/** The chip's first word: Now or Next on the focus card, Eaten once ticked off, else the slot's own
+ *  name ("Meal 3", "Snack") — never a bare number (meal cards v2). */
+export function slotStatus(slot: Pick<ResolvedSlot, "label" | "eaten">, focusLabel?: "Now" | "Next"): string {
+  if (slot.eaten) return "Eaten";
+  return focusLabel ?? slot.label;
 }
 
-/** One thin pill: the meal's place in the day on a shaded chip, then its time. */
-function MealSlotPill({ slot, time }: { slot: Pick<ResolvedSlot, "slot" | "label">; time: string }) {
+/** One thin pill on the photo: the meal's status word, then its time. */
+function MealSlotPill({ slot, time, focusLabel }: {
+  slot: Pick<ResolvedSlot, "slot" | "label" | "eaten">; time: string; focusLabel?: "Now" | "Next";
+}) {
   const formatted = formatTime(time);
   const [clock, meridiem = ""] = formatted.split(" ");
-  const position = slotPosition(slot);
-  return <span role="img" aria-label={`${slot.label}, scheduled for ${formatted}`} data-meal-time="true"
-    data-meal-position={position} className={dark.slotPill}>
-    <span className={dark.slotPillPosition} aria-hidden="true">{position}</span>
+  const status = slotStatus(slot, focusLabel);
+  const spoken = status === slot.label ? "" : `, ${status.toLowerCase()}`;
+  return <span role="img" aria-label={`${slot.label}${spoken}, scheduled for ${formatted}`} data-meal-time="true"
+    data-meal-status={slot.eaten ? "eaten" : focusLabel ? focusLabel.toLowerCase() : "later"}
+    className={`${dark.slotPill} ${slot.eaten ? dark.slotPillEaten : focusLabel ? dark.slotPillFocus : ""}`}>
+    <span className={dark.slotPillStatus} aria-hidden="true">{status}</span>
+    <span className={dark.slotPillDot} aria-hidden="true">·</span>
     <span className={dark.slotPillTime} aria-hidden="true"><span className="tabular-nums">{clock}</span> {meridiem.toUpperCase()}</span>
   </span>;
 }
@@ -96,6 +104,7 @@ export type SlotVariant = "focus" | "standard" | "compact";
 export default function SlotCard({
   slot,
   variant,
+  focusLabel,
   canSwap,
   onToggleEaten,
   onOpenSwap,
@@ -182,8 +191,11 @@ export default function SlotCard({
   }, [attached, slot.meal]);
   const planEmpty = () => { openedBy.current = "plan"; onPlanWithCoach?.(); };
   const logEmpty = () => { openedBy.current = "log"; onLogWhatYouAte?.(); };
+  const eatenControl = <MealEatenButton eaten={slot.eaten} label={slot.label} feedback={eatenFeedback}
+    onToggleEaten={onToggleEaten} />;
   const meal = useMealDetail(slot, onOpenEdit, dayTotals, onPlanWithCoach, editor, previewMacros,
-    slot.eaten ? undefined : onAteSomethingElse, footerFocus);
+    slot.eaten ? undefined : onAteSomethingElse, footerFocus,
+    { eatenControl, onSwap: canSwap && !slot.eaten ? onOpenSwap : undefined });
   // While a flow is open the card takes its compact hero, so the meal it acts on stays at the top and
   // the flow sits right under it on one screen (2026-10-04).
   const expanded = meal.expanded && !attached;
@@ -239,15 +251,15 @@ export default function SlotCard({
     </Fold>}
   </AnimatePresence>;
   const showMiss = !!planMiss && !attached && !slot.eaten && slot.meal !== null;
+  // The generator's miss, inside the card's tray under the rule mark: a "needs a look" line.
+  const missLine = <AnimatePresence initial={false}>
+    {showMiss && <Fold key="miss">
+      <p data-slot-plan-miss="true" className="notice-attention m-0 mt-3 px-3 py-2 text-caption">{planMiss}</p>
+    </Fold>}
+  </AnimatePresence>;
   const withActions = (card: ReactNode) => <div ref={groupRef} data-card-group="true" data-slot-card={slot.slot}
     data-card-attached={attached ? "true" : undefined} className="min-w-0 w-full max-w-full scroll-mt-3">
     {withSwipe(card)}
-    {/* On the oat ground under the card: muted ink stays above 4.5:1 there (DESIGN.md §Contrast). */}
-    <AnimatePresence initial={false}>
-      {showMiss && <Fold key="miss">
-        <p data-slot-plan-miss="true" className="m-0 px-4 pt-2 text-caption text-muted">{planMiss}</p>
-      </Fold>}
-    </AnimatePresence>
   </div>;
   /** The flow, inside whichever card body this slot draws. */
   const flowFace = (className: string) => <TrayFace key={`flow:${flowKey}`} className={className}>
@@ -276,7 +288,10 @@ export default function SlotCard({
       <div className={`shell min-w-0 w-full max-w-full ${styles.card} ${mealProps.className}`} {...cardProps}>
         <div className="surface flex flex-col gap-3 p-4">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[16px] font-medium text-charcoal">{slot.label}</span>
+            <span className="text-[16px] font-medium text-charcoal">
+              {focusLabel && <span data-meal-status={focusLabel.toLowerCase()} className="eyebrow mr-2 text-muted">{focusLabel}</span>}
+              {slot.label}
+            </span>
             <span className="text-tiny font-normal tabular-nums text-muted">
               {formatTime(slot.time)}
             </span>
@@ -285,7 +300,7 @@ export default function SlotCard({
             <p className="m-0 text-caption text-muted">Nothing planned yet.</p>
             {reasonLine("")}
             <div className="flex flex-col gap-2">
-              <Button ref={planButton} block onClick={planEmpty}>Plan with the coach</Button>
+              <Button ref={planButton} block variant="primary" onClick={planEmpty}>{`Plan with ${ASSISTANT_NAME}`}</Button>
               <Button ref={logButton} block variant="tertiary" onClick={logEmpty}>Log what you ate</Button>
             </div>
           </>}
@@ -311,12 +326,9 @@ export default function SlotCard({
       {gesture.error ?? (gesture.saving ? "Saving time…" : `${formatTime(shownTime)} · Release to save`)}
     </span>}
   </>;
-  // Kept off the visual surface; keyboard and screen-reader users have the same action.
-  const swapButton = canSwap ? <button type="button" onClick={onOpenSwap}
-    aria-label={`Swap ${slot.label}`} className="tap sr-only focus:not-sr-only focus:relative focus:z-10 focus:p-3">Swap</button> : null;
-
   const shellClass = slot.eaten ? "meal-card" : "shell";
-  const surfaceClass = slot.eaten ? "meal-card-in meal-card-complete opacity-70" : "surface";
+  // Eaten keeps full colour and contrast: the chip and the eaten button carry the state (meal cards v2).
+  const surfaceClass = slot.eaten ? "meal-card-in meal-card-complete" : "surface";
   const illustrativeImage = illustrativeMealImage(slot.meal.name, slot.components);
   const compact = (variant !== "focus" && !expanded && !folding) || attached;
   // Opening a card is one shape becoming another (2026-10-01): the photo grows from the left into the
@@ -340,19 +352,21 @@ export default function SlotCard({
             <MealPhoto src={illustrativeImage} className={dark.heroPhoto} compact={compact} transition={morph} />
             <div className={dark.heroFooter}>
               <motion.h3 className={dark.heroTitle} {...glide}>{slot.meal.name}</motion.h3>
-              <motion.div className="shrink-0" {...glide}>
-                <MealCalorieButton kcal={shownMacros.kcal} eaten={slot.eaten} label={slot.label}
-                  feedback={eatenFeedback} onToggleEaten={onToggleEaten} />
+              <motion.div data-compact-figures="" className={dark.figures} {...glide}>
+                <MealCalories kcal={shownMacros.kcal} />
+                {compact && <span data-compact-protein="" className={dark.protein}>
+                  <span aria-hidden="true" />
+                  {Math.round(shownMacros.protein)} g protein
+                </span>}
               </motion.div>
             </div>
-            <motion.div className={dark.heroTime} {...glide}><MealSlotPill slot={slot} time={shownTime} /></motion.div>
+            <motion.div className={dark.heroTime} {...glide}><MealSlotPill slot={slot} time={shownTime} focusLabel={focusLabel} /></motion.div>
             {/* Compact, the split bar sits in the hero's text column, so the photo fills the card's
                 whole left side down to the tray: no bare charcoal band under it (U9). */}
             <AnimatePresence initial={false}>
               {compact && <MealMacroBar key="bar" macros={shownMacros} layoutId={`${cardId}-split`}
                 className={dark.heroBar} />}
             </AnimatePresence>
-            {swapButton}
           </div>
         </AutoHeight>
         <MealNutritionDivider macros={shownMacros} compact={compact} layoutId={`${cardId}-split`} />
@@ -366,6 +380,7 @@ export default function SlotCard({
               {attached ? flowFace(dark.flowFace) : <TrayFace key="detail" className={dark.detailFace}>
                 {/* Saved content against the current food rules: on the beige tray, never on the hero. */}
                 <SlotRuleMarkLine mark={meal.ruleMark} />
+                {missLine}
                 <AnimatePresence initial={false}>{meal.detail}</AnimatePresence>
                 {meal.footer}
               </TrayFace>}
