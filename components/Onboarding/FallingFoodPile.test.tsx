@@ -10,7 +10,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { STARTERS } from "@/lib/foods/starter";
-import FallingFoodPile from "./FallingFoodPile";
+import FallingFoodPile, { PILE_TIMING } from "./FallingFoodPile";
 
 afterEach(cleanup);
 
@@ -29,14 +29,14 @@ describe("a same-length deck replacement clears the previous session", () => {
 
       const { rerender } = render(<FallingFoodPile choices={withWhey} marks={{}} onMark={vi.fn()} />);
       // Let the whole small deck spawn in (well past the worst-case jittered interval).
-      act(() => { vi.advanceTimersByTime(3000); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs + 6000); });
       expect(within(screen.getByTestId("food-pile")).getByRole("button", { name: /Whey protein/i }))
         .toBeTruthy();
 
       // Same length (4 choices either way) — only `choices.length` would miss this swap.
       expect(withWhey.length).toBe(withoutWhey.length);
       rerender(<FallingFoodPile choices={withoutWhey} marks={{}} onMark={vi.fn()} />);
-      act(() => { vi.advanceTimersByTime(3000); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs + 6000); });
 
       const pile = screen.getByTestId("food-pile");
       expect(within(pile).queryByRole("button", { name: /Whey protein/i })).toBeNull();
@@ -56,7 +56,7 @@ describe("a disc exiting mid-deck-swap can't still mark an excluded food loved",
       const withoutWhey = choicesFor(["chicken-breast-roasted", "tofu-firm"]);
 
       const { rerender } = render(<FallingFoodPile choices={withWhey} marks={{}} onMark={onMark} />);
-      act(() => { vi.advanceTimersByTime(2000); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs + 2000); });
       // Captured before the swap, exactly like `AnimatePresence`'s own ~220ms-exiting element
       // would be: a DOM node (and its bound onToggle) from the pre-swap render.
       const staleWheyDisc = screen.getByRole("button", { name: /Whey protein/i });
@@ -80,7 +80,7 @@ describe("resolve is idempotent per disc", () => {
       const onMark = vi.fn();
       const single = choicesFor(["chicken-breast-roasted"]);
       render(<FallingFoodPile choices={single} marks={{}} onMark={onMark} />);
-      act(() => { vi.advanceTimersByTime(0); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs); });
 
       const disc = screen.getByRole("button", { name: /Love Chicken breast, roasted/i });
       // The second click simulates Motion's shared onAnimationComplete firing again for the same
@@ -93,5 +93,36 @@ describe("resolve is idempotent per disc", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("the page settles before anything falls, and the list is one tap away (owner 2026-10-08)", () => {
+  it("holds still for the settle time, then drops discs well apart", () => {
+    vi.useFakeTimers();
+    try {
+      const deck = choicesFor(["chicken-breast-roasted", "white-rice-cooked", "olive-oil"]);
+      render(<FallingFoodPile choices={deck} marks={{}} onMark={vi.fn()} />);
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs - 50); });
+      expect(within(screen.getByTestId("food-pile")).queryAllByRole("button")).toHaveLength(0);
+      act(() => { vi.advanceTimersByTime(50); });
+      expect(within(screen.getByTestId("food-pile")).queryAllByRole("button")).toHaveLength(1);
+      // The next disc waits a whole spawn interval, several times the old 450 ms.
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.spawnBaseMs - PILE_TIMING.spawnJitterMs - 50); });
+      expect(within(screen.getByTestId("food-pile")).queryAllByRole("button")).toHaveLength(1);
+      expect(PILE_TIMING.fallSeconds).toBeGreaterThanOrEqual(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("'Just pick from the list' opens the shared tile grid with every food, writing the same marks", () => {
+    const onMark = vi.fn();
+    const deck = choicesFor(["chicken-breast-roasted", "white-rice-cooked", "olive-oil"]);
+    render(<FallingFoodPile choices={deck} marks={{}} onMark={onMark} />);
+    fireEvent.click(screen.getByRole("button", { name: "Just pick from the list" }));
+    const grid = screen.getByTestId("food-grid");
+    expect(within(grid).getAllByRole("button")).toHaveLength(3);
+    fireEvent.click(within(grid).getByRole("button", { name: /Love Olive oil/ }));
+    expect(onMark).toHaveBeenCalledWith("olive-oil", "eats");
   });
 });

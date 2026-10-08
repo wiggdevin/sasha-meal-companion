@@ -5,7 +5,7 @@
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { STARTERS, starterFillShortRoles, type StarterMark } from "@/lib/foods/starter";
-import FallingFoodPile, { buildQueue, pickLane } from "./FallingFoodPile";
+import FallingFoodPile, { buildQueue, pickLane, PILE_TIMING } from "./FallingFoodPile";
 
 afterEach(cleanup);
 
@@ -69,7 +69,7 @@ describe("FallingFoodPile end state and remount", () => {
       render(<FallingFoodPile choices={deck} marks={{}} onMark={vi.fn()}
         shownIds={["chicken-breast-roasted", "white-rice-cooked"]} onShown={onShown} />);
       screen.getByText("Tap the foods you love");
-      act(() => { vi.advanceTimersByTime(2000); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs + 2000); });
       const pile = screen.getByTestId("food-pile");
       expect(within(pile).queryByRole("button", { name: /Chicken/ })).toBeNull();
       within(pile).getByRole("button", { name: /Olive oil/ });
