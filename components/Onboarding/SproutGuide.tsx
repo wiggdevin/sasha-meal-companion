@@ -10,16 +10,20 @@ import { SproutFigure, type SproutPose } from "@/components/today/island/SproutF
  *  three sizes (96/120/140/168) used to snap instantly even though every beat change around it
  *  (the stream card, the dock) already animates.
  *
- *  Fixed here, scoped to this onboarding-owned file, with a transform-only scale (motion-craft:
- *  "animate only transform and opacity," never width/height directly — that forces layout on every
- *  frame). `SproutFigure` always renders at `BASE_SIZE` (the largest size any beat uses, with
- *  headroom); a `motion.span` scales that fixed-size figure down to the beat's own size via
- *  `transform: scale()`, and the OUTER box — the one that actually participates in this guide's
- *  flex layout — animates in lockstep to the same target pixel size, so the two stay perfectly
- *  synchronized (scaled content exactly fills its box at every instant, never clipped, never
- *  leaving a gap) without the image itself reflowing. Same CONTAINER_ENTER timing the stream card
- *  and dock already use (0.24s, the house ease-out curve), so all three read as one coordinated
- *  move on a beat change, not three separate ones. */
+ *  Fixed here, scoped to this onboarding-owned file, with a genuinely transform-only scale: the
+ *  outer box is a STATIC `BASE_SIZE` square (the largest size any beat uses, with headroom) that
+ *  never itself animates width/height — only its child's `transform: scale()` changes, so this
+ *  never forces layout on a frame (an earlier version of this fix animated the outer box's
+ *  width/height too, which ui-ux-buddy's Sonnet lane correctly flagged: that still forces layout
+ *  every frame despite the comment's "transform-only" claim, and its `overflow: hidden` clipped
+ *  `SproutFigure`'s own contact shadow and breathe animation at the box edge — both gone now that
+ *  the box never changes size and nothing needs clipping). The outer box's reserved layout space
+ *  is therefore the same `BASE_SIZE` for every beat; `.stream`'s own centering (this polish pass's
+ *  empty-middle fix) absorbs that, same as it already absorbs every other beat-to-beat height
+ *  difference. Same CONTAINER_ENTER timing the stream card and dock already use (0.24s, the house
+ *  ease-out curve already established for this shell's generative containers — see
+ *  ConversationalOnboarding.tsx's own `CONTAINER_EASE`, `app/globals.css`'s `.morphing-dock` — so
+ *  Sprout's resize reads as the same coordinated move, not a fourth, different one. */
 const BASE_SIZE = 200;
 const SIZE_EASE = [0.23, 1, 0.32, 1] as const;
 const SIZE_TRANSITION = { duration: 0.24, ease: SIZE_EASE };
@@ -52,14 +56,13 @@ export default function SproutGuide({ pose, line, size = 96 }: {
   const reduce = useReducedMotionConfig() ?? false;
   const transition = reduce ? INSTANT : SIZE_TRANSITION;
   return <span className="flex flex-col items-center">
-    <motion.span data-sprout-guide-size={size} className="inline-flex items-center justify-center"
-      style={{ overflow: "hidden" }}
-      initial={false} animate={{ width: size, height: size }} transition={transition}>
+    <span data-sprout-guide-size={size} className="inline-flex items-center justify-center"
+      style={{ width: BASE_SIZE, height: BASE_SIZE }}>
       <motion.span className="inline-flex" style={{ transformOrigin: "50% 50%" }}
         initial={false} animate={{ scale: size / BASE_SIZE }} transition={transition}>
         <SproutFigure mood={pose} size={BASE_SIZE} priority />
       </motion.span>
-    </motion.span>
+    </span>
     <span aria-live="polite" className="sr-only">{line}</span>
   </span>;
 }

@@ -257,10 +257,14 @@ export default function OnboardingDock(props: Props) {
     // visual duration — the frame was still visibly morphing height for ~300ms after the stream's
     // own card had already finished its 0.24s CONTAINER_ENTER swap (above) and Sprout's pose had
     // already cross-faded, so a beat change read as the dock lagging behind the rest of the
-    // screen. `SPRINGS.snappy` (0.3s) is the house spring closest to that 0.24s window while
-    // staying a real spring — the dock is still a liquid glass element, not a plain tween — so the
-    // frame settles inside the same beat-change window the content and Sprout already use.
-    transition={reduce ? INSTANT : SPRINGS.snappy}
+    // screen. ui-ux-buddy's Sonnet lane caught the first fix here (`SPRINGS.snappy`, bounce 0.15):
+    // DESIGN.md's own motion table (§Motion, "smooth | containers growing or shrinking, faces,
+    // trays, sheets, page entrance") reserves `snappy` for lenses/segments/chips, not a container's
+    // height, and `snappy`'s overshoot let the frame pulse past its content height before settling
+    // back — worse than the lag it replaced. `SPRINGS.smooth` (0.45s, bounce 0 — "smooth when
+    // nothing should overshoot," DESIGN.md §Motion) is the house's own answer for exactly this
+    // case, and still lands well inside the same beat-change window as the stream's 0.24s swap.
+    transition={reduce ? INSTANT : SPRINGS.smooth}
     onPointerMove={sheen} onPointerLeave={sheenOff}>
     <div ref={glass} className={`${styles.glass} ${styles.assistant} matte absolute inset-0 overflow-hidden`}
       style={{ borderRadius: 32 }}>

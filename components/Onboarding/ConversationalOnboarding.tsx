@@ -690,9 +690,17 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     <div className={styles.backdrop} data-reward={beat === "reward" || undefined} aria-hidden="true" />
     <div className={styles.scroller}>
       <div className={styles.stream}>
-        <div className={styles.guide}>
+        {/* ui-ux-buddy's Sonnet lane (polish pass, 2026-10-07): `.stream`'s own `justify-content:
+            center` (below, the empty-middle fix) re-centers the whole block on every beat change,
+            and beats differ in height — without this, Sprout would jump straight to its new Y
+            position with no transition, fighting the sync this same pass is after. `layout` makes
+            Framer track that position shift (and `.guide`'s own, from BEAT_SIZE changing) and
+            animate it via transform instead, on the same CONTAINER_ENTER timing as the card swap
+            beside it, so the whole stage settles together. */}
+        <motion.div layout="position" transition={reduce ? INSTANT : CONTAINER_ENTER}
+          className={styles.guide}>
           <SproutGuide pose={guidePose} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
-        </div>
+        </motion.div>
         {/* Sol review round 2: a simultaneous crossfade kept two full beats (wildly different
             heights) in flow at once, which could shift the scroller under a control mid-tap — this
             is sequential, matching DESIGN.md's own rule ("content-then-frame on close"). The dock's
