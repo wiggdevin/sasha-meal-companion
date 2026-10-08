@@ -4,6 +4,9 @@ import {
   weightForTargets,
 } from "@/lib/profile/energy";
 import type { EnergyFloorBound } from "@/lib/profile/energy";
+import {
+  AdultOnlyError, isMinorOn, paceAllowed, standardProtein, type TargetEligibility,
+} from "@/lib/profile/rate-eligibility";
 import type {
   Macros, Settings, TargetPins, TargetRevision, TargetRevisionFloors, TargetSeed, TargetSet,
   TargetSource,
@@ -25,7 +28,25 @@ export type DeriveTargetRevisionInput = {
   today: string;
   trainingWeekdays: readonly number[];
   source?: Extract<TargetSource, "derived" | "manual">;
+  /**
+   * The account's stored safety answers (lib/profile/rate-eligibility.ts). The server reads them
+   * itself (lib/server/target-eligibility.ts) and never takes them from a request body. A hold
+   * derives at a 0 pace; kidney disease also takes standard protein.
+   */
+  eligibility?: TargetEligibility;
 };
+
+/**
+ * The settings a derivation may use: under 18 on the revision's date (or the minor profile)
+ * builds nothing; a held account keeps its goal at a 0 pace (owner decisions 2026-10-08).
+ */
+export function eligibleSettings(input: DeriveTargetRevisionInput): Settings {
+  if (isMinorOn(input.settings.birthYear, input.today) || input.eligibility?.minor) {
+    throw new AdultOnlyError();
+  }
+  return paceAllowed(input.eligibility) || !input.settings.goalRateBpWeek
+    ? input.settings : { ...input.settings, goalRateBpWeek: 0 };
+}
 
 /** A pin makes the resolved numbers user-authored even when profile inputs trigger the recompute. */
 export function targetSourceFor(
@@ -115,9 +136,11 @@ export function deriveTargetRevision(
   if (!isProfileComplete(input.settings)) {
     throw new Error("Cannot derive targets from an incomplete profile");
   }
-  const weightKg = weightForTargets(input.settings, input.latestWeighInKg);
+  const settings = eligibleSettings(input);
+  const weightKg = weightForTargets(settings, input.latestWeighInKg);
   if (weightKg === null) throw new Error("Cannot derive targets without a weight");
-  const profile = { ...energyProfileFrom(input.settings), weightKg };
+  const profile = { ...energyProfileFrom(settings), weightKg,
+    ...(standardProtein(input.eligibility) ? { proteinStandard: true } : {}) };
   const trainingWeekdays = [...new Set(input.trainingWeekdays)]
     .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
     .sort((a, b) => a - b);
@@ -132,7 +155,7 @@ export function deriveTargetRevision(
   };
   return {
     ...deriveTargetRevisionFromBase(
-      { ...input, trainingWeekdays },
+      { ...input, settings, trainingWeekdays },
       derived,
       TARGET_FORMULA_NAME,
       derived.floorsBound,

@@ -34,6 +34,9 @@ const admin = {
   },
 };
 
+// Onboarding v2 pace holds are covered in tests/expenditure/jobs.test.ts; this file tests weeks.
+vi.mock("@/lib/server/target-eligibility", () => ({
+  readTargetEligibility: async () => ({ holds: [], minor: false }) }));
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: async () => undefined }));
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => admin }));
 vi.mock("@/lib/server/expenditure", async (orig) => ({

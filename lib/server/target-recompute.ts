@@ -24,6 +24,8 @@
  *   newer and skips (`pins_differ`), leaving the phone's own target post in charge.
  * - A revision dated after the run's date (a phone clock ahead of the account zone) is left alone:
  *   a write dated today could not supersede it, so the run skips instead of writing a dead row.
+ * - The account's pace holds (lib/server/target-eligibility.ts) are read on every plan: a held
+ *   account derives at a 0 pace, and an account under 18 is skipped (`adult_only`).
  * - The run's date is the phone's own day when the batch carries one (t24b, owner ruling "phone's
  *   local day everywhere"), else the account's stored zone, the request's zone, and UTC as
  *   the logged last resort (lib/server/account-day.ts).
@@ -39,6 +41,8 @@ import type { Macros, Settings, TargetRevision } from "@/lib/types";
 import { settingsProfileFromRow, type UserSettingsProfileRow } from "@/lib/sync/user-settings";
 import { activeProfile, writeDerivedTargetsIfActive } from "@/lib/server/targets";
 import { resolveAccountDay } from "@/lib/server/account-day";
+import { readTargetEligibility } from "@/lib/server/target-eligibility";
+import { isMinorOn, paceAllowed } from "@/lib/profile/rate-eligibility";
 
 const SETTINGS_COLUMNS = [
   "rev", "time_zone", "height_cm", "height_unit", "weight_unit", "birth_year", "sex",
@@ -57,7 +61,7 @@ type SettingsRow = UserSettingsProfileRow & {
 
 export type RecomputeSkip =
   | "no_settings" | "not_onboarded" | "incomplete_profile" | "authoritative_formula"
-  | "future_revision" | "pins_differ";
+  | "future_revision" | "pins_differ" | "adult_only";
 
 type Derived = ReturnType<typeof deriveTargetRevision>;
 
@@ -219,7 +223,12 @@ async function plan(
   // Only a revision this formula wrote, as derived or manual, is the recompute's to replace. A legacy
   // row (null formula or source, left null on purpose by the authority migration) cannot be
   // classified, and an adaptive or proposal revision is authoritative: both are left alone.
-  if (active && (active.formula_name !== TARGET_FORMULA_NAME
+  // The account's own pace holds (G1–G3), read before the formula check: a held account whose
+  // revision in force (adaptive or proposal included) still carries a pace is re-derived from its
+  // profile at a 0 pace, so a new hold never leaves a deficit in force. Under 18 derives nothing.
+  const eligibility = await readTargetEligibility(client, userId, today);
+  const heldPace = !paceAllowed(eligibility) && Number(active?.goal_rate_bp_week ?? 0) !== 0;
+  if (active && !heldPace && (active.formula_name !== TARGET_FORMULA_NAME
     || (active.target_source !== "derived" && active.target_source !== "manual"))) {
     return { kind: "skip", reason: "authoritative_formula", active, today };
   }
@@ -237,10 +246,15 @@ async function plan(
   if (await hasFutureRevision(client, userId, today)) {
     return { kind: "skip", reason: "future_revision", active, today };
   }
+  // Under 18 nothing is derived at all (owner decisions 2026-10-08).
+  if (isMinorOn(settings.birthYear, today) || eligibility.minor) {
+    return { kind: "skip", reason: "adult_only", active, today };
+  }
   const latestWeighInKg = weighInKgToKeep(active);
   const trainingWeekdays = row.training_weekdays ?? [];
   const input: DeriveTargetRevisionInput = {
     settings, latestWeighInKg, today, trainingWeekdays, source: targetSourceFor(settings),
+    eligibility,
   };
   return { kind: "derive", rev: row.rev, active, input, expected: deriveTargetRevision(input) };
 }
@@ -287,4 +301,21 @@ export async function recomputeDerivedTarget(
   if (done) return done;
   return { status: "unsettled", active: await activeProfile(client, userId, today),
     rounds: MAX_ROUNDS };
+}
+
+/**
+ * After a write that can add or remove a pace hold (a `conditions` change, or a dietary profile
+ * that holds the pace), bring the derived revision in line with it: a new hold sets the pace to 0
+ * now, not at the next profile edit, and a removed hold restores the stored preset. Best effort:
+ * a failure is logged and the next settings op retries, never failing the rule write itself.
+ */
+export async function recomputeAfterHoldChange(
+  client: SupabaseClient, userId: string, purpose: string,
+): Promise<void> {
+  try {
+    await recomputeDerivedTarget(client, userId);
+  } catch (e) {
+    console.error(`${purpose}: target recompute for ${userId} failed: ${
+      e instanceof Error ? e.message : "unknown"}`);
+  }
 }

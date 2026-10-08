@@ -21,6 +21,9 @@ import {
 import { latestWeighInKg, saveMorningWeight } from "@/lib/today/water-and-weight";
 import type { Settings, TargetRevision } from "@/lib/types";
 import {
+  eligibilityFromSafetyAnswers, safetyConditionEntries, type SafetyAnswers,
+} from "@/lib/profile/rate-eligibility";
+import {
   buildCompletedSettings, buildSkippedSettings, changedPlanFields, constraintPatchForFlags,
   type OnboardingState, type PlanField, type PreferenceFlag, weightLbFor,
 } from "./onboarding-state";
@@ -170,13 +173,14 @@ async function applyFlagConstraints(
   h: AccountHandle,
   flags: readonly PreferenceFlag[],
   deps: Pick<OnboardingPersistence, "loadConstraints" | "saveConstraints">,
+  conditions: readonly string[] = [],
 ): Promise<{ constraintsSaved: true } | { constraintsSaved: false; error: string }> {
   // PR #248 review r2 #1: every await is followed by a check of the handle the flow started with.
   const loaded = await deps.loadConstraints();
   assertCurrent(h);
   if (!loaded) return constraintsUnavailable();
   let result = await deps.saveConstraints(
-    { ...(constraintPatchForFlags(flags, loaded.profile) ?? {}), baseRev: loaded.rev },
+    { ...(constraintPatchForFlags(flags, loaded.profile, conditions) ?? {}), baseRev: loaded.rev },
     loaded.rev,
   );
   assertCurrent(h);
@@ -184,7 +188,7 @@ async function applyFlagConstraints(
   if (result.status === "error") return constraintsUnavailable();
   // One rebase onto the profile the conflict returned, then give up and say so.
   result = await deps.saveConstraints(
-    { ...(constraintPatchForFlags(flags, result.profile) ?? {}), baseRev: result.rev },
+    { ...(constraintPatchForFlags(flags, result.profile, conditions) ?? {}), baseRev: result.rev },
     result.rev,
   );
   return result.status === "ok" ? { constraintsSaved: true } : constraintsUnavailable();
@@ -202,14 +206,26 @@ export type CompletedOnboardingResult = {
   error?: string;
 };
 
+/**
+ * `safety` is the safety round's taps (lib/profile/rate-eligibility.ts). When they add condition
+ * entries, the constraint row is written FIRST, so the target revision the server derives next
+ * already sees the hold (a held account derives at a 0 pace; kidney disease, standard protein).
+ * If that write fails, nothing else is written and the caller offers the step again.
+ */
 export async function persistCompletedOnboarding(
   base: Settings,
   state: OnboardingState,
   now = new Date(),
   deps: OnboardingPersistence = persistence,
+  safety: SafetyAnswers = {},
 ): Promise<CompletedOnboardingResult> {
   const h = accountHandle();
-  const settings = buildCompletedSettings(base, state, now);
+  const conditions = safetyConditionEntries(safety);
+  const settings = buildCompletedSettings(base, state, now, eligibilityFromSafetyAnswers(safety));
+  if (conditions.length > 0) {
+    const first = await applyFlagConstraints(h, state.flags, deps, conditions);
+    if (!first.constraintsSaved) return { settings: base, ...first };
+  }
   const weightLb = weightLbFor(state);
   const localDate = deps.localDate();
   if (weightLb !== null
@@ -221,9 +237,13 @@ export async function persistCompletedOnboarding(
   // ONB2-P0 (GOAL defect 6): the settings+target-revision write and the constraints write touch
   // different rows and neither reads the other's result, so they no longer wait on each other —
   // only the weigh-in stays before both (`writeTargets` reads it through `latestWeighInKg`).
+  // G7: a safety-round condition patch was already written (with the flags) before the target, so
+  // there is no second constraints write then.
   const [revision, constraints] = await Promise.all([
     deps.saveSynced(settings, "complete", changedPlanFields(base, settings)),
-    applyFlagConstraints(h, state.flags, deps),
+    conditions.length > 0
+      ? Promise.resolve({ constraintsSaved: true } as const)
+      : applyFlagConstraints(h, state.flags, deps),
   ]);
   const savedSettings = revision ? settingsWithTargetRevision(settings, revision) : settings;
   assertCurrent(h);

@@ -23,7 +23,12 @@ function localDateOnly(dateStr: string): Date {
 
 // -------------------------------------------------------------- day type
 
-/** A `dayTypeOverride` on a StoredDay always wins over the weekday default. */
+/**
+ * A `dayTypeOverride` on a StoredDay always wins over the weekday default. Every training weekday
+ * is `training-10`: Wednesday's fasted 7am session was the first client's own week, and no
+ * account inherits it (onboarding v2 G6). `training-7-fasted` is read only from an override the
+ * account itself saved on a date.
+ */
 export function dayTypeFor(
   date: string,
   override?: DayType,
@@ -32,9 +37,7 @@ export function dayTypeFor(
   if (override) return override;
   const trainingWeekdays = settings?.trainingWeekdays;
   if (!trainingWeekdays?.length) return "rest";
-  const dow = localDateOnly(date).getDay();
-  if (!trainingWeekdays.includes(dow)) return "rest";
-  return dow === 3 ? "training-7-fasted" : "training-10";
+  return trainingWeekdays.includes(localDateOnly(date).getDay()) ? "training-10" : "rest";
 }
 
 // ------------------------------------------------------------- slot list
@@ -54,6 +57,20 @@ export function mealCountFor(settings: Partial<Pick<Settings, "mealsPerDay" | "a
   if (Number.isInteger(chosen) && chosen! >= 2 && chosen! <= 6) return chosen!;
   const trainingKcal = settings.activeTargetProfile?.training?.kcal;
   return trainingKcal == null || trainingKcal <= 1800 ? 3 : trainingKcal <= 2600 ? 4 : 5;
+}
+
+/**
+ * Onboarding v2 "Your day" (question set §1b): the whole-day shift that puts the first meal at
+ * `firstMealTime` ("HH:MM"), from the layout's own first time for the account's meal count.
+ * Stored as `Settings.shiftMinutes` (synced as `shift_minutes`); null for a malformed time.
+ */
+export function shiftForFirstMeal(
+  firstMealTime: string,
+  settings: Partial<Pick<Settings, "mealsPerDay" | "activeTargetProfile">> = {},
+): number | null {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(firstMealTime)) return null;
+  const layoutFirst = LAYOUT_TIMES[mealCountFor(settings)][0];
+  return timeToMinutes(firstMealTime) - timeToMinutes(layoutFirst);
 }
 
 export function slotListFor(_dayType: DayType, settings?: Pick<Settings, "mealsPerDay" | "activeTargetProfile">): SlotId[] {

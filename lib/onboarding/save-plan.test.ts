@@ -123,4 +123,20 @@ describe("saveOnboardingPlan", () => {
     expect(result.ok).toBe(false);
     expect(deps.mirrorOnboardedAt).not.toHaveBeenCalled();
   });
+
+  it("passes the safety round to the plan write and never retries a failed condition patch flags-only (G7)", async () => {
+    const deps = baseDeps({
+      persistPlan: vi.fn(async () => ({ settings: defaultSettings(), constraintsSaved: false, error: "x" })),
+    });
+    const result = await saveOnboardingPlan({
+      settings: defaultSettings(), onboardingState: createOnboardingState(defaultSettings()),
+      safety: { pregnancy: "pregnant" },
+    }, deps);
+
+    expect(result).toEqual({ ok: false, error: "x" });
+    const call = (deps.persistPlan as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[4]).toEqual({ pregnancy: "pregnant" });
+    expect(deps.retryConstraints).not.toHaveBeenCalled();
+    expect(deps.flushOutbox).not.toHaveBeenCalled();
+  });
 });

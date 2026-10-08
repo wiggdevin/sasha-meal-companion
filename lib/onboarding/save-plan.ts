@@ -49,6 +49,7 @@ import {
   persistCompletedOnboarding, retryOnboardingConstraints,
 } from "@/lib/profile/onboarding-client";
 import type { OnboardingState } from "@/lib/profile/onboarding-state";
+import { safetyConditionEntries, type SafetyAnswers } from "@/lib/profile/rate-eligibility";
 import { flushOutboxNow } from "@/lib/sync/client";
 import type { Settings } from "@/lib/types";
 
@@ -67,6 +68,9 @@ export type SaveOnboardingPlanInput = {
   settings: Settings;
   onboardingState: OnboardingState;
   starter?: OnboardingStarterWrite | null;
+  /** The safety round's taps (onboarding v2 G7): their condition entries are written before the
+   *  target revision, so the server derives the target under the hold. */
+  safety?: SafetyAnswers;
 };
 
 export type SaveOnboardingPlanResult =
@@ -121,7 +125,13 @@ export async function saveOnboardingPlan(
     { ...defaultDeps, ...deps };
   const h = accountHandle();
   try {
-    const completed = await persistPlan(input.settings, input.onboardingState);
+    const safety = input.safety ?? {};
+    const completed = await persistPlan(input.settings, input.onboardingState, undefined, undefined, safety);
+    if (!completed.constraintsSaved && safetyConditionEntries(safety).length > 0) {
+      // G7: the condition patch failed before the target was written, so nothing was saved. A
+      // flags-only retry would drop the conditions and leave the plan unsaved; offer the step again.
+      return { ok: false, error: completed.error ?? CONSTRAINT_SAVE_WARNING };
+    }
     if (!completed.constraintsSaved) {
       const retried = await retryConstraints(input.onboardingState.flags);
       if (!retried) return { ok: false, error: CONSTRAINT_SAVE_WARNING };

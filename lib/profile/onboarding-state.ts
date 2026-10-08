@@ -6,6 +6,8 @@ import { DEFAULT_RATE_BP, confirmedRate, validateRate } from "@/lib/profile/rate
 import type { ActivityLevel, BodyFatSource, Goal, Settings } from "@/lib/types";
 import type { Profile } from "@/lib/constraints-client";
 import type { HeightUnit } from "@/lib/units/height";
+import { paceAllowed, type TargetEligibility } from "@/lib/profile/rate-eligibility";
+import { shiftForFirstMeal } from "@/lib/plan";
 import {
   cookingEffortFromDietPrefs,
   dietPrefsTaste,
@@ -79,7 +81,20 @@ export type OnboardingState = {
   userOverrides: Partial<Record<PreferenceFlag, boolean>>;
   planEdits: Partial<Record<PlanField, number | null>>;
   mealsPerDay: number | null;
+  /** "Your day" (onboarding v2 §1b): the first meal as 24-hour "HH:MM", saved as the whole-day
+   *  shift (`shiftForFirstMeal`, lib/plan.ts). Unset or null keeps the layout's own times. */
+  firstMealTime?: string | null;
+  /**
+   * The country chip (ruling docs/decisions/2026-10-08-us-default-country.md). Unset means the
+   * flow never showed the chip, and completion leaves `countryCode` alone. A flow that shows the
+   * pre-selected "I'm in the U.S." chip sets `ONBOARDING_COUNTRY_CHIP` itself, on screen; null is
+   * the user switching it off. Never filled from a zone, a locale or a model.
+   */
+  countryCode?: string | null;
 };
+
+/** The one pre-selected, editable onboarding country chip ("I'm in the U.S."). */
+export const ONBOARDING_COUNTRY_CHIP = "US";
 
 export type OnboardingAction =
   | { type: "replace"; state: OnboardingState }
@@ -100,6 +115,8 @@ export type OnboardingAction =
   | { type: "set_cooking_effort"; value: CookingEffort | null }
   | { type: "edit_plan"; field: PlanField; value: number }
   | { type: "set_meals_per_day"; value: number }
+  | { type: "set_first_meal_time"; value: string | null }
+  | { type: "set_country"; value: string | null }
   | { type: "reset_plan" };
 
 function text(value: number | null | undefined): string {
@@ -335,6 +352,12 @@ export function onboardingReducer(
     case "set_meals_per_day":
       return Number.isInteger(action.value) && action.value >= 2 && action.value <= 6
         ? { ...state, mealsPerDay: action.value } : state;
+    case "set_first_meal_time":
+      return action.value === null || shiftForFirstMeal(action.value) !== null
+        ? { ...state, firstMealTime: action.value } : state;
+    case "set_country":
+      return action.value === null || /^[A-Z]{2}$/.test(action.value)
+        ? { ...state, countryCode: action.value } : state;
     case "reset_plan":
       return { ...state, planEdits: { trainingKcal: null, restKcal: null, proteinG: null } };
   }
@@ -377,12 +400,18 @@ function candidateSettings(base: Settings, state: OnboardingState, onboardedAt: 
     goalRateBpWeek: confirmedRate(state.goal, state.goalRateBpWeek),
     trainingWeekdays: [...state.trainingWeekdays],
     mealsPerDay: state.mealsPerDay,
+    ...(state.countryCode !== undefined ? { countryCode: state.countryCode } : {}),
     dietPrefs,
     onboardedAt,
   };
 }
 
-export function missingProfileFields(state: OnboardingState): string[] {
+/**
+ * `eligibility` is the safety round's answer (`eligibilityFromSafetyAnswers`): a held account
+ * (pregnant, breastfeeding, an eating disorder, kidney disease, a clinician-set diet) is never
+ * asked for a pace, so a loss or gain goal needs none.
+ */
+export function missingProfileFields(state: OnboardingState, eligibility?: TargetEligibility): string[] {
   const missing: string[] = [];
   if (!state.body.sex) missing.push("sex");
   if (finiteInRange(state.body.birthYear, 1900, new Date().getFullYear(), true) === null) {
@@ -392,7 +421,9 @@ export function missingProfileFields(state: OnboardingState): string[] {
   if (parsedWeightKg(state) === null) missing.push("weight");
   if (state.activityLevel === null) missing.push("activity level");
   if (state.goal === null) missing.push("goal");
-  else if (confirmedRate(state.goal, state.goalRateBpWeek) === null) missing.push("goal rate");
+  else if (paceAllowed(eligibility) && confirmedRate(state.goal, state.goalRateBpWeek) === null) {
+    missing.push("goal rate");
+  }
   return missing;
 }
 
@@ -400,11 +431,17 @@ export function buildCompletedSettings(
   base: Settings,
   state: OnboardingState,
   now: Date,
+  eligibility?: TargetEligibility,
 ): Settings {
-  if (missingProfileFields(state).length > 0) {
+  if (missingProfileFields(state, eligibility).length > 0) {
     throw new Error("Cannot use an incomplete onboarding profile");
   }
-  const derived = applyDerivedProfile(candidateSettings(base, state, now.toISOString()), now);
+  const candidate = candidateSettings(base, state, now.toISOString());
+  // A held account stores no pace (null derives at maintenance, and stays unconfirmed if the
+  // hold is later removed); the server applies the same hold to every revision.
+  const settings = paceAllowed(eligibility) ? candidate : { ...candidate, goalRateBpWeek: null };
+  const derived = applyDerivedProfile(settings, now, undefined, settings.trainingWeekdays ?? [],
+    eligibility);
   const targets = derived.activeTargetProfile!;
   const defaults: Record<PlanField, number> = {
     trainingKcal: targets.training.kcal,
@@ -416,7 +453,11 @@ export function buildCompletedSettings(
     const value = state.planEdits[field];
     if (value !== undefined) pins[field] = value === defaults[field] ? null : value;
   }
-  return { ...derived, ...pins };
+  // The first meal's shift is taken against the layout the derived target gives (an automatic
+  // meal count follows the calories), never the three-meal default.
+  const shift = state.firstMealTime
+    ? shiftForFirstMeal(state.firstMealTime, derived) : null;
+  return { ...derived, ...pins, ...(shift !== null ? { shiftMinutes: shift } : {}) };
 }
 
 export function changedPlanFields(base: Settings, completed: Settings): PlanField[] {
@@ -454,19 +495,29 @@ function appendUnique(current: string[], additions: string[]): string[] {
   return [...current, ...additions.filter((item) => !current.includes(item))];
 }
 
+/**
+ * `conditions` are the safety round's entries (`safetyConditionEntries`, onboarding v2 G7): added
+ * to the account's own list, never replacing an entry it already holds. "Pregnant" arms the
+ * pregnancy tuna check; every entry is plain text the user can remove in Foods › Avoids.
+ */
 export function constraintPatchForFlags(
   flags: readonly PreferenceFlag[],
   profile: Profile,
+  conditions: readonly string[] = [],
 ): ConstraintPatch | null {
   const allergens = flags.flatMap((flag) => FLAG_ALLERGENS[flag] ?? []);
   const categories = flags.flatMap((flag) => FLAG_CATEGORIES[flag] ?? []);
   const avoidAllergens = appendUnique(profile.avoid_allergens, allergens);
   const bannedCategories = appendUnique(profile.banned_categories, categories);
+  const current = profile.conditions ?? [];
+  const nextConditions = appendUnique(current, conditions
+    .map((item) => item.trim().slice(0, 64)).filter((item) => item.length > 0)).slice(0, 20);
   const patch: ConstraintPatch = {};
   if (avoidAllergens.length !== profile.avoid_allergens.length) patch.avoidAllergens = avoidAllergens;
   if (bannedCategories.length !== profile.banned_categories.length) {
     patch.bannedCategories = bannedCategories;
   }
+  if (nextConditions.length !== current.length) patch.conditions = nextConditions;
   return Object.keys(patch).length > 0 ? patch : null;
 }
 

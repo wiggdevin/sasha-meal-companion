@@ -15,9 +15,10 @@
  * (onboarding-fast-path.test.ts), so a confidence rule never drifts from what the tests pin.
  */
 import {
-  ONBOARDING_ACTIVITIES, ONBOARDING_COOKING_EFFORTS, ONBOARDING_GOALS, type OnboardingFactKey,
+  ONBOARDING_ACTIVITIES, ONBOARDING_COOKING_EFFORTS, ONBOARDING_GOALS, type OnboardingAnswerKey,
   type OnboardingFacts,
 } from "@/lib/coach/ui-blocks";
+import { extractPlanFastPath, withoutPlanSpans } from "@/lib/coach/onboarding-fast-path-plan";
 
 /** A unit word, an explicit keyword, or another unambiguous anchor was present. */
 export const HIGH_CONFIDENCE = 0.9;
@@ -25,7 +26,7 @@ export const HIGH_CONFIDENCE = 0.9;
 export const GHOST_CONFIDENCE = 0.6;
 
 export type FastPathFacts = Partial<OnboardingFacts> & {
-  confidence: Partial<Record<OnboardingFactKey, number>>;
+  confidence: Partial<Record<OnboardingAnswerKey, number>>;
 };
 
 function emptyResult(): FastPathFacts {
@@ -221,8 +222,10 @@ const GOAL_PATTERNS: readonly [(typeof ONBOARDING_GOALS)[number], RegExp][] = [
   ["recomp", /\b(lose|drop|cut).{0,20}\band\b.{0,20}(build|gain).{0,10}muscle\b/],
   ["recomp", /\bboth\b.{0,20}(lose|muscle)|\brecomposition\b/],
   ["lose_fat", /\b(lose|losing|drop|dropping|cut|cutting|shed)\s*(?:some\s*)?(?:body\s*)?(?:fat|weight)\b/],
+  // "I want to drop 20 lb" proposes Lose weight (question set §1a); the user taps to confirm.
+  ["lose_fat", /\b(?:lose|losing|drop|dropping|shed|shedding)\s+(?:about |around |like |another )?\d{1,3}(?:\.\d+)?\s*(?:lbs?|pounds?|kgs?|kilos?|kilograms?)\b/],
   ["gain_muscle", /\b(build|building|gain|gaining|add|adding|pack(?:ing)? on)\s*(?:some\s*)?(?:lean\s*)?muscle\b/],
-  ["maintain", /\bmaintain\b|\bkeep what i have\b|\bstay (?:the same|where i am)\b/],
+  ["maintain", /\bmaintain\b|\bkeep what i have\b|\bkeep my weight\b|\bstay (?:the same|where i am)\b/],
 ];
 
 function extractGoal(norm: string, out: FastPathFacts): void {
@@ -315,15 +318,22 @@ function extractCookingEffort(norm: string, out: FastPathFacts): void {
  */
 export function extractFastPath(text: string, now: Date = new Date()): FastPathFacts {
   if (typeof text !== "string" || text.trim().length === 0) return emptyResult();
-  const norm = normalize(text);
+  const full = normalize(text);
   const out = emptyResult();
+  // Onboarding v2 G4: the plan answers first, then the body readers on the text with every pace,
+  // goal-weight and change amount struck ("lose 30 pounds" is never the current weight).
+  const plan = extractPlanFastPath(full);
+  const { confidence: planConfidence, ...planFacts } = plan;
+  Object.assign(out, planFacts);
+  Object.assign(out.confidence, planConfidence);
+  const norm = withoutPlanSpans(full);
   extractHeight(norm, out);
   extractWeight(norm, out);
   extractBirthYear(norm, now, out);
-  extractGoal(norm, out);
-  extractSex(norm, out);
-  extractActivity(norm, out);
-  extractCookingEffort(norm, out);
+  extractGoal(full, out);
+  extractSex(full, out);
+  extractActivity(full, out);
+  extractCookingEffort(full, out);
   return out;
 }
 

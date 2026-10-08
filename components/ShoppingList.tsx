@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Plus, Share } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Disclosure from "@/components/ui/Disclosure";
@@ -44,13 +44,19 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   showChecks?: boolean;
 }) {
   const [text, setText] = useState("");
-  const [ticks, setTicks] = useState<Record<string, boolean>>({});
+  /** A tick shows at once and holds only while the line is still the revision it was made on: any
+   *  newer read of the line (this save's answer, another device) is the truth from then on. */
+  const [ticks, setTicks] = useState<Record<string, { revision: number; value: boolean; seq: number }>>({});
+  const tickSeq = useRef(0);
   const [gone, setGone] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const feedback = useActionFeedback();
   const shown = lines.filter((line) => !gone.has(line.id));
-  const isChecked = (line: ShoppingLine) => ticks[line.id] ?? line.checked;
+  const isChecked = (line: ShoppingLine) => {
+    const tick = ticks[line.id];
+    return tick && tick.revision === line.revision ? tick.value : line.checked;
+  };
   const open = shown.filter((line) => !isChecked(line) || (!showChecks && line.origin === "plan"));
   const done = shown.filter((line) => isChecked(line) && (showChecks || line.origin === "manual"));
   const chips = favoriteChips(favorites, shown);
@@ -70,11 +76,19 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   }
   async function toggle(line: ShoppingLine) {
     const next = !isChecked(line);
-    setTicks((current) => ({ ...current, [line.id]: next }));
+    const seq = ++tickSeq.current;
+    setError(null);
+    setTicks((current) => ({ ...current, [line.id]: { revision: line.revision, value: next, seq } }));
     try { await actions.setChecked(line, next); }
     catch (cause) {
-      setTicks((current) => ({ ...current, [line.id]: !next }));
-      setError(cause instanceof Error ? cause.message : "That tick did not save.");
+      // Roll back to the line as last read, and only while this is still the line's newest tick.
+      setTicks((current) => {
+        if (current[line.id]?.seq !== seq) return current;
+        const { [line.id]: _dropped, ...rest } = current;
+        return rest;
+      });
+      // Only the newest tick speaks: an older failure must not sit over a newer success.
+      if (tickSeq.current === seq) setError(cause instanceof Error ? cause.message : "That tick did not save.");
     }
   }
   async function remove(targets: ShoppingLine[]) {

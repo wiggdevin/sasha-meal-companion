@@ -50,6 +50,12 @@ describe("runOnboardingExtraction — the local safety guard blocks before any p
     "my doctor put me on mesalamine, I want to lose fat",
     "I'm allergic to peanuts, 28 years old, trying to build muscle",
     "I get rectal bleeding sometimes, otherwise 180 cm 80 kg",
+    // Onboarding v2 G14: medicine names the first word list missed.
+    "I'm on Ozempic and want to lose 30 lb, 41, 5'7\", 210 lb",
+    "started Wegovy last month, female, 38, 190 pounds",
+    "Mounjaro has me eating less, I want to keep my weight",
+    "on semaglutide, trying to build muscle",
+    "my weight loss shots make me less hungry",
   ];
 
   it.each(MEDICAL_AND_BODY_STAT_TEXTS)(
