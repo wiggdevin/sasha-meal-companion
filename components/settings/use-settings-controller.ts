@@ -266,7 +266,11 @@ export function useSettingsController() {
 
   function saveTargets(request: TargetsRequest): void {
     setSaveError(null);
-    void postTargets(request).then(
+    // The same queue as the steppers and the reset: a double tap on Save sends in order, and the last
+    // save is the one that stays (UI audit r3).
+    const run = pinQueue.current.catch(() => {}).then(() => postTargets(request));
+    pinQueue.current = run;
+    void run.then(
       (updated) => { targetsRef.current = updated; setTargets(updated); setTargetSheetOpen(false); },
       () => setSaveError("Couldn't save your targets — try again when you have a connection."),
     );

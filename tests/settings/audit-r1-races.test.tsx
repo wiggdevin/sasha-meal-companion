@@ -32,6 +32,10 @@ vi.mock("@/lib/coach/apply-profile", () => ({
 }));
 vi.mock("@/lib/health-client", () => ({ fetchDaily: async () => ({ days: [] }) }));
 vi.mock("@/lib/targets/client", () => ({ fetchTargetState: async () => ({ target: null }) }));
+vi.mock("@/lib/estimator-client", async (original) => ({
+  ...(await original<typeof import("@/lib/estimator-client")>()),
+  postTargets: (request: { tag: string }) => held(() => ({ tag: request.tag, resolved: { training: { kcal: 2400, protein: 150, carbs: 250, fat: 70 }, rest: { kcal: 2000, protein: 150, carbs: 180, fat: 65 } } })),
+}));
 vi.mock("@/lib/device/account", async (original) => ({
   ...(await original<typeof import("@/lib/device/account")>()),
   currentAccountOrNull: () => null,
@@ -74,6 +78,21 @@ describe("UI audit r1: tap order", () => {
     await waitFor(() => expect(gates.list.length).toBe(2));
     await release(1);
     await waitFor(() => expect((result.current!.store!.settings as Settings).proteinG).toBe(0));
+  });
+
+  it("a double tap on Save in the targets sheet sends in order, and the last save stays (UI audit r3)", async () => {
+    store.value = { settings: { ...defaultSettings(), proteinG: 140 } } as unknown as Store;
+    const { useSettingsController } = await import("@/components/settings/use-settings-controller");
+    const { result } = renderHook(() => useSettingsController());
+    await waitFor(() => expect(result.current).not.toBeNull());
+    gates.hold = true;
+    act(() => { result.current!.saveTargets({ tag: "first" } as never); });
+    act(() => { result.current!.saveTargets({ tag: "second" } as never); });
+    await waitFor(() => expect(gates.list.length).toBe(1));
+    await release(0);
+    await waitFor(() => expect(gates.list.length).toBe(2));
+    await release(1);
+    await waitFor(() => expect((result.current!.targets as unknown as { tag: string }).tag).toBe("second"));
   });
 
   it("sends a section's edits one after another, in tap order", async () => {
