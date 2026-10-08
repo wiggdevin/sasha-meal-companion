@@ -334,12 +334,12 @@ describe("SlotCard compact detail", () => {
     expect(screen.getByText("¼ cup")).toBeTruthy();
   });
 
-  it("keeps non-current meals compact until their detail is opened", () => {
+  it("keeps an opened card in its compact header, so the ingredients lead (meal cards v3)", () => {
     const { container } = renderDetailed();
     const card = container.querySelector("[data-after-dark-meal]") as HTMLElement;
     expect(card.getAttribute("data-card-density")).toBe("compact");
     fireEvent.click(screen.getByRole("button", { name: "Expand Meal 1" }));
-    expect(card.getAttribute("data-card-density")).toBe("featured");
+    expect(card.getAttribute("data-card-density")).toBe("compact");
   });
 
   it("uses an inline ingredient search instead of a second search button", () => {

@@ -5,9 +5,11 @@ import MealTimeline from "./MealTimeline";
 import styles from "./MealTimeline.module.css";
 import dark from "./AfterDarkCards.module.css";
 import { useMealReschedule } from "./useMealReschedule";
-import { isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import MealNutritionDivider, { MealCalories, MealEatenButton, MealMacroBar } from "@/components/ui/MealNutritionDivider";
+import MealNutritionDivider, { MealCalories, MealEatenButton, macroLabel } from "@/components/ui/MealNutritionDivider";
+import MealFavoriteHeart, { type MealFavorite } from "@/components/MealFavoriteHeart";
+import MealFigureLine from "@/components/MealFigureLine";
 import { ASSISTANT_NAME } from "@/lib/brand";
 import MealPhoto from "@/components/ui/MealPhoto";
 import AutoHeight from "@/components/ui/AutoHeight";
@@ -123,6 +125,7 @@ export default function SlotCard({
   attachment,
   emptyReason,
   planMiss,
+  favorite,
 }: {
   slot: ResolvedSlot;
   /**
@@ -159,9 +162,10 @@ export default function SlotCard({
   emptyReason?: string | null;
   /** Why the generated plate still misses this meal's target inside usual portions. */
   planMiss?: string | null;
+  /** The plate as a favorite meal; no heart is drawn without it (meal cards v3). */
+  favorite?: MealFavorite;
 }) {
   const [previewMacros, setPreviewMacros] = useState<Macros | null>(null);
-  const cardId = useId();
   const reduceMotion = useReducedMotion();
   const shownMacros = previewMacros ?? slot.macros;
   const editor = onSaveComponents ? {
@@ -194,7 +198,8 @@ export default function SlotCard({
   }, [attached, slot.meal]);
   const planEmpty = () => { openedBy.current = "plan"; onPlanWithCoach?.(); };
   const logEmpty = () => { openedBy.current = "log"; onLogWhatYouAte?.(); };
-  const eatenControl = <MealEatenButton eaten={slot.eaten} label={slot.label} feedback={eatenFeedback} onToggleEaten={onToggleEaten} />;
+  const eatenControl = <MealEatenButton eaten={slot.eaten} label={slot.label} feedback={eatenFeedback}
+    onToggleEaten={onToggleEaten} className={dark.zoneButton} />;
   const meal = useMealDetail(slot, onOpenEdit, dayTotals, onPlanWithCoach, editor, previewMacros,
     slot.eaten ? undefined : onAteSomethingElse, footerFocus,
     { eatenControl, onSwap: canSwap && !slot.eaten ? () => { openedBy.current = "swap"; onOpenSwap(); } : undefined,
@@ -333,7 +338,9 @@ export default function SlotCard({
   // Eaten keeps full colour and contrast: the chip and the eaten button carry the state (meal cards v2).
   const surfaceClass = slot.eaten ? "meal-card-in meal-card-complete" : "surface";
   const illustrativeImage = illustrativeMealImage(slot.meal.name, slot.components);
-  const compact = (variant !== "focus" && !expanded && !folding) || attached;
+  // v3: an open card takes the compact header too, so its ingredients sit near the top; a focus card
+  // grows back to its featured form once the tray has folded.
+  const compact = variant !== "focus" || meal.expanded || folding || attached;
   // Opening a card is one shape becoming another (2026-10-01): the photo grows from the left into the
   // top, the title, calories and time glide to their new places, and the card's height springs, so
   // the cards below slide rather than jump. Reduced motion: MotionConfig drops the layout moves.
@@ -355,24 +362,17 @@ export default function SlotCard({
             <MealPhoto src={illustrativeImage} className={dark.heroPhoto} compact={compact} transition={morph} />
             <div className={dark.heroFooter}>
               <motion.h3 className={dark.heroTitle} {...glide}>{slot.meal.name}</motion.h3>
-              <motion.div data-meal-figures="" className={dark.figures} {...glide}>
+              <motion.div data-meal-figures="" className={dark.figures} {...glide}
+                role={compact ? "img" : undefined} aria-label={compact ? macroLabel(shownMacros) : undefined}>
                 <MealCalories kcal={shownMacros.kcal} />
-                {compact && <span data-compact-protein="" className={dark.protein}>
-                  <span aria-hidden="true" />
-                  {Math.round(shownMacros.protein)} g protein
-                </span>}
+                {compact && <MealFigureLine macros={shownMacros} full={meal.expanded} />}
               </motion.div>
             </div>
             <motion.div className={dark.heroTime} {...glide}><MealSlotPill slot={slot} time={shownTime} focusLabel={focusLabel} /></motion.div>
-            {/* Compact, the split bar sits in the hero's text column, so the photo fills the card's
-                whole left side down to the tray: no bare charcoal band under it (U9). */}
-            <AnimatePresence initial={false}>
-              {compact && <MealMacroBar key="bar" macros={shownMacros} layoutId={`${cardId}-split`}
-                className={dark.heroBar} />}
-            </AnimatePresence>
+            {favorite && <MealFavoriteHeart label={slot.label} favorite={favorite} />}
           </div>
         </AutoHeight>
-        <MealNutritionDivider macros={shownMacros} compact={compact} layoutId={`${cardId}-split`} />
+        <MealNutritionDivider macros={shownMacros} compact={compact} />
         {/* One container (2026-10-04, owner: "Why isn't the card that's being edited just the top of
             this card?"): a flow takes the place of the detail inside the beige tray. The tray's height
             springs (frame first) while one face blurs out and the next blurs in (content after);

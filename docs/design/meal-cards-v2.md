@@ -1,4 +1,4 @@
-# Meal cards v2 (2026-10-08)
+# Meal cards v2 and v3 (2026-10-08)
 
 Owner ask: "go through the meal cards … understand exactly what the user needs at first glance and
 then when they're going through … then upgrade the design." The design stays Harvest (DESIGN.md);
@@ -64,3 +64,26 @@ it stays.
 Not in this change (noted for later): a relative time ("in 40 min"), a tappable time chip as a
 visible reschedule path, and bringing the Plan, coach and swap suggestion cards onto one figure
 format (inventory in this branch's PR description).
+
+## v3 (owner round, same day, on the live v2 cards)
+
+Owner: the cards are far too big; delete the macro bar; the action strip is too tall and unbalanced —
+three equal thirds, icons not pills; add a heart; once a card is open the ingredients are what matter.
+
+1. **Smaller.** Featured photo 132 px (was 168), title 24 px (was 28), a tighter spec panel; compact
+   cards 116 px tall (was 152), photo 34 % (was 38 %), title and calories 17 px. The compact chip moves
+   off the narrow photo to the top of the text column, so its status word shows at every width.
+2. **No macro bar** anywhere. The featured panel keeps the gram counts; a compact card says its
+   numbers through its figures (calories and protein, spoken in full).
+3. **Strip:** one 44 px row of three equal icon zones — eaten | swap | details — told apart by tone
+   (olive wash, the tray, ink 4 %), hairlines between, each zone its whole third as the tap target.
+   Eaten: an open ring, then a solid olive zone with a filled tick, which undoes. The swap zone stays
+   (empty) when the meal cannot swap, so the thirds never shift. Names unchanged.
+4. **Heart** (`components/MealFavoriteHeart.tsx`): outline / filled on the photo. On saves the plate as
+   a favorite meal (`favorites_meals`) and marks its foods Favored; off removes only the saved meal, so
+   it never takes a food out of a plan. Hidden until the page passes `favorite` — the writer
+   (`saveFavoriteMeal` / `removeFavoriteMeal` / `undoSaveFavoriteMeal`) is the backend lane's
+   feat/favorite-meals-save; wiring it into Today follows that.
+5. **Opened card:** the card keeps its compact header when open — thumbnail, title, calories, and P · C ·
+   F inline — with no spec panel, so the ingredients sit near the top. A focus card grows back to its
+   featured form once the tray has folded.

@@ -8,12 +8,12 @@
 
 /* The reference's olive spec panel. */
 .panel {
-  margin-top: 14px;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 6px 12px;
-  border-radius: 24px;
+  gap: 0;
+  padding: 10px 6px;
+  border-radius: 18px;
   background: #4f5343;
   box-shadow: var(--bevel), 0 10px 20px -12px rgba(0, 0, 0, .6);
 }
@@ -44,38 +44,18 @@
 }
 
 .specValue {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #e2dcd0;
-}
-
-/* The proportional split: a hairline-thin bar. Inside the panel it is inset; on a compact card it
-   sits at the foot of the hero's text column (MealMacroBar, AfterDarkCards.module.css .heroBar). */
-.bar {
-  display: flex;
-  gap: 2px;
-  height: 3px;
-  width: 100%;
-  overflow: hidden;
-  border-radius: 9999px;
-}
-.panel .bar {
-  width: auto;
-  margin: 0 12px;
-}
-
-.bar > span {
-  min-width: 4px;
-  height: 100%;
 }
 
 .calorie {
   min-width: 72px;
 }
 
-/* The eaten button's ring and tick ride the label's colour (cream on olive, ink on the pill). */
-.eaten :global(.btn-label) {
-  gap: 6px;
+/* The eaten zone's tick is cut into the solid disc: it takes the olive fill under it. */
+.tick {
+  stroke: var(--color-primary);
 }
 
 .kcalUnit {

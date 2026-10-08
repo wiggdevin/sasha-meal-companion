@@ -3,32 +3,26 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FADES, SPRINGS } from "@/lib/design/motion";
 import type { Macros } from "@/lib/types";
-import Button from "./Button";
 import { feedbackStateProps, type ActionFeedbackPhase } from "./ActionFeedback";
 import styles from "./MealNutritionDivider.module.css";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
 function macroItems(macros: Macros) {
-  const protein = Math.max(0, macros.protein * 4);
-  const carbs = Math.max(0, macros.carbs * 4);
-  const fat = Math.max(0, macros.fat * 9);
-  const total = protein + carbs + fat;
-  const shares = total > 0 ? [protein / total, carbs / total, fat / total] : [1, 1, 1];
   return [
-    { short: "P", name: "Protein", value: macros.protein, role: "macro-protein", share: shares[0] },
-    { short: "C", name: "Carbs", value: macros.carbs, role: "macro-carbs", share: shares[1] },
-    { short: "F", name: "Fat", value: macros.fat, role: "macro-fat", share: shares[2] },
+    { short: "P", name: "Protein", value: macros.protein, role: "macro-protein" },
+    { short: "C", name: "Carbs", value: macros.carbs, role: "macro-carbs" },
+    { short: "F", name: "Fat", value: macros.fat, role: "macro-fat" },
   ];
 }
 
 function CheckIcon({ filled }: { filled: boolean }) {
   const reduceMotion = useReducedMotion();
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6"
-      fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : 0} />
-    {/* An open ring until the meal is eaten, so the button never reads as already ticked. */}
-    {filled && <motion.path d="m8 12.4 2.8 2.8L16.2 9.6" stroke="currentColor" strokeWidth="2"
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" fill={filled ? "currentColor" : "none"} />
+    {/* An open ring until the meal is eaten, so the zone never reads as already ticked; eaten, a
+        solid disc with the tick cut into it in the zone's own fill colour. */}
+    {filled && <motion.path data-tick="" className={styles.tick} d="m8 12.4 2.8 2.8L16.2 9.6" strokeWidth="2.2"
       strokeLinecap="round" strokeLinejoin="round"
       initial={reduceMotion ? false : { pathLength: 0 }}
       animate={{ pathLength: 1 }}
@@ -52,62 +46,40 @@ export function MealCalories({ kcal }: { kcal: number }) {
  *  (secondary), which undoes it. Each name starts with the words on the button (WCAG 2.5.3), so the
  *  name changes with the state and there is no aria-pressed to contradict it. The page's feedback
  *  phase shows on the button itself. */
-export function MealEatenButton({ eaten, label, feedback, onToggleEaten }: {
+/** Spoken summary of a meal's numbers, shared by the featured panel and the compact figures. */
+export function macroLabel(macros: Macros): string {
+  return `${fmt(macros.kcal)} calories: ${fmt(macros.protein)} grams protein, ${fmt(macros.carbs)} grams carbs, ${fmt(macros.fat)} grams fat`;
+}
+
+/** The eaten zone of the card's strip (meal cards v3): an icon, not a pill — an open ring until the
+ *  meal is ticked off, then a filled tick, which undoes it. Each name starts with the state it acts
+ *  on (WCAG 2.5.3), so there is no aria-pressed to contradict it. The page's feedback phase shows on
+ *  the zone itself; pending, it is busy and takes no second tap. */
+export function MealEatenButton({ eaten, label, feedback, onToggleEaten, className = "" }: {
   eaten: boolean;
   label: string;
   feedback?: ActionFeedbackPhase;
   onToggleEaten: () => void;
+  className?: string;
 }) {
   const eatenProps = feedbackStateProps(feedback);
-  return <Button size="sm" variant={eaten ? "secondary" : "primary"} onClick={onToggleEaten}
+  const busy = feedback === "pending";
+  return <button type="button" onClick={onToggleEaten} disabled={busy} aria-busy={busy || undefined}
     data-feedback-state={eatenProps["data-feedback-state"]} data-eaten={eaten ? "true" : "false"}
     aria-label={eaten ? `Eaten, ${label}. Undo` : `Mark eaten, ${label}`} data-consume-control="tick"
-    confirmLabel={eaten ? "Eaten" : "Not eaten"} leading={<CheckIcon filled={eaten} />}
-    className={`shrink-0 ${styles.eaten}`}>
-    {eaten ? "Eaten" : "Mark eaten"}
-  </Button>;
+    className={`${eatenProps.className} ${className}`}>
+    <CheckIcon filled={eaten} />
+  </button>;
 }
 
-/** The proportional macro split as a hairline bar. One per card, keyed by `layoutId`, so it moves as
- *  one element between the compact hero (MealMacroBar) and the featured spec panel. */
-function SplitBar({ macros, layoutId }: { macros: Macros; layoutId?: string }) {
-  const reduceMotion = useReducedMotion();
-  return <motion.div data-macro-composition="true" className={styles.bar} layoutId={reduceMotion ? undefined : layoutId}
-    transition={SPRINGS.gentle}>
-    {macroItems(macros).map((item) => <span key={item.short} aria-hidden="true"
-      className={`bg-current ${item.role}`} style={{ flexGrow: item.share }} />)}
-  </motion.div>;
-}
-
-/** The compact card's split bar, drawn inside the hero's text column so the photo beside it fills the
- *  card's whole left side down to the tray (2026-10-04, owner: the image "used to take up more space
- *  and fill the bottom section"). It fades in after the card has taken its compact shape. */
-export function MealMacroBar({ macros, layoutId, className = "" }: {
-  macros: Macros; layoutId?: string; className?: string;
-}) {
-  const reduceMotion = useReducedMotion();
-  const label = `${fmt(macros.kcal)} calories: ${fmt(macros.protein)} grams protein, ${fmt(macros.carbs)} grams carbs, ${fmt(macros.fat)} grams fat`;
-  return <motion.div data-compact-bar="" role="img" aria-label={label} className={className}
-    initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}
-    exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, transition: FADES.quick }}
-    transition={reduceMotion ? { duration: 0 } : { duration: 0.2, delay: 0.2 }}>
-    <SplitBar macros={macros} layoutId={layoutId} />
-  </motion.div>;
-}
-
-/** The boundary between a meal's hero and its detail. Featured, the reference's olive
- *  spec panel: tracked labels over cream values, split by hairlines, with the proportional split
- *  along its foot. Compact, it folds away: the split bar lives in the hero then (MealMacroBar). */
-export default function MealNutritionDivider({ macros, compact = false, layoutId }: {
-  macros: Macros; compact?: boolean;
-  /** One per card: the split bar keeps it as it moves from the compact hero into the panel. */
-  layoutId?: string;
-}) {
+/** The boundary between a meal's hero and its detail. Featured, the reference's olive spec panel:
+ *  tracked labels over cream values, split by hairlines (meal cards v3: no proportional bar). Compact,
+ *  it folds away and the hero carries calories and protein. */
+export default function MealNutritionDivider({ macros, compact = false }: { macros: Macros; compact?: boolean }) {
   const reduceMotion = useReducedMotion();
   const items = macroItems(macros);
-  const label = `${fmt(macros.kcal)} calories: ${fmt(macros.protein)} grams protein, ${fmt(macros.carbs)} grams carbs, ${fmt(macros.fat)} grams fat`;
-  const bar = <SplitBar macros={macros} layoutId={layoutId} />;
-  // Opening, the panel grows open around the split bar and its words fade up; closing, they fade
+  const label = macroLabel(macros);
+  // Opening, the panel grows open and its words fade up; closing, they fade
   // and it folds away on the same spring, so the card's height never jumps.
   const rise = reduceMotion ? {} : {
     initial: { opacity: 0, height: 0 }, animate: { opacity: 1, height: "auto" },
@@ -118,7 +90,6 @@ export default function MealNutritionDivider({ macros, compact = false, layoutId
     className={styles.divider}>
     <AnimatePresence initial={false}>
       {!compact && <motion.div key="panel" className="w-full overflow-clip" {...rise}>
-        {/* Collapsed cards show only the split bar; the gram counts appear once the card expands. */}
         <div data-macro-legend="true" className={styles.panel}>
           <div className={`grid grid-cols-3 ${styles.specs}`}>
             {items.map((item) => <span key={item.short} className={styles.spec}>
@@ -129,7 +100,6 @@ export default function MealNutritionDivider({ macros, compact = false, layoutId
               <strong className={`tabular-nums ${styles.specValue}`}>{fmt(item.value)}g</strong>
             </span>)}
           </div>
-          {bar}
         </div>
       </motion.div>}
     </AnimatePresence>
