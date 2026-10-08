@@ -127,6 +127,9 @@ export const BUILDERS: Record<string, Builder> = {
       requested_dislikes: ["t:soft"], requested_cuisines: [], added_dislikes: ["t:soft"], added_cuisines: [],
       present_dislikes: [], present_cuisines: [], capped_dislikes: [], capped_cuisines: [] },
     { added_dislikes: [] }),
+  // Followups #1: written only by taste_dislike_remove; service_role inserts it here as that writer.
+  taste_dislike_removals: async (owner) => withId("taste_dislike_removals", { user_id: owner,
+    action_id: randomUUID(), key: "t:bitter", removed: true, settings_rev: 1 }, { key: "t:soft" }),
   taste_chip_holds: async (owner) => {
     // Written only by taste_chips_confirm (and ended by its release trigger); service_role inserts
     // the receipt and the hold here as that writer.
@@ -215,6 +218,11 @@ export const BUILDERS: Record<string, Builder> = {
     local_date: new Date().toISOString().slice(0, 10), surface: "plan_sheet", kind: "not_this",
     occasion: "lunch", chosen_key: "food:tenancy-rice", offered_keys: ["food:tenancy-rice", "catalog:42"],
     ranking_version: "o2.1" }, { kind: "picked" }),
+  // Followups #18: granted to `authenticated` as insert-only (no select, update or delete) -- see
+  // onboarding_events in table-ops.json. A well-shaped step_entered row.
+  onboarding_events: async (owner) => withId("onboarding_events", { user_id: owner,
+    client_event_id: randomUUID(), at: new Date().toISOString(), flow_version: "onboarding_v2",
+    kind: "step_entered", step: "facts" }, { step: "allergy" }),
   // Phase 18 W2b: written only by POST /api/foods/world (service role); the owner reads it.
   food_world_condition_confirmations: async (owner) => ({ table: "food_world_condition_confirmations",
     row: { user_id: owner, condition_key: "tenancy", choice: "no_limit" },
