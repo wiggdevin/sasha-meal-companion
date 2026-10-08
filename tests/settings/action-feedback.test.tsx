@@ -54,7 +54,7 @@ describe("Settings profile writes", () => {
 });
 
 describe("Settings goal writes", () => {
-  it("sends two quick edits and reports a failure in the second", async () => {
+  it("sends two quick edits in tap order, the second after the first settles, and reports a failure in the second", async () => {
     let finishFirst!: () => void;
     const onProfileChange = vi.fn()
       .mockImplementationOnce(() => new Promise<void>((resolve) => { finishFirst = resolve; }))
@@ -64,8 +64,11 @@ describe("Settings goal writes", () => {
     expect(monday.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Training day Friday" }));
     fireEvent.click(screen.getByRole("button", { name: "Training day Sunday" }));
-    expect(onProfileChange).toHaveBeenCalledTimes(2);
+    // UI audit r1: the second waits for the first, so a slow first edit never lands after it.
+    expect(onProfileChange).toHaveBeenCalledTimes(1);
     await act(async () => { finishFirst(); });
+    await act(async () => {});
+    expect(onProfileChange).toHaveBeenCalledTimes(2);
     await act(async () => {});
     expect(vibrate).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("alert").textContent).toContain(FAILED);
