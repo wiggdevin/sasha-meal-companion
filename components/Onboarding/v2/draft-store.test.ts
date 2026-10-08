@@ -95,4 +95,19 @@ describe("the onboarding save's target request id", () => {
     await clear();
     expect(await onboardingTargetRequestId("request-b")).not.toBe(b);
   });
+
+  it("keeps the same id for a retry after midnight (final Sol review BLOCK)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { onboardingTargetRequestId, onboardingTargetRequestKey } = await import("./draft-store");
+      const state = { goal: "lose_fat", heightCm: 170 };
+      const safety = { pregnancy: null, clinicianDiet: false, conditionText: null };
+      vi.setSystemTime(new Date("2026-10-08T23:59:50"));
+      const before = await onboardingTargetRequestId(onboardingTargetRequestKey(state, safety));
+      vi.setSystemTime(new Date("2026-10-09T00:00:10"));
+      expect(await onboardingTargetRequestId(onboardingTargetRequestKey(state, safety))).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -38,7 +38,8 @@ import {
   applyFactsToSettings, buildOnboardingStateFromFacts, factsToPartialSettings, type FactsLike,
 } from "@/components/Onboarding/v2/facts-bridge";
 import {
-  clearOnboardingDraft, loadOnboardingDraft, onboardingTargetRequestId, saveOnboardingDraft,
+  clearOnboardingDraft, loadOnboardingDraft, onboardingTargetRequestId, onboardingTargetRequestKey,
+  saveOnboardingDraft,
 } from "@/components/Onboarding/v2/draft-store";
 import { dbFood } from "@/lib/food-db";
 import { foodShortName } from "@/components/Onboarding/food-display-names";
@@ -863,7 +864,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     // GPT-6 Sol BLOCK (onb2-p0): ONE target request id per save, kept in the resume draft, so a
     // retry after a lost target answer (the revision committed, the answer never arrived) is the
     // same request and the server writes one revision. A changed answer is a new request.
-    const requestKey = JSON.stringify({ state: onboardingState, safety: safetyAnswers, day: todayIso() });
+    const requestKey = onboardingTargetRequestKey(onboardingState, safetyAnswers);
     const targetRequestId = await onboardingTargetRequestId(requestKey);
     const result = await saveOnboardingPlan({
       settings, onboardingState, safety: safetyAnswers, targetRequestId,

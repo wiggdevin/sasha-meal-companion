@@ -114,6 +114,16 @@ export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
 }
 
 /**
+ * The key a "Use this plan" save's target request id is kept under: the answers the request is
+ * built from, and NOT the day (final Sol review BLOCK: a target POST that committed just before
+ * midnight and lost its answer was retried just after it under a new id, so the server wrote a
+ * second revision). The server answers a known request id with the revision it already wrote.
+ */
+export function onboardingTargetRequestKey(state: unknown, safety: unknown): string {
+  return JSON.stringify({ state, safety });
+}
+
+/**
  * The target request id for a "Use this plan" save whose request reads `requestKey`: the stored
  * one when the key matches (a retry, also after a reload), else a new id, stored before it is
  * returned so the first attempt and every retry send the same id. Never throws; with no usable
