@@ -19,6 +19,7 @@ vi.mock("@/lib/server/targets", async () => {
 });
 const { GET, POST } = await import("@/app/api/targets/route");
 const { FloorViolationError } = await import("@/lib/server/targets");
+const { AdultOnlyError } = await import("@/lib/profile/rate-eligibility");
 
 const post = (body: unknown) => new Request("https://x.test/api/targets", {
   method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -82,6 +83,16 @@ describe("POST /api/targets", () => {
     expect(res.status).toBe(422);
     await expect(res.json()).resolves.toMatchObject({
       error: "protein_below_floor", minProteinPct: 30.86, minFatPct: 25.72 });
+  });
+
+  it("answers 422 adult_only and writes nothing for an account under 18 (G2)", async () => {
+    writeTargetRevisionSet.mockRejectedValue(new AdultOnlyError());
+    const res = await POST(post({ operation: "derive", source: "derived", effectiveFrom: "2026-10-08",
+      latestWeighInKg: null, trainingWeekdays: [],
+      settings: { sex: "female", birthYear: 2010, heightCm: 160, weightKg: 50, bodyFatPct: null,
+        activityLevel: "light", goal: "maintain", trainingKcal: null, restKcal: null, proteinG: null } }));
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toMatchObject({ error: "adult_only" });
   });
 
   it("derives and persists an authority revision server-side", async () => {

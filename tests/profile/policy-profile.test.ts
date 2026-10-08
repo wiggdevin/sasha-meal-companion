@@ -40,6 +40,21 @@ describe("readPolicyProfile", () => {
     expect(profile.profileRules.asOf).toBe(ASOF);
   });
 
+  it("carries the account's profile ids so the pregnancy profile arms the tuna check (G7)", async () => {
+    const { profile } = await readPolicyProfile(client({
+      user_dietary_profiles: { data: [{
+        profile_id: "pregnancy", source: "user_stated", confirmed_at: "2026-09-24T00:00:00.000Z",
+        rules: [], options: {}, notes: null,
+      }], error: null },
+    }), "u1", ASOF);
+    expect(profile.profileIds).toEqual(["pregnancy"]);
+    expect(profile.conditions).toEqual([]);
+    const { evaluatePolicy } = await import("@/lib/policy/constraints");
+    const verdict = evaluatePolicy(profile, { foodRefId: null, allergenTags: null, category: null,
+      onEatsList: false, onAvoidList: false, foodName: "Canned tuna", ingredientsText: "tuna, water" });
+    expect(verdict.allergens?.some((finding) => finding.allergen === "tuna_mercury")).toBe(true);
+  });
+
   /**
    * Owner ruling (2026-10-02): religious/user_rule profile hard rules fail safe. This test used to
    * pin the opposite — a missing `user_dietary_profiles` relation read as "no rules" — on the

@@ -1,6 +1,7 @@
 import type { ActivityLevel, BodyFatSource, Goal, Macros, Settings } from "../types";
 import { macroMinimumKcal, proteinBasisKg, rateTarget, validateRate, type RateTarget }
   from "./rate-goal";
+import { STANDARD_PROTEIN_G_PER_KG } from "./rate-eligibility";
 
 export type EnergyProfile = {
   sex: "female" | "male" | "unspecified";
@@ -14,6 +15,8 @@ export type EnergyProfile = {
   goal: Goal;
   /** Basis points of body weight per week (step D); 0 for an account that never confirmed one. */
   goalRateBpWeek: number;
+  /** Kidney disease (owner decision 2026-10-08): standard adult protein, never the high factor. */
+  proteinStandard?: boolean;
 };
 
 type DayKind = "training" | "rest";
@@ -194,7 +197,8 @@ export function deriveTargets(
   }
   // Protein first: the account's own minimum is 4·protein + 9·50 + 4·100, and that minimum, not
   // a 1,200 / 1,500 kcal sex floor, is the lowest the rate may take the number (ruling 2026-09-22).
-  const proteinFactor = profile.goal === "lose_fat" || profile.goal === "recomp" ? 2 : 1.8;
+  const proteinFactor = profile.proteinStandard ? STANDARD_PROTEIN_G_PER_KG
+    : profile.goal === "lose_fat" || profile.goal === "recomp" ? 2 : 1.8;
   const protein = Math.round(proteinBasisKg(profile.weightKg, profile.heightCm) * proteinFactor);
   const kcalMin = macroMinimumKcal({ proteinGMin: protein, fatGMin: FAT_G_MIN,
     carbGMin: CARB_G_MIN });

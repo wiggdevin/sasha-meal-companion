@@ -40,6 +40,8 @@ import {
   BUDGET_MS, HARD_STOP_MS, listOf, markPass, sweep, utcDate,
 } from "@/lib/server/job-cursor";
 import type { JobResponse, TargetProfile } from "@/lib/api-types";
+import { readTargetEligibility } from "@/lib/server/target-eligibility";
+import { paceAllowed } from "@/lib/profile/rate-eligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +54,15 @@ async function writeProposal(
   admin: ReturnType<typeof adminClient>, userId: string, weekStart: string,
   estimate: ExpenditureResult, active: TargetProfile, asOf: string,
 ): Promise<"proposed" | "none"> {
-  const built = buildProposal({ estimate, active });
+  // Pace holds (onboarding v2 G1): a held account's proposal follows its burn at a 0 pace, even
+  // when the revision in force predates the hold. A minor's revision proposes nothing.
+  let held = active;
+  if (active.goal_rate_bp_week !== 0) {
+    const eligibility = await readTargetEligibility(admin, userId);
+    if (eligibility.minor) return "none";
+    if (!paceAllowed(eligibility)) held = { ...active, goal_rate_bp_week: 0 };
+  }
+  const built = buildProposal({ estimate, active: held });
 
   if (built.kind === "blocked") {
     await upsertEstimate(admin, userId, asOf, blockedFrom(estimate, built.reason));

@@ -8,6 +8,7 @@ import { defaultSettings } from "@/lib/store";
 import {
   persistDerivedTargetRevision, restoreTargetRevisionOnline, settingsWithTargetRevision,
 } from "@/lib/targets/client";
+import { NO_HOLDS } from "@/lib/profile/rate-eligibility";
 import { applyDerivedProfile, resolveTargets } from "@/lib/targets";
 import type { TargetProfile } from "@/lib/api-types";
 import type { Settings } from "@/lib/types";
@@ -297,6 +298,7 @@ describe("the target authority revision", () => {
       today: EFFECTIVE_DATE,
       trainingWeekdays: TRAINING_WEEKDAYS,
       source: "derived",
+      eligibility: NO_HOLDS,
     });
 
     expect(rpc).toHaveBeenCalledWith("write_target_revision", {
@@ -329,6 +331,7 @@ describe("the target authority revision", () => {
       today: EFFECTIVE_DATE,
       trainingWeekdays: TRAINING_WEEKDAYS,
       source: "derived",
+      eligibility: NO_HOLDS,
     });
 
     // 80 kg at 165 cm: protein basis 30 × 1.65² = 81.7 → 80 kg → 160 g; 640 + 450 + 400.

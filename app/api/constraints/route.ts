@@ -6,6 +6,7 @@ import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
 import { getProfile, putProfile } from "@/lib/server/constraints";
 import { constraintsPutSchema } from "@/lib/coach/types";
+import { recomputeAfterHoldChange } from "@/lib/server/target-recompute";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,10 @@ export async function PUT(req: Request): Promise<Response> {
     await enforceRateLimit(`constraints:${userId}`, 30, 60);
     const body = await readJson(req, constraintsPutSchema, 8 * 1024);
     const result = await putProfile(client, userId, body);
+    // A condition can add or remove a pace hold (onboarding v2 G1): the derived target follows.
+    if (result.status === "ok" && body.conditions !== undefined) {
+      await recomputeAfterHoldChange(client, userId, "constraints");
+    }
     // A conflict is an answer, not an error: it carries the full current profile so the editor
     // rebases without a second round trip (architecture §3.7).
     return Response.json(result, { status: result.status === "conflict" ? 409 : 200 });

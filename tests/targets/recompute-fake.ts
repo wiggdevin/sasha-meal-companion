@@ -54,7 +54,8 @@ export function activeOn(targets: TargetProfile[], date: string): TargetProfile 
 }
 
 /** A small chainable stand-in for the reads the service makes and its one conditional RPC. */
-export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: Row[] = []): Fake {
+export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: Row[] = [],
+  tables: Record<string, Row[]> = {}): Fake {
   const fake: Fake = { client: null as unknown as SupabaseClient, targets, writes: [], conflicts: 0,
     settings: { row } };
   let attempts = 0;
@@ -65,7 +66,7 @@ export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: 
     const rows = (): Row[] => {
       const source: Row[] = table === "user_settings" ? (fake.settings.row ? [fake.settings.row] : [])
         : table === "target_profiles" ? fake.targets as unknown as Row[]
-          : table === "weigh_ins" ? weighIns : [];
+          : table === "weigh_ins" ? weighIns : tables[table] ?? [];
       const out = source.filter((r) => filters.every((f) => f(r)));
       out.sort((a, b) => {
         for (const [key, ascending] of orders) {

@@ -6,6 +6,7 @@ import { DEFAULT_RATE_BP, confirmedRate, validateRate } from "@/lib/profile/rate
 import type { ActivityLevel, BodyFatSource, Goal, Settings } from "@/lib/types";
 import type { Profile } from "@/lib/constraints-client";
 import type { HeightUnit } from "@/lib/units/height";
+import { paceAllowed, type TargetEligibility } from "@/lib/profile/rate-eligibility";
 import {
   cookingEffortFromDietPrefs,
   dietPrefsTaste,
@@ -362,7 +363,12 @@ function candidateSettings(base: Settings, state: OnboardingState, onboardedAt: 
   };
 }
 
-export function missingProfileFields(state: OnboardingState): string[] {
+/**
+ * `eligibility` is the safety round's answer (`eligibilityFromSafetyAnswers`): a held account
+ * (pregnant, breastfeeding, an eating disorder, kidney disease, a clinician-set diet) is never
+ * asked for a pace, so a loss or gain goal needs none.
+ */
+export function missingProfileFields(state: OnboardingState, eligibility?: TargetEligibility): string[] {
   const missing: string[] = [];
   if (!state.body.sex) missing.push("sex");
   if (finiteInRange(state.body.birthYear, 1900, new Date().getFullYear(), true) === null) {
@@ -372,7 +378,9 @@ export function missingProfileFields(state: OnboardingState): string[] {
   if (parsedWeightKg(state) === null) missing.push("weight");
   if (state.activityLevel === null) missing.push("activity level");
   if (state.goal === null) missing.push("goal");
-  else if (confirmedRate(state.goal, state.goalRateBpWeek) === null) missing.push("goal rate");
+  else if (paceAllowed(eligibility) && confirmedRate(state.goal, state.goalRateBpWeek) === null) {
+    missing.push("goal rate");
+  }
   return missing;
 }
 
@@ -380,11 +388,17 @@ export function buildCompletedSettings(
   base: Settings,
   state: OnboardingState,
   now: Date,
+  eligibility?: TargetEligibility,
 ): Settings {
-  if (missingProfileFields(state).length > 0) {
+  if (missingProfileFields(state, eligibility).length > 0) {
     throw new Error("Cannot use an incomplete onboarding profile");
   }
-  const derived = applyDerivedProfile(candidateSettings(base, state, now.toISOString()), now);
+  const candidate = candidateSettings(base, state, now.toISOString());
+  // A held account stores no pace (null derives at maintenance, and stays unconfirmed if the
+  // hold is later removed); the server applies the same hold to every revision.
+  const settings = paceAllowed(eligibility) ? candidate : { ...candidate, goalRateBpWeek: null };
+  const derived = applyDerivedProfile(settings, now, undefined, settings.trainingWeekdays ?? [],
+    eligibility);
   const targets = derived.activeTargetProfile!;
   const defaults: Record<PlanField, number> = {
     trainingKcal: targets.training.kcal,
@@ -434,19 +448,29 @@ function appendUnique(current: string[], additions: string[]): string[] {
   return [...current, ...additions.filter((item) => !current.includes(item))];
 }
 
+/**
+ * `conditions` are the safety round's entries (`safetyConditionEntries`, onboarding v2 G7): added
+ * to the account's own list, never replacing an entry it already holds. "Pregnant" arms the
+ * pregnancy tuna check; every entry is plain text the user can remove in Foods › Avoids.
+ */
 export function constraintPatchForFlags(
   flags: readonly PreferenceFlag[],
   profile: Profile,
+  conditions: readonly string[] = [],
 ): ConstraintPatch | null {
   const allergens = flags.flatMap((flag) => FLAG_ALLERGENS[flag] ?? []);
   const categories = flags.flatMap((flag) => FLAG_CATEGORIES[flag] ?? []);
   const avoidAllergens = appendUnique(profile.avoid_allergens, allergens);
   const bannedCategories = appendUnique(profile.banned_categories, categories);
+  const current = profile.conditions ?? [];
+  const nextConditions = appendUnique(current, conditions
+    .map((item) => item.trim().slice(0, 64)).filter((item) => item.length > 0)).slice(0, 20);
   const patch: ConstraintPatch = {};
   if (avoidAllergens.length !== profile.avoid_allergens.length) patch.avoidAllergens = avoidAllergens;
   if (bannedCategories.length !== profile.banned_categories.length) {
     patch.bannedCategories = bannedCategories;
   }
+  if (nextConditions.length !== current.length) patch.conditions = nextConditions;
   return Object.keys(patch).length > 0 ? patch : null;
 }
 

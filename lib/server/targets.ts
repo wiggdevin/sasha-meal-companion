@@ -18,6 +18,8 @@ import {
 import type { TargetProfile, TargetsRequest, TargetsResponse } from "@/lib/api-types";
 import { targetRevisionFromProfile, targetSeedFromProfile } from "@/lib/targets/revision";
 import { ACCOUNT_DAY_LAST_RESORT_ZONE, accountDay, isoDateIn } from "@/lib/server/account-day";
+import { readTargetEligibility } from "@/lib/server/target-eligibility";
+import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
 
 export { targetRevisionFromProfile } from "@/lib/targets/revision";
 
@@ -130,9 +132,22 @@ async function persistRevision(
   return persisted;
 }
 
+/**
+ * The input with the account's own pace holds (lib/server/target-eligibility.ts). A server
+ * caller that already read them (the recompute plans with them) passes them in; nothing taken
+ * from a request body ever carries them.
+ */
+async function withEligibility(
+  client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput,
+): Promise<DeriveTargetRevisionInput> {
+  return input.eligibility ? input
+    : { ...input, eligibility: await readTargetEligibility(client, userId) };
+}
+
 export async function writeDerivedTargets(
-  client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput, requestId?: string,
+  client: SupabaseClient, userId: string, rawInput: DeriveTargetRevisionInput, requestId?: string,
 ): Promise<TargetRevision> {
+  const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: targetSourceFor(input.settings) });
   return persistRevision(client, userId, revision, undefined, revision.floors, requestId);
 }
@@ -144,9 +159,10 @@ export async function writeDerivedTargets(
  * (`write_target_revision_if_active`).
  */
 export async function writeDerivedTargetsIfActive(
-  client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput,
+  client: SupabaseClient, userId: string, rawInput: DeriveTargetRevisionInput,
   expectedActiveId: string | null, expectedSettingsRev: number | null = null,
 ): Promise<TargetRevision | null> {
+  const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: input.source ?? targetSourceFor(input.settings) });
   const { data, error } = await client.rpc("write_target_revision_if_active", {
     p_user_id: userId,
@@ -172,11 +188,10 @@ async function plannedRevision(
   userId: string,
   write: TargetRevisionWrite,
 ): Promise<{ revision: TargetRevision; floors: TargetRevisionFloors }> {
-  void client;
-  void userId;
+  const input = await withEligibility(client, userId, write.input);
   const revision = deriveTargetRevision({
-    ...write.input,
-    source: targetSourceFor(write.input.settings),
+    ...input,
+    source: targetSourceFor(input.settings),
   });
   return { revision, floors: revision.floors };
 }
@@ -188,13 +203,18 @@ export async function writeTargetRevisionSet(
   current: TargetRevisionWrite,
   predecessor?: TargetRevisionWrite,
 ): Promise<{ revision: TargetRevision; predecessor?: TargetRevision }> {
+  // One read of the account's holds serves both revisions of the pair.
+  const eligibility = current.input.eligibility ?? await readTargetEligibility(client, userId);
+  const held = (write: TargetRevisionWrite): TargetRevisionWrite =>
+    ({ ...write, input: { ...write.input, eligibility } });
   if (!predecessor) {
-    const revision = await writeDerivedTargets(client, userId, current.input, current.requestId);
+    const revision = await writeDerivedTargets(client, userId, held(current).input,
+      current.requestId);
     return { revision };
   }
   const [prior, next] = await Promise.all([
-    plannedRevision(client, userId, predecessor),
-    plannedRevision(client, userId, current),
+    plannedRevision(client, userId, held(predecessor)),
+    plannedRevision(client, userId, held(current)),
   ]);
   const { data, error } = await client.rpc("write_target_revision_pair", {
     p_user_id: userId,
@@ -306,10 +326,15 @@ export async function authorTargets(
     kcalRest: Math.max(req.kcalRest, floors.kcalMin),
     ...floored.grams,
   }, floors);
-  const settings = await client.from("user_settings")
-    .select("weight_kg, training_weekdays, activity_level, goal")
-    .eq("user_id", userId).maybeSingle();
+  const [settings, eligibility] = await Promise.all([
+    client.from("user_settings")
+      .select("weight_kg, training_weekdays, activity_level, goal")
+      .eq("user_id", userId).maybeSingle(),
+    readTargetEligibility(client, userId, req.effectiveFrom),
+  ]);
   if (settings.error) throw settings.error;
+  // Under 18: no plan, pinned or derived (owner decision 2026-10-08).
+  if (eligibility.minor) throw new AdultOnlyError();
   const weight = Number(settings.data?.weight_kg);
   const profile = await writeRevisionRow(client, userId, {
     effective_from: req.effectiveFrom,
@@ -335,7 +360,9 @@ export async function authorTargets(
     carb_g_min: floors.carbGMin,
     // A manual row keeps the rate and the minimum's provenance of the revision it pins over
     // (step D); before this the database default zeroed a confirmed rate on every pin.
-    goal_rate_bp_week: req.goalRateBpWeek ?? active.goal_rate_bp_week ?? 0,
+    // A held account (pregnancy, eating disorder, kidney disease, clinician diet) keeps 0.
+    goal_rate_bp_week: paceAllowed(eligibility)
+      ? req.goalRateBpWeek ?? active.goal_rate_bp_week ?? 0 : 0,
     kcal_min_source: active.kcal_min_source ?? "legacy_default",
     // Pins change the numbers, not the formula start the engine learns from (step E1).
     ...seedColumns(targetSeedFromProfile(active)),

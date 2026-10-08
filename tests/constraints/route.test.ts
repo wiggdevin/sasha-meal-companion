@@ -7,6 +7,11 @@ vi.mock("@/lib/server/auth", async (orig) => ({
   requireUser: vi.fn(),
 }));
 
+const recomputeAfterHoldChange = vi.fn();
+vi.mock("@/lib/server/target-recompute", () => ({
+  recomputeAfterHoldChange: (...a: unknown[]) => recomputeAfterHoldChange(...a),
+}));
+
 const { requireUser } = await import("@/lib/server/auth");
 const { GET, PUT } = await import("@/app/api/constraints/route");
 
@@ -67,5 +72,23 @@ describe("/api/constraints", () => {
     vi.mocked(requireUser).mockRejectedValue(new HttpError(401, "unauthorized", "Sign in."));
     const res = await GET(new Request("https://app.test/api/constraints"));
     expect(res.status).toBe(401);
+  });
+});
+
+describe("/api/constraints pace holds (onboarding v2 G1)", () => {
+  beforeEach(() => {
+    resetRateLimits();
+    applied = [];
+    recomputeAfterHoldChange.mockReset().mockResolvedValue(undefined);
+    vi.mocked(requireUser).mockResolvedValue({ userId: "u1", client: fakeClient() } as never);
+  });
+
+  it("re-derives the target after a conditions write, and not after any other rule write", async () => {
+    expect((await PUT(put({ baseRev: 3, conditions: ["Pregnant"] }))).status).toBe(200);
+    expect(recomputeAfterHoldChange).toHaveBeenCalledTimes(1);
+    expect(recomputeAfterHoldChange.mock.calls[0]?.[1]).toBe("u1");
+    recomputeAfterHoldChange.mockClear();
+    expect((await PUT(put({ baseRev: 3, avoidAllergens: ["peanut"] }))).status).toBe(200);
+    expect(recomputeAfterHoldChange).not.toHaveBeenCalled();
   });
 });

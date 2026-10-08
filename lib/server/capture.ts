@@ -496,7 +496,8 @@ export function labelFoodOf(
   // (evaluatePolicy folds it in the same way for the item's own verdict); the label card must
   // show it too, not just a food the search/grounding path picked.
   const tuna = pregnancyTunaFinding({
-    conditions: profile.conditions, ingredientsText: label.ingredientsText, foodName: label.name,
+    conditions: profile.conditions, profileIds: profile.profileIds,
+    ingredientsText: label.ingredientsText, foodName: label.name,
   });
   const allWarnings = tuna
     ? [...warnings, { allergen: tuna.allergen, outcome: tuna.outcome, text: tuna.text }] : warnings;
