@@ -358,3 +358,41 @@ describe("Eats membership feedback", () => {
     expect(screen.getByRole("alert")).toBeTruthy();
   });
 });
+
+/**
+ * UI audit 2026-10-07 (Foods r1 BLOCK): the Avoid list's sheet and its Undo wrote fire-and-forget,
+ * so a failed membership write left the row moved locally with no server mark behind it.
+ */
+describe("Avoid membership feedback", () => {
+  beforeEach(() => { seed(food({ id: "garlic", name: "Garlic", status: "avoid", note: "hurt on 9/12" })); });
+
+  it("rolls a failed sheet move back onto Avoid", async () => {
+    render(<AvoidFoods />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Garlic" }));
+    // The sheet saves its note first; only the status write that follows fails.
+    membership.set.mockImplementationOnce(async () => ({ truncated: false }))
+      .mockImplementationOnce(async () => { throw new Error("offline"); });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Remove from Avoid" })); });
+    await act(async () => {});
+    expect(membership.set.mock.calls.at(-1)?.slice(0, 2)).toEqual(["Garlic", null]);
+    expect(seeded.foods.garlic).toMatchObject({ status: "avoid", note: "hurt on 9/12" });
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
+
+  it("reports a saved removal to the caller and restores Avoid on Undo", async () => {
+    const onAvoidSaved = vi.fn();
+    render(<AvoidFoods onAvoidSaved={onAvoidSaved} />);
+    swipe(screen.getByRole("button", { name: "Edit Garlic" }), -200, 8);
+    await act(async () => {});
+    expect(seeded.foods.garlic.status).toBe("neutral");
+    expect(onAvoidSaved).toHaveBeenLastCalledWith(expect.objectContaining({ id: "garlic", status: "neutral" }));
+    const status = screen.getByRole("status");
+    expect(status.textContent).toContain("Garlic removed from Avoid.");
+    membership.set.mockImplementationOnce(async () => { throw new Error("offline"); });
+    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
+    await act(async () => {});
+    // The Undo's own write failed, so the row goes back to what the server last acknowledged.
+    expect(membership.set.mock.calls.at(-1)?.slice(0, 2)).toEqual(["Garlic", "avoid"]);
+    expect(seeded.foods.garlic.status).toBe("neutral");
+  });
+});
