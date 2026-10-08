@@ -86,6 +86,16 @@
   margin: 0 auto;
   flex-direction: column;
   align-items: center;
+  /* Polish pass (2026-10-07, owner-reported "big empty middle" on the opener, §0 of
+     VISUAL-SPEC.md): `.stream` is a column in a `min-height: 100%` box, so with the default
+     `flex-start` main-axis alignment, a short beat (the opener's Sprout + one row of goal pills)
+     packed to the top and left the rest of the screen's height bare below it — the backdrop blobs
+     alone weren't enough to read as "filled." Centering the stream in the space above the dock
+     means Sprout and the beat's card sit together in the middle of the stage, exactly the "no
+     empty middle, ever" rule VISUAL-SPEC.md §1 states. A beat whose content is taller than the
+     viewport still scrolls normally — `justify-content: center` only matters while content is
+     shorter than its box, which is the exact case that was reading as empty. */
+  justify-content: center;
   gap: 16px;
   /* Sol round 3: without --safe-top, Sprout could start under an iPhone's status area
      (viewport-fit: cover). */

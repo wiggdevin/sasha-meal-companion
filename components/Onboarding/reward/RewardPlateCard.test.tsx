@@ -33,7 +33,11 @@ describe("RewardPlateCard", () => {
     render(<RewardPlateCard targets={TARGETS} lovedFoods={FOODS} showNumbers={true}
       onToggleNumbers={onToggle} />);
     expect(screen.getByTestId("reward-plate-numbers")).toBeTruthy();
-    expect(screen.getByText("2,400 kcal")).toBeTruthy();
+    // Polish pass (2026-10-07): the kcal figure now renders through KcalText (DESIGN.md's "every
+    // calorie number carries the shared .kcal class" rule), which splits the figure from the unit
+    // into two text nodes — assert on the number's own persimmon-styled span, not the combined
+    // string `getByText` can no longer match as one node.
+    expect(screen.getByText("2,400").className).toContain("kcal");
     fireEvent.click(screen.getByRole("button", { name: "Hide the numbers" }));
     expect(onToggle).toHaveBeenCalledOnce();
   });
