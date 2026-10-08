@@ -40,6 +40,7 @@ import DayCard from "@/components/today/DayCard";
 import { DAY_CARD_EXPLAINER } from "@/components/today/ExplainerPlayer";
 import { boardTips, nextMeal } from "@/lib/today/board";
 import DayNutrients from "@/components/DayNutrients";
+import InstallPrompt from "@/components/InstallPrompt";
 import Notice from "@/components/ui/Notice";
 import SlotCard, { SlotCardEnter, type SlotVariant } from "@/components/SlotCard";
 import SwapSheet from "@/components/SwapSheet";
@@ -951,6 +952,12 @@ export default function Today() {
           firstOpenedAt: store.firstOpenedAt,
           onboardedAt: store.settings.onboardedAt,
         }} now={now} />
+
+        {/* Owner feedback, 2026-10-08: never a fixed overlay over a meal card's own actions — an
+            inline card in the Today flow instead, and only after a meaningful moment (a logged
+            meal, else the second app open), never during onboarding or sign-in (neither route
+            mounts this page). */}
+        {isToday && <InstallPrompt store={store} />}
 
         {elsewhere && (
           <div className="shell">
