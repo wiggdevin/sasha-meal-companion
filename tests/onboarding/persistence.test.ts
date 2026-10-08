@@ -128,9 +128,42 @@ describe("the normalized onboarding settings write", () => {
         saveConstraints: vi.fn(),
         localDate: () => "2026-09-19",
         hasWeighIn: () => false,
+        openFoodWorld: async () => {},
       });
 
     expect(order).toEqual(["weigh-in", "targets", "cache"]);
+  });
+
+  it("opens the food world on a FIRST completion only, never on a later re-run (W13, D14)", async () => {
+    let state = createOnboardingState(defaultSettings());
+    const actions = [
+      { type: "edit_body", key: "heightCm", value: "165" },
+      { type: "edit_body", key: "birthYear", value: "1996" },
+      { type: "set_sex", value: "female" },
+      { type: "edit_weight", value: "132.277" },
+      { type: "set_activity", value: "moderate" },
+      { type: "set_goal", value: "recomp" },
+    ] as const;
+    for (const action of actions) state = onboardingReducer(state, action);
+    const openFoodWorld = vi.fn(async () => {});
+    const deps = {
+      saveLocal: vi.fn(), saveSynced: vi.fn(async () => undefined),
+      saveWeighIn: vi.fn(async () => null), loadConstraints: vi.fn(async () => null),
+      saveConstraints: vi.fn(), localDate: () => "2026-09-19", hasWeighIn: () => false,
+      openFoodWorld,
+    };
+
+    // Never onboarded before: this IS the account's first completion.
+    await persistCompletedOnboarding({ ...defaultSettings(), onboardedAt: null }, state,
+      new Date("2026-09-19T15:30:00.000Z"), deps);
+    expect(openFoodWorld).toHaveBeenCalledTimes(1);
+
+    // Already onboarded: editing the profile again must not re-invite an account that chose closed.
+    openFoodWorld.mockClear();
+    await persistCompletedOnboarding(
+      { ...defaultSettings(), onboardedAt: "2026-09-18T00:00:00.000Z" }, state,
+      new Date("2026-09-19T15:30:00.000Z"), deps);
+    expect(openFoodWorld).not.toHaveBeenCalled();
   });
 
   it("writes confirmed flags and cooking effort in one completion settings write", async () => {
@@ -157,6 +190,7 @@ describe("the normalized onboarding settings write", () => {
         saveConstraints: vi.fn(),
         localDate: () => "2026-09-19",
         hasWeighIn: () => false,
+        openFoodWorld: async () => {},
       });
 
     expect(saveSynced).toHaveBeenCalledOnce();
@@ -197,6 +231,7 @@ describe("the normalized onboarding settings write", () => {
         saveConstraints: vi.fn(),
         localDate: () => "2026-09-19",
         hasWeighIn: () => false,
+        openFoodWorld: async () => {},
       });
 
     expect(saveSynced).toHaveBeenCalledOnce();
@@ -252,7 +287,7 @@ describe("the onboarding save's target request id", () => {
       saveLocal: vi.fn(), saveSynced, saveWeighIn: vi.fn(async () => null),
       loadConstraints: vi.fn(async () => ({ profile: { avoid_allergens: [], avoid_food_ref_ids: [],
         banned_categories: [], conditions: [], notes: null }, rev: 0 })),
-      saveConstraints: vi.fn(async () => ({ status: "ok" }) as never),
+      saveConstraints: vi.fn(async () => ({ status: "ok" }) as never), openFoodWorld: async () => {},
       localDate: () => "2026-09-19", hasWeighIn: () => true,
     }, {}, "00000000-0000-4000-8000-0000000000cc");
     expect(saveSynced).toHaveBeenCalledWith(expect.anything(), "complete", expect.any(Array),

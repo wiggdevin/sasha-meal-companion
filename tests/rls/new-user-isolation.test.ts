@@ -67,7 +67,8 @@ describe.skipIf(!LOCAL)("new-user plan, food, target and coach isolation", () =>
       weight_kg: 70, height_cm: 170, birth_year: 1990, sex: "female",
     });
     if (settings.error) throw settings.error;
-    const target = await accountValue.client.rpc("write_target_revision", {
+    // Target writes are service-role only (migration 20261228090000).
+    const target = await admin.rpc("write_target_revision", {
       p_user_id: accountValue.id,
       p_row: {
         effective_from: date, target_source: "derived", mode: "grams",

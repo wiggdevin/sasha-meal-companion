@@ -21,7 +21,7 @@ import type { SlotId } from "@/lib/types";
 export { badgeFor, gramsFor, searchHintText };
 
 export default function ScanConfirmSheet({
-  response, slot, projection, onLogged, onClose, onSearch, onFavorite, run,
+  response, slot, projection, onLogged, onClose, onSearch, onFavorite, run, eatenAt,
 }: {
   response: BarcodeResponse;
   slot: SlotId;
@@ -32,6 +32,7 @@ export default function ScanConfirmSheet({
   onClose: () => void;
   onSearch?: (hint: string) => void;
   onFavorite?: (foodRefId: string) => void;
+  eatenAt?: Date; // when it was eaten: a past day's slot time (lib/log/viewed-at.ts), else now
 }) {
   const feedback = useActionFeedback();
   const saving = feedback.phase === "pending";
@@ -43,7 +44,7 @@ export default function ScanConfirmSheet({
 
   /** One save through the shared feedback: a refusal throws its reason, keeping the sheet and edits. */
   async function commit(edits: BarcodeDraftEdits): Promise<{ entryId: string; saved?: string }> {
-    const at = new Date();
+    const at = eatenAt ?? new Date();
     const entryId = crypto.randomUUID();
     const itemId = crypto.randomUUID();
     const match = edits.match;

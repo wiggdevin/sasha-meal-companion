@@ -20,6 +20,9 @@ import { targetRevisionFromProfile, targetSeedFromProfile } from "@/lib/targets/
 import { ACCOUNT_DAY_LAST_RESORT_ZONE, accountDay, isoDateIn } from "@/lib/server/account-day";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
 import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
+import {
+  rpcWriteTargetRevision, rpcWriteTargetRevisionIfActive, rpcWriteTargetRevisionPair,
+} from "@/lib/server/target-writes";
 
 export { targetRevisionFromProfile } from "@/lib/targets/revision";
 
@@ -104,21 +107,21 @@ function revisionPayload(
   };
 }
 
+/**
+ * Every write goes through the service-role RPCs (lib/server/target-writes.ts) for `userId`, the
+ * id the caller verified; `authenticated` cannot execute them (migration 20261228090000), so the
+ * checks in this module cannot be skipped from a phone. Reads stay on the caller's client.
+ */
 async function writeRevisionRow(
-  client: SupabaseClient,
   userId: string,
   payload: Record<string, unknown>,
 ): Promise<TargetProfile> {
-  const { data, error } = await client.rpc("write_target_revision", {
-    p_user_id: userId,
-    p_row: payload,
-  });
+  const { data, error } = await rpcWriteTargetRevision(userId, payload);
   if (error) throw error;
   return data as TargetProfile;
 }
 
 async function persistRevision(
-  client: SupabaseClient,
   userId: string,
   revision: TargetRevision,
   effectiveFrom?: string,
@@ -126,22 +129,23 @@ async function persistRevision(
   requestId?: string,
 ): Promise<TargetRevision> {
   const row = await writeRevisionRow(
-    client, userId, revisionPayload(revision, effectiveFrom, floors, requestId));
+    userId, revisionPayload(revision, effectiveFrom, floors, requestId));
   const persisted = targetRevisionFromProfile(row);
   if (!persisted) throw new Error("Target authority returned an incomplete revision");
   return persisted;
 }
 
 /**
- * The input with the account's own pace holds (lib/server/target-eligibility.ts). A server
- * caller that already read them (the recompute plans with them) passes them in; nothing taken
- * from a request body ever carries them.
+ * The input with the account's own pace holds and stored birth year, judged on the revision's
+ * own date (lib/server/target-eligibility.ts). A server caller that already read them for that
+ * date (the recompute plans with them) passes them in; nothing taken from a request body ever
+ * carries them, and a birth year in the request body can never lift the stored adult floor.
  */
 async function withEligibility(
   client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput,
 ): Promise<DeriveTargetRevisionInput> {
   return input.eligibility ? input
-    : { ...input, eligibility: await readTargetEligibility(client, userId) };
+    : { ...input, eligibility: await readTargetEligibility(client, userId, input.today) };
 }
 
 export async function writeDerivedTargets(
@@ -149,7 +153,7 @@ export async function writeDerivedTargets(
 ): Promise<TargetRevision> {
   const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: targetSourceFor(input.settings) });
-  return persistRevision(client, userId, revision, undefined, revision.floors, requestId);
+  return persistRevision(userId, revision, undefined, revision.floors, requestId);
 }
 
 /**
@@ -164,12 +168,8 @@ export async function writeDerivedTargetsIfActive(
 ): Promise<TargetRevision | null> {
   const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: input.source ?? targetSourceFor(input.settings) });
-  const { data, error } = await client.rpc("write_target_revision_if_active", {
-    p_user_id: userId,
-    p_row: revisionPayload(revision, undefined, revision.floors),
-    p_expected_id: expectedActiveId,
-    p_expected_settings_rev: expectedSettingsRev,
-  });
+  const { data, error } = await rpcWriteTargetRevisionIfActive(userId,
+    revisionPayload(revision, undefined, revision.floors), expectedActiveId, expectedSettingsRev);
   if (error) throw error;
   if ((data as { conflict?: unknown } | null)?.conflict === true) return null;
   const persisted = targetRevisionFromProfile(data as TargetProfile);
@@ -203,9 +203,18 @@ export async function writeTargetRevisionSet(
   current: TargetRevisionWrite,
   predecessor?: TargetRevisionWrite,
 ): Promise<{ revision: TargetRevision; predecessor?: TargetRevision }> {
-  // One read of the account's holds serves both revisions of the pair.
-  const eligibility = current.input.eligibility ?? await readTargetEligibility(client, userId);
-  const held = (write: TargetRevisionWrite): TargetRevisionWrite =>
+  // Each revision of the pair is judged on its own date (the stored birth year), so neither an
+  // Undo predecessor nor the new revision can build a plan for an account under 18 on its date.
+  const reads = new Map<string, ReturnType<typeof readTargetEligibility>>();
+  const eligibilityOn = (date: string) => {
+    if (!reads.has(date)) reads.set(date, readTargetEligibility(client, userId, date));
+    return reads.get(date)!;
+  };
+  const [currentEligibility, predecessorEligibility] = await Promise.all([
+    current.input.eligibility ?? eligibilityOn(current.input.today),
+    predecessor ? predecessor.input.eligibility ?? eligibilityOn(predecessor.input.today) : null,
+  ]);
+  const held = (write: TargetRevisionWrite, eligibility = currentEligibility): TargetRevisionWrite =>
     ({ ...write, input: { ...write.input, eligibility } });
   if (!predecessor) {
     const revision = await writeDerivedTargets(client, userId, held(current).input,
@@ -213,15 +222,12 @@ export async function writeTargetRevisionSet(
     return { revision };
   }
   const [prior, next] = await Promise.all([
-    plannedRevision(client, userId, held(predecessor)),
+    plannedRevision(client, userId, held(predecessor, predecessorEligibility ?? currentEligibility)),
     plannedRevision(client, userId, held(current)),
   ]);
-  const { data, error } = await client.rpc("write_target_revision_pair", {
-    p_user_id: userId,
-    p_predecessor: revisionPayload(
-      prior.revision, undefined, prior.floors, predecessor.requestId),
-    p_row: revisionPayload(next.revision, undefined, next.floors, current.requestId),
-  });
+  const { data, error } = await rpcWriteTargetRevisionPair(userId,
+    revisionPayload(prior.revision, undefined, prior.floors, predecessor.requestId),
+    revisionPayload(next.revision, undefined, next.floors, current.requestId));
   if (error) throw error;
   const rows = data as { predecessor?: TargetProfile; revision?: TargetProfile };
   const persistedPredecessor = rows.predecessor
@@ -251,7 +257,7 @@ export async function restoreTargetRevision(
     throw new HttpError(409, "rate_not_eligible",
       "That plan had a weight-change pace. Your current answers keep calories at maintenance.");
   }
-  return persistRevision(client, userId, {
+  return persistRevision(userId, {
     ...previous,
     effectiveFrom,
     inputs: { ...previous.inputs, effectiveDate: effectiveFrom },
@@ -344,7 +350,7 @@ export async function authorTargets(
   // Under 18: no plan, pinned or derived (owner decision 2026-10-08).
   if (eligibility.minor) throw new AdultOnlyError();
   const weight = Number(settings.data?.weight_kg);
-  const profile = await writeRevisionRow(client, userId, {
+  const profile = await writeRevisionRow(userId, {
     effective_from: req.effectiveFrom,
     target_source: "manual",
     mode: req.mode,

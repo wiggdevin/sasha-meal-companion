@@ -104,3 +104,66 @@ describe("callModel asks beforeRetry before every retry and stops when it says n
     expect(state.inserted).toHaveLength(1);
   });
 });
+
+describe("followups #14: a transport.open() failure is classified and recorded, same as a send() failure", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("records a permission_denied row from an open() throw, so assertCircuitClosed can see it", async () => {
+    attest();
+    const inserted: Record<string, unknown>[] = [];
+    const admin = spendAdmin([], inserted);
+    const payload = coachOpenRouterPayload(["USER: hi"]);
+    let sent = 0;
+    const deniedError = Object.assign(new Error("PERMISSION_DENIED: Your project has been denied access."),
+      { status: 403 });
+
+    const error = await callModel<FakeResult, never>({
+      payload,
+      provenance: openRouterProvenance,
+      target: () => ({ provider: "openrouter", model: "openai/gpt-5-mini", sdkVersion: "test" }),
+      ledger: () => ({ userId: "u1", admin: admin as never }),
+      inputHash: () => `\\x${createHash("sha256").update(payload.text).digest("hex")}`,
+      policy: { attempts: 3, budgetMs: 5_000, attemptMs: 2_000, backoffMs: [0, 0], retryable: () => true },
+      transport: {
+        // open() fails before any attempt ever reaches send() -- the Files-API-upload shape of
+        // the gap this closes.
+        open: async () => { throw deniedError; },
+        send: async () => { sent += 1; return { inputTokens: 0, outputTokens: 0, costUsd: 0 }; },
+      },
+      accept: () => { throw new Error("never reached"); },
+      price: () => 0,
+      maxAttemptCostUsd: () => 0.05,
+    }).catch((e: unknown) => e);
+
+    expect(sent).toBe(0); // open() never got far enough to call send() even once.
+    expect(error).toBe(deniedError);
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ status: "permission_denied", input_tokens: 0, output_tokens: 0,
+      error: deniedError.message });
+  });
+
+  it("records an ordinary open() failure as a generic error row, not permission_denied", async () => {
+    attest();
+    const inserted: Record<string, unknown>[] = [];
+    const admin = spendAdmin([], inserted);
+    const payload = coachOpenRouterPayload(["USER: hi"]);
+    const networkError = new Error("getaddrinfo ENOTFOUND");
+
+    const error = await callModel<FakeResult, never>({
+      payload,
+      provenance: openRouterProvenance,
+      target: () => ({ provider: "openrouter", model: "openai/gpt-5-mini", sdkVersion: "test" }),
+      ledger: () => ({ userId: "u1", admin: admin as never }),
+      inputHash: () => `\\x${createHash("sha256").update(payload.text).digest("hex")}`,
+      policy: { attempts: 1, budgetMs: 5_000, attemptMs: 2_000, backoffMs: [0], retryable: () => true },
+      transport: { open: async () => { throw networkError; }, send: async () => { throw new Error("unreached"); } },
+      accept: () => { throw new Error("never reached"); },
+      price: () => 0,
+      maxAttemptCostUsd: () => 0.05,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBe(networkError);
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ status: "error" });
+  });
+});

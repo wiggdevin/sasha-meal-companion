@@ -113,6 +113,161 @@ describe("POST /api/foods/world (W2b acceptance 5)", () => {
     expect((await post({ world: "wide" })).status).toBe(400);
     expect((await post({ world: "open", userId: "someone-else" })).status).toBe(400);
   });
+
+  it("opting in keeps the account's Eats marks as Favored marks, byte-for-byte (W13 acceptance 6)", async () => {
+    const before = JSON.stringify(tables.user_food_prefs);
+    expect(await post({ world: "open" })).toEqual({ status: 200, body: { world: "open" } });
+    // `eats` is the unchanged wire status (D13) — "Favored" is only ever how it is read back to
+    // the user. Opting in writes nothing to user_food_prefs at all.
+    expect(JSON.stringify(tables.user_food_prefs)).toBe(before);
+    expect(tables.user_food_prefs.map((row: Row) => row.status)).toEqual(["eats", "eats", "avoid"]);
+  });
+});
+
+describe("POST /api/foods/world intent: onboarding_default (W13 Sol round 2 BLOCK fix)", () => {
+  it("applies and stamps food_world_set_at on a never-touched account", async () => {
+    expect(tables.user_settings[0].food_world_set_at).toBeNull();
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "open" } });
+    expect(tables.user_settings[0].food_world).toBe("open");
+    expect(typeof tables.user_settings[0].food_world_set_at).toBe("string");
+  });
+
+  it("settles as a no-op against the account's own current world once a choice was already made, "
+    + "so a pending retry can never reopen a deliberately-closed account", async () => {
+    // Simulates: the onboarding default already landed once (or the person used Settings), then
+    // closed it again on purpose -- all backend-side, no clearWorldOpenPending call required.
+    loadWorld({ world: "closed", foodWorldSetAt: "2026-10-01T00:00:00Z" });
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("an explicit Settings POST (no intent) always applies and stamps, even over a prior choice", async () => {
+    loadWorld({ world: "open", foodWorldSetAt: "2026-10-01T00:00:00Z" });
+    expect(await post({ world: "closed" })).toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).not.toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("an explicit close that lands between the default's check and its write still wins "
+    + "(Sol round 3 BLOCK: one atomic conditional write)", async () => {
+    // Another device closes the world while this default POST is in flight: the close commits
+    // right before the default's UPDATE runs. The old read-then-write saw null and reopened it.
+    const base = state.client as { from: (table: string) => Record<string, unknown> };
+    let raced = false;
+    state.client = { ...base, from: (table: string) => {
+      const builder = base.from(table);
+      if (table !== "user_settings") return builder;
+      const update = builder.update as (values: Row) => unknown;
+      builder.update = (values: Row) => {
+        if (!raced) {
+          raced = true;
+          Object.assign(tables.user_settings[0], { food_world: "closed", food_world_set_at: "2026-10-07T09:00:00Z" });
+        }
+        return update(values);
+      };
+      return builder;
+    } };
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "closed" } });
+    expect(raced).toBe(true);
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).toBe("2026-10-07T09:00:00Z");
+  });
+
+  it("answers 409 profile_required to the default when the account has no settings row yet", async () => {
+    tables.user_settings.length = 0;
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toMatchObject({ status: 409, body: { error: "profile_required" } });
+  });
+
+  it("rejects an intent other than the one literal", async () => {
+    expect((await post({ world: "open", intent: "user_choice" })).status).toBe(400);
+  });
+});
+
+describe("GET /api/foods/world (W13)", () => {
+  const ONBOARDED = "2026-10-07T09:00:00.000Z";
+  async function get(): Promise<Record<string, unknown>> {
+    const { GET } = await import("@/app/api/foods/world/route");
+    const res = await GET(new Request("https://app.test/api/foods/world"));
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    return await res.json() as Record<string, unknown>;
+  }
+
+  it("answers the account's own current world", async () => {
+    expect((await get()).world).toBe("closed");
+    loadWorld({ world: "open", onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED, foodWorldSetAt: ONBOARDED });
+    expect(await get()).toEqual({ world: "open", openDefaultPending: false, starterSeed: false });
+  });
+
+  // Sol round 4 BLOCK: the starter-seed decision is the server's, so device B (no local pending
+  // flag) agrees with device A, whose open POST answered 503.
+  it("a W13-onboarded, undecided, closed account is pending and never seeds, on any device", async () => {
+    loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED });
+    expect(await get()).toEqual({ world: "closed", openDefaultPending: true, starterSeed: false });
+  });
+
+  it("once the default lands the account is open and still never seeds", async () => {
+    loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED });
+    expect(await post({ world: "open", intent: "onboarding_default" })).toEqual({ status: 200, body: { world: "open" } });
+    expect(await get()).toEqual({ world: "open", openDefaultPending: false, starterSeed: false });
+  });
+
+  it("a legacy closed account (onboarded before W13, no due stamp) still seeds", async () => {
+    loadWorld({ onboardedAt: "2026-09-20T09:00:00.000Z" });
+    expect(await get()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: true });
+  });
+
+  it("an explicit closed choice still seeds, as the closed world always did", async () => {
+    loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED, foodWorldSetAt: ONBOARDED });
+    expect(await get()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: true });
+  });
+
+  it.each([
+    ["the open world is unreleased", () => vi.stubEnv("OPEN_WORLD_ENABLED", ""), {}],
+    ["the account is held", () => vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A), {}],
+    ["a stated condition is unconfirmed", () => undefined, { conditions: ["Celiac"] }],
+  ])("a W13 default that cannot open the account (%s) is not pending, so the closed seed runs",
+    async (_label, setup, options) => {
+      setup();
+      loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED, ...options });
+      expect(await get()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: true });
+    });
+
+  it("an account the server has not onboarded yet never seeds", async () => {
+    expect(await get()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: false });
+    tables.user_settings = [];
+    expect(await get()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: false });
+  });
+
+  it("a failed read answers 503 with no state at all", async () => {
+    const { readFoodWorldState } = await import("@/lib/server/food-world");
+    const broken = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () =>
+      ({ data: null, error: { message: "down" } }) }) }) }) };
+    expect(await code(readFoodWorldState(broken as never, A))).toBe("503 food_world_unavailable");
+  });
+});
+
+describe("GET /api/foods/world/invitation (W13 acceptance 4)", () => {
+  it("is eligible only once released, not held and still closed", async () => {
+    const { GET } = await import("@/app/api/foods/world/invitation/route");
+    const req = () => new Request("https://app.test/api/foods/world/invitation");
+    expect(await (await GET(req())).json()).toEqual({ eligible: true });
+
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A);
+    expect(await (await GET(req())).json()).toEqual({ eligible: false });
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", "");
+
+    vi.stubEnv("OPEN_WORLD_ENABLED", "");
+    expect(await (await GET(req())).json()).toEqual({ eligible: false });
+    vi.stubEnv("OPEN_WORLD_ENABLED", "1");
+
+    loadWorld({ world: "open" });
+    expect(await (await GET(req())).json()).toEqual({ eligible: false });
+  });
 });
 
 describe("GET /api/foods/rules-version", () => {

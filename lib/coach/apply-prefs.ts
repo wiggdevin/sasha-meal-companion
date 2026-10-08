@@ -61,7 +61,7 @@ export async function applyFoodListMark(action: ListAction): Promise<ApplyResult
   const status: Exclude<FoodStatus, "neutral"> | null = action.kind === "add_to_avoid"
     ? "avoid" : action.kind === "add_to_eats" ? "eats" : null;
   const note = action.kind === "remove_from_eats"
-    ? `removed from Eats by ${ASSISTANT_NAME} on ${todayIso()}`
+    ? `removed from Favored by ${ASSISTANT_NAME} on ${todayIso()}`
     : action.kind === "remove_from_avoid"
       ? `removed from Avoid by ${ASSISTANT_NAME} on ${todayIso()}`
       : undefined;

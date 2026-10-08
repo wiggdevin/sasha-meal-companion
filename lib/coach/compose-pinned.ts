@@ -138,10 +138,14 @@ export async function composeDirectPlate(
   const pool = ports.pool ? await ports.pool(userId) : await defaultPool(userId, eats, ports);
   const open = (await ports.openWorld?.(userId)) ?? null;
   const poolRefs = (await ports.poolRefs?.(userId)) ?? {};
+  const date = args.date ?? todayUtc();
+  // W11 (D7): an active shopping focus ranks the pinned plates by (fits, coverage, score).
+  const focus = await ports.focus?.(userId, date);
   const input: PlateInput = {
-    date: args.date ?? todayUtc(), slot: args.slot ?? "", occasion, untimed, target: args.target,
+    date, slot: args.slot ?? "", occasion, untimed, target: args.target,
     foods: open ? open.foods : pool,
     ...(open ? { evidence: open.evidence, taste: open.taste, open: open.ranking } : {}),
+    ...(focus ? { focus } : {}),
   };
   const ranking = rankPinnedPlates(input, pinned);
   const best = ranking.plates[0];

@@ -2,10 +2,12 @@
 // or an older phone can never leave a held account (pregnancy, breastfeeding, an eating disorder,
 // kidney disease, a clinician-set diet) on a loss or gain pace, and an account under 18 gets no
 // derived revision at all.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { recomputeDerivedTarget } from "@/lib/server/target-recompute";
 import { SAFETY_CONDITION_TEXT } from "@/lib/profile/rate-eligibility";
 import { TODAY, USER, fakeClient, settingsRow, staleTarget, type Row } from "./recompute-fake";
+
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
 
 const LOSING = { goal: "lose_fat", goal_rate_bp_week: -50 };
 const conditions = (...items: string[]) => ({ constraint_profiles: [{ user_id: USER, conditions: items }] });

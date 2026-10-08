@@ -34,9 +34,9 @@ describe("CoachActionCard copy", () => {
       [{ actionId: "9", kind: "set_targets", dayType: "training", kcal: 2300,
         flagged: [] }, "Training day 2,300 kcal"],
       [{ actionId: "10", kind: "add_to_eats", ...food, name: "salmon", flagged: [] },
-        "Salmon → Eats"],
+        "Salmon → Favored"],
       [{ actionId: "11", kind: "remove_from_eats", ...food, name: "salmon", flagged: [] },
-        "Salmon → Avoid"],
+        "Took Salmon off Favored"],
     ];
     for (const [action, title] of cases) expect(actionTitle(action)).toBe(title);
   });

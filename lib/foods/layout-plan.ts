@@ -11,6 +11,7 @@
 import type { Food } from "@/lib/foods";
 import { planDay, type DayPlan } from "@/lib/meals/day";
 import type { OccasionOverrides } from "@/lib/meals/occasion";
+import type { FocusRanking } from "@/lib/meals/plate";
 import { evidenceKey, type MealEvidence } from "@/lib/meals/snapshot";
 import { plateChips, type OpenWorldInputs } from "@/lib/meals/open-world";
 import type { Macros, Meal, SlotId } from "@/lib/types";
@@ -18,6 +19,8 @@ import type { Macros, Meal, SlotId } from "@/lib/types";
 export { usableForGeneration } from "@/lib/meals/pool";
 
 export type LayoutSlot = { id: SlotId; target: Macros; clock?: string | null };
+/** An active shopping focus for the planned date (lib/shopping/focus.ts `focusRankingOn`). */
+export type LayoutFocus = FocusRanking & { id: string };
 
 export type LayoutResult = {
   meals: { slot: SlotId; meal: Meal }[];
@@ -30,12 +33,14 @@ const MEMO_SIZE = 12;
 const memo = new Map<string, DayPlan>();
 
 function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
-  overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs): string {
+  overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
+  focus?: LayoutFocus): string {
   const foodPart = Object.values(foods).map((food) => [food.id, food.name, food.role, food.status,
     food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat].join("|")).sort().join(";");
-  // A closed account's key is exactly main's; an open one adds its snapshot's identity.
+  // A closed account's key is exactly main's; an open one adds its snapshot's identity, and an
+  // active shopping focus its own (end and the keys that count that day).
   return JSON.stringify([date, slots, overrides ?? null, foodPart, evidenceKey(evidence),
-    ...(open ? [open.key] : [])]);
+    ...(open ? [open.key] : []), ...(focus ? [`focus:${focus.id}`] : [])]);
 }
 
 /**
@@ -45,16 +50,21 @@ function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<strin
  * `open` (Phase 18 W8): an open food-world account's admitted pool, taste values and search
  * (lib/meals/open-world.ts). The caller passes `open.foods` as `foods` and `open.evidence` as
  * `evidence`; each generated meal then carries its reason chips. Absent: main's generator.
+ *
+ * `focus` (Phase 18 W11, D7): the account's active shopping focus for `date`; every slot then
+ * takes the highest list/pantry coverage that fits (lib/meals/day.ts). Absent: unchanged.
  */
 export function planMealsForDay(
   date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
   overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
+  focus?: LayoutFocus,
 ): LayoutResult {
-  const key = memoKey(date, slots, foods, overrides, evidence, open);
+  const key = memoKey(date, slots, foods, overrides, evidence, open, focus);
   let plan = memo.get(key);
   if (!plan) {
-    plan = open ? planDay(date, slots, foods, overrides, evidence, open.taste, open.ranking)
-      : planDay(date, slots, foods, overrides, evidence);
+    plan = open ? planDay(date, slots, foods, overrides, evidence, open.taste, open.ranking, focus)
+      : focus ? planDay(date, slots, foods, overrides, evidence, undefined, undefined, focus)
+        : planDay(date, slots, foods, overrides, evidence);
     if (memo.size >= MEMO_SIZE) memo.delete(memo.keys().next().value as string);
     memo.set(key, plan);
   }

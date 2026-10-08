@@ -15,6 +15,7 @@ const INTENT_CRITERIA = {
   remove_from_eats: "Remove a food from the person's Eats list.",
   remove_from_avoid: "Remove a food from the person's Avoid list.",
   log_water: "Record water the person drank.",
+  use_shopping_list: "Turn \"use my shopping list\" on or off, so meals favor list and pantry foods.",
   log_weight: "Record the person's body weight.",
   update_profile: "Change body, activity, goal, or dietary profile data.",
   set_targets: "Change calorie or macro targets directly.",

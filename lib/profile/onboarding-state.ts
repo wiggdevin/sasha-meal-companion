@@ -453,11 +453,16 @@ export function buildCompletedSettings(
     const value = state.planEdits[field];
     if (value !== undefined) pins[field] = value === defaults[field] ? null : value;
   }
-  // The first meal's shift is taken against the layout the derived target gives (an automatic
-  // meal count follows the calories), never the three-meal default.
+  const completed = { ...derived, ...pins };
+  // The first meal's shift is taken against the layout the saved target gives (an automatic
+  // meal count follows the calories), never the three-meal default. A plan edit pins the
+  // calories, so the layout is the pinned revision's, not the unpinned derivation's.
+  const pinned = Object.values(pins).some((value) => value !== null && value !== undefined)
+    ? applyDerivedProfile(completed, now, undefined, completed.trainingWeekdays ?? [], eligibility)
+    : derived;
   const shift = state.firstMealTime
-    ? shiftForFirstMeal(state.firstMealTime, derived) : null;
-  return { ...derived, ...pins, ...(shift !== null ? { shiftMinutes: shift } : {}) };
+    ? shiftForFirstMeal(state.firstMealTime, pinned) : null;
+  return { ...completed, ...(shift !== null ? { shiftMinutes: shift } : {}) };
 }
 
 export function changedPlanFields(base: Settings, completed: Settings): PlanField[] {

@@ -283,7 +283,7 @@ describe("coach mechanical intent fast path", () => {
     });
     expect(result.composed).toHaveLength(5);
     expect(result.messages.at(-1)?.content).toBe(
-      "Here are 5 meal options from your Eats list.");
+      "Here are 5 meal options from your Favored list.");
     expect(suggest).toHaveBeenCalledWith("u1", {
       kind: "meal", count: 5, fitRemaining: false,
     });
@@ -371,7 +371,7 @@ describe("coach mechanical intent fast path", () => {
       });
 
       expect(result.messages.at(-1)?.content).toBe(
-        "Here are 2 meal options built around your Eats foods.");
+        "Here are 2 meal options built around your Favored foods.");
     });
 
   it("returns an honest retry without Gemini when the suggestion executor fails", async () => {

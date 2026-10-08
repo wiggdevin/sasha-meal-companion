@@ -3,11 +3,15 @@
 // for an account under 18.
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { restoreTargetRevision } from "@/lib/server/targets";
+import { restoreTargetRevision, writeTargetRevisionSet } from "@/lib/server/targets";
 import { decideProposal } from "@/lib/server/proposals";
-import { recomputeDerivedTarget } from "@/lib/server/target-recompute";
+import { recomputeDerivedTarget, settingsFromRow } from "@/lib/server/target-recompute";
 import { AdultOnlyError, SAFETY_CONDITION_TEXT } from "@/lib/profile/rate-eligibility";
-import { TODAY, USER, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
+import { TODAY, USER, activeOn, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
+
+import { adminFake } from "@/tests/helpers/admin-fake";
+
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
 
 type Row = Record<string, unknown>;
 
@@ -18,14 +22,16 @@ function client(tables: Record<string, Row[]>,
     const filters: [string, unknown][] = [];
     const rows = () => (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
     const chain: Record<string, unknown> = {
-      select: () => chain, lte: () => chain, order: () => chain, limit: () => chain,
+      select: () => chain, lte: () => chain, order: () => chain, limit: () => chain, range: () => chain,
       eq: (k: string, v: unknown) => { filters.push([k, v]); return chain; },
       maybeSingle: async () => ({ data: rows()[0] ?? null, error: null }),
       then: (resolve: (v: unknown) => unknown) => Promise.resolve({ data: rows(), error: null }).then(resolve),
     };
     return chain;
   };
-  return { client: { from, rpc } as unknown as SupabaseClient, rpc };
+  const fake = { from, rpc } as unknown as SupabaseClient;
+  adminFake.client = fake;
+  return { client: fake, rpc };
 }
 
 const prior = staleTarget({ id: "t2", goal_rate_bp_week: -50, input_goal: "lose_fat",
@@ -81,5 +87,74 @@ describe("a hold on an adaptive revision", () => {
     const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
     expect(outcome.status).toBe("written");
     expect(fake.writes.at(-1)).toMatchObject({ goal_rate_bp_week: 0, formula_name: "profile-energy-v1" });
+  });
+});
+
+describe("a direct derive request", () => {
+  // The request body says 1990; the account's stored birth year says 15 on the revision's date.
+  const adultBody = settingsFromRow(settingsRow({ birth_year: 1990, goal: "maintain" }));
+  const derive = (today = TODAY) => ({ operation: "derive" as const, input: {
+    settings: adultBody, latestWeighInKg: null, today, trainingWeekdays: [1, 3] } });
+
+  it("never lifts the stored under-18 birth year with an adult one from the body", async () => {
+    const rpc = vi.fn(async () => ({ data: null, error: null }));
+    const { client: c } = client({ user_settings: [{ user_id: USER, birth_year: 2011 }] }, rpc);
+    await expect(writeTargetRevisionSet(c, USER, derive())).rejects.toBeInstanceOf(AdultOnlyError);
+    await expect(writeTargetRevisionSet(c, USER, derive(), derive("2026-09-01")))
+      .rejects.toBeInstanceOf(AdultOnlyError);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("a hold with a revision scheduled after today", () => {
+  const paced = { goal: "lose_fat", goal_rate_bp_week: -50 };
+  const dates = ["2026-10-03", "2026-10-04", "2026-10-05", "2026-10-12", "2027-01-01"];
+
+  it("neutralises today's adaptive pace and every scheduled pace, on their own dates", async () => {
+    const fake = fakeClient(settingsRow(paced), [
+      staleTarget({ formula_name: "adaptive-tdee-v1", goal_rate_bp_week: -50, input_goal: "lose_fat" }),
+      staleTarget({ id: "f1", rev: 6, effective_from: "2026-10-05", formula_name: "proposal-v1",
+        goal_rate_bp_week: -50, input_goal: "lose_fat", input_weight_source: "weigh-in",
+        input_weight_kg: 70 }),
+    ], [], held);
+    const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    expect(outcome.status).toBe("written");
+    expect(fake.writes.map((w) => [w.effective_from, w.goal_rate_bp_week]))
+      .toEqual([[TODAY, 0], ["2026-10-05", 0]]);
+    expect(fake.writes[1]).toMatchObject({ input_weight_kg: 70, input_weight_source: "weigh-in" });
+    for (const date of dates) expect(activeOn(fake.targets, date)?.goal_rate_bp_week).toBe(0);
+  });
+
+  it("neutralises a scheduled pace even when today's revision has none", async () => {
+    const fake = fakeClient(settingsRow(paced), [
+      staleTarget(),
+      staleTarget({ id: "f1", rev: 6, effective_from: "2026-10-12", goal_rate_bp_week: -50,
+        input_goal: "lose_fat" }),
+    ], [], held);
+    const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    expect(outcome.status).toBe("written");
+    for (const date of dates) expect(activeOn(fake.targets, date)?.goal_rate_bp_week).toBe(0);
+  });
+
+  it("reads every scheduled revision: a pace behind 60 others is still neutralised", async () => {
+    // Sol r3: the sweep read at most 50 future rows, so a paced revision past them survived.
+    const day = (n: number) => new Date(Date.parse("2026-10-12T00:00:00Z") + n * 86_400_000)
+      .toISOString().slice(0, 10);
+    const quiet = Array.from({ length: 60 }, (_, n) =>
+      staleTarget({ id: `q${n}`, rev: 10 + n, effective_from: day(n), goal_rate_bp_week: 0 }));
+    const last = day(70);
+    const fake = fakeClient(settingsRow(paced), [staleTarget(), ...quiet,
+      staleTarget({ id: "late", rev: 99, effective_from: last, goal_rate_bp_week: -50,
+        input_goal: "lose_fat" })], [], held);
+    await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    expect(activeOn(fake.targets, last)?.goal_rate_bp_week).toBe(0);
+  });
+
+  it("still leaves a scheduled revision alone when the account has no hold", async () => {
+    const fake = fakeClient(settingsRow(paced), [staleTarget(),
+      staleTarget({ id: "f1", rev: 6, effective_from: "2026-10-12", goal_rate_bp_week: -50 })]);
+    await expect(recomputeDerivedTarget(fake.client, USER, { today: TODAY }))
+      .resolves.toMatchObject({ status: "skipped", reason: "future_revision" });
+    expect(fake.writes).toEqual([]);
   });
 });

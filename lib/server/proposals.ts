@@ -11,6 +11,7 @@ import { HttpError } from "@/lib/server/auth";
 import { accountDay } from "@/lib/server/account-day";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
 import { activeProfile } from "@/lib/server/targets";
+import { rpcApproveTargetProposal } from "@/lib/server/target-writes";
 import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
 import type {
   DecideRequest, DecideResponse, ProposalSummary, ProposedTargets,
@@ -82,8 +83,9 @@ export async function decideProposal(
 ): Promise<DecideResponse> {
   if (req.decision === "approve") {
     await assertApprovalEligible(client, userId);
-    const { data, error } = await client.rpc("approve_target_proposal",
-      { p_user_id: userId, p_proposal_id: proposalId });
+    // Service role (lib/server/target-writes.ts): `authenticated` cannot execute the approval
+    // (migration 20261228090000), so the eligibility check above cannot be skipped.
+    const { data, error } = await rpcApproveTargetProposal(userId, proposalId);
     if (error) throw error;
     const result = data as { status: string; target_profile_id?: string; current?: Record<string, unknown> };
     if (result.status === "not_found") throw new HttpError(404, "not_found", "No such proposal.");

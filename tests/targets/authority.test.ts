@@ -13,8 +13,13 @@ import { applyDerivedProfile, resolveTargets } from "@/lib/targets";
 import type { TargetProfile } from "@/lib/api-types";
 import type { Settings } from "@/lib/types";
 import { resetTestAccount } from "@/tests/helpers/account";
+import { adminFake } from "@/tests/helpers/admin-fake";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
+
+/** The fake serves the reads and, as the service-role client, the target write RPCs. */
+const asAdmin = <T>(client: T): never => { adminFake.client = client; return client as never; };
 
 beforeEach(async () => {
   await resetTestAccount();
@@ -292,7 +297,7 @@ describe("the target authority revision", () => {
 
   it("persists derivation through write_target_revision and returns the assigned revision", async () => {
     const rpc = vi.fn(async () => ({ data: REVISION_ROW, error: null }));
-    const result = await writeDerivedTargets({ rpc } as never, REVISION_ROW.user_id, {
+    const result = await writeDerivedTargets(asAdmin({ rpc }), REVISION_ROW.user_id, {
       settings: completeSettings(),
       latestWeighInKg: 59.25,
       today: EFFECTIVE_DATE,
@@ -324,7 +329,7 @@ describe("the target authority revision", () => {
   it("stores the account's macro minimum, never a 1,500 kcal male floor (step D)", async () => {
     const rpc = vi.fn(async () => ({ data: { ...REVISION_ROW,
       input_weight_source: "onboarding", input_weight_kg: 80 }, error: null }));
-    await writeDerivedTargets({ rpc } as never, REVISION_ROW.user_id, {
+    await writeDerivedTargets(asAdmin({ rpc }), REVISION_ROW.user_id, {
       settings: completeSettings({ sex: "male", weightKg: 80, goal: "lose_fat",
         goalRateBpWeek: -50 }),
       latestWeighInKg: null,
@@ -357,6 +362,7 @@ describe("the target authority revision", () => {
         ? { select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }) } : noAnswers,
       rpc,
     } as never;
+    asAdmin(client);
 
     const result = await restoreTargetRevision(
       client,

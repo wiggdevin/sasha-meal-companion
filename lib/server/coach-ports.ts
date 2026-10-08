@@ -314,7 +314,7 @@ export function defaultPorts(
             const { foodLists } = await import("@/lib/server/coach-context");
             return (await foodLists(client, uid)).eats;
           },
-          ...composePoolPorts(client, admin, clock.now),
+          ...composePoolPorts(client, admin, clock.now, clock.date),
         });
       return { ...meal, pendingSlots: await pendingMealSlots(admin, userId, clock) };
     },
@@ -353,7 +353,7 @@ export function defaultPorts(
           searchExactUserFood(admin, uid, name, signal ?? opts.signal)),
         eatsNames: async (uid) => (await suggestionEats(uid)).all,
         eatsAnchors: async (uid) => (await suggestionEats(uid)).anchors,
-        ...composePoolPorts(client, admin, clock.now),
+        ...composePoolPorts(client, admin, clock.now, clock.date),
         // `uid` is read explicitly, like `eatsNames`/`eatsAnchors` above, not closed over, and
         // the suggest budget's own signal bounds the read the same way it bounds everything else
         // this port builds (2026-10-03 audit, finding #4: this used to run unbounded ahead of

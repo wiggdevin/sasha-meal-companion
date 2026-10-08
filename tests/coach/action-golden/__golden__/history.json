@@ -24,5 +24,7 @@
   "[action: set_targets rest 150 g protein]",
   "[action: add_to_eats salmon]",
   "[action: remove_from_eats salmon]",
-  "[action: add_to_shopping_list eggs, oat milk]"
+  "[action: add_to_shopping_list eggs, oat milk]",
+  "[action: set_shopping_focus on for 10 days]",
+  "[action: set_shopping_focus off]"
 ]

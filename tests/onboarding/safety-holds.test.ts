@@ -78,6 +78,7 @@ describe("a held account in onboarding", () => {
       saveConstraints,
       localDate: () => "2026-10-08",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     }, { pregnancy: "pregnant" });
     expect(order).toEqual(['constraints:["IBS","Pregnant"]', "target"]);
     expect(saveConstraints).toHaveBeenCalledTimes(1);
@@ -95,6 +96,7 @@ describe("a held account in onboarding", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-10-08",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     }, { clinicianDiet: true });
     expect(result.constraintsSaved).toBe(false);
     expect(saveSynced).not.toHaveBeenCalled();
@@ -112,6 +114,7 @@ describe("an account whose hold is STORED, not tapped this round (final Sol revi
       saveConstraints: vi.fn(async () => ({ status: "ok" as const, profile, rev: 1 })),
       localDate: () => "2026-10-08",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     };
     await expect(persistCompletedOnboarding(defaultSettings(), state, NOW, deps, {}))
       .rejects.toThrow(/incomplete/);
@@ -161,5 +164,11 @@ describe("first meal with an automatic meal count", () => {
     expect(settings.activeTargetProfile!.training.kcal).toBeGreaterThan(2600);
     // Five meals start at 07:30, so the first meal needs no shift at all.
     expect(settings.shiftMinutes).toBe(0);
+    // A plan edit that pins training calories to 1700 saves a three-meal layout (08:00 first),
+    // so the shift is taken against that layout, not the unpinned five-meal one.
+    const pinned = onboardingReducer(state, { type: "edit_plan", field: "trainingKcal", value: 1700 });
+    const edited = buildCompletedSettings(defaultSettings(), pinned, NOW);
+    expect(edited.trainingKcal).toBe(1700);
+    expect(edited.shiftMinutes).toBe(-30);
   });
 });

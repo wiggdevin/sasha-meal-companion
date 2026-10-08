@@ -187,24 +187,20 @@ describe("suggestion facet gate", () => {
       kind: "meal", count: 3, slot: "meal-2", wish: "something crisp",
     }, ports);
 
+    // W10b: the one survivor is under the 5-plate shortlist floor (D9 item 4 / acceptance 2),
+    // so Jev is never called at all — formula order alone still excludes the blocked and the
+    // unverified candidate. The payload-content check this used to make here is covered by
+    // "serializes only the current wish..." below, padded past the floor.
     expect(cards.map((card) => card.anchorProtein)).toEqual(["Protein 2"]);
-    expect(rank).toHaveBeenCalledOnce();
-    const [state, questions, options] = rank.mock.calls[0];
-    expect(Object.keys(questions)).toEqual(["plausible_0"]);
-    expect(options).toMatchObject({ purpose: "suggest-options", userId: "u1" });
-    expect(state).toEqual({
-      slot: { id: "meal-2", label: "Meal 2" },
-      wish: "something crisp",
-      candidates: [{
-        index: 0,
-        foods: [{ name: "Protein 2", grams: 200 }],
-        macros: TARGET,
-      }],
-    });
+    expect(rank).not.toHaveBeenCalled();
   });
 
   it("serializes only the current wish, slot, candidate foods, and code-owned macros", async () => {
-    const { ports, rank } = fixture([protein(1)], () => facts());
+    // W10b: at least 5 admitted candidates, the shortlist floor (D9 item 4 / acceptance 2), so
+    // Jev is actually called here.
+    const { ports, rank } = fixture(
+      [protein(1), protein(2), protein(3), protein(4), protein(5)], () => facts(),
+    );
     const cards = await suggestOptions({
       kind: "meal", count: 1, slot: "meal-2", wish: "current-wish-canary",
     }, ports);
@@ -269,7 +265,8 @@ describe("suggestion facet gate", () => {
     expect(JSON.parse(JSON.stringify(blocked)).message).toContain("needs preparation");
     expect(cachedOnly.rank).not.toHaveBeenCalled();
     expect(allowed).toHaveLength(1);
-    expect(storedOverride.rank).toHaveBeenCalledOnce();
+    // W10b: one survivor is under the 5-plate shortlist floor, so Jev is never called.
+    expect(storedOverride.rank).not.toHaveBeenCalled();
   });
 
   it("withholds an unknown human-food facet before ranking", async () => {
@@ -370,7 +367,8 @@ describe("suggestion facet gate", () => {
     const cards = await suggestOptions({ kind: "meal", count: 2 }, ports);
 
     expect(cards.map((card) => card.anchorProtein)).toEqual([catalog.name, userFood.name]);
-    expect(rank).toHaveBeenCalledOnce();
+    // W10b: 2 survivors is under the 5-plate shortlist floor, so Jev is never called.
+    expect(rank).not.toHaveBeenCalled();
     expect(moduleSpies.readFacets).toHaveBeenCalledOnce();
     const warm = catalogWarmFood(catalogRow);
     const expectedCatalog = {

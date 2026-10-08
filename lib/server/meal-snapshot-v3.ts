@@ -44,6 +44,8 @@ import { cuisinesFrom } from "@/lib/profile/cuisines";
 import { normalizePreferenceFlags } from "@/lib/profile/onboarding-state";
 import { tasteFrom, type TasteDislike } from "@/lib/profile/taste";
 import { HttpError } from "@/lib/server/auth";
+import { recipeAccessEnabled } from "@/lib/server/recipe-access";
+import { shoppingFocusActive } from "@/lib/shopping/focus";
 import { candidateFoods, type CandidateFoods } from "@/lib/server/candidate-foods";
 import { mealSnapshot, mealSnapshotParts, type MealSnapshotDeps, type SnapshotResponse } from "@/lib/server/meal-snapshot";
 import { readRulesToken } from "@/lib/server/rules-clock";
@@ -70,12 +72,21 @@ export type MealSnapshotV3Response = MealSnapshotV3;
  * — losing to correctness and to "Favored never limits meals" (spec §1) — otherwise. A true
  * guarantee for an unbounded admitted set needs paging with a token pinned across every page
  * (D11's one-token-window freshness design), which is a larger protocol change than this slice.
+ *
+ * Followups #6 (2026-10-08, Sol: "keep complete admitted snapshots and measure overages"): still
+ * no trimming, measurement unchanged; this now also bumps a process-lifetime overage counter
+ * (`snapshotV3Overages`) so an overage is a countable signal, not only a line to grep for, while a
+ * durable cross-invocation count (if this ever needs one) would be a server table, not this.
  */
+let overageCount = 0;
+
 export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHOT_V3_MAX_BYTES): MealSnapshotV3 {
   const bytes = Buffer.byteLength(JSON.stringify(body), "utf8");
   if (bytes <= maxBytes) return body;
+  overageCount += 1;
   console.error("meal snapshot v3: over the 250 KB target (stated exception, D11/acceptance 5); "
     + "the body is sent complete rather than risk ranking or admission correctness", {
+    metric: "snapshot_v3_overage", count: overageCount,
     accountId: body.accountId, bytes, maxBytes,
     foods: Buffer.byteLength(JSON.stringify(body.foods), "utf8"),
     admittedRefIds: body.admittedRefIds.length, admittedUniverseIds: body.admittedUniverseIds.length,
@@ -83,6 +94,18 @@ export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHO
     eligible: Buffer.byteLength(JSON.stringify(body.eligible), "utf8"),
   });
   return body;
+}
+
+/** The process-lifetime count of v3 snapshot overages (`checkByteBudget`). Each serverless
+ *  invocation starts at 0 — a sampling signal alongside the structured log line, not a durable
+ *  metric across invocations. */
+export function snapshotV3Overages(): number {
+  return overageCount;
+}
+
+/** Test-only: resets the process-lifetime overage counter. */
+export function resetSnapshotV3Overages(): void {
+  overageCount = 0;
 }
 
 /** The account's admitted taste evidence, as the preference inputs read it. */
@@ -121,11 +144,11 @@ let graphCache: { graph: SubstituteGraph | null } | null = null;
 const defaultGraph = () => (graphCache ??= { graph: loadSubstituteGraph() }).graph;
 
 type SettingsRow = { cuisines?: unknown; country_code?: unknown; sex?: unknown; birth_year?: unknown;
-  diet_prefs?: { flags?: unknown; taste?: unknown } | null };
+  diet_prefs?: { flags?: unknown; taste?: unknown } | null; shopping_focus_until?: unknown };
 
 async function readOpenSettings(client: SupabaseClient, userId: string) {
   const { data, error } = await client.from("user_settings")
-    .select("cuisines,country_code,sex,birth_year,diet_prefs").eq("user_id", userId).maybeSingle();
+    .select("cuisines,country_code,sex,birth_year,diet_prefs,shopping_focus_until").eq("user_id", userId).maybeSingle();
   if (error) throw error;
   const row = (data ?? {}) as SettingsRow;
   const flags = row.diet_prefs?.flags;
@@ -136,6 +159,7 @@ async function readOpenSettings(client: SupabaseClient, userId: string) {
     birthYear: typeof row.birth_year === "number" && Number.isInteger(row.birth_year) ? row.birth_year : null,
     flags: normalizePreferenceFlags(Array.isArray(flags) ? flags.filter((f): f is string => typeof f === "string") : []),
     dislikes: (tasteFrom(row.diet_prefs?.taste)?.dislikes ?? []) as TasteDislike[],
+    focusUntil: typeof row.shopping_focus_until === "string" ? row.shopping_focus_until : null,
   };
 }
 
@@ -222,7 +246,12 @@ export async function mealSnapshotV3(client: SupabaseClient, userId: string, now
     schemaVersion: SNAPSHOT_V3, rankingVersion: RANKING_VERSION, universeVersion: UNIVERSE_VERSION,
     universeHash: UNIVERSE_HASH, prefVersion: PREFERENCE_VERSION, priorVersion, graphVersion,
     accountId: userId, rulesVersion: token.rulesVersion, evidenceVersion: token.evidenceVersion,
-    computedAt: now.toISOString(), inputsHash, world: "open", focusUntil: null, plateRules,
+    computedAt: now.toISOString(), inputsHash, world: "open",
+    // W11 (D7): the active focus end, for an account with Shopping access; the phone ranks by the
+    // dated keys GET /api/shopping/focus answers (lib/shopping/focus-client.ts).
+    focusUntil: recipeAccessEnabled(userId) && shoppingFocusActive(settings.focusUntil, now)
+      ? settings.focusUntil : null,
+    plateRules,
     admittedUniverseIds: [...candidate.admittedUniverseIds], admittedRefIds: [...candidate.admittedRefIds],
     foods, excluded: candidate.excluded.map((row) => ({ id: row.id, verdict: row.verdict, reason: row.reason })),
     eligible: parts.eligible,

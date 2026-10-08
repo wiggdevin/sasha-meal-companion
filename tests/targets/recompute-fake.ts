@@ -1,6 +1,7 @@
 // Shared stand-ins for the server target recompute tests: a settings row, the stale production
-// target and a small chainable client for the reads the service makes and its one conditional RPC.
+// target and a small chainable client for the reads the service makes and its two write RPCs.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { adminFake } from "@/tests/helpers/admin-fake";
 import type { TargetProfile } from "@/lib/api-types";
 
 export const USER = "40707946-0000-4000-8000-000000000001";
@@ -90,6 +91,8 @@ export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: 
         orders.push([key, opts.ascending]); return builder;
       },
       limit: (n: number) => { limit = n; return builder; },
+      // A page of a paged read (lib/server/paged-read.ts): the fake serves every row on page one.
+      range: (from: number) => { if (from > 0) limit = 0; return builder; },
       maybeSingle: async () => ({ data: rows()[0] ?? null, error: null }),
       then: (resolve: (value: { data: Row[]; error: null }) => unknown) =>
         Promise.resolve({ data: rows(), error: null }).then(resolve),
@@ -98,14 +101,19 @@ export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: 
   };
   const rpc = async (name: string, args: { p_user_id: string; p_row: Row; p_expected_id: string | null;
     p_expected_settings_rev: number | null }) => {
-    if (name !== "write_target_revision_if_active") throw new Error(`unexpected rpc ${name}`);
+    if (name !== "write_target_revision_if_active" && name !== "write_target_revision") {
+      throw new Error(`unexpected rpc ${name}`);
+    }
     attempts += 1;
     fake.beforeWrite?.(attempts);
     const p = args.p_row as Row & { training_macros: Row; rest_macros: Row };
     const active = activeOn(fake.targets, String(p.effective_from));
     const settingsRev = fake.settings.row ? Number(fake.settings.row.rev) : null;
-    if ((active?.id ?? null) !== args.p_expected_id || (args.p_expected_settings_rev !== null
-      && settingsRev !== args.p_expected_settings_rev)) {
+    // The conditional RPC also refuses a row with a later revision after it (the SQL's own rule);
+    // `write_target_revision` writes unconditionally.
+    if (name === "write_target_revision_if_active" && ((active?.id ?? null) !== args.p_expected_id
+      || (args.p_expected_settings_rev != null && settingsRev !== args.p_expected_settings_rev)
+      || fake.targets.some((t) => t.effective_from > String(p.effective_from)))) {
       fake.conflicts += 1;
       return { data: { conflict: true, active_id: active?.id ?? null }, error: null };
     }
@@ -124,5 +132,7 @@ export function fakeClient(row: Row | null, targets: TargetProfile[], weighIns: 
     return { data: written, error: null };
   };
   fake.client = { from: query, rpc } as unknown as SupabaseClient;
+  // The target writes run on the service-role client (lib/server/target-writes.ts).
+  adminFake.client = fake.client;
   return fake;
 }

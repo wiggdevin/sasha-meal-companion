@@ -78,7 +78,8 @@ describe("suggestOptions time budget", () => {
         SUGGEST_BUILD_BUDGET_MS) as Awaited<ReturnType<typeof suggestOptions>>;
 
       expect(cards.map((card) => card.anchorProtein)).toEqual(["Protein 1", "Protein 2"]);
-      expect(ports.jev).toHaveBeenCalledOnce();
+      // W10b: 2 built candidates is under the 5-plate shortlist floor, so Jev is never called.
+      expect(ports.jev).not.toHaveBeenCalled();
       expect(cards).toMatchObject({
         partial: true, message: "Here are the 2 I could build in time — ask again for more.",
       });

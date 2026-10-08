@@ -6,7 +6,6 @@
   "_sync_assert_caller(uuid)": { "class": "account", "case": "assert_caller" },
   "_sync_assert_key(text,text)": { "class": "pure", "reason": "Validates an entity key's shape; reads no table." },
   "apply_sync_op(uuid,jsonb)": { "class": "account", "case": "apply_sync_op" },
-  "approve_target_proposal(uuid,uuid)": { "class": "account", "case": "approve_target_proposal" },
   "catalog_atwater_kcal(bigint)": { "class": "catalog", "reason": "Reads shared catalog nutrients by revision id only." },
   "catalog_expand_query(text)": { "class": "catalog", "reason": "Reads the shared synonym table only." },
   "catalog_search(text,text,text,integer)": { "class": "account", "externalTest": "tests/search/cross-user.test.ts::never leaks A's log count or Eats status into B's search" },
@@ -42,14 +41,15 @@
   "validate_health_time_zone()": { "class": "pure", "reason": "Trigger that checks a time zone name against pg_timezone_names only." },
   "taste_chips_confirm(uuid,uuid,text,text[],text[],jsonb)": { "class": "account", "case": "taste_confirm" },
   "taste_chips_undo(uuid,uuid)": { "class": "account", "case": "taste_undo" },
-  "write_target_revision(uuid,jsonb)": { "class": "account", "case": "target_revision" },
-  "write_target_revision_if_active(uuid,jsonb,uuid,bigint)": { "class": "account", "case": "target_revision" },
-  "write_target_revision_pair(uuid,jsonb,jsonb)": { "class": "account", "case": "target_revision" },
   "care_points_sync(uuid,date,text)": { "class": "account", "case": "care_points_sync" },
   "care_purchase(uuid,text,uuid,date,text)": { "class": "account", "case": "care_purchase" },
   "care_equip(uuid,text,text,integer)": { "class": "account", "case": "care_equip" },
   "care_accolades_sync(uuid,date,text)": { "class": "account", "case": "care_accolades_sync" },
   "care_accolades_seen(uuid,text[])": { "class": "account", "case": "care_accolades_seen" },
   "care_message_mark(uuid,uuid,text)": { "class": "account", "case": "care_message_mark" },
-  "care_log_grew(uuid,uuid,text)": { "class": "account", "case": "care_log_grew" }
+  "care_log_grew(uuid,uuid,text)": { "class": "account", "case": "care_log_grew" },
+  "onboarding_event_shape_valid(text,text,text,text,integer)": { "class": "pure", "reason": "Followups #18: validates which of step/question/pilot_arm/duration_ms a kind may carry for a check constraint; reads no table." },
+  "record_onboarding_events(jsonb)": { "class": "account", "case": "onboarding_events" },
+  "taste_dislike_remove(uuid,uuid,text)": { "class": "account", "case": "taste_dislike_remove" },
+  "taste_dislike_remove_undo(uuid,uuid)": { "class": "account", "case": "taste_dislike_undo" }
 }
