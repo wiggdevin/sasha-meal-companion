@@ -11,7 +11,10 @@ import { SproutFigure, type SproutPose } from "@/components/today/island/SproutF
  *  (the stream card, the dock) already animates.
  *
  *  Fixed here, scoped to this onboarding-owned file, with a genuinely transform-only scale: the
- *  outer box is a STATIC `BASE_SIZE` square (the largest size any beat uses, with headroom) that
+ *  outer box is a STATIC `BASE_SIZE` square (168 — VISUAL-SPEC.md §2's own largest size, the
+ *  opener's "wave" beat; no extra headroom: ui-ux-buddy's Sonnet lane caught a 200px first pass
+ *  leaving ~52px of dead space around a 96px beat, working against the same empty-middle fix this
+ *  pass is for) that
  *  never itself animates width/height — only its child's `transform: scale()` changes, so this
  *  never forces layout on a frame (an earlier version of this fix animated the outer box's
  *  width/height too, which ui-ux-buddy's Sonnet lane correctly flagged: that still forces layout
@@ -24,7 +27,7 @@ import { SproutFigure, type SproutPose } from "@/components/today/island/SproutF
  *  ease-out curve already established for this shell's generative containers — see
  *  ConversationalOnboarding.tsx's own `CONTAINER_EASE`, `app/globals.css`'s `.morphing-dock` — so
  *  Sprout's resize reads as the same coordinated move, not a fourth, different one. */
-const BASE_SIZE = 200;
+const BASE_SIZE = 168;
 const SIZE_EASE = [0.23, 1, 0.32, 1] as const;
 const SIZE_TRANSITION = { duration: 0.24, ease: SIZE_EASE };
 

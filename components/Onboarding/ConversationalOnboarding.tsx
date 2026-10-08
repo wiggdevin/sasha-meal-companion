@@ -688,7 +688,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         on it). §3: a soft backdrop so the stage is never an empty field; it quiets to one glow for
         the reward beat, the deliberate exception to "always busy". */}
     <div className={styles.backdrop} data-reward={beat === "reward" || undefined} aria-hidden="true" />
-    <div className={styles.scroller}>
+    {/* ui-ux-buddy NIT: `.guide`'s `layout="position"` projects inside this scrolling ancestor —
+        `layoutScroll` keeps that projection correct if the account has scrolled mid-transition,
+        instead of animating from a stale offset. */}
+    <motion.div layoutScroll className={styles.scroller}>
       <div className={styles.stream}>
         {/* ui-ux-buddy's Sonnet lane (polish pass, 2026-10-07): `.stream`'s own `justify-content:
             center` (below, the empty-middle fix) re-centers the whole block on every beat change,
@@ -710,7 +713,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
           <BeatLayer key={beat} reduce={reduce}>{streamContent}</BeatLayer>
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
     {leaveError && <p role="alert" className="px-4 text-center text-caption text-alert">{leaveError}</p>}
     <div className={styles.skipLink}>
       <Button variant="ghost" size="sm" onClick={handleSkip}>Skip for now</Button>
