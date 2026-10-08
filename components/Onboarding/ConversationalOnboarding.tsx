@@ -204,6 +204,7 @@ const TYPE_HINT: Partial<Record<OnboardingFactKey, string>> = {
 const OPENER_HINT = "Or type it: lose fat, 34, 5 10, 170 lb";
 const BLOCKED_NOTE = "That sounds like a health or allergy detail. Tap what applies here, so every plan respects it.";
 const RULES_UNVERIFIED = "Couldn’t verify your food rules. Try again.";
+const HEALTH_ANSWERS_UNCHECKED = "Couldn’t check your saved health answers. Check your connection, then try again.";
 const UNREAD_NOTE = "Sprout didn’t catch that. Try a number, like 34 or 5 10, or tap an answer.";
 
 /** Clear extension points for a caller that wants to render something other than this lane's own
@@ -508,7 +509,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   // both, so a stored hold the round did not repeat still holds the pace here.
   // A `409 rate_not_eligible` answer re-reads them, and holds the plan whatever that read says:
   // the pace screen, the preview and the save then all drop the pace, never only a note.
-  const storedEligibility = useStoredEligibility(!!base, serverHeld ? 1 : 0);
+  const storedState = useStoredEligibility(!!base, serverHeld ? 1 : 0);
+  const storedEligibility = storedState.eligibility;
   const notedEligibility = useMemo(() => mergeEligibility(eligibilityFor(plan), storedEligibility),
     [plan, storedEligibility]);
   const baseEligibility = useMemo(() => serverHeldEligibility(notedEligibility, serverHeld),
@@ -565,7 +567,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   })();
   const proteinAvailability = starter.choices
     ? starterProteinAvailability(starter.marks, starter.choices, plannedCount) : null;
-  const planReady = settings !== null && onboardingState !== null
+  // The account as it stands (its other Eats and saved days), so a returning account's preview
+  // is Today's plan too (final Sol review BLOCK). Until it is read the reward card stays in its
+  // preparing state and "Use this plan" waits: no starter-only preview is ever shown.
+  const previewAccount = usePreviewAccount(beat === "reward");
+  const planReady = previewAccount !== null && settings !== null && onboardingState !== null
     && missingProfileFields(onboardingState, baseEligibility).length === 0 && !plannedCountFailed
     && (
       // GPT-6 Sol round-2 BLOCK: pilot used to need no verified food state at all — reaching
@@ -581,7 +587,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  is still missing (every account starts here until the facts beat, lane 3, is answered); the
    *  reward card renders its own "preparing" state for that, not a crash. */
   const targets = useMemo<RewardPlateTargets | null>(() => {
-    if (!settings || !onboardingState) return null;
+    if (!settings || !onboardingState || (beat === "reward" && previewAccount === null)) return null;
     if (missingProfileFields(onboardingState, baseEligibility).length > 0) return null;
     try {
       const completed = buildCompletedSettings(settings, onboardingState, new Date(), baseEligibility);
@@ -590,7 +596,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     } catch {
       return null;
     }
-  }, [settings, onboardingState, baseEligibility]);
+  }, [settings, onboardingState, baseEligibility, beat, previewAccount]);
 
   /** The foods the reward card names: the person's own taps first (in tap order), then the rest
    *  of the loved foods (Sprout's picks) in deck order. Live QA 2026-10-07 (defect 5): this used
@@ -614,17 +620,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   /** The meals Today will open on, built by Today's own `resolveDay` over the picked foods
    *  (`lib/onboarding/plan-preview.ts`), so the preview and Today agree. Empty while anything is
    *  missing. */
-  // The account as it stands (its other Eats and saved days), so a returning account's preview
-  // is Today's plan too (final Sol review BLOCK).
-  const previewAccount = usePreviewAccount(beat === "reward");
   const previewMeals = useMemo<PlanPreviewMeal[]>(() => {
-    if (beat !== "reward" || !settings || !onboardingState || !starter.choices) return [];
+    if (beat !== "reward" || !previewAccount || !settings || !onboardingState || !starter.choices) return [];
     if (missingProfileFields(onboardingState, baseEligibility).length > 0) return [];
     try {
       const completed = buildCompletedSettings(settings, onboardingState, new Date(), baseEligibility);
       const picked = starter.choices.filter((item) => starter.marks[item.id] === "eats")
         .map((item) => starterFood(item.id, "eats"));
-      return onboardingPlanPreview(completed, picked, todayIso(), previewAccount ?? undefined)
+      return onboardingPlanPreview(completed, picked, todayIso(), previewAccount)
         .meals.slice(0, 3);
     } catch {
       return [];
@@ -674,14 +677,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
 
   /** Whether a later beat is already settled for these answers, so the walk forward skips it.
    *  The pace counts as settled only when the route needs none or a valid preset is confirmed. */
-  function settled(next: PlanBeat, answers: PlanAnswers): boolean {
+  function settled(next: PlanBeat, answers: PlanAnswers, stored: TargetEligibility | null): boolean {
     if (next === "week") return answers.week !== null;
     if (next === "safety") return answers.safety !== null;
     if (next === "pace") {
       // The same eligibility the plan is built under: these answers' taps, the account's stored
       // holds and a server refusal (final Sol review BLOCK).
       const eligibility = serverHeldEligibility(
-        mergeEligibility(eligibilityFor(answers), storedEligibility), serverHeld);
+        mergeEligibility(eligibilityFor(answers), stored), serverHeld);
       const nextPace = paceFor(settings, answers, eligibility, today);
       return !paceBeatNeeded(nextPace) || storedPace(nextPace, answers) !== null;
     }
@@ -693,26 +696,50 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   /** QUESTION-SET-v2.md §6: the next beat after `from` that still needs an answer. Under 18
    *  stops at the friendly stop; the body facts come back first if any is still missing (the
    *  safety card can open early from a typed health detail). */
-  function forward(from: "facts" | PlanBeat, answers: PlanAnswers = plan) {
+  function forward(from: "facts" | PlanBeat, answers: PlanAnswers, stored: TargetEligibility | null) {
     setSafetyNote(null);
     if (!allRequiredFactsConfirmed(facts)) { advance("facts"); return; }
-    if (minor) { advance("minor"); return; }
+    if (minor || stored?.minor) { advance("minor"); return; }
     const start = from === "facts" ? 0 : PLAN_ORDER.indexOf(from) + 1;
-    const next = PLAN_ORDER.slice(start).find((candidate) => !settled(candidate, answers)) ?? "reward";
+    const next = PLAN_ORDER.slice(start).find((candidate) => !settled(candidate, answers, stored)) ?? "reward";
     if (next === "reward") setReturnToReward(false);
     advance(next);
   }
 
+  /**
+   * `forward`, once the account's stored holds are read (final Sol review BLOCK): a walk that
+   * could reach the pace waits for that read, and a failed read stays on this step with a retry
+   * line, so an unread account is never routed as one with no stored hold.
+   */
+  async function walk(from: "facts" | PlanBeat, answers: PlanAnswers = plan) {
+    // The pace is reachable only once the week and the safety round are answered.
+    const paceReachable = answers.week !== null && answers.safety !== null;
+    if (storedState.status === "ready" || !paceReachable) {
+      forward(from, answers, storedState.eligibility);
+      return;
+    }
+    setCheckingRules(true);
+    let stored: TargetEligibility | null;
+    try {
+      stored = await storedState.refresh();
+    } finally {
+      setCheckingRules(false);
+    }
+    if (!stored) { setLeaveError(HEALTH_ANSWERS_UNCHECKED); return; }
+    setLeaveError(null);
+    forward(from, answers, stored);
+  }
+
   /** "That's me": only shown once every required field is confirmed. */
   function confirmFacts() {
-    if (allRequiredFactsConfirmed(facts)) forward("facts");
+    if (allRequiredFactsConfirmed(facts)) void walk("facts");
   }
 
   /** A beat's Next: store its answer, then walk on (or back to the plan card after a Change). */
   function answerPlan(from: PlanBeat, patch: Partial<PlanAnswers>) {
     const next = { ...plan, ...patch };
     setPlan(next);
-    forward(from, next);
+    void walk(from, next);
   }
 
   /** The plan card's Change link: reopen that beat; a week or safety change re-asks the pace,
@@ -857,6 +884,12 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     if (leaving.current) return;
     if (!settings || !onboardingState) { setLeaveError(ONBOARDING_SYNC_WARNING); return; }
     leaving.current = true;
+    // Never save on an unread account (final Sol review BLOCK): the stored holds decide the pace.
+    let stored = storedState.eligibility;
+    if (storedState.status !== "ready") {
+      stored = await storedState.refresh();
+      if (!stored) { leaving.current = false; setLeaveError(HEALTH_ANSWERS_UNCHECKED); return; }
+    }
     const title = "Building your plan…";
     setSavingState({ title, step: "Saving your profile, targets and foods." });
     setLeaveError(null);
@@ -868,13 +901,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     const targetRequestId = await onboardingTargetRequestId(requestKey);
     const result = await saveOnboardingPlan({
       settings, onboardingState, safety: safetyAnswers, targetRequestId,
+      storedEligibility: serverHeldEligibility(mergeEligibility(stored), serverHeld),
       starter: writesFoods ? { status: foodAccess.status as "legacy" | "pilot", marks: starter.marks, plannedCount } : null,
     }, {
-      persistPlan: async (planSettings, state, now, deps, safety, requestId) => {
+      persistPlan: async (planSettings, state, now, deps, safety, requestId, held) => {
         if (profileWritten.current && profileWrittenKey.current === requestKey) {
           return { settings: planSettings, constraintsSaved: constraintsSaved.current };
         }
-        const written = await persistCompletedOnboarding(planSettings, state, now, deps, safety, requestId);
+        const written = await persistCompletedOnboarding(planSettings, state, now, deps, safety, requestId, held);
         profileWritten.current = true;
         profileWrittenKey.current = requestKey;
         constraintsSaved.current = written.constraintsSaved;
@@ -900,7 +934,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     setSavingState({ title, step: "Opening Today." });
     await clearOnboardingDraft();
     router.replace("/");
-  }, [router, settings, onboardingState, safetyAnswers, foodAccess.status, starter.marks, plannedCount]);
+  }, [router, settings, onboardingState, safetyAnswers, foodAccess.status, starter.marks, plannedCount,
+    storedState, serverHeld]);
 
   const handleSkip = onSkip ?? (() => void leaveOnboarding());
   /** "Use this plan". GPT-6 Sol BLOCK (onb2-p0): it never takes the skip path. A plan that is not
@@ -914,7 +949,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const foodsReady = starterSelectionReady
     && (foodAccess.status === "pilot" || proteinAvailability?.ready === true);
   const lovedCount = selectedStarterIds.length;
-  const dockMode: OnboardingDockMode | null = beat === "foods" && foodsReady ? "confirm" : BEAT_DOCK[beat];
+  // "Use this plan" appears once the reward card shows Today's plan (the account read answered).
+  const dockMode: OnboardingDockMode | null = beat === "reward" && previewAccount === null ? null
+    : beat === "foods" && foodsReady ? "confirm" : BEAT_DOCK[beat];
 
   /** Foods "Done": ONB2-RULE-REREAD (Sol r6 BLOCK on onb2-l4-r2). `starter.choices` here can be
    *  minutes stale — a rule saved mid-flow through the inline rule editor never retriggers the
@@ -985,6 +1022,20 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     if (beat === "safety") return slots.allergyCard ?? <SafetyRound initial={plan.safety} note={safetyNote}
       busy={checkingRules} onDone={(result) => void safetyDone(result)} />;
     if (beat === "pace") {
+      // A resumed draft can open here before the stored holds are read: wait, and on a failed
+      // read offer the walk again (it re-reads and skips the pace for a held account).
+      if (storedState.status !== "ready") {
+        return storedState.status === "failed"
+          ? <Button variant="primary" size="lg" block onClick={() => void walk("safety")}>Try again</Button>
+          : <Placeholder label="Checking your saved health answers…" />;
+      }
+      // Read now, and this account needs no pace (a stored hold): one tap moves on.
+      if (pace && !paceBeatNeeded(pace)) {
+        return <div className="flex w-full flex-col gap-3">
+          <p className="m-0 text-body text-charcoal">Your saved health answers keep calories about where you burn.</p>
+          <Button variant="primary" size="lg" block onClick={() => void walk("pace")}>Next</Button>
+        </div>;
+      }
       if (!pace || (pace.kind !== "choices" && pace.kind !== "minimum") || !facts.goal
         || facts.weightKg === undefined || facts.heightCm === undefined) {
         return <Placeholder label="Working out your pace…" />;

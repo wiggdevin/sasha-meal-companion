@@ -16,10 +16,10 @@
  *  lib/server/onboarding-extract.ts passes to the server-side rate limiter. */
 export const ONBOARDING_MAX_MODEL_CALLS = 5;
 
-/** The rolling window the server-side budget (lib/server/onboarding-extract.ts) counts calls
- *  over: long enough to cover one onboarding session (BRIEF.md §4 targets under ~3 minutes,
- *  including retries and a slow connection) without resetting mid-session. */
-export const ONBOARDING_SESSION_WINDOW_SECONDS = 30 * 60;
+/** The window the server-side budget (lib/server/onboarding-extract.ts) counts calls over, per
+ *  account. A day, not half an hour (final Sol review WARN): onboarding resumes from its draft,
+ *  so a session left open and picked up later must not get a fresh five attempts. */
+export const ONBOARDING_SESSION_WINDOW_SECONDS = 24 * 60 * 60;
 
 /** A local, non-authoritative estimate of whether one more model call is still within budget,
  *  from the caller's OWN count of calls it has seen succeed. Useful for the UI's own display;

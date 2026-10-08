@@ -51,6 +51,11 @@ describe("onboardingSafetyCheck", () => {
     "I'm on a pill for anxiety and want to build muscle",
     "taking 20 mg of something, want to maintain",
     "I'm on birth control and want to lose 10 lb",
+    "I take amoxicillin and want to lose weight",
+    "I take vitamin d, 5'7 140 lb",
+    "currently on sertraline, want to lose fat",
+    "started losartan last month, want to lose 15 lb",
+    "I'm taking doxycycline, want to maintain",
   ])("blocks a medicine taken: %s", (text) => {
     expect(onboardingSafetyCheck(text)).toEqual({ blocked: true, reason: "medical" });
   });
@@ -59,6 +64,9 @@ describe("onboardingSafetyCheck", () => {
     "I'm on a diet and want to lose 20 lb",
     "I'm on keto right now, 5'6 150 lb",
     "I take the stairs at work and lift three times a week",
+    "I take spin classes twice a week and want to lose 10 lb",
+    "I want to build muscle, I lift four days a week",
+    "I'd like to lose some fat, mostly sitting at a desk",
   ])("still clears ordinary opener speech: %s", (text) => {
     expect(onboardingSafetyCheck(text)).toEqual({ blocked: false });
   });

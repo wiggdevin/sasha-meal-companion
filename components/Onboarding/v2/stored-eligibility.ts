@@ -10,10 +10,10 @@
  * This reads the same two stored sources the server reads — the constraint row's `conditions`
  * and the account's dietary-profile instances — once per account, and merges them with the
  * round's taps, so the pace screen, the plan card and the reward preview agree with the save.
- * A read that fails leaves the round's own answers in force; the server still refuses a pace
- * for a held account (`409 rate_not_eligible`), which the shell then shows as held.
+ * The shell offers no pace and saves no plan until this read has answered (a failed read stays
+ * on the step with a retry): an unread account is never treated as one with no stored hold.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { accountHandle } from "@/lib/device/account";
 import { loadConstraints } from "@/lib/constraints-client";
 import { fetchProfileInstances } from "@/lib/profile/instances-client";
@@ -73,17 +73,32 @@ export async function readStoredEligibility(
   }
 }
 
-/** `readStoredEligibility` once per mount and again whenever `refresh` changes (the shell bumps
- *  it after a `409 rate_not_eligible`); `null` until it answers, and after a failed read. */
+export type StoredEligibilityState = {
+  /** The stored holds once read; null while loading and after a failed read. */
+  eligibility: TargetEligibility | null;
+  status: "loading" | "ready" | "failed";
+  /** Reads again now and answers the holds (null on failure). The routing awaits this before it
+   *  can offer a pace, so a slow or failed first read never lets a held account see one. */
+  refresh: () => Promise<TargetEligibility | null>;
+};
+
+/** `readStoredEligibility` once per mount and again whenever `refresh` is called or `bump`
+ *  changes (the shell bumps it after a `409 rate_not_eligible`). */
 export function useStoredEligibility(
-  enabled: boolean, refresh = 0, reads: StoredEligibilityReads = defaultReads,
-): TargetEligibility | null {
-  const [stored, setStored] = useState<TargetEligibility | null>(null);
+  enabled: boolean, bump = 0, reads: StoredEligibilityReads = defaultReads,
+): StoredEligibilityState {
+  const [state, setState] = useState<{ eligibility: TargetEligibility | null;
+    status: StoredEligibilityState["status"] }>({ eligibility: null, status: "loading" });
+  const live = useRef(true);
+  useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
+  const refresh = useCallback(async () => {
+    const value = await readStoredEligibility(reads);
+    if (live.current) setState({ eligibility: value, status: value ? "ready" : "failed" });
+    return value;
+  }, [reads]);
   useEffect(() => {
     if (!enabled) return;
-    let live = true;
-    void readStoredEligibility(reads).then((value) => { if (live) setStored(value); });
-    return () => { live = false; };
-  }, [enabled, refresh, reads]);
-  return stored;
+    void refresh();
+  }, [enabled, bump, refresh]);
+  return { ...state, refresh };
 }

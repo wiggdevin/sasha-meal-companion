@@ -21,7 +21,8 @@ import {
 import { latestWeighInKg, saveMorningWeight } from "@/lib/today/water-and-weight";
 import type { Settings, TargetRevision } from "@/lib/types";
 import {
-  eligibilityFromSafetyAnswers, safetyConditionEntries, type SafetyAnswers,
+  eligibilityFromSafetyAnswers, RATE_HOLDS, safetyConditionEntries, type SafetyAnswers,
+  type TargetEligibility,
 } from "@/lib/profile/rate-eligibility";
 import {
   buildCompletedSettings, buildSkippedSettings, changedPlanFields, constraintPatchForFlags,
@@ -228,10 +229,19 @@ export async function persistCompletedOnboarding(
   /** GPT-6 Sol BLOCK (onb2-p0): minted ONCE per onboarding save and sent on every attempt, so a
    *  retry after a lost target answer is the same request and the server writes one revision. */
   targetRequestId?: string,
+  /** The account's stored pace holds the shell planned under (final Sol review BLOCK): merged
+   *  with this round's taps, so a stored hold the round did not repeat builds the same held plan
+   *  the screen showed, instead of failing as an incomplete profile with no pace. */
+  storedEligibility?: TargetEligibility | null,
 ): Promise<CompletedOnboardingResult> {
   const h = accountHandle();
   const conditions = safetyConditionEntries(safety);
-  const settings = buildCompletedSettings(base, state, now, eligibilityFromSafetyAnswers(safety));
+  const round = eligibilityFromSafetyAnswers(safety);
+  const eligibility: TargetEligibility = storedEligibility ? {
+    holds: RATE_HOLDS.filter((hold) => round.holds.includes(hold) || storedEligibility.holds.includes(hold)),
+    minor: round.minor || storedEligibility.minor,
+  } : round;
+  const settings = buildCompletedSettings(base, state, now, eligibility);
   if (conditions.length > 0) {
     const first = await applyFlagConstraints(h, state.flags, deps, conditions);
     if (!first.constraintsSaved) return { settings: base, ...first };

@@ -52,7 +52,7 @@ import {
 } from "@/lib/profile/onboarding-client";
 import type { OnboardingState } from "@/lib/profile/onboarding-state";
 import {
-  AdultOnlyError, safetyConditionEntries, type SafetyAnswers,
+  AdultOnlyError, safetyConditionEntries, type SafetyAnswers, type TargetEligibility,
 } from "@/lib/profile/rate-eligibility";
 import { TargetSaveRefusedError } from "@/lib/targets/client";
 import { flushOnboardingWritesNow } from "@/lib/sync/client";
@@ -79,6 +79,8 @@ export type SaveOnboardingPlanInput = {
   /** The save's one target request id, minted once and reused by every retry (the shell keeps it
    *  in the resume draft), so a lost target answer never becomes a second revision. */
   targetRequestId?: string;
+  /** The account's stored pace holds the screen planned under (stored-eligibility.ts). */
+  storedEligibility?: TargetEligibility | null;
 };
 
 export type SaveOnboardingPlanResult =
@@ -163,7 +165,7 @@ export async function saveOnboardingPlan(
   try {
     const safety = input.safety ?? {};
     const completed = await persistPlan(input.settings, input.onboardingState, undefined, undefined, safety,
-      input.targetRequestId);
+      input.targetRequestId, input.storedEligibility ?? null);
     if (!completed.constraintsSaved && safetyConditionEntries(safety).length > 0) {
       // G7: the condition patch failed before the target was written, so nothing was saved. A
       // flags-only retry would drop the conditions and leave the plan unsaved; offer the step again.

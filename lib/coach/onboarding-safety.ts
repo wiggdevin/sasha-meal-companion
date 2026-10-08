@@ -72,9 +72,14 @@ export const US_MEDICINE_NAMES: readonly string[] = [
  * the text local. Over-matching is the safe error (see REPLAY_PATTERNS).
  */
 const TAKING_MEDICINE: readonly RegExp[] = [
+  // Final Sol review r2 BLOCK ("I take amoxicillin"): a name list can never be complete, so the
+  // common generic-name stems keep any medicine local, named or not on the list above.
+  /\b[a-z]{2,}(?:cillin|mycin|micin|cycline|floxacin|sulfa\w*|pril|sartan|olol|dipine|statin|prazole|tidine|azole|conazole|vir|mab|tinib|gliptin|gliflozin|glutide|glinide|formin|parin|xaban|gatran|dronate|olone|sone|thasone|zepam|zolam|azepam|oxetine|aline|triptan|profen|codone|morphone|adol|setron|lukast|tadine|thiazide|semide|tretinoin|thyroxine|thyronine|caine)\b/,
+  // "I take <anything>" other than the everyday uses of "take".
+  /\bi(?:\x27m| am)? (?:take|takes|taking|took|have been taking|started taking|start taking|stopped taking)\s+(?!(?:the |a |my |some )?(?:stairs|walks?|bus|train|subway|car|classes|class|lessons?|breaks?|time|it easy|care|notes|photos|pictures|turns|naps?|showers?|baths?|a look|part|dance|yoga|spin|pilates|boxing)\b)(?:a |an |my |some |the )?[a-z]+/,
   /\b\d+(?:\.\d+)?\s?(?:mg|mcg|µg|iu|units?)\b/,
   /\b(?:pills?|tablets?|capsules?|doses?|dosage|dosing|injections?|injectables?)\b/,
-  /\b(?:take|takes|taking|took|started|starting|stopped)\s+(?:a |an |my |some |the |this )?(?:\w+\s+){0,2}(?:daily|every (?:day|morning|night)|each (?:day|morning|night)|a day|per day|twice|once a|at night|at bedtime|in the morning|for my|for (?:pain|sleep|anxiety|depression|acid|heart|blood|my))\b/,
+  /\b(?:take|takes|taking|took|started|starting|stopped)\s+(?:a |an |my |some |the |this )?(?:\w+\s+){0,2}(?:daily|every (?:day|morning|night)|each (?:day|morning|night)|a day|per day|at night|at bedtime|in the morning|for my|for (?:pain|sleep|anxiety|depression|acid|heart|blood|my))\b/,
   /\b(?:i'?m|i am|been|currently|still)\s+on\s+(?!a diet\b|(?:a |the )?(?:keto|paleo|vegan|vegetarian|carnivore|budget|break|vacation|holiday|night shift|my feet)\b)(?:a |an |some |the )?\w+\s+(?:for|since|daily|every|twice|now|right now|at the moment)\b/,
 ];
 

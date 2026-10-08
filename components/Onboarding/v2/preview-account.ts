@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { accountHandle } from "@/lib/device/account";
 import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import type { PreviewAccount } from "@/lib/onboarding/plan-preview";
-import { loadStore } from "@/lib/store";
+import { defaultStore, loadStore } from "@/lib/store";
 
 export type PreviewAccountReads = {
   store: typeof loadStore;
@@ -21,7 +21,12 @@ export type PreviewAccountReads = {
 const defaultReads: PreviewAccountReads = { store: loadStore, eligible: loadEligibleLocalFoodIds };
 
 export async function readPreviewAccount(reads: PreviewAccountReads = defaultReads): Promise<PreviewAccount> {
-  const store = reads.store();
+  let store: ReturnType<typeof loadStore>;
+  try {
+    store = reads.store();
+  } catch {
+    store = defaultStore();
+  }
   if (!Object.values(store.foods).some((food) => food.status === "eats")) return { store, verified: null };
   try {
     return { store, verified: await reads.eligible(accountHandle(), store.foods) };

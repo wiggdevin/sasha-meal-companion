@@ -104,10 +104,19 @@ const saveOnboardingPlan = vi.fn(async (input: {
   return { ok: true as const };
 });
 /** The account's stored pace holds (stored-eligibility.ts): none unless a test sets them. */
-const storedHolds = vi.hoisted(() => ({ value: null as null | { holds: string[]; minor: boolean } }));
+const storedHolds = vi.hoisted(() => ({
+  value: { holds: [] as string[], minor: false },
+  status: "ready" as "loading" | "ready" | "failed",
+  /** What a re-read answers (the routing awaits it while the first read is not ready). */
+  refresh: null as null | (() => Promise<{ holds: string[]; minor: boolean } | null>),
+}));
 vi.mock("@/components/Onboarding/v2/stored-eligibility", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/Onboarding/v2/stored-eligibility")>()),
-  useStoredEligibility: () => storedHolds.value,
+  useStoredEligibility: () => ({
+    eligibility: storedHolds.status === "ready" ? storedHolds.value : null,
+    status: storedHolds.status,
+    refresh: storedHolds.refresh ?? (async () => storedHolds.value),
+  }),
 }));
 vi.mock("@/lib/onboarding/save-plan", () => ({
   saveOnboardingPlan: (input: never, deps: never) => saveOnboardingPlan(input, deps),
@@ -115,7 +124,9 @@ vi.mock("@/lib/onboarding/save-plan", () => ({
 }));
 
 beforeEach(() => {
-  storedHolds.value = null;
+  storedHolds.value = { holds: [], minor: false };
+  storedHolds.status = "ready";
+  storedHolds.refresh = null;
   (globalThis as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
   foodAccess.status = "unavailable";
   starterFixture.choices = null;
@@ -668,6 +679,29 @@ describe("ConversationalOnboarding", () => {
       const notes = await screen.findByTestId("plan-notes");
       expect(notes.textContent).toMatch(/won't set a loss or gain pace/);
       expect(notes.textContent).toMatch(/kidney disease/);
+    });
+
+    it("a stored hold read still in flight is awaited before the pace is offered (final Sol r2 BLOCK)", async () => {
+      storedHolds.status = "loading";
+      storedHolds.refresh = async () => ({ holds: ["kidney"], minor: false });
+      pickableFoods();
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
+      await screen.findByTestId("your-day-beat");
+      expect(screen.queryByTestId("pace-beat")).toBeNull();
+    });
+
+    it("a failed stored hold read keeps the person on the step with a retry line", async () => {
+      storedHolds.status = "failed";
+      storedHolds.refresh = async () => null;
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
+      expect((await screen.findByRole("alert")).textContent).toMatch(/saved health answers/);
+      expect(screen.queryByTestId("pace-beat")).toBeNull();
     });
 
     it("a minor stops: no week, no plan, and leaving saves no profile", async () => {
