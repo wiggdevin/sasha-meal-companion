@@ -13,6 +13,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultSettings } from "@/lib/store";
 import { MIC_OFF_COPY, MIC_UNAVAILABLE_COPY } from "@/components/DictateMic";
+import { onboardingDictationCopy, VOICE_RESTING_COPY } from "@/components/Onboarding/dock/useDockDictation";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("@/lib/profile/onboarding-client", () => ({
@@ -111,6 +112,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("onboarding voice", () => {
+  it("never points a refused upload at food search, which onboarding does not have", () => {
+    expect(onboardingDictationCopy("Capture is resting, try search")).toBe(VOICE_RESTING_COPY);
+    expect(onboardingDictationCopy("Capture did not answer. Try search.")).toBe(VOICE_RESTING_COPY);
+    expect(onboardingDictationCopy("Transcribing did not work. Type it, or try again."))
+      .toBe("Transcribing did not work. Type it, or try again.");
+    expect(onboardingDictationCopy(null)).toBeNull();
+  });
+
   it("tap to start, live words in the box, tap to stop, and only Send reads them", async () => {
     vi.stubGlobal("SpeechRecognition", FakeRecognition);
     render(<ConversationalOnboarding />);

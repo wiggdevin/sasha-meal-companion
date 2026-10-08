@@ -25,6 +25,17 @@ import { dictationIo } from "@/lib/voice/dictation-io";
 
 export type DockMicMode = "record" | "stop" | "busy";
 
+/** When the recorder's upload or transcription is refused. */
+export const VOICE_RESTING_COPY = "Voice did not work just now. Type it instead.";
+
+/** DictateMic's lines, plus one rule for this screen: the capture upload's refusal lines point at
+ *  food search ("Capture is resting, try search"), which onboarding does not have — here the way
+ *  forward is the text box. */
+export function onboardingDictationCopy(notice: string | null): string | null {
+  const line = dictationCopy(notice);
+  return line !== null && /\bsearch\b/i.test(line) ? VOICE_RESTING_COPY : line;
+}
+
 export type DockDictation = {
   /** This page can dictate at all (a recogniser or a recorder). The server renders no mic. */
   available: boolean;
@@ -84,7 +95,7 @@ export function useDockDictation({ readBox, writeBox, active }: {
   }, [active, hold]);
 
   const mode: DockMicMode = view?.busy || view?.settling ? "busy" : view?.listening ? "stop" : "record";
-  const line = view ? dictationStatus(view) ?? dictationCopy(view.notice) : null;
+  const line = view ? dictationStatus(view) ?? onboardingDictationCopy(view.notice) : null;
   return {
     available,
     mode,
