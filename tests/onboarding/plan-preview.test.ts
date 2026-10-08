@@ -98,3 +98,39 @@ describe("onboardingPlanPreview over the real onboarding candidate", () => {
     expect(targetRevisionOn(settings, DATE)).toBeNull();
   });
 });
+
+// Final Sol review BLOCK: a returning account's preview dropped its existing Eats, so the reward
+// card and Today planned from different food sets.
+describe("onboardingPlanPreview for a returning account", () => {
+  const DATE = "2026-10-08";
+  const own = { ...starterFood("chicken-breast-roasted", "eats"), id: "own-chicken", name: "Home roasted chicken" };
+
+  it("plans from the account's verified Eats plus the picks, exactly as Today does after the save", () => {
+    const account = defaultStore();
+    account.foods = { [own.id]: own };
+    const preview = onboardingPlanPreview(settings(), PICKED, DATE, { store: account, verified: new Set([own.id]) });
+
+    const store = defaultStore();
+    store.settings = { ...settings(), ruleReviewReady: true };
+    store.foods = { [own.id]: own, ...Object.fromEntries(PICKED.map((food) => [food.id, food])) };
+    const today = resolveDay(store, DATE, 0, new Set([own.id, ...PICKED.map((food) => food.id)]));
+    expect(preview.meals.map((meal) => [meal.time, meal.name]))
+      .toEqual(today.slots.filter((slot) => slot.meal && slot.components.length > 0)
+        .map((slot) => [slot.time, slot.meal!.name]));
+  });
+
+  it("an existing food the server did not verify stays out, as it does on Today", () => {
+    const account = defaultStore();
+    account.foods = { [own.id]: own };
+    const preview = onboardingPlanPreview(settings(), PICKED, DATE, { store: account, verified: null });
+    expect(preview.meals.flatMap((meal) => meal.components.map((part) => part.name))).not.toContain(own.name);
+  });
+
+  it("a pick's mark applies to the account's same-name food (the membership rule)", () => {
+    const account = defaultStore();
+    const sameName = { ...PICKED[0], id: "own-salmon", status: "avoid" as const };
+    account.foods = { [sameName.id]: sameName };
+    const preview = onboardingPlanPreview(settings(), PICKED, DATE, { store: account, verified: new Set() });
+    expect(preview.meals.length).toBeGreaterThan(0);
+  });
+});

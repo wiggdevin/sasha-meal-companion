@@ -33,6 +33,7 @@ import { useStarterStep } from "@/components/Onboarding/useStarterStep";
 import {
   mergeEligibility, serverHeldEligibility, useStoredEligibility,
 } from "@/components/Onboarding/v2/stored-eligibility";
+import { usePreviewAccount } from "@/components/Onboarding/v2/preview-account";
 import {
   applyFactsToSettings, buildOnboardingStateFromFacts, factsToPartialSettings, type FactsLike,
 } from "@/components/Onboarding/v2/facts-bridge";
@@ -612,6 +613,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   /** The meals Today will open on, built by Today's own `resolveDay` over the picked foods
    *  (`lib/onboarding/plan-preview.ts`), so the preview and Today agree. Empty while anything is
    *  missing. */
+  // The account as it stands (its other Eats and saved days), so a returning account's preview
+  // is Today's plan too (final Sol review BLOCK).
+  const previewAccount = usePreviewAccount(beat === "reward");
   const previewMeals = useMemo<PlanPreviewMeal[]>(() => {
     if (beat !== "reward" || !settings || !onboardingState || !starter.choices) return [];
     if (missingProfileFields(onboardingState, baseEligibility).length > 0) return [];
@@ -619,11 +623,12 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       const completed = buildCompletedSettings(settings, onboardingState, new Date(), baseEligibility);
       const picked = starter.choices.filter((item) => starter.marks[item.id] === "eats")
         .map((item) => starterFood(item.id, "eats"));
-      return onboardingPlanPreview(completed, picked, todayIso()).meals.slice(0, 3);
+      return onboardingPlanPreview(completed, picked, todayIso(), previewAccount ?? undefined)
+        .meals.slice(0, 3);
     } catch {
       return [];
     }
-  }, [beat, settings, onboardingState, baseEligibility, starter.choices, starter.marks]);
+  }, [beat, settings, onboardingState, baseEligibility, starter.choices, starter.marks, previewAccount]);
 
   /** "Your day" defaults and the plan card's named defaults: the meal count "Pick for me" gives
    *  for this plan's calories, and the first time the plan actually uses. */
