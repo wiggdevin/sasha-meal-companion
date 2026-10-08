@@ -11,7 +11,7 @@ import { LEDGER_COPY, SHOP_ITEMS, itemById, words, type CareScene, type ShopItem
 import { equip, pendingSeeds, purchase, seeds, type EquipOutcome, type PurchaseOutcome, type ShopState } from "@/components/today/care/shop/shop-state";
 import { play, readMuted, unlockAudio } from "@/components/today/care/sound";
 import styles from "@/components/today/care/shop/Shop.module.css";
-import { named } from "@/components/today/island/mascots";
+import { named, sceneArt, type ScenePose } from "@/components/today/island/mascots";
 import { useMascot } from "@/components/today/island/well-pet";
 
 /** A seed: the Seeds glyph, in the currentColor of its place. */
@@ -41,6 +41,9 @@ export type ShopRules = {
   purchase: (state: ShopState, itemId: string, actionId: string) => Promise<PurchaseOutcome | "failed">;
   equip: (state: ShopState, slot: Slot, itemId: string | null) => Promise<EquipOutcome | "failed" | "conflict">;
 };
+
+/** A care scene's tile shows its first frame, drawn for the chosen companion. */
+const SCENE_TILE: Record<CareScene, ScenePose> = { massage: "massage-1" };
 
 export default function CareShop({ state, onChange, today, rules, items, onRefresh, onClose }: {
   state: ShopState;
@@ -95,10 +98,11 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   const owned = item ? state.owned.includes(item.id) : false;
   // A care scene (a massage) is done for Sprout: it plays, it is never worn or tried on.
   const care = item?.scene ?? null;
-  const worn = item && !care ? state.equipped[item.slot] === item.id : false;
+  // Another companion wears nothing: what Sprout has on stays with Sprout and is not shown as on.
+  const worn = item && !care && wears ? state.equipped[item.slot] === item.id : false;
   const [playing, setPlaying] = useState<CareScene | null>(null);
   // What Sprout has on: its own things, and the chosen item tried on in its slot.
-  const wearing: Partial<Record<Slot, string>> = { ...state.equipped };
+  const wearing: Partial<Record<Slot, string>> = wears ? { ...state.equipped } : {};
   if (item && !care && wears) wearing[item.slot] = item.id;
   const pending = pendingSeeds(state);
 
@@ -108,7 +112,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     // Say so whenever the preview actually changes what Sprout has on — an owned item not yet worn
     // previews exactly like an unbought one. Selecting an already-worn item changes nothing to say.
     if (next.scene) setSaid("");
-    else if (!wears) setSaid("");
+    else if (!wears) setSaid("Only Sprout can wear this for now.");
     else if (state.equipped[next.slot] !== next.id) setSaid(`Sprout tries on ${words(next).the}.`);
   };
   const buy = async (target: ShopItem) => {
@@ -203,12 +207,12 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     <ul className={styles.tiles} aria-label="Items">
       {offered.map((entry) => {
         const mine = state.owned.includes(entry.id);
-        const on = state.equipped[entry.slot] === entry.id;
+        const on = wears && state.equipped[entry.slot] === entry.id;
         return <li key={entry.id}>
           <button type="button" ref={(el) => { tileRefs.current[entry.id] = el ?? undefined; }}
             className={`tap ${styles.tile}`} aria-pressed={chosen === entry.id}
             aria-label={named(`${entry.name}, ${mine ? (on ? "yours, on Sprout" : "yours") : seeds(entry.price)}`, mascot)} onClick={() => choose(entry)}>
-            <span className={styles.tileArt}><Image src={entry.art} alt="" fill sizes="48px" draggable={false} /></span>
+            <span className={styles.tileArt}><Image src={entry.scene ? sceneArt(mascot, SCENE_TILE[entry.scene]) : entry.art} alt="" fill sizes="48px" draggable={false} /></span>
             {mine ? <span className={styles.tileMark}>{on ? "On" : "Yours"}</span>
               : <span className={styles.tilePrice}><Seed />{entry.price}</span>}
           </button>

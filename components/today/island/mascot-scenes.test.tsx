@@ -7,7 +7,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import { MASCOT_KEYS, SCENE_POSES, named, sceneArt } from "./mascots";
 
@@ -57,5 +57,19 @@ describe("the chosen companion in a care scene and the shop", () => {
     const srcs = [...container.querySelectorAll("img")].map((img) => decodeURIComponent(img.getAttribute("src") ?? ""));
     expect(srcs.some((src) => src.includes("/pet/mascots/blueberry/content.webp"))).toBe(true);
     expect(srcs.some((src) => src.includes("/pet/shop/"))).toBe(false);
+  });
+  it("keeps what Sprout has on with Sprout: another companion's shop shows it as owned, never on", async () => {
+    const { default: CareShop } = await import("@/components/today/care/shop/CareShop");
+    const state = { balance: 42, owned: ["leaf-pin"], equipped: { pin: "leaf-pin" }, rev: 1, receipts: {}, ledger: [] };
+    render(<MotionConfig reducedMotion="always"><CareShop state={state as never} onChange={() => {}} today="2026-10-07" /></MotionConfig>);
+    expect(screen.getByRole("img", { name: "Blu" })).toBeTruthy();
+    const massage = screen.getByRole("button", { name: /^Massage/ });
+    expect(decodeURIComponent(massage.querySelector("img")?.getAttribute("src") ?? "")).toContain("/pet/mascots/blueberry/scene/massage-1.webp");
+    const tile = screen.getByRole("button", { name: /^Leaf pin/ });
+    expect(tile.getAttribute("aria-label")).toBe("Leaf pin, yours");
+    fireEvent.click(tile);
+    expect(screen.queryByRole("button", { name: "Take off" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Wear" })).toBeNull();
+    expect(screen.getAllByText("Only Sprout can wear this for now.").length).toBeGreaterThan(0);
   });
 });
