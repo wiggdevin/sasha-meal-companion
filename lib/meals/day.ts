@@ -18,6 +18,7 @@ import { byCode } from "@/lib/meals/parts";
 import { generationPool } from "@/lib/meals/pool";
 import { hasTasteValues, type TasteValues } from "@/lib/meals/preference";
 import { SUGGESTIONS_NEED_CONNECTION, type MealEvidence } from "@/lib/meals/snapshot";
+import type { CuisineRanking } from "@/lib/meals/cuisine";
 
 export type DaySlot = { id: SlotId; target: Macros; clock?: string | null; occasion?: Occasion };
 export type DayPlan = {
@@ -168,10 +169,14 @@ function assign(choices: Choice[], value: PlateValue = scoreValue): (string | nu
  * `focus` is the account's active shopping focus for this date (W11, D7; lib/shopping/focus.ts
  * `focusRankingOn`): every slot ranks by (fits, coverage, score) and the day keeps that key per
  * slot. Absent: byte-identical to the day without it.
+ *
+ * `cuisine` is the account's stated cuisines (lib/meals/cuisine.ts): each plate's score takes its
+ * cuisine factor. Absent (no cuisine stated): byte-identical to the day without it.
  */
 export function planDay(date: string, slots: readonly DaySlot[],
   foods: readonly Food[] | Readonly<Record<string, Food>>, overrides?: OccasionOverrides,
-  evidence?: MealEvidence | null, taste?: TasteValues, open?: OpenRanking, focus?: FocusRanking): DayPlan {
+  evidence?: MealEvidence | null, taste?: TasteValues, open?: OpenRanking, focus?: FocusRanking,
+  cuisine?: CuisineRanking): DayPlan {
   // A slot with no calories or no protein left to serve (an eaten recipe covered the day's
   // protein) gets no generated plate, as before O1: protein leads every plate.
   const ordered = inClockOrder(slots).filter((slot) => slot.target.kcal > 0 && slot.target.protein > 0);
@@ -185,7 +190,7 @@ export function planDay(date: string, slots: readonly DaySlot[],
     const occasion = slot.occasion ?? occasionAt(slot.clock, { slot: slot.id, overrides });
     return { date, slot: slot.id, occasion, untimed: isUntimed(occasion, slot.clock), target: slot.target,
       foods: pool, ...(evidence ? { evidence } : {}), ...(hasTasteValues(taste) ? { taste } : {}),
-      ...(open ? { open } : {}), ...(focus ? { focus } : {}) };
+      ...(open ? { open } : {}), ...(focus ? { focus } : {}), ...(cuisine ? { cuisine } : {}) };
   });
   const rankings = inputs.map((input) => rankPlates(input));
   const choices: Choice[] = rankings.map((ranking) => new Map(bestPerAnchor(ranking.plates)
