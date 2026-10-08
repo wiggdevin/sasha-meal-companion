@@ -23,6 +23,10 @@
     "test": "tests/tenancy/admin-facets-warm.test.ts",
     "via": "@/app/api/foods/facets/warm/route"
   },
+  "app/api/foods/world/invitation/route.ts": {
+    "test": "tests/tenancy/admin-food-world.test.ts",
+    "via": "@/app/api/foods/world/invitation/route"
+  },
   "app/api/foods/world/route.ts": {
     "test": "tests/tenancy/admin-food-world.test.ts",
     "via": "@/app/api/foods/world/route"

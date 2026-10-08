@@ -290,6 +290,45 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   `co` part ships only under the ruling and passes H1–H5 (`tests/foods/pairing-gate.test.ts`,
   `tests/foods/pairing-check-artifact.test.ts`); Jev never grades its own labels — the holdout is
   human-labelled only (`tests/foods/pairing-calibration.test.ts`).
+- Favored rename, star merge and account move-over (Phase 18 W13, D13, D14, ruling
+  `docs/decisions/2026-10-05-phase-18-open-questions.md` Q5). The wire name stays `eats` —
+  `status = 'eats'`, the sync op, `add_to_eats`/`remove_from_eats` and `/api/foods/eligible`
+  never rename; only the copy a person reads changes, to "Favored". A new account opens
+  (`food_world = 'open'`) at onboarding completion (`lib/profile/onboarding-client.ts`
+  `persistCompletedOnboarding` / `persistSkippedOnboarding`, first completion only) with 0
+  default or inherited Favored marks. The open is durable (`lib/foods/world-open-client.ts`): a
+  pending intent in the account's META store, re-posted after every successful sync
+  (`lib/sync/post-sync.ts`) until the server answers 200 open, 423, 409 `condition_review` or
+  another final 4xx. The retry sends `intent: "onboarding_default"`, which `setFoodWorld`
+  (`lib/server/food-world.ts`) is one conditional write (`... where food_world_set_at is null`)
+  on `user_settings.food_world_set_at` (migration `20261227090100`, **must be applied to
+  production before this code merges**), so once the account is stamped the default changes
+  nothing, whatever the interleaving — a backend-side guarantee, needing no UI change, that the
+  retry can never re-open an account a person already decided about. It then answers 200 with the
+  account's own world, and the phone clears the intent on `closed` as well as `open`. An explicit
+  Settings POST (no `intent`) always applies and restamps. The legacy zero-food auto-seed
+  (`lib/foods/today-starter.ts`) is the SERVER's decision, so every device agrees: it runs only on
+  `GET /api/foods/world` answering `{ world: "closed", starterSeed: true }`
+  (`readFoodWorldState`). The same migration adds `food_world_default_due_at`, which a trigger
+  stamps in the write that first sets `onboarded_at` (and, like `food_world_set_at`, refuses from
+  the signed-in user); an account with that stamp, no `food_world_set_at`, still closed and
+  openable (released, not held, no unconfirmed condition) is `openDefaultPending` and never
+  seeds on any device — and a device that reads it takes the open default over. A legacy account
+  (no stamp), an explicit closed choice, or a default that can never open the account by policy
+  seeds as the closed world always did; an open account, a row the server has not onboarded, a
+  failed or partial read seeds nothing.
+  An existing account keeps its Eats marks as Favored marks, unchanged, when it opts in —
+  `POST /api/foods/world` never writes `user_food_prefs`. A held account
+  (`OPEN_WORLD_HOLD_USER_IDS`) never sees the invitation (`GET /api/foods/world/invitation`) and
+  stays `closed`. The one-time star merge (`scripts/star-to-favored.ts`) turns a live
+  `favorites_foods` star into a Favored mark by name family, unless the family is already on
+  Avoid (any Avoid pref of the family, never a capped ref set, a soft-deleted user food included
+  as `_favor_family_avoided` reads it) — never overriding it — skips a
+  star on another account's food, reads account rows with the owner's explicit `user_id`, runs
+  under plain `tsx` (no `server-only` import), and converges to 0 further writes on a second run.
+  Guarded by `tests/foods/food-world.test.ts`, `tests/foods/today-starter.test.ts`,
+  `tests/migrations/food-world-markers-db.test.ts`, `tests/foods/star-to-favored.test.ts`, `tests/foods/star-to-favored-cli.test.ts` and
+  `tests/onboarding/open-food-world.test.ts`.
 
 ## Data model in one line
 `Food { id, name, role: protein|carb|fat, unit, perUnit: {protein,carbs,fat}, status: eats|avoid, note?, noCook?, updatedAt }`.
