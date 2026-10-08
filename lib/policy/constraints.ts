@@ -76,6 +76,16 @@ export type PolicyEvidence = {
   onEatsList: boolean;
   /** This account's own `user_food_prefs.status` for this food is `avoid`. */
   onAvoidList: boolean;
+  /**
+   * Phase 18 D4 (the "no evidence" row of the exclusions table): the evidence carries a derived,
+   * deterministic state for EVERY allergen key (listed, clear or unknown: an open-world universe
+   * item), so the legacy no-tag-list gate below never decides it. That gate
+   * is the closed world's allow list (only an Eats mark lifts it); with this flag the verdict is
+   * exactly the resolved marks. It clears nothing else: an avoided allergen still decides for
+   * itself (an `unknown` state stays unverified), and every diet, category, custom and profile
+   * rule still marks as before.
+   */
+  perAllergenEvidence?: true;
   /** Confirmed preferences are matched here in code, never sent to Jev. */
   preferenceFlags?: readonly PolicyPreferenceFlag[];
   /**
@@ -195,7 +205,7 @@ export function evaluatePolicy(profile: ConstraintProfile, e: PolicyEvidence): P
     const withFindings = { ...resolved, allergens: findings };
     return enhanced ? { ...withFindings, marks } : withFindings;
   }
-  if (resolved.verdict !== "allowed" || e.allergenTags !== null || e.onEatsList) {
+  if (resolved.verdict !== "allowed" || e.allergenTags !== null || e.onEatsList || e.perAllergenEvidence) {
     return enhanced ? { ...resolved, marks } : resolved;
   }
   const legacy = { verdict: "unverified" as const };

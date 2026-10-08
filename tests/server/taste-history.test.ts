@@ -55,8 +55,10 @@ describe("W3 acceptance 1: a fixed history gives exact deduplicated H, Q and M (
     expect(item(body, "u:broccoli-cooked")).toMatchObject({ days180: 2,
       h: r4(decay([15], H_HALF_LIFE_DAYS) + decay([12], H_HALF_LIFE_DAYS, 0.5)),
       provenance: expect.objectContaining({ estimated: true, sources: { log: 0, recipe: 1, tick: 0, mixed_dish: 1 } }) });
-    // A ref-less universe line is judged by the W2b gate: egg noodles carry an unknown allergen key.
-    expect(item(body, "u:egg-noodles-cooked")).toBeUndefined();
+    // A ref-less universe line is judged by the W2b gate. Egg noodles carry an unknown allergen key,
+    // which no rule of this account reads, so they count (owner direction 2026-10-08: every eaten
+    // ingredient feeds the profile unless the account's rules exclude it).
+    expect(item(body, "u:egg-noodles-cooked")).toBeDefined();
     // The dish itself is not an identity once its inputs are known.
     expect(body.items.some((row) => row.key.includes("lasagna"))).toBe(false);
   });
