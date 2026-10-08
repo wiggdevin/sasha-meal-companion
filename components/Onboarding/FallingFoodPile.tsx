@@ -73,15 +73,18 @@ const ROLE_SHARE: Record<FoodRole, number> = { protein: 5, carb: 6, fat: 3 };
 
 /** Round-robin the filtered catalog across roles so the session mixes protein/carb/fat; inside a
  *  role, plate-variety order (lib/foods/starter-variety.ts), so the capped deck offers vegetables,
- *  fruit, more than one kind of starch and distinct proteins, not five starches (onb3). */
-export function buildQueue(choices: readonly Starter[]): Starter[] {
+ *  fruit, more than one kind of starch and distinct proteins, not five starches (onb3).
+ *
+ *  `cap` is the fall's 14 by default, with the role shares. The food grids pass `Infinity`: the
+ *  whole eligible deck, in the same variety order, round-robin across roles, no shares. */
+export function buildQueue(choices: readonly Starter[], cap: number = QUEUE_CAP): Starter[] {
   const byRole = ROLES.map((role) => starterVarietyOrder(choices.filter((item) => item.role === role)));
-  const take = (shares: readonly number[]) => {
+  const take = (shares: readonly number[], limit: number) => {
     const interleaved: Starter[] = [];
-    for (let index = 0; interleaved.length < QUEUE_CAP; index += 1) {
+    for (let index = 0; interleaved.length < limit; index += 1) {
       let added = false;
       byRole.forEach((group, role) => {
-        if (index < Math.min(group.length, shares[role]) && interleaved.length < QUEUE_CAP) {
+        if (index < Math.min(group.length, shares[role]) && interleaved.length < limit) {
           interleaved.push(group[index]); added = true;
         }
       });
@@ -89,10 +92,11 @@ export function buildQueue(choices: readonly Starter[]): Starter[] {
     }
     return interleaved;
   };
-  const shared = take(ROLES.map((role) => ROLE_SHARE[role]));
-  if (shared.length >= Math.min(QUEUE_CAP, choices.length)) return shared;
+  if (cap > QUEUE_CAP) return take(ROLES.map(() => Infinity), cap);
+  const shared = take(ROLES.map((role) => ROLE_SHARE[role]), cap);
+  if (shared.length >= Math.min(cap, choices.length)) return shared;
   // A short role (a strict profile) gives its share away: refill without the shares, keeping order.
-  return take(ROLES.map(() => QUEUE_CAP));
+  return take(ROLES.map(() => cap), cap);
 }
 
 type FallItem = { item: Starter; fallKey: number; lane: number };
@@ -166,6 +170,8 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
   const reduceMotion = useReducedMotion();
   useFoodDiscArtReady();
   const queue = useMemo(() => buildQueue(choices), [choices]);
+  /** The whole eligible deck, role-interleaved, uncapped: what "Just pick from the list" shows. */
+  const deck = useMemo(() => buildQueue(choices, Infinity), [choices]);
   const [ownShown, setOwnShown] = useState<readonly string[]>([]);
   const shown = shownIds ?? ownShown;
   const markShown = (id: string) => { if (onShown) onShown(id); else setOwnShown((current) => current.includes(id) ? current : [...current, id]); };
@@ -248,7 +254,9 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
   const finished = !reduceMotion && game.issued >= remaining.length && game.falling.length === 0;
   // The end grid: everything shown this session plus anything marked loved, in deck order, current
   // deck only (an excluded food never comes back).
-  const gridItems = reduceMotion || listMode ? queue
+  // "Just pick from the list" offers the whole eligible deck; the reduced-motion grid keeps the
+  // session's 14-food cap (VISUAL-SPEC.md §6, components/Onboarding/foods-reskin.test.tsx).
+  const gridItems = listMode ? deck : reduceMotion ? queue
     : queue.filter((item) => shown.includes(item.id) || marks[item.id] === "eats");
 
   if (reduceMotion || finished || listMode) {

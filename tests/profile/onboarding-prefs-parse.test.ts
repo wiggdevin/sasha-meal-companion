@@ -31,6 +31,9 @@ describe("parsePractices", () => {
   it("reads a plain no as answered with none", () => {
     expect(parsePractices("none")).toEqual({ practices: [], none: true });
     expect(parsePractices("No")).toEqual({ practices: [], none: true });
+    expect(parsePractices("N/A")).toEqual({ practices: [], none: true });
+    expect(parseDislikes("n/a")).toEqual({ dislikes: [], none: true });
+    expect(parseCuisinesText("N/A")).toEqual({ cuisines: [], none: true });
   });
 
   it("only ever names existing deterministic rule flags, never an allergen", () => {

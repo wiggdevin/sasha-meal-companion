@@ -49,6 +49,8 @@ export default function PrefsBeat({ question, helper, inputLabel, placeholder, t
     () => (text.trim() === "" || blocked ? null : parse(text)), [text, blocked, parse]);
   const unread = !!reading && reading.ids.length === 0 && !reading.none;
   const chosen = useMemo(() => {
+    // A typed "none" is a correction: it clears every choice on this question, typed or tapped.
+    if (reading?.none) return [];
     const all = [...picked, ...(reading?.ids ?? []).filter((id) => !picked.includes(id))];
     return max === undefined ? all : all.slice(0, max);
   }, [picked, reading, max]);
@@ -71,6 +73,13 @@ export default function PrefsBeat({ question, helper, inputLabel, placeholder, t
     if (!next) { setPicked(chosen.filter((item) => item !== id)); return; }
     if (max !== undefined && chosen.length >= max) { setCapNote(true); return; }
     setPicked([...chosen, id]);
+  }
+
+  /** "None of these": nothing on this question, and on to the next one. */
+  function none() {
+    setPicked([]);
+    setText("");
+    onDone([]);
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -96,14 +105,16 @@ export default function PrefsBeat({ question, helper, inputLabel, placeholder, t
     </div>}
     {blocked && <p role="alert" className="m-0 text-caption text-alert">{HEALTH_NOTE}</p>}
     {unread && <p role="alert" className="m-0 text-caption text-alert">{unreadNote}</p>}
-    {listOpen
-      ? <TileGrid tiles={allTiles} selected={selected} onToggle={toggle} columns={3} size="md" />
-      : <Button type="button" variant="tertiary" size="md" block className="min-h-11" onClick={openList}>
+    {listOpen && <TileGrid tiles={allTiles} selected={selected} onToggle={toggle} columns={3} size="md" />}
+    <div className="flex w-full gap-2">
+      {!listOpen && <Button type="button" variant="tertiary" size="md" className="min-h-11 flex-1" onClick={openList}>
         Just pick from the list
       </Button>}
+      <Button type="button" variant="tertiary" size="md" className="min-h-11 flex-1" onClick={none}>
+        None of these
+      </Button>
+    </div>
     {capNote && max !== undefined && <p role="status" className="m-0 text-caption text-graphite">Up to {max}. Tap one to swap it out.</p>}
-    <Button type="submit" variant="primary" size="lg" block disabled={blocked || unread}>
-      {chosen.length > 0 ? "Next" : "None for me"}
-    </Button>
+    <Button type="submit" variant="primary" size="lg" block disabled={blocked || unread}>Next</Button>
   </form>;
 }

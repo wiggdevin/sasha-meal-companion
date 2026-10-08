@@ -17,8 +17,18 @@ const INCHES_PER_FOOT = 12;
 const INCHES_ONLY = { min: FEET_MIN * INCHES_PER_FOOT, max: FEET_MAX * INCHES_PER_FOOT + 11 };
 
 /** Lower case, straight quote marks, a stated period dropped ("5 ft. 10 in."), single spaces. */
+const VULGAR: Readonly<Record<string, string>> = { "½": ".5", "¼": ".25", "¾": ".75" };
+
+/** "10 1/2", "10½", "10 ½" → "10.5": a fraction of an inch joined onto its whole number. */
+function joinFractions(text: string): string {
+  return text
+    .replace(/(\d+)\s*([½¼¾])/g, (_, whole: string, part: string) => `${whole}${VULGAR[part]}`)
+    .replace(/(\d+)[\s-]+(1|3)\/(2|4)(?!\d)/g, (_, whole: string, top: string, bottom: string) =>
+      String(Number(whole) + Number(top) / Number(bottom)));
+}
+
 function normalize(text: string): string {
-  return text.trim().toLowerCase()
+  return joinFractions(text.trim().toLowerCase())
     .replace(/[’‘′`´]/g, "'")
     .replace(/[″“”]/g, "\"")
     .replace(/''/g, "\"")

@@ -162,8 +162,8 @@ async function fillRemainingRequiredFacts(age = "34"): Promise<void> {
 
 /** The question-set beats between "That's me" and the foods beat (QUESTION-SET-v2.md §6): the
  *  week (skipped), the safety round ("No, none of these"), the pace (the pre-selected chip), and
- *  "Your day" (accepted as pre-filled), then the three preference questions answered "None for
- *  me". Awaits each sequential stream swap. */
+ *  "Your day" (accepted as pre-filled), then the three preference questions answered "None of
+ *  these". Awaits each sequential stream swap. */
 async function passPlanBeats(): Promise<void> {
   fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
   fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
@@ -173,14 +173,14 @@ async function passPlanBeats(): Promise<void> {
   await passPrefsBeats();
 }
 
-/** Practices, stay-away foods and cuisines, each answered with nothing. */
+/** Practices, stay-away foods and cuisines, each answered with the "None of these" tile. */
 async function passPrefsBeats(): Promise<void> {
   await screen.findByText("Any food rules you keep?");
-  fireEvent.click(screen.getByRole("button", { name: "None for me" }));
+  fireEvent.click(screen.getByRole("button", { name: "None of these" }));
   await screen.findByText("Any foods you’d rather skip?");
-  fireEvent.click(screen.getByRole("button", { name: "None for me" }));
+  fireEvent.click(screen.getByRole("button", { name: "None of these" }));
   await screen.findByText("Which cuisines do you love?");
-  fireEvent.click(screen.getByRole("button", { name: "None for me" }));
+  fireEvent.click(screen.getByRole("button", { name: "None of these" }));
 }
 
 /** A pilot account whose rules allow two foods per group, none marked yet: "Sprout, pick for me"

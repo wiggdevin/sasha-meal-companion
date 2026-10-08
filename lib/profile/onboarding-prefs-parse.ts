@@ -62,7 +62,7 @@ const PRACTICE_WORDS: readonly [RegExp, readonly PracticeId[]][] = [
   [/\bno red meat\b|\bdon'?t eat red meat\b/, ["no_beef", "no_pork"]],
 ];
 /** "No", "none", "nothing", "no rules": answered, with no practice. */
-const NONE_ANSWER = /^(?:no|nope|none|nothing|n\/a|na|no rules|none of these|no restrictions|i eat everything|everything|anything)$/;
+const NONE_ANSWER = /^(?:no|nope|none|nothing|n a|na|no rules|none of these|no restrictions|i eat everything|everything|anything)$/;
 
 export type PracticeReading = { practices: PracticeId[]; none: boolean };
 

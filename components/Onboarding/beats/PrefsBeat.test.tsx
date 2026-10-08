@@ -37,12 +37,36 @@ describe("PrefsBeat", () => {
     const onDone = renderBeat();
     fireEvent.change(screen.getByLabelText("Cuisines"), { target: { value: "I'm allergic to shrimp" } });
     screen.getByText(/health or allergy detail/);
-    expect((screen.getByRole("button", { name: "None for me" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Cuisines"), { target: { value: "spicy stuff" } });
     screen.getByText("Sprout didn’t catch a cuisine there.");
     fireEvent.change(screen.getByLabelText("Cuisines"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "None for me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(onDone).toHaveBeenCalledWith([]);
+  });
+
+  it("a typed \"none\" clears every earlier choice, typed or tapped (Sol r1 BLOCK)", () => {
+    const onDone = vi.fn();
+    render(<PrefsBeat question="Q" helper="H" inputLabel="Cuisines" placeholder="p" tiles={tiles} labelFor={label}
+      parse={parse} initial={["korean", "italian"]} max={6} unreadNote="?" onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Cuisines"), { target: { value: "none" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onDone).toHaveBeenLastCalledWith([]);
+  });
+
+  it("a visible \"None of these\" clears the selection and moves on, from the box or the grid", () => {
+    const onDone = vi.fn();
+    render(<PrefsBeat question="Q" helper="H" inputLabel="Cuisines" placeholder="p" tiles={tiles} labelFor={label}
+      parse={parse} initial={["korean"]} max={6} unreadNote="?" onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Cuisines"), { target: { value: "thai" } });
+    fireEvent.click(screen.getByRole("button", { name: "None of these" }));
+    expect(onDone).toHaveBeenLastCalledWith([]);
+    cleanup();
+    render(<PrefsBeat question="Q" helper="H" inputLabel="Cuisines" placeholder="p" tiles={tiles} labelFor={label}
+      parse={parse} initial={["korean"]} max={6} unreadNote="?" onDone={onDone} />);
+    fireEvent.click(screen.getByRole("button", { name: "Just pick from the list" }));
+    fireEvent.click(screen.getByRole("button", { name: "None of these" }));
+    expect(onDone).toHaveBeenLastCalledWith([]);
   });
 
   it("holds the cap in the grid", () => {

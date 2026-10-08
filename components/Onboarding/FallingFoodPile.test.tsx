@@ -115,6 +115,13 @@ describe("the page settles before anything falls, and the list is one tap away (
     }
   });
 
+  it("'Just pick from the list' shows the whole eligible deck, not the 14-food animation queue (Sol r1 BLOCK)", () => {
+    const all = STARTERS.slice(0, 20);
+    render(<FallingFoodPile choices={all} marks={{}} onMark={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Just pick from the list" }));
+    expect(within(screen.getByTestId("food-grid")).getAllByRole("button")).toHaveLength(20);
+  });
+
   it("'Just pick from the list' opens the shared tile grid with every food, writing the same marks", () => {
     const onMark = vi.fn();
     const deck = choicesFor(["chicken-breast-roasted", "white-rice-cooked", "olive-oil"]);
