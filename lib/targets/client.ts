@@ -82,7 +82,7 @@ export class TargetRevisionQueuedError extends Error {
 
 function authorityBody(
   input: DeriveTargetRevisionInput,
-  requestId = crypto.randomUUID(),
+  requestId: string = crypto.randomUUID(),
 ): AuthorityBody {
   const settings = input.settings;
   return {
@@ -308,18 +308,27 @@ function persistTargetRevision(
   input: DeriveTargetRevisionInput,
   fetchImpl: typeof fetch = fetch,
   h: AccountHandle = accountHandle(),
+  requestId?: string,
 ): Promise<TargetRevision> {
-  const body = authorityBody(input);
+  const body = authorityBody(input, requestId);
   return sendRevision(h, body, fetchImpl, { requestId: body.requestId, queue: false })
     .then((result) => result.revision);
 }
 
+/**
+ * `requestId`: a caller that may send the SAME revision again after a lost answer (onboarding's
+ * "Use this plan" retry) mints it once and passes it on every attempt. The server writes at most
+ * one revision per request id (`write_target_revision` answers the stored row for a repeated
+ * `request_id`, migration 20261023091000), so the retry cannot create a second revision. Omitted,
+ * each call mints its own.
+ */
 export function persistDerivedTargetRevision(
   input: DeriveTargetRevisionInput,
   fetchImpl: typeof fetch = fetch,
   h: AccountHandle = accountHandle(),
+  requestId?: string,
 ): Promise<TargetRevision> {
-  return persistTargetRevision(input, fetchImpl, h);
+  return persistTargetRevision(input, fetchImpl, h, requestId);
 }
 
 export function restoreTargetRevisionOnline(

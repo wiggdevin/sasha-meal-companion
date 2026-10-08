@@ -217,3 +217,45 @@ describe("the normalized onboarding settings write", () => {
     });
   });
 });
+
+// GPT-6 Sol BLOCK (onb2-p0): the save's one target request id reaches the target write, so the
+// shell's retry after a lost answer is the same request on the server.
+describe("the onboarding save's target request id", () => {
+  beforeEach(async () => {
+    globalThis.indexedDB = new IDBFactory();
+    h = await resetTestAccount();
+  });
+
+  it("is handed to the target write unchanged", async () => {
+    const writeTargets = vi.fn(async () => undefined as never);
+    await saveOnboardingSettings({
+      ...defaultSettings(), sex: "female", birthYear: 1996, heightCm: 165, weightKg: 60,
+      activityLevel: "moderate", goal: "recomp", trainingWeekdays: [],
+      onboardedAt: new Date(2026, 8, 19, 12, 0).toISOString(),
+    }, "complete", [], writeTargets, () => 60, "00000000-0000-4000-8000-0000000000bb");
+    expect(writeTargets).toHaveBeenCalledWith(expect.objectContaining({ today: "2026-09-19" }),
+      undefined, undefined, "00000000-0000-4000-8000-0000000000bb");
+  });
+
+  it("is passed from persistCompletedOnboarding to the synced settings write", async () => {
+    let state = createOnboardingState(defaultSettings());
+    for (const action of [
+      { type: "edit_body", key: "heightCm", value: "165" },
+      { type: "edit_body", key: "birthYear", value: "1996" },
+      { type: "set_sex", value: "female" },
+      { type: "edit_weight", value: "132" },
+      { type: "set_activity", value: "moderate" },
+      { type: "set_goal", value: "recomp" },
+    ] as const) state = onboardingReducer(state, action);
+    const saveSynced = vi.fn(async () => undefined);
+    await persistCompletedOnboarding(defaultSettings(), state, new Date(2026, 8, 19, 12, 0), {
+      saveLocal: vi.fn(), saveSynced, saveWeighIn: vi.fn(async () => null),
+      loadConstraints: vi.fn(async () => ({ profile: { avoid_allergens: [], avoid_food_ref_ids: [],
+        banned_categories: [], conditions: [], notes: null }, rev: 0 })),
+      saveConstraints: vi.fn(async () => ({ status: "ok" }) as never),
+      localDate: () => "2026-09-19", hasWeighIn: () => true,
+    }, {}, "00000000-0000-4000-8000-0000000000cc");
+    expect(saveSynced).toHaveBeenCalledWith(expect.anything(), "complete", expect.any(Array),
+      "00000000-0000-4000-8000-0000000000cc");
+  });
+});

@@ -38,8 +38,16 @@ export type OnboardingDraft = {
    *  reload mid-setup does not hand the account a fresh budget it has already spent. Absent on an
    *  older saved draft; callers treat that as 0. */
   callsUsed?: number;
+  /** GPT-6 Sol BLOCK (onb2-p0): the "Use this plan" save's one target request id, kept across a
+   *  failed attempt and a reload, so a retry after a lost target answer is the same request and
+   *  the server writes one revision (`write_target_revision` dedupes on `request_id`). `key` is
+   *  what the request says: a changed answer is a new request and gets a new id. */
+  targetRequest?: { id: string; key: string };
   savedAt: string;
 };
+
+/** In memory, per account: the id still holds when this browser cannot store a draft at all. */
+const heldTargetRequests = new Map<string, { id: string; key: string }>();
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -63,7 +71,16 @@ export async function saveOnboardingDraft(draft: Omit<OnboardingDraft, "savedAt"
     try {
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(STORE, "readwrite");
-        tx.objectStore(STORE).put({ ...draft, savedAt: new Date().toISOString() }, key);
+        const store = tx.objectStore(STORE);
+        // Read and write in one transaction: the beat/facts autosave must never drop the save's
+        // target request id a concurrent "Use this plan" just stored.
+        const read = store.get(key);
+        read.onsuccess = () => {
+          const before = read.result as OnboardingDraft | undefined;
+          const targetRequest = draft.targetRequest ?? before?.targetRequest;
+          store.put({ ...draft, ...(targetRequest ? { targetRequest } : {}),
+            savedAt: new Date().toISOString() }, key);
+        };
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error ?? new Error("indexedDB write failed"));
       });
@@ -96,11 +113,36 @@ export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
   }
 }
 
+/**
+ * The target request id for a "Use this plan" save whose request reads `requestKey`: the stored
+ * one when the key matches (a retry, also after a reload), else a new id, stored before it is
+ * returned so the first attempt and every retry send the same id. Never throws; with no usable
+ * storage the id is held in memory for this page.
+ */
+export async function onboardingTargetRequestId(requestKey: string): Promise<string> {
+  const account = draftKey();
+  const held = account === null ? undefined : heldTargetRequests.get(account);
+  if (held?.key === requestKey) return held.id;
+  const draft = await loadOnboardingDraft();
+  if (draft?.targetRequest?.key === requestKey) {
+    if (account !== null) heldTargetRequests.set(account, draft.targetRequest);
+    return draft.targetRequest.id;
+  }
+  const targetRequest = { id: crypto.randomUUID(), key: requestKey };
+  if (account !== null) heldTargetRequests.set(account, targetRequest);
+  await saveOnboardingDraft({
+    beat: draft?.beat ?? "reward", settings: draft?.settings ?? {},
+    ...(draft?.callsUsed !== undefined ? { callsUsed: draft.callsUsed } : {}), targetRequest,
+  });
+  return targetRequest.id;
+}
+
 /** Called once onboarding actually finishes (or is explicitly skipped) — a stale draft must
  *  never resurrect an old, already-completed setup on a later first-run check. */
 export async function clearOnboardingDraft(): Promise<void> {
   const key = draftKey();
   if (key === null) return;
+  heldTargetRequests.delete(key);
   try {
     const db = await openDb();
     try {

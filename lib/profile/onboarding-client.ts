@@ -85,13 +85,18 @@ export async function saveOnboardingSettings(
   pinFields: readonly PlanField[] = [],
   writeTargets: typeof persistDerivedTargetRevision = persistDerivedTargetRevision,
   readLatestWeighIn: typeof latestWeighInKg = latestWeighInKg,
+  /** The save's one target request id (see `persistCompletedOnboarding`). */
+  targetRequestId?: string,
 ): Promise<TargetRevision | undefined> {
   const h = accountHandle();
   // The revision dates from the LOCAL day onboarding finished, not the UTC day: an evening
   // completion in a negative-offset zone would otherwise leave today with no target (lane G).
   const targetDate = settings.onboardedAt ? localIsoDay(settings.onboardedAt) : undefined;
+  // The id rides as a trailing argument only when the caller minted one.
+  const write = (input: Parameters<typeof writeTargets>[0]) => targetRequestId === undefined
+    ? writeTargets(input) : writeTargets(input, undefined, undefined, targetRequestId);
   const revision = mode === "complete" && targetDate && isProfileComplete(settings)
-    ? await writeTargets({
+    ? await write({
         settings,
         latestWeighInKg: readLatestWeighIn(targetDate, settings),
         today: targetDate,
@@ -140,6 +145,7 @@ export type OnboardingPersistence = {
     settings: Settings,
     mode: OnboardingSaveMode,
     pinFields?: readonly PlanField[],
+    targetRequestId?: string,
   ) => Promise<TargetRevision | undefined | void>;
   saveWeighIn: (localDate: string, lb: number) => Promise<string | null>;
   loadConstraints: () => Promise<ConstraintLoad>;
@@ -150,7 +156,8 @@ export type OnboardingPersistence = {
 
 const persistence: OnboardingPersistence = {
   saveLocal: (settings) => saveStore({ ...loadStore(), settings }),
-  saveSynced: saveOnboardingSettings,
+  saveSynced: (settings, mode, pinFields, targetRequestId) =>
+    saveOnboardingSettings(settings, mode, pinFields, undefined, undefined, targetRequestId),
   saveWeighIn: (date, lb) => saveMorningWeight(date, lb, () => {}, { skipTargets: true }),
   loadConstraints: () => loadConstraints(),
   saveConstraints: (patch, rev) => saveConstraints(patch, rev),
@@ -218,6 +225,9 @@ export async function persistCompletedOnboarding(
   now = new Date(),
   deps: OnboardingPersistence = persistence,
   safety: SafetyAnswers = {},
+  /** GPT-6 Sol BLOCK (onb2-p0): minted ONCE per onboarding save and sent on every attempt, so a
+   *  retry after a lost target answer is the same request and the server writes one revision. */
+  targetRequestId?: string,
 ): Promise<CompletedOnboardingResult> {
   const h = accountHandle();
   const conditions = safetyConditionEntries(safety);
@@ -240,7 +250,9 @@ export async function persistCompletedOnboarding(
   // G7: a safety-round condition patch was already written (with the flags) before the target, so
   // there is no second constraints write then.
   const [revision, constraints] = await Promise.all([
-    deps.saveSynced(settings, "complete", changedPlanFields(base, settings)),
+    targetRequestId === undefined
+      ? deps.saveSynced(settings, "complete", changedPlanFields(base, settings))
+      : deps.saveSynced(settings, "complete", changedPlanFields(base, settings), targetRequestId),
     conditions.length > 0
       ? Promise.resolve({ constraintsSaved: true } as const)
       : applyFlagConstraints(h, state.flags, deps),

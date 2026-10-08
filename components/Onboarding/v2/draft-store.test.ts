@@ -71,3 +71,28 @@ describe("onboarding draft store", () => {
     (globalThis as { indexedDB: IDBFactory }).indexedDB = original;
   });
 });
+
+// GPT-6 Sol BLOCK (onb2-p0): the save's one target request id survives a failed attempt, a
+// reload and the beat autosave, and a changed request gets a new one.
+describe("the onboarding save's target request id", () => {
+  it("is the same id for the same request, after a reload and an autosave", async () => {
+    const { onboardingTargetRequestId } = await import("./draft-store");
+    const first = await onboardingTargetRequestId("request-a");
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    await saveOnboardingDraft({ beat: "facts", settings: { goal: "recomp" } });
+    expect((await loadOnboardingDraft())?.targetRequest).toEqual({ id: first, key: "request-a" });
+    vi.resetModules(); // a reload: nothing held in memory
+    (await import("@/lib/device/account")).bindAccount("11111111-1111-4111-8111-111111111111");
+    const reloaded = await import("./draft-store");
+    expect(await reloaded.onboardingTargetRequestId("request-a")).toBe(first);
+  });
+
+  it("is a new id for a changed request, and the draft's clear forgets it", async () => {
+    const { onboardingTargetRequestId, clearOnboardingDraft: clear } = await import("./draft-store");
+    const a = await onboardingTargetRequestId("request-a");
+    const b = await onboardingTargetRequestId("request-b");
+    expect(b).not.toBe(a);
+    await clear();
+    expect(await onboardingTargetRequestId("request-b")).not.toBe(b);
+  });
+});
