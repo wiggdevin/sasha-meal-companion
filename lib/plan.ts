@@ -23,7 +23,12 @@ function localDateOnly(dateStr: string): Date {
 
 // -------------------------------------------------------------- day type
 
-/** A `dayTypeOverride` on a StoredDay always wins over the weekday default. */
+/**
+ * A `dayTypeOverride` on a StoredDay always wins over the weekday default. Every training weekday
+ * is `training-10`: Wednesday's fasted 7am session was the first client's own week, and no
+ * account inherits it (onboarding v2 G6). `training-7-fasted` is read only from an override the
+ * account itself saved on a date.
+ */
 export function dayTypeFor(
   date: string,
   override?: DayType,
@@ -32,9 +37,7 @@ export function dayTypeFor(
   if (override) return override;
   const trainingWeekdays = settings?.trainingWeekdays;
   if (!trainingWeekdays?.length) return "rest";
-  const dow = localDateOnly(date).getDay();
-  if (!trainingWeekdays.includes(dow)) return "rest";
-  return dow === 3 ? "training-7-fasted" : "training-10";
+  return trainingWeekdays.includes(localDateOnly(date).getDay()) ? "training-10" : "rest";
 }
 
 // ------------------------------------------------------------- slot list
