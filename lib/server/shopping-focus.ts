@@ -25,6 +25,18 @@ export async function setShoppingFocusUntil(
 }
 
 /**
+ * Caps an `exact` restore (Undo only, route.ts) at `FOCUS_MAX_DAYS` from `now` — a direct caller
+ * of the route cannot use `exact` to set a timestamp further out than `resolveFocusEnd` would ever
+ * produce. A previously stored value was always clamped against an earlier (smaller) `now`, so a
+ * genuine Undo is never reduced by this; `null` passes through untouched.
+ */
+export function clampExactFocusEnd(exact: string | null, now: Date): string | null {
+  if (exact === null) return null;
+  const max = maxFocusEnd(now);
+  return exact > max ? max : exact;
+}
+
+/**
  * D7's default end: the open shopping period's own end (through its last moment), or
  * FOCUS_DEFAULT_DAYS out with none open; `days` (explicit, 1-31) overrides both, still capped at
  * FOCUS_MAX_DAYS out. The server decides this, never the model (set-shopping-focus.ts's own doc).

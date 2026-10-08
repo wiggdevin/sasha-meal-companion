@@ -3,7 +3,7 @@ import { requireRecipeUser } from "@/lib/server/recipe-access";
 import { jsonError, readJson } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import {
-  getShoppingFocusUntil, resolveFocusEnd, setShoppingFocusUntil,
+  clampExactFocusEnd, getShoppingFocusUntil, resolveFocusEnd, setShoppingFocusUntil,
 } from "@/lib/server/shopping-focus";
 import { FOCUS_MAX_DAYS, shoppingFocusActive } from "@/lib/shopping/focus";
 
@@ -43,8 +43,9 @@ export async function POST(req: Request): Promise<Response> {
     const { client, userId } = await requireRecipeUser(req);
     await enforceRateLimit(`shopping-focus:${userId}`, 30, 60);
     const body = await readJson(req, Body, 500);
-    const until = body.exact !== undefined ? body.exact
-      : body.on ? await resolveFocusEnd(client, userId, new Date(), body.days) : null;
+    const now = new Date();
+    const until = body.exact !== undefined ? clampExactFocusEnd(body.exact, now)
+      : body.on ? await resolveFocusEnd(client, userId, now, body.days) : null;
     const previous = await setShoppingFocusUntil(client, userId, until);
     return Response.json({ until, previous }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return jsonError(error); }

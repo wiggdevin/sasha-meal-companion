@@ -10,9 +10,16 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: vi.fn() }));
 vi.mock("@/lib/server/recipe-access", () => ({ requireRecipeUser: mocks.auth }));
-vi.mock("@/lib/server/shopping-focus", () => ({
-  getShoppingFocusUntil: mocks.get, setShoppingFocusUntil: mocks.set, resolveFocusEnd: mocks.resolve,
-}));
+vi.mock("@/lib/server/shopping-focus", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/server/shopping-focus")>(
+    "@/lib/server/shopping-focus");
+  return {
+    getShoppingFocusUntil: mocks.get, setShoppingFocusUntil: mocks.set, resolveFocusEnd: mocks.resolve,
+    // The real clamp: pure, and route.ts's own cap on a direct `exact` caller is worth exercising
+    // for real here rather than stubbed through.
+    clampExactFocusEnd: actual.clampExactFocusEnd,
+  };
+});
 
 const { GET, POST } = await import("@/app/api/shopping/focus/route");
 
@@ -76,6 +83,17 @@ describe("POST /api/shopping/focus", () => {
     const res = await POST(req({ on: false, exact: null }));
     expect(res.status).toBe(200);
     expect(mocks.set).toHaveBeenCalledWith({ fake: true }, userId, null);
+  });
+
+  it("clamps a far-future `exact` at FOCUS_MAX_DAYS from now — a direct caller cannot use "
+    + "Undo's own escape hatch to set a date beyond what resolveFocusEnd would ever produce", async () => {
+    mocks.set.mockResolvedValue(null);
+    const res = await POST(req({ on: true, exact: "2099-01-01T00:00:00.000Z" }));
+    expect(res.status).toBe(200);
+    const { until } = await res.json() as { until: string };
+    expect(Date.parse(until)).toBeLessThan(Date.parse("2099-01-01T00:00:00.000Z"));
+    expect(Date.parse(until) - Date.now()).toBeLessThanOrEqual(31 * 86_400_000 + 1_000);
+    expect(mocks.set).toHaveBeenCalledWith({ fake: true }, userId, until);
   });
 
   it("rejects a malformed body before calling anything", async () => {

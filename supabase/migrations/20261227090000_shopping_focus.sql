@@ -5,6 +5,12 @@
 --
 -- RLS: `user_settings` already has its owner policy (every prior migration on this table inherits
 -- it); a new nullable column needs no backfill and no policy change.
+--
+-- Live-safe: one nullable column, no default (metadata-only, no table rewrite). Down:
+-- supabase/migrations/down/20261227090000_shopping_focus.down.sql.
+set local lock_timeout = '3s';
+set local statement_timeout = '30s';
+
 alter table public.user_settings
   add column shopping_focus_until timestamptz;
 
