@@ -129,6 +129,7 @@ describe("onboarding completion", () => {
       saveConstraints,
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(settings).toMatchObject({
@@ -190,6 +191,7 @@ describe("onboarding completion", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(result.settings.restKcal).toBe(1900);
@@ -218,6 +220,7 @@ describe("onboarding completion", () => {
       saveConstraints: vi.fn(async () => ({
         status: "ok" as const, profile: EMPTY_PROFILE, rev: 1,
       })),
+      openFoodWorld: vi.fn(async () => {}),
     };
   }
 
@@ -244,6 +247,17 @@ describe("onboarding completion", () => {
       .rejects.toThrow(CONSTRAINTS_UNAVAILABLE);
     expect(deps.saveSynced).not.toHaveBeenCalled();
     expect(deps.saveLocal).not.toHaveBeenCalled();
+  });
+
+  it("opens the food world on a FIRST skip, never on a later re-skip (W13, D14)", async () => {
+    const deps = skipDeps();
+    await persistSkippedOnboarding({ ...defaultSettings(), onboardedAt: null }, NOW, deps);
+    expect(deps.openFoodWorld).toHaveBeenCalledTimes(1);
+
+    deps.openFoodWorld.mockClear();
+    await persistSkippedOnboarding(
+      { ...defaultSettings(), onboardedAt: "2026-09-18T00:00:00.000Z" }, NOW, deps);
+    expect(deps.openFoodWorld).not.toHaveBeenCalled();
   });
 
   it("gives a chosen goal its default rate, lets the user change it, and keeps it (step D)", () => {
@@ -323,6 +337,7 @@ describe("onboarding completion", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-09-19",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     });
 
     expect(saveWeighIn).not.toHaveBeenCalled();
@@ -340,6 +355,7 @@ describe("onboarding completion", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(saveWeighIn).toHaveBeenCalledOnce();
@@ -357,6 +373,7 @@ describe("onboarding completion", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-09-19",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     });
 
     expect(saveWeighIn).toHaveBeenCalledOnce();
@@ -422,6 +439,7 @@ describe("dietary preference constraint mapping", () => {
         saveConstraints,
         localDate: () => "2026-09-19",
         hasWeighIn: () => false,
+        openFoodWorld: async () => {},
       });
 
       expect(saveLocal.mock.calls[0][0].dietPrefs.flags).toEqual([flag]);
@@ -448,6 +466,7 @@ describe("dietary preference constraint mapping", () => {
       saveConstraints,
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(saveConstraints).toHaveBeenCalledOnce();
@@ -686,6 +705,7 @@ describe("constraint save failures", () => {
       saveConstraints,
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(saveConstraints).not.toHaveBeenCalled();
@@ -714,6 +734,7 @@ describe("constraint save failures", () => {
       saveConstraints,
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(saveConstraints).toHaveBeenCalledWith({ baseRev: 4 }, 4);
@@ -744,6 +765,7 @@ describe("constraint save failures", () => {
       }),
       localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
 
     expect(result.constraintsSaved).toBe(false);
@@ -766,6 +788,7 @@ describe("constraint save failures", () => {
       loadConstraints: vi.fn(async () => ({ profile, rev: 4 })),
       saveConstraints, localDate: () => "2026-09-19",
       hasWeighIn: () => false,
+      openFoodWorld: async () => {},
     });
     expect(saveConstraints).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ constraintsSaved: false, error: CONSTRAINTS_UNAVAILABLE });

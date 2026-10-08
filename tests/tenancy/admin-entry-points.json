@@ -23,6 +23,10 @@
     "test": "tests/tenancy/admin-facets-warm.test.ts",
     "via": "@/app/api/foods/facets/warm/route"
   },
+  "app/api/foods/world/invitation/route.ts": {
+    "test": "tests/tenancy/admin-food-world.test.ts",
+    "via": "@/app/api/foods/world/invitation/route"
+  },
   "app/api/foods/world/route.ts": {
     "test": "tests/tenancy/admin-food-world.test.ts",
     "via": "@/app/api/foods/world/route"
@@ -353,6 +357,10 @@
   "lib/server/recipe-plan.ts": {
     "test": "tests/tenancy/admin-recipes.test.ts",
     "via": "@/lib/server/recipe-plan"
+  },
+  "lib/server/shopping-focus.ts": {
+    "test": "tests/tenancy/admin-shopping-focus.test.ts",
+    "via": "@/app/api/shopping/focus/route"
   },
   "lib/server/viewed-day.ts": {
     "test": "tests/tenancy/admin-libs.test.ts",

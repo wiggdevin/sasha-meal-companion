@@ -4,6 +4,7 @@ import { withRecipeEligibility } from "@/lib/recipes/eligibility";
 import { dishSearchTerms, namesTerm, searchWords } from "@/lib/recipe-catalog/query";
 import { normalizeCuisineFamily } from "@/lib/recipe-catalog/cuisine";
 import { occasionFit } from "@/lib/recipes/occasion";
+import { recipeTastePoints, type TasteValues } from "@/lib/meals/preference";
 
 export type CandidatePreferences = {
   /** Explicit favorites from the existing favorites entity, never all Eats. */
@@ -13,7 +14,19 @@ export type CandidatePreferences = {
   usualFoodRefIds?: readonly string[];
   recentRecipeIds?: readonly string[];
   targetKcal?: number | null;
+  /**
+   * D8's caller table ("Recipe search, the coach and the shopping planner"): when the account's
+   * quantized pref-2 values are available, `RECIPE_TASTE_POINTS × (T − 1)` over the recipe's
+   * ingredients BY GRAMS replaces the favorite-food `+1` and the unused "usual" `+0.25` terms
+   * below (the favorite-RECIPE `+3` stays either way). Absent (every caller today — no account
+   * taste computation is wired up to recipe search yet): the original terms, unchanged.
+   */
+  taste?: TasteValues;
 };
+
+/** The same normalized identity `lib/meals/parts.ts`'s `foodKey` gives a plate row's food, built
+ *  from an authored ingredient line's own name (recipe ingredients carry no `Food` object). */
+const ingredientKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
 export type CandidateResult = {
   candidates: RecipeCandidate[];
   excluded: { revisionId: string; eligibility: RecipeCandidate["eligibility"] }[];
@@ -79,10 +92,14 @@ export function findRecipeCandidates(
     const refs = recipe.ingredients.map((ingredient) => ingredient.foodRefId);
     // A named meal leads the order ("easy breakfast" → breakfasts first) but filters nothing.
     const occasion = search.occasion ? occasionFit(recipe, search.occasion) * 200 : 0;
+    const tasteTerm = preferences.taste
+      ? recipeTastePoints(recipe.ingredients.map((ingredient) => ({
+        key: ingredientKey(ingredient.name), amount: ingredient.grams ?? 0,
+      })), preferences.taste, search.occasion ?? null)
+      : refs.filter((ref) => ref && favoriteFoods.has(ref)).length
+        + refs.filter((ref) => ref && usual.has(ref)).length * 0.25;
     const score = matched * WORD_WEIGHT + occasion + (exactName ? 100 : 0) + macroFit * 10
-      + (favoriteRecipes.has(recipe.recipeId) ? 3 : 0)
-      + refs.filter((ref) => ref && favoriteFoods.has(ref)).length
-      + refs.filter((ref) => ref && usual.has(ref)).length * 0.25
+      + (favoriteRecipes.has(recipe.recipeId) ? 3 : 0) + tasteTerm
       - (recent.has(recipe.recipeId) ? 2 : 0);
     ranked.push({ candidate, score });
   }

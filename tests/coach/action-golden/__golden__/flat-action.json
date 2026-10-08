@@ -26,6 +26,11 @@
       "description": "Allowed values: \"training\", \"rest\", \"both\"; \"\" means absent.",
       "type": "string"
     },
+    "days": {
+      "maximum": 31,
+      "minimum": 0,
+      "type": "integer"
+    },
     "entryId": {
       "maxLength": 64,
       "type": "string"
@@ -124,7 +129,8 @@
         "remove_from_eats",
         "add_to_shopping_list",
         "skip_slot",
-        "restore_slot"
+        "restore_slot",
+        "set_shopping_focus"
       ],
       "type": "string"
     },
@@ -161,6 +167,10 @@
       },
       "maxItems": 11,
       "type": "array"
+    },
+    "on": {
+      "description": "Allowed values: \"on\", \"off\"; \"\" means absent.",
+      "type": "string"
     },
     "proteinG": {
       "anyOf": [

@@ -187,6 +187,16 @@
     "ok": false
   },
   {
+    "ok": true,
+    "data": {
+      "kind": "set_shopping_focus",
+      "on": true
+    }
+  },
+  {
+    "ok": false
+  },
+  {
     "ok": false
   },
   {
@@ -370,6 +380,15 @@
       "kind": "remove_from_eats",
       "name": "salmon"
     }
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
+  },
+  {
+    "ok": false
   },
   {
     "ok": false
