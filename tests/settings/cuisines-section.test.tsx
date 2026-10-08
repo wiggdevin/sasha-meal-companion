@@ -143,7 +143,11 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
   beforeEach(() => { bindAccount(TEST_USER); });
   afterEach(() => { unbindAccount(); });
 
-  it("removes the pill on a 200 and offers Undo, which brings it back", async () => {
+  it("sends the remove, applies the server's row, and Undo sends the original action id back", async () => {
+    // Sol round 4 BLOCK, verified: pills render straight from the `dislikes` prop now, with no
+    // local hide of their own -- a successful remove only calls `applyServerUserSettings` and
+    // relies on the PARENT re-rendering with the fresh row to actually drop the pill (simulated
+    // here with `rerender`, since this test's `settings` prop is otherwise static).
     const fetchImpl = vi.fn()
       .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
       .mockImplementationOnce(json(200, {
@@ -151,14 +155,18 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
       }));
     vi.stubGlobal("fetch", fetchImpl);
     try {
-      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
       expect(screen.getByText("Okra")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
-      await waitFor(() => expect(screen.queryByText("Okra")).toBeNull());
       await waitFor(() => expect(sync.applyServerUserSettings).toHaveBeenCalledWith(expect.anything(), ROW));
+      // The parent catches up with the removal (a normal re-render with the fresh row).
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+      expect(screen.queryByText("Okra")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-      await waitFor(() => expect(screen.getByText("Okra")).toBeTruthy());
-      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      // A later row that carries the key again brings the pill back.
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      expect(screen.getByText("Okra")).toBeTruthy();
       const [removeUrl] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
       const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
       expect(removeUrl).toBe("/api/profile/taste/dislikes/remove");
@@ -184,7 +192,9 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
   it("keeps the Undo toast (and the original action id) across a parent re-render that drops the removed key", async () => {
     // Sol BLOCK: a success applies the server's settings row and fires SYNCED_EVENT, which (in the
     // real app) makes the parent re-render with the key already gone from `dislikes` -- unmounting
-    // the pill that used to own the toast/Undo state. Simulated here with `rerender`.
+    // the pill that used to own the toast/Undo state (there is no other mechanism that drops the
+    // pill now: pills render straight from the `dislikes` prop, round 4). Simulated here with
+    // `rerender`.
     const fetchImpl = vi.fn()
       .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
       .mockImplementationOnce(json(200, {
@@ -243,29 +253,23 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
     }
   });
 
-  it("un-hides a key once a later settings row still carries it, with no intermediate render (Sol round 3 WARN)", async () => {
-    // The optimistic local hide is only a guess at what the server will settle on. Keyed on the
-    // settings ROW's own identity (`updatedAt`), not on whether the dislikes LIST changed: a later
-    // row can carry the EXACT SAME dislikes content as before the remove -- no intermediate "key is
-    // gone" render in between -- and this must still un-hide it, which a content-only comparison
-    // (the previous design) could never catch.
-    const fetchImpl = vi.fn(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }));
-    vi.stubGlobal("fetch", fetchImpl);
-    try {
-      const { rerender } = render(<CuisinesSection settings={settingsWith({
-        dietPrefs: withDislikes(["f:Okra"]), updatedAt: "2026-01-01T00:00:00.000Z",
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
-      await waitFor(() => expect(screen.queryByText("Okra")).toBeNull());
-      // Straight to a LATER row with the SAME dislikes content -- same key, same list -- never
-      // passing through a render where the list is actually empty.
-      rerender(<CuisinesSection settings={settingsWith({
-        dietPrefs: withDislikes(["f:Okra"]), updatedAt: "2026-01-01T00:00:01.000Z",
-      })} />);
-      expect(screen.getByText("Okra")).toBeTruthy();
-    } finally {
-      vi.unstubAllGlobals();
-    }
+  it("the pill disappears the moment the parent re-renders without the key (Sol round 4 BLOCK)", () => {
+    // No local hide-and-reconcile state survives this any more: a pulled server row is applied
+    // silently (no render of its own to trigger a reconcile against), so an earlier design keying
+    // a local hide off the row's `updatedAt` could keep a reintroduced key hidden forever if the
+    // pulled row kept the SAME `updatedAt` the hide was keyed on. Pills now render straight off the
+    // `dislikes` prop -- there is nothing else to get out of sync.
+    const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+    expect(screen.getByText("Okra")).toBeTruthy();
+    rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+    expect(screen.queryByText("Okra")).toBeNull();
+  });
+
+  it("the pill reappears whenever a later prop contains the key again, even with no remove/undo in between", () => {
+    const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+    expect(screen.queryByText("Okra")).toBeNull();
+    rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+    expect(screen.getByText("Okra")).toBeTruthy();
   });
 
   it("allows only one remove/undo in flight for the whole section: tapping a second pill while the first is pending starts no request, and the first pill's Undo carries its OWN action id", async () => {

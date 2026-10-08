@@ -21,9 +21,6 @@ import SettingsSection from "./Section";
 import { CAPTION, FIELD_LABEL } from "./settings-styles";
 import { useSettingsWrite } from "./use-settings-write";
 
-/** A stable, shared reference for "no stored dislikes" (see the `dislikes` derivation below). */
-const EMPTY_DISLIKES: readonly TasteDislike[] = [];
-
 function dislikeRemoveFailureMessage(error: unknown): string {
   const outcome = error as TasteDislikeWriteOutcome<unknown> | null | undefined;
   if (outcome && outcome.ok === false) {
@@ -101,9 +98,7 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
   const write = (patch: PlacePatch) => { setInFlight((n) => n + 1); send(patch); };
   // `Settings.dietPrefs` is typed as the plain wire `DietPrefs` (lib/types.ts); `taste` is carried on
   // the richer `ProfileDietPrefs` every sync writer actually reads and writes (lib/sync/user-settings.ts).
-  // `EMPTY_DISLIKES` is a stable, shared reference (not a fresh `[]` every render) so the "no stored
-  // dislikes" case has one consistent identity too, for the reference-equality fallback below.
-  const dislikes = (settings.dietPrefs as ProfileDietPrefs | null | undefined)?.taste?.dislikes ?? EMPTY_DISLIKES;
+  const dislikes = (settings.dietPrefs as ProfileDietPrefs | null | undefined)?.taste?.dislikes ?? [];
   const showTasteCard = tasteChipsAvailable === "enabled" || dislikes.length > 0;
 
   // Followups #1/#2 (Sol round 2 BLOCK, verified): the dislike-remove toast and Undo live here, at
@@ -125,38 +120,15 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
   const dislikeBusy = useRef(false);
   const [dislikeBusyKey, setDislikeBusyKey] = useState<TasteDislike | null>(null);
   const dislikeActionIds = useRef<Map<TasteDislike, string>>(new Map()).current;
-  // Hidden at once on a successful remove, rather than waiting for the next settings pull to drop
-  // the key from `dislikes` above — a remount of this SECTION (e.g. leaving and returning to
-  // Settings) still reads `dislikes` fresh, so nothing here needs to survive that; only the toast
-  // and Undo (held by `tasteFeedback`, not this) must survive the key's own pill unmounting.
-  // Reconciled against every fresh `settings` the parent hands down (Sol round 2 WARN, verified):
-  // a key this device just hid locally can be reintroduced by another device's write landing in
-  // between (or this device's own Undo settling through a DIFFERENT path than `undoDislike`
-  // below) — if the FRESH row still carries the key, that is the server's own current answer and
-  // wins over a stale local hide, so any key the newest `dislikes` still contains is dropped from
-  // `hiddenDislikes` the moment that row arrives, not kept hidden forever. Keyed on the settings
-  // ROW's own identity (`updatedAt`, "stamped by the store on every settings save" — lib/types.ts),
-  // not on whether the dislikes LIST changed (Sol round 3 WARN, verified): two consecutive rows can
-  // carry the exact same dislikes content (a reintroduction that lands between two renders with no
-  // intermediate "key is gone" render in between), and a content-only comparison would never catch
-  // that. `updatedAt` is absent only on a `Settings` this component never actually receives in
-  // practice (every real settings object is stamped on save); the dislikes array reference itself
-  // is the fallback so this still works under a bare manufactured object in a test.
-  const [hiddenDislikes, setHiddenDislikes] = useState<ReadonlySet<TasteDislike>>(new Set());
-  const settingsIdentity: string | readonly TasteDislike[] = settings.updatedAt ?? dislikes;
-  const [seenSettingsIdentity, setSeenSettingsIdentity] = useState(settingsIdentity);
-  if (seenSettingsIdentity !== settingsIdentity) {
-    setSeenSettingsIdentity(settingsIdentity);
-    setHiddenDislikes((prev) => {
-      if (prev.size === 0) return prev;
-      let next: Set<TasteDislike> | null = null;
-      for (const key of dislikes) {
-        if (prev.has(key)) { (next ??= new Set(prev)).delete(key); }
-      }
-      return next ?? prev;
-    });
-  }
-  const visibleDislikes = dislikes.filter((key) => !hiddenDislikes.has(key));
+  // Pills render straight from `dislikes` above — no local hide-and-reconcile state (Sol round 4
+  // BLOCK, verified: an earlier design hid a key locally on success and reconciled it against later
+  // settings rows, but a PULLED row is applied silently through `applyServerUserSettings` with no
+  // render in between to trigger a reconcile, and could keep the SAME `updatedAt` the local hide was
+  // keyed on — a reintroduced key could stay hidden forever with no event left to clear it). A
+  // successful remove already calls `applyServerUserSettings` (lib/profile/taste-dislike-remove-client.ts)
+  // and fires `SYNCED_EVENT`, so the key leaves `dislikes` by itself once the parent re-renders with
+  // the fresh row — there is nothing for this component to track separately. While a remove is in
+  // flight the pill just disables (`dislikeBusyKey`), it is never hidden.
 
   function removeDislike(key: TasteDislike) {
     if (dislikeBusy.current) return;
@@ -179,7 +151,6 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
       if (!result.ok) return; // keep the stored action id: the next tap on this key is a retry
       dislikeActionIds.delete(key); // a definite outcome; a future tap (new pill, same key) is fresh
       const resultActionId = result.value.actionId;
-      setHiddenDislikes((prev) => new Set(prev).add(key));
       // Sol round 2/3 WARN, intentional: one shared toast for the whole section means removing a
       // SECOND key, after the first remove has already completed and its Undo toast is showing,
       // replaces that toast with this one — the first key's Undo is no longer reachable from the
@@ -217,12 +188,6 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
       // Neither is reliable on an `already_undone` repeat (it answers the FIRST undo's values),
       // but this component only ever sends one undo per action id, so that path is not reached.
       if (result.value.restored) {
-        setHiddenDislikes((prev) => {
-          if (!prev.has(key)) return prev;
-          const next = new Set(prev);
-          next.delete(key);
-          return next;
-        });
         tasteFeedback.notify({ tone: "success", message: "Back." });
       } else if (result.value.capped) {
         tasteFeedback.notify({ tone: "changed", message: "Couldn't bring that back — the limit is reached." });
@@ -272,11 +237,14 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
             <span className={CAPTION}>
               A dislike only lowers how often a food comes up — it never rules a food out.
             </span>
-            {visibleDislikes.length > 0 && (
+            {dislikes.length > 0 && (
               <div role="group" aria-label="Your current taste dislikes" className="flex flex-wrap gap-2">
-                {/* Every pill disables while ANY remove or undo is pending, not only its own (the
+                {/* Straight from the `dislikes` prop (Sol round 4 BLOCK, verified) -- no local hide:
+                    a successful remove's `applyServerUserSettings` drops the key from this list by
+                    itself once the parent re-renders, and a reintroduced key just reappears here.
+                    Every pill disables while ANY remove or undo is pending, not only its own (the
                     `dislikeBusy` ref above is the real guard; this is just the visible state). */}
-                {visibleDislikes.map((key) => <DislikePill key={key} dislikeKey={key}
+                {dislikes.map((key) => <DislikePill key={key} dislikeKey={key}
                   pending={dislikeBusyKey !== null} onRemove={removeDislike} />)}
               </div>
             )}
