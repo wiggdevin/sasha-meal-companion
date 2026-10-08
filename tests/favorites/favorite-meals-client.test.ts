@@ -16,6 +16,20 @@ import { uuidV5 } from "@/lib/foods/uuid5";
 import { allOps, allRows, deleteRow, getRow, putRow } from "@/lib/sync/idb";
 import type { FoodComponent } from "@/lib/types";
 import { resetTestAccount } from "@/tests/helpers/account";
+import { toggleFavorite } from "@/lib/favorites-client";
+import { StampedEligibleSet } from "@/lib/foods/eligible-client";
+import { foodRulesEpoch, noteFoodRulesChanged } from "@/lib/foods/rules-epoch";
+import { foodRulesKey } from "@/lib/foods/rule-marks";
+import { reserveFoodMembershipIntent } from "@/lib/foods/prefs-client";
+import { getMeta, outboxRow, putMeta } from "@/lib/sync/idb";
+import { loadStore } from "@/lib/store";
+import { resumeFavoriteMealMarks } from "@/lib/favorite-meals-client";
+
+// The outbox row builder, wrapped so a test can make the op write itself fail mid-transaction.
+vi.mock("@/lib/sync/idb", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/sync/idb")>();
+  return { ...actual, outboxRow: vi.fn(actual.outboxRow) };
+});
 
 let h: AccountHandle;
 
@@ -393,5 +407,160 @@ describe("undoSaveFavoriteMeal", () => {
     const second = await undoSaveFavoriteMeal(outcome.id, outcome.newlyFavored, { account: h });
     expect(second).toEqual(first);
     expect(await allOps(h)).toHaveLength(ops);
+  });
+});
+
+// ------------------------------------------------------------------ Sol round 1 findings
+
+type Record_ = { pending: { nameNorm: string; rev?: number }[]; done: { nameNorm: string; rev: number }[];
+  skipped: string[] };
+const marksOf = (id: string) => getMeta<Record_>(h, `favorite_meal_marks:${id}`);
+const APPLE = component("Apple", 150, "food:apple-raw");
+const BANANA_C = component("Banana", 118, "food:banana-raw");
+const POOL: Record<string, Food> = {
+  ...FOODS, "universe:apple-raw": food("universe:apple-raw", "Apple", "carb"),
+};
+const allow = (): FavorVerdict => "allowed";
+
+/** An open account's verified set admitting the universe pool, as Today would hold it. */
+function openSet(pool: Record<string, Food>): StampedEligibleSet {
+  return new StampedEligibleSet(Object.keys(pool), new Map(), foodRulesKey(loadStore().settings),
+    foodRulesEpoch(), undefined, Date.now(), h.userId, new Map(),
+    { accountId: h.userId, computedAt: new Date().toISOString(), foods: pool } as never);
+}
+
+describe("#1 a tombstone and its op land together", () => {
+  it("toggleFavorite: an op write that fails leaves the star untouched", async () => {
+    const REF = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    await toggleFavorite("food", REF, undefined, { name: "Rice" });
+    vi.mocked(outboxRow).mockImplementationOnce(() => { throw new Error("disk full"); });
+    await expect(toggleFavorite("food", REF)).rejects.toThrow("disk full");
+    expect((await getRow(h, "favorites_foods", REF))?.deleted_at).toBeNull();
+    expect((await allOps(h)).map((op) => op.kind)).toEqual(["create"]);
+  });
+
+  it("removeFavoriteMeal: an op write that fails answers retry and keeps the meal and its heart", async () => {
+    const a = await save();
+    if (!a.ok) throw new Error("setup");
+    vi.mocked(outboxRow).mockImplementationOnce(() => { throw new Error("disk full"); });
+    expect(await removeFavoriteMeal(a.id, { account: h })).toMatchObject({ ok: false, reason: "retry" });
+    expect((await getRow(h, "favorites_meals", a.id))?.deleted_at).toBeNull();
+    expect(await favoriteMealFor(SOURCE, h)).toBe(a.id);
+    expect((await allOps(h)).map((op) => op.kind)).toEqual(["create"]);
+  });
+});
+
+describe("#2 marks are resumable", () => {
+  it("the meal commits with its pending marks; the next save call finishes them", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    expect(first).toMatchObject({ ok: true, newlyFavored: [], skipped: ["banana"] });
+    if (!first.ok) throw new Error("setup");
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
+    const again = await save({ judge: allow }, [...PLATE, BANANA_C]);
+    expect(again).toEqual({ ok: true, id: first.id, newlyFavored: ["banana"], skipped: [] });
+    expect(await allRows(h, "favorites_meals")).toHaveLength(1);
+    expect((await marksOf(first.id))?.pending).toEqual([]);
+  });
+
+  it("the post-sync run finishes them under a freshly verified set", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    const loader = vi.fn(async () => openSet(FOODS));
+    await resumeFavoriteMealMarks(h, getFoods(), loader);
+    expect(loader).toHaveBeenCalledOnce();
+    expect(readFoodMembership(h.userId, "banana")?.status).toBe("eats");
+    expect((await marksOf(first.id))?.done.map((d) => d.nameNorm)).toEqual(["banana"]);
+    // Nothing pending: no rules read at all.
+    loader.mockClear();
+    await resumeFavoriteMealMarks(h, getFoods(), loader);
+    expect(loader).not.toHaveBeenCalled();
+  });
+
+  it("a failed rules read leaves the marks pending", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    await resumeFavoriteMealMarks(h, getFoods(), async () => { throw new Error("offline"); });
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
+    expect(await membershipOps()).toEqual([]);
+  });
+
+  it("an op queued before a crash is recognised as this heart's, not re-marked", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    // The crash: the revision was recorded and the op queued, but the run never settled it.
+    const intent = reserveFoodMembershipIntent("banana", h);
+    await putMeta(h, `favorite_meal_marks:${first.id}`,
+      { pending: [{ name: "Banana", nameNorm: "banana", rev: intent.rev }], done: [], skipped: [] });
+    await setFoodMembership("Banana", "eats", { account: h, note: null, intent });
+    const ops = (await membershipOps()).length;
+    const again = await save({ judge: allow }, [...PLATE, BANANA_C]);
+    expect(again).toMatchObject({ newlyFavored: ["banana"] });
+    expect(await membershipOps()).toHaveLength(ops);
+    const undone = await undoSaveFavoriteMeal(first.id, ["banana"], { account: h });
+    expect(undone).toMatchObject({ cleared: ["banana"] });
+  });
+
+  it("the default judge Favors an admitted universe food under an open set", async () => {
+    const outcome = await save({ eligible: openSet(FOODS) }, [...PLATE, BANANA_C]);
+    expect(outcome).toMatchObject({ ok: true, newlyFavored: ["banana"], skipped: [] });
+  });
+});
+
+describe("#3 each meal keeps its own mark record", () => {
+  it("two plates saved at once both keep every mark", async () => {
+    const [a, b] = await Promise.all([
+      save({ judge: allow, foods: POOL }, [BANANA_C]),
+      save({ judge: allow, foods: POOL }, [APPLE], { ...SOURCE, mealId: "plate:other" }),
+    ]);
+    if (!a.ok || !b.ok) throw new Error("setup");
+    expect((await marksOf(a.id))?.done.map((d) => d.nameNorm)).toEqual(["banana"]);
+    expect((await marksOf(b.id))?.done.map((d) => d.nameNorm)).toEqual(["apple"]);
+  });
+});
+
+describe("#4 two tabs saving the same plate make one meal", () => {
+  it("the write re-checks the source index and answers the other tab's meal", async () => {
+    const OTHER = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    // The other tab commits its meal for this plate after this tab's first check, while this tab
+    // is still resolving refs.
+    const racing = refs({ account: vi.fn(async (f: Food) => {
+      if (!(await getRow(h, "favorites_meals", OTHER))) {
+        await putRow(h, "favorites_meals", OTHER, { id: OTHER, name: "Rice and egg", sort: 1, rev: 1,
+          deleted_at: null, items: [] });
+        await putMeta(h, "favorite_meal_sources",
+          { "2026-10-08|meal-1|plate:abc": { savedMealId: OTHER, savedAt: new Date().toISOString() } });
+      }
+      return f.id === RICE_ID ? RICE_REF : EGG_REF;
+    }) });
+    const outcome = await save({ refs: racing });
+    expect(outcome).toMatchObject({ ok: true, id: OTHER });
+    expect(await allRows(h, "favorites_meals")).toHaveLength(1);
+    expect(await allOps(h)).toEqual([]);
+  });
+});
+
+describe("#5 a rules change mid-run stops marking", () => {
+  it("leaves the rest pending, reports them skipped, and a later call re-judges them", async () => {
+    let calls = 0;
+    const judge = (): FavorVerdict => { calls += 1; if (calls === 1) noteFoodRulesChanged(); return "allowed"; };
+    const first = await save({ judge, foods: POOL }, [BANANA_C, APPLE]);
+    expect(first).toMatchObject({ ok: true, newlyFavored: [], skipped: ["banana", "apple"] });
+    if (!first.ok) throw new Error("setup");
+    expect(await membershipOps()).toEqual([]);
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana", "apple"]);
+    const again = await save({ judge: allow, foods: POOL }, [BANANA_C, APPLE]);
+    expect(again).toMatchObject({ newlyFavored: ["banana", "apple"], skipped: [] });
+  });
+});
+
+describe("heart OFF drops pending marks", () => {
+  it("no later run marks a removed meal's foods", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    await removeFavoriteMeal(first.id, { account: h });
+    const loader = vi.fn(async () => openSet(FOODS));
+    await resumeFavoriteMealMarks(h, getFoods(), loader);
+    expect(loader).not.toHaveBeenCalled();
+    expect(readFoodMembership(h.userId, "banana")).toBeUndefined();
   });
 });

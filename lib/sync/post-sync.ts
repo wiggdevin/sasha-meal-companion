@@ -17,6 +17,7 @@
  */
 import type { AccountHandle } from "@/lib/device/account";
 import type { Food } from "@/lib/foods";
+import { resumeFavoriteMealMarks } from "@/lib/favorite-meals-client";
 import { backfillFoodPrefs } from "@/lib/foods/prefs-client";
 import { drainWorldOpenPending } from "@/lib/foods/world-open-client";
 import { drainWeighIns } from "@/lib/health/weigh-in-client";
@@ -59,5 +60,9 @@ export async function catchUpAfterSync(h: AccountHandle, foods: Record<string, F
     // Phase 18 W11 (D7): the account's shopping focus and the list/pantry keys it ranks by, at
     // most once a minute; a failure keeps what was held and never fails the pass.
     refreshShoppingFocus(h),
+    // A heart's Favored marks that did not finish (a crash, a rules change mid-run, no verified
+    // rules at the tap): re-judged under a fresh eligible read and finished. Nothing pending costs
+    // one META key scan.
+    resumeFavoriteMealMarks(h, foods),
   ]);
 }
