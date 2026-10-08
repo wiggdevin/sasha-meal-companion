@@ -6,6 +6,8 @@ import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { SPRINGS } from "@/lib/design/motion";
 import type { Jet } from "@/components/today/island/water-dye";
 import styles from "@/components/today/island/WellWater.module.css";
+import { sceneArt } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 
 /** Where things are in the basin, as fractions of its width and height. */
 export const BUCKET = { x: 0.41, y: 0.03, w: 0.18 } as const;
@@ -51,6 +53,7 @@ export default function WaterExtras({ pours, dyes, surface }: {
   surface: number;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
   const [pouring, setPouring] = useState<"none" | "hold" | "pour">("none");
   const [inking, setInking] = useState(false);
 
@@ -85,7 +88,7 @@ export default function WaterExtras({ pours, dyes, surface }: {
         style={{ left: `${BUCKET.x * 100}%`, top: `${BUCKET.y * 100}%`, width: `${BUCKET.w * 100}%` }}
         initial={{ y: "-110%", opacity: 0 }} animate={{ y: "0%", opacity: 1 }} exit={{ y: "-110%", opacity: 0 }}
         transition={SPRINGS.snappy}>
-        <Image src={`/pet/water/sprout-bucket-${pouring === "pour" ? "pour" : "hold"}.webp`} alt="" width={313} height={360}
+        <Image src={sceneArt(mascot, pouring === "pour" ? "bucket-pour" : "bucket-hold")} alt="" width={313} height={360}
           sizes="70px" draggable={false} />
       </motion.span>}
     </AnimatePresence>

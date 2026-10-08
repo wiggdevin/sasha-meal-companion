@@ -9,6 +9,8 @@ import { play, readMuted, silence, unlockAudio, writeMuted, type Cue } from "@/c
 import type { Award } from "@/components/today/care/awards";
 import { FADES, INSTANT, SPRINGS } from "@/lib/design/motion";
 import styles from "@/components/today/care/Awards.module.css";
+import { named } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 
 /**
  * An award, played inside the open well (owner, 2026-10-07: "really incredible animations"). The room
@@ -28,6 +30,7 @@ export default function AwardPlayer({ award, onClose, modal = false }: {
   modal?: boolean;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
   const sparks = useRef<SparksApi | null>(null);
   const self = useRef<HTMLDivElement | null>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -90,10 +93,10 @@ export default function AwardPlayer({ award, onClose, modal = false }: {
         animate={{ opacity: 1, y: 0, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
         transition={reduce ? INSTANT : { ...SPRINGS.smooth, delay: 0.1 }}>
         <p className={styles.title}>{award.title}</p>
-        <p className={styles.line}>{award.line}</p>
+        <p className={styles.line}>{named(award.line, mascot)}</p>
       </motion.div>}
     </AnimatePresence>
-    <p className="sr-only" aria-live="polite">{done ? `${award.title}. ${award.line}` : ""}</p>
+    <p className="sr-only" aria-live="polite">{done ? named(`${award.title}. ${award.line}`, mascot) : ""}</p>
     <div className={styles.controls}>
       <Button variant="ghost" size="sm" aria-pressed={!muted}
         onClick={() => {

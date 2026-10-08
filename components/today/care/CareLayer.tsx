@@ -12,6 +12,8 @@ import { unlockAudio } from "@/components/today/care/sound";
 import { useCare } from "@/components/today/care/useCare";
 import { FADES, INSTANT } from "@/lib/design/motion";
 import { localIsoDate } from "@/lib/settings/date";
+import { named } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 import styles from "@/components/today/care/CareLayer.module.css";
 
 const SERVER: ShopRules = { purchase: purchaseCareItem, equip: equipCareItem };
@@ -77,6 +79,7 @@ function useModal(box: RefObject<HTMLElement | null>, open: boolean, homes: RefO
  */
 export default function CareLayer({ active }: { active: boolean }) {
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
   const care = useCare(active);
   const [shopOpen, setShopOpen] = useState(false);
   const [award, setAward] = useState<{ award: Award; message: string } | null>(null);
@@ -129,14 +132,14 @@ export default function CareLayer({ active }: { active: boolean }) {
         if (gone && gone.type !== "accolade") void markCareMessage(id, "dismiss");
       }} />}
     {shop && <button ref={chip} type="button" className={`tap ${styles.chip}`} onClick={() => setShopOpen(true)} inert={open}
-      aria-label={`${seeds(shop.state.balance)}. Open Sprout's shop`}>
+      aria-label={named(`${seeds(shop.state.balance)}. Open Sprout's shop`, mascot)}>
       <svg className={styles.seed} viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
         <path d="M8 1.5c3 2.2 4.6 5 4.6 7.6A4.6 4.6 0 0 1 8 13.7a4.6 4.6 0 0 1-4.6-4.6C3.4 6.5 5 3.7 8 1.5Z" />
       </svg>
       <span>{shop.state.balance.toLocaleString("en-US")}</span>
     </button>}
     <AnimatePresence onExitComplete={() => setShopLeaving(false)}>
-      {shop && open && <motion.div ref={panel} key="shop" role="dialog" aria-modal="true" aria-label="Sprout's shop" tabIndex={-1}
+      {shop && open && <motion.div ref={panel} key="shop" role="dialog" aria-modal="true" aria-label={named("Sprout's shop", mascot)} tabIndex={-1}
         className={`matte ${styles.panel}`}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
         <CareShop state={shop.state} today={localIsoDate(new Date())} rules={SERVER} items={offeredItems(shop.prices)}

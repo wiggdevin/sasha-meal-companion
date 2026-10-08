@@ -34,3 +34,26 @@ export const MASCOT_KEYS = Object.keys(MASCOTS) as MascotKey[];
 /** A stored value that is not a known mascot falls back to Sprout (the column is free text). */
 export const mascotOf = (value: string | null | undefined): Mascot =>
   MASCOTS[(MASCOT_KEYS as string[]).includes(value ?? "") ? (value as MascotKey) : "sprout"];
+
+/** Poses drawn for the pond, water, care and award scenes, one set per companion. */
+export const SCENE_POSES = ["annoyed", "cast", "catch", "dance-1", "dance-2", "doze", "fishing", "lookback",
+  "rockthrow-release", "rockthrow-windup", "stick-1", "stick-2", "sulk", "swim", "tummy-round", "tummy-suck",
+  "workout-flex", "workout-lift", "massage-1", "massage-2", "bucket-hold", "bucket-pour",
+  "award-workout-flex", "award-workout-lift"] as const;
+export type ScenePose = (typeof SCENE_POSES)[number];
+
+/** Sprout's scene art keeps its first paths; every other companion's lives under its own folder. */
+function sproutScene(pose: ScenePose): string {
+  if (pose.startsWith("massage-")) return `/pet/care/${pose}.webp`;
+  if (pose.startsWith("bucket-")) return `/pet/water/sprout-${pose}.webp`;
+  if (pose.startsWith("award-")) return `/pet/awards/sprout-${pose.slice("award-".length)}.webp`;
+  return `/pet/scene/sprout-${pose}.webp`;
+}
+
+/** The chosen companion's art for one scene pose, so every scene draws the companion itself. */
+export const sceneArt = (mascot: MascotKey, pose: ScenePose): string =>
+  mascot === "sprout" ? sproutScene(pose) : `/pet/mascots/${mascot}/scene/${pose}.webp`;
+
+/** Copy written with Sprout's name, said with the chosen companion's ("Sprout's pond" → "Blu's pond"). */
+export const named = (text: string, mascot: MascotKey): string =>
+  mascot === "sprout" ? text : text.replace(/\bSprout\b/g, MASCOTS[mascot].name);
