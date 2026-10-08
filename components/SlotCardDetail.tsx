@@ -21,6 +21,7 @@ import Disclosure from "@/components/ui/Disclosure";
 import Notice from "@/components/ui/Notice";
 import RuleMark from "@/components/ui/RuleMark";
 import { lineRuleMarks, slotRuleMark } from "@/components/SlotRuleMarks";
+import { ArrowLeftRight } from "lucide-react";
 import { ChevronIcon, SearchIcon } from "@/components/ui/icons";
 import { CARD_SECTION } from "@/lib/design/meal-type";
 
@@ -278,8 +279,9 @@ function FoldingActions({ children, ...motionProps }: React.ComponentProps<typeo
 }
 
 /**
- * The card's action strip, below the tray (meal cards v2). Always: the eaten button, Swap while the
- * meal can still be swapped, and the round details control at its end. Open, a second row above it
+ * The card's action strip, below the tray (meal cards v3): one thin row of three equal icon zones —
+ * eaten | swap | details — told apart by tone, each zone its whole third as a 44 px tap target. The
+ * swap zone stays (empty) when the meal cannot swap, so the thirds never shift. Open, a second row above it
  * folds in with Ask (the assistant) and Ate something else (and Search foods when the card has no inline
  * editor), pills sized to their words. The details control keeps its place whether the card is open
  * or closed, so focus stays on it; a flow closing hands focus back to it (`focusOnMount`), since the
@@ -342,14 +344,19 @@ export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, 
       </div>
     </FoldingActions>}
     </AnimatePresence>
-    <div className="flex min-w-0 items-center gap-1.5 p-3">
-      {eatenControl}
-      {onSwap && <Button ref={swapButton} size="sm" onClick={onSwap} aria-label={`Swap ${label}`} className="shrink-0">Swap</Button>}
-      <span className="min-w-0 flex-1" />
-      <Button ref={toggleButton} size="sm" shape="circle" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
-        aria-expanded={expanded} aria-controls={controls} onClick={toggle} className="shrink-0 text-muted">
-        <ChevronIcon direction={expanded ? "up" : "down"} />
-      </Button>
+    <div data-meal-strip="" className={`${dark.strip} ${expanded ? "mt-3 border-t border-hairline" : ""}`}>
+      <div data-strip-zone="eaten" className={`${dark.zone} ${dark.zoneEaten}`}>{eatenControl}</div>
+      <div data-strip-zone="swap" className={`${dark.zone} ${dark.zoneSwap}`}>
+        {onSwap ? <button ref={swapButton} type="button" onClick={onSwap} aria-label={`Swap ${label}`}
+          className={dark.zoneButton}><ArrowLeftRight aria-hidden="true" size={20} strokeWidth={1.8} /></button>
+          : <span aria-hidden="true" className={`${dark.zoneButton} ${dark.zoneIdle}`}><ArrowLeftRight size={20} strokeWidth={1.8} /></span>}
+      </div>
+      <div data-strip-zone="details" className={`${dark.zone} ${dark.zoneDetails}`}>
+        <button ref={toggleButton} type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+          aria-expanded={expanded} aria-controls={controls} onClick={toggle} className={dark.zoneButton}>
+          <ChevronIcon direction={expanded ? "up" : "down"} size={20} />
+        </button>
+      </div>
     </div>
   </div>;
 }

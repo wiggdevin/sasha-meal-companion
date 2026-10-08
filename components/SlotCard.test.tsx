@@ -86,7 +86,8 @@ describe("SlotCard completion colors", () => {
     expect(markup).toContain('data-after-dark-nutrition="true"');
     expect(markup.indexOf('data-after-dark-hero="true"')).toBeLessThan(markup.indexOf('data-after-dark-nutrition="true"'));
     expect(markup).toContain('data-consume-control="tick"');
-    expect(markup).toContain('data-macro-composition="true"');
+    // Meal cards v3: no proportional macro bar on any card.
+    expect(markup).not.toContain("data-macro-composition");
   });
 
   it.each(["focus", "standard"] as const)("sets the %s card's calorie number in the shared calorie colour", (variant) => {
@@ -102,32 +103,26 @@ describe("SlotCard completion colors", () => {
     expect(renderSlot("focus")).toContain('data-macro-legend="true"');
   });
 
-  it("sets a featured meal's calories on the hero and the macro bar in the divider's spec panel", () => {
+  it("sets a featured meal's calories on the hero and its grams in the divider's spec panel", () => {
     const markup = renderSlot("focus");
     const hero = markup.indexOf('data-after-dark-hero="true"');
     const calories = markup.indexOf('data-meal-calories="true"');
     const nutrition = markup.indexOf('data-after-dark-nutrition="true"');
-    const macros = markup.indexOf('data-macro-composition="true"');
+    const legend = markup.indexOf('data-macro-legend="true"');
     const expander = markup.indexOf('aria-label="Expand Lunch"');
     expect(hero).toBeGreaterThan(-1);
     expect(calories).toBeGreaterThan(hero);
     expect(nutrition).toBeGreaterThan(calories);
-    expect(macros).toBeGreaterThan(nutrition);
-    expect(expander).toBeGreaterThan(macros);
+    expect(legend).toBeGreaterThan(nutrition);
+    expect(expander).toBeGreaterThan(legend);
   });
 
-  it("puts a compact meal's macro bar in the hero's text column, so the photo fills the left side (U9)", () => {
+  it("speaks a compact meal's numbers from the hero's figures (v3: no bar)", () => {
     const markup = renderSlot("standard");
-    const hero = markup.indexOf('data-after-dark-hero="true"');
-    const calories = markup.indexOf('data-meal-calories="true"');
-    const bar = markup.indexOf('data-compact-bar=""');
-    const nutrition = markup.indexOf('data-after-dark-nutrition="true"');
-    expect(calories).toBeGreaterThan(hero);
-    expect(bar).toBeGreaterThan(calories);
-    // Inside the hero: before the divider, which holds nothing on a compact card.
-    expect(nutrition).toBeGreaterThan(bar);
-    expect(markup.indexOf('data-macro-composition="true"')).toBeGreaterThan(bar);
-    expect(markup.slice(nutrition, markup.indexOf('data-card-tray'))).not.toContain("data-macro-composition");
+    const figures = markup.indexOf("data-meal-figures");
+    expect(figures).toBeGreaterThan(markup.indexOf('data-after-dark-hero="true"'));
+    expect(markup.slice(figures, figures + 400)).toContain('aria-label="500 calories: 40 grams protein, 50 grams carbs, 10 grams fat"');
+    expect(markup).not.toContain("data-compact-bar");
   });
 
   it("shows an unlabeled illustrative food photo for a recognized meal, not the generic wallpaper", () => {
@@ -227,7 +222,7 @@ describe("compact meal card", () => {
       expect(markup).toContain(eaten ? 'aria-label="Lunch, eaten, scheduled for 12:00 pm"'
         : 'aria-label="Lunch, scheduled for 12:00 pm"');
       expect(markup).toContain('aria-label="512 calories: 40 grams protein, 50 grams carbs, 10 grams fat"');
-      expect(markup).toContain('data-macro-composition="true"');
+      expect(markup).not.toContain("data-macro-composition");
       expect(markup).toMatch(/aria-label="Expand Lunch"[^>]*aria-expanded="false"|aria-expanded="false"[^>]*aria-label="Expand Lunch"/);
       expect(markup).not.toContain("<table");
     });

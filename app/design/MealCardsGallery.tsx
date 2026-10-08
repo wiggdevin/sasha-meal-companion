@@ -93,6 +93,8 @@ function Block({ title, note, children }: { title: string; note: string; childre
 
 function GalleryCard({ fixture }: { fixture: Fixture }) {
   const [shown, setShown] = useState(fixture.slot);
+  // Meal cards v3: the heart, saved on the first card so both states show (no write in the gallery).
+  const [saved, setSaved] = useState(fixture.title.startsWith("Focus · next"));
   const noop = () => {};
   return <SlotCard slot={shown} variant={fixture.variant} focusLabel={fixture.focusLabel} canSwap
     onToggleEaten={() => setShown((value) => ({ ...value, eaten: !value.eaten }))}
@@ -100,7 +102,8 @@ function GalleryCard({ fixture }: { fixture: Fixture }) {
     onAteSomethingElse={noop} onClear={noop} onDelete={noop} foods={{}}
     onSaveComponents={(components) => setShown((value) => ({ ...value, components }))}
     dayTotals={{ consumed: CONSUMED, targets: TARGETS }}
-    emptyReason={fixture.emptyReason ?? null} planMiss={fixture.planMiss ?? null} />;
+    emptyReason={fixture.emptyReason ?? null} planMiss={fixture.planMiss ?? null}
+    favorite={{ on: saved, onToggle: () => setSaved((value) => !value) }} />;
 }
 
 export default function MealCardsGallery() {

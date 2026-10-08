@@ -51,11 +51,10 @@ describe("meal card status chip", () => {
 });
 
 describe("meal card action strip", () => {
-  it.each(["focus", "standard"] as const)("gives the %s card a labelled eaten button", (variant) => {
+  it.each(["focus", "standard"] as const)("gives the %s card a named eaten control", (variant) => {
     const onToggleEaten = vi.fn();
     render(<Card variant={variant} onToggleEaten={onToggleEaten} />);
     const tick = screen.getByRole("button", { name: "Mark eaten, Meal 2" });
-    expect(tick.textContent).toContain("Mark eaten");
     expect(tick.getAttribute("data-eaten")).toBe("false");
     fireEvent.click(tick);
     expect(onToggleEaten).toHaveBeenCalledTimes(1);
@@ -71,7 +70,6 @@ describe("meal card action strip", () => {
   it("turns the eaten button into an undo once eaten, and keeps the card at full strength", () => {
     render(<Card slot={{ ...lunch, eaten: true }} />);
     const done = screen.getByRole("button", { name: "Eaten, Meal 2. Undo" });
-    expect(done.textContent).toContain("Eaten");
     expect(done.getAttribute("data-eaten")).toBe("true");
     expect(document.querySelector(".opacity-70")).toBeNull();
   });
@@ -81,7 +79,7 @@ describe("meal card action strip", () => {
     render(<Card onOpenSwap={onOpenSwap} />);
     const swap = screen.getByRole("button", { name: "Swap Meal 2" });
     expect(swap.className).not.toContain("sr-only");
-    expect(swap.textContent).toBe("Swap");
+    expect(swap.querySelector("svg")).not.toBeNull(); // v3: an icon zone, not a word
     fireEvent.click(swap);
     expect(onOpenSwap).toHaveBeenCalledTimes(1);
   });
