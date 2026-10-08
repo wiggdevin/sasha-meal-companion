@@ -263,10 +263,15 @@ export default function TasteChipsField({ source, heading, availability, onDisab
    * One confirm attempt, with the bounded onboarding-only retry (D9 followup #2): a 409
    * `settings_not_synced` means the account's settings row has not reached the server yet — the
    * onboarding step that mounts this field races its own first settings push, so the confirm can
-   * land just ahead of it. Retried exactly once, for `source: "onboarding"` only, after the sync
-   * pass that push runs through ACKs: the SAME action id and chips, so the server answers its
-   * stored receipt rather than writing twice if the first attempt actually landed. A second
-   * `settings_not_synced` (or anything else) after that is shown as a failure, never retried again.
+   * land just ahead of it. Retried exactly once, for `source: "onboarding"` only, after a sync pass
+   * that ACTUALLY LANDS (no throw, and nothing left in the outbox): the SAME action id and chips,
+   * so the server answers its stored receipt rather than writing twice if the first attempt really
+   * landed. A sync that fails or still has work queued never retries Confirm — resending the exact
+   * request that just got `settings_not_synced` into a settings row that still has not reached the
+   * server would only repeat the same 409 — so this surfaces that first outcome as a failure
+   * instead (the user's own retry tap bounds it the same way a second 409 would). A second
+   * `settings_not_synced` after a sync that did land (or anything else) is also shown as a
+   * failure, never retried again.
    */
   async function attemptConfirm(request: TasteConfirmRequest, actionId: string): Promise<TasteConfirmResult> {
     const first = await confirmTasteChips(request);
@@ -274,7 +279,8 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     const settingsNotSynced = first.reason === "refused" && first.code === TASTE_CONFIRM_ERRORS.settingsNotSynced;
     if (source !== "onboarding" || !settingsNotSynced || syncRetriedFor.current === actionId) throw first;
     syncRetriedFor.current = actionId;
-    await syncOnce(accountHandle()).catch(() => {}); // best-effort: a failed sync still tries the retry
+    const synced = await syncOnce(accountHandle()).then((result) => !result?.push?.failed, () => false);
+    if (!synced) throw first;
     const second = await confirmTasteChips(request);
     if (second.ok) return second.result;
     throw second;

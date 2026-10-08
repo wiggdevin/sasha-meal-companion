@@ -23,7 +23,7 @@ const lib = vi.hoisted(() => ({
   confirm: vi.fn(),
   undo: vi.fn(),
   nextActionId: vi.fn(() => "action-1"),
-  syncOnce: vi.fn(async () => {}),
+  syncOnce: vi.fn<() => Promise<{ pull: unknown; push: { failed: boolean } } | undefined>>(async () => undefined),
 }));
 
 vi.mock("@/lib/profile/prefs-client", () => ({ requestTasteChips: lib.request }));
@@ -395,6 +395,36 @@ describe("TasteChipsField", () => {
       expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
       expect(lib.confirm).toHaveBeenCalledTimes(1);
       expect(lib.syncOnce).not.toHaveBeenCalled();
+    });
+
+    it("does not retry Confirm when the sync pass itself leaves work queued, and surfaces the original failure", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      lib.syncOnce.mockResolvedValue({ pull: {}, push: { failed: true } });
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
+      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+      expect(lib.confirm).toHaveBeenCalledTimes(1); // the sync never landed; retrying Confirm would just repeat the same 409
+    });
+
+    it("does not retry Confirm when the sync pass itself rejects, and surfaces the original failure", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      lib.syncOnce.mockRejectedValue(new Error("offline"));
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
+      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+      expect(lib.confirm).toHaveBeenCalledTimes(1);
     });
   });
 
