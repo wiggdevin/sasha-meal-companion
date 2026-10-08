@@ -263,7 +263,7 @@ export default function OnboardingDock(props: Props) {
 
   return <motion.div data-onboarding-dock="true" data-mode={mode}
     data-empty={mode === "chips" && !(props.chips?.length) ? "true" : undefined} className={`${dockStyles.dockFrame} relative w-full`}
-    style={{ borderRadius: 32, ...lensVar("pill") }}
+    style={lensVar("pill")}
     initial={false} animate={{ height: Math.max(MIN_HEIGHT, height) }}
     // Polish pass (2026-10-07, "sync the motion across beats"): `SPRINGS.gentle` has a 0.55s
     // visual duration — the frame was still visibly morphing height for ~300ms after the stream's
@@ -278,8 +278,8 @@ export default function OnboardingDock(props: Props) {
     // case, and still lands well inside the same beat-change window as the stream's 0.24s swap.
     transition={reduce ? INSTANT : SPRINGS.smooth}
     onPointerMove={sheen} onPointerLeave={sheenOff}>
-    <div ref={glass} className={`${styles.glass} ${styles.assistant} matte absolute inset-0 overflow-hidden`}
-      style={{ borderRadius: 32 }}>
+    <div ref={glass}
+      className={`${styles.glass} ${styles.assistant} ${dockStyles.dockGlass} matte absolute inset-0 overflow-hidden`}>
       <AskSkin reduce={reduce} />
       <AnimatePresence initial={false}>
         <ModeLayer key={mode} mode={mode} props={props} reduce={reduce}

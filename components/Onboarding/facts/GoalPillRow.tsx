@@ -43,9 +43,8 @@ export function GoalPillRow({
             type="button"
             onClick={() => onSelect(pill.value)}
             aria-pressed={value === pill.value}
-            className={`${CHIP_FILL} min-h-12 rounded-full px-5 text-body font-medium text-charcoal data-[pressed=true]:text-on-primary`}
+            className={`${CHIP_FILL} min-h-12 rounded-full px-5 text-body font-medium text-charcoal data-[pressed=true]:text-on-primary data-[pressed=true]:[background:var(--grad-ink)]`}
             data-pressed={value === pill.value}
-            style={value === pill.value ? { background: "var(--grad-ink)" } : undefined}
           >
             {pill.label}
           </button>

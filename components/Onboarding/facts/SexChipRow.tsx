@@ -40,9 +40,8 @@ export function SexChipRow({
             type="button"
             onClick={() => onSelect(option.value)}
             aria-pressed={value === option.value}
-            className={`${CHIP_FILL} min-h-12 min-w-0 flex-1 basis-0 rounded-full px-3 text-center text-body-sm font-medium text-charcoal data-[pressed=true]:text-on-primary`}
+            className={`${CHIP_FILL} min-h-12 min-w-0 flex-1 basis-0 rounded-full px-3 text-center text-body-sm font-medium text-charcoal data-[pressed=true]:text-on-primary data-[pressed=true]:[background:var(--grad-ink)]`}
             data-pressed={value === option.value}
-            style={value === option.value ? { background: "var(--grad-ink)" } : undefined}
           >
             {option.label}
           </button>

@@ -21,3 +21,12 @@
      padding (`p-3`) = 120px; a few px of headroom against rounding. */
   min-height: 124px;
 }
+
+/* Final Sol review WARN: the frame's and the glass's 32px corners, moved out of style objects.
+   The glass rule outranks TabBar.module.css's pill radius on `.glass` by specificity. */
+.dockFrame {
+  border-radius: 32px;
+}
+.dockFrame > .dockGlass {
+  border-radius: 32px;
+}
