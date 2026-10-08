@@ -351,7 +351,7 @@ export default function LogFoodSheet({
     const itemId = crypto.randomUUID();
     // The same card the scan sheet draws, from the same numbers the portion view is showing.
     const entry = catalogCard({
-      revision, entryId, itemId, foodRefId: foodRefId, grams, qty, portion: catPortion, at: new Date(),
+      revision, entryId, itemId, foodRefId: foodRefId, grams, qty, portion: catPortion, at: at ?? new Date(),
       flags: offPlanFlags(`${revision.description} ${revision.brand ?? ""}`),
     });
     const pick: LogPick = { source: "catalog", card: entry, itemId, foodRefId, revision, grams,
@@ -375,7 +375,7 @@ export default function LogFoodSheet({
 
   async function confirmPortion() {
     if (!picked || !portion || submitting) return;
-    const entry = sheetCard(picked, portion, qty, { id: newId("f"), at: new Date().toISOString() }, mine);
+    const entry = sheetCard(picked, portion, qty, { id: newId("f"), at: (at ?? new Date()).toISOString() }, mine);
     const chosen = pickForCard(picked, entry, mine);
     if (mode === "meal") {
       addToMeal(chosen);
@@ -394,7 +394,7 @@ export default function LogFoodSheet({
     setBlocked(null);
     // Only used when the meal cannot be sent: the whole meal, on this phone, with nothing committed
     // (`logPicks` marks it `localOnlyCard`, so an Undo owes the server nothing).
-    const local = mealCard({ entryId: crypto.randomUUID(), at: new Date(), items, catalogItems: [],
+    const local = mealCard({ entryId: crypto.randomUUID(), at: at ?? new Date(), items, catalogItems: [],
       name: mealName, note: mealNote });
     await logPicks(mealPicks, local, { name: mealName, note: mealNote });
   }

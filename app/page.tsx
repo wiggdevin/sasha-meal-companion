@@ -183,8 +183,8 @@ export default function Today() {
   const [planMode, setPlanMode] = useState<"plan" | "log">("plan");
   const [logOpen, setLogOpen] = useState<"food" | "meal" | null>(null);
   const [logSlot, setLogSlot] = useState<SlotId | null>(null);
-  /** The slot a label opened from a meal card logs into; null when it was opened from anywhere else. */
-  const [labelSlot, setLabelSlot] = useState<SlotId | null>(null);
+  /** The meal card a label, capture or scan was handed off from; null when opened from anywhere else. */
+  const [handoffSlot, setHandoffSlot] = useState<SlotId | null>(null);
   const [openEntry, setOpenEntry] = useState<string | null>(null);
   const [breakdownEntry, setBreakdownEntry] = useState<string | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
@@ -793,7 +793,7 @@ export default function Today() {
     // One serving of the new food, through the durable commit path (calc audit #15); a food that
     // cannot be sent keeps its local card and says so. Never both. The sheet closes only once the
     // serving is committed or kept here; a refusal leaves it open with the draft.
-    const slotId = labelSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1";
+    const slotId = handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1";
     const logged = await logLabelFood(food, slotId, logAtFor(slotId));
     // Only the sheet this attempt came from: a newer one the user opened meanwhile stays open.
     return settleLabelLog(logged, { viewedDate, close: () => { if (isCurrentSheet()) setLabelOpen(false); }, refresh,
@@ -887,9 +887,10 @@ export default function Today() {
     }
     if (logOpen && logSlot === id) return <LogFoodSheet key={`log-${logOpen}-${id}`} mode={logOpen}
       mine={store.foods} slot={id} projection={todayProjection} onAdd={logFood} at={logAtFor(id)}
-      onSomethingElse={() => { setLabelSlot(id); setLogOpen(null); setLogSlot(null); setLabelOpen(true); }}
+      onSomethingElse={() => { setHandoffSlot(id); setLogOpen(null); setLogSlot(null); setLabelOpen(true); }}
       onClose={() => { setLogOpen(null); setLogSlot(null); }}
-      {...captureOverlayProps(setCaptureMode, () => setScanOpen(true))} />;
+      {...captureOverlayProps((mode) => { setHandoffSlot(id); setCaptureMode(mode); },
+        () => { setHandoffSlot(id); setScanOpen(true); })} />;
     return null;
   }
 
@@ -1111,9 +1112,10 @@ export default function Today() {
               projection={todayProjection}
               onAdd={logFood}
               at={logAtFor(logSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
-              onSomethingElse={() => { setLabelSlot(null); setLogOpen(null); setLabelOpen(true); }}
+              onSomethingElse={() => { setHandoffSlot(null); setLogOpen(null); setLabelOpen(true); }}
               onClose={() => { setLogOpen(null); setLogSlot(null); }}
-              {...captureOverlayProps(setCaptureMode, () => setScanOpen(true))}
+              {...captureOverlayProps((mode) => { setHandoffSlot(null); setCaptureMode(mode); },
+                () => { setHandoffSlot(null); setScanOpen(true); })}
             />
           )}
           {scanOpen && (
@@ -1128,7 +1130,8 @@ export default function Today() {
               key="scan-confirm"
               response={scanResult}
               run={scanRun ?? undefined}
-              slot={currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1"}
+              slot={handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1"}
+              eatenAt={logAtFor(handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
               projection={todayProjection}
               onLogged={(_entryId, saved) => { setScanResult(null); setScanRun(null); refresh(); confirmLogged(saved); }}
               onClose={() => { setScanResult(null); setScanRun(null); }}
@@ -1140,6 +1143,8 @@ export default function Today() {
               open
               initialMode={captureMode}
               projection={todayProjection}
+              slot={handoffSlot ?? undefined}
+              at={logAtFor(handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
               onOpenSearch={() => { setCaptureMode(null); setLogOpen("food"); }}
               onLogged={() => { setCaptureMode(null); refresh(); confirmLogged(); }}
               onClose={() => setCaptureMode(null)}

@@ -153,7 +153,7 @@ describe("MealSwapSheet with no target (UI audit 2026-10-07)", () => {
   it("says why there is nothing to swap in, rather than showing an empty body", async () => {
     render(<MealSwapSheet slot={slot} date="2026-10-06" target={undefined} foods={foods} currentOverride={false}
       onSelect={async () => {}} onReset={async () => {}} onEdit={() => {}} onClose={() => {}} />);
-    expect(await screen.findByText(/sized to your daily targets, which appear once your profile is complete/)).toBeTruthy();
+    expect(await screen.findByText(/sized to this meal's target, and it has none right now/)).toBeTruthy();
     expect(screen.queryByRole("status", { name: /Checking/ })).toBeNull();
   });
 });
