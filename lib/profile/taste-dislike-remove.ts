@@ -21,13 +21,19 @@
  * Pure. No I/O.
  */
 import { z } from "zod";
-import { tasteDislike, type TasteDislike } from "@/lib/profile/taste";
+import { storedTasteKey, type TasteDislike } from "@/lib/profile/taste";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuid = z.string().regex(UUID);
 
-/** A dislike key a remove request may name: canonical (`tasteDislike`), same as a new write. */
-const dislikeKey = z.string().max(90).refine((value) => tasteDislike(value) === value, "not a taste dislike");
+/**
+ * A dislike key a remove request may name: ANY key the storage contract accepts
+ * (`storedTasteKey`), exactly as stored -- not only a canonical new-write key (`tasteDislike`). A
+ * row written before a canonicalization rule existed, or stored as something like `f:Okra`, must
+ * still be removable by its exact stored key; only a string the database could never have
+ * accepted (an unknown tag, too long, outside jsonb) is refused with 400.
+ */
+const dislikeKey = z.string().max(90).refine((value) => storedTasteKey(value) !== null, "not a taste dislike");
 
 /** `POST /api/profile/taste/dislikes/remove`. */
 export const tasteDislikeRemoveRequestSchema = z.object({

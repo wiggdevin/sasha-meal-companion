@@ -4,7 +4,10 @@
  * exist from the sync path with chips off) — the dark-flag behaviour tested on
  * tests/profile/taste-confirm-route.test.ts does not apply here.
  *
- * - The request shape is strict: a canonical dislike key only, a uuid action id.
+ * - The request shape is strict: a uuid action id, and ANY key the storage contract accepts
+ *   (`storedTasteKey`) -- not only a canonical new-write key. A dislike stored before
+ *   canonicalization existed (e.g. `f:Okra`) must still be removable by its exact stored key; only
+ *   a key the database could never have stored is refused with 400.
  * - Only the caller's session client and own user id reach the RPC; each database answer maps to
  *   its documented status; a malformed-request refusal (22023) is a 400 and any other failure a 502.
  * - No log line in this path ever includes the dislike key (checked against a console.error spy).
@@ -45,16 +48,28 @@ afterEach(() => { vi.restoreAllMocks(); });
 describe("the remove request shape", () => {
   const bad: [string, unknown][] = [
     ["not a uuid", { ...valid, actionId: "tap-1" }],
-    ["non-canonical family", { ...valid, key: "f:Okra" }],
     ["unknown tag", { ...valid, key: "t:nope" }],
     ["unknown field", { ...valid, keys: ["t:soft"] }],
     ["missing key", { actionId: ACTION }],
+    ["a family over 80 characters (never storable)", { ...valid, key: `f:${"a".repeat(81)}` }],
+    ["an empty family", { ...valid, key: "f:" }],
   ];
   it.each(bad)("refuses %s with 400 and no RPC", async (_, body) => {
     const response = await removePost(body);
     expect(response.status).toBe(400);
     expect((await response.json()).error).toBe("bad_request");
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  // Followups #1 BLOCK fix: the storage contract, not canonicalization, is the gate -- a
+  // non-canonical family that the database could already hold (e.g. written before canonical
+  // families existed) must reach the RPC exactly as given, not be refused at the route.
+  it("accepts a non-canonical but storable family exactly as given, and sends it unchanged", async () => {
+    rpc.mockResolvedValue({ data: { status: "removed", action_id: ACTION, key: "f:Okra", settings: ROW }, error: null });
+    const response = await removePost({ ...valid, key: "f:Okra" });
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("taste_dislike_remove", { p_user_id: "u1", p_action_id: ACTION, p_key: "f:Okra" });
+    expect(await response.json()).toMatchObject({ status: "removed", key: "f:Okra" });
   });
 });
 
