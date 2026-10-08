@@ -25,6 +25,7 @@ import { isFoodKey } from "@/lib/meals/food-key";
 import type { Food } from "@/lib/foods";
 import { parseOccasionPhrase } from "@/lib/meals/occasion-phrase";
 import type { OpenWorldInputs } from "@/lib/meals/open-world";
+import type { FocusRanking } from "@/lib/meals/plate";
 export type ComposedItem = {
   name: string; foodRefId: string; catalogFoodRevisionId: number | null;
   grams: number;
@@ -140,6 +141,12 @@ export type ComposePorts = {
    * known gap while open-world ships dark).
    */
   poolRefs?: (userId: string) => Promise<Readonly<Record<string, string>>>;
+  /**
+   * Phase 18 W11 (D7): the account's active shopping focus for `date` (the turn's day when
+   * omitted) — `rankPlates`/`rankPinnedPlates` then rank by (fits, coverage, score). Absent, or
+   * resolving to undefined (focus off, no Shopping access, a failed read): unchanged ranking.
+   */
+  focus?: (userId: string, date?: string) => Promise<FocusRanking | undefined>;
 };
 
 // Moved to compose-size.ts (target math belongs beside macrosFor/roleOf); re-exported so every

@@ -1,4 +1,4 @@
-import { mealEvidenceOf, openWorldOf } from "@/lib/foods/rule-marks";
+import { focusOf, mealEvidenceOf, openWorldOf } from "@/lib/foods/rule-marks";
 import { livePool, plateChips } from "@/lib/meals/open-world";
 import type { MealEvidence } from "@/lib/meals/snapshot";
 import { componentFor, type Food } from "@/lib/foods";
@@ -111,9 +111,12 @@ export function swapAlternatives(input: {
   const occasion = input.occasion ?? occasionAt(input.clock, { slot });
   const open = openWorldOf(input.eligible);
   // `null`: a snapshot was required and none usable is held, so no new plate is offered (D2).
+  // W11 (D7): an active shopping focus ranks the rows by (fits, coverage, score) on a dated sheet.
+  const focus = input.date ? focusOf(input.eligible, input.date) : undefined;
   const { plates } = target.kcal > 0 && evidence !== null ? rankPlates({ date: input.date ?? UNDATED, slot, occasion,
     untimed: !input.occasion && isUntimed(occasion, input.clock), target, foods: open ? livePool(open, foods) : foods,
-    ...(evidence ? { evidence } : {}), ...(open ? { taste: open.taste, open: open.ranking } : {}) }) : { plates: [] };
+    ...(evidence ? { evidence } : {}), ...(open ? { taste: open.taste, open: open.ranking } : {}),
+    ...(focus ? { focus } : {}) }) : { plates: [] };
   const firsts = bestPerAnchor(plates);
   const ordered = [...firsts, ...plates.filter((plate) => !firsts.includes(plate))].slice(0, PLATE_ROWS);
   // One row per dish: the same plate with and without its cooking fat is one choice.

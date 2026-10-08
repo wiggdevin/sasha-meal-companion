@@ -44,6 +44,8 @@ import { cuisinesFrom } from "@/lib/profile/cuisines";
 import { normalizePreferenceFlags } from "@/lib/profile/onboarding-state";
 import { tasteFrom, type TasteDislike } from "@/lib/profile/taste";
 import { HttpError } from "@/lib/server/auth";
+import { recipeAccessEnabled } from "@/lib/server/recipe-access";
+import { shoppingFocusActive } from "@/lib/shopping/focus";
 import { candidateFoods, type CandidateFoods } from "@/lib/server/candidate-foods";
 import { mealSnapshot, mealSnapshotParts, type MealSnapshotDeps, type SnapshotResponse } from "@/lib/server/meal-snapshot";
 import { readRulesToken } from "@/lib/server/rules-clock";
@@ -121,11 +123,11 @@ let graphCache: { graph: SubstituteGraph | null } | null = null;
 const defaultGraph = () => (graphCache ??= { graph: loadSubstituteGraph() }).graph;
 
 type SettingsRow = { cuisines?: unknown; country_code?: unknown; sex?: unknown; birth_year?: unknown;
-  diet_prefs?: { flags?: unknown; taste?: unknown } | null };
+  diet_prefs?: { flags?: unknown; taste?: unknown } | null; shopping_focus_until?: unknown };
 
 async function readOpenSettings(client: SupabaseClient, userId: string) {
   const { data, error } = await client.from("user_settings")
-    .select("cuisines,country_code,sex,birth_year,diet_prefs").eq("user_id", userId).maybeSingle();
+    .select("cuisines,country_code,sex,birth_year,diet_prefs,shopping_focus_until").eq("user_id", userId).maybeSingle();
   if (error) throw error;
   const row = (data ?? {}) as SettingsRow;
   const flags = row.diet_prefs?.flags;
@@ -136,6 +138,7 @@ async function readOpenSettings(client: SupabaseClient, userId: string) {
     birthYear: typeof row.birth_year === "number" && Number.isInteger(row.birth_year) ? row.birth_year : null,
     flags: normalizePreferenceFlags(Array.isArray(flags) ? flags.filter((f): f is string => typeof f === "string") : []),
     dislikes: (tasteFrom(row.diet_prefs?.taste)?.dislikes ?? []) as TasteDislike[],
+    focusUntil: typeof row.shopping_focus_until === "string" ? row.shopping_focus_until : null,
   };
 }
 
@@ -222,7 +225,12 @@ export async function mealSnapshotV3(client: SupabaseClient, userId: string, now
     schemaVersion: SNAPSHOT_V3, rankingVersion: RANKING_VERSION, universeVersion: UNIVERSE_VERSION,
     universeHash: UNIVERSE_HASH, prefVersion: PREFERENCE_VERSION, priorVersion, graphVersion,
     accountId: userId, rulesVersion: token.rulesVersion, evidenceVersion: token.evidenceVersion,
-    computedAt: now.toISOString(), inputsHash, world: "open", focusUntil: null, plateRules,
+    computedAt: now.toISOString(), inputsHash, world: "open",
+    // W11 (D7): the active focus end, for an account with Shopping access; the phone ranks by the
+    // dated keys GET /api/shopping/focus answers (lib/shopping/focus-client.ts).
+    focusUntil: recipeAccessEnabled(userId) && shoppingFocusActive(settings.focusUntil, now)
+      ? settings.focusUntil : null,
+    plateRules,
     admittedUniverseIds: [...candidate.admittedUniverseIds], admittedRefIds: [...candidate.admittedRefIds],
     foods, excluded: candidate.excluded.map((row) => ({ id: row.id, verdict: row.verdict, reason: row.reason })),
     eligible: parts.eligible,

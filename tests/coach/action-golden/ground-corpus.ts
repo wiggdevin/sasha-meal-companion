@@ -80,4 +80,6 @@ export const GROUND_SAMPLES: CoachActionInput[] = [
   { kind: "update_profile", birthYear: 1992, sex: "female" },
   { kind: "set_targets", dayType: "both", kcal: 2100, proteinG: null },
   { kind: "add_to_shopping_list", names: ["eggs", "oat milk"] },
+  { kind: "set_shopping_focus", on: true, days: 10 },
+  { kind: "set_shopping_focus", on: false },
 ] as CoachActionInput[];

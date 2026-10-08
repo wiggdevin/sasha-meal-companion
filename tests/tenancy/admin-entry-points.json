@@ -354,6 +354,10 @@
     "test": "tests/tenancy/admin-recipes.test.ts",
     "via": "@/lib/server/recipe-plan"
   },
+  "lib/server/shopping-focus.ts": {
+    "test": "tests/tenancy/admin-shopping-focus.test.ts",
+    "via": "@/app/api/shopping/focus/route"
+  },
   "lib/server/viewed-day.ts": {
     "test": "tests/tenancy/admin-libs.test.ts",
     "via": "@/lib/server/coach-ports"

@@ -20,6 +20,7 @@ import { applySetTargets, applyUpdateProfile, undoSettingsAction }
   from "@/lib/coach/apply-profile";
 import { applyShiftSchedule, undoShiftSchedule } from "@/lib/coach/apply-schedule";
 import { applyAddToShoppingList, undoAddToShoppingList } from "@/lib/coach/apply-shopping";
+import { applySetShoppingFocus, undoSetShoppingFocus } from "@/lib/coach/apply-shopping-focus";
 import { applyRestoreSlot, applySkipSlot, undoSkipSlot } from "@/lib/coach/apply-skip";
 import { applyMove, applySetSlotMeal, applySlot, undoMove, undoSlot } from "@/lib/coach/apply-slot";
 import type { RegisteredTypes } from "@/lib/coach/actions";
@@ -53,6 +54,7 @@ const BINDINGS: Bindings = {
   add_to_shopping_list: { apply: applyAddToShoppingList, undo: undoAddToShoppingList },
   skip_slot: { apply: applySkipSlot, undo: undoSkipSlot },
   restore_slot: { apply: applyRestoreSlot, undo: undoSkipSlot },
+  set_shopping_focus: { apply: applySetShoppingFocus, undo: undoSetShoppingFocus },
 };
 
 /** The binding for a kind, or undefined for a kind this build does not know (design §8.5). */
