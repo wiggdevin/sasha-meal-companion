@@ -22,6 +22,7 @@ import { SYNCED_EVENT } from "@/lib/sync/client";
 afterEach(cleanup);
 beforeEach(() => { for (const fn of Object.values(api)) fn.mockReset(); });
 
+const DATE = "2026-10-08";
 const zero = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 const planned: ResolvedSlot = {
   slot: "meal-2", time: "12:30", label: "Meal 2", eaten: false, macros: zero,
@@ -42,7 +43,13 @@ function feedback() {
 
 function setup(eligible: Set<string> | null = new Set(["f1"])) {
   const fb = feedback();
-  const hook = renderHook(() => useMealFavorites({ date: "2026-10-08", slots: [planned, empty], eligible, feedback: fb }));
+  // As on Today: every render, each card asks for its own heart.
+  const hook = renderHook(() => {
+    const favorites = useMealFavorites({ eligible, feedback: fb });
+    favorites.favoriteFor(planned, DATE);
+    favorites.favoriteFor(empty, DATE);
+    return { favoriteFor: (slot: ResolvedSlot) => favorites.favoriteFor(slot, DATE) };
+  });
   return { fb, ...hook };
 }
 
