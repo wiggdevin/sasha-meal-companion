@@ -227,6 +227,9 @@ export type CompletedOnboardingResult = {
   settings: Settings;
   constraintsSaved: boolean;
   error?: string;
+  /** False when the safety round's condition write failed before anything else was written (no
+   *  weigh-in, settings or target): a retry must run the whole save again (final Sol review r3). */
+  profileWritten?: false;
 };
 
 /**
@@ -259,7 +262,7 @@ export async function persistCompletedOnboarding(
   const settings = buildCompletedSettings(base, state, now, eligibility);
   if (conditions.length > 0) {
     const first = await applyFlagConstraints(h, state.flags, deps, conditions);
-    if (!first.constraintsSaved) return { settings: base, ...first };
+    if (!first.constraintsSaved) return { settings: base, ...first, profileWritten: false };
   }
   const weightLb = weightLbFor(state);
   const localDate = deps.localDate();

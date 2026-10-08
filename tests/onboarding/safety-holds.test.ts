@@ -99,6 +99,8 @@ describe("a held account in onboarding", () => {
       openFoodWorld: async () => {},
     }, { clinicianDiet: true });
     expect(result.constraintsSaved).toBe(false);
+    // Final Sol review r3: the shell runs the whole save again on Try again.
+    expect(result.profileWritten).toBe(false);
     expect(saveSynced).not.toHaveBeenCalled();
   });
 });

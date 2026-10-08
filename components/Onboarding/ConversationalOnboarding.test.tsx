@@ -86,7 +86,7 @@ const persistStarterSelection = vi.fn(async (_marks: unknown, _choices: unknown)
  *  contract: it calls the shell's `persistPlan`/`retryConstraints` deps, writes the foods, drains. */
 type SaveDeps = {
   persistPlan: (settings: unknown, state: unknown, now?: unknown, deps?: unknown, safety?: unknown)
-    => Promise<{ constraintsSaved: boolean }>;
+    => Promise<{ constraintsSaved: boolean; profileWritten?: false }>;
   retryConstraints: (flags: unknown) => Promise<boolean>;
 };
 const saveOnboardingPlan = vi.fn(async (input: {
@@ -94,6 +94,8 @@ const saveOnboardingPlan = vi.fn(async (input: {
   safety?: unknown;
 }, deps: SaveDeps) => {
   const written = await deps.persistPlan(input.settings, input.onboardingState, undefined, undefined, input.safety);
+  // G7: a failed safety-condition write saved nothing; the real save-plan offers the step again.
+  if (written.profileWritten === false) return { ok: false as const, error: "Your health answers could not be saved" };
   if (!written.constraintsSaved && !await deps.retryConstraints(input.onboardingState.flags)) {
     return { ok: false as const, error: "Your allergen rules could not be saved — retry from Foods › Avoids" };
   }
@@ -518,6 +520,34 @@ describe("ConversationalOnboarding", () => {
     await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
     expect(persistCompletedOnboarding).toHaveBeenCalledTimes(1);
     expect(retryOnboardingConstraints).toHaveBeenCalledTimes(2);
+  });
+
+  // Final Sol review r3 BLOCK: a failed safety-condition write wrote nothing, so Try again must
+  // run the whole save again (it used to skip to a constraints retry that could never pass).
+  it("retries the whole save after a failed safety-condition write", async () => {
+    foodAccess.status = "pilot";
+    starterFixture.choices = [
+      { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+      { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+      { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+    ];
+    starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+    persistCompletedOnboarding.mockResolvedValueOnce(
+      { settings: defaultSettings(), constraintsSaved: false, profileWritten: false } as never);
+    retryOnboardingConstraints.mockClear();
+    await saveOnboardingDraft({ beat: "opener",
+      settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
+    render(<ConversationalOnboarding />);
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
+    fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
+    await passPlanBeats();
+    fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(persistCompletedOnboarding).toHaveBeenCalledTimes(2);
+    expect(retryOnboardingConstraints).not.toHaveBeenCalled();
   });
 
   // GPT-6 Sol BLOCK (onb2-p0): a target POST that committed but whose answer was lost used to be

@@ -13,6 +13,7 @@
  * The shell offers no pace and saves no plan until this read has answered (a failed read stays
  * on the step with a retry): an unread account is never treated as one with no stored hold.
  */
+import { currentAccountKey, useAccountKey } from "@/components/Onboarding/v2/account-key";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { accountHandle } from "@/lib/device/account";
 import { loadConstraints } from "@/lib/constraints-client";
@@ -87,18 +88,27 @@ export type StoredEligibilityState = {
 export function useStoredEligibility(
   enabled: boolean, bump = 0, reads: StoredEligibilityReads = defaultReads,
 ): StoredEligibilityState {
-  const [state, setState] = useState<{ eligibility: TargetEligibility | null;
-    status: StoredEligibilityState["status"] }>({ eligibility: null, status: "loading" });
+  // Final Sol review r3 BLOCK: each answer belongs to the account it was read for. After a switch
+  // the previous account's `ready` holds read as `loading` until this account's own read answers.
+  const accountKey = useAccountKey();
+  const [state, setState] = useState<{ key: string | null; eligibility: TargetEligibility | null;
+    status: StoredEligibilityState["status"] }>({ key: null, eligibility: null, status: "loading" });
   const live = useRef(true);
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
   const refresh = useCallback(async () => {
+    const key = currentAccountKey();
     const value = await readStoredEligibility(reads);
-    if (live.current) setState({ eligibility: value, status: value ? "ready" : "failed" });
+    // An answer that arrives after a switch is the previous account's: never used, never kept.
+    if (key === null || currentAccountKey() !== key) return null;
+    if (live.current) setState({ key, eligibility: value, status: value ? "ready" : "failed" });
     return value;
   }, [reads]);
   useEffect(() => {
     if (!enabled) return;
     void refresh();
-  }, [enabled, bump, refresh]);
-  return { ...state, refresh };
+  }, [enabled, bump, refresh, accountKey]);
+  const current = state.key !== null && state.key === accountKey;
+  return current
+    ? { eligibility: state.eligibility, status: state.status, refresh }
+    : { eligibility: null, status: "loading", refresh };
 }

@@ -924,6 +924,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
           return { settings: planSettings, constraintsSaved: constraintsSaved.current };
         }
         const written = await persistCompletedOnboarding(planSettings, state, now, deps, safety, requestId, held);
+        // Final Sol review r3 BLOCK: a failed safety-condition write wrote nothing, so Try again
+        // must run the whole save again, not skip to a constraints retry it cannot satisfy.
+        if (written.profileWritten === false) return written;
         profileWritten.current = true;
         profileWrittenKey.current = requestKey;
         constraintsSaved.current = written.constraintsSaved;

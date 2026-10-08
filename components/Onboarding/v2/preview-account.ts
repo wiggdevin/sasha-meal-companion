@@ -8,6 +8,7 @@
  * for `onboardingPlanPreview`'s `account` input. A new account (no Eats yet) makes no read.
  */
 import { useEffect, useState } from "react";
+import { currentAccountKey, useAccountKey } from "@/components/Onboarding/v2/account-key";
 import { accountHandle } from "@/lib/device/account";
 import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import type { PreviewAccount } from "@/lib/onboarding/plan-preview";
@@ -35,14 +36,20 @@ export async function readPreviewAccount(reads: PreviewAccountReads = defaultRea
   }
 }
 
-/** The account for the preview while `enabled`; null until the read answers. */
+/** The account for the preview while `enabled`; null until THIS account's read answers. Final Sol
+ *  review r3 BLOCK: the answer is tagged with the account it was read for and dropped when the
+ *  beat closes, so a switched account never sees the previous account's foods. */
 export function usePreviewAccount(enabled: boolean, reads: PreviewAccountReads = defaultReads): PreviewAccount | null {
-  const [account, setAccount] = useState<PreviewAccount | null>(null);
+  const accountKey = useAccountKey();
+  const [answer, setAnswer] = useState<{ key: string; account: PreviewAccount } | null>(null);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || accountKey === null) return;
     let live = true;
-    void readPreviewAccount(reads).then((value) => { if (live) setAccount(value); });
-    return () => { live = false; };
-  }, [enabled, reads]);
-  return account;
+    void readPreviewAccount(reads).then((value) => {
+      if (live && currentAccountKey() === accountKey) setAnswer({ key: accountKey, account: value });
+    });
+    // Closing the beat (or a switch) drops the answer: a reopened beat waits for a fresh read.
+    return () => { live = false; setAnswer(null); };
+  }, [enabled, reads, accountKey]);
+  return enabled && answer !== null && answer.key === accountKey ? answer.account : null;
 }
