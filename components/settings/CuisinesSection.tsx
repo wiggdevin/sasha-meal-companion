@@ -32,6 +32,20 @@ function dislikeRemoveFailureMessage(error: unknown): string {
 }
 
 /**
+ * The dislikes list out of the RAW settings row an Undo response carries (`TasteDislikeRemoveUndoResult.settings`,
+ * wire shape, snake_case `diet_prefs`) — not the richer `ProfileDietPrefs` the sync layer builds
+ * from it. Used only to read the server's CURRENT answer for "is this key actually back" (Sol
+ * round 6 BLOCK; see `undoDislike`), so a malformed or missing shape reads as "no dislikes" rather
+ * than throwing.
+ */
+function dislikesFromRawSettings(row: Record<string, unknown> | null | undefined): readonly TasteDislike[] {
+  const dietPrefs = (row as { diet_prefs?: unknown } | null | undefined)?.diet_prefs;
+  const taste = (dietPrefs as { taste?: unknown } | null | undefined)?.taste;
+  const dislikes = (taste as { dislikes?: unknown } | null | undefined)?.dislikes;
+  return Array.isArray(dislikes) ? dislikes.filter((d): d is TasteDislike => typeof d === "string") : [];
+}
+
+/**
  * One dislike pill with its own remove control (Followups #1). The toast and Undo state live in
  * the SECTION, not here (Sol BLOCK, verified): a successful remove settles the server's row and
  * fires `SYNCED_EVENT`, which drops this key from `settings.dietPrefs.taste.dislikes` on the very
@@ -201,14 +215,19 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
         });
         return;
       }
-      // `restored` is the server's own word for whether the key is actually back; `capped` means
-      // it would have been but the account hit the 50-dislike limit from something else since.
-      // Neither is reliable on an `already_undone` repeat (it answers the FIRST undo's values),
-      // but this component only ever sends one undo per action id, so that path is not reached.
-      if (result.value.restored) {
+      // Sol round 6 BLOCK, verified: `restored`/`capped` are NOT reliable here — a retried Undo
+      // (the "Try again" path above, same action id) can answer `already_undone`, which reads back
+      // the FIRST call's stored values. If another device removed the same key again in between,
+      // those stale values would say "Back." when the key is not actually back. The returned
+      // settings ROW is the server's current answer and is read directly instead: its dislikes
+      // list actually containing the key is the only thing that means "Back.".
+      const rowDislikes = dislikesFromRawSettings(result.value.settings);
+      if (rowDislikes.includes(key)) {
         tasteFeedback.notify({ tone: "success", message: "Back." });
       } else if (result.value.capped) {
         tasteFeedback.notify({ tone: "changed", message: "Couldn't bring that back — the limit is reached." });
+      } else {
+        tasteFeedback.notify({ tone: "changed", message: "Not restored — it was changed since." });
       }
     });
   }

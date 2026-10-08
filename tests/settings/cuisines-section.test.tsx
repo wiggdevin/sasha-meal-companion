@@ -136,6 +136,10 @@ describe("Settings › Your taste card (hotfix: a bare heading with the flag off
 
 const TEST_USER = "22222222-2222-4222-8222-222222222222";
 const ROW = { rev: 9, diet_prefs: { taste: { dislikes: [] } } };
+/** The settings row an Undo actually restoring "f:Okra" would carry back (Sol round 6 BLOCK): the
+ *  success copy now reads the dislikes list IN this row, not the response's own restored/capped
+ *  fields, so a test asserting "Back." must hand back a row that genuinely contains the key. */
+const ROW_WITH_OKRA = { rev: 10, diet_prefs: { taste: { dislikes: ["f:Okra"] } } };
 const json = (status: number, body: unknown) => async () =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -329,7 +333,7 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
       .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
       .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
       .mockImplementationOnce(json(200, {
-        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW_WITH_OKRA,
       }));
     vi.stubGlobal("fetch", fetchImpl);
     try {
@@ -345,6 +349,30 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
       const [, secondUndoInit] = fetchImpl.mock.calls[2] as unknown as [string, RequestInit];
       expect(JSON.parse(String(firstUndoInit.body))).toEqual({ actionId: "a1" });
       expect(JSON.parse(String(secondUndoInit.body))).toEqual({ actionId: "a1" }); // same id, never a fresh one
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not say 'Back.' when a retried Undo answers already_undone but the returned row lacks the key (Sol round 6 BLOCK)", async () => {
+    // `already_undone` replays the FIRST call's stored restored/capped values. If another device
+    // removed this same key again in between, those stale values would say "Back." when the key
+    // is not actually back -- the returned settings row is the server's CURRENT answer and must
+    // decide the copy instead.
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
+      .mockImplementationOnce(json(200, {
+        status: "already_undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+      await waitFor(() => expect(screen.getByText("Not restored — it was changed since.")).toBeTruthy());
+      expect(screen.queryByText("Back.")).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }
