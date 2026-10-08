@@ -190,6 +190,10 @@ export function starterFillShortRoles(
   choices: readonly Starter[], marks: Readonly<Record<string, StarterMark>>,
   need: number | Partial<Record<FoodRole, number>> = 2,
   skip: ReadonlySet<string> = new Set(),
+  /** Reorders a role's open foods (defaults first, then catalog order) before the fill takes the
+   *  first ones; onboarding v2 passes `starterFillOrder` (lib/foods/starter-variety.ts) so the
+   *  picks cover plate parts, not two starches. Absent: that default order. */
+  order?: (open: Starter[], choices: readonly Starter[], marks: Readonly<Record<string, StarterMark>>) => Starter[],
 ): string[] {
   const added: string[] = [];
   for (const role of ["protein", "carb", "fat"] as const) {
@@ -198,7 +202,8 @@ export function starterFillShortRoles(
     const have = ofRole.filter((item) => marks[item.id] === "eats").length;
     const open = ofRole.filter((item) => !skip.has(item.id)
       && (marks[item.id] === undefined || marks[item.id] === "neutral"));
-    const ordered = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
+    const byDefault = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
+    const ordered = order ? order(byDefault, choices, marks) : byDefault;
     added.push(...ordered.slice(0, Math.max(0, target - have)).map((item) => item.id));
   }
   return added;

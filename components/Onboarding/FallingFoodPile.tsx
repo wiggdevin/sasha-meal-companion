@@ -23,6 +23,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { dbFood } from "@/lib/food-db";
 import type { Starter, StarterMark } from "@/lib/foods/starter";
+import { starterVarietyOrder } from "@/lib/foods/starter-variety";
 import type { FoodRole } from "@/lib/foods";
 import { SPRINGS } from "@/lib/design/motion";
 import { CHIP_FILL } from "./facts/chip-fill";
@@ -47,20 +48,33 @@ const WOBBLE_SECONDS = 1.8;
 const DISC_PX = 112;
 const FALLBACK_STAGE_PX = 360;
 
-/** Round-robin the filtered catalog across roles so the session mixes protein/carb/fat. */
+/** Per role, the deck's share of its 14 foods: five proteins (a five-meal plan needs five), six
+ *  carbs (starches, vegetables and fruit share the role) and three fats. A role with fewer foods
+ *  leaves its share to the others. */
+const ROLE_SHARE: Record<FoodRole, number> = { protein: 5, carb: 6, fat: 3 };
+
+/** Round-robin the filtered catalog across roles so the session mixes protein/carb/fat; inside a
+ *  role, plate-variety order (lib/foods/starter-variety.ts), so the capped deck offers vegetables,
+ *  fruit, more than one kind of starch and distinct proteins, not five starches (onb3). */
 export function buildQueue(choices: readonly Starter[]): Starter[] {
-  const byRole = ROLES.map((role) => choices.filter((item) => item.role === role));
-  const interleaved: Starter[] = [];
-  let index = 0;
-  while (interleaved.length < choices.length && interleaved.length < QUEUE_CAP) {
-    let added = false;
-    for (const group of byRole) {
-      if (index < group.length && interleaved.length < QUEUE_CAP) { interleaved.push(group[index]); added = true; }
+  const byRole = ROLES.map((role) => starterVarietyOrder(choices.filter((item) => item.role === role)));
+  const take = (shares: readonly number[]) => {
+    const interleaved: Starter[] = [];
+    for (let index = 0; interleaved.length < QUEUE_CAP; index += 1) {
+      let added = false;
+      byRole.forEach((group, role) => {
+        if (index < Math.min(group.length, shares[role]) && interleaved.length < QUEUE_CAP) {
+          interleaved.push(group[index]); added = true;
+        }
+      });
+      if (!added) break;
     }
-    if (!added) break;
-    index += 1;
-  }
-  return interleaved;
+    return interleaved;
+  };
+  const shared = take(ROLES.map((role) => ROLE_SHARE[role]));
+  if (shared.length >= Math.min(QUEUE_CAP, choices.length)) return shared;
+  // A short role (a strict profile) gives its share away: refill without the shares, keeping order.
+  return take(ROLES.map(() => QUEUE_CAP));
 }
 
 type FallItem = { item: Starter; fallKey: number; lane: number };

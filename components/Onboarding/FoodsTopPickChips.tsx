@@ -11,6 +11,7 @@
  */
 import { dbFood } from "@/lib/food-db";
 import type { Starter, StarterMark } from "@/lib/foods/starter";
+import { starterVarietyOrder } from "@/lib/foods/starter-variety";
 import type { FoodRole } from "@/lib/foods";
 import Button from "@/components/ui/Button";
 
@@ -26,7 +27,8 @@ export function topPickChoices(choices: readonly Starter[]): Starter[] {
     const inRole = choices.filter((item) => item.role === role);
     const defaults = inRole.filter((item) => item.default);
     const rest = inRole.filter((item) => !item.default);
-    picks.push(...[...defaults, ...rest].slice(0, PER_ROLE_LIMIT));
+    // Plate-variety order (onb3): four carbs used to be four starches, never a vegetable.
+    picks.push(...starterVarietyOrder([...defaults, ...rest]).slice(0, PER_ROLE_LIMIT));
   }
   return picks;
 }
