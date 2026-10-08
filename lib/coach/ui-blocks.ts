@@ -5,6 +5,8 @@ import type {
 } from "@/lib/log/sanity-types";
 import { HARD_BASES, RULE_STRENGTHS } from "@/lib/policy/profiles/types";
 import { provenanceSchema } from "@/lib/provenance";
+import { DAILY_MOVEMENTS } from "@/lib/profile/activity-infer";
+import { validateRate } from "@/lib/profile/rate-goal";
 import type { RecipeCandidate } from "@/lib/recipe-catalog/types";
 
 export const sanityWarningSchema: z.ZodType<SanityWarning> = z.object({
@@ -446,6 +448,25 @@ export const ONBOARDING_FACT_KEYS = [
 ] as const;
 export type OnboardingFactKey = (typeof ONBOARDING_FACT_KEYS)[number];
 
+/**
+ * Onboarding v2 G4 (question set §1a–§1b): the plan answers. Filled by a chip tap or by the
+ * regex fast path (lib/coach/onboarding-fast-path-plan.ts) only — never by the model, whose
+ * schema below leaves them out. `goalRateBpWeek` is the engine's preset for the chip the user
+ * tapped (lib/profile/pace.ts, after the cap); `requestedPaceLbPerWeek` is a pace as spoken, for
+ * `chipForRequestedPace`, never stored. `targetWeightKg` is a draft value for the estimate date
+ * and is never stored. `firstMealTime` is 24-hour "HH:MM" (`shiftForFirstMeal`, lib/plan.ts).
+ */
+export const ONBOARDING_PLAN_FACT_KEYS = [
+  "goalRateBpWeek", "requestedPaceLbPerWeek", "targetWeightKg", "trainingWeekdays",
+  "dailyMovement", "mealsPerDay", "firstMealTime",
+] as const;
+export type OnboardingPlanFactKey = (typeof ONBOARDING_PLAN_FACT_KEYS)[number];
+/** Every answer key a confidence entry may name. */
+export const ONBOARDING_ANSWER_KEYS = [...ONBOARDING_FACT_KEYS, ...ONBOARDING_PLAN_FACT_KEYS] as const;
+export type OnboardingAnswerKey = (typeof ONBOARDING_ANSWER_KEYS)[number];
+export const ONBOARDING_DAILY_MOVEMENTS = DAILY_MOVEMENTS;
+const RATE_PRESETS = [-75, -50, -25, 10, 20, 25] as const;
+
 export const ONBOARDING_GOALS = ["lose_fat", "recomp", "maintain", "gain_muscle"] as const;
 export const ONBOARDING_ACTIVITIES = [
   "sedentary", "light", "moderate", "active", "very_active",
@@ -456,7 +477,7 @@ export const ONBOARDING_COOKING_EFFORTS = ["none", "minimal", "full"] as const;
  *  `partialRecord`, not `record`: a fresh draft, or one where only a few fields were ever
  *  touched, must not be forced to carry every key. */
 const onboardingConfidenceSchema = z.partialRecord(
-  z.enum(ONBOARDING_FACT_KEYS),
+  z.enum(ONBOARDING_ANSWER_KEYS),
   z.number().min(0).max(1),
 );
 
@@ -476,6 +497,15 @@ const onboardingFactsShape = z.object({
    *  enum — the existing PreferenceClassifier flag set stays the source of truth for Settings. */
   dietFlags: z.array(z.string().min(1).max(40)).max(12).optional(),
   cookingEffort: z.enum(ONBOARDING_COOKING_EFFORTS).optional(),
+  goalRateBpWeek: z.number().int().refine((bp) => (RATE_PRESETS as readonly number[]).includes(bp),
+    "goalRateBpWeek must be one of the engine's presets").optional(),
+  requestedPaceLbPerWeek: z.number().positive().max(5).optional(),
+  targetWeightKg: z.number().min(20).max(400).optional(),
+  trainingWeekdays: z.array(z.number().int().min(0).max(6)).max(7)
+    .refine((days) => new Set(days).size === days.length, "weekdays must not repeat").optional(),
+  dailyMovement: z.enum(DAILY_MOVEMENTS).optional(),
+  mealsPerDay: z.number().int().min(2).max(6).optional(),
+  firstMealTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(),
   confidence: onboardingConfidenceSchema,
 }).strict();
 
@@ -484,7 +514,13 @@ const onboardingFactsShape = z.object({
  *  confidence score, `dietFlags` included (one score for the whole list, same as every other
  *  field) — a value with a fact and no confidence for it is rejected, not silently accepted. */
 export const onboardingFactsSchema = onboardingFactsShape.superRefine((value, ctx) => {
-  for (const key of ONBOARDING_FACT_KEYS) {
+  // A preset must also match the goal's direction when both are known.
+  if (value.goal !== undefined && value.goalRateBpWeek !== undefined
+    && !validateRate(value.goal, value.goalRateBpWeek)) {
+    ctx.addIssue({ code: "custom", path: ["goalRateBpWeek"],
+      message: "goalRateBpWeek is not a preset for the goal" });
+  }
+  for (const key of ONBOARDING_ANSWER_KEYS) {
     if (value[key] !== undefined && value.confidence[key] === undefined) {
       ctx.addIssue({
         code: "custom", path: ["confidence", key],

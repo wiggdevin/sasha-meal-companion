@@ -7,6 +7,7 @@ import type { ActivityLevel, BodyFatSource, Goal, Settings } from "@/lib/types";
 import type { Profile } from "@/lib/constraints-client";
 import type { HeightUnit } from "@/lib/units/height";
 import { paceAllowed, type TargetEligibility } from "@/lib/profile/rate-eligibility";
+import { shiftForFirstMeal } from "@/lib/plan";
 import {
   cookingEffortFromDietPrefs,
   dietPrefsTaste,
@@ -73,6 +74,9 @@ export type OnboardingState = {
   userOverrides: Partial<Record<PreferenceFlag, boolean>>;
   planEdits: Partial<Record<PlanField, number | null>>;
   mealsPerDay: number | null;
+  /** "Your day" (onboarding v2 §1b): the first meal as 24-hour "HH:MM", saved as the whole-day
+   *  shift (`shiftForFirstMeal`, lib/plan.ts). Unset or null keeps the layout's own times. */
+  firstMealTime?: string | null;
 };
 
 export type OnboardingAction =
@@ -94,6 +98,7 @@ export type OnboardingAction =
   | { type: "set_cooking_effort"; value: CookingEffort | null }
   | { type: "edit_plan"; field: PlanField; value: number }
   | { type: "set_meals_per_day"; value: number }
+  | { type: "set_first_meal_time"; value: string | null }
   | { type: "reset_plan" };
 
 function text(value: number | null | undefined): string {
@@ -316,6 +321,9 @@ export function onboardingReducer(
     case "set_meals_per_day":
       return Number.isInteger(action.value) && action.value >= 2 && action.value <= 6
         ? { ...state, mealsPerDay: action.value } : state;
+    case "set_first_meal_time":
+      return action.value === null || shiftForFirstMeal(action.value) !== null
+        ? { ...state, firstMealTime: action.value } : state;
     case "reset_plan":
       return { ...state, planEdits: { trainingKcal: null, restKcal: null, proteinG: null } };
   }
@@ -358,6 +366,10 @@ function candidateSettings(base: Settings, state: OnboardingState, onboardedAt: 
     goalRateBpWeek: confirmedRate(state.goal, state.goalRateBpWeek),
     trainingWeekdays: [...state.trainingWeekdays],
     mealsPerDay: state.mealsPerDay,
+    ...(state.firstMealTime
+      ? { shiftMinutes: shiftForFirstMeal(state.firstMealTime, { mealsPerDay: state.mealsPerDay })
+          ?? base.shiftMinutes }
+      : {}),
     dietPrefs,
     onboardedAt,
   };

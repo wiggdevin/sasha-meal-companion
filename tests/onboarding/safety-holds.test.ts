@@ -100,3 +100,16 @@ describe("a held account in onboarding", () => {
     expect(saveSynced).not.toHaveBeenCalled();
   });
 });
+
+describe("Your day: first meal time", () => {
+  it("saves the first meal as the whole-day shift for the chosen meal count", () => {
+    let state = onboardingReducer(losingState(), { type: "set_meals_per_day", value: 3 });
+    state = onboardingReducer(state, { type: "set_first_meal_time", value: "06:30" });
+    expect(onboardingReducer(state, { type: "set_first_meal_time", value: "6:30" })).toBe(state);
+    const settings = buildCompletedSettings(defaultSettings(), state, NOW);
+    expect(settings.shiftMinutes).toBe(-90);
+    expect(settings.mealsPerDay).toBe(3);
+    expect(buildCompletedSettings(defaultSettings(), losingState(), NOW).shiftMinutes)
+      .toBe(defaultSettings().shiftMinutes);
+  });
+});

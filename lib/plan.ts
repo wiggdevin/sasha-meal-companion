@@ -59,6 +59,20 @@ export function mealCountFor(settings: Partial<Pick<Settings, "mealsPerDay" | "a
   return trainingKcal == null || trainingKcal <= 1800 ? 3 : trainingKcal <= 2600 ? 4 : 5;
 }
 
+/**
+ * Onboarding v2 "Your day" (question set §1b): the whole-day shift that puts the first meal at
+ * `firstMealTime` ("HH:MM"), from the layout's own first time for the account's meal count.
+ * Stored as `Settings.shiftMinutes` (synced as `shift_minutes`); null for a malformed time.
+ */
+export function shiftForFirstMeal(
+  firstMealTime: string,
+  settings: Partial<Pick<Settings, "mealsPerDay" | "activeTargetProfile">> = {},
+): number | null {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(firstMealTime)) return null;
+  const layoutFirst = LAYOUT_TIMES[mealCountFor(settings)][0];
+  return timeToMinutes(firstMealTime) - timeToMinutes(layoutFirst);
+}
+
 export function slotListFor(_dayType: DayType, settings?: Pick<Settings, "mealsPerDay" | "activeTargetProfile">): SlotId[] {
   return MEAL_IDS.slice(0, settings ? mealCountFor(settings) : 3);
 }
