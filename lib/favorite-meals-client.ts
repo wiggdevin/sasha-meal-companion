@@ -50,7 +50,7 @@ import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import {
   foodRefsFor, readFoodMembership, readPrefRefCache,
-  membershipSeen, repairFoodMembershipCache, setFoodMembership, setFoodMembershipGuarded,
+  membershipSeen, repairFoodMembershipCache, reserveFoodMembershipIntent, setFoodMembership, setFoodMembershipGuarded,
 } from "@/lib/foods/prefs-client";
 import { componentRuleMark, currentEligibleView, openWorldOf } from "@/lib/foods/rule-marks";
 import { SYNCED_EVENT, foodRulesEpoch } from "@/lib/foods/rules-epoch";
@@ -654,8 +654,14 @@ export async function undoSaveFavoriteMeal(
         kept.push(name);
         continue;
       }
-      await setFoodMembership(name, null, { note: null, account: h });
+      // Our own intent, so the outcome can be read: the neutral write counts only when it queued
+      // at this revision and is still the newest mark. A newer tap (an Avoid during this await)
+      // supersedes it, and the name is kept with its projection untouched (Sol r5).
+      const intent = reserveFoodMembershipIntent(name, h);
+      await setFoodMembership(name, null, { note: null, account: h, intent });
       assertCurrent(h);
+      const after = readFoodMembership(h.userId, name);
+      if (after?.status !== null || after.rev !== intent.rev) { kept.push(name); continue; }
       const local = done.localId ? foods[done.localId] : undefined;
       if (local?.status === "eats") setFoodStatus(local.id, "neutral");
       await updateMeta<MarkRecord>(h, marksKey(id), (current) => current && {

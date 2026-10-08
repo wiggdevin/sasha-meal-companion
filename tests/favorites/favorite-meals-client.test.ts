@@ -717,3 +717,46 @@ describe("a crash between the commit and the cache write", () => {
     expect(readFoodMembership(h.userId, "banana")?.status).toBe("avoid");
   });
 });
+
+// ------------------------------------------------------------------ Sol round 5
+
+describe("an Avoid tap during the Undo await", () => {
+  it("supersedes the neutral write: the name is kept, Avoid stands, the projection is untouched", async () => {
+    const tofu = { ...food("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3", "Tofu", "protein"), status: "neutral" as const };
+    seedStore([FOODS[RICE_ID], FOODS[EGG_ID], tofu]);
+    const first = await save({ judge: allow, foods: { ...FOODS, [tofu.id]: tofu } },
+      [component("Tofu", 120, `food:${tofu.id}`)]);
+    if (!first.ok) throw new Error("setup");
+    expect(getFoods()[tofu.id].status).toBe("eats");
+    // The tap lands after Undo reserved its neutral write and while that write awaits its id (the
+    // first digest Undo asks for), before anything is queued.
+    let tap: Promise<unknown> | undefined;
+    let tapped = false;
+    const real = globalThis.crypto;
+    vi.stubGlobal("crypto", {
+      randomUUID: () => real.randomUUID(),
+      getRandomValues: <T extends ArrayBufferView>(a: T) => real.getRandomValues(a as never) as T,
+      subtle: { digest: (algorithm: AlgorithmIdentifier, data: BufferSource) => {
+        if (!tapped) {
+          tapped = true;
+          tap = setFoodMembership("Tofu", "avoid", { account: h, note: null });
+        }
+        return real.subtle.digest(algorithm, data);
+      } },
+    });
+    const undo = undoSaveFavoriteMeal(first.id, first.newlyFavored, { account: h });
+    const undone = await undo;
+    await tap;
+    vi.stubGlobal("crypto", real);
+    expect(tap).toBeDefined();
+    expect(undone).toMatchObject({ ok: true, cleared: [], kept: ["tofu"] });
+    expect((await membershipOps()).map((op) => op.payload.status)).toEqual(["eats", "avoid"]);
+    expect(readFoodMembership(h.userId, "tofu")?.status).toBe("avoid");
+    // The store projection was not reset to neutral by Undo (it is the Avoid tap's to move).
+    expect(getFoods()[tofu.id].status).not.toBe("neutral");
+    expect((await marksOf(first.id))?.done).toEqual([expect.not.objectContaining({ undone: true })]);
+    // A retry of Undo still leaves the newer choice alone.
+    expect(await undoSaveFavoriteMeal(first.id, first.newlyFavored, { account: h }))
+      .toMatchObject({ cleared: [], kept: ["tofu"] });
+  });
+});
