@@ -140,13 +140,26 @@ export function starterDefaultIds(choices: readonly Starter[]): string[] {
 }
 
 export type StarterMark = "eats" | "avoid" | "neutral";
+export type InitialStarterOptions = {
+  /**
+   * true (the legacy grid's default): every curated default starts marked "eats", and the user
+   * reviews the whole visible grid before saving. false: nothing is pre-marked; only the user's
+   * own taps, foods named in their text and their saved foods start marked. A surface that does
+   * not show every pre-marked food (onboarding v2's falling pile) must pass false, or every
+   * default it never showed is saved as a liked food (2026-10-07 QA: 29 Eats nobody chose).
+   */
+  preselectDefaults?: boolean;
+};
+
 export function initialStarterSelection(
   flags: readonly string[], profile: Profile, prefsText: string,
   instances: readonly ProfileInstance[] = [], existingFoods: readonly Food[] = [],
+  options: InitialStarterOptions = {},
 ): Record<string, StarterMark> {
   const choices = starterChoices(flags, profile, instances);
-  const marks: Record<string, StarterMark> = Object.fromEntries(
-    starterDefaultIds(choices).map((id) => [id, "eats"]));
+  const preselect = options.preselectDefaults ?? true;
+  const marks: Record<string, StarterMark> = preselect ? Object.fromEntries(
+    starterDefaultIds(choices).map((id) => [id, "eats"])) : {};
   const allowed = new Set(choices.map((item) => item.id));
   for (const [id, status] of mentionedFoodChoices(prefsText, STARTERS)) {
     if (status === "avoid" || allowed.has(id)) marks[id] = status;
@@ -160,6 +173,27 @@ export function initialStarterSelection(
     else marks[item.id] = food.status;
   }
   return marks;
+}
+
+/**
+ * "Pick for me" without overriding the user: the ids to add so that every role reaches the
+ * two-per-role floor `starterSelectionValid` asks for. Roles that already have two liked foods get
+ * nothing; a food the user marked (liked or avoided) is never re-marked; curated defaults come
+ * first in catalog order, then any other allowed food of that role. Returns [] when every role is
+ * already covered. Pure.
+ */
+export function starterFillShortRoles(
+  choices: readonly Starter[], marks: Readonly<Record<string, StarterMark>>, perRole = 2,
+): string[] {
+  const added: string[] = [];
+  for (const role of ["protein", "carb", "fat"] as const) {
+    const ofRole = choices.filter((item) => item.role === role);
+    const have = ofRole.filter((item) => marks[item.id] === "eats").length;
+    const open = ofRole.filter((item) => marks[item.id] === undefined || marks[item.id] === "neutral");
+    const ordered = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
+    added.push(...ordered.slice(0, Math.max(0, perRole - have)).map((item) => item.id));
+  }
+  return added;
 }
 
 export function starterSelectionValid(ids: readonly string[], choices: readonly Starter[]): boolean {

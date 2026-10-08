@@ -38,6 +38,12 @@ const ALLERGY_OR_CONDITION_PATTERNS: readonly RegExp[] = [
   /\beating disorder\b|anorexi|bulimi|\barfid\b/,
   /\bdoctors?\b|\bdr\.\s|physician|dietitian|nutritionist|\bclinician\b|\bhospital\b/,
   /\bprescri\w*\b|\bmedications?\b|\bmedicine\b|\bmeds\b|\binsulin\b|\bmetformin\b|\bwarfarin\b|\bstatins?\b/,
+  // 2026-10-07 W5b corpus replay (tests/onboarding/extract-safety-corpus.test.ts): named
+  // conditions, procedures and sensitivities the list above missed ("I have high blood pressure",
+  // "acid reflux disease", "since my surgery", "sensitive to sulfites").
+  /\bblood pressure\b|\bdisease\b|\bdisorder\b|\bsyndrome\b|\bdiagnos/,
+  /\bsurger(y|ies)\b|\bbariatric\b|\bgastric\b|\bsensitiv(e|ity) to\b|\bsulph?ites?\b/,
+  /\beczema\b|\ban(a)?emi|\bdeficien|\bpku\b|phenylketon|hashimoto/,
 ];
 
 /** A body effect or symptom, with no condition named — narrow on purpose: clear clinical
@@ -61,6 +67,17 @@ const SYMPTOM_PATTERNS: readonly RegExp[] = [
   // body-effect list spans digestive, skin AND airway words (r2: "make my throat close" was a
   // miss when this list was digestive/skin only).
   /\b(?:makes?|made|making|gives?|gave|giving)\s+(?:me|my\s+\w+)\b[^.?!]{0,25}\b(?:hurts?|aches?|ache|sick|nause\w*|bloat\w*|gassy|cramp\w*|pain\w*|itchy|dizzy|numb|swell\w*|close\w*|tighten\w*|choke\w*)\b/,
+  // 2026-10-07 W5b corpus replay: every symptom sentence in the W5b fixed corpus
+  // (tests/fixtures/taste-safety-corpus.ts) must stay local here too. Body words only, never the
+  // workout vocabulary an opener uses ("tired", "energy", "sore" alone stay allowed).
+  /\bthr(?:ow|ew|owing|ows) up\b|\bpuk(?:e|ed|ing)\b|\bqueas|\bsick\b|\bill\b|\bunwell\b/,
+  /\bgas\b|\bgassy\b|\bflatul|\bconstipat|\bdiarrh|\breflux\b|\bheartburn\b|\bindigest|\bulcer/,
+  /\bstomach\b|\btumm(?:y|ies)\b|\bbell(?:y|ies)\b|\bguts?\b|\bbowel|\bintestin|\bdigest/,
+  /\bitch|\btingl|\bthroat\b|\btongue\b|\bmouth\b|\bwheez|\bgag(?:s|ged|ging)?\b|\bchok(?:e|ed|es|ing)\b/,
+  /\bjitter|\bpoison|\breaction\b|\breacts?\b|\bflare|\bupset|\bagree(?:s|d)? with me\b/,
+  /\bdoesn'?t sit right\b|\bpain\b|\bburns? my\b|\bbloats?\b|\bcrash(?:es|ed|ing)? my\b/,
+  /\bafter (?:i (?:eat|ate|have|had)|eating|having)\b|\b(?:every ?time|whenever) i (?:eat|have|drink|ate)\b/,
+  /[\u{1F922}\u{1F92E}\u{1F637}\u{1F912}\u{1F915}\u{1F927}\u{1F48A}\u{1FA7A}\u{1F489}]/u,
 ];
 
 export type OnboardingSafetyVerdict =
@@ -75,7 +92,7 @@ export type OnboardingSafetyVerdict =
 export function onboardingSafetyCheck(text: string): OnboardingSafetyVerdict {
   const value = typeof text === "string" ? text : "";
   if (classifyMedical(value).deflect) return { blocked: true, reason: "medical" };
-  const normalized = value.toLowerCase();
+  const normalized = value.toLowerCase().replace(/[\u2018\u2019]/g, "'");
   if (ALLERGY_OR_CONDITION_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return { blocked: true, reason: "allergy_or_condition" };
   }
