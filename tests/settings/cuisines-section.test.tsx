@@ -309,4 +309,44 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("shows 'Already removed.' with no Undo when the remove answers already_gone (Sol round 5 WARN)", async () => {
+    const fetchImpl = vi.fn(json(200, { status: "already_gone", actionId: "a1", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("Already removed.")).toBeTruthy());
+      expect(screen.queryByText("Removed.")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("offers Try again on a failed Undo, which re-sends with the SAME action id (Sol round 5 BLOCK)", async () => {
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+      const tryAgain = await screen.findByRole("button", { name: "Try again" });
+      expect(screen.getByText("That did not save. Try again.")).toBeTruthy();
+      fireEvent.click(tryAgain);
+      await waitFor(() => expect(screen.getByText("Back.")).toBeTruthy());
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      const [, firstUndoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      const [, secondUndoInit] = fetchImpl.mock.calls[2] as unknown as [string, RequestInit];
+      expect(JSON.parse(String(firstUndoInit.body))).toEqual({ actionId: "a1" });
+      expect(JSON.parse(String(secondUndoInit.body))).toEqual({ actionId: "a1" }); // same id, never a fresh one
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

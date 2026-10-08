@@ -151,6 +151,13 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
       if (!result.ok) return; // keep the stored action id: the next tap on this key is a retry
       dislikeActionIds.delete(key); // a definite outcome; a future tap (new pill, same key) is fresh
       const resultActionId = result.value.actionId;
+      // Sol round 5 WARN, verified: `already_gone` means the key was never actually on the row for
+      // THIS call to take off (an idempotent no-op, still recorded) — there is nothing an Undo
+      // could put back, so it never offers one, and says so plainly rather than claiming "Removed."
+      if (result.value.status === "already_gone") {
+        tasteFeedback.notify({ tone: "changed", message: "Already removed." });
+        return;
+      }
       // Sol round 2/3 WARN, intentional: one shared toast for the whole section means removing a
       // SECOND key, after the first remove has already completed and its Undo toast is showing,
       // replaces that toast with this one — the first key's Undo is no longer reachable from the
@@ -182,7 +189,18 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
     }).then((result) => {
       dislikeBusy.current = false;
       setDislikeBusyKey(null);
-      if (!result.ok) return;
+      if (!result.ok) {
+        // Sol round 5 BLOCK, verified: a failed or lost Undo had no way back. Overrides the generic
+        // failure toast `run()` already showed with one offering "Try again", which re-sends the
+        // SAME action id — the server's undo is idempotent (`already_undone` on a repeat), so
+        // retrying is always safe, even when the first attempt actually landed and only its
+        // response was lost.
+        tasteFeedback.notify({
+          tone: "error", message: dislikeRemoveFailureMessage(result.error),
+          action: { label: "Try again", action: () => undoDislike(actionId, key) },
+        });
+        return;
+      }
       // `restored` is the server's own word for whether the key is actually back; `capped` means
       // it would have been but the account hit the 50-dislike limit from something else since.
       // Neither is reliable on an `already_undone` repeat (it answers the FIRST undo's values),
