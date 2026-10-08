@@ -240,7 +240,10 @@ export function useSettingsController() {
   function resetTargets(): void {
     setSaveError(null);
     const h = currentAccountOrNull();
-    void persistTargetPin({ dayType: "both", kcal: null, proteinG: null }).then(
+    // The same queue as the steppers: a tap still in flight never lands after the reset (UI audit r2).
+    const run = pinQueue.current.catch(() => {}).then(() => persistTargetPin({ dayType: "both", kcal: null, proteinG: null }));
+    pinQueue.current = run;
+    void run.then(
       (next) => {
         if (h !== null && !isCurrent(h)) return;
         setStore(localPatch(h, next, { proteinLocked: true }));

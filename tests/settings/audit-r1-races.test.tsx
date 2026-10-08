@@ -61,6 +61,21 @@ describe("UI audit r1: tap order", () => {
     await waitFor(() => expect((result.current!.store!.settings as Settings).proteinG).toBe(155));
   });
 
+  it("a reset waits for a stepper tap still in flight, so the reset is what stays (UI audit r2)", async () => {
+    store.value = { settings: { ...defaultSettings(), proteinG: 140 } } as unknown as Store;
+    const { useSettingsController } = await import("@/components/settings/use-settings-controller");
+    const { result } = renderHook(() => useSettingsController());
+    await waitFor(() => expect(result.current).not.toBeNull());
+    gates.hold = true;
+    act(() => { result.current!.setProteinG(150); });
+    act(() => { result.current!.resetTargets(); });
+    await waitFor(() => expect(gates.list.length).toBe(1));
+    await release(0);
+    await waitFor(() => expect(gates.list.length).toBe(2));
+    await release(1);
+    await waitFor(() => expect((result.current!.store!.settings as Settings).proteinG).toBe(0));
+  });
+
   it("sends a section's edits one after another, in tap order", async () => {
     const { useSettingsWrite } = await import("@/components/settings/use-settings-write");
     gates.hold = true;
