@@ -103,12 +103,19 @@ const saveOnboardingPlan = vi.fn(async (input: {
   }
   return { ok: true as const };
 });
+/** The account's stored pace holds (stored-eligibility.ts): none unless a test sets them. */
+const storedHolds = vi.hoisted(() => ({ value: null as null | { holds: string[]; minor: boolean } }));
+vi.mock("@/components/Onboarding/v2/stored-eligibility", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/Onboarding/v2/stored-eligibility")>()),
+  useStoredEligibility: () => storedHolds.value,
+}));
 vi.mock("@/lib/onboarding/save-plan", () => ({
   saveOnboardingPlan: (input: never, deps: never) => saveOnboardingPlan(input, deps),
   RATE_NOT_ELIGIBLE_ERROR: "Your saved health answers keep your calories about where you burn, so there's no pace to set. Tap Use this plan again.",
 }));
 
 beforeEach(() => {
+  storedHolds.value = null;
   (globalThis as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
   foodAccess.status = "unavailable";
   starterFixture.choices = null;
@@ -644,6 +651,23 @@ describe("ConversationalOnboarding", () => {
       const notes = await screen.findByTestId("plan-notes");
       expect(notes.textContent).toMatch(/don't add pregnancy or breastfeeding needs/);
       expect(notes.textContent).toMatch(/won't set a loss or gain pace/);
+    });
+
+    it("an account with a STORED hold that taps none this round never sees the pace screen " +
+      "(final Sol review BLOCK)", async () => {
+      storedHolds.value = { holds: ["kidney"], minor: false };
+      pickableFoods();
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
+      await screen.findByTestId("your-day-beat");
+      expect(screen.queryByTestId("pace-beat")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Looks right" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Sprout, pick for me" }));
+      const notes = await screen.findByTestId("plan-notes");
+      expect(notes.textContent).toMatch(/won't set a loss or gain pace/);
+      expect(notes.textContent).toMatch(/kidney disease/);
     });
 
     it("a minor stops: no week, no plan, and leaving saves no profile", async () => {

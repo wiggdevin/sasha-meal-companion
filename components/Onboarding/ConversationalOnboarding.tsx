@@ -31,6 +31,9 @@ import RewardPlateCard, { type RewardPlateFood, type RewardPlateTargets }
 import { useOnboardingFoodAccess } from "@/components/Onboarding/useOnboardingFoodAccess";
 import { useStarterStep } from "@/components/Onboarding/useStarterStep";
 import {
+  mergeEligibility, serverHeldEligibility, useStoredEligibility,
+} from "@/components/Onboarding/v2/stored-eligibility";
+import {
   applyFactsToSettings, buildOnboardingStateFromFacts, factsToPartialSettings, type FactsLike,
 } from "@/components/Onboarding/v2/facts-bridge";
 import {
@@ -499,8 +502,16 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     ? { ...applyFactsToSettings(base, facts), heightUnit: "ft_in" as const, weightUnit: "lb" as const }
     : null), [base, facts]);
   const today = todayIso();
-  const minor = isMinor(facts.birthYear, today);
-  const baseEligibility = useMemo(() => eligibilityFor(plan), [plan]);
+  // The round's taps AND the account's stored answers (final Sol review BLOCK): the server reads
+  // both, so a stored hold the round did not repeat still holds the pace here.
+  // A `409 rate_not_eligible` answer re-reads them, and holds the plan whatever that read says:
+  // the pace screen, the preview and the save then all drop the pace, never only a note.
+  const storedEligibility = useStoredEligibility(!!base, serverHeld ? 1 : 0);
+  const notedEligibility = useMemo(() => mergeEligibility(eligibilityFor(plan), storedEligibility),
+    [plan, storedEligibility]);
+  const baseEligibility = useMemo(() => serverHeldEligibility(notedEligibility, serverHeld),
+    [notedEligibility, serverHeld]);
+  const minor = isMinor(facts.birthYear, today) || baseEligibility.minor;
   const pace = useMemo(() => paceFor(settings, plan, baseEligibility, today),
     [settings, plan, baseEligibility, today]);
   /** Everything the beats answered, as the write path's state (facts-bridge.ts). Activity is the
@@ -633,12 +644,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   }, [settings, onboardingState, baseEligibility]);
 
   const planNotes = useMemo<PlanNote[]>(() => {
-    const notes = planCardNotes({ goal: facts.goal, answers: plan, pace,
+    const notes = planCardNotes({ goal: facts.goal, answers: plan, pace, eligibility: notedEligibility,
       mealCount: dayDefaults.mealCount, firstMealTime: dayDefaults.firstMealTime });
-    return serverHeld && !notes.some((note) => note.id === "held")
-      ? [...notes, { id: "held", text: "Your saved health answers keep calories about where you burn." }]
+    // The server held the pace: its reason (the account's saved answers) replaces the generic one.
+    return serverHeld
+      ? [...notes.filter((note) => note.id !== "held"),
+        { id: "held", text: "Your saved health answers keep calories about where you burn." }]
       : notes;
-  }, [facts.goal, plan, pace, dayDefaults, serverHeld]);
+  }, [facts.goal, plan, pace, notedEligibility, dayDefaults, serverHeld]);
 
   /** A tap in the foods beat: the starter mark, plus the tap order the reward card reads. */
   function markFood(id: string, mark: StarterMark) {
@@ -659,7 +672,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     if (next === "week") return answers.week !== null;
     if (next === "safety") return answers.safety !== null;
     if (next === "pace") {
-      const nextPace = paceFor(settings, answers, eligibilityFor(answers), today);
+      // The same eligibility the plan is built under: these answers' taps, the account's stored
+      // holds and a server refusal (final Sol review BLOCK).
+      const eligibility = serverHeldEligibility(
+        mergeEligibility(eligibilityFor(answers), storedEligibility), serverHeld);
+      const nextPace = paceFor(settings, answers, eligibility, today);
       return !paceBeatNeeded(nextPace) || storedPace(nextPace, answers) !== null;
     }
     if (next === "day") return answers.day !== null;

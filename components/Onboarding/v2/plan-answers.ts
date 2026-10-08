@@ -135,6 +135,9 @@ export function planCardNotes(input: {
   /** The meal count and first time the plan uses (after the derived count). */
   mealCount: number;
   firstMealTime: string;
+  /** The eligibility the plan is built under (the round's taps merged with the account's stored
+   *  answers, stored-eligibility.ts); omitted, the round's taps alone. */
+  eligibility?: TargetEligibility;
 }): PlanNote[] {
   const { answers, pace } = input;
   const notes: PlanNote[] = [];
@@ -147,8 +150,8 @@ export function planCardNotes(input: {
     notes.push({ id: "activity", change: "week",
       text: `Activity: ${activityLabel(activityFor(week))}. We started your burn estimate low. It adjusts as you log.` });
   }
-  const eligibility = eligibilityFor(answers);
-  const held = eligibility.holds.length > 0;
+  const eligibility = input.eligibility ?? eligibilityFor(answers);
+  const held = eligibility.holds.length > 0 || pace?.kind === "held";
   if (input.goal === "recomp") notes.push({ id: "recomp", text: "Calories stay about where you burn. Protein stays high." });
   if (input.goal === "maintain") notes.push({ id: "maintain", text: "Calories stay about where you burn." });
   if (pace?.kind === "minimum") {
