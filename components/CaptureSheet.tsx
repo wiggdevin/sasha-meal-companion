@@ -191,9 +191,9 @@ function CaptureBody({
   );
 }
 
-/** Capture is always "now", whatever day the Today screen is showing: the commit's eaten_at is
- *  this instant, and local_date must agree with it in this zone (lib/log/contract.ts). Its own
- *  hook so useCaptureFlow keeps room for the brief's settle() under the length budget. */
+/** When the capture was eaten: `at` (a past day on Today, lib/log/viewed-at.ts), else this instant.
+ *  local_date must agree with eaten_at in this zone (lib/log/contract.ts). Its own hook so
+ *  useCaptureFlow keeps room for the brief's settle() under the length budget. */
 function useCaptureWhen(at?: Date): { localDate: string; tz: string; at?: Date } {
   const [when] = useState(() => ({
     localDate: new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" })
