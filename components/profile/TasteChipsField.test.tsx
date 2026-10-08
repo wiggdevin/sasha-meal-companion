@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import TasteChipsField, { TASTE_PICK_MAX } from "@/components/profile/TasteChipsField";
+import { bindAccount, unbindAccount } from "@/lib/device/account";
 import type { TasteSuggestion } from "@/lib/profile/taste-chips";
 import type { TasteConfirmRequest, TasteConfirmResult, TasteUndoResult } from "@/lib/profile/taste-confirm";
 
@@ -22,6 +23,7 @@ const lib = vi.hoisted(() => ({
   confirm: vi.fn(),
   undo: vi.fn(),
   nextActionId: vi.fn(() => "action-1"),
+  syncOnce: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/profile/prefs-client", () => ({ requestTasteChips: lib.request }));
@@ -31,6 +33,7 @@ vi.mock("@/lib/profile/taste-confirm-client", () => ({
   undoTasteChips: lib.undo,
   newTasteActionId: lib.nextActionId,
 }));
+vi.mock("@/lib/sync/client", () => ({ syncOnce: lib.syncOnce }));
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); lib.enabled.mockResolvedValue("enabled"); });
 
@@ -345,5 +348,89 @@ describe("TasteChipsField", () => {
       .hasAttribute("disabled")).toBe(false));
     expect(screen.getByRole("button", { name: "Mexican and Latin American" }).getAttribute("aria-pressed"))
       .toBe("false"); // the ignored click never stuck
+  });
+
+  describe("onboarding's bounded settings-sync retry (followup #2)", () => {
+    afterEach(() => unbindAccount());
+
+    it("retries a 409 settings_not_synced once, with the SAME action id, after a sync pass", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValueOnce({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      lib.confirm.mockResolvedValueOnce(okConfirm());
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledTimes(2));
+      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+      expect(lib.confirm.mock.calls[0][0].actionId).toBe(lib.confirm.mock.calls[1][0].actionId);
+      expect(await screen.findByText("Saved.")).toBeTruthy(); // the retry's success, shown honestly
+    });
+
+    it("shows a failure on a SECOND 409, without retrying a third time (bounded, no loop)", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
+      expect(lib.confirm).toHaveBeenCalledTimes(2); // the one bounded retry, never a third call
+      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+    });
+
+    it("never triggers the sync retry outside onboarding (Settings source)", async () => {
+      bindAccount("user-settings");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      await renderEnabled("settings");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
+      expect(lib.confirm).toHaveBeenCalledTimes(1);
+      expect(lib.syncOnce).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("manual preset chips when Jev is down (followup #3)", () => {
+    it("offers a static preset picker instead of 'nothing to suggest' when jev:false", async () => {
+      lib.request.mockResolvedValue({ ok: true, suggestion: {
+        route: "send", jev: false, likes: [], dislikes: [], cuisines: [],
+      } });
+      await renderEnabled();
+      await type("something Jev couldn't classify");
+      expect(await screen.findByText(/pick any that fit instead/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Spicy heat" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "American" })).toBeTruthy();
+      expect(screen.queryByText("Nothing to suggest from that yet.")).toBeNull();
+    });
+
+    it("confirms a preset pick like any other chip", async () => {
+      lib.request.mockResolvedValue({ ok: true, suggestion: {
+        route: "send", jev: false, likes: [], dislikes: [], cuisines: [],
+      } });
+      lib.confirm.mockResolvedValue(okConfirm({ added: { dislikes: ["t:spicy_hot"], cuisines: [] } }));
+      await renderEnabled();
+      await type("something Jev couldn't classify");
+      fireEvent.click(await screen.findByRole("button", { name: "Spicy heat" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ dislikes: ["t:spicy_hot"], cuisines: [] }),
+      ));
+    });
+
+    it("still shows real suggestions, not presets, when jev:true answers with chips", async () => {
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      await renderEnabled();
+      await type("okra and tex-mex");
+      expect(await screen.findByRole("button", { name: "Okra" })).toBeTruthy();
+      expect(screen.queryByText(/pick any that fit instead/)).toBeNull();
+    });
   });
 });

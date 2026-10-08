@@ -122,4 +122,15 @@ describe("loadWidgetPrefs / saveWidgetPrefs: this tab's session cache (Sol re-pl
     const second = await resetTestAccount("22222222-2222-4222-8222-222222222222");
     expect(loadWidgetPrefs(second).panels).toEqual(DEFAULT_PREFS.panels);
   });
+
+  it("reports false when the write itself never lands, instead of claiming success (#470 followup)", async () => {
+    const handle = await resetTestAccount();
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); };
+    try {
+      expect(saveWidgetPrefs(handle, { panels: ["water"], expanded: true, index: 0 }, false)).toBe(false);
+    } finally {
+      Storage.prototype.setItem = original;
+    }
+  });
 });

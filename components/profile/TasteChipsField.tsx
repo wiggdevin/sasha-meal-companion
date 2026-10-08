@@ -37,13 +37,18 @@ import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFe
 import Button from "@/components/ui/Button";
 import DietaryTextHint from "@/components/ui/DietaryTextHint";
 import Thinking from "@/components/ui/Thinking";
-import { CUISINE_LABELS, type CuisineKey } from "@/lib/profile/cuisines";
+import { accountHandle } from "@/lib/device/account";
+import { syncOnce } from "@/lib/sync/client";
+import { CUISINE_LABELS, CUISINES, type CuisineKey } from "@/lib/profile/cuisines";
 import { requestTasteChips } from "@/lib/profile/prefs-client";
 import { readTasteChipsEnabled, type TasteChipsAvailability } from "@/lib/profile/taste-enabled-client";
 import {
   confirmTasteChips, newTasteActionId, undoTasteChips, type TasteWriteOutcome,
 } from "@/lib/profile/taste-confirm-client";
-import type { TasteConfirmRequest, TasteConfirmSource, TasteKeys } from "@/lib/profile/taste-confirm";
+import {
+  TASTE_CONFIRM_ERRORS,
+  type TasteConfirmRequest, type TasteConfirmResult, type TasteConfirmSource, type TasteKeys,
+} from "@/lib/profile/taste-confirm";
 import { SENSORY_TAG_TEXT, type TasteSuggestion } from "@/lib/profile/taste-chips";
 import type { TasteDislike } from "@/lib/profile/taste";
 
@@ -79,6 +84,22 @@ function writeFailureMessage(error: unknown): string {
   return "That did not save. Try again.";
 }
 
+/**
+ * A small, fixed set of chips offered when Jev is down (D9 followup #3): `suggestion.jev === false`
+ * means nothing was classified from the text, so `suggestion.dislikes`/`cuisines` are empty and the
+ * field would otherwise show "Nothing to suggest from that yet." with no way to add a chip at all.
+ * These are explicitly CHOSEN by the user, never inferred from the text that failed to classify —
+ * the six most commonly disliked sensory tags and the six most broadly recognized cuisines, both
+ * already fixed, reviewed vocabularies (lib/profile/taste.ts, lib/profile/cuisines.ts), so nothing
+ * new is introduced here. The local safety check already ran before this point (the module
+ * docblock's step 1): a rule, a symptom or medical text never reaches here at all — only text that
+ * was safe to send, and for which Jev happened to be unavailable.
+ */
+const PRESET_DISLIKE_KEYS: readonly TasteDislike[] = [
+  "t:spicy_hot", "t:bitter", "t:sour", "t:strong_fish", "t:slimy", "t:gamey",
+];
+const PRESET_CUISINE_KEYS: readonly CuisineKey[] = CUISINES.slice(0, 6);
+
 function SuggestedChips({ suggestion, picked, confirmed, pending, onToggle }: {
   suggestion: Extract<TasteSuggestion, { route: "send" }>;
   picked: Picked[];
@@ -89,16 +110,28 @@ function SuggestedChips({ suggestion, picked, confirmed, pending, onToggle }: {
   onToggle: (p: Picked) => void;
 }) {
   // `likes` is never rendered: the confirm RPC has no field to write it to (see module docblock).
-  const options: Picked[] = [
-    ...suggestion.dislikes.map((chip): Picked => ({ kind: "dislike", key: chip.key, label: chip.label })),
-    ...suggestion.cuisines.map((chip): Picked => ({ kind: "cuisine", key: chip.key, label: CUISINE_LABELS[chip.key] })),
-  ];
+  const usingPresets = !suggestion.jev;
+  const options: Picked[] = usingPresets
+    ? [
+      ...PRESET_DISLIKE_KEYS.map((key): Picked => ({ kind: "dislike", key, label: tasteDislikeLabel(key) })),
+      ...PRESET_CUISINE_KEYS.map((key): Picked => ({ kind: "cuisine", key, label: CUISINE_LABELS[key] })),
+    ]
+    : [
+      ...suggestion.dislikes.map((chip): Picked => ({ kind: "dislike", key: chip.key, label: chip.label })),
+      ...suggestion.cuisines.map((chip): Picked => ({ kind: "cuisine", key: chip.key, label: CUISINE_LABELS[chip.key] })),
+    ];
   if (options.length === 0) {
     return <p className="m-0 text-tiny font-light text-muted">Nothing to suggest from that yet.</p>;
   }
   return (
     <div className="flex flex-col gap-2">
-      <div role="group" aria-label="Suggested taste chips" className="flex flex-wrap gap-2">
+      {usingPresets && (
+        <p className="m-0 text-tiny font-light text-muted">
+          We couldn&rsquo;t read suggestions from that just now — pick any that fit instead:
+        </p>
+      )}
+      <div role="group" aria-label={usingPresets ? "Taste chips to pick from" : "Suggested taste chips"}
+        className="flex flex-wrap gap-2">
         {options.map((option) => {
           const id = pickedId(option);
           const isConfirmed = confirmed.has(id);
@@ -164,6 +197,10 @@ export default function TasteChipsField({ source, heading, availability, onDisab
   const [confirmed, setConfirmed] = useState<ReadonlySet<string>>(new Set());
   const pendingActionId = useRef<string | null>(null);
   const sequence = useRef(0);
+  /** Onboarding only (D9 followup #2): the one action id, if any, that already got the bounded
+   *  settings-sync retry below, so a user who taps Confirm again on the SAME tap (same actionId,
+   *  e.g. after the retry itself failed) is shown the failure rather than retried forever. */
+  const syncRetriedFor = useRef<string | null>(null);
   const feedback = useActionFeedback();
 
   useEffect(() => {
@@ -222,6 +259,27 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     });
   }
 
+  /**
+   * One confirm attempt, with the bounded onboarding-only retry (D9 followup #2): a 409
+   * `settings_not_synced` means the account's settings row has not reached the server yet — the
+   * onboarding step that mounts this field races its own first settings push, so the confirm can
+   * land just ahead of it. Retried exactly once, for `source: "onboarding"` only, after the sync
+   * pass that push runs through ACKs: the SAME action id and chips, so the server answers its
+   * stored receipt rather than writing twice if the first attempt actually landed. A second
+   * `settings_not_synced` (or anything else) after that is shown as a failure, never retried again.
+   */
+  async function attemptConfirm(request: TasteConfirmRequest, actionId: string): Promise<TasteConfirmResult> {
+    const first = await confirmTasteChips(request);
+    if (first.ok) return first.result;
+    const settingsNotSynced = first.reason === "refused" && first.code === TASTE_CONFIRM_ERRORS.settingsNotSynced;
+    if (source !== "onboarding" || !settingsNotSynced || syncRetriedFor.current === actionId) throw first;
+    syncRetriedFor.current = actionId;
+    await syncOnce(accountHandle()).catch(() => {}); // best-effort: a failed sync still tries the retry
+    const second = await confirmTasteChips(request);
+    if (second.ok) return second.result;
+    throw second;
+  }
+
   function confirm() {
     if (picked.length === 0) return;
     const actionId = pendingActionId.current ?? newTasteActionId();
@@ -235,10 +293,7 @@ export default function TasteChipsField({ source, heading, availability, onDisab
       cuisines: picked.filter((p): p is Extract<Picked, { kind: "cuisine" }> => p.kind === "cuisine")
         .map((p) => p.key),
     };
-    const sent = confirmTasteChips(request).then((outcome) => {
-      if (outcome.ok) return outcome.result;
-      throw outcome;
-    });
+    const sent = attemptConfirm(request, actionId);
     sent.catch(() => {});
     // The server may answer `ok` while some requested chips were `present` already (a no-op) or
     // `capped` (the 50-dislike / 6-cuisine limit, written to neither) — only `added` is what Undo

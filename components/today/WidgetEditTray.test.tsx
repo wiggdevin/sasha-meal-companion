@@ -123,3 +123,22 @@ describe("WidgetEditTray: focus stays on a surviving control (PR #470 review R1,
     expect(names.indexOf("Rebalance my day")).toBe(names.length - 1);
   });
 });
+
+describe("WidgetEditTray: a quiet note when the layout could not be saved (#470 followup)", () => {
+  it("shows nothing extra when saveFailed is unset", () => {
+    render(<WidgetEditTray prefs={prefs} onChange={() => {}} onDone={() => {}} />);
+    expect(screen.queryByText(/couldn.t save/i)).toBeNull();
+  });
+
+  it("shows a dismissible note when saveFailed is true, and calls onDismissSaveFailed", () => {
+    const onDismiss = () => { dismissed = true; };
+    let dismissed = false;
+    render(<WidgetEditTray prefs={prefs} onChange={() => {}} onDone={() => {}}
+      saveFailed onDismissSaveFailed={onDismiss} />);
+    const note = screen.getByText(/couldn.t save/i);
+    expect(note).toBeTruthy();
+    const dismiss = screen.getByRole("button", { name: /dismiss/i });
+    fireEvent.click(dismiss);
+    expect(dismissed).toBe(true);
+  });
+});
