@@ -61,15 +61,21 @@ describe("refreshStarterGate", () => {
     expect(mocked.seed).not.toHaveBeenCalled();
   });
 
-  it("treats a failed food-world read as closed, preserving the pre-existing seed behaviour", async () => {
+  // Sol round 2 BLOCK: a failed read is UNKNOWN, never "closed" — an open zero-food account whose
+  // world read failed must not be seeded with default Favored marks.
+  it.each([
+    ["a rejected read", () => Promise.reject(new Error("offline"))],
+    ["a 503", () => Promise.resolve(new Response("{}", { status: 503 }))],
+    ["a 200 with no world", () => ok({})],
+  ])("never seeds on %s of the food world", async (_label, world) => {
     mocked.fetch.mockImplementation((url: string) => {
       if (url === "/api/recipes/access") return ok({ enabled: false });
-      if (url === "/api/foods/world") return Promise.reject(new Error("offline"));
+      if (url === "/api/foods/world") return world();
       throw new Error(`unexpected fetch ${url}`);
     });
     const status = await refreshStarterGate();
     expect(status).toBe("ready");
-    expect(mocked.seed).toHaveBeenCalledTimes(1);
+    expect(mocked.seed).not.toHaveBeenCalled();
   });
 
   it("never seeds when the account already has foods, open or closed", async () => {
