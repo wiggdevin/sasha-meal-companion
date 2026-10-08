@@ -150,6 +150,7 @@ export default function LogFoodSheet({
   const [revision, setRevision] = useState<CachedRevision | null>(null);
   const [catPortion, setCatPortion] = useState<CachedPortion | null>(null);
   const [grams, setGrams] = useState(100);
+  const [typedPer, setTypedPer] = useState<number | null>(null);
   const [gramsText, setGramsText] = useState("100");
   const [blocked, setBlocked] = useState<string | null>(null);
   /** The wire detail behind the portion view, when it came from the network. Null on the cached path. */
@@ -180,6 +181,7 @@ export default function LogFoodSheet({
     const preferred = rev.portions.find((p) => p.isDefault) ?? rev.portions[0] ?? null;
     setRevision(rev);
     setCatPortion(preferred);
+    setTypedPer(null);
     setQty(1);
     const startGrams = preferred ? gramsForPortion({ gramWeight: preferred.gramWeight }, 1) : 100;
     setGrams(startGrams);
@@ -255,7 +257,12 @@ export default function LogFoodSheet({
   function setPortionQty(nextQty: number) {
     const q = Math.max(0.25, Math.round(nextQty * 4) / 4);
     setQty(q);
-    if (!catPortion) return;
+    // Grams typed by hand: the count scales them (150 g at 1 is 300 g at 2), so the stepper never
+    // moves alone while the grams and the numbers stay put (UI audit r1).
+    if (!catPortion) {
+      if (typedPer !== null) { const g = Math.round(typedPer * q); setGrams(g); setGramsText(String(g)); }
+      return;
+    }
     const g = gramsForPortion({ gramWeight: catPortion.gramWeight }, q);
     setGrams(g);
     setGramsText(String(g));
@@ -266,6 +273,8 @@ export default function LogFoodSheet({
     const n = Number(text);
     if (Number.isFinite(n) && n >= 0) {
       setGrams(n);
+      // What one count weighs, from the grams typed: the stepper scales from it without drift.
+      setTypedPer(qty > 0 ? n / qty : null);
       setCatPortion(null);
     }
   }
@@ -501,6 +510,7 @@ export default function LogFoodSheet({
           : "Sign in to log from the catalog."}
         onPortion={(p) => {
           setCatPortion(p);
+          setTypedPer(null);
           const g = gramsForPortion({ gramWeight: p.gramWeight }, qty || 1);
           setQty(qty || 1);
           setGrams(g);

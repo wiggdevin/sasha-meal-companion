@@ -8,6 +8,7 @@ import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
 import ShoppingList from "@/components/ShoppingList";
 import ShoppingPreview, { type ShoppingPreviewData } from "@/components/ShoppingPreview";
 import ShoppingIngredientPicker from "@/components/ShoppingIngredientPicker";
+import PantryPhotoCapture from "@/components/PantryPhotoCapture";
 import ShoppingPurchaseWindowCard, { type PurchaseWindowPatch } from "@/components/ShoppingPurchaseWindowCard";
 import { identityKey } from "@/lib/shopping/aggregate";
 import type { IngredientIdentity, PantryItem, ShoppingLine, ShoppingPeriod,
@@ -42,7 +43,8 @@ function dateRange(period: ShoppingPeriod): string {
 
 export default function ShoppingView({ period, lines, pantry = [], initialDraft, actions,
   purchaseWindows = [], invalidateRevision = 0, onDraftChange,
-  storeNotes = "", onStoreNotesChange, favorites = [], switcher, emptyList, planNotice }: {
+  storeNotes = "", onStoreNotesChange, favorites = [], switcher, emptyList, planNotice,
+  onPantryPhoto }: {
   period: ShoppingPeriod | null; lines: ShoppingLine[]; pantry?: PantryItem[]; initialDraft: ShoppingDraft;
   purchaseWindows?: ShoppingPurchaseWindow[];
   actions: ShoppingViewActions; invalidateRevision?: number;
@@ -54,6 +56,9 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
   emptyList?: ReactNode;
   /** Shown first in the planner: the food-rule review that a plan needs before it can preview. */
   planNotice?: ReactNode;
+  /** W12: pantry from a photo. Omitted: the capture entry point does not render (older callers
+   *  unaffected). Present: the caller owns merging the newly-confirmed items into `pantry`. */
+  onPantryPhoto?: (items: PantryItem[]) => void;
 }) {
   const [draft, setDraft] = useState(initialDraft);
   const [prepared, setPrepared] = useState<{ revision: number; data: ShoppingPreviewData } | null>(null);
@@ -164,6 +169,11 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
           className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted"><X size={16} aria-hidden="true" /></button>}
       </li>)}</ul>
     </Disclosure>}
+    {/* One instance regardless of pantry.length, which the capture flow itself changes (via
+        onPantryPhoto -> the caller's setPantry) the moment a confirm lands -- mounting it inside
+        a `pantry.length > 0` branch would unmount and remount it on exactly that transition,
+        losing the "done" summary it was about to show (verified). */}
+    {onPantryPhoto && <PantryPhotoCapture onConfirmed={onPantryPhoto} />}
     {planLines.length > 0 && <p className="ground-muted m-0 text-sm">Costs are unavailable until sourced prices cover the purchase lines. A budget is a planning preference, not proof of checkout cost.</p>}
   </div>;
 }

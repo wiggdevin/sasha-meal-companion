@@ -116,6 +116,7 @@ function localPatch(h: AccountHandle | null, current: Store, patch: Partial<Sett
 
 export function useSettingsController() {
   const [store, setStore] = useState<Store | null>(null);
+  const pinQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [bodySheetOpen, setBodySheetOpen] = useState(false);
   const [daily, setDaily] = useState<DailyFetch | null>(null);
   const [targets, setTargets] = useState<TargetsResponse | null>(null);
@@ -223,7 +224,11 @@ export function useSettingsController() {
 
   function writePin(pin: TargetPin): void {
     setSaveError(null);
-    void persistTargetPin(pin).then(
+    // In tap order: a pin waits for the one before it, so a slow first tap never lands after a later
+    // one and shows its older value (UI audit r1).
+    const run = pinQueue.current.catch(() => {}).then(() => persistTargetPin(pin));
+    pinQueue.current = run;
+    void run.then(
       (next) => { setStore(next); refreshTargets(); },
       (e: unknown) => {
         if (e instanceof AccountChanged) return;
@@ -235,7 +240,10 @@ export function useSettingsController() {
   function resetTargets(): void {
     setSaveError(null);
     const h = currentAccountOrNull();
-    void persistTargetPin({ dayType: "both", kcal: null, proteinG: null }).then(
+    // The same queue as the steppers: a tap still in flight never lands after the reset (UI audit r2).
+    const run = pinQueue.current.catch(() => {}).then(() => persistTargetPin({ dayType: "both", kcal: null, proteinG: null }));
+    pinQueue.current = run;
+    void run.then(
       (next) => {
         if (h !== null && !isCurrent(h)) return;
         setStore(localPatch(h, next, { proteinLocked: true }));
@@ -258,7 +266,11 @@ export function useSettingsController() {
 
   function saveTargets(request: TargetsRequest): void {
     setSaveError(null);
-    void postTargets(request).then(
+    // The same queue as the steppers and the reset: a double tap on Save sends in order, and the last
+    // save is the one that stays (UI audit r3).
+    const run = pinQueue.current.catch(() => {}).then(() => postTargets(request));
+    pinQueue.current = run;
+    void run.then(
       (updated) => { targetsRef.current = updated; setTargets(updated); setTargetSheetOpen(false); },
       () => setSaveError("Couldn't save your targets — try again when you have a connection."),
     );

@@ -8,6 +8,8 @@ import type { SparksApi } from "@/components/today/care/Sparks";
 import type { Cue } from "@/components/today/care/sound";
 import { EASE_OUT, SPRINGS } from "@/lib/design/motion";
 import styles from "@/components/today/care/Awards.module.css";
+import { sceneArt } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 
 export type SceneProps = {
   award: Award;
@@ -144,6 +146,7 @@ export function TokenScene({ award, sparks, cue, final, onDone }: SceneProps) {
  * Sprout comes out of it unharmed and still flexing.
  */
 export function FlexScene({ award, sparks, cue, final, onDone }: SceneProps) {
+  const mascot = useMascot();
   const [pose, setPose] = useState<"lift" | "flex">(final ? "flex" : "lift");
   const rise = useMotionValue(final ? 0 : 260);
   const shake = useMotionValue(0);
@@ -184,7 +187,7 @@ export function FlexScene({ award, sparks, cue, final, onDone }: SceneProps) {
     <motion.span aria-hidden="true" className={styles.heat} style={{ opacity: heat }} />
     <Lock count={lock} />
     <motion.span aria-hidden="true" className={styles.sprout} style={{ y: rise, x: shake }}>
-      <Image src={`/pet/awards/sprout-workout-${pose}.webp`} alt="" width={420} height={420} sizes="200px" draggable={false} />
+      <Image src={sceneArt(mascot, `award-workout-${pose}`)} alt="" width={420} height={420} sizes="200px" draggable={false} />
     </motion.span>
     <motion.span aria-hidden="true" className={styles.badge} style={{ left, top, scale: bScale }}>
       <Image src={MATERIAL_ART[award.material]} alt="" width={256} height={256} sizes="90px" draggable={false} />
