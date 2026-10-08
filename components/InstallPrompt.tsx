@@ -1,18 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/ui/Notice";
 import { APP_NAME } from "@/lib/brand";
 import type { Store } from "@/lib/types";
 import {
   androidPromptOnCooldown,
+  hasLoggedAnyMeal,
+  loggedMealCount,
   meaningfulMomentReached,
-  noteVisibilityHidden,
-  noteVisibilityVisible,
   readOpenCount,
   recordAndroidPromptDeclined,
-  recordPageOpenOnce,
 } from "@/lib/install-prompt/readiness";
 import {
   ANDROID_INSTALLED_EVENT,
@@ -21,6 +20,7 @@ import {
   triggerAndroidInstall,
   wasInstalledThisSession,
 } from "@/lib/install-prompt/android-capture";
+import { OPEN_COUNT_CHANGED_EVENT } from "@/components/InstallPromptCapture";
 
 export const DISMISSED_KEY = "meal-companion:install-prompt-dismissed";
 
@@ -190,28 +190,53 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
   // True once a captured prompt has been used up and failed (rejected, or already consumed) — a
   // BeforeInstallPromptEvent can only ever be prompted once, so "Try again" on the SAME event is
   // not offered (Sol review round 2, 2026-10-08, BLOCK); only a fresh `beforeinstallprompt` clears
-  // this, via `onReady` below.
-  const [promptUnavailable, setPromptUnavailable] = useState(false);
-  // The durable open count — read/recorded only at mount and on a real visibility change, never on
-  // a bare re-render (Sol review round 2, 2026-10-08, BLOCK: recomputing on every `store` prop
-  // change, e.g. a clock tick re-rendering the Today page, was counting a page left open as a
-  // second "open").
+  // this, via `onReady` below. Mirrored into a ref (Sol review round 3, 2026-10-08, BLOCK) because
+  // `recompute` must see its CURRENT value without being recreated or re-run just because it
+  // changed — a stale closure would either miss a fresh rejection or, worse, let a later recompute
+  // (triggered by something unrelated, like a new meal) silently clear it.
+  const [promptUnavailable, setPromptUnavailableState] = useState(false);
+  const promptUnavailableRef = useRef(false);
+  function setPromptUnavailable(value: boolean): void {
+    promptUnavailableRef.current = value;
+    setPromptUnavailableState(value);
+  }
+
+  // The durable open count. This component only ever READS it (`readOpenCount` and the change
+  // event below) — recording opens and watching `visibilitychange` both live in the
+  // always-mounted `InstallPromptCapture` now (Sol review round 3, 2026-10-08, BLOCK: this card
+  // only mounts on today's Today view, so tracking lived here meant a visibility change on any
+  // other route or date was silently missed).
   const [opens, setOpens] = useState(0);
 
-  const recompute = useCallback((currentStore: Pick<Store, "days">, currentOpens: number) => {
+  // Derived primitives, not the `store` object itself (Sol review round 3, 2026-10-08, BLOCK):
+  // `store` gets a new reference on every render (e.g. a clock tick elsewhere on the page), and an
+  // effect keyed on it reran needlessly — once that effect also re-ran `detectVariant`, a
+  // post-rejection "install isn't available" state was wiped the very next tick. These two values
+  // are referentially stable unless something actually logged changed.
+  const hasMeal = hasLoggedAnyMeal(store);
+  const mealCount = loggedMealCount(store);
+
+  const recompute = useCallback((hasLoggedMeal: boolean, currentOpens: number) => {
     if (typeof window === "undefined") return;
     if (isStandalone() || wasInstalledThisSession() || readDismissed()) {
       setVariant(null);
       return;
     }
-    if (!meaningfulMomentReached(currentStore, currentOpens)) {
+    if (!meaningfulMomentReached(hasLoggedMeal, currentOpens)) {
       setVariant(null);
+      return;
+    }
+    if (promptUnavailableRef.current) {
+      // Hold the post-rejection Android card exactly as it is: detectVariant has no idea the
+      // captured event was already used up and would otherwise read as "nothing to show" (a
+      // non-Android UA) or quietly swap back to the normal button — both wrong until a genuinely
+      // fresh `beforeinstallprompt` arrives and resets this (see `onReady`).
       return;
     }
     const detected = detectVariant(!!readDeferredInstallPrompt());
     if (detected?.kind === "android") {
       try {
-        if (androidPromptOnCooldown(window.localStorage, currentStore)) {
+        if (androidPromptOnCooldown(window.localStorage, mealCount)) {
           setVariant(null);
           return;
         }
@@ -220,47 +245,37 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       }
     }
     setVariant(detected);
-  }, []);
+  }, [mealCount]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    // Records (or, on a remount within the same page load, simply reads) the one open this load
-    // counts — see `recordPageOpenOnce`'s own doc comment for why this is a module-level guard,
-    // not component state.
     try {
-      const recorded = recordPageOpenOnce(window.localStorage);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOpens(recorded ?? readOpenCount(window.localStorage));
+      setOpens(readOpenCount(window.localStorage));
     } catch {
       setOpens(0);
     }
-
-    function onVisibilityChange(): void {
-      if (document.visibilityState === "hidden") {
-        noteVisibilityHidden();
-        return;
-      }
+    function onOpensChanged(): void {
       try {
-        const recorded = noteVisibilityVisible(window.localStorage);
-        if (recorded !== null) setOpens(recorded);
+        setOpens(readOpenCount(window.localStorage));
       } catch {
-        // No change — the gap just was not (yet) confirmed to be ≥30 minutes.
+        // No change.
       }
     }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener(OPEN_COUNT_CHANGED_EVENT, onOpensChanged);
+    return () => window.removeEventListener(OPEN_COUNT_CHANGED_EVENT, onOpensChanged);
   }, []);
 
   useEffect(() => {
     // One-shot mount-time + event-triggered read of browser/storage state (UA, matchMedia,
     // localStorage, the captured install event) — there is nothing to synchronize continuously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    recompute(store, opens);
+    recompute(hasMeal, opens);
     const onReady = () => {
       // A fresh captured prompt always means the old one (if any) is no longer the reason the
       // card looks the way it does.
       setPromptUnavailable(false);
-      recompute(store, opens);
+      recompute(hasMeal, opens);
     };
     const onInstalled = () => {
       writeDismissed();
@@ -272,7 +287,7 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       window.removeEventListener(ANDROID_PROMPT_READY_EVENT, onReady);
       window.removeEventListener(ANDROID_INSTALLED_EVENT, onInstalled);
     };
-  }, [recompute, store, opens]);
+  }, [recompute, hasMeal, opens]);
 
   if (!variant) return null;
 
@@ -301,7 +316,7 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       // explicitly closing the card (the X button), so it is not suppressed forever (Sol review,
       // 2026-10-08, WARN) — it waits out a cooldown or the next meal logged, whichever is sooner.
       try {
-        recordAndroidPromptDeclined(window.localStorage, store);
+        recordAndroidPromptDeclined(window.localStorage, mealCount);
       } catch {
         // Harmless: the prompt simply reappears sooner than intended.
       }

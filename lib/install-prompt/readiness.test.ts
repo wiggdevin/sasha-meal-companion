@@ -132,58 +132,50 @@ describe("recordAppOpen", () => {
 
 describe("meaningfulMomentReached", () => {
   it("is reached once a meal is logged, even on the very first open", () => {
-    const store = storeWith({
-      "2026-10-08": { date: "2026-10-08", eaten: { "meal-1": "2026-10-08T12:00:00Z" } },
-    });
-    expect(meaningfulMomentReached(store, 1)).toBe(true);
+    expect(meaningfulMomentReached(true, 1)).toBe(true);
   });
 
   it("falls back to the second app open with nothing logged yet", () => {
-    const empty = storeWith({});
-    expect(meaningfulMomentReached(empty, 1)).toBe(false);
-    expect(meaningfulMomentReached(empty, 2)).toBe(true);
+    expect(meaningfulMomentReached(false, 1)).toBe(false);
+    expect(meaningfulMomentReached(false, 2)).toBe(true);
   });
 });
 
+// Sol review round 3, 2026-10-08, BLOCK: these take the already-derived meal count, not the
+// store, so the caller's effect can depend on that stable primitive instead of the store object's
+// identity (which changes on every render regardless of whether anything logged actually changed).
 describe("androidPromptOnCooldown / recordAndroidPromptDeclined", () => {
   it("is not on cooldown before any decline", () => {
-    expect(androidPromptOnCooldown(fakeStorage(), storeWith({}), NOON)).toBe(false);
+    expect(androidPromptOnCooldown(fakeStorage(), 1, NOON)).toBe(false);
   });
 
   it("is on cooldown right after a decline, with nothing new logged", () => {
     const storage = fakeStorage();
-    const store = storeWith({ "2026-10-08": { date: "2026-10-08", eaten: { "meal-1": "x" } } });
-    recordAndroidPromptDeclined(storage, store, NOON);
-    expect(androidPromptOnCooldown(storage, store, NOON + 60_000)).toBe(true);
+    recordAndroidPromptDeclined(storage, 1, NOON);
+    expect(androidPromptOnCooldown(storage, 1, NOON + 60_000)).toBe(true);
   });
 
   it("clears once the cooldown window passes", () => {
     const storage = fakeStorage();
-    const store = storeWith({ "2026-10-08": { date: "2026-10-08", eaten: { "meal-1": "x" } } });
-    recordAndroidPromptDeclined(storage, store, NOON);
+    recordAndroidPromptDeclined(storage, 1, NOON);
     const justUnder = NOON + ANDROID_DECLINE_COOLDOWN_DAYS * DAY_MS - 1;
     const justOver = NOON + ANDROID_DECLINE_COOLDOWN_DAYS * DAY_MS + 1;
-    expect(androidPromptOnCooldown(storage, store, justUnder)).toBe(true);
-    expect(androidPromptOnCooldown(storage, store, justOver)).toBe(false);
+    expect(androidPromptOnCooldown(storage, 1, justUnder)).toBe(true);
+    expect(androidPromptOnCooldown(storage, 1, justOver)).toBe(false);
   });
 
   // Sol review, 2026-10-08, WARN: a declined prompt must also clear the moment a NEW meaningful
   // moment happens, not just after N days.
   it("clears as soon as a new meal is logged, even inside the cooldown window", () => {
     const storage = fakeStorage();
-    const before = storeWith({ "2026-10-08": { date: "2026-10-08", eaten: { "meal-1": "x" } } });
-    recordAndroidPromptDeclined(storage, before, NOON);
-    expect(androidPromptOnCooldown(storage, before, NOON + 60_000)).toBe(true);
-
-    const after = storeWith({
-      "2026-10-08": { date: "2026-10-08", eaten: { "meal-1": "x", "meal-2": "y" } },
-    });
-    expect(androidPromptOnCooldown(storage, after, NOON + 60_000)).toBe(false);
+    recordAndroidPromptDeclined(storage, 1, NOON);
+    expect(androidPromptOnCooldown(storage, 1, NOON + 60_000)).toBe(true);
+    expect(androidPromptOnCooldown(storage, 2, NOON + 60_000)).toBe(false);
   });
 
   it("never throws: a storage failure answers not-on-cooldown (safe to show)", () => {
-    expect(androidPromptOnCooldown(throwingStorage(), storeWith({}), NOON)).toBe(false);
-    expect(() => recordAndroidPromptDeclined(throwingStorage(), storeWith({}), NOON)).not.toThrow();
+    expect(androidPromptOnCooldown(throwingStorage(), 0, NOON)).toBe(false);
+    expect(() => recordAndroidPromptDeclined(throwingStorage(), 0, NOON)).not.toThrow();
   });
 });
 

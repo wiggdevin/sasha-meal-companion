@@ -131,24 +131,29 @@ export function loggedMealCount(store: Pick<Store, "days">): number {
  * The install hint never overlays onboarding's first moments (owner feedback, 2026-10-08): it
  * waits for a logged meal, and only falls back to "the second time the app was opened" for an
  * account that has not logged one yet.
+ *
+ * Takes the already-derived boolean, not the store (Sol review round 3, 2026-10-08, BLOCK): the
+ * caller's effect must depend on the actual input this reads, not on the store object's identity,
+ * which changes on every render whether or not anything logged actually changed.
  */
-export function meaningfulMomentReached(store: Pick<Store, "days">, opens: number): boolean {
-  return hasLoggedAnyMeal(store) || opens >= 2;
+export function meaningfulMomentReached(hasLoggedMeal: boolean, opens: number): boolean {
+  return hasLoggedMeal || opens >= 2;
 }
 
 /**
  * A declined (not dismissed-by-the-user) Android install prompt is not suppressed forever (Sol
  * review, 2026-10-08, WARN): record when it happened and how many meals were logged by then.
- * Never throws.
+ * Never throws. Takes the already-derived count (see `meaningfulMomentReached`'s doc comment for
+ * why), not the store.
  */
 export function recordAndroidPromptDeclined(
   storage: ReadWrite,
-  store: Pick<Store, "days">,
+  mealCount: number,
   now: number = Date.now(),
 ): void {
   try {
     storage.setItem(ANDROID_DECLINED_AT_KEY, String(now));
-    storage.setItem(ANDROID_DECLINED_MEAL_COUNT_KEY, String(loggedMealCount(store)));
+    storage.setItem(ANDROID_DECLINED_MEAL_COUNT_KEY, String(mealCount));
   } catch {
     // Private browsing / storage disabled — the prompt just reappears sooner, which is harmless.
   }
@@ -157,18 +162,19 @@ export function recordAndroidPromptDeclined(
 /**
  * True while a declined Android prompt should stay quiet: within `ANDROID_DECLINE_COOLDOWN_DAYS`
  * of the decline AND no meal has been logged since. Either condition clearing re-allows the
- * prompt. Never throws (a storage failure answers "not on cooldown", i.e. safe to show).
+ * prompt. Never throws (a storage failure answers "not on cooldown", i.e. safe to show). Takes the
+ * already-derived count (see `meaningfulMomentReached`'s doc comment for why), not the store.
  */
 export function androidPromptOnCooldown(
   storage: Read,
-  store: Pick<Store, "days">,
+  mealCount: number,
   now: number = Date.now(),
 ): boolean {
   try {
     const declinedAt = toTimestamp(storage.getItem(ANDROID_DECLINED_AT_KEY));
     if (declinedAt === null) return false;
     const countAtDecline = toCount(storage.getItem(ANDROID_DECLINED_MEAL_COUNT_KEY));
-    if (loggedMealCount(store) > countAtDecline) return false;
+    if (mealCount > countAtDecline) return false;
     return now - declinedAt < ANDROID_DECLINE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
   } catch {
     return false;
