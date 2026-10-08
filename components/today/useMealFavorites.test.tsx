@@ -185,14 +185,20 @@ describe("useMealFavorites", () => {
     expect(result.current.favoriteFor(planned)?.on).toBe(true);
   });
 
-  it("never reads a failed lookup as 'not saved': no heart until a read succeeds", async () => {
-    api.favoriteMealFor.mockRejectedValueOnce(new Error("idb closed")).mockResolvedValue("saved-1");
-    const { result } = setup();
-    await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(1));
-    await act(async () => {});
-    expect(result.current.favoriteFor(planned)).toBeUndefined();
-    await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
-    await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+  it("never reads a failed lookup as 'not saved', and retries it on its own", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      api.favoriteMealFor.mockRejectedValueOnce(new Error("idb closed")).mockResolvedValue("saved-1");
+      const { result } = setup();
+      await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+      expect(result.current.favoriteFor(planned)).toBeUndefined();
+      // No sync needed: the backoff retry reads it.
+      await act(async () => { vi.advanceTimersByTime(1100); });
+      await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("takes one write per plate: a second tap while the first runs does nothing", async () => {
@@ -225,5 +231,30 @@ describe("useMealFavorites", () => {
     await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
     await act(async () => { undone({ ok: true, id: "saved-9", cleared: [], kept: [] }); });
     expect(result.current.favoriteFor(planned)?.on).toBe(true);
+    // The heart now holds the NEWER saved meal: turning it off removes saved-10.
+    api.removeFavoriteMeal.mockResolvedValue({ ok: true, id: "saved-10" });
+    await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
+    expect(api.removeFavoriteMeal).toHaveBeenCalledWith("saved-10");
+  });
+
+  it("re-reads a sync's newer save even when a late Undo settles before the next render", async () => {
+    api.favoriteMealFor.mockResolvedValue(null);
+    api.saveFavoriteMeal.mockResolvedValueOnce({ ok: true, id: "saved-9", newlyFavored: [], skipped: [] });
+    let undone: (value: unknown) => void = () => {};
+    api.undoSaveFavoriteMeal.mockImplementation(() => new Promise((resolve) => { undone = resolve; }));
+    const { result, fb } = setup();
+    await waitFor(() => expect(result.current.favoriteFor(planned)).toBeDefined());
+    await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
+    act(() => { (fb.notify.mock.calls.at(-1)?.[0].action.action as () => void)(); });
+    api.favoriteMealFor.mockResolvedValue("saved-10");
+    // Same tick: the sync arrives and the Undo answers before any re-render.
+    await act(async () => {
+      window.dispatchEvent(new Event(SYNCED_EVENT));
+      undone({ ok: true, id: "saved-9", cleared: [], kept: [] });
+    });
+    await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+    api.removeFavoriteMeal.mockResolvedValue({ ok: true, id: "saved-10" });
+    await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
+    expect(api.removeFavoriteMeal).toHaveBeenCalledWith("saved-10");
   });
 });

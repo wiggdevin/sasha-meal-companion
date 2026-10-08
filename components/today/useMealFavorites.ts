@@ -38,13 +38,19 @@ export function useMealFavorites({ eligible, feedback }: {
   const epoch = useRef(0);
   /** The sync epoch each plate was last read in: an older one is read again, its heart kept meanwhile. */
   const readAt = useRef(new Map<string, number>());
+  /** Failed reads per plate in this sync epoch: retried with a backoff, then left for the next sync. */
+  const failures = useRef(new Map<string, number>());
+  const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [, setSyncs] = useState(0);
 
   useEffect(() => {
     // A sync re-reads every plate in place (never a blank cache, so no heart blinks off and on).
-    const onSynced = () => { epoch.current += 1; setSyncs((value) => value + 1); };
+    const onSynced = () => { epoch.current += 1; failures.current.clear(); setSyncs((value) => value + 1); };
     window.addEventListener(SYNCED_EVENT, onSynced);
-    return () => window.removeEventListener(SYNCED_EVENT, onSynced);
+    return () => {
+      window.removeEventListener(SYNCED_EVENT, onSynced);
+      if (retry.current) clearTimeout(retry.current);
+    };
   }, []);
 
   // After every render: read the plates the cards asked for that are not current nor in flight.
@@ -59,10 +65,20 @@ export function useMealFavorites({ eligible, feedback }: {
         .then((read) => {
           if (reading.current.get(key)?.token === token) reading.current.delete(key);
           if (at !== epoch.current) return;
-          readAt.current.set(key, at);
-          // A failed read is not "not saved": the plate keeps what it last knew, or shows no heart
-          // (so a tap can never offer an Undo that removes a meal saved before), until the next sync.
-          if (read.ok) setSaved((value) => ({ ...value, [key]: read.id }));
+          if (read.ok) {
+            readAt.current.set(key, at);
+            failures.current.delete(key);
+            setSaved((value) => ({ ...value, [key]: read.id }));
+            return;
+          }
+          // A failed read is not "not saved": the plate keeps what it last knew, or shows no heart (so a
+          // tap can never offer an Undo that removes a meal saved before). It is retried after 1, 2 and
+          // 4 s; after three failures it waits for the next sync.
+          const tries = (failures.current.get(key) ?? 0) + 1;
+          failures.current.set(key, tries);
+          if (tries >= 3) { readAt.current.set(key, at); return; }
+          if (retry.current) clearTimeout(retry.current);
+          retry.current = setTimeout(() => setSyncs((value) => value + 1), 1000 * 2 ** (tries - 1));
         });
     }
     asked.current.clear();
@@ -82,7 +98,7 @@ export function useMealFavorites({ eligible, feedback }: {
   };
   /** Clears a plate only while it still holds this saved meal: a newer save is never undone by a late answer. */
   const clearIf = (key: string, id: string) => {
-    readAt.current.set(key, epoch.current);
+    // No read mark here: a sync that landed meanwhile still re-reads the plate's newer state.
     setSaved((value) => (value[key] === id ? { ...value, [key]: null } : value));
   };
 
