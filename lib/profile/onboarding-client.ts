@@ -271,7 +271,8 @@ export async function persistSkippedOnboarding(
   base: Settings,
   now = new Date(),
   deps: Pick<
-    OnboardingPersistence, "saveLocal" | "saveSynced" | "loadConstraints" | "saveConstraints"
+    OnboardingPersistence,
+    "saveLocal" | "saveSynced" | "loadConstraints" | "saveConstraints" | "openFoodWorld"
   > = persistence,
 ): Promise<Settings> {
   const h = accountHandle();
@@ -281,5 +282,10 @@ export async function persistSkippedOnboarding(
   assertCurrent(h);
   deps.saveLocal(settings);
   await deps.saveSynced(settings, "skip");
+  // W13 (D14): a skip IS onboarding completion (D1 §6.1; it stamps `onboarded_at` the same as the
+  // answered path), so it must open the world on a FIRST skip exactly like a first "complete" —
+  // otherwise an account that skips onboarding can never be invited at all, because `base.onboardedAt`
+  // is set by this same stamp and every later call (skip or complete) would see it already set.
+  if (!base.onboardedAt) await deps.openFoodWorld(h);
   return settings;
 }

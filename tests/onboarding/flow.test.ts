@@ -220,6 +220,7 @@ describe("onboarding completion", () => {
       saveConstraints: vi.fn(async () => ({
         status: "ok" as const, profile: EMPTY_PROFILE, rev: 1,
       })),
+      openFoodWorld: vi.fn(async () => {}),
     };
   }
 
@@ -246,6 +247,17 @@ describe("onboarding completion", () => {
       .rejects.toThrow(CONSTRAINTS_UNAVAILABLE);
     expect(deps.saveSynced).not.toHaveBeenCalled();
     expect(deps.saveLocal).not.toHaveBeenCalled();
+  });
+
+  it("opens the food world on a FIRST skip, never on a later re-skip (W13, D14)", async () => {
+    const deps = skipDeps();
+    await persistSkippedOnboarding({ ...defaultSettings(), onboardedAt: null }, NOW, deps);
+    expect(deps.openFoodWorld).toHaveBeenCalledTimes(1);
+
+    deps.openFoodWorld.mockClear();
+    await persistSkippedOnboarding(
+      { ...defaultSettings(), onboardedAt: "2026-09-18T00:00:00.000Z" }, NOW, deps);
+    expect(deps.openFoodWorld).not.toHaveBeenCalled();
   });
 
   it("gives a chosen goal its default rate, lets the user change it, and keeps it (step D)", () => {
