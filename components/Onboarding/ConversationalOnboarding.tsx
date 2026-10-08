@@ -697,9 +697,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
             center` (below, the empty-middle fix) re-centers the whole block on every beat change,
             and beats differ in height — without this, Sprout would jump straight to its new Y
             position with no transition, fighting the sync this same pass is after. `layout` makes
-            Framer track that position shift (and `.guide`'s own, from BEAT_SIZE changing) and
-            animate it via transform instead, on the same CONTAINER_ENTER timing as the card swap
-            beside it, so the whole stage settles together. */}
+            Framer track that position shift and animate it via transform instead, on the same
+            CONTAINER_ENTER timing as the card swap beside it, so the whole stage settles together.
+            (`.guide`'s own box no longer changes size with BEAT_SIZE — SproutGuide.tsx now renders
+            a constant BASE_SIZE box and scales its child via transform — so this `layout` only ever
+            has a position shift to track here, never a size one.) */}
         <motion.div layout="position" transition={reduce ? INSTANT : CONTAINER_ENTER}
           className={styles.guide}>
           <SproutGuide pose={guidePose} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
