@@ -24,7 +24,7 @@ const NEED: Record<AskChip, string> = {
   "High protein": "Prioritize protein.",
   "Under 30 min": "Only recipes ready in under 30 minutes.",
   "Comfort food": "Something comforting and hearty.",
-  "Use what I have": "Use only foods already on my Eats list.",
+  "Use what I have": "Use only foods already in my Favorites.",
 };
 
 export function chipPrompt(chip: AskChip): string {

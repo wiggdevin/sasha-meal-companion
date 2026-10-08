@@ -135,7 +135,7 @@ describe("MyFoods", () => {
     seedFoods([]);
     const { unmount } = render(<AvoidFoods />);
     await screen.findByText(
-      "Nothing here. Add one below, or move a food here from Eats.");
+      "Nothing here. Add one below, or move a food here from Favorites.");
     unmount();
 
     seedFoods([food({ id: "f2", name: "Raw onion", status: "avoid" })]);

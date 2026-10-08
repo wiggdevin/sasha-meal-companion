@@ -41,7 +41,7 @@ export function foodSheetAction(status: Food["status"]): {
   label: string;
 } {
   if (status === "avoid") return { next: "neutral", label: "Remove from Avoid" };
-  if (status === "neutral") return { next: "eats", label: "Add to Eats" };
+  if (status === "neutral") return { next: "eats", label: "Add to Favorites" };
   return { next: "avoid", label: "Add to Avoid" };
 }
 
@@ -168,7 +168,7 @@ export default function FoodSheet({ food, onSetStatus, onSetNote, onSave, onClos
         <GlassSelect aria-label="Food group" value={role} disabled={food.status === "neutral"}
           onChange={(next) => setRole(next as Food["role"])}
           options={Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))} />
-        {food.status === "neutral" && <span className={CAPTION}>Add this food to Eats to change its group.</span>}
+        {food.status === "neutral" && <span className={CAPTION}>Add this food to Favorites to change its group.</span>}
       </div>
       {nutritionEditable && <fieldset className="grid grid-cols-3 gap-2 border-0 p-0">
         <legend className={`mb-1 ${LABEL}`}>Nutrition per {fieldLabel}</legend>
@@ -197,7 +197,7 @@ export default function FoodSheet({ food, onSetStatus, onSetNote, onSave, onClos
         {avoid
           ? "This food is off the menu. No meal will include it until you bring it back."
           : food.status === "neutral"
-            ? "This food is saved, but it is not on Eats or Avoid and will not appear in meals."
+            ? "This food is saved, but it is not in Favorites or Avoid. Star it as a Favorite to have it suggested first."
           : "Moving it to Avoid takes it out of every meal at once. You can bring it back any time."}
       </p>
     </Sheet>

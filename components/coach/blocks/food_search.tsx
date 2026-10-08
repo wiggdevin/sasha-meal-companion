@@ -48,7 +48,7 @@ export default function FoodSearchBlock({ block, ctx }: {
           const blocked = row.blocked === true || status === "avoid";
           const alreadyMarked = desired !== null && status === desired;
           const label = block.intent === "log" ? (blocked ? "Log anyway" : "Log")
-            : block.intent === "eats" ? "Eats" : "Avoid";
+            : block.intent === "eats" ? "Favor" : "Avoid";
           return <div key={`${row.foodRefId}:${row.revisionId}`}
             className={`flex min-h-16 items-center gap-3 py-2 ${
               index < block.results.length - 1 ? "border-b border-hairline" : ""}`}>
@@ -57,7 +57,7 @@ export default function FoodSearchBlock({ block, ctx }: {
               <span className={`flex flex-wrap items-center gap-2 ${META}`}>
                 <span>{row.kcalPer100g == null ? "Calories unavailable" : <KcalText text={`${Math.round(row.kcalPer100g)} kcal / 100 g`} />}</span>
                 {status !== "neutral" && <Tag tone={status === "eats" ? "sage" : "red"} size="sm">
-                  {status === "eats" ? "In Eats" : "Avoid"}</Tag>}
+                  {status === "eats" ? "Favored" : "Avoid"}</Tag>}
                 {blocked && <span className="font-normal text-alert">Blocked</span>}
               </span>
             </span>

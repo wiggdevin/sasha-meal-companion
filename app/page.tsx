@@ -1016,12 +1016,12 @@ export default function Today() {
             action={{ label: "Retry", onClick: () => setStarterRefresh((value) => value + 1) }} />)}
           {!recipeAccess.enabled && proteinShort && <Notice tone="attention" title={<>
             {proteinShort.available} eligible {proteinShort.available === 1 ? "protein" : "proteins"} for {proteinShort.required} {proteinShort.required === 1 ? "meal" : "meals"}.
-            {" "}Add a verified protein in <a href="/foods#eats" className="underline underline-offset-2">Foods</a>.
+            {" "}Star a protein you like in <a href="/foods#eats" className="underline underline-offset-2">Foods › Favorites</a>.
           </>} />}
           {!recipeAccess.enabled && starterGate === "ready" && eligibleFoodIds?.size === 0
             && !proteinShort
             && <Notice tone="attention"
-              title="Your foods are not yet verified for meal suggestions. Check Foods › Eats and your rules." />}
+              title="No meal suggestions yet: none of your Favorites could be checked against your food rules. Check Foods › Avoids, or star a few Favorites." />}
           {timeline.map((item, index) => {
             if (item.kind === "extra") {
               return (
