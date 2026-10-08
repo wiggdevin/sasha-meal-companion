@@ -88,7 +88,11 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   }, []);
   const [chosen, setChosen] = useState<string | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
-  const [said, setSaid] = useState("");
+  // Each line keeps the companion it was said for (stamped when its tap began), and is shown only while
+  // that companion is still chosen: a change of companion with the shop open, or a purchase that settles
+  // after one, never leaves a line about the other companion.
+  const [said, setSaidFor] = useState<{ text: string; mascot: string }>({ text: "", mascot });
+  const setSaid = (text: string) => setSaidFor({ text, mascot });
   const [bought, setBought] = useState(0);
   const ledgerId = useId();
   // Taking an item off deselects it, so its Take-off button disappears with nothing in its place;
@@ -245,8 +249,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
           status={busy ? "pending" : undefined} onClick={() => void wear(item, false)}>Take off</Button>}
       </div>}
     </div>
-    {/* Said as written: every line naming Sprout plays only while Sprout is the companion. */}
-    <p className="sr-only" aria-live="polite">{said}</p>
+    <p className="sr-only" aria-live="polite">{said.mascot === mascot ? said.text : ""}</p>
     <AnimatePresence>
       {playing && <CareScenePlayer key={playing} scene={playing} onClose={() => setPlaying(null)} />}
     </AnimatePresence>

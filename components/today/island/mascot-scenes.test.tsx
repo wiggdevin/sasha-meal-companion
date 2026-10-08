@@ -16,7 +16,7 @@ vi.mock("@/components/today/island/well-pet", () => ({ useMascot: () => chosen.m
 vi.mock("@/components/today/care/sound", () => ({
   play: vi.fn(), unlockAudio: vi.fn(), readMuted: () => true, silence: vi.fn(), writeMuted: vi.fn(),
 }));
-afterEach(cleanup);
+afterEach(() => { cleanup(); chosen.mascot = "blueberry"; });
 
 describe("scene art for each companion", () => {
   it("keeps Sprout's first paths", () => {
@@ -72,5 +72,18 @@ describe("the chosen companion in a care scene and the shop", () => {
     expect(screen.queryByRole("button", { name: "Wear" })).toBeNull();
     expect(screen.getAllByText("Only Sprout can wear this for now.").length).toBeGreaterThan(0);
     expect(document.querySelector("[aria-live=polite]")?.textContent).toBe("Only Sprout can wear this for now.");
+  });
+  it("drops a line said for Sprout when the companion changes with the shop open", async () => {
+    const { default: CareShop } = await import("@/components/today/care/shop/CareShop");
+    chosen.mascot = "sprout";
+    const state = { balance: 42, owned: ["leaf-pin"], equipped: { pin: "leaf-pin" }, rev: 1, receipts: {}, ledger: [] };
+    const shop = () => <MotionConfig reducedMotion="always"><CareShop state={state as never} onChange={() => {}} today="2026-10-07" /></MotionConfig>;
+    const { rerender } = render(shop());
+    fireEvent.click(screen.getByRole("button", { name: /^Bucket hat/ }));
+    const live = () => document.querySelector("[aria-live=polite]")?.textContent;
+    expect(live()).toBe("Sprout tries on the bucket hat.");
+    chosen.mascot = "blueberry";
+    rerender(shop());
+    expect(live()).toBe("");
   });
 });
