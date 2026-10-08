@@ -88,11 +88,14 @@ export default function TipTile({ tips, onOpen }: {
   onOpen?: (tip: BoardTip, from: HTMLElement) => void;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
-  const [offset, setOffset] = useState(0);
+  // The shown tip is held by id, not position: the tips reorder as the day changes (a first cup
+  // drops the water tip's relevance), and the tile must not switch tips, or announce one, on its own.
+  const [shownId, setShownId] = useState<string | null>(() => tips[0]?.id ?? null);
   const liveId = useId();
   if (tips.length === 0) return null;
   const count = tips.length;
-  const index = offset % count;
+  const found = shownId === null ? -1 : tips.findIndex((item) => item.id === shownId);
+  const index = found < 0 ? 0 : found;
   const previous = (index - 1 + count) % count;
   const tip = tips[index];
   const leaving = reduce ? INSTANT : { x: SPRINGS.smooth, opacity: FADES.quick, filter: FADES.quick };
@@ -124,7 +127,7 @@ export default function TipTile({ tips, onOpen }: {
     {/* The system's small secondary circle: 36 px to see, 44 px to hit (DESIGN.md §Buttons). Not the
         primary: paging tips completes nothing, and the board's one primary is "mark eaten". */}
     {count > 1 && <Button variant="secondary" shape="circle" size="sm" className={styles.next} aria-label="Next tip"
-      aria-controls={liveId} onClick={() => setOffset((n) => n + 1)}>
+      aria-controls={liveId} onClick={() => setShownId(tips[(index + 1) % count].id)}>
       <NextGlyph />
     </Button>}
   </motion.div>;
