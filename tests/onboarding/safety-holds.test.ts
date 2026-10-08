@@ -99,7 +99,31 @@ describe("a held account in onboarding", () => {
       openFoodWorld: async () => {},
     }, { clinicianDiet: true });
     expect(result.constraintsSaved).toBe(false);
+    // Final Sol review r3: the shell runs the whole save again on Try again.
+    expect(result.profileWritten).toBe(false);
     expect(saveSynced).not.toHaveBeenCalled();
+  });
+});
+
+describe("an account whose hold is STORED, not tapped this round (final Sol review r2 BLOCK)", () => {
+  it("saves the held plan the screen showed instead of failing as an incomplete profile", async () => {
+    const state = { ...losingState(), goalRateBpWeek: null };
+    const deps = {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => undefined),
+      saveWeighIn: vi.fn(async () => null),
+      loadConstraints: vi.fn(async () => ({ profile, rev: 0 })),
+      saveConstraints: vi.fn(async () => ({ status: "ok" as const, profile, rev: 1 })),
+      localDate: () => "2026-10-08",
+      hasWeighIn: () => true,
+      openFoodWorld: async () => {},
+    };
+    await expect(persistCompletedOnboarding(defaultSettings(), state, NOW, deps, {}))
+      .rejects.toThrow(/incomplete/);
+    const result = await persistCompletedOnboarding(defaultSettings(), state, NOW, deps, {}, undefined,
+      { holds: ["kidney"], minor: false });
+    expect(result.settings.goalRateBpWeek).toBeNull();
+    expect(result.settings.activeTargetProfile?.inputs?.goalRateBpWeek).toBe(0);
   });
 });
 

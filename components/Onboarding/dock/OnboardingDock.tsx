@@ -5,7 +5,7 @@ import {
   type FormEvent, type KeyboardEvent, type ReactNode,
 } from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
-import { Mic } from "lucide-react";
+import { ArrowUp, Mic, Square } from "lucide-react";
 import Button, { type ButtonStatus } from "@/components/ui/Button";
 import { INSTANT, PRESS, lensVar, sheen, sheenOff } from "@/components/dock/dock-motion";
 import { AskSkin, ASK_INPUT_CLASS } from "@/components/dock/AskShell";
@@ -54,8 +54,19 @@ type Props = {
   onSubmit?: (value: string) => void;
   micLabel?: string;
   onMicTap?: () => void;
+  /** The box is read-only and Send is held: a typed answer is being read, or the mic owns the box. */
   listening?: boolean;
+  /** Voice (onboarding voice lane, 2026-10-08): the mic is open — the button is Stop. */
+  micActive?: boolean;
+  /** The last clip is still being written down: the mic waits. */
+  micBusy?: boolean;
+  /** The recorder fallback's countdown, shown on the Stop button while it records. */
+  micSeconds?: number | null;
+  /** The mic cannot start now (an answer is being read). */
+  micDisabled?: boolean;
   placeholder?: string;
+  /** The text field's accessible name (defaults to "Tell <assistant>"). */
+  inputLabel?: string;
   /** chips */
   chips?: DockChip[];
   onPick?: (key: string) => void;
@@ -83,31 +94,59 @@ const CONTAINER_EASE = [0.23, 1, 0.32, 1] as const;
 const CONTAINER_ENTER = { duration: 0.24, ease: CONTAINER_EASE };
 const CONTAINER_EXIT = { duration: 0.16, ease: CONTAINER_EASE };
 
-function MicContent({ value, onChange, onSubmit, placeholder, micLabel, onMicTap, listening, reduce }: {
+/** The dock's mic: round glass at rest, the alert red while it is open (the coach composer's own
+ *  recording look, `coach-recording-button`, whose pulse stops under reduced motion), "…" while a
+ *  clip is written down. 44 px, the house's smallest target. */
+function MicButton({ label, onTap, mic, reduce }: { label: string; onTap: () => void; mic: MicState; reduce: boolean }) {
+  const mode = mic.busy ? "busy" : mic.active ? "stop" : "record";
+  return <motion.button type="button" aria-label={mode === "stop" ? "Stop dictation" : mode === "busy" ? "Writing down what you said" : label}
+    aria-pressed={mode === "busy" ? undefined : mode === "stop"} aria-disabled={mode === "busy" ? true : undefined}
+    disabled={mode === "record" && mic.disabled} onClick={() => { if (mode !== "busy") onTap(); }}
+    data-mic-mode={mode}
+    className={`${mode === "stop" ? `${dockStyles.micLive} coach-recording-button` : styles.tab} tap flex size-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40`}
+    whileTap={reduce ? undefined : { scale: 0.92 }} transition={reduce ? INSTANT : PRESS}>
+    {mode === "busy" ? <span aria-hidden="true">…</span>
+      : mode === "stop" ? (typeof mic.seconds === "number"
+        ? <span className="text-caption font-normal tabular-nums" aria-hidden="true">{mic.seconds}</span>
+        : <Square size={16} strokeWidth={0} fill="currentColor" aria-hidden="true" />)
+        : <Mic size={20} strokeWidth={1.8} aria-hidden="true" />}
+  </motion.button>;
+}
+
+type MicState = { active?: boolean; busy?: boolean; seconds?: number | null; disabled?: boolean };
+
+function MicContent({ value, onChange, onSubmit, placeholder, micLabel, onMicTap, listening, reduce, inputLabel, mic }: {
   value: string; onChange?: (v: string) => void; onSubmit?: (v: string) => void; placeholder?: string;
-  micLabel: string; onMicTap?: () => void; listening?: boolean; reduce: boolean;
+  micLabel: string; onMicTap?: () => void; listening?: boolean; reduce: boolean; inputLabel?: string;
+  mic: MicState;
 }) {
   const input = useRef<HTMLTextAreaElement>(null);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (value.trim()) onSubmit?.(value);
+    if (value.trim() && !listening) onSubmit?.(value);
   }
   function keyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (value.trim()) onSubmit?.(value); }
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (value.trim() && !listening) onSubmit?.(value); }
   }
-  const tellLabel = `Tell ${ASSISTANT_NAME}`;
+  const tellLabel = inputLabel ?? `Tell ${ASSISTANT_NAME}`;
+  const canSend = value.trim().length > 0 && !listening;
   // Sol review: a search field announces as search, not as an answer to the assistant's own
   // question — this is a plain labelled form, not role="search"/"searchbox".
-  return <form aria-label={tellLabel} onSubmit={submit} className="flex h-16 w-full items-center gap-1 px-2.5">
+  // Live QA 2026-10-07: with no voice wired (`onMicTap` absent) the round button is Send, never a
+  // mic that does nothing; a typed answer always has a visible way to go.
+  return <form aria-label={tellLabel} onSubmit={submit} className="flex h-16 w-full items-center gap-1 pl-4 pr-2.5">
     <textarea ref={input} rows={1} maxLength={2000} autoComplete="off" enterKeyHint="send"
       aria-label={tellLabel} readOnly={listening} placeholder={placeholder}
       value={value} onChange={(event) => onChange?.(event.target.value)} onKeyDown={keyDown}
-      className={ASK_INPUT_CLASS} />
-    <motion.button type="button" aria-label={micLabel} aria-pressed={listening ?? false} onClick={onMicTap}
-      className={`${styles.tab} tap flex size-11 shrink-0 items-center justify-center rounded-full`}
-      whileTap={reduce ? undefined : { scale: 0.92 }} transition={reduce ? INSTANT : PRESS}>
-      <Mic size={20} strokeWidth={1.8} aria-hidden="true" />
-    </motion.button>
+      className={`${ASK_INPUT_CLASS} text-charcoal placeholder:text-muted`} />
+    {onMicTap && <MicButton label={micLabel} onTap={onMicTap} mic={mic} reduce={reduce} />}
+    {/* Voice lane (2026-10-08): with a mic, Send joins it once the box holds words the person can
+        review — dictation never sends by itself. Without a mic, Send is the round button. */}
+    {(!onMicTap || canSend) && <Button type="submit" variant="primary" shape="circle" size="md" aria-label="Send"
+      disabled={!canSend} className="size-11 shrink-0">
+      <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
+    </Button>}
   </form>;
 }
 
@@ -168,7 +207,8 @@ function ConfirmContent({ confirmLabel, onConfirm, confirmStatus }: {
 function modeContent(mode: OnboardingDockMode, props: Props, reduce: boolean): ReactNode {
   if (mode === "mic") return <MicContent value={props.value ?? ""} onChange={props.onChange}
     onSubmit={props.onSubmit} placeholder={props.placeholder} micLabel={props.micLabel ?? "Record"}
-    onMicTap={props.onMicTap} listening={props.listening} reduce={reduce} />;
+    onMicTap={props.onMicTap} listening={props.listening} reduce={reduce} inputLabel={props.inputLabel}
+    mic={{ active: props.micActive, busy: props.micBusy, seconds: props.micSeconds, disabled: props.micDisabled }} />;
   if (mode === "chips") return <ChipsContent chips={props.chips ?? []} onPick={props.onPick} reduce={reduce} />;
   if (mode === "game") return <GameContent escapeLabel={props.escapeLabel ?? "Sprout, pick for me"}
     onEscape={props.onEscape} reduce={reduce} />;
@@ -250,8 +290,9 @@ export default function OnboardingDock(props: Props) {
     glass.current?.querySelector<HTMLElement>(`[data-dock-live] ${FOCUSABLE}`)?.focus();
   }, [mode]);
 
-  return <motion.div data-onboarding-dock="true" data-mode={mode} className={`${dockStyles.dockFrame} relative w-full`}
-    style={{ borderRadius: 32, ...lensVar("pill") }}
+  return <motion.div data-onboarding-dock="true" data-mode={mode}
+    data-empty={mode === "chips" && !(props.chips?.length) ? "true" : undefined} className={`${dockStyles.dockFrame} relative w-full`}
+    style={lensVar("pill")}
     initial={false} animate={{ height: Math.max(MIN_HEIGHT, height) }}
     // Polish pass (2026-10-07, "sync the motion across beats"): `SPRINGS.gentle` has a 0.55s
     // visual duration — the frame was still visibly morphing height for ~300ms after the stream's
@@ -266,8 +307,8 @@ export default function OnboardingDock(props: Props) {
     // case, and still lands well inside the same beat-change window as the stream's 0.24s swap.
     transition={reduce ? INSTANT : SPRINGS.smooth}
     onPointerMove={sheen} onPointerLeave={sheenOff}>
-    <div ref={glass} className={`${styles.glass} ${styles.assistant} matte absolute inset-0 overflow-hidden`}
-      style={{ borderRadius: 32 }}>
+    <div ref={glass}
+      className={`${styles.glass} ${styles.assistant} ${dockStyles.dockGlass} matte absolute inset-0 overflow-hidden`}>
       <AskSkin reduce={reduce} />
       <AnimatePresence initial={false}>
         <ModeLayer key={mode} mode={mode} props={props} reduce={reduce}

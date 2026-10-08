@@ -25,7 +25,12 @@ async function readStarterChoices(
   return starterChoices(flags, constraints.profile, profiles.instances);
 }
 
-export function useStarterStep(state: OnboardingState | null, enabled = true) {
+/** `preselectDefaults: false` (onboarding v2's love round): start with nothing marked, so only foods
+ *  the person tapped (or named, or already saved) are saved. The legacy form keeps its defaults.
+ *  Live QA 2026-10-07: v2 never showed the 29 pre-marked defaults, yet saved them all as Eats. */
+export function useStarterStep(state: OnboardingState | null, enabled = true,
+  options: { preselectDefaults?: boolean } = {}) {
+  const preselectDefaults = options.preselectDefaults ?? true;
   const [choices, setChoices] = useState<Starter[] | null>(null);
   const [marks, setMarks] = useState<Record<string, StarterMark>>({});
   const [error, setError] = useState<string | null>(null);
@@ -58,13 +63,13 @@ export function useStarterStep(state: OnboardingState | null, enabled = true) {
       setLoadedFor(key);
       setChoices(safe);
       setMarks(initialStarterSelection(activeFlags, constraints.profile, text, profiles.instances,
-        Object.values(loadStore().foods)));
+        Object.values(loadStore().foods), { preselectDefaults }));
       setError(null);
     }).catch(() => {
       if (live) { setChoices(null); setError("Couldn’t verify your food rules. Retry when you’re online."); }
     });
     return () => { live = false; };
-  }, [enabled, step, flags, text, revision, loadedFor]);
+  }, [enabled, step, flags, text, revision, loadedFor, preselectDefaults]);
   const account = currentAccountOrNull();
   const current = enabled && account !== null
     && loadedFor === `${account.userId}\0${flags}\0${text}\0${revision}`;

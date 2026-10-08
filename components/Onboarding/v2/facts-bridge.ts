@@ -8,8 +8,7 @@
 import type { OnboardingFacts } from "@/components/Onboarding/facts";
 import { createOnboardingState, type OnboardingState, type PreferenceFlag, PREFERENCE_FLAGS }
   from "@/lib/profile/onboarding-state";
-import { DEFAULT_RATE_BP } from "@/lib/profile/rate-goal";
-import type { Settings } from "@/lib/types";
+import type { ActivityLevel, Settings } from "@/lib/types";
 
 /** Alias kept so the rest of this file (and its tests) read naturally; it is the same type
  *  `OnboardingFacts` already is — not a parallel shape. */
@@ -48,33 +47,44 @@ export function applyFactsToSettings(base: Settings, facts: FactsLike): Settings
   return { ...base, ...factsToPartialSettings(facts) };
 }
 
+/** What the question-set beats after the body facts answered (QUESTION-SET-v2.md §1b–§2):
+ *  every field is the person's own tap, or the conservative default the plan card names. */
+export type PlanStateAnswers = {
+  /** The confirmed pace preset; null until the pace beat (or a route without one) settles it. */
+  goalRateBpWeek: number | null;
+  activityLevel: ActivityLevel;
+  trainingWeekdays: readonly number[];
+  mealsPerDay: number | null;
+  firstMealTime: string | null;
+  /** "US" while the visible chip is on, null when switched off; undefined: the chip never showed. */
+  countryCode?: string | null;
+};
+
 /** The same `OnboardingState` shape `useStarterStep`/`useOnboardingFoodAccess`/
  *  `persistCompletedOnboarding` already read — built from confirmed facts instead of the legacy
- *  form's own step reducer, so this shell can reuse that write path unedited (LANES.md: UI lane
- *  may not touch `lib/`). `step` is pinned to 5 ("Your plan"): every required field this shell
- *  asks for IS the legacy flow's step-0/2 set, so there is no earlier step to represent. */
-export function buildOnboardingStateFromFacts(settings: Settings, facts: FactsLike): OnboardingState {
+ *  form's own step reducer. `step` is pinned to 5 ("Your plan").
+ *
+ *  Question set v2 (V1, V3–V5): the pace, activity, training days, meals and first meal come from
+ *  the beats (`plan`), never a silent default. Without `plan` (a caller that has not reached those
+ *  beats) the pace stays unconfirmed, so completion stays blocked on the pace tap, and activity is
+ *  the conservative `sedentary` (ruling R1), never the old "moderate". */
+export function buildOnboardingStateFromFacts(
+  settings: Settings, facts: FactsLike, plan?: PlanStateAnswers,
+): OnboardingState {
   const state = createOnboardingState(settings, 5);
-  // The legacy form picks a goal's default rate the moment the goal itself is chosen
-  // (`applyGoalChange`, lib/profile/rate-goal.ts) — this shell asks for a goal and nothing about
-  // a rate (the brief's required-answer budget has no room for it), so the same default applies
-  // here, the one time a goal is set, rather than leaving `confirmedRate` with nothing and
-  // blocking completion on an answer never asked for.
-  const goalRateBpWeek = facts.goal ? DEFAULT_RATE_BP[facts.goal] : state.goalRateBpWeek;
-  // Activity is not one of the brief's required answers either (goal, sex, birth year, height,
-  // weight, allergy/condition — six, per BRIEF.md §2), but `missingProfileFields`/
-  // `buildCompletedSettings` (both lane-0 code, unedited) treat it as required for a target
-  // derivation. "moderate" is the same mid-point default `ACTIVITY_FACTORS` documents as the
-  // conservative prior — never silently guessed as "sedentary" or "very_active" — and the account
-  // can always refine it later in Settings; this only keeps completion from being blocked on a
-  // question this shell never asks.
-  const activityLevel = facts.activity ?? state.activityLevel ?? "moderate";
-  // GPT-6 Sol round-1 BLOCK: this shell never asks a dietary-flag question, so `facts.dietFlags`
-  // is undefined on every real run — overwriting `state.flags` with `knownPreferenceFlags(undefined)`
-  // (always `[]`) would silently erase an account's already-saved flags (vegan, halal, ...) on
-  // completion. `createOnboardingState` already derived `state.flags` correctly from the account's
-  // existing saved diet flags (onboarding-state.ts, unedited) — only replace it when the
-  // facts flow actually answered a flags question.
+  const goalRateBpWeek = plan ? plan.goalRateBpWeek
+    : facts.goal && facts.goal !== state.goal ? null : state.goalRateBpWeek;
+  const activityLevel = plan?.activityLevel ?? facts.activity ?? "sedentary";
+  // GPT-6 Sol round-1 BLOCK: only replace the account's saved flags when the facts flow actually
+  // answered a flags question.
   const flags = facts.dietFlags !== undefined ? knownPreferenceFlags(facts.dietFlags) : state.flags;
-  return { ...state, flags, goalRateBpWeek, activityLevel };
+  return {
+    ...state, flags, goalRateBpWeek, activityLevel,
+    ...(plan ? {
+      trainingWeekdays: [...plan.trainingWeekdays].sort((a, b) => a - b),
+      mealsPerDay: plan.mealsPerDay,
+      firstMealTime: plan.firstMealTime,
+      ...(plan.countryCode !== undefined ? { countryCode: plan.countryCode } : {}),
+    } : {}),
+  };
 }

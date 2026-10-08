@@ -587,3 +587,17 @@ export const onboardingModelFactsSchema = onboardingModelFactsShape.superRefine(
 });
 
 export type OnboardingModelFacts = z.infer<typeof onboardingModelFactsSchema>;
+
+/**
+ * The schema the PROVIDER is sent for the model extraction (`providerSchema`, lib/ai/adapter.ts).
+ * `confidence` is a partial record in the parse schema above, which converts to an open map
+ * (`additionalProperties: <number>`) that Gemini's structured output cannot express —
+ * lib/ai/json-schema.ts refuses it, so every Gemini attempt failed before it was sent. Here the
+ * same keys are listed one by one, each optional, under a strict object. The reply is still
+ * parsed with `onboardingModelFactsSchema`.
+ */
+export const onboardingModelFactsProviderSchema = onboardingModelFactsShape.extend({
+  confidence: z.object(Object.fromEntries(ONBOARDING_MODEL_FACT_KEYS.map((key) =>
+    [key, z.number().min(0).max(1).optional()])) as Record<OnboardingModelFactKey,
+    z.ZodOptional<z.ZodNumber>>).strict(),
+}).strict();

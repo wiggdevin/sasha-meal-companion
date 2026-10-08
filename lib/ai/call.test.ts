@@ -61,6 +61,50 @@ describe("callModel's failure record carries every answered attempt's real surch
   });
 });
 
+describe("callModel asks beforeRetry before every retry and stops when it says no", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  function run(beforeRetry: () => Promise<boolean>) {
+    attest();
+    const inserted: Record<string, unknown>[] = [];
+    const admin = spendAdmin([], inserted);
+    const payload = coachOpenRouterPayload(["USER: hi"]);
+    const state = { sent: 0, inserted };
+    const done = callModel<FakeResult, never>({
+      payload,
+      provenance: openRouterProvenance,
+      target: () => ({ provider: "openrouter", model: "openai/gpt-5-mini", sdkVersion: "test" }),
+      ledger: () => ({ userId: "u1", admin: admin as never }),
+      inputHash: () => `\\x${createHash("sha256").update(payload.text).digest("hex")}`,
+      policy: { attempts: 3, budgetMs: 5_000, attemptMs: 2_000, backoffMs: [0, 0],
+        retryable: () => true, beforeRetry },
+      transport: { send: async () => { state.sent += 1; throw new Error("boom"); } },
+      accept: () => { throw new Error("unreachable"); },
+      price: () => 0,
+      maxAttemptCostUsd: () => 0.05,
+    }).catch((e: unknown) => e);
+    return { done, state };
+  }
+
+  it("is never asked before the first attempt, and is asked before each retry", async () => {
+    const beforeRetry = vi.fn(async () => true);
+    const { done, state } = run(beforeRetry);
+    expect(await done).toBeInstanceOf(Error);
+    expect(state.sent).toBe(3);
+    expect(beforeRetry).toHaveBeenCalledTimes(2);
+  });
+
+  it("a refused retry is never sent, and the last real failure is still recorded once", async () => {
+    const beforeRetry = vi.fn(async () => false);
+    const { done, state } = run(beforeRetry);
+    const error = await done;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("boom");
+    expect(state.sent).toBe(1);
+    expect(state.inserted).toHaveLength(1);
+  });
+});
+
 describe("followups #14: a transport.open() failure is classified and recorded, same as a send() failure", () => {
   afterEach(() => { vi.unstubAllEnvs(); });
 

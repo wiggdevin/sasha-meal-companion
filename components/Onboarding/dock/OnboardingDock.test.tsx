@@ -12,13 +12,46 @@ import OnboardingDock from "./OnboardingDock";
 afterEach(cleanup);
 
 describe("OnboardingDock", () => {
+  it("mic mode with no voice wired: the round button is Send, never a dead mic (live QA 2026-10-07)", () => {
+    const onSubmit = vi.fn();
+    render(<OnboardingDock mode="mic" reduce={false} value="34" onSubmit={onSubmit} />);
+    expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onSubmit).toHaveBeenCalledWith("34");
+  });
+
   it("mic mode: one labelled answer field and a record control, nothing else", () => {
-    render(<OnboardingDock mode="mic" reduce={false} value="" placeholder="Tell Sasha" />);
+    render(<OnboardingDock mode="mic" reduce={false} value="" placeholder="Tell Sasha" onMicTap={vi.fn()} />);
     // Sol review: this is an answer to Sasha's question, not a search — no search/searchbox role.
     screen.getByRole("textbox", { name: "Tell Sasha" });
     expect(screen.queryByRole("searchbox")).toBeNull();
     screen.getByRole("button", { name: "Record" });
     expect(screen.queryByRole("group")).toBeNull();
+  });
+
+  it("mic mode with voice: Send joins the mic once the box holds words, never while the mic owns it", () => {
+    const onSubmit = vi.fn();
+    const onMicTap = vi.fn();
+    const { rerender } = render(<OnboardingDock mode="mic" reduce={false} value="34" onSubmit={onSubmit}
+      onMicTap={onMicTap} micLabel="Say it" />);
+    fireEvent.click(screen.getByRole("button", { name: "Say it" }));
+    expect(onMicTap).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onSubmit).toHaveBeenCalledWith("34");
+
+    rerender(<OnboardingDock mode="mic" reduce={false} value="34 and" onSubmit={onSubmit}
+      onMicTap={onMicTap} micLabel="Say it" listening micActive micSeconds={12} />);
+    expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+    const stop = screen.getByRole("button", { name: "Stop dictation" });
+    expect(stop.getAttribute("aria-pressed")).toBe("true");
+    expect(stop.textContent).toBe("12");
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    rerender(<OnboardingDock mode="mic" reduce={false} value="34" onSubmit={onSubmit}
+      onMicTap={onMicTap} micLabel="Say it" listening micBusy />);
+    fireEvent.click(screen.getByRole("button", { name: "Writing down what you said" }));
+    expect(onMicTap).toHaveBeenCalledTimes(1);
   });
 
   it("chips mode: every chip renders, and 'None' can be marked the largest", () => {

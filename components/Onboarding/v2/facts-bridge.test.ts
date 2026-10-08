@@ -44,10 +44,24 @@ describe("facts bridge", () => {
     expect(state.flags).toEqual(["vegetarian"]);
     expect(state.goal).toBe("lose_fat");
     expect(state.body.birthYear).toBe("1990");
-    // A rate is never asked for in the chat flow — the goal's own default applies automatically,
-    // the same as the legacy form's `applyGoalChange` on first pick, so completion is never
-    // blocked on a question the brief does not ask.
-    expect(state.goalRateBpWeek).toBe(-50);
+    // Question set v2 (V1): the pace is a required tap, never a silent default.
+    expect(state.goalRateBpWeek).toBeNull();
+    // V3: activity is never silently "moderate".
+    expect(state.activityLevel).toBe("sedentary");
+  });
+
+  it("carries the beats' answers: pace, activity, training days, meals, first meal and country", () => {
+    const settings = applyFactsToSettings(defaultSettings(), {
+      ...emptyFacts(), goal: "lose_fat", sex: "male", birthYear: 1990, heightCm: 180, weightKg: 80,
+    });
+    const state = buildOnboardingStateFromFacts(settings, { ...emptyFacts(), goal: "lose_fat" }, {
+      goalRateBpWeek: -25, activityLevel: "light", trainingWeekdays: [5, 1, 3],
+      mealsPerDay: 4, firstMealTime: "07:30", countryCode: "US",
+    });
+    expect(state).toMatchObject({
+      goalRateBpWeek: -25, activityLevel: "light", trainingWeekdays: [1, 3, 5],
+      mealsPerDay: 4, firstMealTime: "07:30", countryCode: "US",
+    });
   });
 
   it("carries a 'prefer not to say' sex answer through to the OnboardingState the write path"

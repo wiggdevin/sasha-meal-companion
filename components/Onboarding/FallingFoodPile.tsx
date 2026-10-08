@@ -1,57 +1,54 @@
 "use client";
 
 /**
- * Onboarding v2 lane 4: the "tap the ones you love" falling-food game.
- * VISUAL-SPEC.md §6 (2026-10-07, the design lead's spec), overridden on four numbers by the
- * orchestrator's 2026-10-07 live-screenshot review (first pass read as "sparse and quiet," not
- * "foods raining in") — noted in coord.md, not silently diverged from the spec:
+ * Onboarding v2: the "tap the foods you love" falling-food game (VISUAL-SPEC.md §6, with the
+ * orchestrator's 2026-10-07 overrides: a spawn every 450 ms ±120 ms, a 3.6 s linear fall, ±6°
+ * wobble, 96 px discs, at most 14 foods in a session).
  *
- *   - one food spawns every 450ms ±120ms (spec: 650±150), max 5 falling at once (spec: 3) — the
- *     next spawn still waits for a free slot
- *   - a disc falls the container's full height in 3.6s (spec: 3.2s) at constant (linear) velocity
- *   - disc size 96px (spec: 72px), so 14 discs pass in roughly the owner's ~12s target
- *   - ±6° wobble, 1.8s sine period, as a transform layered on top of the fall (unchanged)
- *   - a tap pops the disc (scale/opacity out) and marks it loved; reaching the floor untapped
- *     fades it out neutrally — no penalty framing, matches the Sprout card plan's "no deficit
- *     shaming"
- *   - the session shows at most 14 discs total, then spawning stops
- *   - reduced motion replaces the whole game with a static 4-column grid of the same renders,
- *     tap-to-select, no animation beyond the tap's own feedback
- *
- * The stage is full-bleed (edge to edge, no card inset) per the same review — still the
- * `.matte`/`--grad-matte` charcoal scope VISUAL-SPEC.md asks for, just not boxed.
- *
- * Deferred, explicitly, under the ship-tomorrow deadline (not in VISUAL-SPEC.md's §9 scope for
- * this PR either): the per-tap particle burst, Sprout's catch reaction (L2 owns Sprout —
- * LANES.md), and the backdrop drift of loved foods (§3, a whole-onboarding-canvas treatment L2/L3
- * own, not this step). The tap/miss mechanics, timing and the reduced-motion fallback are real.
+ * Live QA 2026-10-07 (defect 3) rebuilt the parts the owner saw fail on his phone:
+ * - Lanes: four lanes, each new disc takes a random free lane (not one a disc used in the last
+ *   two spawns, and not next to the previous disc's lane when another is free) — never
+ *   `fallKey % n`, which drew a diagonal staircase.
+ * - Geometry: lane centres are clamped inside the screen (`FallingFoodPile.module.css` `.lane`), so
+ *   no disc sits half off the left or right edge.
+ * - Stage: transparent, its top edge faded with a mask (no hard band), sized to the space left
+ *   so the loved tray stays visible.
+ * - A visible "Tap the foods you love" line and a per-group count.
+ * - An end state: once every food has fallen, a grid of everything shown, with the taps kept and
+ *   each one still toggleable. Reduced motion shows that same grid from the start.
+ * - Shown foods can be held by the caller (`shownIds` / `onShown`), so a remount of this
+ *   component never replays foods the person already saw.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { dbFood } from "@/lib/food-db";
 import type { Starter, StarterMark } from "@/lib/foods/starter";
 import type { FoodRole } from "@/lib/foods";
 import { SPRINGS } from "@/lib/design/motion";
+import { CHIP_FILL } from "./facts/chip-fill";
 import { foodShortName } from "./food-display-names";
 import { useFoodDiscArtReady } from "./food-disc-art";
 import FoodDisc from "./FoodDisc";
+import styles from "./FallingFoodPile.module.css";
 
 const ROLES: readonly FoodRole[] = ["protein", "carb", "fat"];
+const ROLE_NAME: Record<FoodRole, string> = { protein: "Proteins", carb: "Carbs", fat: "Fats" };
+const PER_ROLE = 2;
 const QUEUE_CAP = 14;
-const MAX_CONCURRENT = 5;
+const LANES = 4;
+const MAX_CONCURRENT = 4;
+/** A lane is free again this many spawns after it was last used (about 150 px of fall). */
+const LANE_COOLDOWN = 3;
 const SPAWN_BASE_MS = 450;
 const SPAWN_JITTER_MS = 120;
 const FALL_SECONDS = 3.6;
 const WOBBLE_DEG = 6;
 const WOBBLE_SECONDS = 1.8;
-const STAGE_HEIGHT_PX = 620;
-const DISC_PX = 96;
-/** Lane count matches `MAX_CONCURRENT`, spread across the full stage width with a minimum gap. */
-const LANES = MAX_CONCURRENT;
+const DISC_PX = 112;
+const FALLBACK_STAGE_PX = 360;
 
-/** Round-robin the filtered catalog across roles so the session mixes protein/carb/fat, capped to
- *  `QUEUE_CAP` — "cap at 14 discs total shown" (VISUAL-SPEC.md §6). */
-function buildQueue(choices: readonly Starter[]): Starter[] {
+/** Round-robin the filtered catalog across roles so the session mixes protein/carb/fat. */
+export function buildQueue(choices: readonly Starter[]): Starter[] {
   const byRole = ROLES.map((role) => choices.filter((item) => item.role === role));
   const interleaved: Starter[] = [];
   let index = 0;
@@ -67,69 +64,119 @@ function buildQueue(choices: readonly Starter[]): Starter[] {
 }
 
 type FallItem = { item: Starter; fallKey: number; lane: number };
-/** `issued` is both "how many of `queue` have been spawned so far" and the source of each new
- *  disc's unique `fallKey` — one piece of state, updated only by pure functions (see `spawnNext`
- *  below), so there is nothing for React dev-mode's double-invoked `setState` updater check to
- *  corrupt. An earlier version tracked this in refs mutated *inside* the updater; the double
- *  invoke silently burned two queue slots per real spawn and, separately, a dev-mode remount left
- *  two independent copies of that ref-based scheduler running at once. Neither failure mode is
- *  possible once every updater is pure and the effect's own cleanup (`clearTimeout`) is the only
- *  thing that stops the previous instance — the standard, React-doc-recommended effect shape. */
-type GameState = { falling: FallItem[]; issued: number };
-const EMPTY_GAME: GameState = { falling: [], issued: 0 };
+/** Pure state, updated only by pure functions (React may double-invoke an updater in dev). */
+type GameState = { falling: FallItem[]; issued: number; laneUsedAt: number[]; lastLane: number };
+const emptyGame = (): GameState => ({ falling: [], issued: 0, laneUsedAt: Array(LANES).fill(-LANE_COOLDOWN), lastLane: -2 });
 
-function spawnNext(queue: readonly Starter[]) {
+/** The lane for the next disc: a free lane, away from the previous one when possible. `rand` is
+ *  drawn outside the updater, so the updater stays pure. */
+export function pickLane(game: Pick<GameState, "issued" | "laneUsedAt" | "lastLane">, rand: number): number | null {
+  const free = Array.from({ length: LANES }, (_, lane) => lane)
+    .filter((lane) => game.issued - game.laneUsedAt[lane] >= LANE_COOLDOWN);
+  if (free.length === 0) return null;
+  const apart = free.filter((lane) => Math.abs(lane - game.lastLane) > 1);
+  const pool = apart.length > 0 ? apart : free;
+  return pool[Math.min(pool.length - 1, Math.floor(rand * pool.length))];
+}
+
+function spawnNext(queue: readonly Starter[], rand: number) {
   return (game: GameState): GameState => {
     if (game.falling.length >= MAX_CONCURRENT || game.issued >= queue.length) return game;
-    const item = queue[game.issued];
+    const lane = pickLane(game, rand);
+    if (lane === null) return game;
     const fallKey = game.issued;
+    const laneUsedAt = game.laneUsedAt.slice();
+    laneUsedAt[lane] = fallKey;
     return {
-      falling: [...game.falling, { item, fallKey, lane: fallKey % LANES }],
-      issued: game.issued + 1,
+      falling: [...game.falling, { item: queue[fallKey], fallKey, lane }],
+      issued: game.issued + 1, laneUsedAt, lastLane: lane,
     };
   };
 }
 
-export default function FallingFoodPile({ choices, marks, onMark }: {
+function roleCounts(choices: readonly Starter[], marks: Record<string, StarterMark>) {
+  return ROLES.map((role) => ({
+    role, loved: choices.filter((item) => item.role === role && marks[item.id] === "eats").length,
+  }));
+}
+
+function Instruction({ choices, marks }: { choices: readonly Starter[]; marks: Record<string, StarterMark> }) {
+  return <div className="flex w-full flex-col gap-1">
+    <p className="m-0 font-serif text-heading-sm text-charcoal">Tap the foods you love</p>
+    <p className="m-0 text-caption text-graphite" aria-live="polite">
+      {roleCounts(choices, marks).map(({ role, loved }, index) => <span key={role}>
+        {index > 0 && " · "}{ROLE_NAME[role]} {Math.min(loved, PER_ROLE)}/{PER_ROLE}
+      </span>)}
+    </p>
+  </div>;
+}
+
+function FoodGrid({ items, marks, onMark }: {
+  items: readonly Starter[]; marks: Record<string, StarterMark>; onMark: (id: string, mark: StarterMark) => void;
+}) {
+  return <div className="grid w-full grid-cols-4 gap-x-1 gap-y-2" data-testid="food-grid">
+    {items.map((item) => {
+      const full = dbFood(item.id)?.name ?? item.id;
+      const pressed = marks[item.id] === "eats";
+      return <FoodDisc key={item.id} id={item.id} shortName={foodShortName(item.id, full)} size="sm"
+        label={`Love ${full}`} pressed={pressed} variant={pressed ? "primary" : "tertiary"}
+        onToggle={() => onMark(item.id, pressed ? "neutral" : "eats")} />;
+    })}
+  </div>;
+}
+
+export default function FallingFoodPile({ choices, marks, onMark, shownIds, onShown }: {
   choices: readonly Starter[];
   marks: Record<string, StarterMark>;
   onMark: (id: string, mark: StarterMark) => void;
+  /** Foods already shown this session, held by the caller so a remount never replays them. */
+  shownIds?: readonly string[];
+  onShown?: (id: string) => void;
 }) {
   const reduceMotion = useReducedMotion();
   useFoodDiscArtReady();
   const queue = useMemo(() => buildQueue(choices), [choices]);
-  const [game, setGame] = useState<GameState>(EMPTY_GAME);
-  /** Each `motion.div` below carries both `animate` (the fall) and `exit` (the pop/fade), and
-   *  Motion fires the *same* `onAnimationComplete` for either one finishing — so a tap's own exit
-   *  transition re-invokes the handler a moment after the tap already resolved the disc (GPT-6 Sol
-   *  r3/r4 BLOCK). Guard here, in the plain event-handler body (never inside a setState updater —
-   *  see `GameState`'s own doc on why that specific spot has to stay pure): the first call for a
-   *  given `fallKey` wins, every later one for that key is the exit echo and does nothing. */
+  const [ownShown, setOwnShown] = useState<readonly string[]>([]);
+  const shown = shownIds ?? ownShown;
+  const markShown = (id: string) => { if (onShown) onShown(id); else setOwnShown((current) => current.includes(id) ? current : [...current, id]); };
+  const shownRef = useRef(shown);
+  useLayoutEffect(() => { shownRef.current = shown; }, [shown]);
+
+  /** First call per `fallKey` wins: Motion fires one `onAnimationComplete` for the fall and again
+   *  for the pop-out exit (GPT-6 Sol r3/r4 BLOCK). */
   const resolvedKeys = useRef<Set<number>>(new Set());
-  /** The id set `resolve` checks a tap against, always kept current (GPT-6 Sol r5 BLOCK): an
-   *  `AnimatePresence` exit gives a just-removed disc ~220ms on screen with its `onToggle` still
-   *  wired to the render that created it. If a deck swap (a confirmed allergy excludes that very
-   *  food) lands during that window, the tap must not still mark the now-excluded food loved —
-   *  checking the *latest* allowed ids at call time, not the ids `resolve`'s own closure captured,
-   *  is what actually closes that gap. A plain `useEffect` still leaves a real, if narrow, window
-   *  open: it runs after paint, so a tap landing between commit and that effect would still read
-   *  the stale set (GPT-6 Sol r6 BLOCK). `useLayoutEffect` runs synchronously after the DOM
-   *  mutates and before the browser paints — before the user could possibly see or tap the new
-   *  frame — which is the standard fix for exactly this class of "effect ran too late" race. */
+  /** The latest allowed ids, read at tap time — a disc exiting during a deck swap must not mark a
+   *  food the new deck excludes (GPT-6 Sol r5/r6 BLOCK; layout effect so it lands before paint). */
   const allowedIds = useRef<Set<string>>(new Set());
   useLayoutEffect(() => { allowedIds.current = new Set(choices.map((item) => item.id)); }, [choices]);
-  // A new deck (or a reduced-motion flip) clears the session during render, not in an effect
-  // (React's documented pattern for state that must track a prop). Keyed on the deck's actual
-  // identity (the joined ids), not just its length (GPT-6 Sol r4 BLOCK) — a same-length filtered
-  // replacement (e.g. a newly confirmed allergy swaps one food for another) must still clear
-  // `falling`/`issued`, or an excluded food already mid-fall stays tappable and the new deck's
-  // early items never get a turn.
+
+  // The foods still to fall this session: the deck less everything already shown. Snapshotted per
+  // session (a new deck or a motion flip starts a new one), so a tap that marks a food shown never
+  // reshuffles the remaining order mid-game.
   const sessionKey = `${choices.map((item) => item.id).join(",")}:${reduceMotion}`;
-  const [trackedSessionKey, setTrackedSessionKey] = useState(sessionKey);
-  if (trackedSessionKey !== sessionKey) {
-    setTrackedSessionKey(sessionKey);
-    setGame(EMPTY_GAME);
+  const [session, setSession] = useState(() => ({
+    key: sessionKey, remaining: queue.filter((item) => !shown.includes(item.id)), game: emptyGame(),
+  }));
+  if (session.key !== sessionKey) {
+    setSession({ key: sessionKey, remaining: queue.filter((item) => !shown.includes(item.id)), game: emptyGame() });
   }
+  const setGame = (update: (game: GameState) => GameState) =>
+    setSession((current) => ({ ...current, game: update(current.game) }));
+  const remaining = session.remaining;
+  const game = session.game;
+
+  const stage = useRef<HTMLDivElement | null>(null);
+  const [stageHeight, setStageHeight] = useState(FALLBACK_STAGE_PX);
+  useLayoutEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const report = () => { if (el.offsetHeight > 0) setStageHeight(el.offsetHeight); };
+    report();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(report);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reduceMotion]);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -138,26 +185,21 @@ export default function FallingFoodPile({ choices, marks, onMark }: {
     let timer: ReturnType<typeof setTimeout> | null = null;
     function tick(): void {
       if (cancelled) return;
-      setGame(spawnNext(queue));
-      const jitter = SPAWN_BASE_MS + Math.round((Math.random() * 2 - 1) * SPAWN_JITTER_MS);
-      timer = setTimeout(tick, jitter);
+      setGame(spawnNext(remaining, Math.random()));
+      timer = setTimeout(tick, SPAWN_BASE_MS + Math.round((Math.random() * 2 - 1) * SPAWN_JITTER_MS));
     }
-    // Scheduled, not called synchronously: Strict Mode's dev-only setup→cleanup→setup runs this
-    // effect body twice before either timer fires, so a synchronous first `tick()` call here
-    // would spawn two discs at mount instead of one (GPT-6 Sol r4 WARN, confirmed with a
-    // read-only React probe). Deferring the first tick the same way every later one already is
-    // means the first effect instance's timer is cleared by its own cleanup before it ever
-    // fires, so only the surviving instance's tick ever actually spawns anything.
+    // Deferred, not synchronous: Strict Mode's setup→cleanup→setup would otherwise spawn twice.
     timer = setTimeout(tick, 0);
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-    // Keyed on `sessionKey` (content), not `queue` (a fresh array reference every render even
-    // when the ids are unchanged, e.g. a parent re-render that rebuilds `choices`) — otherwise
-    // this effect reruns and wipes `resolvedKeys` without `game` itself resetting, reopening the
-    // exact double-resolve window the guard above exists to close (GPT-6 Sol r5 WARN). `queue`
-    // and `reduceMotion` are read from closure on purpose; `sessionKey` already changes whenever
-    // either of them would.
+    // Keyed on the session's content, not on array identity (GPT-6 Sol r5 WARN).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionKey]);
+  }, [session.key]);
+
+  // A disc counts as shown the moment it starts to fall.
+  useEffect(() => {
+    for (const { item } of game.falling) if (!shownRef.current.includes(item.id)) markShown(item.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.falling]);
 
   function resolve(fallKey: number, item: Starter, loved: boolean): void {
     if (resolvedKeys.current.has(fallKey)) return;
@@ -168,47 +210,36 @@ export default function FallingFoodPile({ choices, marks, onMark }: {
     if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(10);
   }
 
-  const falling = game.falling;
   const loved = choices.filter((item) => marks[item.id] === "eats");
+  const finished = !reduceMotion && game.issued >= remaining.length && game.falling.length === 0;
+  // The end grid: everything shown this session plus anything marked loved, in deck order, current
+  // deck only (an excluded food never comes back).
+  const gridItems = reduceMotion ? queue
+    : queue.filter((item) => shown.includes(item.id) || marks[item.id] === "eats");
 
-  if (reduceMotion) {
-    return <div className="flex flex-col gap-4" data-testid="falling-food-pile">
-      <div className="grid grid-cols-4 gap-2" data-testid="food-pile">
-        {queue.map((item) => {
-          const full = dbFood(item.id)?.name ?? item.id;
-          const pressed = marks[item.id] === "eats";
-          return <FoodDisc key={item.id} id={item.id} shortName={foodShortName(item.id, full)}
-            label={`Love ${full}`} pressed={pressed} variant={pressed ? "primary" : "tertiary"}
-            onToggle={() => onMark(item.id, pressed ? "neutral" : "eats")} />;
-        })}
-      </div>
+  if (reduceMotion || finished) {
+    return <div className="flex w-full flex-col gap-3" data-testid="falling-food-pile" data-state="grid">
+      <Instruction choices={choices} marks={marks} />
+      {finished && <p className="m-0 text-caption text-graphite">That&rsquo;s all of them. Tap any you missed.</p>}
+      <FoodGrid items={gridItems} marks={marks} onMark={onMark} />
       <FoodTray loved={loved} />
     </div>;
   }
 
-  return <div className="-mx-4 flex flex-col gap-4" data-testid="falling-food-pile">
-    {/* Full-bleed: the -mx-4 above cancels DESIGN.md's 16px gutter, so a plain w-full here reaches
-        the screen edges without a fixed-position/viewport-unit hack (orchestrator 2026-10-07: "the
-        whole viewport behind the header and the dock, not a rounded card inside the page"). */}
-    <div className="matte matte-grain relative w-full overflow-hidden"
-      style={{ background: "var(--grad-matte)", height: STAGE_HEIGHT_PX }} data-testid="food-pile">
-      <AnimatePresence>
-        {falling.map(({ item, fallKey, lane }) => {
+  return <div className="flex w-full flex-col gap-3" data-testid="falling-food-pile" data-state="falling">
+    <Instruction choices={choices} marks={marks} />
+    {/* Full-bleed: -mx-4 cancels the 16px gutter so the lanes use the whole phone width. */}
+    <div ref={stage} className={`${styles.stage} -mx-4 w-[calc(100%+32px)]`} data-testid="food-pile">
+      {/* Keyed by session: a new deck (a just-confirmed allergy) drops every disc of the old deck at
+          once, with no exit animation left on screen to tap. */}
+      <AnimatePresence key={session.key}>
+        {game.falling.map(({ item, fallKey, lane }) => {
           const full = dbFood(item.id)?.name ?? item.id;
-          // Lanes spread across the full stage width with a minimum gap (LANES slots, one per
-          // concurrent disc) rather than a fixed small set of positions.
-          const laneWidth = 100 / LANES;
-          const left = laneWidth * lane + laneWidth / 2;
-          // The first wave (nothing has resolved yet) spawns in a tight ~2s burst to fill the 5
-          // concurrent slots, which — with one shared fall duration — left every stage show a
-          // synchronized "all land within the same few hundred ms" moment, then a visibly empty
-          // stage for a beat before the next wave refilled (reproduced live). A small per-disc
-          // stagger on the fall duration breaks that up without changing the spec's target speed
-          // on average.
+          // A small per-disc stagger on the fall time keeps a wave from landing all at once.
           const fallSeconds = FALL_SECONDS + (((fallKey * 37) % 9) - 4) / 10;
-          return <motion.div key={fallKey} className="absolute top-0 -translate-x-1/2"
-            style={{ left: `${left}%` }}
-            initial={{ y: -DISC_PX }} animate={{ y: STAGE_HEIGHT_PX }}
+          return <motion.div key={fallKey} className={styles.lane} data-lane={lane}
+            style={{ "--lane": lane / (LANES - 1) } as CSSProperties}
+            initial={{ y: -DISC_PX }} animate={{ y: stageHeight }}
             exit={{ scale: 0, opacity: 0, transition: { duration: 0.22 } }}
             transition={{ duration: fallSeconds, ease: "linear" }}
             onAnimationComplete={() => resolve(fallKey, item, false)}>
@@ -227,17 +258,17 @@ export default function FallingFoodPile({ choices, marks, onMark }: {
 
 function FoodTray({ loved }: { loved: readonly Starter[] }) {
   const reduceMotion = useReducedMotion();
-  return <div className="well flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-[16px] p-2"
-    data-testid="food-tray" aria-live="polite">
+  return <div className={`${CHIP_FILL} flex min-h-12 w-full flex-wrap items-center gap-1.5 rounded-[16px] p-2`}
+    data-testid="food-tray" aria-live="polite" aria-label={`${loved.length} loved`}>
     {loved.length === 0
-      ? <span className="text-tiny text-muted">Loved foods land here.</span>
+      ? <span className="px-1 text-caption text-graphite">Foods you love land here.</span>
       : loved.map((item) => {
         const full = dbFood(item.id)?.name ?? item.id;
-        const chip = <span className="rounded-full bg-primary/10 px-2 py-0.5 text-tiny text-primary">
+        const chip = <span className="inline-flex min-h-7 items-center rounded-full bg-[rgb(var(--ink-rgb)/0.14)] px-2.5 text-caption text-charcoal">
           {foodShortName(item.id, full)}
         </span>;
         if (reduceMotion) return <span key={item.id}>{chip}</span>;
-        return <motion.span key={item.id} initial={{ scale: 0, opacity: 0 }}
+        return <motion.span key={item.id} initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }} transition={SPRINGS.bouncy}>
           {chip}
         </motion.span>;

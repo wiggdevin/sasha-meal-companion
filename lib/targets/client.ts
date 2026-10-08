@@ -82,7 +82,7 @@ export class TargetRevisionQueuedError extends Error {
 
 function authorityBody(
   input: DeriveTargetRevisionInput,
-  requestId = crypto.randomUUID(),
+  requestId: string = crypto.randomUUID(),
 ): AuthorityBody {
   const settings = input.settings;
   return {
@@ -110,6 +110,28 @@ function authorityBody(
   };
 }
 
+/**
+ * A refusal the server explained with a code (onboarding v2: `422 adult_only` under 18,
+ * `409 rate_not_eligible` for a held pace). The message keeps the old "save targets failed: N"
+ * shape so every existing reader is unchanged.
+ */
+export class TargetSaveRefusedError extends Error {
+  constructor(readonly status: number, readonly code: string | null) {
+    super(`save targets failed: ${status}`);
+    this.name = "TargetSaveRefusedError";
+  }
+}
+
+async function refusalCode(h: AccountHandle, response: Response): Promise<string | null> {
+  try {
+    const body = await accountJson<{ error?: unknown }>(h, response);
+    return typeof body?.error === "string" ? body.error : null;
+  } catch (e) {
+    rethrowAccountChanged(e);
+    return null;
+  }
+}
+
 async function postRevisionSet(
   h: AccountHandle, body: object, fetchImpl: typeof fetch,
 ): Promise<TargetRevisionSet> {
@@ -118,7 +140,12 @@ async function postRevisionSet(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   }, { fetchImpl });
-  if (!response.ok) throw new Error(`save targets failed: ${response.status}`);
+  if (!response.ok) {
+    if (response.status >= 400 && response.status < 500) {
+      throw new TargetSaveRefusedError(response.status, await refusalCode(h, response));
+    }
+    throw new Error(`save targets failed: ${response.status}`);
+  }
   const result = await accountJson<TargetsResponse & { predecessor?: TargetRevision }>(h, response);
   if (!result.revision) throw new Error("save targets returned no authority revision");
   return {
@@ -282,18 +309,27 @@ function persistTargetRevision(
   input: DeriveTargetRevisionInput,
   fetchImpl: typeof fetch = fetch,
   h: AccountHandle = accountHandle(),
+  requestId?: string,
 ): Promise<TargetRevision> {
-  const body = authorityBody(input);
+  const body = authorityBody(input, requestId);
   return sendRevision(h, body, fetchImpl, { requestId: body.requestId, queue: false })
     .then((result) => result.revision);
 }
 
+/**
+ * `requestId`: a caller that may send the SAME revision again after a lost answer (onboarding's
+ * "Use this plan" retry) mints it once and passes it on every attempt. The server writes at most
+ * one revision per request id (`write_target_revision` answers the stored row for a repeated
+ * `request_id`, migration 20261023091000), so the retry cannot create a second revision. Omitted,
+ * each call mints its own.
+ */
 export function persistDerivedTargetRevision(
   input: DeriveTargetRevisionInput,
   fetchImpl: typeof fetch = fetch,
   h: AccountHandle = accountHandle(),
+  requestId?: string,
 ): Promise<TargetRevision> {
-  return persistTargetRevision(input, fetchImpl, h);
+  return persistTargetRevision(input, fetchImpl, h, requestId);
 }
 
 export function restoreTargetRevisionOnline(

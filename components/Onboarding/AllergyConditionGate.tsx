@@ -63,7 +63,11 @@ export default function AllergyConditionGate({ onConfirmNone, onAddRule, onRules
           Clinician guidance
         </Button>
       </div>
-      {(mode === "rule" || mode === "clinician") && <DietaryProfilePicker />}
+      {/* The picker is a light-surface form (wells, a card); inside the shell's `.matte` it needs
+          `.matte-reset` or its labels read cream on fog (contrast-scan rule 6). */}
+      {(mode === "rule" || mode === "clinician") && <div className="matte-reset surface flex-col p-4">
+        <DietaryProfilePicker />
+      </div>}
       {mode !== "closed" && <Button size="sm" variant="secondary" onClick={onRulesConfirmed}>
         I&rsquo;m done — continue
       </Button>}

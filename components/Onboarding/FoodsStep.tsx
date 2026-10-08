@@ -21,7 +21,7 @@
  */
 import { useMemo, useState } from "react";
 import { dbFood } from "@/lib/food-db";
-import { STARTERS, type Starter, type StarterMark } from "@/lib/foods/starter";
+import { STARTERS, starterFillShortRoles, type Starter, type StarterMark } from "@/lib/foods/starter";
 import { ROLE_LABELS, type FoodRole } from "@/lib/foods";
 import Button from "@/components/ui/Button";
 import SearchField from "@/components/ui/SearchField";
@@ -33,7 +33,6 @@ import FoodsSafetyGate from "./FoodsSafetyGate";
 import type { AllergySafetyAnswer } from "./AllergyConditionGate";
 
 const ROLES: readonly FoodRole[] = ["protein", "carb", "fat"];
-const PICK_FOR_ME_PER_ROLE = 2;
 
 type Round = "love" | "avoid";
 type FoodsStepProps = {
@@ -41,18 +40,6 @@ type FoodsStepProps = {
   marks: Record<string, StarterMark>;
   onMark: (id: string, mark: StarterMark) => void;
 };
-
-/** "Sprout, pick for me": a sensible default spread for a tired user — the curated defaults,
- *  two per role, skipping anything already avoided. Still gated by the confirm/Undo pattern one
- *  level up; this only fills in marks, it never saves by itself. */
-export function pickForMeIds(choices: readonly Starter[], marks: Record<string, StarterMark>): string[] {
-  const picked: string[] = [];
-  for (const role of ROLES) {
-    const defaults = choices.filter((item) => item.role === role && item.default && marks[item.id] !== "avoid");
-    for (const item of defaults.slice(0, PICK_FOR_ME_PER_ROLE)) picked.push(item.id);
-  }
-  return picked;
-}
 
 /** The explicit, secondary "anything you never eat?" round — a red-washed, role-sectioned grid
  *  (not a falling pile; the pile choreography is reserved for the primary love round per the
@@ -95,7 +82,7 @@ function FallingFoodsStep({ choices, marks, onMark }: FoodsStepProps) {
     () => choices.filter((item) => item.role === "protein").length, [choices]);
 
   function pickForMe(): void {
-    for (const id of pickForMeIds(choices, marks)) onMark(id, "eats");
+    for (const id of starterFillShortRoles(choices, marks)) onMark(id, "eats");
   }
 
   return <FoodsSafetyGate confirmed={safety.confirmed} answer={safety.answer}

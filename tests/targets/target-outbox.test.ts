@@ -70,3 +70,22 @@ describe("the target revision retry outbox", () => {
     expect(loadStore().settings.activeTargetProfile).toEqual(revision);
   });
 });
+
+// GPT-6 Sol BLOCK (onb2-p0): onboarding's "Use this plan" retry after a lost answer. The server
+// dedupes on the request id (`write_target_revision`, migration 20261023091000), so a retry is
+// only safe when it sends the SAME id; the caller now mints it once and passes it on every call.
+describe("a target write retried after a lost answer", () => {
+  it("sends the caller's one request id on the first attempt and on the retry", async () => {
+    const { persistDerivedTargetRevision } = await import("@/lib/targets/client");
+    const settings = loadStore().settings;
+    const input = { settings, latestWeighInKg: 60, today: "2026-09-19",
+      trainingWeekdays: [1, 3, 4, 5], source: "derived" as const };
+    const requestId = "00000000-0000-4000-8000-0000000000aa";
+    const lost = vi.fn<typeof fetch>(async () => { throw new TypeError("network lost"); });
+    await expect(persistDerivedTargetRevision(input, lost, h, requestId)).rejects.toThrow();
+    const ok = vi.fn<typeof fetch>(async () => Response.json({ revision }));
+    await expect(persistDerivedTargetRevision(input, ok, h, requestId)).resolves.toEqual(revision);
+    const sent = [lost, ok].map((f) => JSON.parse(String(f.mock.calls[0][1]?.body)).requestId);
+    expect(sent).toEqual([requestId, requestId]);
+  });
+});

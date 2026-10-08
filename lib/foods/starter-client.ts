@@ -47,15 +47,39 @@ async function readFreshRules(h: AccountHandle): Promise<FreshRules | null> {
   }
 }
 
-const writer: StarterWriter = {
+/**
+ * ONB2-P0 (GOAL defect 6): `acknowledge` only buys an immediate server round trip for the
+ * truncation flag the Foods sheet shows (`FOOD_MEMBERSHIP_TRUNCATED_MESSAGE`,
+ * `components/MyFoods.tsx`) — nothing in this file's own write path (below) ever reads the
+ * acknowledgement `deps.mark` returns. The membership op is queued (`enqueue`, local only) either
+ * way, so skipping the RPC here does not change what reaches the server, only when: the queued op
+ * rides the one sync pass every caller already runs right after this write (`flushOutboxNow` in
+ * `ConversationalOnboarding.tsx`/`OnboardingFlow.tsx`/`lib/onboarding/save-plan.ts`), instead of a
+ * second, redundant, serialized write per food on top of it.
+ */
+export const defaultStarterWriter: StarterWriter = {
   existing: () => loadStore().foods,
   mark: async (food, h) => {
     await setFoodMembership(food.name, food.status === "neutral" ? null : food.status,
-      { food, account: h, acknowledge: true, note: food.note ?? null });
+      { food, account: h, acknowledge: false, note: food.note ?? null });
   },
   save: (food) => { upsertFood(food); },
   freshRules: readFreshRules,
 };
+
+const writer = defaultStarterWriter;
+
+/** How many foods' membership writes (ref minting + the queued op) run at once. Bounded so a
+ *  12-food pick-for-me run does not fire 12 concurrent ref-minting RPCs; high enough that the
+ *  loop's wall time is driven by the slowest food, not the sum of all of them. */
+const STARTER_WRITE_CONCURRENCY = 4;
+
+/** Shared with `lib/onboarding/save-plan.ts`, which runs its own pre-write floor check against
+ *  the same fresh rules this file's own recheck uses, before ever calling `persistStarterSelection`. */
+export const STARTER_RULE_CHANGED_ERROR =
+  "A rule just changed what's safe to eat — go back to Foods and choose again.";
+export const STARTER_RULES_UNAVAILABLE_ERROR =
+  "Couldn’t verify your food rules. Go back to Foods and retry.";
 
 /** A reviewed onboarding choice. Neutral or filtered-out foods never become implied likes. */
 export async function persistStarterSelection(
@@ -69,7 +93,7 @@ export async function persistStarterSelection(
   const allowedIds = new Set(allowed.map((item) => item.id));
   const knownIds = new Set(STARTERS.map((item) => item.id));
   const h = accountHandle();
-  const RULE_CHANGED_ERROR = "A rule just changed what's safe to eat — go back to Foods and choose again.";
+  const RULE_CHANGED_ERROR = STARTER_RULE_CHANGED_ERROR;
   // ONB2-RULE-REREAD-WRITE (GPT-6 Sol r1/r2): narrows, but does NOT fully close, the gap between
   // the caller's own reread (which produced `allowed`) and this write. One fresh read, taken right
   // before the write loop below starts and reused for every item in it, catches a rule saved
@@ -89,7 +113,7 @@ export async function persistStarterSelection(
   let fresh: { profile: Profile; instances: readonly ProfileInstance[] } | null = null;
   if (deps.freshRules) {
     fresh = await deps.freshRules(h);
-    if (!fresh) throw new Error("Couldn’t verify your food rules. Go back to Foods and retry.");
+    if (!fresh) throw new Error(STARTER_RULES_UNAVAILABLE_ERROR);
   }
   // `starterChoices` excludes every starter outright once `avoid_food_ref_ids` is non-empty (this
   // local catalog has no food-ref IDs, so an unresolved ID rule can't be waived by name) — the
@@ -107,7 +131,15 @@ export async function persistStarterSelection(
     const stillAllowed = allowed.filter((item) => !freshExcluded.has(item.id));
     if (!starterSelectionValid(stillSelected, stillAllowed)) throw new Error(RULE_CHANGED_ERROR);
   }
-  let written = 0;
+  // ONB2-P0 (GOAL defect 6): decide what to write FIRST, off one snapshot of `deps.existing()`,
+  // then run the actual writes in bounded-concurrency batches instead of one `await` per food in
+  // series — the "one awaited server round trip per food" the live QA measured at 6-12 foods.
+  // Each entry is a distinct starter id, so two entries never race the same row; the one
+  // documented timing difference from the old strictly-sequential loop is that this snapshot of
+  // `existing` cannot reflect a sibling write from elsewhere in THIS SAME call (it could never
+  // reflect one from outside this call either — that race predates this change and is the same
+  // residual gap the ONB2-RULE-REREAD-WRITE comment above already documents).
+  const toWrite: Array<{ food: Food }> = [];
   for (const [id, mark] of Object.entries(marks)) {
     if (mark === "neutral" || !knownIds.has(id) || (mark === "eats" && !allowedIds.has(id))) continue;
     if (mark === "eats" && freshExcluded?.has(id)) continue;
@@ -120,10 +152,49 @@ export async function persistStarterSelection(
     if (kind === "suggested" && existing && existing.status !== "neutral") continue;
     const intended = kind === "suggested" && existing
       ? { ...food, note: existing.note } : food;
-    await deps.mark(intended, h);
-    assertCurrent(h);
-    deps.save(intended);
-    written++;
+    toWrite.push({ food: intended });
+  }
+  let written = 0;
+  for (let i = 0; i < toWrite.length; i += STARTER_WRITE_CONCURRENCY) {
+    const batch = toWrite.slice(i, i + STARTER_WRITE_CONCURRENCY);
+    // A rejection from one item surfaces (and stops the NEXT batch from starting) only after
+    // every item already in flight in this batch settles — same non-atomic-loop caveat as before,
+    // now scoped to a batch instead of one item.
+    // allSettled, not all (final Sol review BLOCK): `Promise.all` rejected on the first failure
+    // while its siblings were still in flight, so the save offered Try again and a retry could
+    // snapshot `existing` before those writes landed and queue the same memberships twice.
+    const settled = await Promise.allSettled(batch.map(async ({ food }) => {
+      await deps.mark(food, h);
+      assertCurrent(h);
+      deps.save(food);
+    }));
+    const failed = settled.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    if (failed) throw failed.reason;
+    written += batch.length;
   }
   return written;
+}
+
+/**
+ * Final Sol review BLOCK: a food op the server REJECTS (a newer mark from another device) leaves
+ * the queue like an applied one, and the phone reconciles the food to the server's mark. So an
+ * empty queue alone does not prove the chosen foods were saved. True when every mark
+ * `persistStarterSelection` would write for this selection is what this phone now holds for that
+ * food — the server's answer, after the delivery pass.
+ */
+export function starterMarksStand(
+  marks: Readonly<Record<string, StarterMark>>,
+  allowed: readonly Starter[],
+  existing: () => Record<string, Food> = writer.existing,
+): boolean {
+  const allowedIds = new Set(allowed.map((item) => item.id));
+  const knownIds = new Set(STARTERS.map((item) => item.id));
+  const foods = Object.values(existing());
+  return Object.entries(marks).every(([id, mark]) => {
+    if (mark === "neutral" || !knownIds.has(id) || (mark === "eats" && !allowedIds.has(id))) return true;
+    const food = starterFood(id, mark);
+    const held = foods.find((item) =>
+      item.id === food.id || item.name.toLowerCase() === food.name.toLowerCase());
+    return held?.status === mark;
+  });
 }
