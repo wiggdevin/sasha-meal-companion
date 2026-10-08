@@ -101,26 +101,55 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
   const dislikes = (settings.dietPrefs as ProfileDietPrefs | null | undefined)?.taste?.dislikes ?? [];
   const showTasteCard = tasteChipsAvailable === "enabled" || dislikes.length > 0;
 
-  // Followups #1/#2: the dislike-remove toast and Undo live here, at the section, so a success
-  // (which drops the key from `dislikes` above and unmounts the pill that started it) never takes
-  // the toast down with it. `dislikePending` is a plain ref, checked and set BEFORE anything async
-  // or any `setState` — a double tap on the same pill before React re-renders its disabled state
-  // must never start a second request. `dislikeActionIds` keeps one action id per key until a
-  // DEFINITE outcome (removed / already_gone / existing); a failed or lost response keeps it so a
-  // retry tap reuses the same id instead of minting a new one the server has never seen.
+  // Followups #1/#2 (Sol round 2 BLOCK, verified): the dislike-remove toast and Undo live here, at
+  // the section, so a success (which drops the key from `dislikes` above and unmounts the pill
+  // that started it) never takes the toast down with it. One remove OR undo at a time for the
+  // WHOLE section — never two at once, for the same key or different ones. `tasteFeedback.run`
+  // joins a second caller onto the FIRST one's already-running promise rather than rejecting or
+  // queueing it (no `queue: true` passed here), so two concurrent taps would otherwise both resolve
+  // from the first request's result: the second pill would hide and its "Undo" would carry the
+  // FIRST pill's action id. Rather than patching that join (`queue: true` would still run the
+  // second request, just serialized — still two actionIds inside one shared toast's branching
+  // logic), `dislikeBusy` is a plain ref, checked and set BEFORE anything async or any `setState`:
+  // while it holds, every pill is disabled and the Undo toast's action is ignored, so a second tap
+  // can never start a second `run()` call in the first place. `dislikeActionIds` keeps one action
+  // id per key until a DEFINITE outcome (removed / already_gone / existing); a failed or lost
+  // response keeps it so a retry tap reuses the same id instead of minting a new one the server
+  // has never seen.
   const tasteFeedback = useActionFeedback();
-  const dislikePending = useRef<Set<TasteDislike>>(new Set()).current;
+  const dislikeBusy = useRef(false);
+  const [dislikeBusyKey, setDislikeBusyKey] = useState<TasteDislike | null>(null);
   const dislikeActionIds = useRef<Map<TasteDislike, string>>(new Map()).current;
   // Hidden at once on a successful remove, rather than waiting for the next settings pull to drop
   // the key from `dislikes` above — a remount of this SECTION (e.g. leaving and returning to
   // Settings) still reads `dislikes` fresh, so nothing here needs to survive that; only the toast
   // and Undo (held by `tasteFeedback`, not this) must survive the key's own pill unmounting.
+  // Reconciled against every fresh `settings` the parent hands down (Sol round 2 WARN, verified):
+  // a key this device just hid locally can be reintroduced by another device's write landing in
+  // between (or this device's own Undo settling through a DIFFERENT path than `undoDislike`
+  // below) — if the FRESH row still carries the key, that is the server's own current answer and
+  // wins over a stale local hide, so any key the newest `dislikes` still contains is dropped from
+  // `hiddenDislikes` the moment that row arrives, not kept hidden forever.
   const [hiddenDislikes, setHiddenDislikes] = useState<ReadonlySet<TasteDislike>>(new Set());
+  const dislikesKey = JSON.stringify(dislikes);
+  const [seenDislikesKey, setSeenDislikesKey] = useState(dislikesKey);
+  if (seenDislikesKey !== dislikesKey) {
+    setSeenDislikesKey(dislikesKey);
+    setHiddenDislikes((prev) => {
+      if (prev.size === 0) return prev;
+      let next: Set<TasteDislike> | null = null;
+      for (const key of dislikes) {
+        if (prev.has(key)) { (next ??= new Set(prev)).delete(key); }
+      }
+      return next ?? prev;
+    });
+  }
   const visibleDislikes = dislikes.filter((key) => !hiddenDislikes.has(key));
 
   function removeDislike(key: TasteDislike) {
-    if (dislikePending.has(key)) return;
-    dislikePending.add(key);
+    if (dislikeBusy.current) return;
+    dislikeBusy.current = true;
+    setDislikeBusyKey(key);
     const actionId = dislikeActionIds.get(key) ?? newTasteDislikeActionId();
     dislikeActionIds.set(key, actionId);
     const sent = removeTasteDislike(key, { actionId }).then((outcome) => {
@@ -131,21 +160,27 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
     void tasteFeedback.run(() => sent, {
       kind: "commit",
       confirm: "notice",
-      key,
       failureMessage: dislikeRemoveFailureMessage,
     }).then((result) => {
-      dislikePending.delete(key);
+      dislikeBusy.current = false;
+      setDislikeBusyKey(null);
       if (!result.ok) return; // keep the stored action id: the next tap on this key is a retry
       dislikeActionIds.delete(key); // a definite outcome; a future tap (new pill, same key) is fresh
+      const resultActionId = result.value.actionId;
       setHiddenDislikes((prev) => new Set(prev).add(key));
       tasteFeedback.notify({
         tone: "success", message: "Removed.",
-        action: { label: "Undo", action: () => undoDislike(result.value.actionId, key) },
+        // Captures THIS request's own action id and key, never whatever the ref/state hold by the
+        // time Undo is tapped — this closure is the only thing that can answer "undo of what".
+        action: { label: "Undo", action: () => undoDislike(resultActionId, key) },
       });
     });
   }
 
   function undoDislike(actionId: string, key: TasteDislike) {
+    if (dislikeBusy.current) return; // the same single-flight guard: never race a remove in progress
+    dislikeBusy.current = true;
+    setDislikeBusyKey(key);
     const sent = undoRemoveTasteDislike(actionId).then((outcome) => {
       if (outcome.ok) return outcome.result;
       throw outcome;
@@ -156,6 +191,8 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
       confirm: "notice",
       failureMessage: dislikeRemoveFailureMessage,
     }).then((result) => {
+      dislikeBusy.current = false;
+      setDislikeBusyKey(null);
       if (!result.ok) return;
       // `restored` is the server's own word for whether the key is actually back; `capped` means
       // it would have been but the account hit the 50-dislike limit from something else since.
@@ -219,8 +256,10 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
             </span>
             {visibleDislikes.length > 0 && (
               <div role="group" aria-label="Your current taste dislikes" className="flex flex-wrap gap-2">
+                {/* Every pill disables while ANY remove or undo is pending, not only its own (the
+                    `dislikeBusy` ref above is the real guard; this is just the visible state). */}
                 {visibleDislikes.map((key) => <DislikePill key={key} dislikeKey={key}
-                  pending={tasteFeedback.phaseFor(key) === "pending"} onRemove={removeDislike} />)}
+                  pending={dislikeBusyKey !== null} onRemove={removeDislike} />)}
               </div>
             )}
             <TasteChipsField source="settings" availability={tasteChipsAvailable}

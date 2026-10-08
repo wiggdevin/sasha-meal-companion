@@ -242,4 +242,64 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("un-hides a key once a later settings row still carries it, instead of hiding it forever (Sol round 2 WARN)", async () => {
+    // The optimistic local hide is only a guess at what the server will settle on. If a FRESH
+    // settings row later still contains the key -- a reintroduction from another device, or this
+    // device's own remove never actually landing -- that is the server's current answer and must
+    // win over the stale local hide.
+    const fetchImpl = vi.fn(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.queryByText("Okra")).toBeNull());
+      // The parent catches up with the removal (a normal sync pass settling it).
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+      expect(screen.queryByText("Okra")).toBeNull();
+      // Then a later settings row (another device's write) brings the key back.
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      expect(screen.getByText("Okra")).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("allows only one remove/undo in flight for the whole section: tapping a second pill while the first is pending starts no request, and the first pill's Undo carries its OWN action id", async () => {
+    // Sol round 2 BLOCK: `tasteFeedback.run` joins a second caller onto the FIRST one's already
+    // running promise rather than queueing or rejecting it, so two concurrent removes would both
+    // resolve from the FIRST request's result -- the second pill would hide and its "Undo" would
+    // carry the first pill's action id. A section-wide synchronous guard must stop the second tap
+    // from ever starting a second request at all.
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    // Only two queued responses: A's own (deferred) remove, then A's own Undo. If B's tap wrongly
+    // started a second request, it would consume the Undo slot meant for A -- which the body
+    // assertions on the second call below would catch.
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra", "f:Mango"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Mango from your taste dislikes" }));
+      // B never started a request: still just the one call A's tap made.
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Mango")).toBeTruthy(); // B's pill is still here -- nothing removed it
+      resolveFirst(new Response(JSON.stringify({ status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }),
+        { status: 200, headers: { "content-type": "application/json" } }));
+      await waitFor(() => expect(screen.getByText("Removed.")).toBeTruthy());
+      expect(screen.getByText("Mango")).toBeTruthy(); // still untouched by A's own run
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      expect(undoUrl).toBe("/api/profile/taste/dislikes/remove/undo");
+      expect(JSON.parse(String(undoInit.body))).toEqual({ actionId: "a1" }); // A's own id, never B's
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
