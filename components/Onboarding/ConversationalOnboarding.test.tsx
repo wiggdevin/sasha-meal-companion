@@ -147,14 +147,13 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 /** Answers every required question the facts beat asks after the goal, one at a time, in US
- *  units (age, sex, height in ft/in, weight in lb). "That's me" only appears once all of them are
+ *  units (age, sex, height typed as feet and inches, weight in lb). "That's me" only appears once all of them are
  *  confirmed (GPT-6 Sol round-1 BLOCK; live QA 2026-10-07). */
 async function fillRemainingRequiredFacts(age = "34"): Promise<void> {
   fireEvent.change(await screen.findByLabelText("Age"), { target: { value: age } });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(await screen.findByRole("button", { name: "Prefer not to say" }));
-  fireEvent.change(await screen.findByLabelText("Feet"), { target: { value: "5" } });
-  fireEvent.change(screen.getByLabelText("Inches"), { target: { value: "5" } });
+  fireEvent.change(await screen.findByLabelText("Height"), { target: { value: "5 5" } });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.change(await screen.findByLabelText("Weight"), { target: { value: "132" } });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -163,13 +162,25 @@ async function fillRemainingRequiredFacts(age = "34"): Promise<void> {
 
 /** The question-set beats between "That's me" and the foods beat (QUESTION-SET-v2.md §6): the
  *  week (skipped), the safety round ("No, none of these"), the pace (the pre-selected chip), and
- *  "Your day" (accepted as pre-filled). Awaits each sequential stream swap. */
+ *  "Your day" (accepted as pre-filled), then the three preference questions answered "None for
+ *  me". Awaits each sequential stream swap. */
 async function passPlanBeats(): Promise<void> {
   fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
   fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
   await screen.findByTestId("pace-beat");
   fireEvent.click(screen.getByRole("button", { name: /^(Use |Next)/ }));
   fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
+  await passPrefsBeats();
+}
+
+/** Practices, stay-away foods and cuisines, each answered with nothing. */
+async function passPrefsBeats(): Promise<void> {
+  await screen.findByText("Any food rules you keep?");
+  fireEvent.click(screen.getByRole("button", { name: "None for me" }));
+  await screen.findByText("Any foods you’d rather skip?");
+  fireEvent.click(screen.getByRole("button", { name: "None for me" }));
+  await screen.findByText("Which cuisines do you love?");
+  fireEvent.click(screen.getByRole("button", { name: "None for me" }));
 }
 
 /** A pilot account whose rules allow two foods per group, none marked yet: "Sprout, pick for me"
@@ -247,7 +258,7 @@ describe("ConversationalOnboarding", () => {
     expect(screen.getByTestId("facts-recap").textContent).toMatch(/lose fat/);
     // While a question is open, a bare typed number answers it in its own US unit.
     fireEvent.click(screen.getByRole("button", { name: "Female" }));
-    await screen.findByLabelText("Feet");
+    await screen.findByLabelText("Height");
     fireEvent.change(screen.getByRole("textbox", { name: "Tell Sasha" }), { target: { value: "5 10" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await screen.findByLabelText("Weight");
@@ -328,6 +339,7 @@ describe("ConversationalOnboarding", () => {
     await screen.findByTestId("pace-beat");
     fireEvent.click(screen.getByRole("button", { name: /^(Use |Next)/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
+    await passPrefsBeats();
     // Advanced past safety: the foods beat's own notice is showing (the fixture's "unavailable"
     // status) — awaited directly, since the dock's own escape chip switches mode a beat ahead of
     // the stream's sequential swap and would resolve this `findBy` too early otherwise.
@@ -695,6 +707,7 @@ describe("ConversationalOnboarding", () => {
       await screen.findByTestId("your-day-beat");
       expect(screen.queryByTestId("pace-beat")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Looks right" }));
+      await passPrefsBeats();
       fireEvent.click(await screen.findByRole("button", { name: "Sprout, pick for me" }));
       const notes = await screen.findByTestId("plan-notes");
       expect(notes.textContent).toMatch(/don't add pregnancy or breastfeeding needs/);
@@ -712,6 +725,7 @@ describe("ConversationalOnboarding", () => {
       await screen.findByTestId("your-day-beat");
       expect(screen.queryByTestId("pace-beat")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Looks right" }));
+      await passPrefsBeats();
       fireEvent.click(await screen.findByRole("button", { name: "Sprout, pick for me" }));
       const notes = await screen.findByTestId("plan-notes");
       expect(notes.textContent).toMatch(/won't set a loss or gain pace/);
@@ -845,6 +859,7 @@ describe("ConversationalOnboarding", () => {
       fireEvent.click(screen.getByRole("button", { name: "A diet a clinician set for me" }));
       fireEvent.click(screen.getByRole("button", { name: "Continue" }));
       fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
+      await passPrefsBeats();
       fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
       fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
       await vi.waitFor(() => expect(persistCompletedOnboarding).toHaveBeenCalledTimes(1));
@@ -853,6 +868,44 @@ describe("ConversationalOnboarding", () => {
       const state = persistCompletedOnboarding.mock.calls[0][1] as { countryCode?: string; activityLevel: string };
       expect(state.countryCode).toBe("US");
       expect(state.activityLevel).toBe("sedentary");
+    });
+
+    it("asks practices, stay-away foods and cuisines before the food pick, typed or tapped, and saves them " +
+      "to the existing rule flags, taste dislikes and cuisines (owner 2026-10-08)", async () => {
+      foodAccess.status = "pilot";
+      starterFixture.choices = [
+        { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+        { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+        { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+      ];
+      starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+      render(<ConversationalOnboarding />);
+      await toWeek("Keep my weight");
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
+      // Typed: read on the phone as the person types.
+      await screen.findByText("Any food rules you keep?");
+      fireEvent.change(screen.getByLabelText("Food rules"), { target: { value: "halal, no beef" } });
+      screen.getByText("Got it: Halal · No beef");
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      await screen.findByText("Any foods you’d rather skip?");
+      fireEvent.change(screen.getByLabelText("Foods to skip"), { target: { value: "mushrooms, okra" } });
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      // Tapped: the shared tile grid.
+      await screen.findByText("Which cuisines do you love?");
+      fireEvent.click(screen.getByRole("button", { name: "Just pick from the list" }));
+      fireEvent.click(screen.getByRole("button", { name: "Italian" }));
+      fireEvent.click(screen.getByRole("button", { name: "Korean" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
+      await vi.waitFor(() => expect(persistCompletedOnboarding).toHaveBeenCalledTimes(1));
+      const [saved, state] = persistCompletedOnboarding.mock.calls[0] as unknown as [
+        { cuisines?: string[]; dietPrefs?: { taste?: { dislikes?: string[] } } }, { flags: string[] }];
+      expect(state.flags).toEqual(expect.arrayContaining(["halal", "no_beef"]));
+      expect(saved.cuisines).toEqual(["italian", "korean"]);
+      expect(saved.dietPrefs?.taste?.dislikes).toEqual(["f:mushrooms", "f:okra"]);
     });
   });
 });
