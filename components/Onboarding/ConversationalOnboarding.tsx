@@ -28,6 +28,7 @@ import {
 import { clearOnboardingDraft, loadOnboardingDraft, saveOnboardingDraft }
   from "@/components/Onboarding/v2/draft-store";
 import { dbFood } from "@/lib/food-db";
+import { foodShortName } from "@/components/Onboarding/food-display-names";
 import { starterSelectionValid } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
 import { starterFood } from "@/lib/foods/starter";
@@ -463,8 +464,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       ...userPicks.map((id) => byId.get(id)).filter((item): item is NonNullable<typeof item> => !!item),
       ...loved.filter((item) => !userPicks.includes(item.id)),
     ];
-    return ordered.slice(0, 8).map((item) => ({
-      id: item.id, name: dbFood(item.id)?.name ?? item.id, role: item.role as RewardPlateFood["role"],
+    // The same short names the food grid used ("Chicken", not "Chicken breast, roasted"), six at
+    // most, so the card stays one glance tall.
+    return ordered.slice(0, 6).map((item) => ({
+      id: item.id, name: foodShortName(item.id, dbFood(item.id)?.name ?? item.id),
+      role: item.role as RewardPlateFood["role"],
     }));
   }, [starter.choices, starter.marks, userPicks]);
 

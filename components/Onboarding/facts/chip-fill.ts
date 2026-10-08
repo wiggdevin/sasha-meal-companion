@@ -12,4 +12,4 @@
  *
  * Every caller supplies its own `rounded-*` and its own min-height (≥ 44 px, DESIGN.md).
  */
-export const CHIP_FILL = "bg-[rgb(var(--ink-rgb)/0.08)] shadow-[0_0_0_1px_rgb(var(--ink-rgb)/0.18)]";
+export const CHIP_FILL = "bg-[rgb(var(--ink-rgb)/0.1)] shadow-[0_0_0_1px_rgb(var(--ink-rgb)/0.3)]";

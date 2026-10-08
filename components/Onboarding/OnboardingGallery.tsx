@@ -14,6 +14,7 @@ import RewardPlateCard from "@/components/Onboarding/reward/RewardPlateCard";
 import SavingStage from "@/components/Onboarding/SavingStage";
 import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
 import { dbFood } from "@/lib/food-db";
+import { foodShortName } from "@/components/Onboarding/food-display-names";
 import { STARTERS, type StarterMark } from "@/lib/foods/starter";
 import styles from "./ConversationalOnboarding.module.css";
 
@@ -34,7 +35,7 @@ export default function OnboardingGallery() {
   const [showNumbers, setShowNumbers] = useState(false);
   const mark = (id: string, value: StarterMark) => setMarks((current) => ({ ...current, [id]: value }));
   const loved = DECK.filter((item) => marks[item.id] === "eats" || pickForMeIds(DECK, marks).includes(item.id))
-    .map((item) => ({ id: item.id, name: dbFood(item.id)?.name ?? item.id, role: item.role as "protein" | "carb" | "fat" }));
+    .map((item) => ({ id: item.id, name: foodShortName(item.id, dbFood(item.id)?.name ?? item.id), role: item.role as "protein" | "carb" | "fat" }));
 
   if (params.get("saving") === "1") {
     return <div className={`${styles.shell} matte`}>
@@ -44,7 +45,7 @@ export default function OnboardingGallery() {
   return <ConversationalOnboarding onSkip={() => {}} onComplete={() => {}} slots={{
     foodGame: <FallingFoodPile choices={DECK} marks={marks} onMark={mark} shownIds={shown}
       onShown={(id) => setShown((current) => current.includes(id) ? current : [...current, id])} />,
-    plateReward: <RewardPlateCard targets={SAMPLE_TARGETS} lovedFoods={loved.slice(0, 8)} meals={SAMPLE_MEALS}
+    plateReward: <RewardPlateCard targets={SAMPLE_TARGETS} lovedFoods={loved.slice(0, 6)} meals={SAMPLE_MEALS}
       showNumbers={showNumbers} onToggleNumbers={() => setShowNumbers((value) => !value)} />,
   }} />;
 }
