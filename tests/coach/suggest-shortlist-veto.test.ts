@@ -117,17 +117,22 @@ describe("W10 acceptance 5: a plate that misses fit never ranks ahead of one tha
 });
 
 describe("W10 acceptance 6: shadow mode", () => {
+  // 5 built (the shortlist floor, so Jev is actually called), 2 vetoed: once the veto gate is
+  // live, 5 - 2 = 3 still clears the "keep at least 3" floor, so a live run WOULD drop to 3 cards
+  // AND reorder the survivors by Jev's score. Shadow mode (the default here) must return all 5,
+  // in UNCHANGED order — the veto itself must not even demote the vetoed cards' rank.
+  const rejectTwo = async (_s: unknown, questions: Record<string, unknown>) =>
+    Object.fromEntries(Object.keys(questions).map((key, i) => [key, answer(i < 2 ? 0 : 2)]));
+
   it("a veto changes no output while SUGGEST_VETO_LIVE is unset", async () => {
     const original = process.env.SUGGEST_VETO_LIVE;
     delete process.env.SUGGEST_VETO_LIVE;
     try {
-      // Exactly 4 candidates requested from exactly 4 built, 1 vetoed: once the veto gate is live,
-      // 4 - 1 = 3 still clears the "keep at least 3" floor, so a live run WOULD drop to 3 cards.
-      // Shadow mode (the default here) must still return all 4 — the veto only demotes its rank.
-      const rejectOne = async (_s: unknown, questions: Record<string, unknown>) =>
-        Object.fromEntries(Object.keys(questions).map((key, i) => [key, answer(i === 0 ? 0 : 2)]));
-      const cards = await suggestOptions({ kind: "meal", count: 4 }, fixture({ count: 4, jev: rejectOne }));
-      expect(cards.length).toBe(4);
+      const cards = await suggestOptions({ kind: "meal", count: 5 }, fixture({ count: 5, jev: rejectTwo }));
+      expect(cards.length).toBe(5);
+      // Unchanged order: every card still reads a plain fit-based note, never the vetoed
+      // candidates' real (implausible) Jev label and never reordered to the bottom.
+      expect(cards.every((card) => card.rankNote?.startsWith("fits") && !card.rankNote.includes("not a"))).toBe(true);
     } finally {
       if (original !== undefined) process.env.SUGGEST_VETO_LIVE = original;
     }
@@ -137,9 +142,7 @@ describe("W10 acceptance 6: shadow mode", () => {
     const original = process.env.SUGGEST_VETO_LIVE;
     process.env.SUGGEST_VETO_LIVE = "1";
     try {
-      const rejectOne = async (_s: unknown, questions: Record<string, unknown>) =>
-        Object.fromEntries(Object.keys(questions).map((key, i) => [key, answer(i === 0 ? 0 : 2)]));
-      const cards = await suggestOptions({ kind: "meal", count: 4 }, fixture({ count: 4, jev: rejectOne }));
+      const cards = await suggestOptions({ kind: "meal", count: 5 }, fixture({ count: 5, jev: rejectTwo }));
       expect(cards.length).toBe(3);
     } finally {
       if (original === undefined) delete process.env.SUGGEST_VETO_LIVE;

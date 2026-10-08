@@ -116,9 +116,13 @@ export async function suggestOptions<T extends SuggestPorts>(
     // Phase 18 W10: a pool-sourced candidate already passed a fresh admission read (D11) —
     // `lib/coach/suggest-pool.ts`'s own doc comment. The Eats-era allergen/evidence recheck below
     // reads `food_refs` by id, which a universe pool id is not one of, so it is skipped here
-    // rather than misjudging every such item "unverified".
+    // rather than misjudging every such item "unverified". The pool carries no per-item prep-state
+    // evidence at all, though, so an explicit no-cook wish cannot be honestly cleared for it
+    // either — it fails closed (every pool candidate "requires preparation") rather than silently
+    // risking a meal that needs cooking.
     const filtered = built.openWorld
-      ? { candidates: built.candidates, blocked: 0, unverified: 0, requiresPreparation: 0 }
+      ? { candidates: needsNoCook ? [] : built.candidates, blocked: 0, unverified: 0,
+        requiresPreparation: needsNoCook ? built.candidates.length : 0 }
       : filterSuggestionCandidates(
         built.candidates,
         await abortable((ports.suggestionEvidence ?? loadSuggestionEvidence)(ports.userId,
@@ -164,16 +168,22 @@ export async function suggestOptions<T extends SuggestPorts>(
     const shortlistSet = new Set(jevEligible.slice(0, SUGGEST_SHORTLIST_MAX));
     const shortlist = ordered.filter((candidate) => shortlistSet.has(candidate));
     const overflow = ordered.filter((candidate) => !shortlistSet.has(candidate));
-    const state = rankingState(input, shortlist, pendingSlots);
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
     const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
     let answers: JevAnswers | null = null;
-    try {
-      answers = await abortable(ask(suggestPayload(state, input.kind), {
-        userId: ports.userId, deadlineMs: remainingMs, signal, noRetry: true,
-      }), signal);
-    } catch (error) {
-      if (!isAbort(error)) throw error;
+    // D9 item 4: "the formulas pick the top 5 to 8 admitted plates" bounds the shortlist from
+    // above at SUGGEST_SHORTLIST_MAX; "at most one Jev call" is the hard floor-side constraint —
+    // an account with fewer admitted plates than 5 (acceptance 1 guarantees as few as 3) still
+    // gets its one call on whatever it has, never zero.
+    if (shortlist.length > 0) {
+      const state = rankingState(input, shortlist, pendingSlots);
+      try {
+        answers = await abortable(ask(suggestPayload(state, input.kind), {
+          userId: ports.userId, deadlineMs: remainingMs, signal, noRetry: true,
+        }), signal);
+      } catch (error) {
+        if (!isAbort(error)) throw error;
+      }
     }
     if (timedOut) return partialResult(fitOrdered);
     const rankedShortlist = rankCandidates(shortlist, answers, input.kind);
@@ -215,12 +225,17 @@ export async function suggestOptions<T extends SuggestPorts>(
 
 /**
  * The formula's own order: acceptance 5 — a plate that misses the slot's fit never ranks ahead of
- * one that fits — then the fit score, then a stable tie-break. Every fallback (a timeout, Jev
- * down, too many vetoes) and the Jev shortlist cap both read this same order.
+ * one that fits — then the SAME no-Jev rank `rankCandidates` (lib/coach/suggest-rank.ts) falls
+ * back to (fit weighted by pairing, `suggestionRank(fit, undefined, pairing)`), then a stable
+ * tie-break. Every fallback (a timeout, Jev down, too many vetoes) and the Jev shortlist cap all
+ * read this same order — a fit-only sort here would disagree with `rankCandidates`' own fallback
+ * whenever two candidates' pairing scores differ.
  */
 function formulaOrder(candidates: readonly SuggestionCandidate[]): SuggestionCandidate[] {
+  const rankOf = (candidate: SuggestionCandidate) =>
+    suggestionRank(candidate.fit, undefined, candidate.pairing ?? candidate.meal.pairing);
   return [...candidates].sort((a, b) => Number(b.meal.fitsTarget) - Number(a.meal.fitsTarget)
-    || b.fit - a.fit || a.index - b.index);
+    || rankOf(b) - rankOf(a) || b.fit - a.fit || a.index - b.index);
 }
 
 function fallbackCards(

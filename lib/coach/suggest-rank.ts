@@ -118,23 +118,34 @@ export function rankCandidates(
     const jev = answer !== undefined && answer.confidence >= 0.60 ? answer.score : undefined;
     const plausibility = jev === undefined ? undefined : jev / 2;
     const vetoed = plausibility !== undefined && plausibility < 0.50;
-    const rank = suggestionRank(candidate.fit, jev, candidate.pairing ?? candidate.meal.pairing);
-    const reason = jev === undefined
-      ? `fits ${Math.round(candidate.fit * 100)} %`
-      : `fits ${Math.round(candidate.fit * 100)} %, ${plausibilityLabel(kind, jev)}`;
-    return { candidate, rank, reason, vetoed, jevRanked: jev !== undefined };
+    return { candidate, jev, pairing: candidate.pairing ?? candidate.meal.pairing, vetoed };
   });
   const vetoedPositions = scored.flatMap((row, position) => (row.vetoed ? [position] : []));
   recordVetoes(vetoedPositions, scored.length, kind);
-  // D9 item 4 / §5: a veto never drops the list below 3 cards, and until the precision gate
-  // passes it never changes the output at all (shadow mode, `suggestVetoLive` unset).
-  const live = suggestVetoLive() && scored.length - vetoedPositions.length >= 3;
+  // Acceptance 4: removing every vetoed card would leave fewer than 3 — "too much" — so Jev's
+  // influence is discarded for the WHOLE run (not only the vetoed cards): the formula order
+  // stands exactly as if Jev had not answered at all.
+  const tooMuch = scored.length - vetoedPositions.length < 3;
+  const live = suggestVetoLive() && !tooMuch;
   const kept = live ? scored.filter((row) => !row.vetoed) : scored;
+  // Acceptance 6 / shadow mode: a veto itself never changes the output until the gate passes —
+  // a vetoed card's rank is computed as if Jev had not answered for it specifically, same as
+  // `tooMuch`'s own whole-run fallback. A non-vetoed card's Jev reorder is never behind this gate.
+  const discardJev = (row: (typeof scored)[number]) => tooMuch || (row.vetoed && !live);
+  const rankOf = (row: (typeof scored)[number]) =>
+    suggestionRank(row.candidate.fit, discardJev(row) ? undefined : row.jev, row.pairing);
   return [...kept]
-    .sort((a, b) => fitsFirst(a.candidate, b.candidate) || b.rank - a.rank
+    .sort((a, b) => fitsFirst(a.candidate, b.candidate) || rankOf(b) - rankOf(a)
       || b.candidate.fit - a.candidate.fit || a.candidate.index - b.candidate.index)
-    // `jevRanked`: a usable Jev answer ranked this card (its provenance, lib/coach/suggest.ts).
-    .map(({ candidate, reason, jevRanked }) => ({ candidate, reason, jevRanked }));
+    .map((row) => {
+      // `jevRanked`: a usable Jev answer actually ranked this card (its provenance,
+      // lib/coach/suggest.ts) — never true once that answer's influence was discarded above.
+      const jevRanked = !discardJev(row) && row.jev !== undefined;
+      const reason = jevRanked
+        ? `fits ${Math.round(row.candidate.fit * 100)} %, ${plausibilityLabel(kind, row.jev as number)}`
+        : `fits ${Math.round(row.candidate.fit * 100)} %`;
+      return { candidate: row.candidate, reason, jevRanked };
+    });
 }
 
 function plausibilityLabel(kind: SuggestInput["kind"], value: number): string {

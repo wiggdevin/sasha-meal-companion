@@ -95,7 +95,13 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
   const best = bestPerAnchor(plates).slice(0, MAX_CANDIDATES);
   const candidates: SuggestionCandidate[] = best.map((plate, index) => ({
     meal: plateToComposedMeal(plate, poolRefs, target, wish, input.slot ?? null, mealType, mealClock),
-    fit: fitScore(plate.macros, target),
+    // `bestPerAnchor` already ranked these by the engine's own `plate.score` (macro fit × affinity
+    // × pairing × variety × the account's taste term T, lib/meals/plate.ts). A pure macro
+    // `fitScore` alone would drop that taste signal from every later sort (the shortlist cap,
+    // the Jev payload's "fit" field, the formula-order fallback) — bounded here into the macro
+    // fit itself so a Favored-leaning plate still ranks ahead of an equally-fitting one that
+    // isn't, without letting taste alone override a real macro-fit difference.
+    fit: Math.min(1, fitScore(plate.macros, target) * Math.min(1.2, Math.max(0.7, plate.taste ?? 1))),
     index,
     pairing: plate.pairing,
     // Acceptance 3: a universe pool id (`universe:<bundled id>`) is bundled catalog data, cheaply
