@@ -56,6 +56,26 @@ export const US_MEDICINE_NAMES: readonly string[] = [
   "escitalopram", "wellbutrin", "eliquis", "xarelto", "plavix", "clopidogrel", "omeprazole",
   "prilosec", "nexium", "pantoprazole", "gabapentin", "topiramate", "topamax", "lamotrigine",
   "depakote", "seroquel", "abilify", "levothyroxine", "prednisone", "methotrexate", "humira",
+  // Final Sol review BLOCK: over-the-counter medicines ("I take aspirin daily") were a miss.
+  "aspirin", "baby aspirin", "ibuprofen", "advil", "motrin", "acetaminophen", "paracetamol",
+  "tylenol", "naproxen", "aleve", "excedrin", "benadryl", "diphenhydramine", "zyrtec", "cetirizine",
+  "claritin", "loratadine", "allegra", "fexofenadine", "sudafed", "pepcid", "famotidine", "tums",
+  "antacid", "antacids", "laxative", "laxatives", "miralax", "imodium", "pepto", "melatonin",
+  "lisinopril", "losartan", "amlodipine", "metoprolol", "atorvastatin", "simvastatin", "synthroid",
+  "birth control", "the pill", "antidepressant", "antidepressants", "ssri", "ssris", "steroid",
+  "steroids", "hrt", "testosterone", "trt", "estrogen", "progesterone", "inhaler",
+];
+
+/**
+ * A medicine taken, said without its name, or a dose: "I take something daily", "on a pill
+ * for…", "20 mg". The name list above can never be complete, so the construction itself keeps
+ * the text local. Over-matching is the safe error (see REPLAY_PATTERNS).
+ */
+const TAKING_MEDICINE: readonly RegExp[] = [
+  /\b\d+(?:\.\d+)?\s?(?:mg|mcg|µg|iu|units?)\b/,
+  /\b(?:pills?|tablets?|capsules?|doses?|dosage|dosing|injections?|injectables?)\b/,
+  /\b(?:take|takes|taking|took|started|starting|stopped)\s+(?:a |an |my |some |the |this )?(?:\w+\s+){0,2}(?:daily|every (?:day|morning|night)|each (?:day|morning|night)|a day|per day|twice|once a|at night|at bedtime|in the morning|for my|for (?:pain|sleep|anxiety|depression|acid|heart|blood|my))\b/,
+  /\b(?:i'?m|i am|been|currently|still)\s+on\s+(?!a diet\b|(?:a |the )?(?:keto|paleo|vegan|vegetarian|carnivore|budget|break|vacation|holiday|night shift|my feet)\b)(?:a |an |some |the )?\w+\s+(?:for|since|daily|every|twice|now|right now|at the moment)\b/,
 ];
 
 const WEIGHT_LOSS_SHOT = /\b(?:weight[- ]loss|diet|skinny|fat[- ]loss)\s+(?:shots?|jabs?|injections?|pens?|drugs?|pills?|meds?)\b|\bglp[\s-]?1s?\b/;
@@ -78,7 +98,8 @@ const MEDICINE_WORDS: RegExp = (() => {
 /** True when the text names a medicine the opener must never send to a model (G14). */
 export function namesMedicine(text: string): boolean {
   const normalized = String(text).toLowerCase().replace(/[’‘]/g, "'");
-  return WEIGHT_LOSS_SHOT.test(normalized) || MEDICINE_WORDS.test(normalized);
+  return WEIGHT_LOSS_SHOT.test(normalized) || MEDICINE_WORDS.test(normalized)
+    || TAKING_MEDICINE.some((pattern) => pattern.test(normalized));
 }
 
 /** A named condition, allergen reaction or clinician/medication word — narrow on purpose (see

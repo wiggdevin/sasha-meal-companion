@@ -42,6 +42,27 @@ describe("onboardingSafetyCheck", () => {
     expect(onboardingSafetyCheck("I get rectal bleeding sometimes").blocked).toBe(true);
   });
 
+  // Final Sol review BLOCK: an over-the-counter medicine, or a medicine said without its name.
+  it.each([
+    "I take aspirin daily and want to lose weight",
+    "I take ibuprofen most days, 5'9 180 lb",
+    "on lisinopril, want to lose fat",
+    "I take something every morning for my heart",
+    "I'm on a pill for anxiety and want to build muscle",
+    "taking 20 mg of something, want to maintain",
+    "I'm on birth control and want to lose 10 lb",
+  ])("blocks a medicine taken: %s", (text) => {
+    expect(onboardingSafetyCheck(text)).toEqual({ blocked: true, reason: "medical" });
+  });
+
+  it.each([
+    "I'm on a diet and want to lose 20 lb",
+    "I'm on keto right now, 5'6 150 lb",
+    "I take the stairs at work and lift three times a week",
+  ])("still clears ordinary opener speech: %s", (text) => {
+    expect(onboardingSafetyCheck(text)).toEqual({ blocked: false });
+  });
+
   it("clears ordinary goal and body-stat speech, including the word 'weight'", () => {
     expect(onboardingSafetyCheck("I want to lose weight, I'm 34, 5'10, 165 lbs"))
       .toEqual({ blocked: false });
