@@ -108,7 +108,7 @@ export const SHOP_ITEMS: readonly ShopItem[] = [
     fits: {
       blueberry: [{ x: 386, y: 715, w: 560 }],
       mushroom: [{ x: 383, y: 705, w: 480 }],
-      peapod: [{ x: 384, y: 780, w: 420 }],
+      peapod: [{ x: 384, y: 745, w: 430 }],
     } },
   { id: "massage", name: "Massage", slot: "care", price: 30, art: "/pet/care/massage-1.webp", aspect: 1.286,
     places: [], scene: "massage" },

@@ -142,6 +142,14 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
       return;
     }
     const w = words(target);
+    if (!target.scene && !canWear(target, mascot)) {
+      // Owned for the whole account: the companions it fits can wear it; this one cannot, so it is not put on.
+      setBusy(false);
+      onChange(outcome.state);
+      setSaid(`${w.the[0].toUpperCase()}${w.the.slice(1)} ${w.is} yours. Sprout cannot wear ${w.it}; your other companions can. ${seeds(outcome.receipt.balance)}.`);
+      onRefresh?.();
+      return;
+    }
     if (target.scene) {
       // Bought, and played at once; the scene says itself.
       setBusy(false);
@@ -234,7 +242,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
         <span className={styles.actionName}>{item ? item.name : "Try something on"}</span>
         <span className={styles.actionNote}>
           {named(!item ? "Tap an item: Sprout tries it on."
-            : !care && !fits ? `Sprout cannot wear ${words(item).the}.`
+            : !care && !fits ? `${owned ? "Yours. " : ""}Sprout cannot wear ${words(item).it}; your other companions can.`
             : owned && care ? "Yours. It plays any time."
             : owned ? (worn ? `Sprout has ${words(item).it} on.` : `Yours. Sprout can wear ${words(item).it}.`)
             : shortBy > 0 ? `${seeds(shortBy)} more to go.` : `Balance after: ${seeds(state.balance - item.price)}.`, mascot)}
@@ -244,7 +252,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
         {/* One shared key: Buy, Wear and Take off are the same action slot, so a purchase or a wear
             toggle updates this button in place and keeps keyboard focus on it, never dropping focus
             to the page when the slot swaps to a different label. */}
-        {!owned && (care || fits) && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
+        {!owned && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
           status={busy ? "pending" : undefined} onClick={() => void buy(item)}
           aria-label={`Buy ${words(item).the} for ${seeds(item.price)}`}>Buy · {item.price}</Button>}
         {owned && care && <Button key="action" variant="primary" size="sm" onClick={() => setPlaying(care)}>Play</Button>}

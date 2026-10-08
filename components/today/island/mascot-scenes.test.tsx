@@ -7,7 +7,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import { MASCOT_KEYS, SCENE_POSES, named, sceneArt } from "./mascots";
 
@@ -95,8 +95,28 @@ describe("the chosen companion in a care scene and the shop", () => {
     fireEvent.click(hat);
     expect(screen.queryByRole("button", { name: "Take off" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Wear" })).toBeNull();
-    expect(screen.getAllByText("Pod cannot wear the bucket hat.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Yours. Pod cannot wear it; your other companions can.").length).toBeGreaterThan(0);
     expect(document.querySelector("[aria-live=polite]")?.textContent).toBe("Pod cannot wear the bucket hat.");
+  });
+  it("lets Pod buy a hat for the others without putting it on", async () => {
+    const { default: CareShop } = await import("@/components/today/care/shop/CareShop");
+    chosen.mascot = "peapod";
+    const start = { balance: 42, owned: [], equipped: {}, rev: 1, receipts: {}, ledger: [] };
+    const after = { ...start, balance: 17, owned: ["knitted-hat"] };
+    const purchase = vi.fn(async () => ({ ok: true, state: after, receipt: { balance: 17 } }));
+    const equip = vi.fn();
+    const onChange = vi.fn();
+    render(<MotionConfig reducedMotion="always"><CareShop state={start as never} onChange={onChange} today="2026-10-07"
+      rules={{ purchase, equip } as never} /></MotionConfig>);
+    fireEvent.click(screen.getByRole("button", { name: /^Knitted hat/ }));
+    expect(screen.getAllByText("Pod cannot wear it; your other companions can.").length).toBeGreaterThan(0);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Buy the knitted hat/ })); });
+    expect(purchase).toHaveBeenCalledOnce();
+    // Owned for the account, never equipped from a companion it does not fit.
+    expect(equip).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith(after);
+    expect(document.querySelector("[aria-live=polite]")?.textContent)
+      .toBe("The knitted hat is yours. Pod cannot wear it; your other companions can. 17 Seeds.");
   });
   it("drops a line said for Sprout when the companion changes with the shop open", async () => {
     const { default: CareShop } = await import("@/components/today/care/shop/CareShop");

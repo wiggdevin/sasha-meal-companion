@@ -87,10 +87,12 @@ describe("the shop's rules", () => {
         if (mascot === "peapod" && item.slot === "head") { expect(places).toBeNull(); continue; }
         expect(places, `${item.id} on ${mascot}`).not.toBeNull();
         for (const place of places ?? []) {
-          // The part's box overlaps the art (shorts may hang below it: they are clipped to the body).
+          // At least half of the part's box is inside the art (shorts may hang below it: they are
+          // clipped to the body), so no companion shows only a sliver of an item.
           const h = place.w / item.aspect;
+          const inside = Math.min(768, place.y + h / 2) - Math.max(0, place.y - h / 2);
           expect(place.x).toBeGreaterThan(0); expect(place.x).toBeLessThan(768);
-          expect(place.y + h / 2).toBeGreaterThan(0); expect(place.y - h / 2).toBeLessThan(768);
+          expect(inside / h, `${item.id} on ${mascot}`).toBeGreaterThanOrEqual(0.5);
           expect(place.w).toBeGreaterThan(0);
         }
       }
