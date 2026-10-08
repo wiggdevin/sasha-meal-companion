@@ -57,6 +57,11 @@ describe("Today right after onboarding", () => {
     const missing = { ...foods[0] } as Record<string, unknown>;
     delete missing.catalog_food_id;
     expect(Object.values(foodsFromSyncRows([missing], prefs, refs))[0].catalogFoodId).toBeUndefined();
+    // `Number("")` and `Number("  ")` are 0: neither is a link, nor is any non-integer value.
+    for (const value of ["", "  ", "abc", 1.5, true, {}]) {
+      expect(Object.values(foodsFromSyncRows([{ ...foods[0], catalog_food_id: value }], prefs, refs))[0]
+        .catalogFoodId).toBeUndefined();
+    }
   });
 
   it("keeps a catalog link of 0: the schema allows it, and it still needs a ref proof", () => {

@@ -345,6 +345,17 @@ function finiteNutrient(row: Record<string, unknown>, key: string): number {
   return Number.isFinite(value) && value >= 0 ? value / 100 : 0;
 }
 
+/**
+ * A stored catalog link: an integer, or a string of digits ("0" included). null, a missing
+ * column, "" and whitespace (which `Number` reads as 0) and any other value are no link.
+ */
+function catalogLink(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isSafeInteger(value) ? value : undefined;
+  if (typeof value !== "string" || !/^\s*-?\d+\s*$/.test(value)) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
 /** Build the phone food map solely from one account's normalized sync mirrors. */
 export function foodsFromSyncRows(
   foodRows: readonly SyncedFoodRow[],
@@ -397,8 +408,8 @@ export function foodsFromSyncRows(
       // (lib/foods/eligible-client.ts) until its ref cache filled in (onb3: Today right after
       // onboarding planned from 0-2 of 11 verified foods). Every stored integer, 0 included, is a
       // link (the schema allows 0), so a catalog-linked food still needs its ref proof.
-      ...(row.catalog_food_id != null && Number.isSafeInteger(Number(row.catalog_food_id))
-        ? { catalogFoodId: Number(row.catalog_food_id) } : {}),
+      ...(catalogLink(row.catalog_food_id) !== undefined
+        ? { catalogFoodId: catalogLink(row.catalog_food_id) } : {}),
     };
   }
   return foods;
