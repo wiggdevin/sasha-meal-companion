@@ -132,4 +132,18 @@ describe("the page settles before anything falls, and the list is one tap away (
     fireEvent.click(within(grid).getByRole("button", { name: /Love Olive oil/ }));
     expect(onMark).toHaveBeenCalledWith("olive-oil", "eats");
   });
+
+  it("a tile grid tile starts unselected and becomes selected on a tap, and reverts when tapped again", () => {
+    const onMark = vi.fn();
+    const deck = choicesFor(["chicken-breast-roasted", "white-rice-cooked", "olive-oil"]);
+    const { rerender } = render(<FallingFoodPile choices={deck} marks={{}} onMark={onMark} />);
+    fireEvent.click(screen.getByRole("button", { name: "Just pick from the list" }));
+    const grid = screen.getByTestId("food-grid");
+    const oliveOil = within(grid).getByRole("button", { name: /Love Olive oil/ });
+    expect(oliveOil.getAttribute("aria-pressed")).toBe("false");
+
+    rerender(<FallingFoodPile choices={deck} marks={{ "olive-oil": "eats" }} onMark={onMark} />);
+    const selectedOliveOil = within(screen.getByTestId("food-grid")).getByRole("button", { name: /Love Olive oil/ });
+    expect(selectedOliveOil.getAttribute("aria-pressed")).toBe("true");
+  });
 });
