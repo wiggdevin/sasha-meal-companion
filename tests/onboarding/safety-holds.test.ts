@@ -113,3 +113,17 @@ describe("Your day: first meal time", () => {
       .toBe(defaultSettings().shiftMinutes);
   });
 });
+
+describe("the country chip (ruling 2026-10-08)", () => {
+  it("writes the country only from a chip the flow showed, never by default", async () => {
+    const { ONBOARDING_COUNTRY_CHIP } = await import("@/lib/profile/onboarding-state");
+    expect(createOnboardingState(defaultSettings()).countryCode).toBeUndefined();
+    expect(buildCompletedSettings(defaultSettings(), losingState(), NOW).countryCode)
+      .toBe(defaultSettings().countryCode);
+    const shown = onboardingReducer(losingState(), { type: "set_country", value: ONBOARDING_COUNTRY_CHIP });
+    expect(buildCompletedSettings(defaultSettings(), shown, NOW).countryCode).toBe("US");
+    const off = onboardingReducer(shown, { type: "set_country", value: null });
+    expect(buildCompletedSettings(defaultSettings(), off, NOW).countryCode).toBeNull();
+    expect(onboardingReducer(shown, { type: "set_country", value: "usa" })).toBe(shown);
+  });
+});

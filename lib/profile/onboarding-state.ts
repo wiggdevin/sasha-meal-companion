@@ -77,7 +77,17 @@ export type OnboardingState = {
   /** "Your day" (onboarding v2 §1b): the first meal as 24-hour "HH:MM", saved as the whole-day
    *  shift (`shiftForFirstMeal`, lib/plan.ts). Unset or null keeps the layout's own times. */
   firstMealTime?: string | null;
+  /**
+   * The country chip (ruling docs/decisions/2026-10-08-us-default-country.md). Unset means the
+   * flow never showed the chip, and completion leaves `countryCode` alone. A flow that shows the
+   * pre-selected "I'm in the U.S." chip sets `ONBOARDING_COUNTRY_CHIP` itself, on screen; null is
+   * the user switching it off. Never filled from a zone, a locale or a model.
+   */
+  countryCode?: string | null;
 };
+
+/** The one pre-selected, editable onboarding country chip ("I'm in the U.S."). */
+export const ONBOARDING_COUNTRY_CHIP = "US";
 
 export type OnboardingAction =
   | { type: "replace"; state: OnboardingState }
@@ -99,6 +109,7 @@ export type OnboardingAction =
   | { type: "edit_plan"; field: PlanField; value: number }
   | { type: "set_meals_per_day"; value: number }
   | { type: "set_first_meal_time"; value: string | null }
+  | { type: "set_country"; value: string | null }
   | { type: "reset_plan" };
 
 function text(value: number | null | undefined): string {
@@ -324,6 +335,9 @@ export function onboardingReducer(
     case "set_first_meal_time":
       return action.value === null || shiftForFirstMeal(action.value) !== null
         ? { ...state, firstMealTime: action.value } : state;
+    case "set_country":
+      return action.value === null || /^[A-Z]{2}$/.test(action.value)
+        ? { ...state, countryCode: action.value } : state;
     case "reset_plan":
       return { ...state, planEdits: { trainingKcal: null, restKcal: null, proteinG: null } };
   }
@@ -370,6 +384,7 @@ function candidateSettings(base: Settings, state: OnboardingState, onboardedAt: 
       ? { shiftMinutes: shiftForFirstMeal(state.firstMealTime, { mealsPerDay: state.mealsPerDay })
           ?? base.shiftMinutes }
       : {}),
+    ...(state.countryCode !== undefined ? { countryCode: state.countryCode } : {}),
     dietPrefs,
     onboardedAt,
   };
