@@ -158,23 +158,25 @@ export async function suggestOptions<T extends SuggestPorts>(
     }
 
     // D9 item 4 / acceptance 2: the top 5-8 admitted plates only, formula order first
-    // (acceptance 5's fit-first order). A candidate past the cap keeps its formula slot below —
-    // it is never sent to Jev and never reordered by it.
+    // (acceptance 5's fit-first order). A candidate past the cap is never sent to, or reordered
+    // by, Jev — but acceptance 5 still applies to it relative to EVERY other candidate, so it
+    // must not simply be appended after the (reordered) shortlist: a high-formula-rank candidate
+    // the builder withheld from Jev (acceptance 3's `jevEligible === false`) could then land
+    // behind every Jev-visible one, even a non-fitting one, which is exactly what acceptance 5
+    // forbids. Instead, only the SET of shortlisted slots is permuted by Jev; every other slot
+    // (overflow past the cap, or never Jev-eligible) keeps its original formula position.
     const ordered = formulaOrder(candidates);
-    // Acceptance 3: a candidate the builder could not cheaply prove generic (`jevEligible ===
-    // false`, lib/coach/suggest-pool.ts) never reaches Jev at all — it keeps its formula-order
-    // slot in `overflow` below, counted neither toward nor against the 5-8 shortlist cap.
-    const jevEligible = ordered.filter((candidate) => candidate.jevEligible !== false);
-    const shortlistSet = new Set(jevEligible.slice(0, SUGGEST_SHORTLIST_MAX));
-    const shortlist = ordered.filter((candidate) => shortlistSet.has(candidate));
-    const overflow = ordered.filter((candidate) => !shortlistSet.has(candidate));
+    const shortlistIndices = ordered
+      .flatMap((candidate, position) => (candidate.jevEligible !== false ? [position] : []))
+      .slice(0, SUGGEST_SHORTLIST_MAX);
+    const shortlistSlots = new Set(shortlistIndices);
+    const shortlist = shortlistIndices.map((position) => ordered[position]);
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
     const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
     let answers: JevAnswers | null = null;
-    // D9 item 4: "the formulas pick the top 5 to 8 admitted plates" bounds the shortlist from
-    // above at SUGGEST_SHORTLIST_MAX; "at most one Jev call" is the hard floor-side constraint —
-    // an account with fewer admitted plates than 5 (acceptance 1 guarantees as few as 3) still
-    // gets its one call on whatever it has, never zero.
+    // "At most one Jev call" (D9 item 4) is the hard constraint; an account with fewer admitted
+    // plates than the 5-8 shortlist's typical size (acceptance 1 guarantees as few as 3 total)
+    // still gets its one call on whatever it has, never zero.
     if (shortlist.length > 0) {
       const state = rankingState(input, shortlist, pendingSlots);
       try {
@@ -187,12 +189,22 @@ export async function suggestOptions<T extends SuggestPorts>(
     }
     if (timedOut) return partialResult(fitOrdered);
     const rankedShortlist = rankCandidates(shortlist, answers, input.kind);
-    // The overflow (beyond the Jev-visible shortlist) keeps its formula order and provenance —
-    // it was never added, reordered or vetoed; it simply was not among the top 5-8 offered to Jev.
-    const rankedOverflow = overflow.map((candidate) => ({
-      candidate, reason: `fits ${Math.round(candidate.fit * 100)} %`, jevRanked: false,
-    }));
-    const selected = [...rankedShortlist, ...rankedOverflow]
+    // Walk `ordered` position by position: a shortlisted slot is filled, in turn, by Jev's own
+    // new order for that same set (a live-vetoed removal simply leaves fewer to draw from, so
+    // that many shortlisted slots contribute nothing — never backfilled from elsewhere). Every
+    // other slot keeps its original candidate, unreordered and unvetoed.
+    let nextRanked = 0;
+    const merged: { candidate: SuggestionCandidate; reason: string; jevRanked: boolean }[] = [];
+    for (let position = 0; position < ordered.length; position += 1) {
+      if (shortlistSlots.has(position)) {
+        if (nextRanked < rankedShortlist.length) merged.push(rankedShortlist[nextRanked]);
+        nextRanked += 1;
+      } else {
+        const candidate = ordered[position];
+        merged.push({ candidate, reason: `fits ${Math.round(candidate.fit * 100)} %`, jevRanked: false });
+      }
+    }
+    const selected = merged
       .slice(0, requested).map(({ candidate, reason, jevRanked }) => ({
         ...withSlots(candidate.meal),
         rankNote: reason,
