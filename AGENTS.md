@@ -299,19 +299,22 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   pending intent in the account's META store, re-posted after every successful sync
   (`lib/sync/post-sync.ts`) until the server answers 200 open, 423, 409 `condition_review` or
   another final 4xx. The retry sends `intent: "onboarding_default"`, which `setFoodWorld`
-  (`lib/server/food-world.ts`) refuses once `user_settings.food_world_set_at` (migration
-  `20261227090100`, applied to production) is already stamped for the account — a backend-side
-  guarantee, needing no UI change, that the retry can never re-open an account a person already
-  decided about (the default's own first success, or their own Settings close). An explicit
+  (`lib/server/food-world.ts`) is one conditional write (`... where food_world_set_at is null`)
+  on `user_settings.food_world_set_at` (migration `20261227090100`, **must be applied to
+  production before this code merges**), so once the account is stamped the default changes
+  nothing, whatever the interleaving — a backend-side guarantee, needing no UI change, that the
+  retry can never re-open an account a person already decided about. It then answers 200 with the
+  account's own world, and the phone clears the intent on `closed` as well as `open`. An explicit
   Settings POST (no `intent`) always applies and restamps. The legacy zero-food auto-seed
-  (`lib/foods/today-starter.ts`) runs only on an affirmative `closed` read; an open account or a
-  failed read seeds nothing.
+  (`lib/foods/today-starter.ts`) runs only on an affirmative `closed` read with no pending open
+  intent on the device; an open account, a failed read or a pending intent seeds nothing.
   An existing account keeps its Eats marks as Favored marks, unchanged, when it opts in —
   `POST /api/foods/world` never writes `user_food_prefs`. A held account
   (`OPEN_WORLD_HOLD_USER_IDS`) never sees the invitation (`GET /api/foods/world/invitation`) and
   stays `closed`. The one-time star merge (`scripts/star-to-favored.ts`) turns a live
   `favorites_foods` star into a Favored mark by name family, unless the family is already on
-  Avoid (any Avoid pref of the family, never a capped ref set) — never overriding it — skips a
+  Avoid (any Avoid pref of the family, never a capped ref set, a soft-deleted user food included
+  as `_favor_family_avoided` reads it) — never overriding it — skips a
   star on another account's food, reads account rows with the owner's explicit `user_id`, runs
   under plain `tsx` (no `server-only` import), and converges to 0 further writes on a second run.
   Guarded by `tests/foods/food-world.test.ts`, `tests/foods/today-starter.test.ts`,
