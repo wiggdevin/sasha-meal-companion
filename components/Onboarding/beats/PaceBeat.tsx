@@ -130,8 +130,9 @@ export default function PaceBeat({ pace, goal, currentLb, heightCm, today, reque
       If you take insulin or a sulfonylurea, check with your clinician before eating less.
     </BeatNote>}
     <div className="flex flex-col gap-2">
-      <label htmlFor={fieldId} className="text-body text-charcoal">
-        Do you have a goal weight in mind? <span className="text-graphite">Optional</span>
+      <label htmlFor={fieldId} className="flex flex-col gap-0.5">
+        <span className="text-body text-charcoal">Do you have a goal weight in mind?</span>
+        <span className="text-caption text-graphite">Optional. We never save it.</span>
       </label>
       <span className="relative flex items-center">
         <input id={fieldId} type="number" inputMode="numeric" enterKeyHint="done" min={50} max={880}

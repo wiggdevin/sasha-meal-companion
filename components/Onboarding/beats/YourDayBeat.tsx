@@ -75,7 +75,7 @@ export default function YourDayBeat({ derivedCount, initial, onDone }: {
         </div>
       </DisclosurePanel>
     </div>
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 border-t border-hairline pt-5">
       <ChoiceChips label="Country" multiple options={[{ value: "US", label: "I’m in the U.S." }]}
         value={inUs ? ["US"] : []} onChange={() => setInUs((on) => !on)} />
       <BeatNote>This helps us suggest foods people here eat. Change it any time in Settings.</BeatNote>

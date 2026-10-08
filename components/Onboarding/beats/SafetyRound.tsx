@@ -105,10 +105,12 @@ export default function SafetyRound({ initial, note, onDone, busy = false }: {
   return <div className="flex w-full flex-col gap-4" data-testid="safety-round">
     {note && <BeatNote live>{note}</BeatNote>}
     <BeatQuestion>Before we pick foods: does anything here apply to you?</BeatQuestion>
-    <Button size="lg" block variant="primary" disabled={busy}
+    {/* One primary at a time: once a chip is picked, Continue is the primary and this steps back. */}
+    <Button size="lg" block variant={picks.length > 0 ? "secondary" : "primary"} disabled={busy}
       onClick={() => onDone({ picks: [], pregnancy: null, medicines: [], conditionText: "", rulesEdited: false })}>
       No, none of these
     </Button>
+    <p className="m-0 pt-2 text-caption text-graphite">Or tap any that apply</p>
     <ChoiceChips label="Applies to me" multiple block options={PICKS} value={picks} onChange={togglePick} />
 
     <DisclosurePanel id="safety-allergy" open={has("allergy")} keepMounted={false}>

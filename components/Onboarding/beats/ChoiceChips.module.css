@@ -13,7 +13,15 @@
   background: rgb(var(--ink-rgb) / 0.1);
   box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.3);
   transition: background-color var(--dur-spring-snappy) var(--ease-spring-snappy),
-    box-shadow var(--dur-spring-snappy) var(--ease-spring-snappy);
+    box-shadow var(--dur-spring-snappy) var(--ease-spring-snappy),
+    transform var(--dur-spring-snappy) var(--ease-spring-snappy);
+}
+.chip:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip { transition: none; }
+  .chip:active { transform: none; }
 }
 .chip:focus-visible {
   outline: none;
@@ -25,6 +33,10 @@
   box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.55);
   color: var(--color-on-primary);
 }
+.chip[aria-pressed="true"]:focus-visible,
+.chip[aria-checked="true"]:focus-visible {
+  box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.55), 0 0 0 4px var(--color-on-primary);
+}
 .chip:disabled {
   opacity: 0.5;
 }
@@ -33,9 +45,17 @@
   height: 16px;
   flex: none;
 }
+/* A full-width chip may wrap to two lines (the GLP-1 brand list): it grows, keeps a 24px corner
+   instead of the pill curve eating the second line, and its check sits on the first line. */
 .block {
   width: 100%;
   justify-content: flex-start;
-  padding: 0 18px;
+  align-items: flex-start;
+  padding: 12px 18px;
+  border-radius: 24px;
   text-align: left;
+  line-height: 24px;
+}
+.block .check {
+  margin-top: 4px;
 }
