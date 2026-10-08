@@ -59,7 +59,7 @@ async function writeProposal(
   // already at a 0 pace (a maintenance goal, or a stale revision left behind by a later-added
   // minor profile) — the minor check must never be skipped just because the rate is already 0.
   let held = active;
-  const eligibility = await readTargetEligibility(admin, userId);
+  const eligibility = await readTargetEligibility(admin, userId, asOf);
   if (eligibility.minor) return "none";
   if (Number(active.goal_rate_bp_week ?? 0) !== 0 && !paceAllowed(eligibility)) {
     held = { ...active, goal_rate_bp_week: 0 };

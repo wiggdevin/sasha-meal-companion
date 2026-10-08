@@ -42,7 +42,7 @@ import { settingsProfileFromRow, type UserSettingsProfileRow } from "@/lib/sync/
 import { activeProfile, writeDerivedTargetsIfActive } from "@/lib/server/targets";
 import { resolveAccountDay } from "@/lib/server/account-day";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
-import { isMinorOn } from "@/lib/profile/rate-eligibility";
+import { isMinorOn, paceAllowed } from "@/lib/profile/rate-eligibility";
 
 const SETTINGS_COLUMNS = [
   "rev", "time_zone", "height_cm", "height_unit", "weight_unit", "birth_year", "sex",
@@ -223,7 +223,12 @@ async function plan(
   // Only a revision this formula wrote, as derived or manual, is the recompute's to replace. A legacy
   // row (null formula or source, left null on purpose by the authority migration) cannot be
   // classified, and an adaptive or proposal revision is authoritative: both are left alone.
-  if (active && (active.formula_name !== TARGET_FORMULA_NAME
+  // The account's own pace holds (G1–G3), read before the formula check: a held account whose
+  // revision in force (adaptive or proposal included) still carries a pace is re-derived from its
+  // profile at a 0 pace, so a new hold never leaves a deficit in force. Under 18 derives nothing.
+  const eligibility = await readTargetEligibility(client, userId, today);
+  const heldPace = !paceAllowed(eligibility) && Number(active?.goal_rate_bp_week ?? 0) !== 0;
+  if (active && !heldPace && (active.formula_name !== TARGET_FORMULA_NAME
     || (active.target_source !== "derived" && active.target_source !== "manual"))) {
     return { kind: "skip", reason: "authoritative_formula", active, today };
   }
@@ -241,9 +246,7 @@ async function plan(
   if (await hasFutureRevision(client, userId, today)) {
     return { kind: "skip", reason: "future_revision", active, today };
   }
-  // The account's own pace holds (G1–G3): a held account derives at a 0 pace, and under 18
-  // nothing is derived at all (owner decisions 2026-10-08).
-  const eligibility = await readTargetEligibility(client, userId);
+  // Under 18 nothing is derived at all (owner decisions 2026-10-08).
   if (isMinorOn(settings.birthYear, today) || eligibility.minor) {
     return { kind: "skip", reason: "adult_only", active, today };
   }

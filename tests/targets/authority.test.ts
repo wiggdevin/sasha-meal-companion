@@ -348,8 +348,13 @@ describe("the target authority revision", () => {
     const restoredRow = { ...priorRow, id: "00000000-0000-4000-8000-000000000002", rev: 5 };
     const maybeSingle = vi.fn(async () => ({ data: priorRow, error: null }));
     const rpc = vi.fn(async () => ({ data: restoredRow, error: null }));
+    // The eligibility read (lib/server/target-eligibility.ts) sees an account with no holds.
+    const noAnswers = { select: () => ({ eq: () => Object.assign(
+      Promise.resolve({ data: [], error: null }),
+      { maybeSingle: async () => ({ data: null, error: null }) }) }) };
     const client = {
-      from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }) }),
+      from: (table: string) => table === "target_profiles"
+        ? { select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }) } : noAnswers,
       rpc,
     } as never;
 

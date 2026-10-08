@@ -243,6 +243,14 @@ export async function restoreTargetRevision(
   if (!data) throw new HttpError(404, "target_revision_not_found", "Target revision not found");
   const previous = targetRevisionFromProfile(data as TargetProfile);
   if (!previous) throw new HttpError(409, "legacy_target_revision", "Target revision cannot be restored");
+  // Pace holds (onboarding v2 G1-G3): a restore never brings back a plan for an account under
+  // 18, nor a loss or gain pace the account's current answers hold.
+  const eligibility = await readTargetEligibility(client, userId, effectiveFrom);
+  if (eligibility.minor) throw new AdultOnlyError();
+  if (!paceAllowed(eligibility) && Number(previous.inputs.goalRateBpWeek ?? 0) !== 0) {
+    throw new HttpError(409, "rate_not_eligible",
+      "That plan had a weight-change pace. Your current answers keep calories at maintenance.");
+  }
   return persistRevision(client, userId, {
     ...previous,
     effectiveFrom,

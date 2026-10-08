@@ -380,10 +380,6 @@ function candidateSettings(base: Settings, state: OnboardingState, onboardedAt: 
     goalRateBpWeek: confirmedRate(state.goal, state.goalRateBpWeek),
     trainingWeekdays: [...state.trainingWeekdays],
     mealsPerDay: state.mealsPerDay,
-    ...(state.firstMealTime
-      ? { shiftMinutes: shiftForFirstMeal(state.firstMealTime, { mealsPerDay: state.mealsPerDay })
-          ?? base.shiftMinutes }
-      : {}),
     ...(state.countryCode !== undefined ? { countryCode: state.countryCode } : {}),
     dietPrefs,
     onboardedAt,
@@ -437,7 +433,11 @@ export function buildCompletedSettings(
     const value = state.planEdits[field];
     if (value !== undefined) pins[field] = value === defaults[field] ? null : value;
   }
-  return { ...derived, ...pins };
+  // The first meal's shift is taken against the layout the derived target gives (an automatic
+  // meal count follows the calories), never the three-meal default.
+  const shift = state.firstMealTime
+    ? shiftForFirstMeal(state.firstMealTime, derived) : null;
+  return { ...derived, ...pins, ...(shift !== null ? { shiftMinutes: shift } : {}) };
 }
 
 export function changedPlanFields(base: Settings, completed: Settings): PlanField[] {

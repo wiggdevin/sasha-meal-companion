@@ -127,3 +127,18 @@ describe("the country chip (ruling 2026-10-08)", () => {
     expect(onboardingReducer(shown, { type: "set_country", value: "usa" })).toBe(shown);
   });
 });
+
+describe("first meal with an automatic meal count", () => {
+  it("shifts against the layout the derived calories choose, not the three-meal default", () => {
+    let state: ReturnType<typeof losingState> = { ...losingState(), mealsPerDay: null };
+    for (const action of [{ type: "edit_weight", value: "260" }, { type: "edit_body", key: "heightCm", value: "190" },
+      { type: "set_sex", value: "male" }, { type: "set_goal", value: "gain_muscle" },
+      { type: "set_activity", value: "very_active" }, { type: "set_first_meal_time", value: "07:30" }] as const) {
+      state = onboardingReducer(state, action);
+    }
+    const settings = buildCompletedSettings(defaultSettings(), state, NOW);
+    expect(settings.activeTargetProfile!.training.kcal).toBeGreaterThan(2600);
+    // Five meals start at 07:30, so the first meal needs no shift at all.
+    expect(settings.shiftMinutes).toBe(0);
+  });
+});
