@@ -18,6 +18,7 @@
 import type { AccountHandle } from "@/lib/device/account";
 import type { Food } from "@/lib/foods";
 import { backfillFoodPrefs } from "@/lib/foods/prefs-client";
+import { drainWorldOpenPending } from "@/lib/foods/world-open-client";
 import { drainWeighIns } from "@/lib/health/weigh-in-client";
 import { drainDeferredPicks } from "@/lib/log/picked-deferred";
 import { retryPendingReconciles } from "@/lib/log/reconcile";
@@ -51,5 +52,8 @@ export async function catchUpAfterSync(h: AccountHandle, foods: Record<string, F
     // Picked logs that were waiting for a food ref (a first use offline, a non-ready pick in a
     // meal): the refs are minted now, through the ref registry, and each entry is committed whole.
     drainDeferredPicks(h),
+    // W13 (D14): onboarding's open-world intent, re-posted until the server settles it, so a 503
+    // or a not-yet-synced settings row at completion never leaves a new account closed for good.
+    drainWorldOpenPending(h),
   ]);
 }

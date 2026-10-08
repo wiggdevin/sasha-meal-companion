@@ -17,6 +17,7 @@ const drain = vi.fn();
 const syncOnce = vi.fn();
 const retryPendingReconciles = vi.fn();
 const drainDeferredPicks = vi.fn();
+const drainWorldOpen = vi.fn();
 vi.mock("@/lib/foods/prefs-client", () => ({
   backfillFoodPrefs: (_h: unknown, f: unknown) => backfill(f),
 }));
@@ -24,6 +25,7 @@ vi.mock("@/lib/health/weigh-in-client", () => ({ drainWeighIns: () => drain() })
 vi.mock("@/lib/sync/client", () => ({ syncOnce: () => syncOnce() }));
 vi.mock("@/lib/log/reconcile", () => ({ retryPendingReconciles: () => retryPendingReconciles() }));
 vi.mock("@/lib/log/picked-deferred", () => ({ drainDeferredPicks: () => drainDeferredPicks() }));
+vi.mock("@/lib/foods/world-open-client", () => ({ drainWorldOpenPending: () => drainWorldOpen() }));
 
 const { catchUpAfterSync, syncThenCatchUp } = await import("@/lib/sync/post-sync");
 
@@ -38,6 +40,7 @@ beforeEach(async () => {
   syncOnce.mockReset().mockResolvedValue(undefined);
   retryPendingReconciles.mockReset().mockResolvedValue(undefined);
   drainDeferredPicks.mockReset().mockResolvedValue({ committed: [], waiting: [] });
+  drainWorldOpen.mockReset().mockResolvedValue("none");
 });
 
 describe("the sync pass the app runs on open, on focus and when signal returns", () => {
@@ -48,6 +51,8 @@ describe("the sync pass the app runs on open, on focus and when signal returns",
     expect(backfill).toHaveBeenCalledWith(FOODS);
     // t17: picked logs waiting for a food ref upgrade on the same licence.
     expect(drainDeferredPicks).toHaveBeenCalledTimes(1);
+    // W13 (Sol round 2 BLOCK): the onboarding open-world intent is retried on the same licence.
+    expect(drainWorldOpen).toHaveBeenCalledTimes(1);
   });
 
   /** A failed sync licenses nothing: there is no evidence the route can be reached as her. */
@@ -57,6 +62,7 @@ describe("the sync pass the app runs on open, on focus and when signal returns",
     expect(drain).not.toHaveBeenCalled();
     expect(backfill).not.toHaveBeenCalled();
     expect(drainDeferredPicks).not.toHaveBeenCalled();
+    expect(drainWorldOpen).not.toHaveBeenCalled();
   });
 
   /** Read at the moment of the catch-up, not when the pass was scheduled. */
