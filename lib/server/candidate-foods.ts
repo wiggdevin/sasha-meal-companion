@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   admitRefs, admitUniverse, avoidFamilies, type ExcludedCandidate, type RefFacts,
 } from "@/lib/foods/world/admission";
+import { effectiveFoodWorld } from "@/lib/foods/world/access";
 import { sameRulesToken, type RulesToken } from "@/lib/foods/world/freshness";
 import { deriveItem, type UniverseItem } from "@/lib/foods/universe/derive";
 import { UNIVERSE } from "@/lib/foods/universe/manifest";
@@ -74,7 +75,7 @@ async function readSettings(client: SupabaseClient, userId: string) {
   const row = (data ?? null) as SettingsRow | null;
   const flags = row?.diet_prefs?.flags;
   return {
-    world: (row?.food_world === "open" ? "open" : "closed") as FoodWorld,
+    world: effectiveFoodWorld(row?.food_world, userId) as FoodWorld,
     flags: normalizePreferenceFlags(Array.isArray(flags) ? flags.filter((f): f is string => typeof f === "string") : []),
   };
 }

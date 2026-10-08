@@ -249,6 +249,16 @@ describe("evaluatePolicy: no allow list for an account with no allergen rule and
     expect(evaluatePolicy({ ...NO_RULES, conditions: ["celiac"] }, catalogFood).verdict).toBe("unverified");
   });
 
+  it("a food with no evidence entry (no category evidence read) keeps the gate (Sol r1 BLOCK 1)", () => {
+    expect(evaluatePolicy(NO_RULES, { ...catalogFood, category: null }).verdict).toBe("unverified");
+  });
+
+  it("with a banned category active, a food whose category cannot be determined stays unverified", () => {
+    expect(evaluatePolicy({ ...NO_RULES, banned_categories: ["beans"] }, { ...catalogFood, category: null }).verdict)
+      .toBe("unverified");
+    expect(evaluatePolicy({ ...NO_RULES, banned_categories: ["beans"] }, catalogFood).verdict).toBe("allowed");
+  });
+
   it("a profile whose conditions were never read keeps the gate (fail closed)", () => {
     expect(evaluatePolicy(EMPTY_PROFILE, catalogFood).verdict).toBe("unverified");
   });

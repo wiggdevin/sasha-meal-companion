@@ -28,7 +28,12 @@ const { parseMealSnapshotV3, SNAPSHOT_V3_MAX_BYTES } = await import("@/lib/meals
 const NOW = new Date("2026-10-06T15:00:00Z");
 const NEUTRAL = () => ({ prior: { status: "neutral" as const, reason: "country_unset" as const }, cohort: "national" });
 
-beforeEach(() => { evidence.answer = eatsEvidence(); });
+beforeEach(() => {
+  evidence.answer = eatsEvidence();
+  // An open account reads open only while it is released to it (lib/foods/world/access.ts).
+  vi.stubEnv("OPEN_WORLD_ENABLED", "1");
+  vi.stubEnv("OPEN_WORLD_USER_IDS", "*");
+});
 
 function tables(options: WorldOptions = {}, extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[]> {
   const base = worldTables(options);
