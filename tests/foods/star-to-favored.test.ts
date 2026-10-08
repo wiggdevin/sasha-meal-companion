@@ -144,6 +144,34 @@ describe("planStarMerge / commitStarMerge", () => {
     expect(tables.food_membership_revisions.some((m) => m.name_norm === "tuna")).toBe(false);
   });
 
+  it("never overrides an Avoid kept on a SOFT-DELETED same-family user food, as _favor_family_avoided "
+    + "does (Sol round 3 BLOCK)", async () => {
+    const tables = loadFixture();
+    tables.user_foods.push({ id: "f-tuna-gone", user_id: USER, name: "Tuna", deleted_at: "2026-09-01T00:00:00Z" });
+    tables.food_refs.push({ id: "ref-f-tuna-gone", kind: "user", catalog_food_id: null, user_food_id: "f-tuna-gone" });
+    tables.user_food_prefs.push({ user_id: USER, food_ref_id: "ref-f-tuna-gone", status: "avoid", updated_at: "2026-08-01" });
+    tables.catalog_food_revisions.push({ catalog_food_id: 777, description: "Tuna", is_active: true });
+    tables.food_refs.push({ id: "ref-cat-tuna", kind: "catalog", catalog_food_id: 777, user_food_id: null });
+    tables.favorites_foods.push({ user_id: USER, food_ref_id: "ref-cat-tuna", deleted_at: null, sort: 12 });
+    const plan = await planStarMerge(state.client as never);
+    expect(plan.entries.find((e) => e.family === "tuna")?.status).toBe("avoid");
+    await commitStarMerge(state.client as never, plan);
+    expect(tables.food_membership_revisions.some((m) => m.name_norm === "tuna")).toBe(false);
+    // The deleted-food read is still owner-scoped.
+    expect(queries.filter((q) => q.table === "user_foods" && !q.filters.includes("is:deleted_at"))
+      .every((q) => q.filters.includes("eq:user_id") || q.filters.length === 1)).toBe(true);
+  });
+
+  it("a star on a soft-deleted food is still never named (only the Avoid side reads deleted rows)", async () => {
+    const tables = loadFixture();
+    tables.user_foods.push({ id: "f-gone", user_id: USER, name: "Kale", deleted_at: "2026-09-01T00:00:00Z" });
+    tables.food_refs.push({ id: "ref-f-gone", kind: "user", catalog_food_id: null, user_food_id: "f-gone" });
+    tables.favorites_foods.push({ user_id: USER, food_ref_id: "ref-f-gone", deleted_at: null, sort: 13 });
+    const plan = await planStarMerge(state.client as never);
+    expect(plan.entries.some((e) => e.family === "kale")).toBe(false);
+    expect(plan.skippedUnreadable).toBe(1);
+  });
+
   it("skips a star on ANOTHER account's user food: never named, never written (Sol round 2 BLOCK)", async () => {
     const tables = loadFixture();
     tables.user_foods.push({ id: "f-foreign", user_id: OTHER, name: "Grandma stew" });

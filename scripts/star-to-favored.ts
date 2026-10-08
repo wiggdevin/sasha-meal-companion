@@ -110,6 +110,7 @@ type RefName = string | typeof FOREIGN | null;
  */
 async function refNamesFor(
   admin: SupabaseClient, owner: string, refIds: readonly string[],
+  { includeDeleted = false }: { includeDeleted?: boolean } = {},
 ): Promise<Map<string, RefName>> {
   const out = new Map<string, RefName>();
   if (refIds.length === 0) return out;
@@ -119,8 +120,10 @@ async function refNamesFor(
   const catalogIds = refs.flatMap((r) => r.kind === "catalog" && r.catalog_food_id !== null
     ? [r.catalog_food_id] : []);
   const [ownFoods, catalog] = await Promise.all([
-    readByIdBatches(userFoodIds, (batch) => selectAll<{ id: string; name: string }>(admin
-      .from("user_foods").select("id,name").eq("user_id", owner).is("deleted_at", null).in("id", batch))),
+    readByIdBatches(userFoodIds, (batch) => {
+      const own = admin.from("user_foods").select("id,name").eq("user_id", owner);
+      return selectAll<{ id: string; name: string }>((includeDeleted ? own : own.is("deleted_at", null)).in("id", batch));
+    }),
     readByIdBatches(catalogIds, (batch) => selectAll<{ catalog_food_id: number; description: string }>(admin
       .from("catalog_food_revisions").select("catalog_food_id,description")
       .in("catalog_food_id", batch).eq("is_active", true))),
@@ -167,14 +170,17 @@ async function membershipMarks(
  * refs `favor_family_sets` returned, which stops at 50 per family, so an Avoid on a 51st
  * same-family catalog ref was missed and the family was written `eats`. This is the rule
  * `_favor_family_avoided` applies in SQL (migration 20261215090000_favor_food_families.sql):
- * any Avoid pref whose ref's name (owner's user food, or active catalog revision) normalizes to
+ * any Avoid pref whose ref's name (owner's user food, deleted or not, or active catalog revision) normalizes to
  * the family. The legacy backfill (20260911000700) writes such prefs with no membership row.
  */
 async function avoidedFamilies(admin: SupabaseClient, owner: string): Promise<Set<string>> {
   const prefs = await fetchAllRows<{ food_ref_id: string }>((from, to) => admin.from("user_food_prefs")
     .select("food_ref_id").eq("user_id", owner).eq("status", "avoid")
     .order("food_ref_id").range(from, to));
-  const names = await refNamesFor(admin, owner, prefs.map((p) => p.food_ref_id));
+  // Sol round 3 BLOCK: `_favor_family_avoided` joins the owner's user food with no `deleted_at`
+  // filter, so an Avoid pref kept on a soft-deleted "Tuna" still avoids the family. Read the
+  // Avoid side the same way (owner-scoped, deleted rows included); a star's own name stays live-only.
+  const names = await refNamesFor(admin, owner, prefs.map((p) => p.food_ref_id), { includeDeleted: true });
   const out = new Set<string>();
   for (const name of names.values()) {
     if (name === null || name === FOREIGN) continue;
