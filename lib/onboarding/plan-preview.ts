@@ -9,12 +9,37 @@
  * (`starterChoices` / the fresh reread). The preview treats them as verified, as Today will once
  * the server's eligible read confirms them; it writes nothing.
  *
+ * The settings carry the UNSAVED target candidate (`buildCompletedSettings`), which has no server
+ * revision, and target resolution rightly answers needs_profile for that (`targetRevisionOn`,
+ * lib/targets/revision.ts), so Today never plans from an unsaved number. The preview accepts the
+ * candidate explicitly, as the revision in force on the preview date, inside its own throwaway
+ * store only (`previewTargetSettings`): nothing here is saved, returned or shared with Today.
+ *
  * Pure. No I/O.
  */
 import type { Food } from "@/lib/foods";
 import { resolveDay } from "@/lib/resolve";
 import { defaultStore } from "@/lib/store";
-import type { FoodComponent, Settings } from "@/lib/types";
+import type { FoodComponent, Settings, TargetRevision } from "@/lib/types";
+
+/** The revision number the preview gives the candidate. The server numbers revisions from 1, so a
+ *  0 can never be mistaken for a saved one. */
+export const PREVIEW_TARGET_REVISION = 0;
+
+/**
+ * Preview only: the candidate as a dated revision in force on `date`, with no history and no id.
+ * A candidate that already is a saved revision (a re-opened setup) is left as it is. Returns a new
+ * object; the caller's settings are never changed.
+ */
+function previewTargetSettings(settings: Settings, date: string): Settings {
+  const candidate = settings.activeTargetProfile;
+  if (!candidate || typeof candidate.revision === "number") return settings;
+  const preview = {
+    ...candidate, revision: PREVIEW_TARGET_REVISION, effectiveFrom: date,
+  } as TargetRevision;
+  delete preview.id;
+  return { ...settings, activeTargetProfile: preview, targetHistory: [], targetHistorySince: null };
+}
 
 export type PlanPreviewMeal = {
   /** "Meal 1" … as Today labels it. */
@@ -38,7 +63,7 @@ export function onboardingPlanPreview(
   settings: Settings, foods: readonly Food[], date: string,
 ): PlanPreview {
   const store = defaultStore();
-  store.settings = { ...settings, ruleReviewReady: true };
+  store.settings = { ...previewTargetSettings(settings, date), ruleReviewReady: true };
   store.foods = Object.fromEntries(foods.filter((food) => food.status === "eats")
     .map((food) => [food.id, { ...food }]));
   const day = resolveDay(store, date, 0, new Set(Object.keys(store.foods)));
