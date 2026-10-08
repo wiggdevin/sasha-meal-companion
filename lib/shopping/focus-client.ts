@@ -134,6 +134,11 @@ function deviceDay(now = new Date()): string {
  * phone sends only its own day and zone as hints. Re-reads the held focus afterwards.
  */
 export async function writeShoppingFocus(h: AccountHandle, on: boolean, days?: number): Promise<FocusWriteAnswer> {
+  // Minted here, before the request is even sent: the ticket reflects when this write STARTED, not
+  // when it returned. A later-starting write or read always gets a higher ticket, so it always wins
+  // over this one regardless of resolve order; a read that started before this write always loses to
+  // it below, whichever of the two resolves first (newest-start wins, per `applyFocus`'s ticket order).
+  const ticket = mintTicket(h.userId);
   const zone = deviceZone();
   const res = await accountFetch(h, "/api/shopping/focus", {
     method: "POST", headers: { "content-type": "application/json" },
@@ -146,9 +151,8 @@ export async function writeShoppingFocus(h: AccountHandle, on: boolean, days?: n
   const until = body.until ?? null;
   // Apply the server's own answer to the cache at once (requirement 1 of the Sol r2 fix): off
   // is exact and needs no refresh; on holds no keys yet (coverage under-counts, never blocks)
-  // until the refresh below fills them in. Minted now, this ticket is newer than any refresh or
-  // write already in flight, so this write is never resurrected as stale by one that lands later.
-  applyFocus(h.userId, until === null ? null : { until, keys: [] }, mintTicket(h.userId), Date.now());
+  // until the refresh below fills them in.
+  applyFocus(h.userId, until === null ? null : { until, keys: [] }, ticket, Date.now());
   // Not awaited: the write has already taken effect above, and a slow or failing refresh must
   // never hold up — or undo — the write's own answer (it can only ever replace it with a newer,
   // more complete read, per `applyFocus`'s ticket order).

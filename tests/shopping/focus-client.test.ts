@@ -96,6 +96,95 @@ describe("focus-client: out-of-order GETs", () => {
   });
 });
 
+describe("focus-client: two writes resolving out of order", () => {
+  it("keeps the later-started write's choice even when it returns first", async () => {
+    const aPost = deferredResponse();
+    const bPost = deferredResponse();
+    const bRefresh = deferredResponse();
+    const aRefresh = deferredResponse();
+    queueFetch(aPost.promise, bPost.promise, bRefresh.promise, aRefresh.promise);
+
+    // A starts first (lower ticket), B starts second (higher ticket) while A is still in flight.
+    const writeA = writeShoppingFocus(handle, true);
+    const writeB = writeShoppingFocus(handle, false);
+
+    // B returns first.
+    bPost.resolve({ actionId: "b1", until: null, previous: null });
+    await writeB;
+    expect(heldShoppingFocus(TEST_USER)).toBeNull();
+
+    // A returns after — its "on" answer started earlier, so it must not overwrite B's choice.
+    aPost.resolve({ actionId: "a1", until: ON.until, previous: null });
+    await writeA;
+    expect(heldShoppingFocus(TEST_USER)).toBeNull();
+
+    // Both writes' own forced refreshes agree with "off" — they settle in whichever order, and
+    // neither changes the picture, so this only re-confirms B's choice stands.
+    bRefresh.resolve({ until: null, keys: [] });
+    aRefresh.resolve({ until: null, keys: [] });
+    await flush();
+    expect(heldShoppingFocus(TEST_USER)?.until ?? null).toBeNull();
+  });
+});
+
+describe("focus-client: concurrent read started before a write", () => {
+  it("never lets the stale read overwrite the write, however the two resolve", async () => {
+    const staleGet = deferredResponse();
+    const post = deferredResponse();
+    const postRefresh = deferredResponse();
+    queueFetch(staleGet.promise, post.promise, postRefresh.promise);
+
+    // The read starts first (lower ticket); the write starts after it, while it is still in flight.
+    const read = refreshShoppingFocus(handle, true);
+    const write = writeShoppingFocus(handle, false);
+
+    // The write's own POST answers first.
+    post.resolve({ actionId: "w1", until: null, previous: ON.until });
+    await write;
+    expect(heldShoppingFocus(TEST_USER)).toBeNull();
+
+    // The older read resolves afterward with a stale "on" state — must not win.
+    staleGet.resolve(ON);
+    await read;
+    expect(heldShoppingFocus(TEST_USER)).toBeNull();
+
+    postRefresh.resolve({ until: null, keys: [] });
+    await flush();
+    expect(heldShoppingFocus(TEST_USER)?.until ?? null).toBeNull();
+  });
+});
+
+describe("focus-client: concurrent read started after a write but resolving first", () => {
+  it("lets the newer read's answer stand over the older write's answer", async () => {
+    const post = deferredResponse();
+    const get = deferredResponse();
+    const postRefresh = deferredResponse();
+    queueFetch(post.promise, get.promise, postRefresh.promise);
+
+    // The write starts first (lower ticket); the read starts after it, while the write is still
+    // in flight, and resolves before the write does.
+    const write = writeShoppingFocus(handle, true);
+    const read = refreshShoppingFocus(handle, true);
+
+    get.resolve({ until: "2026-12-01T00:00:00.000Z", keys: [] });
+    await read;
+    expect(heldShoppingFocus(TEST_USER)?.until).toBe("2026-12-01T00:00:00.000Z");
+
+    // The write's own answer started earlier, so even though it resolves after, it must not
+    // overwrite the newer read that already landed.
+    post.resolve({ actionId: "w2", until: ON.until, previous: null });
+    await write;
+    expect(heldShoppingFocus(TEST_USER)?.until).toBe("2026-12-01T00:00:00.000Z");
+
+    // The write's own forced refresh is minted only after the write's round trip completes — a
+    // genuinely later operation than the concurrent read above — so it is allowed to replace the
+    // read's answer with its own newer one.
+    postRefresh.resolve(ON);
+    await flush();
+    expect(heldShoppingFocus(TEST_USER)?.until).toBe(ON.until);
+  });
+});
+
 describe("focus-client: write-then-stale-GET", () => {
   it("keeps the write's answer when an older in-flight GET resolves afterward", async () => {
     const staleGet = deferredResponse();
