@@ -38,18 +38,21 @@ void main() {
   float z = 1.0 / (d + uD0);
   float gz = (z - uZMin) / (uZCap - uZMin);
   float gx = 0.5 + (vUv.x - 0.5) * (z / uZCap);
-  vec2 n = vec2(0.0);
+  vec2 ripple = vec2(0.0);
   if (gz >= 0.0 && gz <= 1.0 && gx >= 0.0 && gx <= 1.0) {
-    n = (texture2D(uNormal, vec2(gx, gz)).xy - 0.5) * 2.0;
+    ripple = (texture2D(uNormal, vec2(gx, gz)).xy - 0.5) * 2.0;
   }
-  // A breeze that never stops: small waves on the ground plane. Far off they would be finer than a
-  // pixel and shimmer as streaks, so the far water uses a capped distance and fades to calm.
+  // Toward the horizon one ripple cell is smaller than a pixel and only aliases: fade the ripples out.
+  ripple *= smoothstep(0.02, 0.3, d);
+  // A gentle breeze that never stops, slow and broad. It only bends the light; it makes no glints,
+  // which as fine bright dashes read as a shimmer rather than water (owner, 2026-10-07).
   float zb = min(z, 2.6);
-  float wx = gx * uZCap * 12.0;
-  float wz = zb * 8.0;
-  float calm = clamp(1.6 - z * 0.25, 0.25, 1.0);
-  n += vec2(sin(wx * 1.7 + uTime * 1.3) * 0.5 + sin(wx * 2.3 - uTime * 0.9 + wz) * 0.25,
-            cos(wz * 2.3 - uTime * 1.1) * 0.6 + sin(wz * 3.1 + wx * 0.7 + uTime * 1.7) * 0.2) * 0.045 * calm;
+  float wx = gx * uZCap * 5.0;
+  float wz = zb * 4.0;
+  float calm = clamp(1.6 - z * 0.25, 0.2, 1.0) * smoothstep(0.0, 0.35, d);
+  vec2 breeze = vec2(sin(wx * 1.1 + uTime * 0.7) * 0.6 + sin(wx * 1.7 - uTime * 0.5 + wz) * 0.3,
+            cos(wz * 1.3 - uTime * 0.6) * 0.6 + sin(wz * 1.9 + wx * 0.4 + uTime * 0.8) * 0.25) * 0.025 * calm;
+  vec2 n = ripple + breeze;
   n.x += uLean * 0.22;
   float near = clamp(d * 1.6, 0.18, 1.0);
   vec2 off = vec2(n.x, n.y * 0.6) * 0.013 * near;
@@ -57,8 +60,9 @@ void main() {
   vec4 refl = texture2D(uReflect, vUv + off * 1.8 + vec2(uLean * 0.004, 0.0));
   float fresnel = mix(0.85, 0.3, clamp(d, 0.0, 1.0));
   vec3 col = bed + refl.rgb * refl.a * fresnel;
-  float glint = pow(max(0.0, -n.y * 0.9 + n.x * 0.25), 3.0) * (1.0 - d * 0.7);
-  col += vec3(1.0, 0.82, 0.62) * glint * 0.55;
+  // Soft warm light on the real ripples only (a splash, the lure, a pebble).
+  float glint = pow(max(0.0, -ripple.y * 0.9 + ripple.x * 0.25), 2.0) * (1.0 - d * 0.7);
+  col += vec3(1.0, 0.82, 0.62) * glint * 0.3;
   gl_FragColor = vec4(col, 1.0);
 }`;
 

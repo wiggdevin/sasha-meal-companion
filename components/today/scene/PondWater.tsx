@@ -221,9 +221,10 @@ export default function PondWater({ shares, bands, keyRows, animate, tilt, contr
       last = now;
       // The phone's lean eases in, so a turn sends a slow sway rather than a jump.
       s.lean += ((tilt.current ?? 0) / 15 - s.lean) * (1 - Math.exp(-dt / 0.55));
-      if ((stir += dt) > 1.3) {
+      // Now and then a small stir, so the lake is alive without busy rings everywhere.
+      if ((stir += dt) > 3.2) {
         stir = 0;
-        controlRef.current?.splash(40 + Math.random() * 280, HORIZON + 30 + Math.random() * 150, 4 + Math.random() * 4);
+        controlRef.current?.splash(40 + Math.random() * 280, HORIZON + 50 + Math.random() * 130, 2 + Math.random() * 2);
       }
       step(dt);
       render(now / 1000);
