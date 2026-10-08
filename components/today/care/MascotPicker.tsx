@@ -38,7 +38,7 @@ export default function MascotPicker({ value, onChange }: {
     setSaid(`${MASCOTS[key].name} is your companion now.`);
   };
 
-  return <section className={styles.picker} aria-label="Your companion">
+  return <div className={styles.picker} role="group" aria-label="Choose your companion">
     <motion.div key={value} className={styles.feature} initial={reduce ? false : { y: 10, scale: 0.94 }}
       animate={{ y: 0, scale: 1 }} transition={reduce ? INSTANT : SPRINGS.bouncy}>
       <SproutFigure mascot={value} mood={waving ? "wave" : "content"} size={176} label={chosen.name} />
@@ -48,11 +48,12 @@ export default function MascotPicker({ value, onChange }: {
     <ul className={styles.row} aria-label="Companions">
       {MASCOT_KEYS.map((key) => <li key={key}>
         <button type="button" className={`tap ${styles.tile}`} aria-pressed={key === value} onClick={() => choose(key)}>
-          <SproutFigure mascot={key} mood="content" size={64} breathe={false} shadow={false} />
+          <SproutFigure mascot={key} mood="content" size={64} breathe={false} shadow={false}
+            className={styles.tileArt} />
           <span className={styles.tileName}>{MASCOTS[key].name}</span>
         </button>
       </li>)}
     </ul>
     <p className="sr-only" aria-live="polite">{said}</p>
-  </section>;
+  </div>;
 }

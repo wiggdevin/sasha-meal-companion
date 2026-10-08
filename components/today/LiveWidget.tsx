@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useAnimationControls, useReducedMotionConfig, 
 import Button from "@/components/ui/Button";
 import WidgetEditTray from "@/components/today/WidgetEditTray";
 import SproutStage, { SproutBand, SproutMini, type Glance } from "@/components/today/island/Sprout";
+import CareLayer from "@/components/today/care/CareLayer";
 import FuelView from "@/components/today/island/FuelView";
 import WellWater from "@/components/today/island/WellWater";
 import IslandGoo from "@/components/today/island/IslandGoo";
@@ -20,7 +21,8 @@ import { useRebalanceWidgetSync } from "@/lib/today/rebalance-widget";
 import { DEFAULT_PREFS, PANEL_NAME, effectiveWidgetPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPanel,
   type WidgetPrefs }
   from "@/lib/today/widget-prefs";
-import { PET_NAME, petState, type PetState, type PetWhen } from "@/lib/today/pet-mood";
+import type { PetWhen } from "@/lib/today/pet-mood";
+import { useMascot, wellPet } from "@/components/today/island/well-pet";
 import styles from "@/components/today/island/Island.module.css";
 import well from "@/components/today/island/Well.module.css";
 
@@ -35,7 +37,6 @@ const SWIPE_PX = 48;
 const SWIPE_VELOCITY = 400;
 const LONG_PRESS_MS = 550;
 /** Until the phone's clock is read, Sprout is simply there: no mood is guessed. */
-const UNREAD_CLOCK: PetState = { mood: "content", vitality: null, line: `${PET_NAME} is here with you.` };
 
 /** The island's width and height first, then its height — the reference's "wide, then tall". */
 const grow = (reduce: boolean) => reduce ? INSTANT
@@ -176,9 +177,9 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
   const waiting = panels.filter((name) => name !== panel).slice(0, maxBubbles(width));
   const bubbles = expanded ? [] : waiting;
   const mood = dayMood(data);
-  const mood0 = hour === null ? UNREAD_CLOCK : petState(data, hour, when);
-  // A meal going in on the viewed day: Sprout cheers for a moment (owner, 2026-10-06).
-  const pet = cheer ? { ...mood0, mood: "joyful" as const, line: `${PET_NAME} cheers: today's log grew.` } : mood0;
+  // The chosen companion's mood and lines; it cheers for a moment when the day's log grows.
+  const mascot = useMascot();
+  const pet = wellPet(data, hour, when, cheer, mascot);
 
   // Geometry: one island and its bubbles, shared by the goo layer and the content layer.
   const W = Math.max(width, 0);
@@ -281,7 +282,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
       <AnimatePresence initial={false}>
         {expanded && !ringsView && <SproutBand key="sprout" className={`matte ${well.band}`}
           onLeave={() => toggleRef.current?.focus({ preventScroll: true })}>
-          <SproutStage state={pet} glance={glance} bounce={bounce} when={when} />
+          <SproutStage state={pet} glance={glance} bounce={bounce} when={when} mascot={mascot} />
         </SproutBand>}
       </AnimatePresence>
       <motion.div className={styles.stage} initial={false} animate={{ height: islandH }}
@@ -326,7 +327,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
                     animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, width: 36 }}
                     exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.4, width: 0 }}
                     transition={reduce ? FADES.quick : SPRINGS.bouncy}>
-                    <SproutMini state={pet} />
+                    <SproutMini state={pet} mascot={mascot} />
                   </motion.span>}
                 </AnimatePresence>
                 <span className={styles.toggleBody} aria-hidden="true">
@@ -351,6 +352,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
                       : <FullPanel panel={panel} data={panelData} />}
                   </motion.div>}
                 </AnimatePresence>
+                <CareLayer active={expanded && when === "today" && !preview} />
                 {/* Long-press arranges the views; this stays for the keyboard and shows when focused. */}
                 {expanded && <div className={styles.footerHidden}>
                   <Button variant="ghost" size="sm" className={styles.edit} onClick={() => setEditing(true)}

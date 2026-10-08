@@ -226,7 +226,7 @@ describe("shopping routes attach current-rule marks", () => {
     expect(((await response.json()) as { line: Marked }).line.ruleMark)
       .toMatchObject({ verdict: "blocked" });
     mocks.putPantry.mockImplementation(async (_c, user, item) => ({ ...item,
-      id: "00000000-0000-4000-8000-0000000000d2", userId: user,
+      id: "00000000-0000-4000-8000-0000000000d2", userId: user, source: "manual" as const,
       confirmedAt: "2026-10-05T00:00:00Z", revision: 1 }));
     response = await putPantryRoute(json({ requestId: crypto.randomUUID(), expectedRevision: null,
       item: { name: "Rice", identity: { foodRefId: riceRef, catalogFoodRevisionId: 7,

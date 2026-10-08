@@ -15,6 +15,7 @@ import { generateStructured, SchemaRejection } from "@/lib/ai/adapter";
 import { AttestationRefused } from "@/lib/ai/attestation";
 import { inspirePhotoGeminiPayload } from "@/lib/ai/gemini-payloads";
 import { LANES } from "@/lib/ai/lanes";
+import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata";
 import { INSPIRE_MAX_OUTPUT_TOKENS, inspirePhotoSchema, type InspirePhotoOutput } from "@/lib/ai/inspire";
 import { planPhotoModel } from "@/lib/ai/models";
 import { generateOpenRouter } from "@/lib/ai/openrouter";
@@ -89,6 +90,17 @@ export async function inspire(
   if (media.bytes.byteLength > MAX_INSPIRE_PHOTO_BYTES) {
     throw new HttpError(413, "too_large", "That photo is too large. Try taking it again.");
   }
+  // W12-F (follow-up noted in docs/specs/phase-18-open-world-foods.md §W12): the Plan sheet's own
+  // photo path never verified an upload was free of metadata before this line — W12 built that
+  // check for the pantry route and this applies the identical strip here, before either provider
+  // leg, so an unparseable upload is refused before any call rather than only for pantry photos.
+  let stripped: Uint8Array;
+  try {
+    stripped = stripImageMetadata(media.bytes, kind);
+  } catch (e) {
+    if (!(e instanceof UnparseableImage)) throw e;
+    throw new HttpError(422, "unreadable_photo", "That photo couldn’t be read. Try another one.");
+  }
   if (!deps.generate && !openRouterConfigured()) {
     throw new HttpError(503, "provider_unavailable", "Photo ideas aren’t available right now.");
   }
@@ -97,7 +109,7 @@ export async function inspire(
   try {
     try {
       model = await (deps.generate ?? generateOpenRouter)({
-        payload: inspirePhotoPayload({ bytes: media.bytes, mimeType: kind },
+        payload: inspirePhotoPayload({ bytes: stripped, mimeType: kind },
           { as: req.as, targetKcal: req.targetKcal }), userId, admin, schema: inspirePhotoSchema,
         modelId: planPhotoModel(), maxOutputTokens: INSPIRE_MAX_OUTPUT_TOKENS,
         timeoutMs: PHOTO_PRIMARY_MS, attemptTimeoutMs: PHOTO_PRIMARY_MS, abandonOnCapacity: true,
@@ -106,7 +118,7 @@ export async function inspire(
       const left = PHOTO_BUDGET_MS - (Date.now() - started);
       if (!providerFallbackWorthTrying(e) || left <= 0) throw e;
       model = await (deps.generateGemini ?? generateStructured)({
-        payload: inspirePhotoGeminiPayload({ bytes: media.bytes, mimeType: kind },
+        payload: inspirePhotoGeminiPayload({ bytes: stripped, mimeType: kind },
           { as: req.as, targetKcal: req.targetKcal }), userId, admin, schema: inspirePhotoSchema,
         route: { provider: "google", modelId: LANES.plan.fallback },
         maxOutputTokens: INSPIRE_MAX_OUTPUT_TOKENS, timeoutMs: left, attemptTimeoutMs: left,

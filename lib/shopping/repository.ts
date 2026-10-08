@@ -55,7 +55,8 @@ function pantry(row: Db): PantryItem {
   return { id: String(row.id), userId: String(row.user_id), name: String(row.name),
     identity: row.identity as PantryItem["identity"],
     confirmedGrams: number(row.confirmed_grams), confirmedAt: String(row.confirmed_at),
-    revision: Number(row.rev) };
+    revision: Number(row.rev),
+    source: row.source === "photo" ? "photo" : "manual" };
 }
 function purchaseWindow(row: Db): ShoppingPurchaseWindow {
   return { id: String(row.id), periodId: String(row.period_id), lineId: String(row.line_id),
@@ -67,7 +68,7 @@ function purchaseWindow(row: Db): ShoppingPurchaseWindow {
 
 export type PeriodDraft = Omit<ShoppingPeriod, "id" | "userId" | "planRevision" | "revision">;
 export type LineDraft = Omit<ShoppingLine, "id" | "periodId" | "revision" | "ruleMark">;
-export type PantryDraft = Omit<PantryItem, "id" | "userId" | "confirmedAt" | "revision" | "ruleMark">;
+export type PantryDraft = Omit<PantryItem, "id" | "userId" | "confirmedAt" | "revision" | "ruleMark" | "source">;
 
 export async function listPeriods(client: SupabaseClient, userId: string,
   start?: string, end?: string): Promise<ShoppingPeriod[]> {
@@ -260,7 +261,7 @@ export async function listPantry(client: SupabaseClient, userId: string): Promis
 
 export async function putPantry(client: SupabaseClient, userId: string,
   draft: PantryDraft & { id?: string }, expectedRevision: number | null,
-  requestId: string): Promise<PantryItem> {
+  requestId: string, source: PantryItem["source"] = "manual"): Promise<PantryItem> {
   if (!draft.id) {
     const submitted = createFingerprint({ name: draft.name, identity: draft.identity,
       confirmedGrams: draft.confirmedGrams });
@@ -273,7 +274,7 @@ export async function putPantry(client: SupabaseClient, userId: string,
     }
     const inserted = await client.from("shopping_pantry").insert({ user_id: userId,
       name: draft.name, identity: draft.identity, confirmed_grams: draft.confirmedGrams,
-      request_id: requestId, create_fingerprint: submitted }).select("*").single();
+      source, request_id: requestId, create_fingerprint: submitted }).select("*").single();
     if (inserted.error) {
       if (inserted.error.code === "23505") {
         const winner = await client.from("shopping_pantry").select("*")

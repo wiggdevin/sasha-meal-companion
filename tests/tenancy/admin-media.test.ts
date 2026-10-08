@@ -14,6 +14,7 @@ import {
   HAS_BRANCH, HAS_DB, adminClient, ensureUser, userClient, type TestUser,
 } from "../helpers/supabase";
 import { pointRequestClientAtBranch, sessionCookieFor } from "../log/fixtures";
+import { syntheticJpeg } from "../helpers/synthetic-images";
 import { accountSnapshot, purge } from "./seed";
 import { assertLocalTargets } from "./target-guard";
 
@@ -68,11 +69,16 @@ const { POST: proposePOST } = await import("@/app/api/log/propose/route");
 const { POST: coachPOST } = await import("@/app/api/coach/route");
 const { POST: inspirePOST } = await import("@/app/api/plan/inspire/route");
 const { POST: documentPOST } = await import("@/app/api/plan/document/route");
+const { POST: pantryPhotoPOST } = await import("@/app/api/pantry/photo/route");
+const { POST: pantryPhotoConfirmPOST } = await import("@/app/api/pantry/photo/confirm/route");
 const { resetRateLimits } = await import("@/lib/server/ratelimit");
 
 const CANARY = `canary-${crypto.randomUUID()}`;
 const B_AI_CALLS = 3;
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+// W12-F: /api/plan/inspire now strips metadata server-side before any provider call
+// (lib/media/strip-metadata.ts), so B's own "control" read needs a fully well-formed JPEG, not a
+// signature-only stub.
+const JPEG: Uint8Array<ArrayBuffer> = new Uint8Array(syntheticJpeg());
 
 async function insert(table: string, row: Record<string, unknown>): Promise<void> {
   const { error } = await adminClient().from(table).insert(row);
@@ -111,6 +117,11 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB)("media and capture routes answer only fo
       assertLocalTargets();
       pointRequestClientAtBranch();
       [a, b] = await Promise.all([ensureUser("a"), ensureUser("b")]);
+      // The pantry-photo routes gate on requireRecipeUser (the shopping-pilot allowlist); this
+      // stack's SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL aren't set (only the SUPABASE_TEST_* vars
+      // tests/helpers/supabase.ts reads), so recipeAccessEnabled's local-host fallback never
+      // fires — list both canary users explicitly.
+      vi.stubEnv("RECIPE_PLANNING_USER_IDS", `${a.id},${b.id}`);
       await purge([a.id, b.id]);
       const clients: SupabaseClient[] = await Promise.all([userClient(a), userClient(b)]);
       [aCookie, bCookie] = await Promise.all(clients.map((c) => sessionCookieFor(c)));
@@ -211,6 +222,38 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB)("media and capture routes answer only fo
       expect(forA.status).toBe(403);
       expect(await forA.text()).not.toContain(CANARY);
       expect(modelCalls).toEqual([]);
+      expect(accountSnapshot(b.id)).toEqual(before);
+    });
+
+    it("pantry photo: A cannot draft from B's photo; the model is never called for it", async () => {
+      const forB = await pantryPhotoPOST(req("/api/pantry/photo", bCookie, { mediaPath: bPhoto }));
+      expect(forB.status).toBe(200);   // control: B passes the ownership check
+      modelCalls.length = 0;
+      const before = accountSnapshot(b.id);
+      const forA = await pantryPhotoPOST(req("/api/pantry/photo", aCookie, { mediaPath: bPhoto }));
+      expect(forA.status).toBe(403);
+      expect(await forA.text()).not.toContain(CANARY);
+      expect(modelCalls).toEqual([]);
+      expect(accountSnapshot(b.id)).toEqual(before);
+    });
+
+    it("pantry photo confirm: A's confirmed items never create or touch B's pantry rows", async () => {
+      const bItem = `canary-pantry-${CANARY}`;
+      const forB = await pantryPhotoConfirmPOST(req("/api/pantry/photo/confirm", bCookie,
+        { requestId: crypto.randomUUID(), items: [{ name: bItem, grams: null }] }));
+      expect(forB.status).toBe(200);   // control: B's own confirm writes her own row
+      const bBody = await forB.json() as { items: { name: string }[] };
+      expect(bBody.items.map((item) => item.name)).toEqual([bItem]);
+
+      const before = accountSnapshot(b.id);
+      const forA = await pantryPhotoConfirmPOST(req("/api/pantry/photo/confirm", aCookie,
+        { requestId: crypto.randomUUID(), items: [{ name: "canary-pantry-a-own", grams: 200 }] }));
+      expect(forA.status).toBe(200);
+      const aBody = await forA.text();
+      expect(aBody).not.toContain(bItem);
+      expect(JSON.parse(aBody).items.map((item: { name: string }) => item.name))
+        .toEqual(["canary-pantry-a-own"]);
+      // B's row is byte-for-byte unchanged: A's confirm neither wrote into it nor read it back.
       expect(accountSnapshot(b.id)).toEqual(before);
     });
 
