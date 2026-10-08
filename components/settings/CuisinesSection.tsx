@@ -1,21 +1,122 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pill } from "@/components/Sheet";
 import CuisineChips, { cuisineCount } from "@/components/CuisineChips";
-import ActionFeedbackToast from "@/components/ui/ActionFeedback";
+import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import GlassSelect from "@/components/ui/GlassSelect";
 import TasteChipsField, { tasteDislikeLabel } from "@/components/profile/TasteChipsField";
+// Followups #1 (CONTRACT fu-backend, coord.md): the backend lane is adding this helper beside
+// lib/profile/prefs-client.ts (same POST/JSON/readJson pattern as requestTasteChips). It is NOT
+// on this branch yet — see the PR report's cross-branch-imports list. Expected shape:
+// removeTasteDislike(key) mints and keeps its own actionId (reused on a retry of the SAME key),
+// resolving to an outcome whose `.result` is `{ status, actionId, key, settings }` on success and
+// rejecting with an outcome whose `.reason`/`.message` describe the failure (offline/retry/refused
+// — same family as `TasteWriteOutcome` in lib/profile/taste-confirm-client.ts);
+// undoRemoveTasteDislike(actionId) resolves the same way to `{ status, actionId, key, restored,
+// capped, settings }`.
+import { removeTasteDislike, undoRemoveTasteDislike } from "@/lib/profile/taste-dislike-remove-client";
 import { countryFromValue, countryOptions, countryValue } from "@/lib/profile/countries";
 import { cuisinesFrom, type CuisineKey } from "@/lib/profile/cuisines";
 import { savePlaceSetting, type PlacePatch } from "@/lib/profile/cuisines-client";
 import { readTasteChipsEnabled, type TasteChipsAvailability } from "@/lib/profile/taste-enabled-client";
+import type { TasteDislike } from "@/lib/profile/taste";
 import type { ProfileDietPrefs } from "@/lib/sync/user-settings";
 import type { Settings } from "@/lib/types";
 import Card from "./Card";
 import SettingsSection from "./Section";
 import { CAPTION, FIELD_LABEL } from "./settings-styles";
 import { useSettingsWrite } from "./use-settings-write";
+
+/** Duck-typed against the same outcome family `lib/profile/taste-confirm-client.ts`'s
+ *  `TasteWriteOutcome` already uses (offline/retry/refused), rather than importing that helper's
+ *  own (not-yet-landed) type name directly. */
+function dislikeRemoveFailureMessage(error: unknown): string {
+  const outcome = error as { ok?: boolean; reason?: string; message?: string } | null | undefined;
+  if (outcome && outcome.ok === false) {
+    if (outcome.reason === "offline") return "This waits for a connection.";
+    if (outcome.reason === "retry") return outcome.message || "No connection. Try again.";
+    if (outcome.reason === "refused") return outcome.message || "That did not save. Try again.";
+  }
+  return "That did not save. Try again.";
+}
+
+/**
+ * One dislike pill with its own remove control (Followups #1). Removing calls the owner-scoped,
+ * idempotent remove route; a success offers Undo, which restores EXACTLY what this action took
+ * off (the server's own receipt) — never a locally-reconstructed list. Pending and removed states
+ * hide the pill at once rather than leaving a stale one up while the write is in flight, since a
+ * second tap on the same key before the first settles would otherwise race.
+ */
+function DislikePill({ dislikeKey }: { dislikeKey: TasteDislike }) {
+  const feedback = useActionFeedback();
+  const [hidden, setHidden] = useState(false);
+  if (hidden) return null;
+
+  function onRemove() {
+    // The helper mints and owns the actionId for this tap (a retry of this same key reuses it
+    // internally); the resolved result carries it back, which is all this component needs to wire
+    // up Undo.
+    const sent = removeTasteDislike(dislikeKey).then((outcome) => {
+      if (outcome.ok) return outcome.result;
+      throw outcome;
+    });
+    sent.catch(() => {});
+    void feedback.run(() => sent, {
+      kind: "commit",
+      confirm: "notice",
+      failureMessage: dislikeRemoveFailureMessage,
+    }).then((result) => {
+      if (!result.ok) return;
+      setHidden(true);
+      feedback.notify({
+        tone: "success", message: "Removed.",
+        action: { label: "Undo", action: () => onUndo(result.value.actionId) },
+      });
+    });
+  }
+
+  function onUndo(actionId: string) {
+    const sent = undoRemoveTasteDislike(actionId).then((outcome) => {
+      if (outcome.ok) return outcome.result;
+      throw outcome;
+    });
+    sent.catch(() => {});
+    void feedback.run(() => sent, {
+      kind: "commit",
+      confirm: "notice",
+      failureMessage: dislikeRemoveFailureMessage,
+    }).then((result) => {
+      if (!result.ok) return;
+      // `restored` is the server's own word for whether the key is actually back; `capped` means
+      // it would have been but the account hit the 50-dislike limit from something else since.
+      // Neither is reliable on an `already_undone` repeat (it answers the FIRST undo's values),
+      // but this component only ever sends one undo per action id, so that path is not reached.
+      if (result.value.restored) {
+        setHidden(false);
+        feedback.notify({ tone: "success", message: "Back." });
+      } else if (result.value.capped) {
+        feedback.notify({ tone: "changed", message: "Couldn't bring that back — the limit is reached." });
+      }
+    });
+  }
+
+  const label = tasteDislikeLabel(dislikeKey);
+  return (
+    <div className="pill inline-flex items-center overflow-hidden">
+      <span className="flex h-11 items-center rounded-l-full px-4 text-tiny font-normal text-on-primary"
+        style={{ background: "var(--grad-ink)" }}>
+        {label}
+      </span>
+      <button type="button" aria-label={`Remove ${label} from your taste dislikes`}
+        disabled={feedback.phase === "pending"} onClick={onRemove}
+        className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-r-full text-on-primary disabled:opacity-40"
+        style={{ background: "var(--grad-ink)" }}>
+        ×
+      </button>
+      <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
+    </div>
+  );
+}
 
 /**
  * Settings › Cuisines and country (Phase 18 W5): both optional and shown to every account. Up to 6
@@ -86,11 +187,7 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
             </span>
             {dislikes.length > 0 && (
               <div role="group" aria-label="Your current taste dislikes" className="flex flex-wrap gap-2">
-                {dislikes.map((key) => (
-                  // Read-only (UI-NEEDS: the confirm/undo contract has no path to remove one stored
-                  // dislike outside the Undo of the confirm action that added it — see the PR report).
-                  <Pill key={key} active disabled onClick={() => {}}>{tasteDislikeLabel(key)}</Pill>
-                ))}
+                {dislikes.map((key) => <DislikePill key={key} dislikeKey={key} />)}
               </div>
             )}
             <TasteChipsField source="settings" availability={tasteChipsAvailable}

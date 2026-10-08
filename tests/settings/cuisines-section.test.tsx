@@ -18,6 +18,14 @@ const taste = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/profile/taste-enabled-client", () => ({ readTasteChipsEnabled: taste.enabled }));
 vi.mock("@/lib/profile/prefs-client", () => ({ requestTasteChips: taste.request }));
+// Followups #1 (CONTRACT fu-backend, coord.md): not on this branch yet — the backend lane is
+// adding this helper beside lib/profile/prefs-client.ts. Mocked here so this suite exercises the
+// read-only-pill rendering and the remove control without depending on that module's landing;
+// the write path itself is covered once the real helper is in (see the PR report).
+const dislikeRemove = vi.hoisted(() => ({ remove: vi.fn(), undo: vi.fn() }));
+vi.mock("@/lib/profile/taste-dislike-remove-client", () => ({
+  removeTasteDislike: dislikeRemove.remove, undoRemoveTasteDislike: dislikeRemove.undo,
+}));
 // A plain select stands in for the kit's picker, which these tests do not exercise.
 vi.mock("@/components/ui/GlassSelect", () => ({
   default: ({ value, onChange, options, "aria-label": label }: {
