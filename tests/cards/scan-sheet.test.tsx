@@ -174,3 +174,38 @@ describe("ScanConfirmSheet's three answers", () => {
     expect(screen.getByText("Search for it by what is on the pack.")).toBeTruthy();
   });
 });
+
+/** UI audit 2026-10-07 (scan BLOCK + C3): a late lookup after close, and the camera while hidden. */
+describe("BarcodeScanSheet's lifecycle", () => {
+  it("drops a lookup that settles after the sheet has closed", async () => {
+    let answer!: (value: unknown) => void;
+    scanGtin.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    const onResolved = vi.fn();
+    const view = render(<BarcodeScanSheet onResolved={onResolved} onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy());
+    await readTwice();
+    view.unmount();
+    await act(async () => { answer({ status: "not_found", gtin14: "05000000000000" }); });
+    expect(onResolved).not.toHaveBeenCalled();
+  });
+
+  it("lets the camera go while the page is hidden and takes it back when shown", async () => {
+    const stops: number[] = [];
+    let opened = 0;
+    camera(async () => {
+      opened += 1;
+      const track = { stop: () => { stops.push(opened); }, getCapabilities: () => ({}), applyConstraints: async () => {} };
+      return { getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream;
+    });
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    sheet();
+    await waitFor(() => expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy());
+    visibility.mockReturnValue("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(stops).toEqual([1]);
+    visibility.mockReturnValue("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    await waitFor(() => expect(opened).toBe(2));
+    visibility.mockRestore();
+  });
+});

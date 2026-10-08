@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsPresent } from "motion/react";
 import Sheet from "@/components/Sheet";
 import type { BarcodeResponse, ScanReply } from "@/lib/barcode/client";
 import { resolveScan } from "@/lib/barcode/resolve-scan";
@@ -40,6 +41,12 @@ export default function BarcodeScanSheet({
   /** This scan's own timing run: two scans in a session are two taps, never one row set. */
   const runRef = useRef<TimingRun | null>(null);
   const [phase, setPhase] = useState<Phase>("starting");
+  // A lookup that settles after the sheet has left (closed, unmounted, or exiting while another
+  // scan opens) belongs to nothing on screen: its answer is dropped, never handed to the page.
+  const present = useIsPresent();
+  const here = useRef(true);
+  useEffect(() => { here.current = present; }, [present]);
+  useEffect(() => () => { here.current = false; }, []);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
 
@@ -52,6 +59,7 @@ export default function BarcodeScanSheet({
       if (h === null) { busyRef.current = false; return; }
       const run = runRef.current ?? undefined;
       const outcome = await resolveScan(h, gtin, hint, run);
+      if (!here.current) return;
       if (outcome.kind === "resolved") { onResolved(outcome.response, run); return; }
       busyRef.current = false;
       if (outcome.kind === "unreadable") setPhase("unreadable");
@@ -103,11 +111,12 @@ export default function BarcodeScanSheet({
     worker.addEventListener("message", (e: MessageEvent<ScanReply>) => onReplyRef.current(e.data));
 
     /* Camera permission is asked at the scan tap, never at app load, and is never required to
-       log (spec "Security"). */
-    void navigator.mediaDevices
+       log (spec "Security"). A hidden page lets the camera go and takes it back when shown. */
+    const start = (): void => { void navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } })
       .then((stream) => {
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        // Closed, or hidden while the camera was being asked for: let it go (a show starts it again).
+        if (cancelled || document.visibilityState === "hidden") { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities?.() as { torch?: boolean } | undefined;
@@ -137,13 +146,25 @@ export default function BarcodeScanSheet({
         };
         raf = requestAnimationFrame(tick);
       })
-      .catch(() => setPhase("denied"));
+      .catch(() => { if (!cancelled) setPhase("denied"); }); };
+    const stop = (): void => {
+      cancelAnimationFrame(raf);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setTorchOn(false);
+    };
+    const onVisibility = (): void => {
+      if (document.visibilityState === "hidden") stop();
+      else if (!streamRef.current && !busyRef.current) { setPhase("starting"); start(); }
+    };
+    start();
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
       worker.terminate();
-      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
