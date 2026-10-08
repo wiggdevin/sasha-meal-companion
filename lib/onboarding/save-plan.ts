@@ -49,7 +49,10 @@ import {
   persistCompletedOnboarding, retryOnboardingConstraints,
 } from "@/lib/profile/onboarding-client";
 import type { OnboardingState } from "@/lib/profile/onboarding-state";
-import { safetyConditionEntries, type SafetyAnswers } from "@/lib/profile/rate-eligibility";
+import {
+  AdultOnlyError, safetyConditionEntries, type SafetyAnswers,
+} from "@/lib/profile/rate-eligibility";
+import { TargetSaveRefusedError } from "@/lib/targets/client";
 import { flushOutboxNow } from "@/lib/sync/client";
 import type { Settings } from "@/lib/types";
 
@@ -75,7 +78,22 @@ export type SaveOnboardingPlanInput = {
 
 export type SaveOnboardingPlanResult =
   | { ok: true }
-  | { ok: false; error: string };
+  /** `code` names a server refusal the shell routes on: `adult_only` (under 18, no plan) or
+   *  `rate_not_eligible` (the account's stored answers hold the pace). */
+  | { ok: false; error: string; code?: SavePlanRefusal };
+
+export type SavePlanRefusal = "adult_only" | "rate_not_eligible";
+
+export const RATE_NOT_ELIGIBLE_ERROR =
+  "Your saved health answers keep your calories about where you burn, so there's no pace to set. Tap Use this plan again.";
+
+function refusal(error: unknown): { error: string; code: SavePlanRefusal } | null {
+  if (error instanceof AdultOnlyError) return { error: error.message, code: "adult_only" };
+  if (!(error instanceof TargetSaveRefusedError)) return null;
+  if (error.code === "adult_only") return { error: new AdultOnlyError().message, code: "adult_only" };
+  if (error.code === "rate_not_eligible") return { error: RATE_NOT_ELIGIBLE_ERROR, code: "rate_not_eligible" };
+  return null;
+}
 
 export type SaveOnboardingPlanDeps = {
   persistPlan: typeof persistCompletedOnboarding;
@@ -169,6 +187,8 @@ export async function saveOnboardingPlan(
     if (mirrored === null) return { ok: false, error: ONBOARDING_SYNC_WARNING };
     return { ok: true };
   } catch (error) {
+    const refused = refusal(error);
+    if (refused) return { ok: false, ...refused };
     return { ok: false, error: error instanceof Error ? error.message : ONBOARDING_SYNC_WARNING };
   }
 }

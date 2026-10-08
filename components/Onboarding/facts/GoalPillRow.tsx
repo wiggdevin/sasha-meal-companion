@@ -14,10 +14,11 @@ import { CHIP_FILL } from "@/components/Onboarding/facts/chip-fill";
 import type { Goal } from "@/components/Onboarding/facts/types";
 
 const PILLS: { value: Goal; label: string }[] = [
-  { value: "lose_fat", label: "Lose fat" },
-  { value: "maintain", label: "Keep what I have" },
+  // Question set v2 (V8): the reviewed wording.
+  { value: "lose_fat", label: "Lose weight" },
   { value: "gain_muscle", label: "Build muscle" },
-  { value: "recomp", label: "Both at once" },
+  { value: "recomp", label: "Lose fat and build muscle" },
+  { value: "maintain", label: "Keep my weight" },
 ];
 
 export function GoalPillRow({
@@ -33,7 +34,7 @@ export function GoalPillRow({
   return (
     <div className="flex w-full flex-col gap-3">
       <p className="m-0 font-serif text-heading-sm text-charcoal">
-        {question ?? <>Hey. I&rsquo;m {APP_NAME}. What would feel different in eight weeks?</>}
+        {question ?? <>Hey. I&rsquo;m {APP_NAME}. What&rsquo;s your main goal right now?</>}
       </p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Goal">
         {PILLS.map((pill) => (

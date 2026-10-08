@@ -44,10 +44,10 @@ export type FactAnswer =
 /** The question text for each field, also the editor's visible label. */
 export const QUESTION: Partial<Record<OnboardingFactKey, string>> = {
   birthYear: "How old are you?",
-  sex: "Male or female? It sets the math.",
+  sex: "For the calorie math: male, female, or prefer not to say?",
   heightCm: "How tall are you?",
-  weightKg: "What do you weigh right now?",
-  goal: "What’s your goal?",
+  weightKg: "What do you weigh now?",
+  goal: "What’s your main goal right now?",
 };
 
 function Question({ id, children }: { id?: string; children: ReactNode }) {

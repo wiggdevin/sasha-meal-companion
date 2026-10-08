@@ -16,6 +16,7 @@ import { defaultSettings } from "@/lib/store";
 import { saveOnboardingPlan, type SaveOnboardingPlanDeps } from "@/lib/onboarding/save-plan";
 import { CONSTRAINT_SAVE_WARNING } from "@/lib/profile/onboarding-client";
 import { STARTER_RULE_CHANGED_ERROR } from "@/lib/foods/starter-client";
+import { TargetSaveRefusedError } from "@/lib/targets/client";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const rules = { avoid_allergens: [], avoid_food_ref_ids: [], banned_categories: [], conditions: [], notes: null };
@@ -138,5 +139,20 @@ describe("saveOnboardingPlan", () => {
     expect(call[4]).toEqual({ pregnancy: "pregnant" });
     expect(deps.retryConstraints).not.toHaveBeenCalled();
     expect(deps.flushOutbox).not.toHaveBeenCalled();
+  });
+
+  it("names the server's 422 adult_only and 409 rate_not_eligible refusals so the shell can route", async () => {
+    const adult = await saveOnboardingPlan({
+      settings: defaultSettings(), onboardingState: createOnboardingState(defaultSettings()),
+    }, baseDeps({ persistPlan: vi.fn(async () => { throw new TargetSaveRefusedError(422, "adult_only"); }) }));
+    expect(adult).toMatchObject({ ok: false, code: "adult_only" });
+    const held = await saveOnboardingPlan({
+      settings: defaultSettings(), onboardingState: createOnboardingState(defaultSettings()),
+    }, baseDeps({ persistPlan: vi.fn(async () => { throw new TargetSaveRefusedError(409, "rate_not_eligible"); }) }));
+    expect(held).toMatchObject({ ok: false, code: "rate_not_eligible" });
+    const other = await saveOnboardingPlan({
+      settings: defaultSettings(), onboardingState: createOnboardingState(defaultSettings()),
+    }, baseDeps({ persistPlan: vi.fn(async () => { throw new TargetSaveRefusedError(400, "bad_request"); }) }));
+    expect(other).toEqual({ ok: false, error: "save targets failed: 400" });
   });
 });

@@ -10,13 +10,13 @@ import { IDBFactory } from "fake-indexeddb";
  * GPT-6 Sol review (2026-10-07, two rounds, lane 2) added most of the beat-sequencing cases here:
  * a real default exit instead of a silent no-op, a reward confirm that actually finishes instead
  * of looping on itself and is honestly labelled when it has nothing real to save, a safety beat
- * that only advances on "No, nothing" or a confirmed rule review, and a leave that only navigates
+ * that only advances on "No, none of these" or a confirmed rule review, and a leave that only navigates
  * once the account's sync gate actually holds. Lane 5 (2026-10-07) replaced the lane-2 placeholder
  * assertions for safety/foods/reward with the real wired content, and added the write-path cases.
  * The stream's beat change is sequential (`AnimatePresence mode="wait"`), so a test after a
  * beat-changing click awaits the new beat's own content.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MotionConfig } from "motion/react";
 import { defaultSettings } from "@/lib/store";
@@ -29,14 +29,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 const loadOnboardingSettings = vi.fn(async () => defaultSettings());
 const persistSkippedOnboarding = vi.fn(async (_base: unknown) => defaultSettings());
 const persistCompletedOnboarding = vi.fn(
-  async (_settings: unknown, _state: unknown) => ({ settings: defaultSettings(), constraintsSaved: true }));
+  async (_settings: unknown, _state: unknown, _safety?: unknown) =>
+    ({ settings: defaultSettings(), constraintsSaved: true }));
 const mirroredOnboardedAt = vi.fn(async (): Promise<string | null> => "2026-10-07T00:00:00.000Z");
 const retryOnboardingConstraints = vi.fn(async (_flags: unknown) => true);
 vi.mock("@/lib/profile/onboarding-client", () => ({
   loadOnboardingSettings: () => loadOnboardingSettings(),
   persistSkippedOnboarding: (base: unknown) => persistSkippedOnboarding(base),
-  persistCompletedOnboarding: (settings: unknown, state: unknown) =>
-    persistCompletedOnboarding(settings, state),
+  persistCompletedOnboarding: (settings: unknown, state: unknown, _now?: unknown, _deps?: unknown,
+    safety?: unknown) => persistCompletedOnboarding(settings, state, safety),
   mirroredOnboardedAt: () => mirroredOnboardedAt(),
   retryOnboardingConstraints: (flags: unknown) => retryOnboardingConstraints(flags),
   ONBOARDING_SYNC_WARNING: "Your setup could not be saved to your account — check your connection and try again",
@@ -84,13 +85,15 @@ const persistStarterSelection = vi.fn(async (_marks: unknown, _choices: unknown)
 /** `saveOnboardingPlan` (lib/onboarding/save-plan.ts, tested in its own suite) stood in by its
  *  contract: it calls the shell's `persistPlan`/`retryConstraints` deps, writes the foods, drains. */
 type SaveDeps = {
-  persistPlan: (settings: unknown, state: unknown) => Promise<{ constraintsSaved: boolean }>;
+  persistPlan: (settings: unknown, state: unknown, now?: unknown, deps?: unknown, safety?: unknown)
+    => Promise<{ constraintsSaved: boolean }>;
   retryConstraints: (flags: unknown) => Promise<boolean>;
 };
 const saveOnboardingPlan = vi.fn(async (input: {
   settings: unknown; onboardingState: { flags: unknown }; starter?: { marks: unknown } | null;
+  safety?: unknown;
 }, deps: SaveDeps) => {
-  const written = await deps.persistPlan(input.settings, input.onboardingState);
+  const written = await deps.persistPlan(input.settings, input.onboardingState, undefined, undefined, input.safety);
   if (!written.constraintsSaved && !await deps.retryConstraints(input.onboardingState.flags)) {
     return { ok: false as const, error: "Your allergen rules could not be saved — retry from Foods › Avoids" };
   }
@@ -102,6 +105,7 @@ const saveOnboardingPlan = vi.fn(async (input: {
 });
 vi.mock("@/lib/onboarding/save-plan", () => ({
   saveOnboardingPlan: (input: never, deps: never) => saveOnboardingPlan(input, deps),
+  RATE_NOT_ELIGIBLE_ERROR: "Your saved health answers keep your calories about where you burn, so there's no pace to set. Tap Use this plan again.",
 }));
 
 beforeEach(() => {
@@ -110,6 +114,7 @@ beforeEach(() => {
   starterFixture.choices = null;
   starterFixture.marks = {};
   starterFixture.error = null;
+  starterSpies.reread.mockImplementation(async () => starterFixture.choices);
 });
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
@@ -117,8 +122,8 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 /** Answers every required question the facts beat asks after the goal, one at a time, in US
  *  units (age, sex, height in ft/in, weight in lb). "That's me" only appears once all of them are
  *  confirmed (GPT-6 Sol round-1 BLOCK; live QA 2026-10-07). */
-async function fillRemainingRequiredFacts(): Promise<void> {
-  fireEvent.change(await screen.findByLabelText("Age"), { target: { value: "34" } });
+async function fillRemainingRequiredFacts(age = "34"): Promise<void> {
+  fireEvent.change(await screen.findByLabelText("Age"), { target: { value: age } });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(await screen.findByRole("button", { name: "Prefer not to say" }));
   fireEvent.change(await screen.findByLabelText("Feet"), { target: { value: "5" } });
@@ -129,13 +134,23 @@ async function fillRemainingRequiredFacts(): Promise<void> {
   await screen.findByRole("button", { name: "That’s me" });
 }
 
+/** The question-set beats between "That's me" and the foods beat (QUESTION-SET-v2.md §6): the
+ *  week (skipped), the safety round ("No, none of these"), the pace (the pre-selected chip), and
+ *  "Your day" (accepted as pre-filled). Awaits each sequential stream swap. */
+async function passPlanBeats(): Promise<void> {
+  fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+  fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
+  await screen.findByTestId("pace-beat");
+  fireEvent.click(screen.getByRole("button", { name: /^(Use |Next)/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
+}
+
 /** Walks the default flow to the reward beat, awaiting each sequential stream swap. */
 async function reachReward(): Promise<void> {
-  fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts
+  fireEvent.click(screen.getByRole("button", { name: "Lose weight" })); // -> facts
   await fillRemainingRequiredFacts();
-  fireEvent.click(screen.getByRole("button", { name: "That’s me" })); // -> safety
-  await screen.findByTestId("allergy-condition-gate");
-  fireEvent.click(screen.getByRole("button", { name: "No, nothing" })); // -> foods
+  fireEvent.click(screen.getByRole("button", { name: "That’s me" })); // -> week
+  await passPlanBeats(); // -> foods
   await screen.findByRole("button", { name: "Sprout, pick for me" });
   fireEvent.click(screen.getByRole("button", { name: "Sprout, pick for me" })); // -> reward
   // Every required body fact was answered above, so the preview-target computation already has
@@ -154,7 +169,7 @@ describe("ConversationalOnboarding", () => {
 
   it("opens on the goal question with Sprout listening, no progress bar, no header", () => {
     render(<ConversationalOnboarding />);
-    screen.getByText(/What would feel different in eight weeks\?/);
+    screen.getByText(/What’s your main goal right now\?/);
     expect(screen.queryByRole("progressbar")).toBeNull();
     // Live QA 2026-10-07: the dock is a working text composer, never an empty box.
     screen.getByRole("textbox", { name: "Tell Sasha" });
@@ -169,13 +184,16 @@ describe("ConversationalOnboarding", () => {
       return dock.querySelectorAll("[data-dock-live] button, [data-dock-live] textarea").length;
     };
     expect(dockControls()).toBeGreaterThan(0); // opener: the composer
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     await screen.findByText("How old are you?");
     expect(dockControls()).toBeGreaterThan(0); // facts: the composer
     await fillRemainingRequiredFacts();
     fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
-    await screen.findByTestId("allergy-condition-gate");
-    await vi.waitFor(() => expect(dockControls()).toBeNull()); // safety: no dock
+    await screen.findByTestId("week-beat");
+    await vi.waitFor(() => expect(dockControls()).toBeNull()); // week: no dock, its own buttons
+    fireEvent.click(screen.getByRole("button", { name: "Skip this" }));
+    await screen.findByTestId("safety-round");
+    expect(dockControls()).toBeNull(); // safety: no dock
     expect(container.querySelector('[data-empty="true"]')).toBeNull();
   });
 
@@ -202,9 +220,9 @@ describe("ConversationalOnboarding", () => {
     render(<ConversationalOnboarding />);
     fireEvent.change(screen.getByRole("textbox", { name: "Tell Sasha" }), { target: { value: "I have a peanut allergy" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await screen.findByTestId("allergy-condition-gate");
+    await screen.findByTestId("safety-round");
     screen.getByText(/health or allergy detail/);
-    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    fireEvent.click(screen.getByRole("button", { name: "No, none of these" }));
     // Nothing was answered yet, so the facts beat comes next (not foods).
     await screen.findByText("How old are you?");
   });
@@ -222,7 +240,7 @@ describe("ConversationalOnboarding", () => {
 
   it("renders a lane slot in place of its placeholder once one is supplied", async () => {
     render(<ConversationalOnboarding slots={{ factsSentence: <p>You&apos;re 34, born 1992.</p> }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     await screen.findByText("You're 34, born 1992.");
     expect(screen.queryByText(/facts sentence \(lane L3\)/)).toBeNull();
   });
@@ -254,16 +272,23 @@ describe("ConversationalOnboarding", () => {
   });
 
   it("renders the real allergy/condition card before any food UI, and advances only on"
-    + " its recognised 'No, nothing' answer, reporting every key tapped", async () => {
+    + " its recognised 'No, none of these' answer, reporting every key tapped", async () => {
     const onAllergyAnswer = vi.fn();
     render(<ConversationalOnboarding onAllergyAnswer={onAllergyAnswer} />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" })); // -> facts
     await fillRemainingRequiredFacts();
-    fireEvent.click(screen.getByRole("button", { name: "That’s me" })); // -> safety
-    await screen.findByTestId("allergy-condition-gate");
-    screen.getByText(/Anything you must never eat/);
-    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    fireEvent.click(screen.getByRole("button", { name: "That’s me" })); // -> week
+    fireEvent.click(await screen.findByRole("button", { name: "Skip this" })); // -> safety
+    await screen.findByTestId("safety-round");
+    screen.getByText(/does anything here apply to you/);
+    // Neither the pace screen nor any food UI shows before the safety round is answered.
+    expect(screen.queryByTestId("pace-beat")).toBeNull();
+    expect(screen.queryByText(/Checking your food rules/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "No, none of these" }));
     expect(onAllergyAnswer).toHaveBeenCalledWith("none");
+    await screen.findByTestId("pace-beat");
+    fireEvent.click(screen.getByRole("button", { name: /^(Use |Next)/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
     // Advanced past safety: the foods beat's own notice is showing (the fixture's "unavailable"
     // status) — awaited directly, since the dock's own escape chip switches mode a beat ahead of
     // the stream's sequential swap and would resolve this `findBy` too early otherwise.
@@ -275,11 +300,10 @@ describe("ConversationalOnboarding", () => {
     foodAccess.status = "pilot";
     starterFixture.choices = [{ id: "chicken-breast-roasted", role: "protein" }];
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     await fillRemainingRequiredFacts();
     fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
-    fireEvent.click(await screen.findByTestId("allergy-condition-gate")
-      && screen.getByRole("button", { name: "No, nothing" }));
+    await passPlanBeats();
     await screen.findByTestId("foods-top-pick-chips");
   });
 
@@ -287,11 +311,10 @@ describe("ConversationalOnboarding", () => {
     foodAccess.status = "legacy";
     starterFixture.choices = [{ id: "chicken-breast-roasted", role: "protein" }];
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     await fillRemainingRequiredFacts();
     fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
-    fireEvent.click(await screen.findByTestId("allergy-condition-gate")
-      && screen.getByRole("button", { name: "No, nothing" }));
+    await passPlanBeats();
     await screen.findByTestId("falling-food-pile");
   });
 
@@ -349,10 +372,9 @@ describe("ConversationalOnboarding", () => {
     await saveOnboardingDraft({ beat: "opener",
       settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
-    await screen.findByTestId("allergy-condition-gate");
-    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    await passPlanBeats();
     // Every group already has its two, so the dock offers Done (with the count), not pick-for-me.
     fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
     const confirm = await screen.findByRole("button", { name: "Use this plan" });
@@ -383,10 +405,9 @@ describe("ConversationalOnboarding", () => {
     await saveOnboardingDraft({ beat: "opener",
       settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
-    await screen.findByTestId("allergy-condition-gate");
-    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    await passPlanBeats();
     fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
     fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
     // The first attempt fails on constraints (profile already written); a retry must not call
@@ -411,10 +432,9 @@ describe("ConversationalOnboarding", () => {
     await saveOnboardingDraft({ beat: "opener",
       settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
-    await screen.findByTestId("allergy-condition-gate");
-    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    await passPlanBeats();
     fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
     // The reread happens before the beat advances to the reward card, not after.
     await vi.waitFor(() => expect(starterSpies.reread).toHaveBeenCalledTimes(1));
@@ -438,10 +458,9 @@ describe("ConversationalOnboarding", () => {
     await saveOnboardingDraft({ beat: "opener",
       settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
     fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
-    await screen.findByTestId("allergy-condition-gate");
-    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    await passPlanBeats();
     fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
     await screen.findByRole("alert");
     expect(screen.queryByRole("button", { name: "Use this plan" })).toBeNull();
@@ -449,7 +468,7 @@ describe("ConversationalOnboarding", () => {
 
   it("asks each missing fact as one plain question in US units, then offers That's me", async () => {
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts, goal filled
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" })); // -> facts, goal filled
     await screen.findByText("How old are you?");
     expect(screen.queryByText(/add this|and now\?|how old\?|\(cm\)|\(kg\)/)).toBeNull();
     await fillRemainingRequiredFacts();
@@ -463,7 +482,7 @@ describe("ConversationalOnboarding", () => {
   it("never drafts a typed guess as if it were answered (GPT-6 Sol round-3 BLOCK: a resumed"
     + " draft restores every saved field at HIGH confidence)", async () => {
     render(<ConversationalOnboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts, goal confirmed
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" })); // -> facts, goal confirmed
     await screen.findByText("How old are you?");
     // A bare weight-looking number while age is asked is not an age; the fast path reads it as a
     // ghost guess at most, which must not be drafted.
@@ -478,7 +497,145 @@ describe("ConversationalOnboarding", () => {
 
   it("collapses the beat change to an instant swap under reduced motion", async () => {
     render(<MotionConfig reducedMotion="always"><ConversationalOnboarding /></MotionConfig>);
-    fireEvent.click(screen.getByRole("button", { name: "Keep what I have" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep my weight" }));
     await screen.findByText("How old are you?");
+  });
+
+  describe("question set v2 routing", () => {
+    /** Goal, then the body facts, then "That's me". */
+    async function toWeek(goal = "Lose weight", age = "34") {
+      fireEvent.click(screen.getByRole("button", { name: goal }));
+      await fillRemainingRequiredFacts(age);
+      fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
+    }
+
+    it("a lose user sees pace chips in lb a week, Steady pre-selected, after the safety round", async () => {
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
+      await screen.findByTestId("pace-beat");
+      screen.getByText("How fast do you want to lose?");
+      const pace = screen.queryByRole("radiogroup", { name: "Pace" });
+      const chips = pace ? within(pace).getAllByRole("radio") : [];
+      // One chip left is a statement with Next; otherwise 2–3 chips, each in lb a week.
+      if (chips.length > 0) {
+        for (const chip of chips) expect(chip.textContent).toMatch(/lb a week/);
+        expect(chips.find((chip) => chip.getAttribute("aria-checked") === "true")?.textContent).toMatch(/Steady|Gentle|Faster/);
+      } else {
+        screen.getByText(/lb a week/);
+      }
+    });
+
+    it("a pregnant user never sees the pace screen; the plan card says why", async () => {
+      foodAccess.status = "legacy";
+      starterFixture.choices = [
+        { id: "chicken-breast-roasted", role: "protein", default: true },
+        { id: "white-rice-cooked", role: "carb", default: true },
+        { id: "olive-oil", role: "fat", default: true },
+      ] as never;
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      await screen.findByTestId("safety-round");
+      fireEvent.click(screen.getByRole("button", { name: "Pregnant or breastfeeding" }));
+      fireEvent.click(await screen.findByRole("radio", { name: "Pregnant" }));
+      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+      await screen.findByTestId("your-day-beat");
+      expect(screen.queryByTestId("pace-beat")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Looks right" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Sprout, pick for me" }));
+      const notes = await screen.findByTestId("plan-notes");
+      expect(notes.textContent).toMatch(/don't add pregnancy or breastfeeding needs/);
+      expect(notes.textContent).toMatch(/won't set a loss or gain pace/);
+    });
+
+    it("a minor stops: no week, no plan, and leaving saves no profile", async () => {
+      render(<ConversationalOnboarding />);
+      await toWeek("Lose weight", "16");
+      await screen.findByTestId("minor-stop");
+      screen.getByText(/plans are built for adults 18 and over/);
+      expect(screen.queryByTestId("week-beat")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Look around" }));
+      await vi.waitFor(() => expect(persistSkippedOnboarding).toHaveBeenCalledTimes(1));
+      expect(persistCompletedOnboarding).not.toHaveBeenCalled();
+      expect(saveOnboardingPlan).not.toHaveBeenCalled();
+    });
+
+    it("the plan card names every skipped default, with a Change link back to its beat", async () => {
+      render(<ConversationalOnboarding />);
+      await reachReward();
+      const notes = screen.getByTestId("plan-notes");
+      expect(notes.textContent).toMatch(/No workout days/);
+      expect(notes.textContent).toMatch(/Activity: Sedentary/);
+      expect(notes.textContent).toMatch(/meals a day, set from your calories/);
+      expect(notes.textContent).toMatch(/First meal at \d{1,2}:\d\d (AM|PM)/);
+      fireEvent.click(within(notes).getByRole("button", { name: /Change: No workout days/ }));
+      await screen.findByTestId("week-beat");
+    });
+
+    it("a server refusal under 18 (422 adult_only) shows the friendly stop, not an error", async () => {
+      foodAccess.status = "pilot";
+      starterFixture.choices = [
+        { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+        { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+        { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+      ];
+      starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+      saveOnboardingPlan.mockResolvedValueOnce({ ok: false, error: "adult", code: "adult_only" } as never);
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      await passPlanBeats();
+      fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
+      await screen.findByTestId("minor-stop");
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("a held pace from the server (409 rate_not_eligible) is explained, and the next tap saves", async () => {
+      foodAccess.status = "pilot";
+      starterFixture.choices = [
+        { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+        { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+        { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+      ];
+      starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+      saveOnboardingPlan.mockResolvedValueOnce({ ok: false, error: "held", code: "rate_not_eligible" } as never);
+      render(<ConversationalOnboarding />);
+      await toWeek();
+      await passPlanBeats();
+      fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+      await screen.findByTestId("reward-plate-ready");
+      fireEvent.click(screen.getByRole("button", { name: "Use this plan" }));
+      expect((await screen.findByRole("alert")).textContent).toMatch(/keep your calories about where you burn/);
+      expect((await screen.findByTestId("plan-notes")).textContent).toMatch(/keep calories about where you burn/);
+      fireEvent.click(screen.getByRole("button", { name: "Use this plan" }));
+      await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    });
+
+    it("sends the safety round with the plan, so conditions are written before the target", async () => {
+      foodAccess.status = "pilot";
+      starterFixture.choices = [
+        { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+        { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+        { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+      ];
+      starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+      render(<ConversationalOnboarding />);
+      await toWeek("Keep my weight");
+      fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
+      await screen.findByTestId("safety-round");
+      fireEvent.click(screen.getByRole("button", { name: "A diet a clinician set for me" }));
+      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
+      await vi.waitFor(() => expect(persistCompletedOnboarding).toHaveBeenCalledTimes(1));
+      expect(persistCompletedOnboarding.mock.calls[0][2]).toEqual(
+        { pregnancy: null, clinicianDiet: true, conditionText: null });
+      const state = persistCompletedOnboarding.mock.calls[0][1] as { countryCode?: string; activityLevel: string };
+      expect(state.countryCode).toBe("US");
+      expect(state.activityLevel).toBe("sedentary");
+    });
   });
 });

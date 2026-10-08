@@ -24,6 +24,8 @@ import Button from "@/components/ui/Button";
 import KcalText from "@/components/ui/KcalText";
 import type { Macros } from "@/lib/types";
 import type { PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
+import PlanNotes from "@/components/Onboarding/beats/PlanNotes";
+import type { PlanNote } from "@/components/Onboarding/v2/plan-answers";
 
 export type RewardPlateFood = { id: string; name: string; role: "protein" | "carb" | "fat" };
 
@@ -53,7 +55,8 @@ function MealRow({ meal }: { meal: PlanPreviewMeal }) {
   </li>;
 }
 
-export default function RewardPlateCard({ targets, lovedFoods, meals = [], showNumbers, onToggleNumbers }: {
+export default function RewardPlateCard({ targets, lovedFoods, meals = [], notes = [], onChangeNote,
+  showNumbers, onToggleNumbers }: {
   /** `null` while the preview is still being derived (missing a required fact this card cannot
    *  fix) — renders the "preparing" state rather than a crash or a stale number. */
   targets: RewardPlateTargets | null;
@@ -61,6 +64,9 @@ export default function RewardPlateCard({ targets, lovedFoods, meals = [], showN
   lovedFoods: readonly RewardPlateFood[];
   /** Today's first meals, exactly as Today will build them. */
   meals?: readonly PlanPreviewMeal[];
+  /** Question set v2 §6: every default the person did not choose, and every route note. */
+  notes?: readonly PlanNote[];
+  onChangeNote?: (beat: NonNullable<PlanNote["change"]>) => void;
   showNumbers: boolean;
   onToggleNumbers: () => void;
 }) {
@@ -94,6 +100,7 @@ export default function RewardPlateCard({ targets, lovedFoods, meals = [], showN
       {lovedFoods.map((food) => <li key={food.id}
         className="inline-flex min-h-9 items-center rounded-full bg-fog px-3 text-caption text-charcoal">{food.name}</li>)}
     </ul>}
+    <PlanNotes notes={notes} onChange={(beat) => onChangeNote?.(beat)} />
     <Button size="sm" variant="tertiary" className="self-start" aria-expanded={showNumbers}
       onClick={onToggleNumbers}>
       {showNumbers ? "Hide the numbers" : "See the numbers"}

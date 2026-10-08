@@ -6,7 +6,16 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotionConfig } from "m
 import Button from "@/components/ui/Button";
 import SproutGuide, { type OnboardingPose } from "@/components/Onboarding/SproutGuide";
 import OnboardingDock, { type OnboardingDockMode } from "@/components/Onboarding/dock/OnboardingDock";
-import AllergyConditionGate, { type AllergySafetyAnswer } from "@/components/Onboarding/AllergyConditionGate";
+import WeekBeat from "@/components/Onboarding/beats/WeekBeat";
+import SafetyRound, { type SafetyRoundResult } from "@/components/Onboarding/beats/SafetyRound";
+import PaceBeat from "@/components/Onboarding/beats/PaceBeat";
+import YourDayBeat from "@/components/Onboarding/beats/YourDayBeat";
+import MinorStop from "@/components/Onboarding/beats/MinorStop";
+import {
+  activityFor, eligibilityFor, emptyPlanAnswers, isMinor, paceBeatNeeded, planCardNotes,
+  safetyAnswersFrom, takesInsulin, trainingWeekdaysFor, type PlanAnswers, type PlanNote,
+} from "@/components/Onboarding/v2/plan-answers";
+import type { PlanStateAnswers } from "@/components/Onboarding/v2/facts-bridge";
 import FallingFoodPile from "@/components/Onboarding/FallingFoodPile";
 import FoodsTopPickChips from "@/components/Onboarding/FoodsTopPickChips";
 import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
@@ -33,9 +42,14 @@ import { starterSelectionValid } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
 import { starterFood } from "@/lib/foods/starter";
 import { onboardingPlanPreview, type PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
-import { saveOnboardingPlan } from "@/lib/onboarding/save-plan";
+import { RATE_NOT_ELIGIBLE_ERROR, saveOnboardingPlan } from "@/lib/onboarding/save-plan";
+import { energyProfileFrom, isProfileComplete } from "@/lib/profile/energy";
+import { paceChoices, LB_PER_KG, type PaceChoices } from "@/lib/profile/pace";
+import { validateRate } from "@/lib/profile/rate-goal";
+import type { TargetEligibility } from "@/lib/profile/rate-eligibility";
+import { ONBOARDING_COUNTRY_CHIP } from "@/lib/profile/onboarding-state";
 import { todayIso } from "@/lib/settings/date";
-import { mealCountFor } from "@/lib/plan";
+import { mealCountFor, resolveSlotTimes } from "@/lib/plan";
 import { accountHandle, onAccountGone, onAccountReady } from "@/lib/device/account";
 import {
   loadOnboardingSettings, mirroredOnboardedAt, ONBOARDING_SYNC_WARNING,
@@ -81,7 +95,8 @@ export const ONBOARDING_SCOPE = { kind: "page", page: "onboarding" } as const;
  * and the reward beat default to real content (lane 4's cards, this lane's own reward card and
  * write path) unless a caller overrides the slot — see `ConversationalOnboardingSlots`.
  */
-export type OnboardingBeat = "opener" | "facts" | "safety" | "foods" | "reward";
+export type OnboardingBeat =
+  | "opener" | "facts" | "minor" | "week" | "safety" | "pace" | "day" | "foods" | "reward";
 
 /** VISUAL-SPEC.md §2's hero-Sprout table, mapped onto this shell's five beats. "facts" is the one
  *  row the table itself splits in two — "Facts sentence playback" (`thinking`) vs. "Gap-fill
@@ -93,17 +108,22 @@ export type OnboardingBeat = "opener" | "facts" | "safety" | "foods" | "reward";
  *  never puts a target to either side — polish pass (2026-10-07), checked and intentionally not
  *  applied here; it only matters for a side-by-side layout this shell doesn't have. */
 const BEAT_POSE: Record<OnboardingBeat, OnboardingPose> = {
-  opener: "wave", facts: "thinking", safety: "content", foods: "content", reward: "joyful",
+  opener: "wave", facts: "thinking", minor: "content", week: "pointing", safety: "content",
+  pace: "pointing", day: "pointing", foods: "content", reward: "joyful",
 };
 /** VISUAL-SPEC.md §2's three large-Sprout sizes (96/120/140/168) — "Opener/greeting" and "Reward
  *  plate reveal" are the two rows that get a size other than the 96px baseline. */
 const BEAT_SIZE: Record<OnboardingBeat, number> = {
-  opener: 168, facts: 96, safety: 96, foods: 96, reward: 140,
+  opener: 168, facts: 96, minor: 120, week: 96, safety: 96, pace: 96, day: 96, foods: 96, reward: 140,
 };
 const BEAT_LINE: Record<OnboardingBeat, string> = {
   opener: "Sprout is listening for your goal.",
   facts: "Sprout is checking what it heard.",
-  safety: "Sprout is waiting for anything you must never eat.",
+  minor: "Sprout is saying hello. Plans start at 18.",
+  week: "Sprout is learning how your week moves.",
+  safety: "Sprout is checking what your plan must respect.",
+  pace: "Sprout is setting a pace your plan can keep.",
+  day: "Sprout is lining up your meal times.",
   foods: "Sprout is watching for what you love.",
   reward: "Sprout is showing the foods your plan is built from.",
 };
@@ -114,8 +134,43 @@ const BEAT_LINE: Record<OnboardingBeat, string> = {
  *  gets its escape or its Done, and reward its confirm. `null` hides the dock. A new beat (the
  *  planned goal follow-up) is one more row here. */
 const BEAT_DOCK: Record<OnboardingBeat, OnboardingDockMode | null> = {
-  opener: "mic", facts: "mic", safety: null, foods: "game", reward: "confirm",
+  opener: "mic", facts: "mic", minor: null, week: null, safety: null, pace: null, day: null,
+  foods: "game", reward: "confirm",
 };
+
+/** The beats after the body facts, in order (QUESTION-SET-v2.md §6). */
+const PLAN_ORDER = ["week", "safety", "pace", "day", "foods", "reward"] as const;
+type PlanBeat = (typeof PLAN_ORDER)[number];
+
+/** Noon UTC on a local YYYY-MM-DD, the derivation's own date convention. */
+function noonUtc(day: string): Date {
+  return new Date(`${day}T12:00:00.000Z`);
+}
+
+/** The pace screen's numbers for these answers (lib/profile/pace.ts); null until the body facts
+ *  and a goal are known. */
+function paceFor(settings: Settings | null, answers: PlanAnswers, eligibility: TargetEligibility,
+  today: string): PaceChoices | null {
+  if (!settings) return null;
+  const withActivity: Settings = { ...settings, activityLevel: activityFor(answers.week) };
+  if (!isProfileComplete(withActivity)) return null;
+  try {
+    const { goalRateBpWeek: _rate, ...profile } = energyProfileFrom(withActivity);
+    void _rate;
+    return paceChoices({ profile, today: noonUtc(today),
+      trainingDays: trainingWeekdaysFor(answers.week).length, eligibility });
+  } catch {
+    return null;
+  }
+}
+
+/** The pace the plan stores for these answers: the tapped preset, the direction guard's
+ *  gentlest preset, or none (recomp, maintain, a held account). */
+function storedPace(pace: PaceChoices | null, answers: PlanAnswers): number | null {
+  if (!pace || pace.kind === "none" || pace.kind === "held") return null;
+  if (answers.paceBp === null) return null;
+  return validateRate(pace.goal, answers.paceBp) ? answers.paceBp : null;
+}
 
 /** The composer's hint for whichever question is on screen. */
 const TYPE_HINT: Partial<Record<OnboardingFactKey, string>> = {
@@ -123,7 +178,8 @@ const TYPE_HINT: Partial<Record<OnboardingFactKey, string>> = {
   weightKg: "Or type it: 170", goal: "Or type it: lose fat",
 };
 const OPENER_HINT = "Or type it: lose fat, 34, 5 10, 170 lb";
-const BLOCKED_NOTE = "That sounds like a health or allergy detail. Add it here, so every plan respects it.";
+const BLOCKED_NOTE = "That sounds like a health or allergy detail. Tap what applies here, so every plan respects it.";
+const RULES_UNVERIFIED = "Couldn’t verify your food rules. Try again.";
 const UNREAD_NOTE = "Sprout didn’t catch that. Try a number, like 34 or 5 10, or tap an answer.";
 
 /** Clear extension points for a caller that wants to render something other than this lane's own
@@ -132,8 +188,8 @@ const UNREAD_NOTE = "Sprout didn’t catch that. Try a number, like 34 or 5 10, 
 export type ConversationalOnboardingSlots = {
   /** L3: the playback-sentence card (goal/sex/birth-year/height/weight, one "That's me" tap). */
   factsSentence?: ReactNode;
-  /** L4: the allergy/condition card ("No, nothing" as the largest chip). Defaults to
-   *  `AllergyConditionGate`, wired to this shell's own safety state and ONB2-RULE-REREAD. */
+  /** The safety round ("No, none of these" as the largest control). Defaults to `SafetyRound`
+   *  (question set v2 §1c), wired to this shell's routing and ONB2-RULE-REREAD. */
   allergyCard?: ReactNode;
   /** L4: the falling-food game (legacy accounts) or the pilot/open-world top-pick chips. Defaults
    *  to the real card, branched on the account's own `foodAccess.status`. */
@@ -229,8 +285,13 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [facts, setFacts] = useState<FactsLike>(emptyFacts());
   const [editingField, setEditingField] = useState<OnboardingFactKey | null>(null);
   const [base, setBase] = useState<Settings | null>(null);
-  const [safety, setSafety] = useState<{ confirmed: boolean; answer: AllergySafetyAnswer | null }>(
-    { confirmed: false, answer: null });
+  /** The question-set beats' answers after the body facts (week, safety, pace, your day). */
+  const [plan, setPlan] = useState<PlanAnswers>(emptyPlanAnswers());
+  /** Set while a beat was opened from the plan card's Change link: its Next returns there. */
+  const [returnToReward, setReturnToReward] = useState(false);
+  /** The server held the pace (`409 rate_not_eligible`): the plan card says so. */
+  const [serverHeld, setServerHeld] = useState(false);
+  const [checkingRules, setCheckingRules] = useState(false);
   const [showNumbers, setShowNumbers] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [saving, setSavingState] = useState<SavingState | null>(null);
@@ -292,7 +353,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setBase(null);
       setFacts(emptyFacts());
       setBeat("opener");
-      setSafety({ confirmed: false, answer: null });
+      setPlan(emptyPlanAnswers());
+      setReturnToReward(false);
+      setServerHeld(false);
       setEditingField(null);
       setDraftChecked(false);
       setShownFoodIds([]);
@@ -366,7 +429,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setBase(null);
       setFacts(emptyFacts());
       setBeat("opener");
-      setSafety({ confirmed: false, answer: null });
+      setPlan(emptyPlanAnswers());
+      setReturnToReward(false);
+      setServerHeld(false);
       setEditingField(null);
       setDraftChecked(false);
       setShownFoodIds([]);
@@ -401,8 +466,25 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const settings = useMemo(() => (base
     ? { ...applyFactsToSettings(base, facts), heightUnit: "ft_in" as const, weightUnit: "lb" as const }
     : null), [base, facts]);
+  const today = todayIso();
+  const minor = isMinor(facts.birthYear, today);
+  const baseEligibility = useMemo(() => eligibilityFor(plan), [plan]);
+  const pace = useMemo(() => paceFor(settings, plan, baseEligibility, today),
+    [settings, plan, baseEligibility, today]);
+  /** Everything the beats answered, as the write path's state (facts-bridge.ts). Activity is the
+   *  person's chip or the inferred one; the pace is the confirmed tap only (V1, V3). */
+  const planState = useMemo<PlanStateAnswers>(() => ({
+    goalRateBpWeek: storedPace(pace, plan),
+    activityLevel: activityFor(plan.week),
+    trainingWeekdays: trainingWeekdaysFor(plan.week),
+    mealsPerDay: plan.day?.mealsPerDay ?? null,
+    firstMealTime: plan.day?.firstMealTime ?? null,
+    ...(plan.day ? { countryCode: plan.day.inUs ? ONBOARDING_COUNTRY_CHIP : null } : {}),
+  }), [pace, plan]);
   const onboardingState = useMemo(
-    () => (settings ? buildOnboardingStateFromFacts(settings, facts) : null), [settings, facts]);
+    () => (settings ? buildOnboardingStateFromFacts(settings, facts, planState) : null),
+    [settings, facts, planState]);
+  const safetyAnswers = useMemo(() => safetyAnswersFrom(plan.safety), [plan.safety]);
 
   const foodAccess = useOnboardingFoodAccess(onboardingState);
   // GPT-6 Sol round-1 BLOCK: `useStarterStep` was only enabled for "legacy", so a pilot account's
@@ -422,7 +504,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   // — enough distinct proteins selected to cover every planned meal without repeating one, not
   // just the flat "≥2 per role" `starterSelectionValid` checks — before it will let a legacy
   // account save. This shell's own gate was missing that second check.
-  const incompleteForPlan = !onboardingState || missingProfileFields(onboardingState).length > 0;
+  const incompleteForPlan = !onboardingState || missingProfileFields(onboardingState, baseEligibility).length > 0;
   // GPT-6 Sol round-2 WARN: an unexpected `buildCompletedSettings` error used to fall back to
   // `plannedCount = 0`, which makes `starterProteinAvailability(..., 0).ready` trivially true
   // (`selected >= 0`) — an error state silently looked exactly like "nothing to plan for, so
@@ -431,7 +513,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [plannedCountFailed, plannedCount] = (() => {
     if (incompleteForPlan || !settings || !onboardingState) return [false, 0] as const;
     try {
-      return [false, mealCountFor(buildCompletedSettings(settings, onboardingState, new Date()))] as const;
+      return [false, mealCountFor(buildCompletedSettings(settings, onboardingState, new Date(), baseEligibility))] as const;
     } catch {
       return [true, 0] as const;
     }
@@ -439,7 +521,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const proteinAvailability = starter.choices
     ? starterProteinAvailability(starter.marks, starter.choices, plannedCount) : null;
   const planReady = settings !== null && onboardingState !== null
-    && missingProfileFields(onboardingState).length === 0 && !plannedCountFailed
+    && missingProfileFields(onboardingState, baseEligibility).length === 0 && !plannedCountFailed
     && (
       // GPT-6 Sol round-2 BLOCK: pilot used to need no verified food state at all — reaching
       // "Use this plan" with `starter.choices` still `null` (never loaded, or a failed reread)
@@ -455,15 +537,15 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  reward card renders its own "preparing" state for that, not a crash. */
   const targets = useMemo<RewardPlateTargets | null>(() => {
     if (!settings || !onboardingState) return null;
-    if (missingProfileFields(onboardingState).length > 0) return null;
+    if (missingProfileFields(onboardingState, baseEligibility).length > 0) return null;
     try {
-      const completed = buildCompletedSettings(settings, onboardingState, new Date());
+      const completed = buildCompletedSettings(settings, onboardingState, new Date(), baseEligibility);
       const profile = completed.activeTargetProfile;
       return profile ? { training: profile.training, rest: profile.rest } : null;
     } catch {
       return null;
     }
-  }, [settings, onboardingState]);
+  }, [settings, onboardingState, baseEligibility]);
 
   /** The foods the reward card names: the person's own taps first (in tap order), then the rest
    *  of the loved foods (Sprout's picks) in deck order. Live QA 2026-10-07 (defect 5): this used
@@ -489,16 +571,42 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  missing. */
   const previewMeals = useMemo<PlanPreviewMeal[]>(() => {
     if (beat !== "reward" || !settings || !onboardingState || !starter.choices) return [];
-    if (missingProfileFields(onboardingState).length > 0) return [];
+    if (missingProfileFields(onboardingState, baseEligibility).length > 0) return [];
     try {
-      const completed = buildCompletedSettings(settings, onboardingState, new Date());
+      const completed = buildCompletedSettings(settings, onboardingState, new Date(), baseEligibility);
       const picked = starter.choices.filter((item) => starter.marks[item.id] === "eats")
         .map((item) => starterFood(item.id, "eats"));
       return onboardingPlanPreview(completed, picked, todayIso()).meals.slice(0, 3);
     } catch {
       return [];
     }
-  }, [beat, settings, onboardingState, starter.choices, starter.marks]);
+  }, [beat, settings, onboardingState, baseEligibility, starter.choices, starter.marks]);
+
+  /** "Your day" defaults and the plan card's named defaults: the meal count "Pick for me" gives
+   *  for this plan's calories, and the first time the plan actually uses. */
+  const dayDefaults = useMemo(() => {
+    const fallback = { derivedCount: 3, mealCount: 3, firstMealTime: "08:00" };
+    if (!settings || !onboardingState) return fallback;
+    if (missingProfileFields(onboardingState, baseEligibility).length > 0) return fallback;
+    try {
+      const now = new Date();
+      const auto = buildCompletedSettings(settings,
+        { ...onboardingState, mealsPerDay: null, firstMealTime: null }, now, baseEligibility);
+      const chosen = buildCompletedSettings(settings, onboardingState, now, baseEligibility);
+      const first = resolveSlotTimes("rest", chosen)[0]?.time ?? "08:00";
+      return { derivedCount: mealCountFor(auto), mealCount: mealCountFor(chosen), firstMealTime: first };
+    } catch {
+      return fallback;
+    }
+  }, [settings, onboardingState, baseEligibility]);
+
+  const planNotes = useMemo<PlanNote[]>(() => {
+    const notes = planCardNotes({ goal: facts.goal, answers: plan, pace,
+      mealCount: dayDefaults.mealCount, firstMealTime: dayDefaults.firstMealTime });
+    return serverHeld && !notes.some((note) => note.id === "held")
+      ? [...notes, { id: "held", text: "Your saved health answers keep calories about where you burn." }]
+      : notes;
+  }, [facts.goal, plan, pace, dayDefaults, serverHeld]);
 
   /** A tap in the foods beat: the starter mark, plus the tap order the reward card reads. */
   function markFood(id: string, mark: StarterMark) {
@@ -508,18 +616,51 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       : current.filter((pick) => pick !== id));
   }
 
-  /** "That's me": only shown once every required field is confirmed (live QA 2026-10-07: it
-   *  used to show after one field and then do nothing on tap). The gate stays here as well. If a
-   *  typed health detail already took the person through the safety card, go straight to foods. */
-  function confirmFacts() {
-    if (allRequiredFactsConfirmed(facts)) advance(safety.confirmed ? "foods" : "safety");
+  /** Whether a later beat is already settled for these answers, so the walk forward skips it.
+   *  The pace counts as settled only when the route needs none or a valid preset is confirmed. */
+  function settled(next: PlanBeat, answers: PlanAnswers): boolean {
+    if (next === "week") return answers.week !== null;
+    if (next === "safety") return answers.safety !== null;
+    if (next === "pace") {
+      const nextPace = paceFor(settings, answers, eligibilityFor(answers), today);
+      return !paceBeatNeeded(nextPace) || storedPace(nextPace, answers) !== null;
+    }
+    if (next === "day") return answers.day !== null;
+    if (next === "foods") return returnToReward && foodsReady;
+    return false;
   }
 
-  /** After the safety card: back to any fact still missing (the card can come early, when a typed
-   *  answer was a health detail), else on to foods. */
-  function afterSafety() {
+  /** QUESTION-SET-v2.md §6: the next beat after `from` that still needs an answer. Under 18
+   *  stops at the friendly stop; the body facts come back first if any is still missing (the
+   *  safety card can open early from a typed health detail). */
+  function forward(from: "facts" | PlanBeat, answers: PlanAnswers = plan) {
     setSafetyNote(null);
-    advance(allRequiredFactsConfirmed(facts) ? "foods" : "facts");
+    if (!allRequiredFactsConfirmed(facts)) { advance("facts"); return; }
+    if (minor) { advance("minor"); return; }
+    const start = from === "facts" ? 0 : PLAN_ORDER.indexOf(from) + 1;
+    const next = PLAN_ORDER.slice(start).find((candidate) => !settled(candidate, answers)) ?? "reward";
+    if (next === "reward") setReturnToReward(false);
+    advance(next);
+  }
+
+  /** "That's me": only shown once every required field is confirmed. */
+  function confirmFacts() {
+    if (allRequiredFactsConfirmed(facts)) forward("facts");
+  }
+
+  /** A beat's Next: store its answer, then walk on (or back to the plan card after a Change). */
+  function answerPlan(from: PlanBeat, patch: Partial<PlanAnswers>) {
+    const next = { ...plan, ...patch };
+    setPlan(next);
+    forward(from, next);
+  }
+
+  /** The plan card's Change link: reopen that beat; a week or safety change re-asks the pace,
+   *  whose numbers depend on both. */
+  function changeFromPlan(target: NonNullable<PlanNote["change"]>) {
+    setReturnToReward(true);
+    if (target === "week" || target === "safety") setPlan((current) => ({ ...current, paceBp: null }));
+    advance(target);
   }
 
   function pickGoal(key: Goal) {
@@ -572,31 +713,24 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
   }
 
-  function confirmNoAllergy() {
-    setSafety({ confirmed: true, answer: "none" });
-    onAllergyAnswer?.("none");
-    afterSafety();
-  }
-  function addAllergyRule() {
-    setSafety((current) => ({ ...current, answer: "rule" }));
-    onAllergyAnswer?.("rule");
-  }
-  /** "I'm done — continue" after opening the rule editor or clinician guidance. ONB2-RULE-REREAD
-   *  discipline, one level up from `useStarterStep`'s own fix: re-read the account's rules before
-   *  trusting the starter list this beat is about to show, so a rule saved just now can never
-   *  leave an already-excluded food still offered to tap. */
-  async function allergyRulesConfirmed() {
-    const freshChoices = await starter.reread();
-    // GPT-6 Sol round-2 BLOCK: a failed reread (offline, a dropped connection) was silently
-    // ignored — the beat still advanced to Foods on whatever list was already rendered, which
-    // could predate the rule this editor was just used to save. Never advance to food UI without
-    // a confirmed-fresh list.
-    if (!freshChoices) {
-      setLeaveError("Couldn’t verify your food rules. Try again.");
-      return;
+  /** The safety round's Continue (or "No, none of these"). When the rule editor was opened,
+   *  ONB2-RULE-REREAD: re-read the account's rules before any food UI, failing closed. A changed
+   *  safety answer re-asks the pace, since a hold removes it. */
+  async function safetyDone(result: SafetyRoundResult) {
+    if (checkingRules) return;
+    const { rulesEdited, ...round } = result;
+    for (const pick of round.picks.length > 0 ? round.picks : ["none"]) onAllergyAnswer?.(pick);
+    if (rulesEdited) {
+      setCheckingRules(true);
+      try {
+        const freshChoices = await starter.reread();
+        if (!freshChoices) { setLeaveError(RULES_UNVERIFIED); return; }
+      } finally {
+        setCheckingRules(false);
+      }
     }
-    setSafety((current) => ({ confirmed: true, answer: current.answer ?? "rule" }));
-    afterSafety();
+    setLeaveError(null);
+    answerPlan("safety", { safety: round, paceBp: plan.safety === null ? plan.paceBp : null });
   }
 
   /** Fills only the groups still short (a legacy plan needs one protein per planned meal), never
@@ -647,12 +781,12 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     setLeaveError(null);
     const writesFoods = foodAccess.status === "legacy" || foodAccess.status === "pilot";
     const result = await saveOnboardingPlan({
-      settings, onboardingState,
+      settings, onboardingState, safety: safetyAnswers,
       starter: writesFoods ? { status: foodAccess.status as "legacy" | "pilot", marks: starter.marks, plannedCount } : null,
     }, {
-      persistPlan: async (planSettings, state) => {
+      persistPlan: async (planSettings, state, now, deps, safety) => {
         if (profileWritten.current) return { settings: planSettings, constraintsSaved: constraintsSaved.current };
-        const written = await persistCompletedOnboarding(planSettings, state);
+        const written = await persistCompletedOnboarding(planSettings, state, now, deps, safety);
         profileWritten.current = true;
         constraintsSaved.current = written.constraintsSaved;
         return written;
@@ -664,15 +798,20 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       },
     });
     if (!result.ok) {
-      setLeaveError(result.error);
       leaving.current = false;
       setSavingState(null);
+      // `422 adult_only`: no plan is built; the friendly stop, not an error line.
+      if (result.code === "adult_only") { setLeaveError(null); advance("minor"); return; }
+      // `409 rate_not_eligible`: the account's stored answers hold the pace; the plan card says so
+      // and the next tap saves at maintenance (the server holds it whatever the phone sends).
+      if (result.code === "rate_not_eligible") { setServerHeld(true); setLeaveError(RATE_NOT_ELIGIBLE_ERROR); return; }
+      setLeaveError(result.error);
       return;
     }
     setSavingState({ title, step: "Opening Today." });
     await clearOnboardingDraft();
     router.replace("/");
-  }, [router, settings, onboardingState, foodAccess.status, starter.marks, plannedCount]);
+  }, [router, settings, onboardingState, safetyAnswers, foodAccess.status, starter.marks, plannedCount]);
 
   const handleSkip = onSkip ?? (() => void leaveOnboarding());
   const handleComplete = onComplete
@@ -746,14 +885,27 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         ? <FactQuestion key={askingField} field={askingField} facts={facts} onAnswer={answerFact} />
         : <Button variant="primary" size="lg" block onClick={confirmFacts}>That&rsquo;s me</Button>}
     </div>;
-    if (beat === "safety") return slots.allergyCard ?? <div className="flex w-full flex-col gap-3">
-      {safetyNote && <p role="status" className="m-0 text-body text-graphite">{safetyNote}</p>}
-      <AllergyConditionGate answer={safety.answer}
-        onConfirmNone={confirmNoAllergy} onAddRule={addAllergyRule}
-        onRulesConfirmed={() => void allergyRulesConfirmed()} />
-    </div>;
+    if (beat === "minor") return <MinorStop busy={!!saving} onBrowse={() => void leaveOnboarding()}
+      onChangeAge={() => { setEditingField("birthYear"); advance("facts"); }} />;
+    if (beat === "week") return <WeekBeat initial={plan.week}
+      onDone={(week) => answerPlan("week", { week, ...(returnToReward ? { paceBp: null } : {}) })} />;
+    if (beat === "safety") return slots.allergyCard ?? <SafetyRound initial={plan.safety} note={safetyNote}
+      busy={checkingRules} onDone={(result) => void safetyDone(result)} />;
+    if (beat === "pace") {
+      if (!pace || (pace.kind !== "choices" && pace.kind !== "minimum") || !facts.goal
+        || facts.weightKg === undefined || facts.heightCm === undefined) {
+        return <Placeholder label="Working out your pace…" />;
+      }
+      return <PaceBeat pace={pace} goal={facts.goal} currentLb={facts.weightKg * LB_PER_KG}
+        heightCm={facts.heightCm} today={today} requestedLb={facts.requestedPaceLbPerWeek}
+        insulin={takesInsulin(plan.safety)} initialBp={plan.paceBp} initialGoalLb={plan.goalWeightLb}
+        onDone={({ bp, goalWeightLb }) => answerPlan("pace", { paceBp: bp, goalWeightLb })} />;
+    }
+    if (beat === "day") return <YourDayBeat derivedCount={dayDefaults.derivedCount} initial={plan.day}
+      onDone={(day) => answerPlan("day", { day })} />;
     if (beat === "foods") return slots.foodGame ?? foodsContent;
     return slots.plateReward ?? <RewardPlateCard targets={targets} lovedFoods={lovedFoods} meals={previewMeals}
+      notes={planNotes} onChangeNote={changeFromPlan}
       showNumbers={showNumbers} onToggleNumbers={() => setShowNumbers((value) => !value)} />;
   })();
 
@@ -802,9 +954,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     {composerNote && dockMode === "mic" && <p role="status" className={`${styles.composerNote} m-0 text-caption text-graphite`}>
       {composerNote}
     </p>}
-    <div className={styles.skipLink}>
+    {/* The under-18 stop carries its own "Look around" exit; a second one would say the same. */}
+    {beat !== "minor" && <div className={styles.skipLink}>
       <Button variant="ghost" size="sm" className="min-h-11" onClick={handleSkip}>Skip for now</Button>
-    </div>
+    </div>}
     {dockMode && <div className={styles.dockRow}>
       <OnboardingDock mode={dockMode} reduce={reduce}
         value={typed} onChange={(value) => { setTyped(value); if (composerNote) setComposerNote(null); }}

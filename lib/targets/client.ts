@@ -110,6 +110,27 @@ function authorityBody(
   };
 }
 
+/**
+ * A refusal the server explained with a code (onboarding v2: `422 adult_only` under 18,
+ * `409 rate_not_eligible` for a held pace). The message keeps the old "save targets failed: N"
+ * shape so every existing reader is unchanged.
+ */
+export class TargetSaveRefusedError extends Error {
+  constructor(readonly status: number, readonly code: string | null) {
+    super(`save targets failed: ${status}`);
+    this.name = "TargetSaveRefusedError";
+  }
+}
+
+async function refusalCode(response: Response): Promise<string | null> {
+  try {
+    const body = await response.clone().json() as { error?: unknown };
+    return typeof body?.error === "string" ? body.error : null;
+  } catch {
+    return null;
+  }
+}
+
 async function postRevisionSet(
   h: AccountHandle, body: object, fetchImpl: typeof fetch,
 ): Promise<TargetRevisionSet> {
@@ -118,7 +139,12 @@ async function postRevisionSet(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   }, { fetchImpl });
-  if (!response.ok) throw new Error(`save targets failed: ${response.status}`);
+  if (!response.ok) {
+    if (response.status >= 400 && response.status < 500) {
+      throw new TargetSaveRefusedError(response.status, await refusalCode(response));
+    }
+    throw new Error(`save targets failed: ${response.status}`);
+  }
   const result = await accountJson<TargetsResponse & { predecessor?: TargetRevision }>(h, response);
   if (!result.revision) throw new Error("save targets returned no authority revision");
   return {
