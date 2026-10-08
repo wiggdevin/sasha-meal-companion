@@ -50,5 +50,10 @@
     "class": "private_trigger",
     "table": "user_settings",
     "trigger": "taste_chip_holds_release"
+  },
+  "_taste_dislike_removals_guard()": {
+    "class": "private_trigger",
+    "table": "taste_dislike_removals",
+    "trigger": "taste_dislike_removals_guard"
   }
 }
