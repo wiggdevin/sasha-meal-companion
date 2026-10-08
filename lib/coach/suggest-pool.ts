@@ -42,8 +42,12 @@ function todayUtc(): string {
 }
 
 /** One admitted plate (already sized and policy-clean) as a suggestion card. */
+type UniverseRefs = Readonly<Record<string, { foodRefId: string; catalogFoodRevisionId: number }>>;
+
+const isUniverseRow = (id: string) => id.startsWith("universe:");
+
 function plateToComposedMeal(
-  plate: Plate, poolRefs: Readonly<Record<string, string>>, target: MealMacros,
+  plate: Plate, poolRefs: Readonly<Record<string, string>>, universeRefs: UniverseRefs, target: MealMacros,
   wish: string, slot: string | null, mealType: ComposedMeal["mealType"], mealClock: string | null,
 ): ComposedMeal {
   const items: ComposedItem[] = plate.rows.map((row) => {
@@ -51,10 +55,12 @@ function plateToComposedMeal(
     const macros = row.component.macros;
     // A pool-filled row's `Food.id` is an account-food id or a universe pool id, neither a
     // `food_refs.id` a logged/slotted/saved item needs — `poolRefs` resolves the real one for an
-    // account food; a universe-sourced fill keeps the pool id as a last resort (the same
-    // documented gap `compose-pinned.ts` carries, dark behind `OPEN_WORLD_ENABLED`).
+    // account food, `universeRefs` the catalog ref and active revision for a universe row (a plate
+    // with an unresolved universe row never reaches here: `buildPoolCandidates` drops it).
+    const universe = universeRefs[row.food.id];
     return {
-      name: row.food.name, foodRefId: poolRefs[row.food.id] ?? row.food.id, catalogFoodRevisionId: null,
+      name: row.food.name, foodRefId: universe?.foodRefId ?? poolRefs[row.food.id] ?? row.food.id,
+      catalogFoodRevisionId: universe?.catalogFoodRevisionId ?? null,
       grams, ...per100gOf(row.food), macros, verdict: "allowed" as const, part: row.part,
       ...itemFoodKey({ foodKey: row.component.foodKey }),
     };
@@ -65,7 +71,9 @@ function plateToComposedMeal(
     wish, slot, items, totals, target, flagged: [],
     fitsTarget: fits, fitNote: fits ? null : fitNote(totals, target),
     mealType, mealClock,
-    allItemsOnEats: plate.rows.every((row) => row.food.status === "eats"),
+    // The account's own Favored rows only: an open pool stamps its universe rows `eats` so the
+    // generator takes them, but they are not on the person's list ("from your Favorites" copy).
+    allItemsOnEats: plate.rows.every((row) => row.food.status === "eats" && !isUniverseRow(row.food.id)),
   };
 }
 
@@ -95,9 +103,15 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
     ...(focus ? { focus } : {}),
   });
   const wish = input.wish?.trim() || input.kind;
-  const best = bestPerAnchor(plates).slice(0, MAX_CANDIDATES);
+  const ranked = bestPerAnchor(plates).slice(0, MAX_CANDIDATES);
+  // One ref lookup for every universe row the shown plates hold; a plate with a row it could not
+  // resolve is left out, so no card ever carries a pool id where an action needs a food ref.
+  const universeIds = [...new Set(ranked.flatMap((plate) => plate.rows.map((row) => row.food.id)).filter(isUniverseRow))];
+  const universeRefs: UniverseRefs = universeIds.length > 0 && ports.universeRefs
+    ? await abortable(ports.universeRefs(ports.userId, universeIds), signal) : {};
+  const best = ranked.filter((plate) => plate.rows.every((row) => !isUniverseRow(row.food.id) || universeRefs[row.food.id]));
   const candidates: SuggestionCandidate[] = best.map((plate, index) => ({
-    meal: plateToComposedMeal(plate, poolRefs, target, wish, input.slot ?? null, mealType, mealClock),
+    meal: plateToComposedMeal(plate, poolRefs, universeRefs, target, wish, input.slot ?? null, mealType, mealClock),
     // `bestPerAnchor` already ranked these by the engine's own `plate.score` (macro fit × affinity
     // × pairing × variety × the account's taste term T, lib/meals/plate.ts). A pure macro
     // `fitScore` alone would drop that taste signal from every later sort (the shortlist cap,
@@ -111,7 +125,7 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
     // provable generic. An account Favored row's own name might be the user's own custom text —
     // this builder cannot cheaply tell, so any plate holding one stays out of the Jev shortlist
     // entirely (it keeps its formula-order slot, `lib/coach/suggest.ts`).
-    jevEligible: plate.rows.every((row) => row.food.id.startsWith("universe:")),
+    jevEligible: plate.rows.every((row) => isUniverseRow(row.food.id)),
   }));
   return {
     candidates, requested, pendingSlots: undefined, hiddenUnverified: 0, interrupted: signal.aborted,

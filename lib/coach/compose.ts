@@ -142,6 +142,13 @@ export type ComposePorts = {
    */
   poolRefs?: (userId: string) => Promise<Readonly<Record<string, string>>>;
   /**
+   * An open pool's universe rows (`universe:<bundled id>`) mapped to the account's catalog ref
+   * and the active revision for that bundled SR row (lib/server/universe-refs.ts), for the rows a
+   * chosen plate holds. A row it leaves out has no ref: the caller never puts a pool id on a card.
+   */
+  universeRefs?: (userId: string, poolIds: readonly string[]) =>
+    Promise<Readonly<Record<string, { foodRefId: string; catalogFoodRevisionId: number }>>>;
+  /**
    * Phase 18 W11 (D7): the account's active shopping focus for `date` (the turn's day when
    * omitted) — `rankPlates`/`rankPinnedPlates` then rank by (fits, coverage, score). Absent, or
    * resolving to undefined (focus off, no Shopping access, a failed read): unchanged ranking.

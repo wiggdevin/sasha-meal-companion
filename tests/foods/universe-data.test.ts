@@ -228,7 +228,10 @@ describe("inert until the W2b gate opens", () => {
       // The shared wire contract (phone and server): `snapshotV3Usable` compares a held body's
       // universeVersion/universeHash against this build's own (Sol r1 BLOCK), for an open account
       // only. The comment above already named this file; the array had not caught up to it.
-      path.join("lib", "meals", "snapshot-v3.ts")];
+      path.join("lib", "meals", "snapshot-v3.ts"),
+      // W8/W9/W10 follow-up: mints the catalog ref for an open-pool row (`universe:<id>`) a coach
+      // card logs or saves. Identity only, for rows an open admission already admitted.
+      path.join("lib", "server", "universe-refs.ts")];
     const readers = ["app", "components", "lib"].flatMap(files)
       .filter((file) => !file.startsWith(path.join("lib", "foods", "universe")))
       .filter((file) => !IDENTITY_READERS.includes(file))

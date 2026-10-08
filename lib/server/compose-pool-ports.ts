@@ -11,7 +11,7 @@ import type { ComposePorts } from "@/lib/coach/compose";
 
 export function composePoolPorts(
   client: SupabaseClient, admin: SupabaseClient, now?: string, day?: string,
-): Pick<ComposePorts, "pool" | "poolRefs" | "openWorld" | "focus"> {
+): Pick<ComposePorts, "pool" | "poolRefs" | "universeRefs" | "openWorld" | "focus"> {
   return {
     // Phase 18 W11 (D7): the account's active shopping focus for the turn's day (or the date a
     // wish names). Gated on Shopping access inside; any failure is "no focus", never an error.
@@ -32,6 +32,10 @@ export function composePoolPorts(
     poolRefs: async (uid) => {
       const { userFoodRefIds } = await import("@/lib/server/day-context");
       return userFoodRefIds(admin, uid);
+    },
+    universeRefs: async (uid, poolIds) => {
+      const { universeFoodRefs } = await import("@/lib/server/universe-refs");
+      return universeFoodRefs(admin, uid, poolIds);
     },
     openWorld: async (uid) => {
       const { mealSnapshotV3 } = await import("@/lib/server/meal-snapshot-v3");
