@@ -245,7 +245,8 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
           status={busy ? "pending" : undefined} onClick={() => void wear(item, false)}>Take off</Button>}
       </div>}
     </div>
-    <p className="sr-only" aria-live="polite">{named(said, mascot)}</p>
+    {/* Said as written: every line naming Sprout plays only while Sprout is the companion. */}
+    <p className="sr-only" aria-live="polite">{said}</p>
     <AnimatePresence>
       {playing && <CareScenePlayer key={playing} scene={playing} onClose={() => setPlaying(null)} />}
     </AnimatePresence>

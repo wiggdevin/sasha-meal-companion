@@ -71,5 +71,6 @@ describe("the chosen companion in a care scene and the shop", () => {
     expect(screen.queryByRole("button", { name: "Take off" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Wear" })).toBeNull();
     expect(screen.getAllByText("Only Sprout can wear this for now.").length).toBeGreaterThan(0);
+    expect(document.querySelector("[aria-live=polite]")?.textContent).toBe("Only Sprout can wear this for now.");
   });
 });
