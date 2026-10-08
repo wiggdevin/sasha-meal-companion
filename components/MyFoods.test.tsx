@@ -451,13 +451,27 @@ describe("a superseded membership write", () => {
     expect(seeded.foods.oats.status).toBe("avoid");
   });
 
-  it("does not roll back over a newer choice of the same status", async () => {
+  it("still rolls back after a note edit of the same row", async () => {
     let fail!: () => void;
     membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
     render(<EatsFoods />);
     swipe(rowOf("Oats"), -200, 8);
     await act(async () => {});
-    // Another surface clears the same marks again (same status, a newer write).
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, note: "crunchy", updatedAt: "2099-01-01T00:00:00.000Z" } };
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats).toMatchObject({ status: "eats", note: "crunchy" });
+  });
+
+  it("does not roll back over a newer choice of the same status", async () => {
+    const { reserveFoodMembershipIntent } = await import("@/lib/foods/prefs-client");
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // Another surface clears the same marks again (same status, a newer membership write).
+    reserveFoodMembershipIntent("Oats");
     seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "neutral", updatedAt: "2099-01-01T00:00:00.000Z" } };
     await act(async () => { fail(); });
     await act(async () => {});

@@ -369,8 +369,10 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
     let intent: ReturnType<typeof reserveFoodMembershipIntent> | undefined;
     const superseded = () => intent !== undefined && !isLatestFoodMembershipIntent(intent);
     const movedOn = () => loadStore().foods[id]?.status !== next;
-    // Untouched since this tap: only then may a failure put the earlier status back.
-    const untouched = () => !movedOn() && loadStore().foods[id]?.updatedAt === moved.updatedAt;
+    // Only then may a failure put the earlier status back: the row still holds this status, and no
+    // newer membership choice has written it since (a note or nutrition edit is not one; a newer
+    // reservation that wrote nothing is not either).
+    const untouched = () => !movedOn() && (!superseded() || loadStore().foods[id]?.updatedAt === moved.updatedAt);
     setFoods(loadStore().foods);
     setSaveError(null);
     void feedback.run(async () => {
