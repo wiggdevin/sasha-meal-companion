@@ -61,6 +61,8 @@ export type Plate = {
   pairing: number;
   /** The taste factor `T` already in `score` (pref-2); absent when the ranking had no taste values. */
   taste?: number;
+  /** D7/W11: the share of this plate's calories from list/pantry foods; absent without `input.focus`. */
+  coverage?: number;
 };
 
 /**
@@ -101,6 +103,19 @@ export type PlateInput = {
   taste?: TasteValues;
   /** The open food-world search (W8). Absent: the Phase 17 search. */
   open?: OpenRanking;
+  /**
+   * D7/W11 "shopping focus": the account turned on "use my shopping list". Domain-agnostic by
+   * design (plate.ts never reads a shopping table itself) — the caller (lib/foods/layout-plan.ts)
+   * supplies a coverage function already closed over the account's current used lines and pantry
+   * items (lib/shopping/focus.ts `coverageOf`). Absent: unchanged, Phase-17-and-after ranking.
+   */
+  focus?: FocusRanking;
+};
+
+export type FocusRanking = {
+  /** The share (0 to 1, in steps of 0.25) of these items' calories that count as "on the list or
+   *  in the pantry right now" — `key` is the same identity `foodKey` gives each plate row's food. */
+  coverageOf: (items: readonly { key: string; kcal: number }[]) => number;
 };
 
 export type PlateRanking = { plates: Plate[]; shortage: Shortage | null };
@@ -283,11 +298,14 @@ function platesFor(anchor: Food | null, pool: PartPools, input: PlateInput, day:
       amount: row.qty * macroKcal(row.food.perUnit) })), input.taste, input.occasion) : undefined;
     const fits = fitsTarget(macros, input.target);
     const ranked = taste === undefined ? base : base * taste;
+    const coverage = input.focus?.coverageOf(sized.map((row) => ({ key: foodKey(row.food),
+      kcal: row.component.macros.kcal })));
     plates.push({
       key: rows.map((row) => row.food.id).join("+"), anchor, anchorKey: anchor ? foodKey(anchor) : null,
       occasion: input.occasion, template: key, rows: sized, components: sized.map((row) => row.component),
       macros, name: plateName(rows, key), fit, fits, affinity: aff, pairing,
       score: input.open && fits ? FIT_FIRST + ranked : ranked, ...(taste === undefined ? {} : { taste }),
+      ...(coverage === undefined ? {} : { coverage }),
     });
   }
   // The shortlist keeps the best-paired sides; when none of them can be served (a 485 kcal meal
@@ -308,6 +326,13 @@ function fitWeight(macros: Macros, target: Macros): number {
 }
 
 export const byScore = (a: Plate, b: Plate) => b.score - a.score || byCode(a.key, b.key);
+/**
+ * D7/W11: "ranks plates by the key (fits the slot, coverage, score)" while shopping focus is on
+ * — `fits` ahead of `coverage` ahead of the engine's own score, for every account alike (not just
+ * an open one's existing fit-first bonus). `byScore` alone, unchanged, when `focus` is absent.
+ */
+export const byFocus = (a: Plate, b: Plate) =>
+  Number(b.fits) - Number(a.fits) || (b.coverage ?? 0) - (a.coverage ?? 0) || byScore(a, b);
 
 /** Why no plate could be built: the parts the best-suited anchor still lacks. */
 function shortageFor(anchors: readonly Food[], pool: PartPools, input: PlateInput,
@@ -364,7 +389,7 @@ export function rankPlates(input: PlateInput): PlateRanking {
     return platesFor(anchor, pools, input, day, variety);
   });
   if (input.occasion === "snack" && input.target.kcal <= SMALL_SNACK_KCAL) plates.push(...platesFor(null, pools, input, day, 0.9));
-  plates.sort(byScore);
+  plates.sort(input.focus ? byFocus : byScore);
   return plates.length ? { plates, shortage: null }
     : { plates, shortage: shortageFor(all, pools, input, day) };
 }
@@ -432,7 +457,7 @@ export function rankPinnedPlates(input: PlateInput, pinned: readonly Food[]): Pl
       ...(anchorlessOk ? platesFor(null, pools, input, day, 1, false, sides) : []),
     ];
   });
-  plates.sort(byScore);
+  plates.sort(input.focus ? byFocus : byScore);
   return plates.length ? { plates, shortage: null }
     : { plates: [], shortage: { missing: [], reason: "No coherent plate holds every named food" } };
 }

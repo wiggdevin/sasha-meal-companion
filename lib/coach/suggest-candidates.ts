@@ -48,6 +48,8 @@ export type SuggestionCandidate = {
    * `lib/coach/suggest-rank.ts`'s `jevSafeName`).
    */
   jevEligible?: boolean;
+  /** Phase 18 W11 (D7): the card's list/pantry coverage while shopping focus is on; else absent. */
+  coverage?: number;
 };
 export type CandidateBuild = {
   candidates: SuggestionCandidate[];
