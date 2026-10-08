@@ -404,9 +404,18 @@ stop() {
   echo "${PROJECT_ID} stopped."
 }
 
-case "${1:-start}" in
-  start) start ;;
-  stop) stop ;;
-  --dry-run|dry-run) DRY_RUN=1; dry_run ;;
-  *) echo "usage: scripts/test-stack.sh [start|stop|--dry-run]" >&2; exit 2 ;;
-esac
+main() {
+  case "${1:-start}" in
+    start) start ;;
+    stop) stop ;;
+    --dry-run|dry-run) DRY_RUN=1; dry_run ;;
+    *) echo "usage: scripts/test-stack.sh [start|stop|--dry-run]" >&2; exit 2 ;;
+  esac
+}
+
+# Guarded so tests/scripts/test-stack-dry-run.test.ts can `source` this file (to call its
+# functions, e.g. assert_no_port_conflict, directly with DRY_RUN left at 0) without it trying to
+# start the real stack as a side effect.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
