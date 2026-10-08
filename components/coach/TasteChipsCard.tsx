@@ -32,15 +32,16 @@
  * components/coach/RoleConfirm.tsx. `confirm`/`undo` are test (and dev-fixture) seams, same shape
  * as RoleConfirm's `confirm` prop; production callers take the defaults.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button, { type ButtonStatus } from "@/components/ui/Button";
 import Notice, { type NoticeTone } from "@/components/ui/Notice";
 import {
-  readStoredTasteChips, writeStoredTasteChips, type AppliedNoop, type UndoneNoop,
+  readStoredTasteChips, writeStoredTasteChips, type AppliedNoop, type StoredTasteChips, type UndoneNoop,
 } from "@/components/coach/taste-chips-storage";
 import { confirmHaptic } from "@/lib/haptics";
 import { AccountChanged, currentAccountOrNull } from "@/lib/device/account";
 import { coachConfirmRequest, type TasteChipsProposal } from "@/lib/coach/taste-chips-card";
+import { SYNCED_EVENT } from "@/lib/sync/client";
 import {
   confirmTasteChips, newTasteActionId, undoTasteChips, type TasteWriteOutcome,
 } from "@/lib/profile/taste-confirm-client";
@@ -58,6 +59,12 @@ const sameArray = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((value, index) => value === b[index]);
 const samePicks = (a: Picks, b: Picks) => sameArray(a.dislikes, b.dislikes) && sameArray(a.cuisines, b.cuisines);
 const count = (keys: Picks) => keys.dislikes.length + keys.cuisines.length;
+/** The keys TWO landings each named, deduplicated — used to name every chip a noop landing
+ *  touched (`present` plus `capped` together for a `mixed` confirm), never just the first. */
+const mergeKeys = (a: Picks, b: Picks): Picks => ({
+  dislikes: [...new Set([...a.dislikes, ...b.dislikes])],
+  cuisines: [...new Set([...a.cuisines, ...b.cuisines])],
+});
 
 export default function TasteChipsCard({ card, messageId, confirm = confirmTasteChips, undo = undoTasteChips }: {
   card: TasteChipsProposal;
@@ -84,6 +91,51 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     stored && stored.status !== "pending" ? { dislikes: stored.dislikes, cuisines: stored.cuisines }
       : { dislikes: [], cuisines: [] });
   const [noop, setNoop] = useState<AppliedNoop | UndoneNoop | false>(stored?.noop ?? false);
+
+  /**
+   * Replace this card's state with what storage now holds (`stored`), the same reading
+   * `useState`'s initializer above does. Used to catch up with a conflicting confirm or Undo this
+   * card did not itself send — another tap on this same card after a remount, or another tab open
+   * on the same account and message — once a sync pass says settings moved (W5b-2 followup #8: no
+   * realtime channel exists, so a `SYNCED_EVENT` re-read is the whole mechanism).
+   */
+  function applyStored(stored: StoredTasteChips | null) {
+    if (!stored) {
+      setPendingActionId(null);
+      setAttempted(null);
+      setStatus("idle");
+      setAppliedKeys({ dislikes: [], cuisines: [] });
+      setNoop(false);
+      setPicked(new Set([...card.dislikes.map((c) => pick("d", c.key)), ...card.cuisines.map((c) => pick("c", c.key))]));
+      return;
+    }
+    setPendingActionId(stored.actionId);
+    if (stored.status === "pending") {
+      setAttempted({ dislikes: stored.dislikes, cuisines: stored.cuisines });
+      return;
+    }
+    setAttempted(null);
+    setStatus(stored.status);
+    setAppliedKeys({ dislikes: stored.dislikes, cuisines: stored.cuisines });
+    setNoop(stored.noop ?? false);
+  }
+
+  useEffect(() => {
+    if (!account) return;
+    // A sync pass just landed (this device's own write settling, or another tab's / another
+    // device's write arriving through the normal settings pull) -- never while THIS card has a
+    // confirm or Undo of its own in flight, so a late network answer from that very call is never
+    // raced against this re-read; `onConfirm`/`onUndo` below guard that landing separately.
+    function onSynced() {
+      if (status === "confirming" || status === "undoing") return;
+      const latest = readStoredTasteChips(account, card.id);
+      if (latest?.actionId === pendingActionId && latest.status === status) return; // nothing new
+      applyStored(latest);
+    }
+    window.addEventListener(SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(SYNCED_EVENT, onSynced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account, card.id, pendingActionId, status]);
 
   function toggle(prefixed: string) {
     if (status !== "idle") return;
@@ -130,6 +182,18 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
       if (error instanceof AccountChanged) return;
       outcome = { ok: false, reason: "retry", message: "Could not save. Try again." };
     }
+    // This request is a LATE response: storage no longer names this exact action as the one in
+    // flight (another tap on this card after a remount, or another tab/device acting on the same
+    // proposal, settled first). Defer to whatever storage holds now rather than overwrite it with
+    // a stale answer for an action that is no longer the live one (W5b-2 followup #8, guarded with
+    // no realtime channel — the SYNCED_EVENT listener above covers the case where nothing was ever
+    // in flight here; this covers the case where something was).
+    const sinceConfirm = readStoredTasteChips(account, card.id);
+    if (sinceConfirm && sinceConfirm.actionId !== actionId) {
+      setButtonStatus("idle");
+      applyStored(sinceConfirm);
+      return;
+    }
     if (!outcome.ok) {
       setStatus("idle");
       setButtonStatus("idle");
@@ -175,10 +239,14 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     const appliedNoop: AppliedNoop | false = !addedNothing ? false
       : count(outcome.result.capped) === 0 ? "present"
       : count(outcome.result.present) === 0 ? "capped" : "mixed";
-    setAppliedKeys(addedNothing ? { dislikes: [], cuisines: [] } : outcome.result.added);
+    // A noop landing (present/capped/mixed) has nothing in `added` for the chip list to key off —
+    // name the chips the title talks about instead (`present` plus `capped` together), so "Already
+    // in your taste preferences" is not left with a title and no chips under it (followup #9).
+    const shownKeys = addedNothing ? mergeKeys(outcome.result.present, outcome.result.capped) : outcome.result.added;
+    setAppliedKeys(shownKeys);
     setNoop(appliedNoop);
-    writeStoredTasteChips(account, card.id, { actionId, dislikes: outcome.result.added.dislikes,
-      cuisines: outcome.result.added.cuisines, status: "applied", ...(appliedNoop ? { noop: appliedNoop } : {}) });
+    writeStoredTasteChips(account, card.id, { actionId, dislikes: shownKeys.dislikes,
+      cuisines: shownKeys.cuisines, status: "applied", ...(appliedNoop ? { noop: appliedNoop } : {}) });
   }
 
   async function onUndo() {
@@ -191,6 +259,14 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     } catch (error) {
       if (error instanceof AccountChanged) return;
       outcome = { ok: false, reason: "retry", message: "Could not undo. Try again." };
+    }
+    // Same late-response guard as onConfirm: if storage now names a different action for this
+    // proposal (another tap here after a remount, or another tab/device), that is newer than this
+    // Undo's own answer -- defer to it.
+    const sinceUndo = readStoredTasteChips(account, card.id);
+    if (sinceUndo && sinceUndo.actionId !== pendingActionId) {
+      applyStored(sinceUndo);
+      return;
     }
     if (!outcome.ok) {
       setStatus("applied");

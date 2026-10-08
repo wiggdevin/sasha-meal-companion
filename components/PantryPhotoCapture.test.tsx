@@ -173,22 +173,39 @@ describe("PantryPhotoCapture's request id (Sol BLOCK, verified)", () => {
   });
 });
 
-describe("PantryPhotoCapture's request-body size (Sol r2 WARN, verified)", () => {
-  it("refuses to confirm a draft whose encoded body exceeds the route's own 4 KB cap", async () => {
-    // The confirm route's Zod schema permits up to 40 items at 160 characters each -- about
-    // 7.5 KB encoded, well over its own MAX_BYTES (4 KB). A draft at (or near) that ceiling must
-    // be caught here, not sent to be refused by the route with no clue why.
+describe("PantryPhotoCapture's request-body size (Followups #21, raised 4 KB -> 48 KB)", () => {
+  it("builds the largest allowed draft -- 40 items, 160 maximally-escaping characters each -- and sends an encoded body under the route's 48 KB cap", async () => {
+    // The confirm route's Zod schema (app/api/pantry/photo/confirm/route.ts) is
+    // `z.string().min(1).max(160)` on each item's name -- no character-class restriction, so a
+    // control character is schema-valid. JSON.stringify escapes a control character with no short
+    // alias (`\b` `\f` `\n` `\r` `\t` each have one; U+0001 does not) as `\u0001`: six ASCII bytes
+    // for one character against the field's own 160-character cap, the largest per-character BYTE
+    // blow-up `JSON.stringify` can produce -- worse than any valid multibyte UTF-8 text, which
+    // encodes at most 4 bytes per character. This used to exceed the route's old 4 KB MAX_BYTES
+    // and was caught here before it was ever sent; the route (and this client pre-check) now allow
+    // 48 KB, so the largest legitimate draft the UI's own item/name caps can produce must still go
+    // through, while the REAL encoded size the component would send is checked directly rather
+    // than only asserting that confirm got called.
+    // ALL 40 items at the maximal-escape length, not 2 ordinary drafted names plus 38 added ones:
+    // the draft mock hands back the full 40-item, 160-character-each set directly, so every item in
+    // the payload is genuinely the worst case, not just most of them.
+    const longName = "\u0001".repeat(160);
+    mocked.draft.mockResolvedValueOnce(Array.from({ length: 40 }, () => longName));
+    mocked.confirm.mockResolvedValueOnce({ items: [], failed: [] });
     open();
     fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
-    const addField = screen.getByLabelText("Add an item");
-    const longName = "x".repeat(160);
-    for (let i = 0; i < 38; i += 1) { // 2 already drafted + 38 = the 40-item cap
-      fireEvent.change(addField, { target: { value: longName } });
-      fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    }
+    await waitFor(() => expect(screen.getAllByDisplayValue(longName)).toHaveLength(40));
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
-    await waitFor(() => expect(screen.getByText(/too many items, or some names are too long/)).toBeTruthy());
-    expect(mocked.confirm).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/too many items, or some names are too long/)).toBeNull();
+    const [, requestId, payload] = mocked.confirm.mock.calls[0] as [unknown, string, { name: string; grams: number | null }[]];
+    expect(payload).toHaveLength(40);
+    expect(payload.every((item) => item.name === longName)).toBe(true);
+    const bodySize = new TextEncoder().encode(JSON.stringify({ requestId, items: payload })).length;
+    expect(bodySize).toBeLessThan(48 * 1024);
+    // Comfortably past the OLD 4 KB cap, and well into the new budget (the maximal per-character
+    // escape puts this near 40 KB), so this is genuinely the body-size case that motivated raising
+    // the limit, not a token-sized draft that happens to pass either way.
+    expect(bodySize).toBeGreaterThan(32 * 1024);
   });
 });

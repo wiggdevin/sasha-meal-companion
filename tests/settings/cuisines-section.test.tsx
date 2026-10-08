@@ -4,8 +4,9 @@
  * whole list in vocabulary order; a seventh cannot be chosen; the country saves the picked ISO code,
  * and "Prefer not to say" saves null (clears it).
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { defaultSettings } from "@/lib/store";
 import type { ProfileDietPrefs } from "@/lib/sync/user-settings";
 import type { Settings } from "@/lib/types";
@@ -18,6 +19,12 @@ const taste = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/profile/taste-enabled-client", () => ({ readTasteChipsEnabled: taste.enabled }));
 vi.mock("@/lib/profile/prefs-client", () => ({ requestTasteChips: taste.request }));
+// Followups #1: lib/profile/taste-dislike-remove-client.ts is the REAL, landed module —
+// deliberately not mocked, so the remove/Undo describe block below exercises it for real against
+// a faked global `fetch`. Only the lower-level sync write it settles onto is mocked (same seam
+// tests/profile/taste-dislike-remove-client.test.ts itself uses), so a test never touches IndexedDB.
+const sync = vi.hoisted(() => ({ applyServerUserSettings: vi.fn(async () => true) }));
+vi.mock("@/lib/sync/client", () => ({ applyServerUserSettings: sync.applyServerUserSettings }));
 // A plain select stands in for the kit's picker, which these tests do not exercise.
 vi.mock("@/components/ui/GlassSelect", () => ({
   default: ({ value, onChange, options, "aria-label": label }: {
@@ -124,5 +131,250 @@ describe("Settings › Your taste card (hotfix: a bare heading with the flag off
     render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
     await screen.findByLabelText("A taste, in your own words");
     expect(taste.enabled).toHaveBeenCalledTimes(1);
+  });
+});
+
+const TEST_USER = "22222222-2222-4222-8222-222222222222";
+const ROW = { rev: 9, diet_prefs: { taste: { dislikes: [] } } };
+/** The settings row an Undo actually restoring "f:Okra" would carry back (Sol round 6 BLOCK): the
+ *  success copy now reads the dislikes list IN this row, not the response's own restored/capped
+ *  fields, so a test asserting "Back." must hand back a row that genuinely contains the key. */
+const ROW_WITH_OKRA = { rev: 10, diet_prefs: { taste: { dislikes: ["f:Okra"] } } };
+const json = (status: number, body: unknown) => async () =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+describe("Settings › remove one taste dislike (Followups #1)", () => {
+  beforeEach(() => { bindAccount(TEST_USER); });
+  afterEach(() => { unbindAccount(); });
+
+  it("sends the remove, applies the server's row, and Undo sends the original action id back", async () => {
+    // Sol round 4 BLOCK, verified: pills render straight from the `dislikes` prop now, with no
+    // local hide of their own -- a successful remove only calls `applyServerUserSettings` and
+    // relies on the PARENT re-rendering with the fresh row to actually drop the pill (simulated
+    // here with `rerender`, since this test's `settings` prop is otherwise static).
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      expect(screen.getByText("Okra")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(sync.applyServerUserSettings).toHaveBeenCalledWith(expect.anything(), ROW));
+      // The parent catches up with the removal (a normal re-render with the fresh row).
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+      expect(screen.queryByText("Okra")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      // A later row that carries the key again brings the pill back.
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      expect(screen.getByText("Okra")).toBeTruthy();
+      const [removeUrl] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+      const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      expect(removeUrl).toBe("/api/profile/taste/dislikes/remove");
+      expect(undoUrl).toBe("/api/profile/taste/dislikes/remove/undo");
+      expect(JSON.parse(String(undoInit.body))).toEqual({ actionId: "a1" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps the pill and shows a message on a failed remove", async () => {
+    vi.stubGlobal("fetch", vi.fn(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." })));
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("That did not save. Try again.")).toBeTruthy());
+      expect(screen.getByText("Okra")).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps the Undo toast (and the original action id) across a parent re-render that drops the removed key", async () => {
+    // Sol BLOCK: a success applies the server's settings row and fires SYNCED_EVENT, which (in the
+    // real app) makes the parent re-render with the key already gone from `dislikes` -- unmounting
+    // the pill that used to own the toast/Undo state (there is no other mechanism that drops the
+    // pill now: pills render straight from the `dislikes` prop, round 4). Simulated here with
+    // `rerender`.
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("Removed.")).toBeTruthy());
+      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+      expect(screen.getByText("Removed.")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      expect(undoUrl).toBe("/api/profile/taste/dislikes/remove/undo");
+      expect(JSON.parse(String(undoInit.body))).toEqual({ actionId: "a1" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("reuses the same action id on a retry after a failed remove, instead of minting a new one", async () => {
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "whatever-the-server-says", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("That did not save. Try again.")).toBeTruthy());
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      const [, firstInit] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+      const [, secondInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      const firstId = JSON.parse(String(firstInit.body)).actionId;
+      const secondId = JSON.parse(String(secondInit.body)).actionId;
+      expect(secondId).toBe(firstId);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("ignores a second tap on the same pill before the pending state has had a chance to render", async () => {
+    const fetchImpl = vi.fn(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      const button = screen.getByRole("button", { name: "Remove Okra from your taste dislikes" });
+      fireEvent.click(button);
+      fireEvent.click(button); // synchronous double tap, before React re-renders `disabled`
+      await waitFor(() => expect(screen.getByText("Removed.")).toBeTruthy());
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("the pill disappears the moment the parent re-renders without the key (Sol round 4 BLOCK)", () => {
+    // No local hide-and-reconcile state survives this any more: a pulled server row is applied
+    // silently (no render of its own to trigger a reconcile against), so an earlier design keying
+    // a local hide off the row's `updatedAt` could keep a reintroduced key hidden forever if the
+    // pulled row kept the SAME `updatedAt` the hide was keyed on. Pills now render straight off the
+    // `dislikes` prop -- there is nothing else to get out of sync.
+    const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+    expect(screen.getByText("Okra")).toBeTruthy();
+    rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+    expect(screen.queryByText("Okra")).toBeNull();
+  });
+
+  it("the pill reappears whenever a later prop contains the key again, even with no remove/undo in between", () => {
+    const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
+    expect(screen.queryByText("Okra")).toBeNull();
+    rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+    expect(screen.getByText("Okra")).toBeTruthy();
+  });
+
+  it("allows only one remove/undo in flight for the whole section: tapping a second pill while the first is pending starts no request, and the first pill's Undo carries its OWN action id", async () => {
+    // Sol round 2 BLOCK: `tasteFeedback.run` joins a second caller onto the FIRST one's already
+    // running promise rather than queueing or rejecting it, so two concurrent removes would both
+    // resolve from the FIRST request's result -- the second pill would hide and its "Undo" would
+    // carry the first pill's action id. A section-wide synchronous guard must stop the second tap
+    // from ever starting a second request at all.
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    // Only two queued responses: A's own (deferred) remove, then A's own Undo. If B's tap wrongly
+    // started a second request, it would consume the Undo slot meant for A -- which the body
+    // assertions on the second call below would catch.
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra", "f:Mango"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Mango from your taste dislikes" }));
+      // B never started a request: still just the one call A's tap made.
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Mango")).toBeTruthy(); // B's pill is still here -- nothing removed it
+      resolveFirst(new Response(JSON.stringify({ status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }),
+        { status: 200, headers: { "content-type": "application/json" } }));
+      await waitFor(() => expect(screen.getByText("Removed.")).toBeTruthy());
+      expect(screen.getByText("Mango")).toBeTruthy(); // still untouched by A's own run
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      expect(undoUrl).toBe("/api/profile/taste/dislikes/remove/undo");
+      expect(JSON.parse(String(undoInit.body))).toEqual({ actionId: "a1" }); // A's own id, never B's
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shows 'Already removed.' with no Undo when the remove answers already_gone (Sol round 5 WARN)", async () => {
+    const fetchImpl = vi.fn(json(200, { status: "already_gone", actionId: "a1", key: "f:Okra", settings: ROW }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("Already removed.")).toBeTruthy());
+      expect(screen.queryByText("Removed.")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("offers Try again on a failed Undo, which re-sends with the SAME action id (Sol round 5 BLOCK)", async () => {
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW_WITH_OKRA,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+      const tryAgain = await screen.findByRole("button", { name: "Try again" });
+      expect(screen.getByText("That did not save. Try again.")).toBeTruthy();
+      fireEvent.click(tryAgain);
+      await waitFor(() => expect(screen.getByText("Back.")).toBeTruthy());
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      const [, firstUndoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      const [, secondUndoInit] = fetchImpl.mock.calls[2] as unknown as [string, RequestInit];
+      expect(JSON.parse(String(firstUndoInit.body))).toEqual({ actionId: "a1" });
+      expect(JSON.parse(String(secondUndoInit.body))).toEqual({ actionId: "a1" }); // same id, never a fresh one
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not say 'Back.' when a retried Undo answers already_undone but the returned row lacks the key (Sol round 6 BLOCK)", async () => {
+    // `already_undone` replays the FIRST call's stored restored/capped values. If another device
+    // removed this same key again in between, those stale values would say "Back." when the key
+    // is not actually back -- the returned settings row is the server's CURRENT answer and must
+    // decide the copy instead.
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." }))
+      .mockImplementationOnce(json(200, {
+        status: "already_undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+      await waitFor(() => expect(screen.getByText("Not restored — it was changed since.")).toBeTruthy());
+      expect(screen.queryByText("Back.")).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

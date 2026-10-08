@@ -5,7 +5,7 @@
  * offline/retry/refused states, and Undo through the taste confirm/undo contract. Mirrors
  * tests/coach/role-confirm-ui.test.tsx's pattern for a self-contained coach card.
  */
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocked = vi.hoisted(() => ({ confirm: vi.fn(), undo: vi.fn(), mintCount: 0 }));
@@ -18,6 +18,7 @@ vi.mock("@/lib/profile/taste-confirm-client", async (importOriginal) => ({
 import TasteChipsCard from "@/components/coach/TasteChipsCard";
 import { CoachMessageExtras } from "@/components/CoachChat";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
+import { writeStoredTasteChips } from "@/components/coach/taste-chips-storage";
 import type { TasteChipsProposal } from "@/lib/coach/taste-chips-card";
 
 const MESSAGE = "3f1b1a2c-0000-4000-8000-0000000000aa";
@@ -248,6 +249,64 @@ describe("the coach taste-chip confirm card", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add to my taste preferences" })); });
     expect(await screen.findByText("Already in your taste preferences")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("names the affected chips under 'Already in your taste preferences' (followup #9)", async () => {
+    mocked.confirm.mockResolvedValueOnce({ ok: true, result: { status: "existing", actionId: "minted-action-id",
+      added: { dislikes: [], cuisines: [] }, present: { dislikes: ["t:soft"], cuisines: ["latin_american"] },
+      capped: { dislikes: [], cuisines: [] }, undoneAt: null, settings: {} } });
+    renderCard();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add to my taste preferences" })); });
+    await screen.findByText("Already in your taste preferences");
+    expect(screen.getByText("Soft textures")).toBeTruthy();
+    expect(screen.getByText("Latin American")).toBeTruthy();
+  });
+
+  it("names the affected chips under 'Some were already saved; others couldn't fit' (mixed noop)", async () => {
+    mocked.confirm.mockResolvedValueOnce({ ok: true, result: { status: "applied", actionId: "minted-action-id",
+      added: { dislikes: [], cuisines: [] }, present: { dislikes: ["t:soft"], cuisines: [] },
+      capped: { dislikes: [], cuisines: ["latin_american"] }, undoneAt: null, settings: {} } });
+    renderCard();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add to my taste preferences" })); });
+    expect(await screen.findByText("Some were already saved; others couldn't fit")).toBeTruthy();
+    expect(screen.getByText("Soft textures")).toBeTruthy();
+    expect(screen.getByText("Latin American")).toBeTruthy();
+  });
+
+  it("guards against a late confirm response: a conflicting confirm/Undo elsewhere wins (followup #8)", async () => {
+    // This tab's confirm is slow; before it lands, storage already shows a DIFFERENT action id for
+    // the same proposal (e.g. another tab finished its own tap on this same card/message first).
+    let resolveFirst!: (value: unknown) => void;
+    mocked.confirm.mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }));
+    renderCard();
+    const add = screen.getByRole("button", { name: "Add to my taste preferences" });
+    fireEvent.click(add);
+    await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
+    // Simulate the conflicting write landing first, from elsewhere, directly in storage.
+    writeStoredTasteChips(bindAccount("user-a"), "proposal-1", {
+      actionId: "someone-elses-action", dislikes: ["t:soft"], cuisines: [], status: "applied",
+    });
+    resolveFirst({ ok: true, result: { status: "applied", actionId: "minted-action-id-1",
+      added: { dislikes: ["t:soft"], cuisines: ["latin_american"] }, present: { dislikes: [], cuisines: [] },
+      capped: { dislikes: [], cuisines: [] }, undoneAt: null, settings: {} } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy());
+    // The card reflects the CONFLICTING record (dislikes only), not this tab's own late response
+    // (which named both a dislike and a cuisine) -- the late response was discarded, not applied.
+    expect(screen.queryByRole("button", { name: "Latin American" })).toBeNull();
+    expect(mocked.undo).not.toHaveBeenCalled();
+  });
+
+  it("refreshes from storage on a sync event when nothing is in flight here (followup #8)", async () => {
+    mocked.confirm.mockResolvedValueOnce(settledConfirm());
+    renderCard();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add to my taste preferences" })); });
+    await screen.findByText("Added to your taste preferences");
+    // Another tab/device undid the same action; this tab only learns about it on the next sync pass.
+    writeStoredTasteChips(bindAccount("user-a"), "proposal-1", {
+      actionId: "minted-action-id-1", dislikes: [], cuisines: [], status: "undone", noop: "repeat",
+    });
+    await act(async () => { window.dispatchEvent(new Event("meal-companion:synced")); });
+    expect(await screen.findByText("Already undone")).toBeTruthy();
   });
 
   it("reuses the retry id when a toggled pick returns to the attempted set", async () => {

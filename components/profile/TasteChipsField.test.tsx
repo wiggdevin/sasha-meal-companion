@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import TasteChipsField, { TASTE_PICK_MAX } from "@/components/profile/TasteChipsField";
+import { bindAccount, unbindAccount } from "@/lib/device/account";
 import type { TasteSuggestion } from "@/lib/profile/taste-chips";
 import type { TasteConfirmRequest, TasteConfirmResult, TasteUndoResult } from "@/lib/profile/taste-confirm";
 
@@ -345,5 +346,106 @@ describe("TasteChipsField", () => {
       .hasAttribute("disabled")).toBe(false));
     expect(screen.getByRole("button", { name: "Mexican and Latin American" }).getAttribute("aria-pressed"))
       .toBe("false"); // the ignored click never stuck
+  });
+
+  describe("settings_not_synced is a manual Try again, never an automatic retry (Sol round 3 BLOCK)", () => {
+    afterEach(() => unbindAccount());
+
+    it("never sends a second request on its own after a 409 settings_not_synced", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
+      expect(lib.confirm).toHaveBeenCalledTimes(1); // no automatic second call, onboarding or not
+    });
+
+    it("never sends a second request outside onboarding either (Settings source)", async () => {
+      bindAccount("user-settings");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      await renderEnabled("settings");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
+      expect(lib.confirm).toHaveBeenCalledTimes(1);
+    });
+
+    it("offers a Try again control on settings_not_synced, which re-sends with the SAME action id", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValueOnce({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      lib.confirm.mockResolvedValueOnce(okConfirm());
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledTimes(1));
+      const tryAgain = await screen.findByRole("button", { name: "Try again" });
+      fireEvent.click(tryAgain);
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledTimes(2));
+      expect(lib.confirm.mock.calls[0][0].actionId).toBe(lib.confirm.mock.calls[1][0].actionId);
+      expect(await screen.findByText("Saved.")).toBeTruthy();
+    });
+
+    it("Try again can be tapped more than once, the server refusing harmlessly each time the row still has not landed", async () => {
+      bindAccount("user-onboarding");
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
+        code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
+      await renderEnabled("onboarding");
+      await type("okra");
+      fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledTimes(2));
+      fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledTimes(3));
+      const ids = lib.confirm.mock.calls.map((call: unknown[]) => (call[0] as { actionId: string }).actionId);
+      expect(new Set(ids).size).toBe(1); // every attempt is the same tap's action id
+    });
+  });
+
+  describe("manual preset chips when Jev is down (followup #3)", () => {
+    it("offers a static preset picker instead of 'nothing to suggest' when jev:false", async () => {
+      lib.request.mockResolvedValue({ ok: true, suggestion: {
+        route: "send", jev: false, likes: [], dislikes: [], cuisines: [],
+      } });
+      await renderEnabled();
+      await type("something Jev couldn't classify");
+      expect(await screen.findByText(/pick any that fit instead/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Spicy heat" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "American" })).toBeTruthy();
+      expect(screen.queryByText("Nothing to suggest from that yet.")).toBeNull();
+    });
+
+    it("confirms a preset pick like any other chip", async () => {
+      lib.request.mockResolvedValue({ ok: true, suggestion: {
+        route: "send", jev: false, likes: [], dislikes: [], cuisines: [],
+      } });
+      lib.confirm.mockResolvedValue(okConfirm({ added: { dislikes: ["t:spicy_hot"], cuisines: [] } }));
+      await renderEnabled();
+      await type("something Jev couldn't classify");
+      fireEvent.click(await screen.findByRole("button", { name: "Spicy heat" }));
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      await waitFor(() => expect(lib.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ dislikes: ["t:spicy_hot"], cuisines: [] }),
+      ));
+    });
+
+    it("still shows real suggestions, not presets, when jev:true answers with chips", async () => {
+      lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
+      await renderEnabled();
+      await type("okra and tex-mex");
+      expect(await screen.findByRole("button", { name: "Okra" })).toBeTruthy();
+      expect(screen.queryByText(/pick any that fit instead/)).toBeNull();
+    });
   });
 });
