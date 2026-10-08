@@ -11,8 +11,8 @@ import { kcalPer100Label } from "@/lib/foods/display";
 import { roleFromName } from "@/lib/foods/role";
 import {
   FOOD_MEMBERSHIP_SAVE_MESSAGE, FOOD_MEMBERSHIP_TRUNCATED_MESSAGE,
-  FoodMembershipSaveError, FoodPartialSaveError, saveFoodEdits, setFoodMembership,
-  type FoodEditFields,
+  FoodMembershipSaveError, FoodPartialSaveError, isLatestFoodMembershipIntent, reserveFoodMembershipIntent,
+  saveFoodEdits, setFoodMembership, type FoodEditFields,
 } from "@/lib/foods/prefs-client";
 import { loadStore, setFoodNote, setFoodStatus, upsertFood } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
@@ -360,25 +360,42 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
     latest.current.set(id, seq);
     const h = accountHandle();
     const moved = setFoodStatus(id, next).foods[id];
+    // The intent is this write's place in the food's membership order, reserved when it is sent (the
+    // queue keeps taps in order, so the cache an earlier write left is read as before). Once a newer
+    // intent exists (the coach, a starter seed), the outcome is not this screen's to report: it settles
+    // quietly, with no confirmation and no Undo.
+    // Once the row has moved off this status (a newer tap, the coach, a sync pull), this write's Undo
+    // does nothing. A queued write is still sent in tap order, as before: a pull can project an older
+    // status over a newer tap, so the row alone cannot say the tap was overruled.
+    let intent: ReturnType<typeof reserveFoodMembershipIntent> | undefined;
+    const superseded = () => intent !== undefined && !isLatestFoodMembershipIntent(intent);
+    const movedOn = () => loadStore().foods[id]?.status !== next;
+    // Only then may a failure put the earlier status back: the row still holds this status, and no
+    // newer membership choice has written it since (a note or nutrition edit is not one; a newer
+    // reservation that wrote nothing is not either).
+    const untouched = () => !movedOn() && (!superseded() || loadStore().foods[id]?.updatedAt === moved.updatedAt);
     setFoods(loadStore().foods);
     setSaveError(null);
     void feedback.run(async () => {
+      intent = reserveFoodMembershipIntent(moved.name, h);
       const result = await setFoodMembership(moved.name, next === "neutral" ? null : next,
-        { acknowledge: true, food: moved, note: null, account: h });
+        { acknowledge: true, food: moved, note: null, account: h, intent });
       const notice = foodMembershipNotice(result);
       if (notice && isCurrent(h)) setSaveError(notice);
       if (result && isCurrent(h)) onSaved?.(moved);
       return result;
     // The row's Remove (or the sheet) is gone by the time the write lands, so the confirmation
     // needs the notice even when there is nothing to undo (a neutral row's Clear marks).
-    }, { kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h),
+    }, { kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h) || superseded(),
       successMessage: membershipCopy(previous, next),
       failureMessage: foodMembershipError,
       undo: previous.status === next ? undefined
-        : { action: () => { if (isCurrent(h)) change(id, previous.status); } },
+        : { action: () => { if (isCurrent(h) && !movedOn()) change(id, previous.status); } },
     }).then((outcome) => {
-      // A failed move is undone locally only while it is still the newest move of that food.
-      if (!outcome.ok && isCurrent(h) && latest.current.get(id) === seq) {
+      // A failed move is undone locally only while it is still this screen's newest move of that food
+      // and the row is untouched since: a newer change (the coach, even to the same status) is never
+      // overwritten, while a newer reservation that changed nothing does not leave an unsaved status.
+      if (!outcome.ok && isCurrent(h) && latest.current.get(id) === seq && untouched()) {
         setFoods(upsertFood({ ...loadStore().foods[id], status: previous.status }).foods);
       }
     });
