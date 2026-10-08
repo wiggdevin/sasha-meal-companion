@@ -8,7 +8,17 @@
  *
  * Refreshed after every successful sync pass (lib/sync/post-sync.ts, at most once a minute) and
  * at once after a focus write or Undo here. A change fires `SYNCED_EVENT`, so Today re-plans.
- * An account without Shopping access (404) or a failed read holds no focus: ranking is unchanged.
+ * An account without Shopping access (404), a failed read, or a read whose body does not parse
+ * holds no focus — fail-safe: no focus never blocks a plan, so it is always the safe state to
+ * fall back to (Sol W11 r2 BLOCK: a failed refresh used to keep whatever was held before it,
+ * which could resurrect an "on" state a later write had already turned off).
+ *
+ * A successful write applies the POST's own answer (its `until`, off means `null`) to the cache
+ * at once, before any refresh is even asked for, so that write is never undone by a refresh that
+ * fails afterwards. Every apply to the held state — a write, a GET, a 404, a failure — carries a
+ * per-account ticket minted when that read or write STARTED; an apply is dropped whenever a
+ * higher ticket has already been applied, so an older in-flight GET can never overwrite a newer
+ * result or a newer write, however the two resolve relative to each other.
  *
  * The server decides every timestamp; this module never sends one.
  */
@@ -17,7 +27,9 @@ import { SYNCED_EVENT } from "@/lib/foods/rules-epoch";
 import type { FocusKey, FocusState } from "@/lib/shopping/focus";
 
 const REFRESH_MS = 60_000;
-const held = new Map<string, { state: FocusState | null; at: number; id: string }>();
+const held = new Map<string, { state: FocusState | null; at: number; id: string; ticket: number }>();
+/** The highest ticket minted so far for each account (read or write); never decreases. */
+const tickets = new Map<string, number>();
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -42,12 +54,33 @@ function identity(state: FocusState | null): string {
   return state ? JSON.stringify([state.until, state.keys]) : "none";
 }
 
-/** Holds `state` for `userId`; fires SYNCED_EVENT when it differs from what was held. */
-export function holdShoppingFocus(userId: string, state: FocusState | null, now = Date.now()): void {
+/** Mints the next ticket for `userId` (monotonic per account) and remembers it as the latest issued. */
+function mintTicket(userId: string): number {
+  const next = (tickets.get(userId) ?? 0) + 1;
+  tickets.set(userId, next);
+  return next;
+}
+
+/**
+ * Applies `state` for `userId` under `ticket`, unless a higher ticket was applied already — a
+ * read or write that started before a later one that has already landed loses, whichever order
+ * the two resolve in. Fires SYNCED_EVENT when the applied state differs from what was held.
+ */
+function applyFocus(userId: string, state: FocusState | null, ticket: number, now: number): void {
+  const prior = held.get(userId);
+  if (prior && ticket < prior.ticket) return;
   const id = identity(state);
-  const before = held.get(userId)?.id ?? "none";
-  held.set(userId, { state, at: now, id });
+  const before = prior?.id ?? "none";
+  held.set(userId, { state, at: now, id, ticket });
   if (before !== id) globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+}
+
+/**
+ * Holds `state` for `userId` directly, as the account's current truth (tests, and the Undo path
+ * once it has the server's answer): always wins over any ticket issued before now.
+ */
+export function holdShoppingFocus(userId: string, state: FocusState | null, now = Date.now()): void {
+  applyFocus(userId, state, mintTicket(userId), now);
 }
 
 /** The focus held for `userId` (the current account when omitted), or null. */
@@ -56,28 +89,33 @@ export function heldShoppingFocus(userId?: string): FocusState | null {
   return id ? held.get(id)?.state ?? null : null;
 }
 
-/** Forgets every held focus (tests, sign-out). */
+/** Forgets every held focus and every ticket (tests, sign-out). */
 export function forgetShoppingFocus(): void {
   held.clear();
+  tickets.clear();
 }
 
 /**
  * Reads the account's focus from the server. `force` skips the once-a-minute throttle. A 404
- * (no Shopping access) holds none; any other failure keeps what was held.
+ * (no Shopping access), any other failed response, an unreadable body or a thrown error all
+ * apply "no focus" — fail-safe, and never a reason to fail a sync pass. The ticket minted here
+ * before the request is sent is what keeps this call from clobbering a write or another read
+ * that landed first (see `applyFocus`).
  */
 export async function refreshShoppingFocus(h: AccountHandle, force = false): Promise<void> {
   const last = held.get(h.userId);
   if (!force && last && Date.now() - last.at < REFRESH_MS) return;
+  const ticket = mintTicket(h.userId);
   try {
     const zone = deviceZone();
     const query = new URLSearchParams({ date: deviceDay(), ...(zone ? { zone } : {}) });
     const res = await accountFetch(h, `/api/shopping/focus?${query}`, { cache: "no-store" }, { budget: "prefs" });
-    if (res.status === 404) { holdShoppingFocus(h.userId, null); return; }
-    if (!res.ok) return;
+    if (!res.ok) { applyFocus(h.userId, null, ticket, Date.now()); return; }
     const state = parseFocusState(await accountJson<unknown>(h, res));
-    if (state) holdShoppingFocus(h.userId, state);
+    applyFocus(h.userId, state, ticket, Date.now());
   } catch {
-    // Keep what was held: a ranking preference, never a reason to fail a sync pass.
+    // Fail-safe: an unreadable answer is no different from a failed one — hold no focus.
+    applyFocus(h.userId, null, ticket, Date.now());
   }
 }
 
@@ -105,8 +143,17 @@ export async function writeShoppingFocus(h: AccountHandle, on: boolean, days?: n
   if (!res.ok) throw new Error("shopping-focus request failed");
   const body = await accountJson<Partial<FocusWriteAnswer>>(h, res);
   if (typeof body?.actionId !== "string") throw new Error("shopping-focus answer was invalid");
-  await refreshShoppingFocus(h, true);
-  return { actionId: body.actionId, until: body.until ?? null, previous: body.previous ?? null };
+  const until = body.until ?? null;
+  // Apply the server's own answer to the cache at once (requirement 1 of the Sol r2 fix): off
+  // is exact and needs no refresh; on holds no keys yet (coverage under-counts, never blocks)
+  // until the refresh below fills them in. Minted now, this ticket is newer than any refresh or
+  // write already in flight, so this write is never resurrected as stale by one that lands later.
+  applyFocus(h.userId, until === null ? null : { until, keys: [] }, mintTicket(h.userId), Date.now());
+  // Not awaited: the write has already taken effect above, and a slow or failing refresh must
+  // never hold up — or undo — the write's own answer (it can only ever replace it with a newer,
+  // more complete read, per `applyFocus`'s ticket order).
+  void refreshShoppingFocus(h, true);
+  return { actionId: body.actionId, until, previous: body.previous ?? null };
 }
 
 /** Thrown when an Undo found a later choice already in place; nothing was changed. */
