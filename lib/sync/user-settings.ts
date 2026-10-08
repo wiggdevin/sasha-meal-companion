@@ -3,6 +3,7 @@ import { BODY_FAT_SOURCES, type ActivityLevel, type BodyFatSource, type DietPref
 import { isoDay } from "../profile/energy";
 import { waterPrefsFrom, type WaterPrefs } from "../water-prefs";
 import { cuisinesFrom, parseCountryCode, parseCuisines, type CuisineKey } from "../profile/cuisines";
+import { mascotKeyOf, type MascotKey } from "../profile/mascot";
 import { tasteToStore, type TastePrefs } from "../profile/taste";
 
 export const COOKING_EFFORTS = ["none", "minimal", "full"] as const;
@@ -36,6 +37,9 @@ export type UserSettingsProfileRow = {
   /** Phase 18 W5. NOT NULL on the server: the wire clears with [], never null. */
   cuisines?: CuisineKey[];
   country_code?: string | null;
+  /** UI-NEEDS MASCOT. NOT NULL on the server, default 'sprout': omitted or null both keep the
+   *  stored value (20261225090000), so the wire never clears it either. */
+  mascot?: string | null;
 };
 
 export type ProfileSettings = Omit<Pick<Settings,
@@ -49,6 +53,9 @@ export type ProfileSettings = Omit<Pick<Settings,
   countryCode?: string | null;
   timeZone?: string | null;
   activityPromptDismissedUntil?: string | null;
+  /** Omitted (or explicitly undefined): keep the stored mascot. There is no "clear" value --
+   *  the column itself never clears to null either, a choice always replaces the prior one. */
+  mascot?: MascotKey;
   };
 
 /** A stored source outside the enum reads as unverified; so does a date `isoDay` refuses. */
@@ -167,6 +174,10 @@ export function settingsProfileFromRow(row: UserSettingsProfileRow): ProfileSett
     onboardedAt: row.onboarded_at ?? null,
     mealsPerDay: typeof row.meals_per_day === "number" && Number.isInteger(row.meals_per_day)
       && row.meals_per_day >= 2 && row.meals_per_day <= 6 ? row.meals_per_day : null,
+    // NOT NULL on the server (default 'sprout'); always present on a real row. Validated
+    // leniently -- an older client or a value the server has not learned yet falls back to
+    // Sprout rather than reading as an error.
+    mascot: mascotKeyOf(row.mascot),
   };
 }
 
@@ -197,6 +208,9 @@ export function settingsProfileToRow(settings: ProfileSettings): UserSettingsPro
     onboarded_at: settings.onboardedAt ?? null,
     meals_per_day: settings.mealsPerDay ?? null,
     ...placeAndCuisineRow(settings),
+    // Omitted or explicitly undefined: keep the stored mascot (the column never clears to null
+    // either way, so there is no separate "clear" case to send, unlike cuisines/countryCode).
+    ...(settings.mascot !== undefined ? { mascot: mascotKeyOf(settings.mascot) } : {}),
   };
 }
 

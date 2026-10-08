@@ -175,8 +175,8 @@ export type Settings = {
   /** JS weekday numbers: Sunday = 0 through Saturday = 6. */
   trainingWeekdays?: number[] | null;
   dietPrefs?: DietPrefs | null;
-  /** Phase 18 W5 (lib/profile/cuisines.ts): up to 6 cuisines, and a country the user chose (never inferred). */
-  cuisines?: CuisineKey[] | null; countryCode?: string | null;
+  /** W5 (lib/profile/cuisines.ts): up to 6 cuisines and a chosen country; mascot (lib/profile/mascot.ts) absent = 'sprout'. */
+  cuisines?: CuisineKey[] | null; countryCode?: string | null; mascot?: import("./profile/mascot").MascotKey;
   onboardedAt?: string | null;
   /** Synchronized cache of the latest server target revision. Legacy blobs may hold only macros. */
   activeTargetProfile?: ActiveTargetProfile | null;
