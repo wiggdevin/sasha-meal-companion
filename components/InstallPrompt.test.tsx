@@ -253,7 +253,7 @@ describe("InstallPrompt", () => {
     // this still offered the same "Install" button to retry with, but a BeforeInstallPromptEvent
     // can only ever be prompted once — clicking it again always answered "unavailable" and hid
     // the whole card. The button must not come back until a genuinely fresh event is captured.
-    it("never leaves the button stuck, but also never re-offers the used-up event", async () => {
+    it("shows unavailable instead of leaving the button stuck, and never re-offers the used-up event", async () => {
       asAgent(ANDROID_CHROME);
       attachAndroidInstallCapture();
       fireBeforeInstallPromptThatRejects();

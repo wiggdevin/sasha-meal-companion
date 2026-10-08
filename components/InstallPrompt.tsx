@@ -60,9 +60,17 @@ function writeDismissed(): void {
 
 function isStandalone(): boolean {
   const nav = window.navigator as Navigator & { standalone?: boolean };
-  return (
-    window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true
-  );
+  if (nav.standalone === true) return true;
+  // `matchMedia` is a real browser API, but it does not exist in every test environment that
+  // renders this component as a side mount (e.g. tests/cards/today.test.tsx, which renders the
+  // whole Today page and never stubs it) — a missing or throwing implementation here must read as
+  // "not installed", never crash the mount.
+  try {
+    return typeof window.matchMedia === "function"
+      && window.matchMedia("(display-mode: standalone)").matches;
+  } catch {
+    return false;
+  }
 }
 
 function isIos(ua: string, platform: string, maxTouchPoints: number): boolean {
