@@ -9,6 +9,7 @@ import { MotionConfig } from "motion/react";
 import TodayTour, { AUTO_OPEN_DELAY_MS } from "./TodayTour";
 import { TOUR_SEEN_NAME, hasSeenTour } from "./tour-seen";
 import SproutStage from "@/components/today/island/Sprout";
+import { OFFER_MS } from "./TourOffer";
 
 type Handle = { userId: string; epoch: number };
 const account = vi.hoisted(() => ({ current: { userId: "a", epoch: 1 } as Handle | null }));
@@ -76,9 +77,26 @@ describe("TodayTour", () => {
     expect(tour()).toBeNull();
     const sprout = screen.getByRole("button", { name: "Sprout. Say hello" });
     act(() => { sprout.focus(); fireEvent.click(sprout); });
+    // The tap keeps its hello and offers the overview beside the pet; the offer opens it.
+    expect(tour()).toBeNull();
+    expect(screen.getByText("Sprout says hello back.")).toBeTruthy();
+    const offer = screen.getByRole("button", { name: "How Sasha works?" });
+    act(() => { offer.focus(); fireEvent.click(offer); });
     expect(tour()).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     act(() => { vi.runOnlyPendingTimers(); });
+  });
+
+  it("lets the offer go after a few seconds", () => {
+    localStorage.setItem(`smc:u:a:${TOUR_SEEN_NAME}`, ONBOARDED);
+    render(<MotionConfig reducedMotion="always">
+      <SproutStage state={{ mood: "content", vitality: 0.7, line: "Sprout is doing fine." }} glance={null} bounce={0} />
+    </MotionConfig>);
+    fireEvent.click(screen.getByRole("button", { name: "Sprout. Say hello" }));
+    expect(screen.getByRole("button", { name: "How Sasha works?" })).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(OFFER_MS + 100); });
+    act(() => { vi.runOnlyPendingTimers(); });
+    expect(screen.queryByRole("button", { name: "How Sasha works?" })).toBeNull();
   });
 
   it("never throws when storage cannot be read", () => {

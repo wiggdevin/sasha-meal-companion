@@ -89,7 +89,9 @@ export default function AppTour({ onClose, origin, mascot = "sprout", returnFocu
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+      // What opened it may have gone (the companion's bubble): then the companion takes focus back.
+      const target = returnTo?.isConnected ? returnTo : returnFocusTo?.isConnected ? returnFocusTo : null;
+      target?.focus({ preventScroll: true });
     };
     // Runs once per opened sheet.
     // eslint-disable-next-line react-hooks/exhaustive-deps

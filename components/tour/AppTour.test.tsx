@@ -39,17 +39,18 @@ describe("AppTour", () => {
     renderTour();
     next();
     expect(screen.getByText("Tap the heart to save this meal and favor its foods.")).toBeTruthy();
-    expect(screen.getByText(/three icons: Mark eaten, Swap and Expand/)).toBeTruthy();
+    expect(screen.getByText("The chip says Next, Now or Eaten.")).toBeTruthy();
     next();
-    expect(screen.getByText(/^Mark eaten: tap to tick it off/)).toBeTruthy();
-    expect(screen.getByText(/^Swap: other meals open inside the card/)).toBeTruthy();
-    expect(screen.getByText(/tap again to undo/)).toBeTruthy();
-    expect(screen.getByText(/Undo for 5 seconds/)).toBeTruthy();
-    expect(screen.getByText(/Plan with Sasha or Log what you ate/)).toBeTruthy();
+    expect(screen.getByText("Mark eaten. Tap again to undo.")).toBeTruthy();
+    expect(screen.getByText("Swap for another meal.")).toBeTruthy();
+    expect(screen.getByText("Expand to change portions and foods.")).toBeTruthy();
+    expect(screen.getByText("Daily share: how much of today's calories and macros this meal covers.")).toBeTruthy();
     next();
-    expect(screen.getByText("Swipe right to swap.")).toBeTruthy();
-    expect(screen.getByText("Swipe left to show Clear, then Delete.")).toBeTruthy();
+    expect(screen.getByText("Swipe right: swap.")).toBeTruthy();
+    expect(screen.getByText("Swipe left: Clear, then Delete.")).toBeTruthy();
     expect(screen.getByText(/15-minute steps/)).toBeTruthy();
+    next();
+    expect(screen.getByText(/Plan with Sasha and Log what you ate/)).toBeTruthy();
   });
 
   it("offers Skip on every step, and Escape closes", () => {
@@ -86,6 +87,19 @@ describe("AppTour", () => {
     unmount();
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
+  });
+
+  it("gives focus to the companion when what opened it has gone", () => {
+    const companion = document.createElement("button");
+    const bubble = document.createElement("button");
+    document.body.append(companion, bubble);
+    bubble.focus();
+    const { unmount } = render(<MotionConfig reducedMotion="always">
+      <AppTour onClose={() => {}} returnFocusTo={companion} /></MotionConfig>);
+    bubble.remove();
+    unmount();
+    expect(document.activeElement).toBe(companion);
+    companion.remove();
   });
 
   it("draws still frames under reduced motion: nothing moves with time", () => {

@@ -1,0 +1,34 @@
+/* The "How Sasha works?" bubble beside the companion (TourOffer.tsx): an ivory speech bubble with a
+   small tail toward the pet, ink text (it sits in the matte well, so it resets the text roles). */
+.bubble {
+  position: relative;
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 14px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  background: var(--grad-card);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-card);
+}
+.bubble::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 2px;
+  background: var(--color-surface);
+  transform: rotate(45deg);
+}
+/* In the middle of the rings the bubble floats beside the figure instead of under the words. */
+.floating {
+  flex-shrink: 0;
+}
