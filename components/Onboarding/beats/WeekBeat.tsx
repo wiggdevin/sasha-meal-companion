@@ -9,7 +9,7 @@
  */
 import { useState } from "react";
 import Button from "@/components/ui/Button";
-import { DisclosurePanel } from "@/components/ui/Disclosure";
+import Reveal from "@/components/Onboarding/beats/Reveal";
 import ChoiceChips from "@/components/Onboarding/beats/ChoiceChips";
 import { BeatNote, BeatQuestion } from "@/components/Onboarding/beats/BeatQuestion";
 import { activityFor, activityLabel, type WeekAnswer } from "@/components/Onboarding/v2/plan-answers";
@@ -75,10 +75,12 @@ export default function WeekBeat({ initial, onDone }: {
         aria-controls="activity-levels" onClick={() => setEditing((open) => !open)}>
         Change activity
       </Button>
-      <DisclosurePanel id="activity-levels" open={editing} keepMounted={false}>
-        <ChoiceChips label="Activity level" options={LEVELS.map((value) => ({ value, label: activityLabel(value) }))}
-          value={level} onChange={(value) => setOverride(value)} />
-      </DisclosurePanel>
+      <Reveal id="activity-levels" open={editing}>
+        <div className="-mx-1 p-1">
+          <ChoiceChips label="Activity level" options={LEVELS.map((value) => ({ value, label: activityLabel(value) }))}
+            value={level} onChange={(value) => setOverride(value)} />
+        </div>
+      </Reveal>
     </div>}
     <div className="flex flex-col gap-2">
       <Button variant="primary" size="lg" block disabled={!answered} onClick={() => onDone(draft)}>

@@ -9,7 +9,7 @@
  */
 import { useId, useState } from "react";
 import Button from "@/components/ui/Button";
-import { DisclosurePanel } from "@/components/ui/Disclosure";
+import Reveal from "@/components/Onboarding/beats/Reveal";
 import ChoiceChips from "@/components/Onboarding/beats/ChoiceChips";
 import { BeatNote, BeatQuestion } from "@/components/Onboarding/beats/BeatQuestion";
 import { FIELD_CLASS } from "@/components/Onboarding/facts/FactQuestion";
@@ -67,13 +67,13 @@ export default function YourDayBeat({ derivedCount, initial, onDone }: {
           setOther(false);
           setFirst(value === shownFirst && first === null ? null : value);
         }} />
-      <DisclosurePanel id="first-meal-other" open={other} keepMounted={false}>
+      <Reveal id="first-meal-other" open={other}>
         <div className="flex flex-col gap-1">
           <label htmlFor={otherId} className="text-caption text-graphite">First meal time</label>
           <input id={otherId} type="time" value={first ?? shownFirst} step={900}
             onChange={(event) => setFirst(event.target.value || null)} className={FIELD_CLASS} />
         </div>
-      </DisclosurePanel>
+      </Reveal>
     </div>
     <div className="flex flex-col gap-2 border-t border-hairline pt-5">
       <ChoiceChips label="Country" multiple options={[{ value: "US", label: "I’m in the U.S." }]}

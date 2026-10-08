@@ -10,7 +10,7 @@
  *   pregnant. Pregnant and breastfeeding hold the pace (`safetyConditionEntries` writes them to
  *   `conditions` before the target; "Pregnant" arms the tuna check).
  * - Medicine that affects food → the kind, in plain names; its food rules through the same editor.
- *   Sasha does not change doses or timing.
+ *   The app does not change doses or timing.
  * - A health condition → optional free text, saved to `conditions`, never sent to a model.
  * - A diet a clinician set for me → the editor or Later; holds the pace.
  *
@@ -19,7 +19,7 @@
  */
 import { useId, useState } from "react";
 import Button from "@/components/ui/Button";
-import { DisclosurePanel } from "@/components/ui/Disclosure";
+import Reveal from "@/components/Onboarding/beats/Reveal";
 import ChoiceChips from "@/components/Onboarding/beats/ChoiceChips";
 import { BeatNote, BeatQuestion } from "@/components/Onboarding/beats/BeatQuestion";
 import DietaryProfilePicker from "@/components/Onboarding/DietaryProfilePicker";
@@ -113,28 +113,28 @@ export default function SafetyRound({ initial, note, onDone, busy = false }: {
     <p className="m-0 pt-2 text-caption text-graphite">Or tap any that apply</p>
     <ChoiceChips label="Applies to me" multiple block options={PICKS} value={picks} onChange={togglePick} />
 
-    <DisclosurePanel id="safety-allergy" open={has("allergy")} keepMounted={false}>
-      <div className="flex flex-col gap-2 pt-1">
+    <Reveal id="safety-allergy" open={has("allergy")}>
+      <div className="-mx-1 flex flex-col gap-2 px-1 py-1">
         <BeatQuestion>Which allergies? We&rsquo;ll keep these out of every plan.</BeatQuestion>
         <BeatNote>Always check labels yourself. {APP_NAME} can&rsquo;t see cross-contact.</BeatNote>
       </div>
-    </DisclosurePanel>
-    <DisclosurePanel id="safety-pregnancy" open={has("pregnancy")} keepMounted={false}>
-      <div className="flex flex-col gap-2 pt-1">
+    </Reveal>
+    <Reveal id="safety-pregnancy" open={has("pregnancy")}>
+      <div className="-mx-1 flex flex-col gap-2 px-1 py-1">
         <BeatQuestion>Which one?</BeatQuestion>
         <ChoiceChips label="Pregnancy" options={PREGNANCY} value={pregnancy} onChange={setPregnancy} />
         <BeatNote>{CLINICIAN_ADVICE_FIRST_NOTE}</BeatNote>
       </div>
-    </DisclosurePanel>
-    <DisclosurePanel id="safety-medicine" open={has("medicine")} keepMounted={false}>
-      <div className="flex flex-col gap-2 pt-1">
+    </Reveal>
+    <Reveal id="safety-medicine" open={has("medicine")}>
+      <div className="-mx-1 flex flex-col gap-2 px-1 py-1">
         <BeatQuestion>Which kind of medicine?</BeatQuestion>
         <ChoiceChips label="Medicine" multiple block options={MEDICINES} value={medicines} onChange={toggleMedicine} />
         <BeatNote>{APP_NAME} does not change doses or timing. {CLINICIAN_ADVICE_FIRST_NOTE}</BeatNote>
       </div>
-    </DisclosurePanel>
-    <DisclosurePanel id="safety-condition" open={has("condition")} keepMounted={false}>
-      <div className="flex flex-col gap-2 pt-1">
+    </Reveal>
+    <Reveal id="safety-condition" open={has("condition")}>
+      <div className="-mx-1 flex flex-col gap-2 px-1 py-1">
         <label htmlFor={conditionId} className="font-serif text-heading-sm text-charcoal">
           Thanks. Want to name it? This is optional.
         </label>
@@ -146,21 +146,21 @@ export default function SafetyRound({ initial, note, onDone, busy = false }: {
           can add food rules any time in Foods › Avoids.
         </BeatNote>
       </div>
-    </DisclosurePanel>
-    <DisclosurePanel id="safety-clinician" open={has("clinician_diet")} keepMounted={false}>
-      <div className="flex flex-col gap-2 pt-1">
+    </Reveal>
+    <Reveal id="safety-clinician" open={has("clinician_diet")}>
+      <div className="-mx-1 flex flex-col gap-2 px-1 py-1">
         <BeatQuestion>Got it. Want to add the foods it rules out?</BeatQuestion>
         <BeatNote>Your clinician guides calorie changes. {APP_NAME} will plan meals that fit your rules.</BeatNote>
       </div>
-    </DisclosurePanel>
+    </Reveal>
 
     {showsEditor && <div className="flex flex-col gap-2">
       <RuleEditorToggle open={editorOpen} onToggle={toggleEditor}
         label={editorOpen ? "Close the rule editor" : "Add food rules"} />
       {/* The picker is a light-surface form; inside `.matte` it needs `.matte-reset`. */}
-      <DisclosurePanel id="safety-editor" open={editorOpen} keepMounted={false}>
+      <Reveal id="safety-editor" open={editorOpen}>
         <div className="matte-reset surface flex-col p-4"><DietaryProfilePicker /></div>
-      </DisclosurePanel>
+      </Reveal>
     </div>}
 
     {picks.length > 0 && <Button variant="primary" size="lg" block disabled={!ready || busy}
