@@ -4,12 +4,15 @@ import { cleanTip } from "@/lib/plan/photo-result";
 import { CallRefused, ProviderHttpError, SchemaRejection } from "@/lib/ai/call";
 import { LANES } from "@/lib/ai/lanes";
 import { EMPTY_PROFILE } from "@/lib/policy/constraints";
+import { syntheticJpeg, syntheticPng } from "../helpers/synthetic-images";
 
 const admin = {} as never;
 const client = {} as never;
 const PATH = "media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.jpg";
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+// W12-F: this route now strips metadata server-side (lib/media/strip-metadata.ts) before any
+// provider call, so these fixtures must be fully well-formed images, not signature-only stubs.
+const JPEG = syntheticJpeg();
+const PNG = syntheticPng();
 const photo = { kind: "photo", mediaPath: PATH, localDate: "2026-10-01" } as const;
 
 afterEach(() => { vi.unstubAllEnvs(); });

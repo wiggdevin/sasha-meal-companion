@@ -13,7 +13,7 @@ describe("shopping aggregation", () => {
       used("2026-10-02", "lunch", "batch-1")], {
       identityFor, pantry: [{ id: "stock", userId: "account-a", name: "beans",
         identity: identity("beans"), confirmedGrams: 40,
-        confirmedAt: "2026-09-30", revision: 1 }],
+        confirmedAt: "2026-09-30", revision: 1, source: "manual" }],
       packages: [{ identity: identity("beans"), grams: 50 }],
     });
     const beans = shopping.lines.find((line) => line.name === "beans");
@@ -79,7 +79,7 @@ describe("shopping aggregation", () => {
     const full = aggregateShopping(period({ budgetAmount: 20 }), [used("2026-10-01", "dinner", "b")], {
       identityFor,
       pantry: [{ id: "other", userId: "account-b", name: "beans", identity: identity("beans"),
-        confirmedGrams: 999, confirmedAt: "2026-09-30", revision: 1 }],
+        confirmedGrams: 999, confirmedAt: "2026-09-30", revision: 1, source: "manual" }],
       prices: [{ identity: identity("beans"), packageGrams: 100, amount: 5,
         currency: "USD", locale: "US-CO", source: "store", observedAt: "2026-09-30" },
       { identity: identity("salt"), packageGrams: 100, amount: 2,

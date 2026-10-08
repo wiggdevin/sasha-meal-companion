@@ -30,7 +30,7 @@ function line(over: Partial<ShoppingLine> = {}): ShoppingLine {
 }
 function pantryItem(over: Partial<PantryItem> = {}): PantryItem {
   return { id: "i1", userId: "u1", name: "Peanut butter", identity, confirmedGrams: 300,
-    confirmedAt: "2026-10-01T00:00:00Z", revision: 1, ruleMark: null, ...over };
+    confirmedAt: "2026-10-01T00:00:00Z", revision: 1, source: "manual", ruleMark: null, ...over };
 }
 const viewActions = () => ({ preview: vi.fn(), patchLine: vi.fn().mockResolvedValue(undefined),
   confirmPantry: vi.fn().mockResolvedValue(undefined), addItems: vi.fn().mockResolvedValue(undefined),
