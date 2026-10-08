@@ -13,9 +13,10 @@
  * - One action id per user tap (`newTasteDislikeActionId`). `removeTasteDislike` mints one when the
  *   caller does not supply `opts.actionId`; a retry of the SAME tap (after a timeout or a lost
  *   answer) should pass the id back in `opts.actionId` — the server answers its stored receipt
- *   (`status: "existing"`) and changes nothing further. The outcome always echoes the id used, so
- *   the caller can keep it for both the retry and the Undo tap without re-deriving it.
- * - Offline, nothing is sent: `{ ok: false, reason: "offline" }`.
+ *   (`status: "existing"`) and changes nothing further. The outcome always echoes the id used — on
+ *   EVERY outcome, including offline/retry/refused, never only a 2xx — so the caller can keep it
+ *   for both the retry and the Undo tap without re-deriving it, even after a lost response.
+ * - Offline, nothing is sent: `{ ok: false, reason: "offline", actionId }`.
  * - A network failure, a lost answer, a 429 or a 5xx is `retry` (reuse the same action id); any
  *   other 4xx is `refused` with its code. A success fires `SYNCED_EVENT` after the row settles.
  */
@@ -31,9 +32,9 @@ import type {
 
 export type TasteDislikeWriteOutcome<T> =
   | { ok: true; result: T }
-  | { ok: false; reason: "offline" }
-  | { ok: false; reason: "retry"; message: string }
-  | { ok: false; reason: "refused"; status: number; code: string; message: string };
+  | { ok: false; reason: "offline"; actionId: string }
+  | { ok: false; reason: "retry"; actionId: string; message: string }
+  | { ok: false; reason: "refused"; actionId: string; status: number; code: string; message: string };
 
 type Options = { account?: AccountHandle; fetchImpl?: typeof fetch; online?: () => boolean };
 
@@ -45,9 +46,9 @@ export function newTasteDislikeActionId(): string {
 }
 
 async function post<T extends { settings: Record<string, unknown> | null }>(
-  path: string, body: unknown, opts: Options,
+  path: string, body: unknown, actionId: string, opts: Options,
 ): Promise<TasteDislikeWriteOutcome<T>> {
-  if (!(opts.online ?? defaultOnline)()) return { ok: false, reason: "offline" };
+  if (!(opts.online ?? defaultOnline)()) return { ok: false, reason: "offline", actionId };
   const h = opts.account ?? accountHandle();
   let response: Response;
   try {
@@ -56,14 +57,14 @@ async function post<T extends { settings: Record<string, unknown> | null }>(
     }, { budget: "prefs", fetchImpl: opts.fetchImpl });
   } catch (error) {
     rethrowAccountChanged(error);
-    return { ok: false, reason: "retry", message: "No connection. Try again." };
+    return { ok: false, reason: "retry", actionId, message: "No connection. Try again." };
   }
   if (!response.ok) {
     const failure = await accountJson<{ error?: unknown; message?: unknown } | null>(h, response)
       .catch((error: unknown) => { rethrowAccountChanged(error); return null; });
     const message = typeof failure?.message === "string" ? failure.message : "That did not save. Try again.";
-    if (response.status >= 500 || response.status === 429) return { ok: false, reason: "retry", message };
-    return { ok: false, reason: "refused", status: response.status,
+    if (response.status >= 500 || response.status === 429) return { ok: false, reason: "retry", actionId, message };
+    return { ok: false, reason: "refused", actionId, status: response.status,
       code: typeof failure?.error === "string" ? failure.error : "error", message };
   }
   let result: T;
@@ -73,7 +74,7 @@ async function post<T extends { settings: Record<string, unknown> | null }>(
     // The server may have written, and the answer was lost on the way: the same action id again
     // answers the stored receipt.
     rethrowAccountChanged(error);
-    return { ok: false, reason: "retry", message: "No connection. Try again." };
+    return { ok: false, reason: "retry", actionId, message: "No connection. Try again." };
   }
   if (result.settings) {
     await applyServerUserSettings(h, result.settings);
@@ -92,11 +93,11 @@ async function post<T extends { settings: Record<string, unknown> | null }>(
 export function removeTasteDislike(key: TasteDislike,
   opts: Options & { actionId?: string } = {}): Promise<TasteDislikeWriteOutcome<TasteDislikeRemoveResult>> {
   const actionId = opts.actionId ?? newTasteDislikeActionId();
-  return post<TasteDislikeRemoveResult>("/api/profile/taste/dislikes/remove", { actionId, key }, opts);
+  return post<TasteDislikeRemoveResult>("/api/profile/taste/dislikes/remove", { actionId, key }, actionId, opts);
 }
 
 /** Undo one remove by its action id (the SAME id `removeTasteDislike` used). */
 export function undoRemoveTasteDislike(actionId: string,
   opts: Options = {}): Promise<TasteDislikeWriteOutcome<TasteDislikeRemoveUndoResult>> {
-  return post<TasteDislikeRemoveUndoResult>("/api/profile/taste/dislikes/remove/undo", { actionId }, opts);
+  return post<TasteDislikeRemoveUndoResult>("/api/profile/taste/dislikes/remove/undo", { actionId }, actionId, opts);
 }

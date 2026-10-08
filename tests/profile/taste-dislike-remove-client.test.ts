@@ -46,10 +46,12 @@ describe("newTasteDislikeActionId", () => {
 });
 
 describe("removeTasteDislike", () => {
-  it("offline: sends nothing and says the remove waits", async () => {
+  it("offline: sends nothing, waits, and still returns the action id to retry with", async () => {
     const fetchImpl = vi.fn();
-    expect(await removeTasteDislike(KEY, { account: h, fetchImpl, online: () => false }))
-      .toEqual({ ok: false, reason: "offline" });
+    const outcome = await removeTasteDislike(KEY, { account: h, fetchImpl, online: () => false });
+    expect(outcome.ok).toBe(false);
+    expect(outcome).toMatchObject({ reason: "offline" });
+    expect((outcome as { actionId: string }).actionId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -76,8 +78,10 @@ describe("removeTasteDislike", () => {
 
   it("a 5xx, a 429 or a network failure is retry; another 4xx is refused with its code", async () => {
     for (const status of [502, 503, 429]) {
-      expect(await removeTasteDislike(KEY, { account: h, online: () => true,
-        fetchImpl: vi.fn(json(status, { error: "x", message: "Try again." })) })).toMatchObject({ ok: false, reason: "retry" });
+      const outcome = await removeTasteDislike(KEY, { account: h, online: () => true,
+        fetchImpl: vi.fn(json(status, { error: "x", message: "Try again." })) });
+      expect(outcome).toMatchObject({ ok: false, reason: "retry" });
+      expect((outcome as { actionId: string }).actionId).toMatch(/^[0-9a-f-]{36}$/i);
     }
     expect(await removeTasteDislike(KEY, { account: h, online: () => true,
       fetchImpl: vi.fn(async () => { throw new TypeError("offline"); }) })).toMatchObject({ ok: false, reason: "retry" });
@@ -87,9 +91,22 @@ describe("removeTasteDislike", () => {
       .toMatchObject({ ok: false, reason: "retry" });
     expect(await removeTasteDislike(KEY, { account: h, online: () => true,
       fetchImpl: vi.fn(json(409, { error: "action_conflict", message: "used" })) }))
-      .toEqual({ ok: false, reason: "refused", status: 409, code: "action_conflict", message: "used" });
+      .toMatchObject({ ok: false, reason: "refused", status: 409, code: "action_conflict", message: "used" });
     expect(applyServerUserSettings).not.toHaveBeenCalled();
     expect(synced).not.toHaveBeenCalled();
+  });
+
+  it("a retry after a lost response reuses the SAME action id on every failure outcome", async () => {
+    const actionId = newTasteDislikeActionId();
+    const outcome = await removeTasteDislike(KEY, { account: h, online: () => true, actionId,
+      fetchImpl: vi.fn(json(502, { error: "x", message: "Try again." })) });
+    expect(outcome).toMatchObject({ ok: false, reason: "retry", actionId });
+    // The caller can now retry with the SAME actionId it got back, even though it never saw the
+    // one it minted internally (it supplied its own above) -- the point holds either way: the
+    // returned id is always usable for the next attempt and for Undo.
+    const again = await removeTasteDislike(KEY, { account: h, online: () => true, actionId,
+      fetchImpl: vi.fn(json(200, { status: "existing", actionId, key: KEY, settings: ROW })) });
+    expect(again).toEqual({ ok: true, result: { status: "existing", actionId, key: KEY, settings: ROW } });
   });
 });
 
@@ -109,14 +126,14 @@ describe("undoRemoveTasteDislike", () => {
   it("a 404 unknown_action is refused, not retry", async () => {
     const fetchImpl = vi.fn(json(404, { error: "unknown_action", message: "No such action." }));
     expect(await undoRemoveTasteDislike(ACTION, { account: h, fetchImpl, online: () => true }))
-      .toEqual({ ok: false, reason: "refused", status: 404, code: "unknown_action", message: "No such action." });
+      .toEqual({ ok: false, reason: "refused", actionId: ACTION, status: 404, code: "unknown_action", message: "No such action." });
     expect(applyServerUserSettings).not.toHaveBeenCalled();
   });
 
-  it("offline: sends nothing", async () => {
+  it("offline: sends nothing, and still returns the action id", async () => {
     const fetchImpl = vi.fn();
     expect(await undoRemoveTasteDislike(ACTION, { account: h, fetchImpl, online: () => false }))
-      .toEqual({ ok: false, reason: "offline" });
+      .toEqual({ ok: false, reason: "offline", actionId: ACTION });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
