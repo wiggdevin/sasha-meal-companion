@@ -97,7 +97,15 @@ export function useStoredEligibility(
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
   const refresh = useCallback(async () => {
     const key = currentAccountKey();
-    const value = await readStoredEligibility(reads);
+    // No account bound (a switch is under way): nothing to read, and the next account's own
+    // ready event reads again (final Sol review r4 WARN: an unbound read threw unhandled).
+    if (key === null) return null;
+    let value: TargetEligibility | null;
+    try {
+      value = await readStoredEligibility(reads);
+    } catch {
+      value = null;
+    }
     // An answer that arrives after a switch is the previous account's: never used, never kept.
     if (key === null || currentAccountKey() !== key) return null;
     if (live.current) setState({ key, eligibility: value, status: value ? "ready" : "failed" });

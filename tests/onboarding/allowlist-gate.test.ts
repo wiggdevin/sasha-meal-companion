@@ -106,7 +106,8 @@ describe("the allowlist verdict", () => {
 
   it("reads the goal and measure uses of those words", () => {
     for (const text of ["I want to get fit", "stay fit and lose 10 lb", "5 foot 6", "6 feet tall",
-      "on my feet all day", "lose body fat"]) {
+      "on my feet all day", "lose body fat", "I want to cut fat", "on a cut, 5 days a week",
+      "cut 10 pounds", "I have a desk job", "I eat 3 meals a day"]) {
       expect(onboardingMayReachModel(text), text).toBe(true);
     }
   });

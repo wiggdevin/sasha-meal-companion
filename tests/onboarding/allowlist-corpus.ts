@@ -72,6 +72,14 @@ export const DUAL_MEANING: readonly string[] = [
   "I want to eat under 800 a day",
   "I skip meals to lose weight",
   "I'm heavy every month",
+  // Final Sol review r4.
+  "I have a cut",
+  "I got a cut last week",
+  "I have a cut on my foot",
+  "I eat one meal a day",
+  "I only eat once a day",
+  "I have a pull",
+  "I have a bad one every month",
 ];
 
 export const NORMAL_OPENERS: readonly string[] = [

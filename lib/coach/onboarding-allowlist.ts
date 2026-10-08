@@ -116,7 +116,16 @@ const SHAPE_PATTERNS: readonly RegExp[] = [
   /\b(?:i'?m|i am|im)\s+(?:about\s+|around\s+|almost\s+|nearly\s+)?\d{1,2}\s+(?:weeks?|months?)\b/,
   /\b\d{1,2}\s+(?:weeks?|months?)\s+(?:along|in|pregnant|postpartum)\b/,
   /\brun down\b|\bworn out\b/,
+  // Final Sol review r4: one meal a day is an eating rule, not a meal count.
+  /\b(?:one|1|a single|single)\s+meals?\s+(?:a|per|each)\s+day\b|\b(?:eat|eats|eating|ate)\s+once\b|\bonce\s+(?:a|per)\s+day\b[^.!;]{0,20}\beat/,
 ];
+
+/** Things a person "has" that are plain onboarding facts. Any other "have a …" names a thing the
+ *  vocabulary cannot tell from an injury or a health event (final Sol review r4: "I have a cut"). */
+const HAVE_NOUNS = new Set(["desk", "job", "goal", "goals", "target", "gym", "office", "busy", "plan",
+  "physical", "active", "very", "pretty", "kitchen", "shift", "shifts", "lot", "little", "few", "couple",
+  "trainer", "class", "session", "home"]);
+const HAVE_A = new Set(["have", "has", "had", "having", "got", "get", "gets", "getting"]);
 
 /** The goal phrases "get fit" and "stay fit" are read as "fitness"; "fit" alone is never a word
  *  here ("I have a fit every week" is a seizure). */
@@ -130,6 +139,15 @@ function bodyWordsInPlace(words: readonly string[]): boolean {
       return NUMBER.test(words[i - 1] ?? "") || (words[i - 2] === "on" && (words[i - 1] === "my" || words[i - 1] === "your"));
     }
     if (word === "body") return ["fat", "weight", "composition", "recomp", "recomposition"].includes(words[i + 1] ?? "");
+    // "have a cut", "got a pull": a noun after "have a" must be a plain onboarding fact.
+    if ((word === "a" || word === "an") && HAVE_A.has(words[i - 1] ?? "")) {
+      return HAVE_NOUNS.has(words[i + 1] ?? "");
+    }
+    // "cut" only as the goal verb or the season ("cut fat", "on a cut"), never an injury.
+    if (word === "cut" || word === "cutting" || word === "cuts") {
+      return ["fat", "weight", "body", "some", "down", "back"].includes(words[i + 1] ?? "")
+        || NUMBER.test(words[i + 1] ?? "") || (words[i - 1] === "a" && words[i - 2] === "on");
+    }
     return true;
   });
 }
