@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  coverageOf, defaultFocusEnd, FOCUS_DEFAULT_DAYS, FOCUS_MAX_DAYS, isUsedLine, lineActiveOn,
-  lineBoxEnd, maxFocusEnd, pantryActiveOn, shoppingFocusActive,
+  coverageOf, defaultFocusEnd, endOfLocalDay, FOCUS_DEFAULT_DAYS, FOCUS_MAX_DAYS, focusKeysFrom,
+  focusRankingOn, isUsedLine, lineActiveOn, lineBoxEnd, maxFocusEnd, pantryActiveOn, shoppingFocusActive,
 } from "@/lib/shopping/focus";
 import type { ShoppingPeriod } from "@/lib/shopping/types";
 
@@ -118,5 +118,67 @@ describe("W11 acceptance 1: coverage is the share of plate calories from list/pa
   it("is 0 for a plate with no positive calories, never a divide by zero", () => {
     expect(coverageOf([], used)).toBe(0);
     expect(coverageOf([{ key: "chicken breast", kcal: 0 }], used)).toBe(0);
+  });
+});
+
+describe("D7: a planner line checked through its purchase window counts as used (Sol W11 r1 WARN)", () => {
+  it("is used, and active inside its box, when a window is checked", () => {
+    expect(isUsedLine(uncheckedPlan, true)).toBe(true);
+    expect(lineActiveOn(uncheckedPlan, period, "2026-10-03", true)).toBe(true);
+    expect(lineActiveOn(uncheckedPlan, period, "2026-10-09", true)).toBe(false);
+  });
+  it("focusKeysFrom keys a window-checked planner line and never an unchecked one", () => {
+    const keys = focusKeysFrom({
+      periods: [{ id: "p1", ...period }],
+      lines: [
+        { id: "l1", periodId: "p1", name: "Chicken  Breast", checked: false, origin: "plan" },
+        { id: "l2", periodId: "p1", name: "Rice", checked: false, origin: "plan" },
+        { id: "l3", periodId: "gone", name: "Tofu", checked: true, origin: "manual" },
+      ],
+      checkedWindowLineIds: new Set(["l1"]),
+      pantry: [{ name: "Oats", confirmedAt: "2026-10-02T15:00:00.000Z" }],
+      zone: "UTC",
+    });
+    expect(keys).toEqual([
+      { key: "chicken breast", from: "2026-10-01", to: "2026-10-08" },
+      { key: "oats", from: "2026-10-02", to: "2026-10-16" },
+    ]);
+  });
+});
+
+describe("pantry and default end use the account's zone, not the server's", () => {
+  it("dates a pantry confirmation by the account zone", () => {
+    // 03:00 UTC on Oct 2 is still Oct 1 in Los Angeles.
+    const item = { confirmedAt: "2026-10-02T03:00:00.000Z" };
+    expect(pantryActiveOn(item, "2026-10-01", "America/Los_Angeles")).toBe(true);
+    expect(pantryActiveOn(item, "2026-10-01", "UTC")).toBe(false);
+  });
+  it("ends a period on its last local millisecond", () => {
+    expect(endOfLocalDay("2026-10-12", "America/Los_Angeles")).toBe("2026-10-13T06:59:59.999Z");
+    expect(endOfLocalDay("2026-10-12", "Asia/Tokyo")).toBe("2026-10-12T14:59:59.999Z");
+    expect(defaultFocusEnd(new Date("2026-10-05T00:00:00Z"), "2026-10-12", "America/Los_Angeles"))
+      .toBe("2026-10-13T06:59:59.999Z");
+  });
+});
+
+describe("focusRankingOn: on only while active, keys only inside their boxes", () => {
+  const now = new Date("2026-10-05T12:00:00.000Z");
+  const state = { until: "2026-10-10T23:59:59.999Z",
+    keys: [{ key: "rice", from: "2026-10-01", to: "2026-10-08" }] };
+  it("is undefined when off, ended, or for a date after the end", () => {
+    expect(focusRankingOn(null, "2026-10-05", now, "UTC")).toBeUndefined();
+    expect(focusRankingOn({ until: null, keys: state.keys }, "2026-10-05", now, "UTC")).toBeUndefined();
+    expect(focusRankingOn({ ...state, until: "2026-10-05T11:00:00.000Z" }, "2026-10-05", now, "UTC"))
+      .toBeUndefined();
+    expect(focusRankingOn(state, "2026-10-11", now, "UTC")).toBeUndefined();
+  });
+  it("covers a key on its box's last day and not the day after", () => {
+    const items = [{ key: "rice", kcal: 100 }];
+    expect(focusRankingOn(state, "2026-10-08", now, "UTC")?.coverageOf(items)).toBe(1);
+    expect(focusRankingOn(state, "2026-10-09", now, "UTC")?.coverageOf(items)).toBe(0);
+  });
+  it("changes its id when the keys that count change", () => {
+    expect(focusRankingOn(state, "2026-10-08", now, "UTC")?.id)
+      .not.toBe(focusRankingOn(state, "2026-10-09", now, "UTC")?.id);
   });
 });

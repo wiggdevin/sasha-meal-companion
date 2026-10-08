@@ -31,8 +31,8 @@ type Types = {
   kind: "set_shopping_focus";
   input: z.infer<typeof input>;
   action: GroundedBase & { kind: "set_shopping_focus"; on: boolean; days?: number };
-  /** Undo restores the account's previous `shopping_focus_until` exactly (null included). */
-  token: { kind: "set_shopping_focus"; previousUntil: string | null };
+  /** Undo names the server's write; the server restores the value it recorded (compare-and-set). */
+  token: { kind: "set_shopping_focus"; actionId: string };
 };
 
 export const setShoppingFocus: ActionSpec<Types> = {
@@ -54,12 +54,12 @@ export const setShoppingFocus: ActionSpec<Types> = {
   ground: async (value) => passThrough(value),
   history: (action) => action.on
     ? ` on${action.days ? ` for ${action.days} days` : ""}` : " off",
-  prompt: { rank: 60, lines: [
+  prompt: { rank: 125, lines: [
     "  set_shopping_focus uses stringArgs [onOrOff] (\"on\" or \"off\") and numericArgs [days]",
     "    (1-31, 0 for the default). Turns \"use my shopping list\" on or off. Only offered when",
     "    Shopping is set up for this account.",
   ] },
-  example: { rank: 60, lines: () => [
+  example: { rank: 125, lines: () => [
     '  User: "use my shopping list for meals this week"',
     '  Final: { "kind": "final", "text": "Turned on \\"use my shopping list\\".", '
       + '"actions": [{ "kind": "set_shopping_focus", "stringArgs": ["on"] }] }',

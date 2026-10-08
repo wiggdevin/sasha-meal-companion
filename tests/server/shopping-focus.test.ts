@@ -1,130 +1,160 @@
 /**
- * Phase 18 W11 (docs/specs/phase-18-open-world-foods.md §W11, D7): the actual Supabase reads and
- * writes behind `set_shopping_focus` — `tests/server/shopping-focus-route.test.ts` mocks this
- * whole module away, so the query construction itself (which column, which table, the period
- * lookup's filters) had no coverage of its own.
+ * Phase 18 W11 (docs/specs/phase-18-open-world-foods.md §W11, D7): the server reads and the
+ * service-role write/Undo behind shopping focus. The fake client records every filter, so the
+ * soft-delete, owner and account-day filters (Sol W11 r1 WARN 1) are checked, not assumed.
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  getShoppingFocusUntil, resolveFocusEnd, setShoppingFocusUntil,
-} from "@/lib/server/shopping-focus";
-import { FOCUS_MAX_DAYS, maxFocusEnd } from "@/lib/shopping/focus";
-import { localDate } from "@/lib/recipes-hub/put-in-meal";
+
+const rpc = vi.hoisted(() => ({ fn: vi.fn() }));
+vi.mock("@/lib/server/admin", () => ({ adminClient: () => ({ rpc: rpc.fn }) }));
+
+const {
+  focusRankingFor, readShoppingFocusState, resolveFocusEnd, setShoppingFocus, undoShoppingFocus,
+} = await import("@/lib/server/shopping-focus");
+const { maxFocusEnd } = await import("@/lib/shopping/focus");
 
 const USER_ID = "00000000-0000-4000-8000-000000000001";
 
-/** A fake `user_settings` + `shopping_periods` client, in the hand-rolled style
- *  `tests/server/constraints-condition-column.test.ts` already uses for this codebase. */
-function client(options: {
-  settingsRow?: { shopping_focus_until: string | null } | null;
-  settingsError?: { code: string; message: string } | null;
-  periodRow?: { end_date: string } | null;
-  periodError?: { code: string; message: string } | null;
-} = {}): { client: SupabaseClient; updates: Record<string, unknown>[]; periodFilters: Record<string, unknown>[] } {
-  const updates: Record<string, unknown>[] = [];
-  const periodFilters: Record<string, unknown>[] = [];
-  const from = (table: string) => {
-    if (table === "user_settings") {
-      return {
-        select: () => ({ eq: () => ({
-          maybeSingle: async () => options.settingsError
-            ? { data: null, error: options.settingsError }
-            : { data: options.settingsRow ?? null, error: null },
-        }) }),
-        update: (values: Record<string, unknown>) => ({ eq: async () => {
-          updates.push(values);
-          return { error: null };
-        } }),
+type Call = { table: string; ops: [string, ...unknown[]][] };
+
+/** A chainable fake: `rows[table]` answers every select of that table; every call is recorded. */
+function fake(rows: Record<string, unknown[] | Record<string, unknown> | null>) {
+  const calls: Call[] = [];
+  const client = {
+    from(table: string) {
+      const call: Call = { table, ops: [] };
+      calls.push(call);
+      const answer = () => {
+        const data = rows[table] ?? null;
+        return { data, error: null };
       };
-    }
-    if (table === "shopping_periods") {
-      const filters: Record<string, unknown> = {};
-      const query = {
-        eq: (col: string, value: unknown) => { filters[col] = value; return query; },
-        lte: (col: string, value: unknown) => { filters[col] = value; return query; },
-        gte: (col: string, value: unknown) => { filters[col] = value; return query; },
-        order: () => query,
-        limit: () => query,
-        maybeSingle: async () => {
-          periodFilters.push(filters);
-          return options.periodError ? { data: null, error: options.periodError }
-            : { data: options.periodRow ?? null, error: null };
-        },
+      const builder: Record<string, unknown> = {};
+      for (const op of ["select", "eq", "is", "lte", "gte", "in", "order", "limit"]) {
+        builder[op] = (...args: unknown[]) => { call.ops.push([op, ...args]); return builder; };
+      }
+      builder.range = (...args: unknown[]) => {
+        call.ops.push(["range", ...args]);
+        const data = rows[table];
+        return Promise.resolve({ data: Array.isArray(data) ? data : [], error: null });
       };
-      return { select: () => query };
-    }
-    throw new Error(`unexpected table ${table}`);
+      builder.maybeSingle = () => {
+        call.ops.push(["maybeSingle"]);
+        const data = rows[table];
+        return Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null });
+      };
+      builder.then = (resolve: (value: unknown) => unknown) => resolve(answer());
+      return builder;
+    },
   };
-  return { client: { from } as unknown as SupabaseClient, updates, periodFilters };
+  return { client: client as unknown as SupabaseClient, calls };
 }
 
-describe("getShoppingFocusUntil", () => {
-  it("returns null when the row has never been set", async () => {
-    expect(await getShoppingFocusUntil(client().client, USER_ID)).toBeNull();
+const has = (call: Call | undefined, ...op: unknown[]) =>
+  call?.ops.some((entry) => JSON.stringify(entry) === JSON.stringify(op)) ?? false;
+
+const DAY = { date: "2026-10-05", zone: "America/Los_Angeles" };
+const NOW = new Date("2026-10-05T18:00:00.000Z");
+
+beforeEach(() => rpc.fn.mockReset());
+
+describe("resolveFocusEnd: the account's day, live periods only", () => {
+  it("looks up the open period on the account's day and never a deleted one", async () => {
+    const { client, calls } = fake({ shopping_periods: { end_date: "2026-10-09" } });
+    const end = await resolveFocusEnd(client, USER_ID, NOW, DAY);
+    const call = calls.find((entry) => entry.table === "shopping_periods");
+    expect(has(call, "is", "deleted_at", null)).toBe(true);
+    expect(has(call, "eq", "user_id", USER_ID)).toBe(true);
+    expect(has(call, "lte", "start_date", "2026-10-05")).toBe(true);
+    expect(has(call, "gte", "end_date", "2026-10-05")).toBe(true);
+    // The period's last local moment in the account's zone (PDT, UTC-7).
+    expect(end).toBe("2026-10-10T06:59:59.999Z");
   });
-  it("returns the stored value", async () => {
-    const fake = client({ settingsRow: { shopping_focus_until: "2026-10-12T00:00:00.000Z" } });
-    expect(await getShoppingFocusUntil(fake.client, USER_ID)).toBe("2026-10-12T00:00:00.000Z");
-  });
-  it("throws on a real read error", async () => {
-    const fake = client({ settingsError: { code: "57014", message: "timeout" } });
-    await expect(getShoppingFocusUntil(fake.client, USER_ID)).rejects.toThrow();
+
+  it("falls back to 7 days, and clamps an explicit `days` at 31 days", async () => {
+    const { client } = fake({ shopping_periods: null });
+    expect(await resolveFocusEnd(client, USER_ID, NOW, DAY))
+      .toBe(new Date(NOW.getTime() + 7 * 86_400_000).toISOString());
+    expect(await resolveFocusEnd(client, USER_ID, NOW, DAY, 31)).toBe(maxFocusEnd(NOW));
   });
 });
 
-describe("setShoppingFocusUntil", () => {
-  it("writes the new value and returns the one it replaced", async () => {
-    const fake = client({ settingsRow: { shopping_focus_until: "2026-10-05T00:00:00.000Z" } });
-    const previous = await setShoppingFocusUntil(fake.client, USER_ID, "2026-10-12T00:00:00.000Z");
-    expect(previous).toBe("2026-10-05T00:00:00.000Z");
-    expect(fake.updates).toEqual([{ shopping_focus_until: "2026-10-12T00:00:00.000Z" }]);
+describe("readShoppingFocusState", () => {
+  it("reads nothing past the settings row while focus is off", async () => {
+    const { client, calls } = fake({ user_settings: { shopping_focus_until: null } });
+    expect(await readShoppingFocusState(client, USER_ID, DAY, NOW)).toEqual({ until: null, keys: [] });
+    expect(calls.map((call) => call.table)).toEqual(["user_settings"]);
   });
-  it("writing null (turning focus off) is a real write, not a skip", async () => {
-    const fake = client({ settingsRow: { shopping_focus_until: "2026-10-05T00:00:00.000Z" } });
-    await setShoppingFocusUntil(fake.client, USER_ID, null);
-    expect(fake.updates).toEqual([{ shopping_focus_until: null }]);
+
+  it("keys checked, window-checked and manual lines and pantry; drops deleted rows and past boxes", async () => {
+    const { client, calls } = fake({
+      user_settings: { shopping_focus_until: "2026-10-12T06:59:59.999Z" },
+      shopping_periods: [{ id: "p1", start_date: "2026-10-01", end_date: "2026-10-04" },
+        { id: "p0", start_date: "2026-09-20", end_date: "2026-09-28" }],
+      shopping_lines: [
+        { id: "l1", period_id: "p1", name: "Rice", checked: true, origin: "plan" },
+        { id: "l2", period_id: "p1", name: "Chicken breast", checked: false, origin: "plan" },
+        { id: "l3", period_id: "p1", name: "Tofu", checked: false, origin: "plan" },
+        { id: "l4", period_id: "p0", name: "Old beans", checked: true, origin: "manual" },
+      ],
+      shopping_purchase_windows: [{ line_id: "l2" }],
+      shopping_pantry: [{ name: "Oats", confirmed_at: "2026-10-03T03:00:00.000Z" }],
+    });
+    const state = await readShoppingFocusState(client, USER_ID, DAY, NOW);
+    expect(state.keys).toEqual([
+      { key: "chicken breast", from: "2026-10-01", to: "2026-10-07" },
+      { key: "oats", from: "2026-10-02", to: "2026-10-16" },
+      { key: "rice", from: "2026-10-01", to: "2026-10-07" },
+    ]);
+    for (const table of ["shopping_periods", "shopping_lines", "shopping_purchase_windows", "shopping_pantry"]) {
+      const call = calls.find((entry) => entry.table === table);
+      expect(has(call, "is", "deleted_at", null), table).toBe(true);
+      expect(has(call, "eq", "user_id", USER_ID), table).toBe(true);
+    }
+    expect(has(calls.find((entry) => entry.table === "shopping_purchase_windows"), "eq", "checked", true)).toBe(true);
   });
 });
 
-describe("resolveFocusEnd", () => {
-  const now = new Date("2026-10-05T00:00:00.000Z");
-
-  it("with explicit days, never queries shopping_periods at all", async () => {
-    const fake = client({ periodRow: { end_date: "2026-10-20" } });
-    const resolved = await resolveFocusEnd(fake.client, USER_ID, now, 3);
-    expect(resolved).toBe(new Date(now.getTime() + 3 * 86_400_000).toISOString());
-    expect(fake.periodFilters).toHaveLength(0);
+describe("focusRankingFor", () => {
+  it("is undefined, reading nothing, for an account without Shopping access", async () => {
+    vi.stubEnv("RECIPE_PLANNING_USER_IDS", "someone-else");
+    const { client, calls } = fake({ user_settings: { shopping_focus_until: "2026-10-12T00:00:00.000Z" } });
+    expect(await focusRankingFor(client, USER_ID, "2026-10-05", NOW)).toBeUndefined();
+    expect(calls).toEqual([]);
+    vi.unstubAllEnvs();
   });
 
-  it("clamps an explicit days request past FOCUS_MAX_DAYS to the max", async () => {
-    const fake = client();
-    const resolved = await resolveFocusEnd(fake.client, USER_ID, now, FOCUS_MAX_DAYS + 10);
-    expect(resolved).toBe(maxFocusEnd(now));
+  it("ranks by the keys of the asked date for an account with access", async () => {
+    vi.stubEnv("RECIPE_PLANNING_USER_IDS", USER_ID);
+    const { client } = fake({
+      user_settings: { shopping_focus_until: "2026-10-12T06:59:59.999Z", time_zone: "America/Los_Angeles" },
+      shopping_periods: [], shopping_pantry: [{ name: "Oats", confirmed_at: "2026-10-03T03:00:00.000Z" }],
+    });
+    const focus = await focusRankingFor(client, USER_ID, "2026-10-05", NOW);
+    expect(focus?.coverageOf([{ key: "oats", kcal: 100 }])).toBe(1);
+    vi.unstubAllEnvs();
+  });
+});
+
+describe("setShoppingFocus / undoShoppingFocus (service role, compare-and-set)", () => {
+  it("sends only the session user and the server-decided end", async () => {
+    rpc.fn.mockResolvedValue({ data: { status: "applied", actionId: "a1", until: "x", previous: null }, error: null });
+    expect(await setShoppingFocus(USER_ID, "2026-10-12T00:00:00.000Z"))
+      .toEqual({ actionId: "a1", until: "x", previous: null });
+    expect(rpc.fn).toHaveBeenCalledWith("shopping_focus_set",
+      { p_user_id: USER_ID, p_until: "2026-10-12T00:00:00.000Z" });
   });
 
-  it("with no days and an open period, queries it filtered to today (the device's own zone) and takes its end date", async () => {
-    const fake = client({ periodRow: { end_date: "2026-10-12" } });
-    const resolved = await resolveFocusEnd(fake.client, USER_ID, now);
-    expect(resolved).toBe("2026-10-12T23:59:59.999Z");
-    const today = localDate(now);
-    expect(fake.periodFilters[0]).toEqual({ user_id: USER_ID, start_date: today, end_date: today });
+  it("answers 409 when the account has no settings row", async () => {
+    rpc.fn.mockResolvedValue({ data: { status: "no_settings" }, error: null });
+    await expect(setShoppingFocus(USER_ID, null)).rejects.toMatchObject({ status: 409 });
   });
 
-  it("with no days and no open period, falls back to the 7-day default", async () => {
-    const fake = client({ periodRow: null });
-    const resolved = await resolveFocusEnd(fake.client, USER_ID, now);
-    expect(resolved).toBe(new Date(now.getTime() + 7 * 86_400_000).toISOString());
-  });
-
-  it("clamps a period end far past FOCUS_MAX_DAYS to the max", async () => {
-    const fake = client({ periodRow: { end_date: "2026-12-01" } });
-    const resolved = await resolveFocusEnd(fake.client, USER_ID, now);
-    expect(resolved).toBe(maxFocusEnd(now));
-  });
-
-  it("throws on a real shopping_periods read error", async () => {
-    const fake = client({ periodError: { code: "57014", message: "timeout" } });
-    await expect(resolveFocusEnd(fake.client, USER_ID, now)).rejects.toThrow();
+  it("reports a superseded Undo, and an undone one", async () => {
+    rpc.fn.mockResolvedValueOnce({ data: { status: "superseded", until: "later" }, error: null });
+    expect(await undoShoppingFocus(USER_ID, "a1")).toEqual({ status: "superseded", until: "later" });
+    rpc.fn.mockResolvedValueOnce({ data: { status: "undone", until: null }, error: null });
+    expect(await undoShoppingFocus(USER_ID, "a1")).toEqual({ status: "undone", until: null });
+    expect(rpc.fn).toHaveBeenLastCalledWith("shopping_focus_undo", { p_user_id: USER_ID, p_action_id: "a1" });
   });
 });

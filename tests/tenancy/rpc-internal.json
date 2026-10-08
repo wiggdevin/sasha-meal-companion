@@ -50,5 +50,12 @@
     "class": "private_trigger",
     "table": "user_settings",
     "trigger": "taste_chip_holds_release"
+  },
+  "user_settings_shopping_focus_guard()": {
+    "class": "private_trigger",
+    "table": "user_settings",
+    "trigger": "user_settings_shopping_focus_guard",
+    "definer": false,
+    "reason": "Security invoker on purpose: it reads current_user to refuse a direct authenticated or anon write of the shopping-focus columns."
   }
 }
