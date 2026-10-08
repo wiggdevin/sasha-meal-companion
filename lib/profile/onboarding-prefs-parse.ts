@@ -9,7 +9,7 @@
  *    Allergens are NOT read here: the safety round owns them.
  *  - Stay-away foods are taste dislikes (`diet_prefs.taste.dislikes`, `f:<family>`): they lower a
  *    food's rank and never exclude it (lib/profile/taste.ts).
- *  - Cuisines are the 12-word vocabulary (lib/foods/universe/vocabulary.ts), at most 6.
+ *  - Cuisines are the 12-word vocabulary (the shared cuisine vocabulary, via lib/profile/cuisines), at most 6.
  */
 import { baseFoodName } from "@/lib/foods/base-name";
 import { CUISINES_MAX, type CuisineKey } from "@/lib/profile/cuisines";
