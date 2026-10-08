@@ -10,7 +10,9 @@
  *      text is read by nothing — no regex, no model — and answers `blocked`, so the UI opens the
  *      allergy/condition card instead;
  *   2. the zero-model fast path (lib/coach/onboarding-fast-path.ts);
- *   3. `POST /api/onboarding/extract`, only when the fast path left goal, activity or cooking
+ *   3. the allowlist (lib/coach/onboarding-allowlist.ts): every word must be a reviewed onboarding
+ *      word, or the text stays here with the fast path's reading (`local_only`);
+ *   4. `POST /api/onboarding/extract`, only when the fast path left goal, activity or cooking
  *      effort below the high band and this session still has model calls left. The server
  *      re-runs the safety check, redacts age and sex, enforces the per-account budget and the
  *      shared limiter; the model can set only goal/activity/cookingEffort/dietFlags.
@@ -24,6 +26,7 @@ import {
 } from "@/lib/device/account";
 import { onboardingCallBudgetRemaining } from "@/lib/coach/onboarding-call-budget";
 import { extractFastPath } from "@/lib/coach/onboarding-fast-path";
+import { onboardingMayReachModel } from "@/lib/coach/onboarding-allowlist";
 import { onboardingSafetyCheck, type OnboardingSafetyVerdict } from "@/lib/coach/onboarding-safety";
 import {
   ONBOARDING_FACT_KEYS, onboardingConfidenceBand, onboardingFactsSchema,
@@ -48,10 +51,12 @@ export type OnboardingFactsDisplay = {
 export type OnboardingExtractResult = {
   /**
    * ok: facts read (fast path, model or both). blocked: safety text, nothing read.
+   * local_only: a word or shape outside the onboarding allowlist kept the text on the phone;
+   * `facts` is the fast path's reading alone (possibly empty).
    * budget_exceeded / failed / offline: the model leg did not answer; `facts` still holds the
    * fast path's reading, so the flow continues with whatever was understood locally.
    */
-  status: "ok" | "blocked" | "budget_exceeded" | "failed" | "offline";
+  status: "ok" | "blocked" | "local_only" | "budget_exceeded" | "failed" | "offline";
   facts: OnboardingFacts;
   /** Set only for `blocked`. */
   blockedReason?: OnboardingBlockedReason;
@@ -80,7 +85,7 @@ const BLOCKED_REASONS: readonly OnboardingBlockedReason[] = ["medical", "allergy
 const routeAnswer = (value: unknown):
   | { status: "ok"; facts: OnboardingFacts }
   | { status: "blocked"; reason: OnboardingBlockedReason }
-  | { status: "budget_exceeded" | "failed" }
+  | { status: "budget_exceeded" | "failed" | "not_sent" }
   | null => {
   if (typeof value !== "object" || value === null) return null;
   const status = (value as { status?: unknown }).status;
@@ -89,7 +94,7 @@ const routeAnswer = (value: unknown):
     return { status, reason: BLOCKED_REASONS.includes(reason as OnboardingBlockedReason)
       ? reason as OnboardingBlockedReason : "allergy_or_condition" };
   }
-  if (status === "budget_exceeded" || status === "failed") return { status };
+  if (status === "budget_exceeded" || status === "failed" || status === "not_sent") return { status };
   if (status !== "ok") return null;
   const parsed = onboardingFactsSchema.safeParse((value as { facts?: unknown }).facts);
   return parsed.success ? { status: "ok", facts: parsed.data } : null;
@@ -153,6 +158,10 @@ export async function extractOnboardingFacts(
 
   const local = extractFastPath(value, now) as OnboardingFacts;
   if (!needsModel(local)) return done("ok", local, false);
+  // The allowlist (lib/coach/onboarding-allowlist.ts): a model reads only text whose every word is
+  // a reviewed onboarding word. Anything else — a medicine no list names, a food, a typo — stays
+  // here; the server runs the same gate again.
+  if (!onboardingMayReachModel(value)) return done("local_only", local, false);
   if (!onboardingCallBudgetRemaining(callsUsed)) return done("budget_exceeded", local, false);
   const online = opts.online ?? (typeof navigator === "undefined" ? true : navigator.onLine !== false);
   if (!online) return done("offline", local, false);
@@ -183,6 +192,7 @@ export async function extractOnboardingFacts(
   // The server re-ran the safety check; a refusal there is a refusal here, nothing kept.
   if (answer.status === "blocked") return done("blocked", { confidence: {} }, false, answer.reason);
   if (answer.status === "budget_exceeded") return done("budget_exceeded", local, false);
+  if (answer.status === "not_sent") return done("local_only", local, false);
   if (answer.status !== "ok") return done("failed", local, true);
   return done("ok", mergeOnboardingFacts(local, answer.facts), true);
 }

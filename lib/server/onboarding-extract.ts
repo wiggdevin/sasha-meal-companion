@@ -5,7 +5,9 @@ import "server-only";
  * is sent anywhere, in this exact order, and any of them stopping the call is final — no retry,
  * no silent downgrade to the other provider:
  *
- *   1. the local safety guard (lib/coach/onboarding-safety.ts) — a match means zero model calls;
+ *   1. the local safety guard (lib/coach/onboarding-safety.ts) — a match means zero model calls —
+ *      then the allowlist (lib/coach/onboarding-allowlist.ts): a word outside the reviewed
+ *      onboarding vocabulary answers `not_sent`, also with zero model calls and no budget spent;
  *      every demographic span `lib/coach/onboarding-fast-path.ts` recognizes (age, and who the
  *      person says they are) is also redacted from the text before anything is sent (a standing
  *      privacy rule, never an allowlisted field — tests/ai/no-demographics-payload.test.ts), and
@@ -45,6 +47,7 @@ import {
   ONBOARDING_MAX_MODEL_CALLS, ONBOARDING_SESSION_WINDOW_SECONDS,
 } from "@/lib/coach/onboarding-call-budget";
 import { redactAgeAndSex, sanitizeDietFlags } from "@/lib/coach/onboarding-fast-path";
+import { onboardingMayReachModel } from "@/lib/coach/onboarding-allowlist";
 import { onboardingSafetyCheck, type OnboardingSafetyVerdict } from "@/lib/coach/onboarding-safety";
 import {
   onboardingModelFactsProviderSchema, onboardingModelFactsSchema, type OnboardingFacts,
@@ -54,6 +57,9 @@ import { enforceRateLimit } from "@/lib/server/ratelimit";
 
 export type OnboardingExtractOutcome =
   | { status: "blocked"; reason: Extract<OnboardingSafetyVerdict, { blocked: true }>["reason"] }
+  /** The text holds a word or shape outside the onboarding allowlist: nothing was sent and no
+   *  budget slot was spent; the phone keeps its own fast-path reading. */
+  | { status: "not_sent" }
   | { status: "budget_exceeded" }
   | { status: "ok"; facts: OnboardingFacts; provider: "openrouter" | "google" }
   | { status: "failed" };
@@ -155,6 +161,10 @@ export async function runOnboardingExtraction(
   void now;
   const safety = onboardingSafetyCheck(text);
   if (safety.blocked) return { status: "blocked", reason: safety.reason };
+  // The allowlist (lib/coach/onboarding-allowlist.ts), re-run here whatever the phone decided:
+  // only text whose every word is a reviewed onboarding word reaches a provider. A deny list can
+  // never name every medicine; this never needs to.
+  if (!onboardingMayReachModel(text)) return { status: "not_sent" };
 
   // Standing privacy rule (tests/ai/no-demographics-payload.test.ts, coordinator ruling): who
   // the person says they are, and their age or birth year, reach no AI payload, ever — only

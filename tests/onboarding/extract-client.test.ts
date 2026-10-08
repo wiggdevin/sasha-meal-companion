@@ -107,7 +107,7 @@ describe("extractOnboardingFacts", () => {
     model.mockResolvedValue({ goal: "maintain", confidence: { goal: 0.9 } } as never);
     const statuses: string[] = [];
     for (let i = 0; i < ONBOARDING_MAX_MODEL_CALLS + 1; i += 1) {
-      statuses.push((await extractOnboardingFacts("just want to feel good", opts({ callsUsed: 0 }))).status);
+      statuses.push((await extractOnboardingFacts("just want to get in shape", opts({ callsUsed: 0 }))).status);
     }
     expect(statuses.slice(0, ONBOARDING_MAX_MODEL_CALLS).every((s) => s === "ok")).toBe(true);
     expect(statuses.at(-1)).toBe("budget_exceeded");

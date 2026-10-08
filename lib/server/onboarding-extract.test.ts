@@ -159,7 +159,7 @@ describe("runOnboardingExtraction — no demographic field ever reaches a payloa
       confidence: { goal: 0.9, dietFlags: 0.8 },
     });
     const generateOpenRouter = vi.fn(async () => leaky);
-    const outcome = await runOnboardingExtraction("I want to lose fat, vegetarian", NOW,
+    const outcome = await runOnboardingExtraction("I want to lose fat", NOW,
       { ...ctx(), callsUsedThisSession: 0 }, { generateOpenRouter: generateOpenRouter as never });
     expect(outcome).toEqual({
       status: "ok",
