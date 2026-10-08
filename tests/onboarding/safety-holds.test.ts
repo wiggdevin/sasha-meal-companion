@@ -78,6 +78,7 @@ describe("a held account in onboarding", () => {
       saveConstraints,
       localDate: () => "2026-10-08",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     }, { pregnancy: "pregnant" });
     expect(order).toEqual(['constraints:["IBS","Pregnant"]', "target"]);
     expect(saveConstraints).toHaveBeenCalledTimes(1);
@@ -95,6 +96,7 @@ describe("a held account in onboarding", () => {
       saveConstraints: vi.fn(),
       localDate: () => "2026-10-08",
       hasWeighIn: () => true,
+      openFoodWorld: async () => {},
     }, { clinicianDiet: true });
     expect(result.constraintsSaved).toBe(false);
     expect(saveSynced).not.toHaveBeenCalled();
