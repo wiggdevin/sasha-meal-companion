@@ -11,7 +11,9 @@
 import type { Food } from "@/lib/foods";
 import type { Macros, SlotId } from "@/lib/types";
 import { clockMinutes, isUntimed, occasionAt, type Occasion, type OccasionOverrides } from "@/lib/meals/occasion";
-import { bestPerAnchor, byScore, rankPlates, type OpenRanking, type Plate, type Shortage } from "@/lib/meals/plate";
+import {
+  bestPerAnchor, byFocus, byScore, rankPlates, type FocusRanking, type OpenRanking, type Plate, type Shortage,
+} from "@/lib/meals/plate";
 import { byCode } from "@/lib/meals/parts";
 import { generationPool } from "@/lib/meals/pool";
 import { hasTasteValues, type TasteValues } from "@/lib/meals/preference";
@@ -40,6 +42,22 @@ const SEARCH_LIMIT = 200_000;
 
 type Choice = Map<string, Plate>;
 
+/**
+ * W11 (D7) shopping focus: the day honours the key (fits the slot, coverage, score) slot by slot.
+ * The weights make one step of coverage (0.25) outweigh any day's whole score sum, and a fit
+ * outweigh any day's whole coverage, so the day search can trade score only among plates of equal
+ * fit and coverage. A repeat halves only the score part: a covered repeat still beats an uncovered
+ * distinct plate, and distinct anchors still win among equally covered plates.
+ */
+const FOCUS_FIT_WEIGHT = 1e6;
+const FOCUS_COVERAGE_WEIGHT = 1e4;
+
+/** A plate's worth to the day search: its score, or under focus the key above as one number. */
+type PlateValue = (plate: Plate, repeat: boolean) => number;
+const scoreValue: PlateValue = (plate, repeat) => plate.score * (repeat ? REPEAT : 1);
+const focusValue: PlateValue = (plate, repeat) => (plate.fits ? FOCUS_FIT_WEIGHT : 0)
+  + (plate.coverage ?? 0) * FOCUS_COVERAGE_WEIGHT + plate.score * (repeat ? REPEAT : 1);
+
 /** The day's slots in clock order (input order when any clock is unknown). */
 function inClockOrder(slots: readonly DaySlot[]): DaySlot[] {
   if (slots.some((slot) => clockMinutes(slot.clock) === null)) return [...slots];
@@ -49,10 +67,10 @@ function inClockOrder(slots: readonly DaySlot[]): DaySlot[] {
 }
 
 /** Exhaustive best assignment with no equal neighbours; distinct anchors win over repeats. */
-function search(choices: Choice[]): (string | null)[] {
+function search(choices: Choice[], value: PlateValue = scoreValue): (string | null)[] {
   const n = choices.length;
   const options = choices.map((choice) => [...choice.keys()].sort());
-  const best = choices.map((choice) => Math.max(0, ...[...choice.values()].map((plate) => plate.score)));
+  const best = choices.map((choice) => Math.max(0, ...[...choice.values()].map((plate) => value(plate, false))));
   let top = Number.NEGATIVE_INFINITY;
   let answer: (string | null)[] = choices.map(() => null);
   const picked: (string | null)[] = [];
@@ -69,7 +87,7 @@ function search(choices: Choice[]): (string | null)[] {
       const used = uses.get(key) ?? 0;
       picked[i] = key;
       uses.set(key, used + 1);
-      walk(i + 1, total + (choices[i].get(key) as Plate).score * (used ? REPEAT : 1));
+      walk(i + 1, total + value(choices[i].get(key) as Plate, used > 0));
       uses.set(key, used);
     }
     picked[i] = null;
@@ -84,14 +102,14 @@ function search(choices: Choice[]): (string | null)[] {
  * the day whose plates score highest in total with no anchor twice. Then any slot left without
  * a plate takes its best anchor that neither neighbour has (a repeat, D5).
  */
-function assign(choices: Choice[]): (string | null)[] {
+function assign(choices: Choice[], value: PlateValue = scoreValue): (string | null)[] {
   const keys = [...new Set(choices.flatMap((choice) => [...choice.keys()]))].sort();
   const rows = choices.length;
   const cols = Math.max(keys.length, rows);
   // Cost of a slot taking an anchor: minus its score; no plate there costs more than any plate.
   const cost = (r: number, c: number) => {
     const plate = c < keys.length ? choices[r].get(keys[c]) : undefined;
-    return plate ? -plate.score : 1;
+    return plate ? -value(plate, false) : 1;
   };
   const u = new Array<number>(rows + 1).fill(0);
   const v = new Array<number>(cols + 1).fill(0);
@@ -127,7 +145,7 @@ function assign(choices: Choice[]): (string | null)[] {
   }
   choices.forEach((choice, slot) => {
     if (answer[slot] !== null) return;
-    const ranked = [...choice.entries()].sort((a, b) => b[1].score - a[1].score || byCode(a[0], b[0]));
+    const ranked = [...choice.entries()].sort((a, b) => value(b[1], false) - value(a[1], false) || byCode(a[0], b[0]));
     answer[slot] = ranked.find(([key]) => answer[slot - 1] !== key && answer[slot + 1] !== key)?.[0] ?? null;
   });
   return answer;
@@ -146,10 +164,14 @@ function assign(choices: Choice[]): (string | null)[] {
  *
  * `open` is the open food-world search (W8, lib/meals/plate.ts `OpenRanking`); absent, the search is
  * the Phase 17 one. Only an open account's admitted pool (lib/meals/open-world.ts) passes it.
+ *
+ * `focus` is the account's active shopping focus for this date (W11, D7; lib/shopping/focus.ts
+ * `focusRankingOn`): every slot ranks by (fits, coverage, score) and the day keeps that key per
+ * slot. Absent: byte-identical to the day without it.
  */
 export function planDay(date: string, slots: readonly DaySlot[],
   foods: readonly Food[] | Readonly<Record<string, Food>>, overrides?: OccasionOverrides,
-  evidence?: MealEvidence | null, taste?: TasteValues, open?: OpenRanking): DayPlan {
+  evidence?: MealEvidence | null, taste?: TasteValues, open?: OpenRanking, focus?: FocusRanking): DayPlan {
   // A slot with no calories or no protein left to serve (an eaten recipe covered the day's
   // protein) gets no generated plate, as before O1: protein leads every plate.
   const ordered = inClockOrder(slots).filter((slot) => slot.target.kcal > 0 && slot.target.protein > 0);
@@ -163,7 +185,7 @@ export function planDay(date: string, slots: readonly DaySlot[],
     const occasion = slot.occasion ?? occasionAt(slot.clock, { slot: slot.id, overrides });
     return { date, slot: slot.id, occasion, untimed: isUntimed(occasion, slot.clock), target: slot.target,
       foods: pool, ...(evidence ? { evidence } : {}), ...(hasTasteValues(taste) ? { taste } : {}),
-      ...(open ? { open } : {}) };
+      ...(open ? { open } : {}), ...(focus ? { focus } : {}) };
   });
   const rankings = inputs.map((input) => rankPlates(input));
   const choices: Choice[] = rankings.map((ranking) => new Map(bestPerAnchor(ranking.plates)
@@ -171,7 +193,9 @@ export function planDay(date: string, slots: readonly DaySlot[],
   // Search whenever it is affordable, so a much better repeated protein (half score, never in
   // neighbouring slots) can beat a weak distinct one; above the limit, distinct first.
   const size = choices.reduce((product, choice) => product * (choice.size + 1), 1);
-  const keys = size > SEARCH_LIMIT ? assign(choices) : search(choices);
+  const keys = focus
+    ? (size > SEARCH_LIMIT ? assign(choices, focusValue) : search(choices, focusValue))
+    : (size > SEARCH_LIMIT ? assign(choices) : search(choices));
 
   const plan: DayPlan = { plates: [], shortages: [], misses: [] };
   ordered.forEach((slot, i) => {
@@ -182,7 +206,7 @@ export function planDay(date: string, slots: readonly DaySlot[],
     }
     // D5 (amended): a protein repeats in a neighbouring slot only when the other choice is an
     // empty slot. A repeated meal is better than no meal.
-    const repeat = [...choices[i].values()].sort(byScore)[0];
+    const repeat = [...choices[i].values()].sort(focus ? byFocus : byScore)[0];
     if (repeat) {
       plan.plates.push({ slot: slot.id, plate: repeat });
       return;

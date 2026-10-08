@@ -34,7 +34,8 @@ import type {
 } from "./types";
 import { componentsForSlot } from "./plan/slot-override";
 import {
-  componentRuleMark, currentEligibleView, mealEvidenceOf, openWorldOf, recipeRuleMark, worstRuleMark, type EligibleView,
+  componentRuleMark, currentEligibleView, focusOf, mealEvidenceOf, openWorldOf, recipeRuleMark, worstRuleMark,
+  type EligibleView,
 } from "./foods/rule-marks";
 import { livePool, type OpenWorldInputs } from "./meals/open-world";
 import { entryMacros } from "./plan/entry-macros";
@@ -162,7 +163,7 @@ function generatedPlan(store: Store, date: string, eligibleFoodIds?: ReadonlySet
   if (!pool.view) return null;
   const slots = pool.generated.map((slot) => ({ ...slot, clock: times.get(slot.id) ?? null }));
   return { plan: planMealsForDay(date, slots, pool.eligibleFoods, undefined,
-    mealEvidenceOf(eligibleFoodIds), pool.open), required: slots.length,
+    mealEvidenceOf(eligibleFoodIds), pool.open, focusOf(eligibleFoodIds, date)), required: slots.length,
     pool: pool.eligibleFoods };
 }
 
@@ -240,7 +241,7 @@ export function resolveDay(store: Store, date: string, waterCups = 0,
     targets, layoutIds, eligibleFoodIds);
   const rotated = planMealsForDay(date, generated.map((slot) => ({
     ...slot, clock: layoutTimes.get(slot.id) ?? null })), eligibleFoods, undefined,
-    mealEvidenceOf(eligibleFoodIds), open).meals;
+    mealEvidenceOf(eligibleFoodIds), open, focusOf(eligibleFoodIds, date)).meals;
   const rotationBySlot = new Map(rotated.map((entry) => [entry.slot, entry.meal]));
   // W8: an open account's saved lines may name admitted universe foods (a swapped-in plate).
   const admittedFoods = open ? Object.values(livePool(open, store.foods)) : undefined;

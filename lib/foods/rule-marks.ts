@@ -9,6 +9,8 @@
  */
 import { SNAPSHOT_MAX_AGE_MS, type MealEvidence } from "@/lib/meals/snapshot";
 import type { OpenWorldInputs } from "@/lib/meals/open-world";
+import { focusRankingOn, type FocusState } from "@/lib/shopping/focus";
+import type { FocusRanking } from "@/lib/meals/plate";
 import type { Food } from "@/lib/foods";
 import { sameBaseName } from "@/lib/foods/base-name";
 import { namedRuleMark } from "@/lib/foods/rule-reason";
@@ -48,6 +50,17 @@ export function openWorldOf(set: ReadonlySet<string> | undefined, now: number = 
   if (!open) return undefined;
   const age = now - Date.parse(open.computedAt);
   return Number.isFinite(age) && age <= SNAPSHOT_MAX_AGE_MS ? open : undefined;
+}
+
+/**
+ * Phase 18 W11 (D7): the account's active shopping focus for `date`, from the verified set's
+ * account (`StampedEligibleSet.shoppingFocus`), or undefined (off, ended, no Shopping access, a
+ * plain or revoked set). Every phone generator reads it here: resolveDay and the swap sheet.
+ */
+export function focusOf(set: ReadonlySet<string> | undefined, date: string, now: Date = new Date()):
+  (FocusRanking & { id: string }) | undefined {
+  if (!set || !isVerifiedEligibleSet(set) || set.revoked) return undefined;
+  return focusRankingOn((set as { shoppingFocus?: FocusState | null }).shoppingFocus, date, now);
 }
 
 /**

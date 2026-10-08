@@ -16,6 +16,8 @@ import { sameRulesToken } from "@/lib/foods/world/freshness";
 import { openWorldInputs, type OpenWorldInputs } from "@/lib/meals/open-world";
 import { parseMealSnapshotV3, snapshotToken, snapshotV3Usable, type MealSnapshotV3 } from "@/lib/meals/snapshot-v3";
 import type { RuleMark } from "@/lib/types";
+import { heldShoppingFocus } from "@/lib/shopping/focus-client";
+import type { FocusState } from "@/lib/shopping/focus";
 
 type VerifiedIds = Pick<EligibleFoods, "eligibleRefIds" | "eligibleFoodIds" | "eligibleCatalogFoodIds">;
 
@@ -63,6 +65,14 @@ export class StampedEligibleSet extends Set<string> implements VerifiedEligibleS
    */
   get open(): OpenWorldInputs | undefined {
     return this.revoked ? undefined : this.openInputs;
+  }
+  /**
+   * Phase 18 W11 (D7): this account's shopping focus as the phone holds it now
+   * (lib/shopping/focus-client.ts), read on every use so a toggle re-ranks at once. A ranking
+   * input only: it never admits a food the set does not already vouch for.
+   */
+  get shoppingFocus(): FocusState | null {
+    return this.revoked || !this.accountId ? null : heldShoppingFocus(this.accountId);
   }
   /**
    * The snapshot evidence, while nothing it was computed from changed locally. After a local log,
