@@ -87,6 +87,32 @@ describe("TodayTour", () => {
     act(() => { vi.runOnlyPendingTimers(); });
   });
 
+  it("a manual open cancels the pending auto-open, so Skip is final", () => {
+    render(<MotionConfig reducedMotion="always">
+      <TodayTour onboardedAt={ONBOARDED} />
+      <SproutStage state={{ mood: "content", vitality: 0.7, line: "Sprout is doing fine." }} glance={null} bounce={0} />
+    </MotionConfig>);
+    // Before the auto-open fires: open from the companion, then Skip.
+    act(() => { vi.advanceTimersByTime(AUTO_OPEN_DELAY_MS / 2); });
+    fireEvent.click(screen.getByRole("button", { name: "Sprout. Say hello" }));
+    fireEvent.click(screen.getByRole("button", { name: "How Sasha works?" }));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    const shown = screen.queryAllByRole("dialog").length;
+    act(() => { vi.advanceTimersByTime(AUTO_OPEN_DELAY_MS * 2); });
+    // Nothing new opens: no second dialog, and no fresh first step.
+    expect(screen.queryAllByRole("dialog").length).toBeLessThanOrEqual(shown);
+    expect(screen.queryAllByRole("dialog").length).toBeLessThanOrEqual(1);
+  });
+
+  it("re-checks the mark when the auto-open fires", () => {
+    mount(ONBOARDED);
+    // Another tab or opener writes the mark while the timer waits.
+    localStorage.setItem(`smc:u:a:${TOUR_SEEN_NAME}`, ONBOARDED);
+    wait();
+    expect(tour()).toBeNull();
+  });
+
   it("lets the offer go after a few seconds", () => {
     localStorage.setItem(`smc:u:a:${TOUR_SEEN_NAME}`, ONBOARDED);
     render(<MotionConfig reducedMotion="always">

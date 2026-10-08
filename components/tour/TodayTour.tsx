@@ -21,20 +21,30 @@ export default function TodayTour({ onboardedAt }: { onboardedAt: string | null 
   const [opening, setOpening] = useState<TourOpening | null>(null);
   const seq = useRef(0);
   const auto = useRef(false);
+  /** The pending auto-open; any manual open cancels it (Sol, round 2). */
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPending = () => {
+    if (pending.current !== null) clearTimeout(pending.current);
+    pending.current = null;
+  };
 
   useEffect(() => {
     if (!account || auto.current) return;
     if (!shouldAutoOpenTour({ onboardedAt, seen: readTourSeen(account) })) return;
     auto.current = true;
-    const timer = setTimeout(() => {
+    pending.current = setTimeout(() => {
+      pending.current = null;
+      // Re-checked when it fires: an open (and close) in the meantime has written the mark.
+      if (readTourSeen(account) !== "unseen") return;
       markTourSeen(account);
       setOpening((open) => open ?? { origin: null, returnFocusTo: null, seq: ++seq.current });
     }, AUTO_OPEN_DELAY_MS);
-    return () => { clearTimeout(timer); auto.current = false; };
+    return () => { cancelPending(); auto.current = false; };
   }, [account, onboardedAt]);
 
   useEffect(() => {
     const onOpen = (event: Event) => {
+      cancelPending();
       const origin = (event as CustomEvent<TourOpenDetail>).detail?.origin ?? null;
       if (account) markTourSeen(account);
       setOpening({
