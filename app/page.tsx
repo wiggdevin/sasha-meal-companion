@@ -497,6 +497,8 @@ export default function Today() {
       if (timeToMinutes(s.time) <= nowM) currentSlotId = s.slot;
     }
   }
+  /** The slot a capture logs into: the meal card it came from, else the current slot, else the first. */
+  const captureSlot: SlotId = handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1";
 
   // The slot to promote: "what do I eat, right now?" That is the current
   // slot if it is still unticked; otherwise the first unticked slot after
@@ -1144,8 +1146,9 @@ export default function Today() {
               open
               initialMode={captureMode}
               projection={logProjection}
-              slot={handoffSlot ?? undefined}
-              at={logAtFor(handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
+              // On a past day the slot and its time come from one choice, so they never disagree.
+              slot={handoffSlot ?? (logAtFor(captureSlot) ? captureSlot : undefined)}
+              at={logAtFor(captureSlot)}
               onOpenSearch={() => { setCaptureMode(null); setLogOpen("food"); }}
               onLogged={() => { setCaptureMode(null); refresh(); confirmLogged(); }}
               onClose={() => setCaptureMode(null)}
