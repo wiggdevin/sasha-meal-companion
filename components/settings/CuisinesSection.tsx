@@ -21,6 +21,9 @@ import SettingsSection from "./Section";
 import { CAPTION, FIELD_LABEL } from "./settings-styles";
 import { useSettingsWrite } from "./use-settings-write";
 
+/** A stable, shared reference for "no stored dislikes" (see the `dislikes` derivation below). */
+const EMPTY_DISLIKES: readonly TasteDislike[] = [];
+
 function dislikeRemoveFailureMessage(error: unknown): string {
   const outcome = error as TasteDislikeWriteOutcome<unknown> | null | undefined;
   if (outcome && outcome.ok === false) {
@@ -98,7 +101,9 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
   const write = (patch: PlacePatch) => { setInFlight((n) => n + 1); send(patch); };
   // `Settings.dietPrefs` is typed as the plain wire `DietPrefs` (lib/types.ts); `taste` is carried on
   // the richer `ProfileDietPrefs` every sync writer actually reads and writes (lib/sync/user-settings.ts).
-  const dislikes = (settings.dietPrefs as ProfileDietPrefs | null | undefined)?.taste?.dislikes ?? [];
+  // `EMPTY_DISLIKES` is a stable, shared reference (not a fresh `[]` every render) so the "no stored
+  // dislikes" case has one consistent identity too, for the reference-equality fallback below.
+  const dislikes = (settings.dietPrefs as ProfileDietPrefs | null | undefined)?.taste?.dislikes ?? EMPTY_DISLIKES;
   const showTasteCard = tasteChipsAvailable === "enabled" || dislikes.length > 0;
 
   // Followups #1/#2 (Sol round 2 BLOCK, verified): the dislike-remove toast and Undo live here, at
@@ -129,12 +134,19 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
   // between (or this device's own Undo settling through a DIFFERENT path than `undoDislike`
   // below) — if the FRESH row still carries the key, that is the server's own current answer and
   // wins over a stale local hide, so any key the newest `dislikes` still contains is dropped from
-  // `hiddenDislikes` the moment that row arrives, not kept hidden forever.
+  // `hiddenDislikes` the moment that row arrives, not kept hidden forever. Keyed on the settings
+  // ROW's own identity (`updatedAt`, "stamped by the store on every settings save" — lib/types.ts),
+  // not on whether the dislikes LIST changed (Sol round 3 WARN, verified): two consecutive rows can
+  // carry the exact same dislikes content (a reintroduction that lands between two renders with no
+  // intermediate "key is gone" render in between), and a content-only comparison would never catch
+  // that. `updatedAt` is absent only on a `Settings` this component never actually receives in
+  // practice (every real settings object is stamped on save); the dislikes array reference itself
+  // is the fallback so this still works under a bare manufactured object in a test.
   const [hiddenDislikes, setHiddenDislikes] = useState<ReadonlySet<TasteDislike>>(new Set());
-  const dislikesKey = JSON.stringify(dislikes);
-  const [seenDislikesKey, setSeenDislikesKey] = useState(dislikesKey);
-  if (seenDislikesKey !== dislikesKey) {
-    setSeenDislikesKey(dislikesKey);
+  const settingsIdentity: string | readonly TasteDislike[] = settings.updatedAt ?? dislikes;
+  const [seenSettingsIdentity, setSeenSettingsIdentity] = useState(settingsIdentity);
+  if (seenSettingsIdentity !== settingsIdentity) {
+    setSeenSettingsIdentity(settingsIdentity);
     setHiddenDislikes((prev) => {
       if (prev.size === 0) return prev;
       let next: Set<TasteDislike> | null = null;
@@ -168,6 +180,12 @@ export default function CuisinesSection({ settings }: { settings: Settings }) {
       dislikeActionIds.delete(key); // a definite outcome; a future tap (new pill, same key) is fresh
       const resultActionId = result.value.actionId;
       setHiddenDislikes((prev) => new Set(prev).add(key));
+      // Sol round 2/3 WARN, intentional: one shared toast for the whole section means removing a
+      // SECOND key, after the first remove has already completed and its Undo toast is showing,
+      // replaces that toast with this one — the first key's Undo is no longer reachable from the
+      // toast (though it is still a stored pending action; nothing writes until tapped). This is
+      // the ordinary "the newest toast replaces the old one" rule every other ActionFeedback
+      // surface in this app already follows (ActionFeedback.ts `show()`), not a bug to fix here.
       tasteFeedback.notify({
         tone: "success", message: "Removed.",
         // Captures THIS request's own action id and key, never whatever the ref/state hold by the

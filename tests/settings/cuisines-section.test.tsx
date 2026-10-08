@@ -243,22 +243,25 @@ describe("Settings › remove one taste dislike (Followups #1)", () => {
     }
   });
 
-  it("un-hides a key once a later settings row still carries it, instead of hiding it forever (Sol round 2 WARN)", async () => {
-    // The optimistic local hide is only a guess at what the server will settle on. If a FRESH
-    // settings row later still contains the key -- a reintroduction from another device, or this
-    // device's own remove never actually landing -- that is the server's current answer and must
-    // win over the stale local hide.
+  it("un-hides a key once a later settings row still carries it, with no intermediate render (Sol round 3 WARN)", async () => {
+    // The optimistic local hide is only a guess at what the server will settle on. Keyed on the
+    // settings ROW's own identity (`updatedAt`), not on whether the dislikes LIST changed: a later
+    // row can carry the EXACT SAME dislikes content as before the remove -- no intermediate "key is
+    // gone" render in between -- and this must still un-hide it, which a content-only comparison
+    // (the previous design) could never catch.
     const fetchImpl = vi.fn(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }));
     vi.stubGlobal("fetch", fetchImpl);
     try {
-      const { rerender } = render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      const { rerender } = render(<CuisinesSection settings={settingsWith({
+        dietPrefs: withDislikes(["f:Okra"]), updatedAt: "2026-01-01T00:00:00.000Z",
+      })} />);
       fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
       await waitFor(() => expect(screen.queryByText("Okra")).toBeNull());
-      // The parent catches up with the removal (a normal sync pass settling it).
-      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
-      expect(screen.queryByText("Okra")).toBeNull();
-      // Then a later settings row (another device's write) brings the key back.
-      rerender(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      // Straight to a LATER row with the SAME dislikes content -- same key, same list -- never
+      // passing through a render where the list is actually empty.
+      rerender(<CuisinesSection settings={settingsWith({
+        dietPrefs: withDislikes(["f:Okra"]), updatedAt: "2026-01-01T00:00:01.000Z",
+      })} />);
       expect(screen.getByText("Okra")).toBeTruthy();
     } finally {
       vi.unstubAllGlobals();
