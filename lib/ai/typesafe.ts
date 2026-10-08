@@ -61,6 +61,11 @@ export type SystemOneOptions = {
   deadlineMs?: number;
   userId?: string;
   signal?: AbortSignal;
+  /**
+   * Phase 18 W10, D9 item 4: the suggestion short-list check is a short, measured call with no
+   * retry — unlike every other Jev caller, which keeps the default one retry on 429/529.
+   */
+  noRetry?: boolean;
 };
 
 const probability = z.number().min(0).max(1);
@@ -219,8 +224,10 @@ export async function systemOne<P extends JevPurpose, Q extends Questions>(
       inputHash: () => `\\x${createHash("sha256").update(body).digest("hex")}`,
       signal: options.signal,
       policy: {
-        attempts: 2, budgetMs: deadlineMs, attemptMs: deadlineMs, backoffMs: [RETRY_BACKOFF_MS],
-        retryable: (e) => e instanceof ProviderHttpError && RETRYABLE_STATUSES.has(e.status),
+        attempts: options.noRetry ? 1 : 2, budgetMs: deadlineMs, attemptMs: deadlineMs,
+        backoffMs: [RETRY_BACKOFF_MS],
+        retryable: (e) => !options.noRetry && e instanceof ProviderHttpError
+          && RETRYABLE_STATUSES.has(e.status),
       },
       transport: { send: (signal) => postSystemOne(body, key ?? "", signal, REDACTED_ERROR_PURPOSES.has(payload.purpose)) },
       accept: (result) => parseAnswers(payload.questions, result.answers),
