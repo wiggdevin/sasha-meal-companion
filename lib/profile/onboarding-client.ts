@@ -218,11 +218,16 @@ export async function persistCompletedOnboarding(
   }
   // PR #248 review r2 #1: a weigh-in answered after a switch must not lead into B's settings.
   assertCurrent(h);
-  const revision = await deps.saveSynced(settings, "complete", changedPlanFields(base, settings));
+  // ONB2-P0 (GOAL defect 6): the settings+target-revision write and the constraints write touch
+  // different rows and neither reads the other's result, so they no longer wait on each other —
+  // only the weigh-in stays before both (`writeTargets` reads it through `latestWeighInKg`).
+  const [revision, constraints] = await Promise.all([
+    deps.saveSynced(settings, "complete", changedPlanFields(base, settings)),
+    applyFlagConstraints(h, state.flags, deps),
+  ]);
   const savedSettings = revision ? settingsWithTargetRevision(settings, revision) : settings;
   assertCurrent(h);
   deps.saveLocal(savedSettings);
-  const constraints = await applyFlagConstraints(h, state.flags, deps);
   return { settings: savedSettings, ...constraints };
 }
 
