@@ -117,7 +117,7 @@ export default function CareLayer({ active }: { active: boolean }) {
   const shop = care.shop;
   return <div ref={root} className={styles.layer} tabIndex={-1}
     onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-    {!open && !award && <CareNotes note={note}
+    {!open && !award && <CareNotes note={note} mascot={mascot}
       onWatch={(next) => {
         unlockAudio();
         // The Watch button leaves with its note: hand focus to something that stays (the chip, else
