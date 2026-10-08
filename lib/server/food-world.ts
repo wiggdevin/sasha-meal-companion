@@ -27,6 +27,14 @@ export const foodWorldRequest = z.object({
     condition: z.string().trim().min(1).max(200),
     choice: z.enum(["pack", "no_limit"]),
   })).max(20).optional(),
+  /**
+   * Sol round 2 BLOCK: the onboarding open-default's retry (lib/foods/world-open-client.ts) is
+   * fire-and-forget and the Settings switch is the only thing that was asked to call
+   * `clearWorldOpenPending` on a deliberate choice -- a UI promise this route cannot rely on.
+   * `"onboarding_default"` marks a POST as that retry, never sent by Settings or the coach. See
+   * the refusal in `setFoodWorld` below.
+   */
+  intent: z.literal("onboarding_default").optional(),
 }).strict();
 export type FoodWorldRequest = z.infer<typeof foodWorldRequest>;
 
@@ -95,7 +103,24 @@ export async function setFoodWorld(admin: SupabaseClient, userId: string, req: F
   if (req.world === "open" && open.length > 0) {
     return { status: 409, body: { error: "condition_review", conditions: open } };
   }
-  const { data, error } = await admin.from("user_settings").update({ food_world: req.world })
+  // Backend-side guarantee (Sol round 2 BLOCK, no UI change required): a retried onboarding
+  // default never overrides a choice this account already made -- by the default itself (once it
+  // first lands) or by a person closing it again afterward. `food_world_set_at` is null only for
+  // an account nothing has ever explicitly written; once it is set, a later `onboarding_default`
+  // POST settles as a no-op against whatever the account's own current world already is, so the
+  // client's pending retry clears without ever moving a deliberately-closed account back open.
+  if (req.intent === "onboarding_default") {
+    const current = await admin.from("user_settings").select("food_world,food_world_set_at")
+      .eq("user_id", userId).maybeSingle();
+    if (current.error) failed(current.error);
+    const row = current.data as { food_world?: string; food_world_set_at?: string | null } | null;
+    if (!row) throw new HttpError(409, "profile_required", "Finish your profile first.");
+    if (row.food_world_set_at) {
+      return { status: 200, body: { world: row.food_world === "open" ? "open" : "closed" } };
+    }
+  }
+  const { data, error } = await admin.from("user_settings")
+    .update({ food_world: req.world, food_world_set_at: new Date().toISOString() })
     .eq("user_id", userId).select("food_world").maybeSingle();
   if (error && /condition_review/.test(error.message ?? "")) {
     const fresh = await readGate(admin, userId);

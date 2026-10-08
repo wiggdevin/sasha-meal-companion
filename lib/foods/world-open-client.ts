@@ -19,9 +19,13 @@
  * Kept for the next pass: 5xx, 401, 408, 425, 429, 409 `profile_required`, a body that does not
  * say open, a timeout or a network failure.
  *
- * The POST is idempotent (opening an open account is a no-op), so a retry is always safe.
- * `clearWorldOpenPending` is for an explicit user choice in Settings (the UI lane wires it), so a
- * pending retry never overrides a person who chose `closed` on purpose.
+ * The POST is idempotent (opening an open account is a no-op), so a retry is always safe. It also
+ * carries `intent: "onboarding_default"`, which the server refuses once this account's
+ * `food_world_set_at` is already set (lib/server/food-world.ts) -- a backend-side guarantee that a
+ * pending retry can never reopen an account someone already decided about, by the default itself
+ * or by a deliberate Settings choice, with no UI change required. `clearWorldOpenPending` stays
+ * exported for Settings to call on an explicit choice too (it skips even the harmless no-op POST),
+ * but nothing here depends on the UI lane remembering to call it.
  */
 import { accountFetch, accountJson, type AccountHandle } from "@/lib/device/account";
 import { flushOutboxNow } from "@/lib/sync/client";
@@ -62,9 +66,12 @@ async function errorCode(h: AccountHandle, res: Response): Promise<string | null
 
 /** One POST; what the answer means for the intent. Throws only on a network failure. */
 async function postOpen(h: AccountHandle): Promise<"opened" | "settled" | "retry"> {
+  // `intent: "onboarding_default"` lets the server refuse this retry once the account already
+  // made an explicit choice (its own backend-side guarantee, lib/server/food-world.ts) -- this
+  // never depends on the Settings switch remembering to call `clearWorldOpenPending`.
   const res = await accountFetch(h, "/api/foods/world", { method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ world: "open" }) }, { budget: "prefs" });
+    body: JSON.stringify({ world: "open", intent: "onboarding_default" }) }, { budget: "prefs" });
   if (res.ok) {
     try {
       const body = await accountJson<{ world?: unknown } | null>(h, res);

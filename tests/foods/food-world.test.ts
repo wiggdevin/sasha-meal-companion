@@ -124,6 +124,38 @@ describe("POST /api/foods/world (W2b acceptance 5)", () => {
   });
 });
 
+describe("POST /api/foods/world intent: onboarding_default (W13 Sol round 2 BLOCK fix)", () => {
+  it("applies and stamps food_world_set_at on a never-touched account", async () => {
+    expect(tables.user_settings[0].food_world_set_at).toBeNull();
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "open" } });
+    expect(tables.user_settings[0].food_world).toBe("open");
+    expect(typeof tables.user_settings[0].food_world_set_at).toBe("string");
+  });
+
+  it("settles as a no-op against the account's own current world once a choice was already made, "
+    + "so a pending retry can never reopen a deliberately-closed account", async () => {
+    // Simulates: the onboarding default already landed once (or the person used Settings), then
+    // closed it again on purpose -- all backend-side, no clearWorldOpenPending call required.
+    loadWorld({ world: "closed", foodWorldSetAt: "2026-10-01T00:00:00Z" });
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("an explicit Settings POST (no intent) always applies and stamps, even over a prior choice", async () => {
+    loadWorld({ world: "open", foodWorldSetAt: "2026-10-01T00:00:00Z" });
+    expect(await post({ world: "closed" })).toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).not.toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("rejects an intent other than the one literal", async () => {
+    expect((await post({ world: "open", intent: "user_choice" })).status).toBe(400);
+  });
+});
+
 describe("GET /api/foods/world (W13)", () => {
   it("answers the account's own current world", async () => {
     const { GET } = await import("@/app/api/foods/world/route");
