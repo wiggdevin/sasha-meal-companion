@@ -21,7 +21,8 @@ vi.mock("@/lib/coach/suggest-policy", async (original) => ({
   loadSuggestionEvidence: async () => evidence.answer,
 }));
 
-const { mealSnapshotV3, checkByteBudget } = await import("@/lib/server/meal-snapshot-v3");
+const { mealSnapshotV3, checkByteBudget, snapshotV3Overages, resetSnapshotV3Overages } =
+  await import("@/lib/server/meal-snapshot-v3");
 const { parseMealSnapshotV3, SNAPSHOT_V3_MAX_BYTES } = await import("@/lib/meals/snapshot-v3");
 
 const NOW = new Date("2026-10-06T15:00:00Z");
@@ -122,6 +123,36 @@ describe("snapshot v3 for an open account", () => {
     // Byte-for-byte identical: nothing was dropped, trimmed or otherwise changed.
     expect(checked).toEqual(body);
     expect(parseMealSnapshotV3(JSON.parse(JSON.stringify(checked)))).not.toBeNull();
+  });
+
+  it("followups #6: counts an overage (log counter) without trimming anything", () => {
+    resetSnapshotV3Overages();
+    expect(snapshotV3Overages()).toBe(0);
+    const favored = bigFoods(300, "favored", "favored");
+    const universe = bigFoods(1000, "universe", "universe");
+    const admittedRefIds = Object.keys(favored).map((id) => favored[id].userRefId!);
+    const admittedUniverseIds = Object.values(universe).map((food) => food.universeId!);
+    const body = bodyOf({ ...favored, ...universe }, admittedRefIds, admittedUniverseIds);
+    expect(Buffer.byteLength(JSON.stringify(body), "utf8")).toBeGreaterThan(SNAPSHOT_V3_MAX_BYTES);
+
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    checkByteBudget(body);
+    expect(snapshotV3Overages()).toBe(1);
+    checkByteBudget(body);
+    expect(snapshotV3Overages()).toBe(2);
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
+  });
+
+  it("followups #6: a body within budget never bumps the overage counter", () => {
+    resetSnapshotV3Overages();
+    const favored = bigFoods(20, "favored", "favored");
+    const universe = bigFoods(UNIVERSE.length, "universe", "universe");
+    const admittedRefIds = Object.keys(favored).map((id) => favored[id].userRefId!);
+    const admittedUniverseIds = Object.values(universe).map((food) => food.universeId!);
+    const body = bodyOf({ ...favored, ...universe }, admittedRefIds, admittedUniverseIds);
+    checkByteBudget(body);
+    expect(snapshotV3Overages()).toBe(0);
   });
 
   it("the realistic case meets the 250 KB cap without the exception: a bounded universe pool "

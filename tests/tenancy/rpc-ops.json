@@ -47,5 +47,9 @@
   "care_accolades_sync(uuid,date,text)": { "class": "account", "case": "care_accolades_sync" },
   "care_accolades_seen(uuid,text[])": { "class": "account", "case": "care_accolades_seen" },
   "care_message_mark(uuid,uuid,text)": { "class": "account", "case": "care_message_mark" },
-  "care_log_grew(uuid,uuid,text)": { "class": "account", "case": "care_log_grew" }
+  "care_log_grew(uuid,uuid,text)": { "class": "account", "case": "care_log_grew" },
+  "onboarding_event_shape_valid(text,text,text,text,integer)": { "class": "pure", "reason": "Followups #18: validates which of step/question/pilot_arm/duration_ms a kind may carry for a check constraint; reads no table." },
+  "record_onboarding_events(jsonb)": { "class": "account", "case": "onboarding_events" },
+  "taste_dislike_remove(uuid,uuid,text)": { "class": "account", "case": "taste_dislike_remove" },
+  "taste_dislike_remove_undo(uuid,uuid)": { "class": "account", "case": "taste_dislike_undo" }
 }

@@ -1,6 +1,6 @@
 /**
  * POST /api/pantry/photo/confirm — JWT (shopping-pilot gate, same as every other
- * `/api/shopping/*` route), 4 KB, 10/min/user.
+ * `/api/shopping/*` route), 48 KB, 10/min/user.
  *
  * W12 confirm step (acceptance 2, 3): writes one `shopping_pantry` row per confirmed item,
  * `source: 'photo'`, null grams allowed. The written rows are returned through
@@ -24,7 +24,10 @@ export const dynamic = "force-dynamic";
 export const preferredRegion = ["sfo1"];
 export const maxDuration = 15;
 
-const MAX_BYTES = 4 * 1024;
+// Followups #21: 40 items x 160-char names (plus grams, punctuation, the requestId) can exceed the
+// old 4 KB ceiling; raised to 48 KB on the route. Item caps (40 items, 160 chars) are unchanged —
+// this only widens the body-size gate, never the Zod shape. Client-side pre-check: UI-NEEDS #21.
+const MAX_BYTES = 48 * 1024;
 const Body = z.object({
   requestId: requestIdSchema,
   items: z.array(z.object({ name: z.string().min(1).max(160),
