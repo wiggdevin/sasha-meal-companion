@@ -10,8 +10,8 @@ import {
   AccountChanged, assertCurrent, isCurrent, accountFetch, accountJson, type AccountHandle,
 } from "@/lib/device/account";
 import {
-  allOps, allRows, deleteRow, getCursor, getLastError, getLastSyncAt, getRow, putRow, setCursor, setLastError,
-  setLastSyncAt,
+  allOps, allRows, deleteRow, getCursor, getLastError, getLastSyncAt, getRow, putOp, putRow, setCursor,
+  setLastError, setLastSyncAt, type OutboxOp,
 } from "./idb";
 import { foodsFromSyncRows, loadStore, saveStoreFor } from "../store";
 import { normalizeFoodName } from "@/lib/foods/normalize";
@@ -384,6 +384,71 @@ export async function flushOutboxNow(h: AccountHandle, options: SyncOptions = {}
   } catch {
     // Offline, refused, or a malformed answer: the op is still queued and the caller must not leave.
     return false;
+  }
+}
+
+/** What `flushOnboardingWritesNow` reports: delivered, or the ops still waiting by entity. */
+export type OnboardingDelivery = {
+  delivered: boolean;
+  /** Ops of the gated entities still queued after the passes (waiting, backing off or parked). */
+  pending: { userSettings: number; foodMembership: number };
+};
+
+/** Every op onboarding's save queues: the settings write (the `onboarded_at` stamp, profile) and
+ *  each starter food's membership op. A food op leaves the queue only when the server answered it
+ *  (`applied`, or `rejected` for a newer mark the phone then reconciles to). */
+function pendingOnboardingOps(ops: readonly OutboxOp[]): OnboardingDelivery["pending"] {
+  return {
+    userSettings: pendingSettingsOps(ops).length,
+    foodMembership: ops.filter((op) => op.entity === "food_membership").length,
+  };
+}
+
+/**
+ * GPT-6 Sol BLOCK (onb2-p0, "things didn't save"): `flushOutboxNow` answers for the settings op
+ * only, so a food membership op that failed or was backing off still let onboarding open Today
+ * without the chosen foods on the server. This is the onboarding save's delivery gate: true only
+ * when NO settings whole-row op and NO food membership op remains queued after the passes.
+ *
+ * The caller asked now (the save, or its retry), so food ops that are backing off or parked after
+ * an earlier failure are made due first — the same release "Sync now" gives (`retryParked`) — or a
+ * retry tapped inside the backoff window would never send them. Settings ops keep their own
+ * selection rules (a settings op with no baseline waits for the pull, lib/sync/settings.ts).
+ *
+ * Never throws: an outbox it cannot read, or a failed pass, answers not delivered.
+ */
+export async function flushOnboardingWritesNow(
+  h: AccountHandle, options: SyncOptions & { now?: () => number } = {},
+): Promise<OnboardingDelivery> {
+  const now = options.now ?? Date.now;
+  const unknown = { delivered: false, pending: { userSettings: -1, foodMembership: -1 } };
+  const read = async () => pendingOnboardingOps(await allOps(h));
+  const release = async () => {
+    const at = now();
+    for (const op of await allOps(h)) {
+      if (op.entity !== "food_membership" || op.next_attempt_at <= at) continue;
+      await putOp(h, { ...op, next_attempt_at: at });
+    }
+  };
+  const settled = (pending: OnboardingDelivery["pending"]) =>
+    pending.userSettings === 0 && pending.foodMembership === 0;
+  try {
+    let pending = await read();
+    if (settled(pending)) return { delivered: true, pending };
+    for (let pass = 0; pass < 2 && !settled(pending); pass += 1) {
+      // A pass already running when these ops were queued pushed the outbox IT had read, so a
+      // second, fresh pass is what sends them (same reasoning as `flushOutboxNow`).
+      await release();
+      try {
+        await syncOnce(h, options);
+      } catch (e) {
+        if (e instanceof AccountChanged || !isCurrent(h)) return unknown;
+      }
+      pending = await read();
+    }
+    return { delivered: settled(pending), pending };
+  } catch {
+    return unknown;
   }
 }
 

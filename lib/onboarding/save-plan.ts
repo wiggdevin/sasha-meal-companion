@@ -23,8 +23,10 @@
  *   - writes every starter food's membership op WITHOUT its own acknowledgement round trip
  *     (`lib/foods/starter-client.ts`'s `defaultStarterWriter`, also updated alongside this file),
  *     in bounded-concurrency batches rather than one at a time, and leaves the one
- *     `flushOutboxNow` pass below to actually deliver them — every production path already ran
- *     that pass before leaving onboarding, so this costs nothing extra.
+ *     `flushOnboardingWritesNow` pass below to actually deliver them — every production path already ran
+ *     that pass before leaving onboarding, so this costs nothing extra. That pass is
+ *     `flushOnboardingWritesNow`, which answers for every op the save queued (settings AND food
+ *     membership), never the settings op alone.
  *
  * No safety rule moves: the selection is still validated against a FRESH read before anything is
  * written, a selection a fresh rule drops below the two-per-role (or, for a legacy account, the
@@ -53,7 +55,7 @@ import {
   AdultOnlyError, safetyConditionEntries, type SafetyAnswers,
 } from "@/lib/profile/rate-eligibility";
 import { TargetSaveRefusedError } from "@/lib/targets/client";
-import { flushOutboxNow } from "@/lib/sync/client";
+import { flushOnboardingWritesNow } from "@/lib/sync/client";
 import type { Settings } from "@/lib/types";
 
 type FreshStarterRules = { profile: Profile; instances: readonly ProfileInstance[] };
@@ -74,6 +76,9 @@ export type SaveOnboardingPlanInput = {
   /** The safety round's taps (onboarding v2 G7): their condition entries are written before the
    *  target revision, so the server derives the target under the hold. */
   safety?: SafetyAnswers;
+  /** The save's one target request id, minted once and reused by every retry (the shell keeps it
+   *  in the resume draft), so a lost target answer never becomes a second revision. */
+  targetRequestId?: string;
 };
 
 export type SaveOnboardingPlanResult =
@@ -83,6 +88,10 @@ export type SaveOnboardingPlanResult =
   | { ok: false; error: string; code?: SavePlanRefusal };
 
 export type SavePlanRefusal = "adult_only" | "rate_not_eligible";
+
+/** Some chosen foods are still queued on this phone, not on the server. */
+export const FOODS_NOT_DELIVERED_ERROR =
+  "Some of your foods haven't saved yet. Check your connection, then tap Try again.";
 
 export const RATE_NOT_ELIGIBLE_ERROR =
   "Your saved health answers keep your calories about where you burn, so there's no pace to set. Tap Use this plan again.";
@@ -104,7 +113,8 @@ export type SaveOnboardingPlanDeps = {
     allowed: readonly Starter[],
     deps: StarterWriter,
   ) => Promise<number>;
-  flushOutbox: typeof flushOutboxNow;
+  /** The delivery gate: every op this save queued (settings and each food) reached the server. */
+  deliverWrites: typeof flushOnboardingWritesNow;
   mirrorOnboardedAt: typeof mirroredOnboardedAt;
 };
 
@@ -125,7 +135,7 @@ const defaultDeps: SaveOnboardingPlanDeps = {
   retryConstraints: retryOnboardingConstraints,
   readRules: readFreshStarterRules,
   writeStarter: persistStarterSelection,
-  flushOutbox: flushOutboxNow,
+  deliverWrites: flushOnboardingWritesNow,
   mirrorOnboardedAt: mirroredOnboardedAt,
 };
 
@@ -139,12 +149,13 @@ export async function saveOnboardingPlan(
   input: SaveOnboardingPlanInput,
   deps: Partial<SaveOnboardingPlanDeps> = {},
 ): Promise<SaveOnboardingPlanResult> {
-  const { persistPlan, retryConstraints, readRules, writeStarter, flushOutbox, mirrorOnboardedAt } =
+  const { persistPlan, retryConstraints, readRules, writeStarter, deliverWrites, mirrorOnboardedAt } =
     { ...defaultDeps, ...deps };
   const h = accountHandle();
   try {
     const safety = input.safety ?? {};
-    const completed = await persistPlan(input.settings, input.onboardingState, undefined, undefined, safety);
+    const completed = await persistPlan(input.settings, input.onboardingState, undefined, undefined, safety,
+      input.targetRequestId);
     if (!completed.constraintsSaved && safetyConditionEntries(safety).length > 0) {
       // G7: the condition patch failed before the target was written, so nothing was saved. A
       // flags-only retry would drop the conditions and leave the plan unsaved; offer the step again.
@@ -182,8 +193,15 @@ export async function saveOnboardingPlan(
       await writeStarter(marks, freshChoices, { ...defaultStarterWriter, freshRules: async () => fresh });
     }
 
-    const drained = await flushOutbox(h);
-    const mirrored = drained ? await mirrorOnboardedAt() : null;
+    // GPT-6 Sol BLOCK (onb2-p0): the gate covers EVERY op this save queued, the food membership
+    // ops included, not the settings op alone. A food op that failed or is backing off keeps the
+    // account here with a retry (the next call makes those ops due again), never on Today.
+    const delivery = await deliverWrites(h);
+    if (!delivery.delivered) {
+      return { ok: false, error: delivery.pending.foodMembership > 0
+        ? FOODS_NOT_DELIVERED_ERROR : ONBOARDING_SYNC_WARNING };
+    }
+    const mirrored = await mirrorOnboardedAt();
     if (mirrored === null) return { ok: false, error: ONBOARDING_SYNC_WARNING };
     return { ok: true };
   } catch (error) {

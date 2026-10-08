@@ -30,7 +30,7 @@ function baseDeps(overrides: Partial<SaveOnboardingPlanDeps> = {}): SaveOnboardi
     retryConstraints: vi.fn(async () => true),
     readRules: vi.fn(async () => ({ profile: rules, instances: [] })),
     writeStarter: vi.fn(async () => 2),
-    flushOutbox: vi.fn(async () => true),
+    deliverWrites: vi.fn(async () => ({ delivered: true, pending: { userSettings: 0, foodMembership: 0 } })),
     mirrorOnboardedAt: vi.fn(async () => "2026-10-07T00:00:00.000Z"),
     ...overrides,
   };
@@ -73,7 +73,7 @@ describe("saveOnboardingPlan", () => {
     expect(deps.readRules).not.toHaveBeenCalled();
     expect(deps.writeStarter).not.toHaveBeenCalled();
     expect(deps.persistPlan).toHaveBeenCalledTimes(1);
-    expect(deps.flushOutbox).toHaveBeenCalledTimes(1);
+    expect(deps.deliverWrites).toHaveBeenCalledTimes(1);
   });
 
   it("fails the whole write, never a partial one, when the single fresh read drops the selection below the floor", async () => {
@@ -116,7 +116,7 @@ describe("saveOnboardingPlan", () => {
   });
 
   it("reports the sync warning when the outbox never drains", async () => {
-    const deps = baseDeps({ flushOutbox: vi.fn(async () => false) });
+    const deps = baseDeps({ deliverWrites: vi.fn(async () => ({ delivered: false, pending: { userSettings: 1, foodMembership: 0 } })) });
     const result = await saveOnboardingPlan({
       settings: defaultSettings(), onboardingState: createOnboardingState(defaultSettings()),
     }, deps);
@@ -138,7 +138,7 @@ describe("saveOnboardingPlan", () => {
     const call = (deps.persistPlan as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[4]).toEqual({ pregnancy: "pregnant" });
     expect(deps.retryConstraints).not.toHaveBeenCalled();
-    expect(deps.flushOutbox).not.toHaveBeenCalled();
+    expect(deps.deliverWrites).not.toHaveBeenCalled();
   });
 
   it("names the server's 422 adult_only and 409 rate_not_eligible refusals so the shell can route", async () => {
