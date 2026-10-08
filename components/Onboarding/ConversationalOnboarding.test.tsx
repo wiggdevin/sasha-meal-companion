@@ -103,6 +103,12 @@ const saveOnboardingPlan = vi.fn(async (input: {
   }
   return { ok: true as const };
 });
+/** Followups #18: every event the shell queues, as queued. */
+const telemetryEvents = vi.hoisted(() => ({ list: [] as Record<string, unknown>[] }));
+vi.mock("@/lib/profile/onboarding-events-client", () => ({
+  queueOnboardingEvent: (event: Record<string, unknown>) => { telemetryEvents.list.push(event); },
+  flushOnboardingEvents: async () => {},
+}));
 /** The account's stored pace holds (stored-eligibility.ts): none unless a test sets them. */
 const storedHolds = vi.hoisted(() => ({
   value: { holds: [] as string[], minor: false },
@@ -124,6 +130,7 @@ vi.mock("@/lib/onboarding/save-plan", () => ({
 }));
 
 beforeEach(() => {
+  telemetryEvents.list = [];
   storedHolds.value = { holds: [], minor: false };
   storedHolds.status = "ready";
   storedHolds.refresh = null;
@@ -702,6 +709,31 @@ describe("ConversationalOnboarding", () => {
       fireEvent.click(await screen.findByRole("button", { name: "No, none of these" }));
       expect((await screen.findByRole("alert")).textContent).toMatch(/saved health answers/);
       expect(screen.queryByTestId("pace-beat")).toBeNull();
+    });
+
+    it("onboarding events carry step and question names and durations, never an answer " +
+      "(followups #18)", async () => {
+      pickableFoods();
+      starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+      render(<ConversationalOnboarding />);
+      await toWeek("Lose weight", "34");
+      await passPlanBeats();
+      fireEvent.click(await screen.findByRole("button", { name: /^Done/ }));
+      fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
+      await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+      const kinds = telemetryEvents.list.map((event) => event.kind);
+      expect(kinds).toContain("step_entered");
+      expect(kinds).toContain("question_left");
+      expect(kinds).not.toContain("pilot_arm_assigned");
+      expect(telemetryEvents.list.at(-1)).toEqual({ kind: "step_entered", step: "done" });
+      for (const event of telemetryEvents.list) {
+        expect(Object.keys(event).every((key) => ["kind", "step", "question", "durationMs"].includes(key))).toBe(true);
+      }
+      // Every value but the duration (a number of ms, which may happen to contain any digits).
+      const wire = JSON.stringify(telemetryEvents.list.map(({ durationMs: _ms, ...rest }) => rest));
+      for (const answer of ["34", "lose_fat", "Lose weight", "female", "p1", "\"US\""]) {
+        expect(wire).not.toContain(answer);
+      }
     });
 
     it("a minor stops: no week, no plan, and leaving saves no profile", async () => {

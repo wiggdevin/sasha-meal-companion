@@ -34,6 +34,7 @@ import {
   mergeEligibility, serverHeldEligibility, useStoredEligibility,
 } from "@/components/Onboarding/v2/stored-eligibility";
 import { usePreviewAccount } from "@/components/Onboarding/v2/preview-account";
+import { useOnboardingTelemetry } from "@/components/Onboarding/v2/onboarding-telemetry";
 import {
   applyFactsToSettings, buildOnboardingStateFromFacts, factsToPartialSettings, type FactsLike,
 } from "@/components/Onboarding/v2/facts-bridge";
@@ -770,6 +771,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  required field not yet confirmed. `null` once every one is confirmed. */
   const askingField: OnboardingFactKey | null = beat === "facts"
     ? (editingField ?? firstUnconfirmedField(facts)) : null;
+  // Followups #18: step and question timing only, never an answer (onboarding-telemetry.ts).
+  const telemetry = useOnboardingTelemetry(beat, askingField);
 
   /** The dock's text composer on opener and facts (`typed-answer.ts`): the asked question's own
    *  unit first, then the extract client. A health or allergy detail opens the safety card. */
@@ -866,13 +869,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       const mirrored = drained ? await mirroredOnboardedAt() : null;
       if (mirrored === null) throw new Error(ONBOARDING_SYNC_WARNING);
       await clearOnboardingDraft();
+      await telemetry.finish();
       router.replace("/");
     } catch {
       setLeaveError(ONBOARDING_SYNC_WARNING);
       leaving.current = false;
       setSavingState(null);
     }
-  }, [router, base]);
+  }, [router, base, telemetry]);
 
   /** "Use this plan": one call to `saveOnboardingPlan` (lib/onboarding/save-plan.ts — profile,
    *  target revision and constraints in parallel, one fresh rules read for the food write
@@ -933,9 +937,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
     setSavingState({ title, step: "Opening Today." });
     await clearOnboardingDraft();
+    await telemetry.finish();
     router.replace("/");
   }, [router, settings, onboardingState, safetyAnswers, foodAccess.status, starter.marks, plannedCount,
-    storedState, serverHeld]);
+    storedState, serverHeld, telemetry]);
 
   const handleSkip = onSkip ?? (() => void leaveOnboarding());
   /** "Use this plan". GPT-6 Sol BLOCK (onb2-p0): it never takes the skip path. A plan that is not
