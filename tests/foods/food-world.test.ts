@@ -342,13 +342,24 @@ describe("GET /api/foods/rules-version", () => {
   it("returns the two counters, no-store", async () => {
     const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2 });
+    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2, world: "closed" });
+  });
+
+  it("carries the effective world: open while released, closed off the list or on hold (Sol r2 BLOCK)", async () => {
+    loadWorld({ world: "open" });
+    const world = async () => (await (await rulesVersion(new Request("https://app.test/api/foods/rules-version"))).json()).world;
+    expect(await world()).toBe("open");
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "someone-else");
+    expect(await world()).toBe("closed");
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "*");
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A);
+    expect(await world()).toBe("closed");
   });
 
   it("reads an account with no rule write yet as rulesVersion 0", async () => {
     tables.account_rules_clock = [];
     const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
-    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2 });
+    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2, world: "closed" });
   });
 });
 
