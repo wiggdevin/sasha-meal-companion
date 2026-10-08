@@ -139,9 +139,9 @@ describe.skipIf(!LOCAL)("food world isolation (canary)", () => {
   it("GET /api/foods/world answers each account's own row, even with the other's id claimed", async () => {
     await admin.from("user_settings").update({ food_world: "open" }).eq("user_id", a.id);
     const forA = await GET(getRequest(a, "/api/foods/world", b.id));
-    expect(await forA.json()).toEqual({ world: "open" });
+    expect(await forA.json()).toEqual({ world: "open", openDefaultPending: false, starterSeed: false });
     const forB = await GET(getRequest(b, "/api/foods/world", a.id));
-    expect(await forB.json()).toEqual({ world: "closed" });
+    expect(await forB.json()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: false });
     await admin.from("user_settings").update({ food_world: "closed" }).eq("user_id", a.id);
   });
 

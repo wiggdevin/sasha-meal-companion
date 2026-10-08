@@ -28,6 +28,12 @@
  * or by a deliberate Settings choice, with no UI change required. `clearWorldOpenPending` stays
  * exported for Settings to call on an explicit choice too (it skips even the harmless no-op POST),
  * but nothing here depends on the UI lane remembering to call it.
+ *
+ * The intent is a retry driver only, never the starter-seed gate (Sol round 4 BLOCK): another
+ * device cannot see it. Whether a device may seed the legacy starter is the server's answer
+ * (`GET /api/foods/world` `starterSeed`), and a device that reads `openDefaultPending` takes the
+ * intent over here (lib/foods/today-starter.ts), so the default still lands if the onboarding
+ * device never comes back.
  */
 import { accountFetch, accountJson, type AccountHandle } from "@/lib/device/account";
 import { flushOutboxNow } from "@/lib/sync/client";

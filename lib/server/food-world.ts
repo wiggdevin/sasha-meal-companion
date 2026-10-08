@@ -158,6 +158,48 @@ export async function readFoodWorld(admin: SupabaseClient, userId: string): Prom
 }
 
 /**
+ * W13 (D14), Sol round 4 BLOCK: the server's own answer to "may any device seed the legacy
+ * closed-world starter (default Favored marks) for this account?", so every device agrees. A
+ * device-local pending flag cannot see another device's failed open POST.
+ *
+ * - `openDefaultPending`: the account went through the W13 onboarding default
+ *   (`food_world_default_due_at`, stamped by the database in the same write that first set
+ *   `onboarded_at`), nothing has decided its world yet (`food_world_set_at` null), it is still
+ *   closed, and the default could still open it: released, not held, no unconfirmed condition --
+ *   exactly the cases where `setFoodWorld` would answer the default with `open`.
+ * - `starterSeed`: the world is `closed`, the server row is onboarded, and no open default is
+ *   pending. That covers a legacy account (onboarded before W13, no due stamp), an explicit closed
+ *   choice (`food_world_set_at` set while closed), and a W13 account whose default can never open
+ *   it by policy (unreleased, held, or a condition to confirm -- the default's 423/409, which the
+ *   phone also settles as closed). An open account, a row not yet onboarded on the server, and a
+ *   pending default never seed. A failed read throws (503), and the phone seeds nothing on it.
+ */
+export type FoodWorldState = {
+  world: "open" | "closed";
+  openDefaultPending: boolean;
+  starterSeed: boolean;
+};
+
+export async function readFoodWorldState(admin: SupabaseClient, userId: string,
+  env: Env = process.env as Env): Promise<FoodWorldState> {
+  const { data, error } = await admin.from("user_settings")
+    .select("food_world,food_world_set_at,food_world_default_due_at,onboarded_at")
+    .eq("user_id", userId).maybeSingle();
+  if (error) failed(error);
+  const row = data as { food_world?: string; food_world_set_at?: string | null;
+    food_world_default_due_at?: string | null; onboarded_at?: string | null } | null;
+  const world = row?.food_world === "open" ? "open" : "closed";
+  if (!row || world === "open") return { world, openDefaultPending: false, starterSeed: false };
+  let openDefaultPending = false;
+  if (row.food_world_default_due_at && !row.food_world_set_at
+    && openWorldReleased(env) && !openWorldHeld(userId, env)) {
+    const gate = await readGate(admin, userId);
+    openDefaultPending = unconfirmedConditions(gate.conditions, gate.confirmed).length === 0;
+  }
+  return { world, openDefaultPending, starterSeed: Boolean(row.onboarded_at) && !openDefaultPending };
+}
+
+/**
  * W13 (D14): whether to show this account the dismissible open-world invitation. False for an
  * already-open account (nothing to invite into), a held account (D14, Q5 — stays `closed` with
  * no invitation until the owner decides), or while the open world is unreleased. A held or

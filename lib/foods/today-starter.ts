@@ -6,7 +6,7 @@ import { fetchProfileInstances } from "@/lib/profile/instances-client";
 import { loadRuleReview } from "@/lib/rule-review-client";
 import { loadStore, saveStoreFor } from "@/lib/store";
 import { seedZeroFoodAccount } from "@/lib/foods/starter-seed";
-import { isWorldOpenPending } from "@/lib/foods/world-open-client";
+import { drainWorldOpenPending, markWorldOpenPending } from "@/lib/foods/world-open-client";
 
 export type StarterGate = "ready" | "review" | "unavailable";
 
@@ -24,38 +24,50 @@ async function recipeAccess(account: ReturnType<typeof accountHandle>): Promise<
 }
 
 /**
- * W13 (D14): "No starter is marked Favored by default" for an open account — the legacy
- * zero-food auto-seed below is a CLOSED-world behaviour only, and it runs only on the server's
- * affirmative `closed`. Sol round 2 BLOCK: a failed read used to count as `closed`, so an open
- * account with zero foods whose world read failed was seeded with default Favored marks. Any
- * failure (network, timeout, non-OK status, unreadable body) is now `unknown`, which seeds
- * nothing; the next gate refresh reads again.
+ * W13 (D14): "No starter is marked Favored by default" for an open account, and none for a new
+ * account whose onboarding open default has not landed yet. Sol round 4 BLOCK: the decision is
+ * the SERVER's (`GET /api/foods/world` -> `starterSeed`, lib/server/food-world.ts
+ * `readFoodWorldState`), so every device of the account agrees. A device-local pending flag
+ * cannot see another device's failed open POST: device A finishes onboarding and its open POST
+ * answers 503; device B then sees onboarded + `closed` with no flag of its own. The server knows
+ * the default is still due (`food_world_default_due_at`, stamped with `onboarded_at`) and answers
+ * `starterSeed: false` on every device until the world is decided.
+ *
+ * Only an affirmative `{ world: "closed", starterSeed: true }` seeds. Any failure (network,
+ * timeout, non-OK status, unreadable or partial body) is `unknown` and seeds nothing (Sol round 2
+ * BLOCK); the next gate refresh reads again.
  */
-type FoodWorldRead = "open" | "closed" | "unknown";
+type FoodWorldRead = { seed: boolean; openDefaultPending: boolean };
+
+const UNKNOWN: FoodWorldRead = { seed: false, openDefaultPending: false };
 
 async function foodWorld(account: ReturnType<typeof accountHandle>): Promise<FoodWorldRead> {
   try {
     const response = await accountFetch(account, "/api/foods/world",
       { cache: "no-store" }, { budget: "prefs" });
-    if (!response.ok) return "unknown";
-    const body = await accountJson<{ world?: unknown }>(account, response);
-    return body?.world === "open" || body?.world === "closed" ? body.world : "unknown";
+    if (!response.ok) return UNKNOWN;
+    const body = await accountJson<{ world?: unknown; starterSeed?: unknown;
+      openDefaultPending?: unknown }>(account, response);
+    return {
+      seed: body?.world === "closed" && body.starterSeed === true,
+      openDefaultPending: body?.world === "closed" && body.openDefaultPending === true,
+    };
   } catch {
-    return "unknown";
+    return UNKNOWN;
   }
 }
 
 /**
- * Sol round 3 BLOCK: a server `closed` is not enough while onboarding's open default is still
- * pending on this device (its POST answered 503, say): the next retry opens the account, and the
- * Favored marks seeded in between would persist. An unreadable intent counts as pending.
+ * The server says this account's onboarding open default is still due, so this device takes the
+ * intent over: it records it and drains it like the onboarding device would. The default's POST
+ * is one conditional write (`food_world_set_at is null`), so any number of devices posting it is
+ * safe, and an account whose onboarding device is gone still opens. Never throws, never blocks.
  */
-async function openPending(account: ReturnType<typeof accountHandle>): Promise<boolean> {
-  try {
-    return await isWorldOpenPending(account);
-  } catch {
-    return true;
-  }
+function adoptOpenDefault(account: ReturnType<typeof accountHandle>): void {
+  void (async () => {
+    await markWorldOpenPending(account);
+    await drainWorldOpenPending(account);
+  })().catch(() => undefined);
 }
 
 /** A successful server read is required before Today renders generated suggestions. */
@@ -74,11 +86,12 @@ export async function refreshStarterGate(): Promise<StarterGate> {
       recipeAccess(h), foodWorld(h),
     ]);
     assertCurrent(h);
+    if (world.openDefaultPending) adoptOpenDefault(h);
     if (!review || !constraints || !profiles) return "unavailable";
     if (review.required) return "review";
     if (access === null) return "unavailable";
     setReady(true);
-    if (!access && world === "closed" && !await openPending(h)) await seedZeroFoodAccount(constraints.profile, profiles.instances).catch(() => false);
+    if (!access && world.seed) await seedZeroFoodAccount(constraints.profile, profiles.instances).catch(() => false);
     assertCurrent(h);
     return "ready";
   } catch {

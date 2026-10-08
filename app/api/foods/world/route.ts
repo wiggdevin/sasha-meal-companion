@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/server/auth";
 import { adminClient } from "@/lib/server/admin";
-import { foodWorldRequest, readFoodWorld, setFoodWorld } from "@/lib/server/food-world";
+import { foodWorldRequest, readFoodWorldState, setFoodWorld } from "@/lib/server/food-world";
 import { jsonError, readJson } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
@@ -9,15 +9,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * W13: this account's own current `food_world`, for Settings and the starter-seed gate
- * (lib/foods/today-starter.ts) — an open account seeds no default Favored foods. Side-effect
- * free, private, no-store, same shape as `POST`'s 200 body.
+ * W13: this account's own `{ world, openDefaultPending, starterSeed }` (`readFoodWorldState`), for
+ * Settings and the starter-seed gate (lib/foods/today-starter.ts): only `starterSeed: true` lets a
+ * device seed default Favored foods, so every device of the account agrees. Side-effect free,
+ * private, no-store; `world` has the same shape as `POST`'s 200 body.
  */
 export async function GET(req: Request): Promise<Response> {
   try {
     const { userId } = await requireUser(req);
-    const world = await readFoodWorld(adminClient(), userId);
-    return Response.json({ world }, { headers: { "Cache-Control": "no-store" } });
+    const state = await readFoodWorldState(adminClient(), userId);
+    return Response.json(state, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return jsonError(error);
   }
