@@ -22,6 +22,7 @@ import { DEFAULT_PREFS, PANEL_NAME, effectiveWidgetPrefs, loadWidgetPrefs, saveW
   type WidgetPrefs }
   from "@/lib/today/widget-prefs";
 import type { PetWhen } from "@/lib/today/pet-mood";
+import { named } from "@/components/today/island/mascots";
 import { useMascot, wellPet } from "@/components/today/island/well-pet";
 import styles from "@/components/today/island/Island.module.css";
 import well from "@/components/today/island/Well.module.css";
@@ -319,7 +320,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
               <button ref={toggleRef} type="button" data-widget-toggle="" className={`tap ${styles.toggle}`}
                 data-open={expanded || undefined}
                 aria-expanded={expanded} aria-controls={`${id}-panel`} onClick={toggle} onKeyDown={onToggleKey}>
-                <span className="sr-only">{expanded ? `${VIEW_NAME[view]}, ${viewAt + 1} of ${views.length}. Fold the widget`
+                <span className="sr-only">{expanded ? `${named(VIEW_NAME[view], mascot)}, ${viewAt + 1} of ${views.length}. Fold the widget`
                   : `${PANEL_NAME[panel]}, ${position}. ${panelSpoken(panel, data)}`}</span>
                 <AnimatePresence initial={false}>
                   {!expanded && <motion.span key="mini" className="flex shrink-0"
@@ -342,7 +343,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
               <div id={`${id}-panel`} hidden={!expanded} className={styles.panel}>
                 <AnimatePresence mode="popLayout" initial={false}>
                   {expanded && <motion.div key={view} role="group" aria-roledescription="slide"
-                    aria-label={`${VIEW_NAME[view]}, ${viewAt + 1} of ${views.length}`} className={styles.slide}
+                    aria-label={`${named(VIEW_NAME[view], mascot)}, ${viewAt + 1} of ${views.length}`} className={styles.slide}
                     {...rise} transition={reduce ? INSTANT : { ...SPRINGS.smooth, delay: 0.08 }}>
                     <span className="sr-only">{panelSpoken(panel, data)}</span>
                     {view === "fuel" ? <FuelView data={data} />

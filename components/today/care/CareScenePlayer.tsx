@@ -10,10 +10,12 @@ import type { CareScene } from "@/components/today/care/shop/catalog";
 import { FADES, INSTANT, SPRINGS } from "@/lib/design/motion";
 import awards from "@/components/today/care/Awards.module.css";
 import styles from "@/components/today/care/Care.module.css";
+import { named, sceneArt, type ScenePose } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 
 /** Each care scene: its two frames (during, after) and its words. Copy observes; it never instructs. */
-const SCENES: Record<CareScene, { during: string; after: string; title: string; doing: string; line: string }> = {
-  massage: { during: "/pet/care/massage-1.webp", after: "/pet/care/massage-2.webp", title: "Massage",
+const SCENES: Record<CareScene, { during: ScenePose; after: ScenePose; title: string; doing: string; line: string }> = {
+  massage: { during: "massage-1", after: "massage-2", title: "Massage",
     doing: "Sprout is having a massage.", line: "Sprout feels brand new." },
 };
 /** The scene, ms: relaxing on the table, then sitting up glowing, then the words. */
@@ -32,6 +34,7 @@ const WISPS = [{ x: 0.3, delay: 0 }, { x: 0.52, delay: 0.9 }, { x: 0.7, delay: 1
  */
 export default function CareScenePlayer({ scene, onClose }: { scene: CareScene; onClose: () => void }) {
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
   const art = SCENES[scene];
   const sparks = useRef<SparksApi | null>(null);
   const self = useRef<HTMLDivElement | null>(null);
@@ -92,13 +95,13 @@ export default function CareScenePlayer({ scene, onClose }: { scene: CareScene; 
         animate={relaxed ? { opacity: 1, scale: [1, 1.012, 1], scaleY: [1, 0.982, 1] } : { opacity: 0, scale: 1, scaleY: 1 }}
         transition={relaxed ? { opacity: SPRINGS.smooth, scale: { duration: 2.4, repeat: Infinity, ease: "easeInOut" },
           scaleY: { duration: 2.4, repeat: Infinity, ease: "easeInOut" } } : reduce ? INSTANT : SPRINGS.smooth}>
-        <Image src={art.during} alt="" fill sizes="320px" priority className={styles.art} draggable={false} />
+        <Image src={sceneArt(mascot, art.during)} alt="" fill sizes="320px" priority className={styles.art} draggable={false} />
       </motion.span>
       {/* Reduced motion: the finished frame is simply there, no fade and no settle. */}
       <motion.span className={styles.frame} initial={reduce ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
         animate={relaxed ? { opacity: 0, scale: 0.96 } : { opacity: 1, scale: 1 }}
         transition={relaxed || reduce ? INSTANT : SPRINGS.bouncy}>
-        <Image src={art.after} alt="" fill sizes="320px" priority className={styles.art} draggable={false} />
+        <Image src={sceneArt(mascot, art.after)} alt="" fill sizes="320px" priority className={styles.art} draggable={false} />
       </motion.span>
       {relaxed && HEARTS.map((heart, i) => <motion.svg key={`h${i}`} className={styles.heart} viewBox="0 0 16 16"
         style={{ left: `${heart.x * 100}%` }} initial={{ opacity: 0, y: 0, scale: 0.6 }}
@@ -112,10 +115,10 @@ export default function CareScenePlayer({ scene, onClose }: { scene: CareScene; 
         initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={reduce ? INSTANT : SPRINGS.smooth}>
         <p className={awards.title}>{art.title}</p>
-        <p className={awards.line}>{art.line}</p>
+        <p className={awards.line}>{named(art.line, mascot)}</p>
       </motion.div>}
     </AnimatePresence>
-    <p className="sr-only" aria-live="polite">{phase === "done" ? `${art.title}. ${art.line}` : art.doing}</p>
+    <p className="sr-only" aria-live="polite">{named(phase === "done" ? `${art.title}. ${art.line}` : art.doing, mascot)}</p>
     <div className={awards.controls}>
       <span />
       <div>

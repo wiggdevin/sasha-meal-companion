@@ -6,6 +6,7 @@ import { INSTANT, SPRINGS } from "@/lib/design/motion";
 import { SproutFigure } from "@/components/today/island/SproutFigure";
 import { SLOTS, SPROUT_LEAF, itemById, type Place, type ShopItem, type Slot } from "@/components/today/care/shop/catalog";
 import styles from "@/components/today/care/shop/Shop.module.css";
+import type { MascotKey } from "@/components/today/island/mascots";
 
 /** The content pose's art is 768 px square; every place is in its pixels. */
 const ART = 768;
@@ -36,17 +37,19 @@ function Part({ item, place, size }: { item: ShopItem; place: Place; size: numbe
  * taken off lifts away. Shorts are clipped to Sprout's own outline, and the leaf is drawn again over a
  * hat so the sprout grows through it. Only the content pose has anchors so far.
  */
-export default function DressedSprout({ wearing, size = 200, label }: {
+export default function DressedSprout({ wearing, size = 200, label, mascot = "sprout" }: {
   /** What is on, by slot: equipped items and one being tried on. */
   wearing: Readonly<Partial<Record<Slot, string>>>;
   size?: number;
   label?: string;
+  /** The companion to draw. The wearables are painted for Sprout's shape, so only Sprout wears them for now. */
+  mascot?: MascotKey;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
-  const items = SLOTS.map(({ slot }) => wearing[slot]).map((id) => (id ? itemById(id) : undefined))
+  const items = mascot !== "sprout" ? [] : SLOTS.map(({ slot }) => wearing[slot]).map((id) => (id ? itemById(id) : undefined))
     .filter((item): item is ShopItem => Boolean(item));
   const hat = items.some((item) => item.underLeaf);
-  return <SproutFigure mood="content" size={size} label={label}>
+  return <SproutFigure mood="content" size={size} label={label} mascot={mascot}>
     <AnimatePresence initial={false}>
       {items.map((item) => <motion.span key={item.id} className={item.clipToBody ? `${styles.layer} ${styles.bodyClip}` : styles.layer}
         initial={reduce ? { opacity: 0 } : { opacity: 0, y: "-6%", scale: 1.06 }} animate={{ opacity: 1, y: "0%", scale: 1 }}
