@@ -12,6 +12,7 @@ import { isProfileComplete } from "@/lib/profile/energy";
 import { targetSourceFor } from "@/lib/profile/derive";
 import { getDay, loadStore, saveStore } from "@/lib/store";
 import { getRow } from "@/lib/sync/idb";
+import { flushOutboxNow } from "@/lib/sync/client";
 import { mutateUserSettings, USER_SETTINGS_KEY } from "@/lib/sync/outbox";
 import { settingsProfileFromRow, settingsProfileToRow,
   type UserSettingsProfileRow } from "@/lib/sync/user-settings";
@@ -156,8 +157,19 @@ export type OnboardingPersistence = {
  * to surface: a held account (D14 Q5), an unreleased open world, or an unmet condition gate all
  * mean exactly "stay closed", not an error to retry.
  */
-async function openFoodWorld(h: AccountHandle): Promise<void> {
+/** Exported for its own test; every onboarding caller reaches it only through `persistence`. */
+export async function openFoodWorld(h: AccountHandle): Promise<void> {
   try {
+    // Sol review BLOCK: `saveSynced` above only QUEUES the onboarded_at write locally
+    // (lib/sync/outbox.ts mutateUserSettings) — the flow's own UI layer drains that queue before
+    // navigating away (lib/sync/client.ts flushOutboxNow), but this call runs before that drain.
+    // `POST /api/foods/world` updates an EXISTING `user_settings` row and 409s `profile_required`
+    // when there is none yet (lib/server/food-world.ts) — for a brand-new account, that could be
+    // the very row this onboarding run just queued, so this must flush first or the open-world
+    // write can silently 409 against a server row that does not exist yet. A flush that fails
+    // (offline, refused) answers false; the open attempt is then skipped exactly like any other
+    // best-effort failure here — never retried, never surfaced to the user.
+    if (!await flushOutboxNow(h)) return;
     await accountFetch(h, "/api/foods/world", { method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ world: "open" }) }, { budget: "prefs" });

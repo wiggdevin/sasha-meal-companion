@@ -31,7 +31,9 @@ import { fileURLToPath } from "node:url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { baseFoodName } from "@/lib/foods/base-name";
 import { adminClient } from "@/lib/server/admin";
-import { readMembershipRevisions } from "@/lib/server/membership-revisions";
+import { readByIdBatches } from "@/lib/server/date-chunks";
+import { readFamilySets, readMembershipRevisions } from "@/lib/server/membership-revisions";
+import { fetchAllRows } from "@/lib/server/paged-read";
 import { projectRef } from "@/scripts/food-membership-audit";
 
 const PRODUCTION_REF = "fivatgdpuenszxxnijpc";
@@ -70,22 +72,36 @@ async function selectAll<T>(query: PromiseLike<{ data: unknown; error: unknown }
   return (data ?? []) as T[];
 }
 
+/**
+ * Every live star. Sol review BLOCK: a plain `.select()` silently stops at the API's row cap
+ * (`max_rows = 1000`, supabase/config.toml) with no sign of truncation — a script meant to run
+ * once over every account's stars must never read a partial set and report it as the whole one.
+ * Paged by `fetchAllRows` (lib/server/paged-read.ts), ordered on the table's own primary key.
+ */
+async function allStars(admin: SupabaseClient): Promise<StarRow[]> {
+  return fetchAllRows<StarRow>((from, to) => admin.from("favorites_foods")
+    .select("user_id,food_ref_id").is("deleted_at", null)
+    .order("user_id").order("food_ref_id").range(from, to));
+}
+
 /** Each live star's resolved display name, by (user, food_ref_id); a ref with no readable name
- *  (deleted food, broken row) maps to null and is dropped — never guessed at. */
+ *  (deleted food, broken row) maps to null and is dropped — never guessed at. `.in(...)` lookups
+ *  are chunked (`readByIdBatches`) so a large star table never hits the row cap on this side
+ *  either — the same pagination risk Sol flagged for the star scan itself. */
 async function starNames(admin: SupabaseClient, stars: readonly StarRow[]): Promise<Map<string, string | null>> {
   const refIds = [...new Set(stars.map((s) => s.food_ref_id))];
   if (refIds.length === 0) return new Map();
-  const refs = await selectAll<RefRow>(admin.from("food_refs")
-    .select("id,kind,catalog_food_id,user_food_id").in("id", refIds));
+  const refs = await readByIdBatches(refIds, (batch) => selectAll<RefRow>(admin.from("food_refs")
+    .select("id,kind,catalog_food_id,user_food_id").in("id", batch)));
   const userFoodIds = refs.flatMap((r) => r.kind === "user" && r.user_food_id ? [r.user_food_id] : []);
   const catalogIds = refs.flatMap((r) => r.kind === "catalog" && r.catalog_food_id !== null
     ? [r.catalog_food_id] : []);
   const [userFoods, catalog] = await Promise.all([
-    userFoodIds.length ? selectAll<{ id: string; name: string }>(admin.from("user_foods")
-      .select("id,name").in("id", userFoodIds)) : Promise.resolve([]),
-    catalogIds.length ? selectAll<{ catalog_food_id: number; description: string }>(admin
+    readByIdBatches(userFoodIds, (batch) => selectAll<{ id: string; name: string }>(admin
+      .from("user_foods").select("id,name").in("id", batch))),
+    readByIdBatches(catalogIds, (batch) => selectAll<{ catalog_food_id: number; description: string }>(admin
       .from("catalog_food_revisions").select("catalog_food_id,description")
-      .in("catalog_food_id", catalogIds).eq("is_active", true)) : Promise.resolve([]),
+      .in("catalog_food_id", batch).eq("is_active", true))),
   ]);
   const byUserFood = new Map(userFoods.map((f) => [f.id, f.name]));
   const byCatalog = new Map(catalog.map((f) => [Number(f.catalog_food_id), f.description]));
@@ -100,11 +116,29 @@ async function starNames(admin: SupabaseClient, stars: readonly StarRow[]): Prom
 
 export type StarPlanEntry = { userId: string; family: string; status: "eats" | "avoid" | null; rev: number };
 
-/** Every live star, resolved to one (account, family) plan entry each, deduplicated. Pure given
- *  its two reads. */
+/**
+ * Whether ANY current ref in `family`'s full write set (`favor_family_sets`, migration
+ * 20261215090000 — the exact ref ids `set_food_membership` would touch) carries `status =
+ * 'avoid'` on `user_food_prefs` right now. Sol review BLOCK: `food_membership_revisions` alone
+ * is not the ground truth — `backfill_legacy()` (supabase/migrations/20260911000700_legacy_
+ * backfill.sql) writes `user_food_prefs.status = 'avoid'` directly for a migrated account, with
+ * no matching `food_membership_revisions` row at all, so a family only ever marked that way read
+ * as `status: null` (unmarked) from the revisions table alone — `commitStarMerge` would then
+ * write `eats` over it. This checks the live preference rows for the family's own ref set too.
+ */
+async function hasLiveAvoidRef(
+  admin: SupabaseClient, userId: string, refIds: readonly string[],
+): Promise<boolean> {
+  if (refIds.length === 0) return false;
+  const rows = await readByIdBatches(refIds, (batch) => selectAll<{ status: string }>(admin
+    .from("user_food_prefs").select("status").eq("user_id", userId).eq("status", "avoid")
+    .in("food_ref_id", batch)));
+  return rows.length > 0;
+}
+
+/** Every live star, resolved to one (account, family) plan entry each, deduplicated. */
 export async function planStarMerge(admin: SupabaseClient): Promise<StarPlanEntry[]> {
-  const stars = await selectAll<StarRow>(admin.from("favorites_foods")
-    .select("user_id,food_ref_id").is("deleted_at", null));
+  const stars = await allStars(admin);
   const names = await starNames(admin, stars);
   const byUser = new Map<string, Set<string>>();
   for (const star of stars) {
@@ -116,10 +150,15 @@ export async function planStarMerge(admin: SupabaseClient): Promise<StarPlanEntr
   const entries: StarPlanEntry[] = [];
   for (const [userId, families] of byUser) {
     const names2 = [...families].sort();
-    const marks = await readMembershipRevisions(userId, names2);
+    const [marks, sets] = await Promise.all([
+      readMembershipRevisions(userId, names2),
+      readFamilySets(userId, names2),
+    ]);
     for (const family of names2) {
       const mark = marks.get(family);
-      entries.push({ userId, family, status: mark?.status ?? null, rev: mark?.rev ?? 0 });
+      const liveAvoid = mark?.status !== "avoid" && await hasLiveAvoidRef(admin, userId, sets.get(family) ?? []);
+      const status: "eats" | "avoid" | null = mark?.status === "avoid" || liveAvoid ? "avoid" : mark?.status ?? null;
+      entries.push({ userId, family, status, rev: mark?.rev ?? 0 });
     }
   }
   return entries;
