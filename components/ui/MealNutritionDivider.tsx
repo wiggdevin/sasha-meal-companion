@@ -42,10 +42,6 @@ export function MealCalories({ kcal }: { kcal: number }) {
   </span>;
 }
 
-/** The card's main action, in words: "Mark eaten" (olive) until the meal is ticked off, then "Eaten"
- *  (secondary), which undoes it. Each name starts with the words on the button (WCAG 2.5.3), so the
- *  name changes with the state and there is no aria-pressed to contradict it. The page's feedback
- *  phase shows on the button itself. */
 /** Spoken summary of a meal's numbers, shared by the featured panel and the compact figures. */
 export function macroLabel(macros: Macros): string {
   return `${fmt(macros.kcal)} calories: ${fmt(macros.protein)} grams protein, ${fmt(macros.carbs)} grams carbs, ${fmt(macros.fat)} grams fat`;
@@ -64,12 +60,20 @@ export function MealEatenButton({ eaten, label, feedback, onToggleEaten, classNa
 }) {
   const eatenProps = feedbackStateProps(feedback);
   const busy = feedback === "pending";
-  return <button type="button" onClick={onToggleEaten} disabled={busy} aria-busy={busy || undefined}
-    data-feedback-state={eatenProps["data-feedback-state"]} data-eaten={eaten ? "true" : "false"}
-    aria-label={eaten ? `Eaten, ${label}. Undo` : `Mark eaten, ${label}`} data-consume-control="tick"
-    className={`${eatenProps.className} ${className}`}>
-    <CheckIcon filled={eaten} />
-  </button>;
+  // Pending, the zone stays focusable (aria-disabled, never disabled) and ignores the tap, so a
+  // keyboard user keeps their place; the outcome is spoken from a live region beside it.
+  const spoken = feedback === "success" || feedback === "changed" ? (eaten ? "Eaten" : "Not eaten")
+    : feedback === "failed" ? "That did not save. Try again." : "";
+  return <>
+    <button type="button" onClick={() => { if (!busy) onToggleEaten(); }} aria-disabled={busy || undefined}
+      aria-busy={busy || undefined} data-feedback-state={eatenProps["data-feedback-state"]}
+      data-eaten={eaten ? "true" : "false"} data-consume-control="tick"
+      aria-label={eaten ? `Eaten, ${label}. Undo` : `Mark eaten, ${label}`}
+      className={`${eatenProps.className} ${styles.eatenZone} ${className}`}>
+      <CheckIcon filled={eaten} />
+    </button>
+    <span className="sr-only" role="status" aria-live="polite">{spoken}</span>
+  </>;
 }
 
 /** The boundary between a meal's hero and its detail. Featured, the reference's olive spec panel:

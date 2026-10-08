@@ -12,7 +12,7 @@
   /* The card-wide tap target (data-card-edit) sits under this surface, eaten or not; taps fall
      through to it everywhere except the real controls re-enabled below. */
   pointer-events: none;
-  border-radius: 28px;
+  border-radius: 32px;
   overflow: clip; /* clip, not hidden: a hidden box can be scrolled by focus and shift the card */
   background: var(--grad-matte);
   border: 1px solid rgba(255, 255, 255, .05);
@@ -63,8 +63,8 @@
   max-width: 100%;
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
-  /* The meal title role (lib/design/meal-type.ts MEAL_TITLE.hero): Fraunces 500, a step smaller in v3. */
+  font-size: 20px;
+  /* The meal title role (lib/design/meal-type.ts MEAL_TITLE.hero): Fraunces 500, the 20 px step in v3. */
   font-weight: 500;
   line-height: 1.05;
   letter-spacing: -.025em;
@@ -76,6 +76,7 @@
    Its colour is the shared `.kcal` (persimmon on charcoal, owner 2026-10-03), a step bolder than the
    title so it stands out. */
 .heroFooter :global(.kcal) {
+  font-size: 20px;
   font-family: var(--font-display);
   font-weight: 500;
   letter-spacing: -.02em;
@@ -151,6 +152,8 @@
 
 .protein {
   display: inline-flex;
+  flex-wrap: wrap;
+  row-gap: 2px;
   align-items: center;
   font-size: 14px;
   font-weight: 600;
@@ -179,7 +182,7 @@
   white-space: nowrap;
 }
 .macroItem + .macroItem {
-  margin-left: 10px;
+  margin-left: 6px;
 }
 
 /* The beige tray: the reference's bottom bar, its upper corners curved alike (2026-10-01: a curve on
@@ -195,6 +198,8 @@
   border-top-right-radius: 24px;
   background: var(--grad-recess);
   box-shadow: 0 -10px 30px rgba(0, 0, 0, .15);
+  /* The strip's solid eaten zone follows the tray's curved corners (v3 review). */
+  overflow: clip;
   /* The compact tray rises over the photo's foot; the gap and the corners change on the container
      spring, never in a cut. */
   transition: margin-top var(--dur-spring-smooth) var(--ease-spring-smooth),
@@ -271,8 +276,8 @@
 
 .compact .heroTitle {
   flex: none;
-  font-size: 17px;
-  line-height: 1.15;
+  font-size: 16px;
+  line-height: 1.2;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -300,7 +305,7 @@
   margin-top: 0;
 }
 .compact .heroFooter :global(.kcal) {
-  font-size: 17px;
+  font-size: 16px;
 }
 
 /* Compact (v3), the chip leaves the narrow photo for the top of the text column, so its words never
@@ -319,8 +324,8 @@
 
 .compact .details {
   margin-top: calc(var(--tray-overlap) * -1);
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
 }
 
 .snackTicket :global(.logged-card-in) {
@@ -369,17 +374,9 @@
   box-shadow: inset 1px 0 0 var(--color-hairline);
 }
 
-/* Eaten: an olive wash at rest (the card's main action), solid olive once the meal is ticked off. */
+/* The eaten zone's tone is painted by its button (MealNutritionDivider.module.css .eatenZone). */
 .zoneEaten {
-  background: rgb(79 83 67 / .1);
   color: var(--color-primary);
-}
-.zoneEaten:has([data-eaten="true"]) {
-  background: var(--grad-ink);
-  color: var(--color-on-primary);
-}
-.zoneEaten:has([data-eaten="true"]) :global([data-tick]) {
-  stroke: #4f5343;
 }
 
 .zoneSwap {
@@ -387,7 +384,7 @@
 }
 
 .zoneDetails {
-  background: rgb(29 29 28 / .04);
+  background: rgb(var(--ink-rgb) / .04);
   color: var(--color-text-muted);
 }
 
@@ -400,14 +397,23 @@
   height: 100%;
   color: inherit;
   background: transparent;
-  transition: background-color 150ms ease, transform 150ms ease;
+  transition: background-color var(--dur-spring-snappy) var(--ease-spring-snappy);
   -webkit-tap-highlight-color: transparent;
 }
-.zoneButton:active {
-  background: rgb(29 29 28 / .06);
+@media (hover: hover) {
+  .zoneButton:hover:not([aria-disabled="true"]):not(.zoneIdle) {
+    background-color: rgb(var(--ink-rgb) / .04);
+  }
 }
-.zoneButton:disabled {
-  opacity: .5;
+.zoneButton:active:not(.zoneIdle) {
+  background-color: rgb(var(--ink-rgb) / .07);
+}
+.zoneButton[aria-disabled="true"] {
+  opacity: .4;
+}
+/* An eaten meal cannot swap: its third keeps a faint glyph so the strip stays balanced. */
+.zoneIdle {
+  opacity: .25;
 }
 .zoneButton:focus-visible {
   outline: 2px solid var(--color-primary);
@@ -438,9 +444,9 @@
   inset: -6px;
 }
 .heart[data-meal-favorite="on"] {
-  color: #e59a73;
+  color: var(--color-gauge-calories-end);
 }
-.heart:disabled {
+.heart[aria-disabled="true"] {
   opacity: .6;
 }
 /* Compact, the heart sits at the photo's lower right, clear of the chip and above the tray's edge. */
@@ -451,6 +457,9 @@
   left: calc(34% - 40px);
   width: 30px;
   height: 30px;
+}
+.compact .heart::before {
+  inset: -7px;
 }
 
 @media (max-width: 370px) {

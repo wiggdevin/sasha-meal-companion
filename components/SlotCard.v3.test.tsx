@@ -76,12 +76,25 @@ describe("the three-zone icon strip", () => {
     expect(screen.queryByRole("button", { name: "Swap Meal 2" })).toBeNull();
   });
 
-  it("puts the page's eaten feedback on the eaten zone, pending as busy and disabled", () => {
-    render(<Card eatenFeedback="pending" />);
+  it("keeps a pending eaten zone focusable, busy, and deaf to a second tap", () => {
+    const onToggleEaten = vi.fn();
+    render(<Card eatenFeedback="pending" onToggleEaten={onToggleEaten} />);
     const tick = screen.getByRole("button", { name: "Mark eaten, Meal 2" }) as HTMLButtonElement;
     expect(tick.getAttribute("data-feedback-state")).toBe("pending");
     expect(tick.getAttribute("aria-busy")).toBe("true");
-    expect(tick.disabled).toBe(true);
+    expect(tick.getAttribute("aria-disabled")).toBe("true");
+    expect(tick.disabled).toBe(false);
+    tick.focus();
+    fireEvent.click(tick);
+    expect(onToggleEaten).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(tick);
+  });
+
+  it("says the eaten outcome aloud, since the zone shows only a glyph", () => {
+    const { rerender } = render(<Card slot={{ ...lunch, eaten: true }} eatenFeedback="success" />);
+    expect(screen.getByRole("status").textContent).toBe("Eaten");
+    rerender(<Card eatenFeedback="failed" />);
+    expect(screen.getByRole("status").textContent).toContain("did not save");
   });
 });
 
@@ -94,7 +107,7 @@ describe("an opened card's compact header", () => {
     expect(card.dataset.cardDensity).toBe("compact");
     // P, C and F inline in the header; the big spec panel folds away.
     const figures = document.querySelector("[data-compact-macros]") as HTMLElement;
-    expect(figures.textContent).toBe("P 52gC 56gF 13g");
+    expect(figures.textContent).toBe("P 52g C 56g F 13g");
     await waitFor(() => expect(document.querySelector('[data-macro-legend="true"]')).toBeNull());
     expect(screen.getByRole("region", { name: "Meal 2 details" })).toBeTruthy();
   });
@@ -115,18 +128,21 @@ describe("the favorite heart", () => {
   it("toggles between an outline and a filled heart with a name that says the action", () => {
     const onToggle = vi.fn();
     const { rerender } = render(<Card favorite={{ on: false, onToggle }} />);
-    const save = screen.getByRole("button", { name: "Save Meal 2 as a favorite meal" });
+    const save = screen.getByRole("button", { name: "Save Chicken and rice as a favorite meal" });
     expect(save.getAttribute("data-meal-favorite")).toBe("off");
     fireEvent.click(save);
     expect(onToggle).toHaveBeenCalledTimes(1);
     rerender(<Card favorite={{ on: true, onToggle }} />);
-    expect(screen.getByRole("button", { name: "Remove Meal 2 from favorite meals" })
+    expect(screen.getByRole("button", { name: "Remove Chicken and rice from favorite meals" })
       .getAttribute("data-meal-favorite")).toBe("on");
   });
 
-  it("takes no second tap while its write is pending", () => {
-    render(<Card favorite={{ on: false, pending: true, onToggle: () => {} }} />);
-    expect((screen.getByRole("button", { name: "Save Meal 2 as a favorite meal" }) as HTMLButtonElement).disabled)
-      .toBe(true);
+  it("takes no second tap while its write is pending, and keeps focus", () => {
+    const onToggle = vi.fn();
+    render(<Card favorite={{ on: false, pending: true, onToggle }} />);
+    const heart = screen.getByRole("button", { name: "Save Chicken and rice as a favorite meal" });
+    expect(heart.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(heart);
+    expect(onToggle).not.toHaveBeenCalled();
   });
 });

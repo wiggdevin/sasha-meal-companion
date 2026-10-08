@@ -13,7 +13,7 @@
   flex-direction: column;
   gap: 0;
   padding: 10px 6px;
-  border-radius: 18px;
+  border-radius: 16px;
   background: #4f5343;
   box-shadow: var(--bevel), 0 10px 20px -12px rgba(0, 0, 0, .6);
 }
@@ -44,7 +44,7 @@
 }
 
 .specValue {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #e2dcd0;
 }
@@ -53,7 +53,16 @@
   min-width: 72px;
 }
 
-/* The eaten zone's tick is cut into the solid disc: it takes the olive fill under it. */
+/* The eaten zone paints its own state (no :has() needed): an olive wash at rest, solid olive once the
+   meal is ticked off, the tick cut into the cream disc in the olive under it. */
+.eatenZone {
+  background: rgb(var(--primary-rgb) / .1);
+  color: var(--color-primary);
+}
+.eatenZone[data-eaten="true"] {
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+}
 .tick {
   stroke: var(--color-primary);
 }

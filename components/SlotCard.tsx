@@ -369,7 +369,7 @@ export default function SlotCard({
               </motion.div>
             </div>
             <motion.div className={dark.heroTime} {...glide}><MealSlotPill slot={slot} time={shownTime} focusLabel={focusLabel} /></motion.div>
-            {favorite && <MealFavoriteHeart label={slot.label} favorite={favorite} />}
+            {favorite && <MealFavoriteHeart label={slot.meal.name} favorite={favorite} />}
           </div>
         </AutoHeight>
         <MealNutritionDivider macros={shownMacros} compact={compact} />

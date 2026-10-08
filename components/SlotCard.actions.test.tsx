@@ -119,7 +119,7 @@ describe("SlotCard feedback", () => {
     const tick = screen.getByRole("button", { name: "Mark eaten, Meal 1" }) as HTMLButtonElement;
     expect(tick.getAttribute("data-feedback-state")).toBe("pending");
     expect(tick.getAttribute("aria-busy")).toBe("true");
-    expect(tick.disabled).toBe(true);
+    expect(tick.getAttribute("aria-disabled")).toBe("true");
     rerender(<SlotCard slot={{ ...slot, eaten: true }} {...base} eatenFeedback="success" />);
     const done = screen.getByRole("button", { name: "Eaten, Meal 1. Undo" });
     expect(done.getAttribute("data-feedback-state")).toBe("success");

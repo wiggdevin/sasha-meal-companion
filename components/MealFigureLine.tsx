@@ -19,8 +19,8 @@ export default function MealFigureLine({ macros, full }: { macros: Macros; full:
     <span aria-hidden="true" className={dark.dotProtein} />{Math.round(macros.protein)} g protein
   </span>;
   return <span data-compact-macros="" className={dark.protein}>
-    {MACROS.map(({ key, letter, dot }) => <span key={key} className={dark.macroItem}>
-      <span aria-hidden="true" className={dot} />{letter} {Math.round(macros[key])}g
+    {MACROS.map(({ key, letter, dot }, index) => <span key={key} className={dark.macroItem}>
+      {index > 0 && " "}<span aria-hidden="true" className={dot} />{letter} {Math.round(macros[key])}g
     </span>)}
   </span>;
 }

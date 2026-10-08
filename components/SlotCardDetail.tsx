@@ -347,13 +347,14 @@ export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, 
     <div data-meal-strip="" className={`${dark.strip} ${expanded ? "mt-3 border-t border-hairline" : ""}`}>
       <div data-strip-zone="eaten" className={`${dark.zone} ${dark.zoneEaten}`}>{eatenControl}</div>
       <div data-strip-zone="swap" className={`${dark.zone} ${dark.zoneSwap}`}>
-        {onSwap && <button ref={swapButton} type="button" onClick={onSwap} aria-label={`Swap ${label}`}
-          className={dark.zoneButton}><ArrowLeftRight aria-hidden="true" size={20} strokeWidth={1.8} /></button>}
+        {onSwap ? <button ref={swapButton} type="button" onClick={onSwap} aria-label={`Swap ${label}`}
+          className={dark.zoneButton}><ArrowLeftRight aria-hidden="true" size={20} strokeWidth={1.8} /></button>
+          : <span aria-hidden="true" className={`${dark.zoneButton} ${dark.zoneIdle}`}><ArrowLeftRight size={20} strokeWidth={1.8} /></span>}
       </div>
       <div data-strip-zone="details" className={`${dark.zone} ${dark.zoneDetails}`}>
         <button ref={toggleButton} type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
           aria-expanded={expanded} aria-controls={controls} onClick={toggle} className={dark.zoneButton}>
-          <ChevronIcon direction={expanded ? "up" : "down"} />
+          <ChevronIcon direction={expanded ? "up" : "down"} size={20} />
         </button>
       </div>
     </div>
