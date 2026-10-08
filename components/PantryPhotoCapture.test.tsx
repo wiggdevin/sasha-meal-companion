@@ -186,24 +186,21 @@ describe("PantryPhotoCapture's request-body size (Followups #21, raised 4 KB -> 
     // 48 KB, so the largest legitimate draft the UI's own item/name caps can produce must still go
     // through, while the REAL encoded size the component would send is checked directly rather
     // than only asserting that confirm got called.
+    // ALL 40 items at the maximal-escape length, not 2 ordinary drafted names plus 38 added ones:
+    // the draft mock hands back the full 40-item, 160-character-each set directly, so every item in
+    // the payload is genuinely the worst case, not just most of them.
+    const longName = "\u0001".repeat(160);
+    mocked.draft.mockResolvedValueOnce(Array.from({ length: 40 }, () => longName));
     mocked.confirm.mockResolvedValueOnce({ items: [], failed: [] });
     open();
     fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
-    const addField = screen.getByLabelText("Add an item");
-    const longName = "\u0001".repeat(160);
-    for (let i = 0; i < 38; i += 1) { // 2 already drafted + 38 = the 40-item cap
-      fireEvent.change(addField, { target: { value: longName } });
-      fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    }
+    await waitFor(() => expect(screen.getAllByDisplayValue(longName)).toHaveLength(40));
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(mocked.confirm).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(/too many items, or some names are too long/)).toBeNull();
     const [, requestId, payload] = mocked.confirm.mock.calls[0] as [unknown, string, { name: string; grams: number | null }[]];
-    expect(payload).toHaveLength(40); // the 2 drafted items plus the 38 added here
-    const added = payload.filter((item) => item.name === longName);
-    expect(added).toHaveLength(38);
-    expect(added.every((item) => item.name.length === 160)).toBe(true);
+    expect(payload).toHaveLength(40);
+    expect(payload.every((item) => item.name === longName)).toBe(true);
     const bodySize = new TextEncoder().encode(JSON.stringify({ requestId, items: payload })).length;
     expect(bodySize).toBeLessThan(48 * 1024);
     // Comfortably past the OLD 4 KB cap, and well into the new budget (the maximal per-character
