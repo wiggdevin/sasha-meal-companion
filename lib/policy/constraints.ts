@@ -192,6 +192,21 @@ const SOURCE_ORDER: Record<PolicyMarkSource, number> = {
  * blocking off. Writes are normalized now; this stays tolerant so an already-stored padded row
  * cannot bypass it either.
  */
+/**
+ * Owner direction 2026-10-08 ("no allow list"): the legacy no-tag-list gate below exists for an
+ * allergen the evidence cannot speak to. An account that avoids NO allergen and has stated NO
+ * condition has nothing for that gate to protect, so a food with no tag list follows the normal
+ * verdict there instead of needing an Eats mark (the closed world's allow list). Fail closed:
+ * `conditions` must have been read (the server profile readers always select it) and be empty; a
+ * profile object without the field (EMPTY_PROFILE, a caller that never read the row) keeps the
+ * gate. Any allergen rule or condition keeps today's behaviour exactly. Avoid, diet, category,
+ * custom and profile rules mark before this point and are unchanged; no Jev input is read.
+ */
+export function noAllergenOrConditionRule(profile: ConstraintProfile): boolean {
+  return profile.avoid_allergens.every((key) => !key.trim())
+    && Array.isArray(profile.conditions) && profile.conditions.every((text) => !text.trim());
+}
+
 export function evaluatePolicy(profile: ConstraintProfile, e: PolicyEvidence): PolicyVerdict {
   const enhanced = e.facetAction !== undefined || e.preferenceFlags !== undefined
     || e.facets !== undefined || e.verifiedPreferenceFlags !== undefined
@@ -205,7 +220,8 @@ export function evaluatePolicy(profile: ConstraintProfile, e: PolicyEvidence): P
     const withFindings = { ...resolved, allergens: findings };
     return enhanced ? { ...withFindings, marks } : withFindings;
   }
-  if (resolved.verdict !== "allowed" || e.allergenTags !== null || e.onEatsList || e.perAllergenEvidence) {
+  if (resolved.verdict !== "allowed" || e.allergenTags !== null || e.onEatsList || e.perAllergenEvidence
+    || noAllergenOrConditionRule(profile)) {
     return enhanced ? { ...resolved, marks } : resolved;
   }
   const legacy = { verdict: "unverified" as const };

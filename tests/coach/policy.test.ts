@@ -124,3 +124,19 @@ describe("checkDraft", () => {
     expect(suggestions[0].verdict).toBe("unverified");
   });
 });
+
+describe("checkItem with the server-read profile of an account with no allergen rule and no condition", () => {
+  // lib/server/constraints.ts always reads `conditions`; an account with no rules reads [].
+  const NO_RULES = { avoid_allergens: [], avoid_food_ref_ids: [], banned_categories: [], conditions: [] };
+
+  it("a catalog food off Eats with no tag list is allowed, not unverified (no allow list)", () => {
+    expect(checkItem(item({ allergenTags: null, onEatsList: false }), NO_RULES)).toEqual({ verdict: "allowed" });
+  });
+
+  it("the same food stays unverified for an account with an allergen rule, and Avoid blocks it", () => {
+    expect(checkItem(item({ allergenTags: null, onEatsList: false }), { ...NO_RULES, avoid_allergens: ["soy"] }))
+      .toEqual({ verdict: "unverified" });
+    expect(checkItem(item({ allergenTags: null, onEatsList: false, onAvoidList: true }), NO_RULES).verdict)
+      .toBe("blocked");
+  });
+});
