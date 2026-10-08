@@ -136,16 +136,31 @@ describe.skipIf(!LOCAL)("food world isolation (canary)", () => {
     expect((await state(b.id)).confirmed).toEqual([]);
   });
 
-  it("GET /api/foods/world answers each account's own row, even with the other's id claimed", async () => {
+  it("GET /api/foods/world answers each account's own row, and refuses the other's id claimed", async () => {
     await admin.from("user_settings").update({ food_world: "open" }).eq("user_id", a.id);
-    const forA = await GET(getRequest(a, "/api/foods/world", b.id));
-    expect(await forA.json()).toEqual({ world: "open", openDefaultPending: false, starterSeed: false });
-    const forB = await GET(getRequest(b, "/api/foods/world", a.id));
-    expect(await forB.json()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: false });
-    await admin.from("user_settings").update({ food_world: "closed" }).eq("user_id", a.id);
+    try {
+      // A claimed id that is not the session's subject is refused before any row is read.
+      const aClaimsB = await GET(getRequest(a, "/api/foods/world", b.id));
+      expect(aClaimsB.status).toBe(409);
+      const refused = await aClaimsB.json();
+      expect(refused).toMatchObject({ error: "account_mismatch" });
+      expect(refused).not.toHaveProperty("world");
+      const bClaimsA = await GET(getRequest(b, "/api/foods/world", a.id));
+      expect(bClaimsA.status).toBe(409);
+      expect(await bClaimsA.json()).not.toHaveProperty("world");
+
+      const forA = await GET(getRequest(a, "/api/foods/world"));
+      expect(await forA.json()).toEqual({ world: "open", openDefaultPending: false, starterSeed: false });
+      const forB = await GET(getRequest(b, "/api/foods/world"));
+      expect(await forB.json()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: false });
+    } finally {
+      await admin.from("user_settings").update({ food_world: "closed" }).eq("user_id", a.id);
+    }
   });
 
   it("invitation: eligible only while closed, released and not held — a held account never sees it (acceptance 4)", async () => {
+    // The first case opened A; the invitation is for a closed account.
+    await admin.from("user_settings").update({ food_world: "closed" }).eq("user_id", a.id);
     const eligible = await GETInvitation(getRequest(a, "/api/foods/world/invitation"));
     expect(await eligible.json()).toEqual({ eligible: true });
 
