@@ -3,12 +3,16 @@
  * Followups #18: the phone's batching queue for `POST /api/onboarding/events`. Queuing never posts
  * synchronously and never throws; a flush posts in batches of at most 20, oldest first; a failed
  * post drops its batch rather than retrying or blocking the caller.
+ *
+ * WARN fix: every queued event is bound to the account that was current when it was queued, so a
+ * device that queues as account A and then switches to account B before flushing never sends A's
+ * events as B's telemetry — the switch clears them instead.
  */
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountHandle } from "@/lib/device/account";
-import { resetTestAccount } from "@/tests/helpers/account";
+import { resetTestAccount, TEST_USER } from "@/tests/helpers/account";
 
 const {
   queueOnboardingEvent, flushOnboardingEvents, queuedOnboardingEvents, clearOnboardingEventQueue,
@@ -102,5 +106,41 @@ describe("flushOnboardingEvents", () => {
     // Two queued events, batched together on the first pass (the second finds nothing left).
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(queuedOnboardingEvents()).toHaveLength(0);
+  });
+});
+
+describe("account binding (WARN fix)", () => {
+  const OTHER = "22222222-2222-4222-8222-222222222222";
+
+  it("never sends account A's queued events as account B: flushing under a different handle drops them, unsent", async () => {
+    queueOnboardingEvent({ kind: "step_entered", step: "facts" }); // queued while bound as TEST_USER
+    const fetchImpl = vi.fn(json(202, { accepted: 0, rejected: 0 }));
+    const other: AccountHandle = { userId: OTHER, epoch: h.epoch + 1 };
+    await flushOnboardingEvents({ account: other, fetchImpl });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(queuedOnboardingEvents()).toHaveLength(0);
+  });
+
+  it("switching the bound account clears whatever account A left queued", async () => {
+    queueOnboardingEvent({ kind: "step_entered", step: "facts" });
+    expect(queuedOnboardingEvents()).toHaveLength(1);
+    await resetTestAccount(OTHER);
+    expect(queuedOnboardingEvents()).toHaveLength(0);
+  });
+
+  it("a flush under the SAME account that queued it still sends normally", async () => {
+    queueOnboardingEvent({ kind: "step_entered", step: "facts" });
+    const fetchImpl = vi.fn(json(202, { accepted: 1, rejected: 0 }));
+    await flushOnboardingEvents({ account: h, fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(queuedOnboardingEvents()).toHaveLength(0);
+  });
+
+  it("an event queued with no account bound is dropped, not attributed to whoever binds next", async () => {
+    const { unbindAccount } = await import("@/lib/device/account");
+    unbindAccount();
+    queueOnboardingEvent({ kind: "step_entered", step: "facts" });
+    expect(queuedOnboardingEvents()).toHaveLength(0);
+    await resetTestAccount(TEST_USER); // restore for other tests / afterEach
   });
 });

@@ -19,8 +19,16 @@
  * that batch (same rule as `lib/timing.ts` and `lib/foods/signals-client.ts` — telemetry that
  * queues forever, or that a caller must await and handle, is a second bug, not a measurement).
  * `queueOnboardingEvent` never awaits a request either, so it is safe to call from a render path.
+ *
+ * Every queued event is bound to the account that was current when it was queued (`currentAccount
+ * OrNull()`, read once at queue time, never re-derived later): a flush drops -- never sends -- any
+ * event whose bound account is not the account actually flushing, and the account-gone listener
+ * clears the whole queue the moment the device unbinds or switches accounts. So onboarding events
+ * queued as account A can never settle as account B's telemetry.
  */
-import { accountFetch, accountHandle, type AccountHandle } from "@/lib/device/account";
+import {
+  accountFetch, accountHandle, currentAccountOrNull, onAccountGone, type AccountHandle,
+} from "@/lib/device/account";
 import {
   ONBOARDING_EVENTS_MAX, type OnboardingEvent, type OnboardingEventFlowVersion,
   type OnboardingEventPilotArm, type OnboardingEventQuestion, type OnboardingEventStep,
@@ -38,8 +46,11 @@ export type OnboardingEventInput =
   | { kind: "question_entered"; question: OnboardingEventQuestion }
   | { kind: "question_left"; question: OnboardingEventQuestion; durationMs: number };
 
-let queue: OnboardingEvent[] = [];
+type QueuedEvent = { event: OnboardingEvent; userId: string };
+
+let queue: QueuedEvent[] = [];
 let listenersBound = false;
+let goneUnbind: (() => void) | null = null;
 /** Chains flushes so a forced one (the page hiding mid-post) awaits what is already in flight,
  *  rather than racing it — same shape as `lib/timing.ts`'s `flushTimings`. */
 let inFlight: Promise<void> | null = null;
@@ -50,6 +61,12 @@ function stamp(input: OnboardingEventInput, now: Date): OnboardingEvent {
 }
 
 function bindFlushListeners(): void {
+  if (!goneUnbind) {
+    // The account is leaving (closing, unbinding, or switching to another id): whatever is still
+    // queued was bound to the account that is going away, so it is dropped rather than risk a
+    // later flush sending it under whichever account binds next.
+    goneUnbind = onAccountGone(() => { queue = []; });
+  }
   if (listenersBound || typeof window === "undefined") return;
   listenersBound = true;
   const flush = () => { void flushOnboardingEvents(); };
@@ -62,12 +79,16 @@ function bindFlushListeners(): void {
 }
 
 /**
- * Queue one onboarding event. Mints its `clientEventId` now (a retry after a dropped flush would
- * otherwise double-count); never posts synchronously and never throws.
+ * Queue one onboarding event, bound to whichever account is current right now. Mints its
+ * `clientEventId` now (a retry after a dropped flush would otherwise double-count); never posts
+ * synchronously and never throws. Dropped silently when no account is bound yet (e.g. before
+ * sign-in finishes) — there is no account to attribute the event to.
  */
 export function queueOnboardingEvent(input: OnboardingEventInput, now: Date = new Date()): void {
   try {
-    queue.push(stamp(input, now));
+    const userId = currentAccountOrNull()?.userId;
+    if (!userId) return;
+    queue.push({ event: stamp(input, now), userId });
     bindFlushListeners();
   } catch {
     // Queuing an event must never break the screen it was measuring.
@@ -76,7 +97,7 @@ export function queueOnboardingEvent(input: OnboardingEventInput, now: Date = ne
 
 /** What is waiting to be posted. Exported for tests and for the flush itself. */
 export function queuedOnboardingEvents(): readonly OnboardingEvent[] {
-  return queue;
+  return queue.map((q) => q.event);
 }
 
 /** Test-only: drops whatever is queued without posting it. */
@@ -94,13 +115,17 @@ async function flushOnce(opts: { fetchImpl?: typeof fetch; account?: AccountHand
     queue = [];
     return;
   }
+  // Never send another account's queued events as this one: a switch between queueing and
+  // flushing (or an explicit `opts.account` naming a different id) drops the stale entries here,
+  // on top of the account-gone listener that already clears the queue on an ordinary switch.
+  queue = queue.filter((q) => q.userId === h.userId);
   while (queue.length > 0) {
     const batch = queue.slice(0, ONBOARDING_EVENTS_MAX);
     queue = queue.slice(batch.length);
     try {
       await accountFetch(h, "/api/onboarding/events", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ events: batch }),
+        body: JSON.stringify({ events: batch.map((q) => q.event) }),
       }, { budget: "timings", fetchImpl: opts.fetchImpl });
     } catch {
       // Fire-and-forget: a dropped batch is lost telemetry, never a blocked or retried flow.
