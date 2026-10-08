@@ -257,4 +257,40 @@ describe("useMealFavorites", () => {
     await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
     expect(api.removeFavoriteMeal).toHaveBeenCalledWith("saved-10");
   });
+
+  it("retries a failing read after 1, 2 and 4 s, then waits for the next sync", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      api.favoriteMealFor.mockRejectedValue(new Error("idb closed"));
+      const { result } = setup();
+      await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(1));
+      for (const [ms, calls] of [[1100, 2], [2100, 3], [4100, 4]] as const) {
+        await act(async () => { vi.advanceTimersByTime(ms); });
+        await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(calls));
+      }
+      await act(async () => { vi.advanceTimersByTime(10_000); });
+      expect(api.favoriteMealFor).toHaveBeenCalledTimes(4);
+      expect(result.current.favoriteFor(planned)).toBeUndefined();
+      api.favoriteMealFor.mockResolvedValue("saved-1");
+      await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
+      await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("schedules nothing after unmount", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let fail: (error: Error) => void = () => {};
+      api.favoriteMealFor.mockImplementation(() => new Promise((_, reject) => { fail = reject; }));
+      const { unmount } = setup();
+      await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(1));
+      unmount();
+      await act(async () => { fail(new Error("idb closed")); });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

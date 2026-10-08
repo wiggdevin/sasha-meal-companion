@@ -40,16 +40,22 @@ export function useMealFavorites({ eligible, feedback }: {
   const readAt = useRef(new Map<string, number>());
   /** Failed reads per plate in this sync epoch: retried with a backoff, then left for the next sync. */
   const failures = useRef(new Map<string, number>());
-  const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** One backoff timer per plate, so one plate's failure never delays another's retry. */
+  const retries = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const mounted = useRef(true);
   const [, setSyncs] = useState(0);
 
   useEffect(() => {
     // A sync re-reads every plate in place (never a blank cache, so no heart blinks off and on).
     const onSynced = () => { epoch.current += 1; failures.current.clear(); setSyncs((value) => value + 1); };
     window.addEventListener(SYNCED_EVENT, onSynced);
+    mounted.current = true;
+    const timers = retries.current;
     return () => {
+      mounted.current = false;
       window.removeEventListener(SYNCED_EVENT, onSynced);
-      if (retry.current) clearTimeout(retry.current);
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
     };
   }, []);
 
@@ -64,7 +70,7 @@ export function useMealFavorites({ eligible, feedback }: {
       void favoriteMealFor(source).then((id) => ({ ok: true as const, id }), () => ({ ok: false as const }))
         .then((read) => {
           if (reading.current.get(key)?.token === token) reading.current.delete(key);
-          if (at !== epoch.current) return;
+          if (!mounted.current || at !== epoch.current) return;
           if (read.ok) {
             readAt.current.set(key, at);
             failures.current.delete(key);
@@ -73,12 +79,15 @@ export function useMealFavorites({ eligible, feedback }: {
           }
           // A failed read is not "not saved": the plate keeps what it last knew, or shows no heart (so a
           // tap can never offer an Undo that removes a meal saved before). It is retried after 1, 2 and
-          // 4 s; after three failures it waits for the next sync.
+          // 4 s; after a fourth failure it waits for the next sync.
           const tries = (failures.current.get(key) ?? 0) + 1;
           failures.current.set(key, tries);
-          if (tries >= 3) { readAt.current.set(key, at); return; }
-          if (retry.current) clearTimeout(retry.current);
-          retry.current = setTimeout(() => setSyncs((value) => value + 1), 1000 * 2 ** (tries - 1));
+          if (tries > 3) { readAt.current.set(key, at); return; }
+          clearTimeout(retries.current.get(key));
+          retries.current.set(key, setTimeout(() => {
+            retries.current.delete(key);
+            if (mounted.current) setSyncs((value) => value + 1);
+          }, 1000 * 2 ** (tries - 1)));
         });
     }
     asked.current.clear();
