@@ -324,6 +324,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [shownFoodIds, setShownFoodIds] = useState<readonly string[]>([]);
   /** The person's own taps, in order — the reward card lists these first. */
   const [userPicks, setUserPicks] = useState<readonly string[]>([]);
+  /** Foods the person tapped off in this flow: "Sprout, pick for me" never picks them again. */
+  const [tappedOff, setTappedOff] = useState<ReadonlySet<string>>(() => new Set());
   /** Model calls this session's typed answers made (the extract client's budget). */
   const [extractCalls, setExtractCalls] = useState(0);
   /** ONB2-RULE-REREAD: true while the Foods "Done" tap's fresh rules read is in flight, so a
@@ -386,6 +388,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setDraftChecked(false);
       setShownFoodIds([]);
       setUserPicks([]);
+      setTappedOff(new Set());
       setTyped("");
       setComposerNote(null);
       profileWritten.current = false;
@@ -463,6 +466,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setDraftChecked(false);
       setShownFoodIds([]);
       setUserPicks([]);
+      setTappedOff(new Set());
       setTyped("");
       setComposerNote(null);
       setExtractCalls(0);
@@ -639,6 +643,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   /** A tap in the foods beat: the starter mark, plus the tap order the reward card reads. */
   function markFood(id: string, mark: StarterMark) {
     starter.mark(id, mark);
+    setTappedOff((current) => {
+      const next = new Set(current);
+      if (mark === "eats") next.delete(id); else next.add(id);
+      return next;
+    });
     setUserPicks((current) => mark === "eats"
       ? (current.includes(id) ? current : [...current, id])
       : current.filter((pick) => pick !== id));
@@ -773,7 +782,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
     const choices = starter.choices;
     const need = foodAccess.status === "legacy" ? { protein: Math.max(2, plannedCount) } : {};
-    const added = starterFillShortRoles(choices, starter.marks, need);
+    const added = starterFillShortRoles(choices, starter.marks, need, tappedOff);
     for (const id of added) starter.mark(id, "eats");
     const filled: Record<string, StarterMark> = { ...starter.marks };
     for (const id of added) filled[id] = "eats";

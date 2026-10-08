@@ -48,10 +48,13 @@ describe("starterFillShortRoles (pick for me)", () => {
   });
 
   // GPT-6 Sol WARN (onb2-p0): a food the person tapped off is theirs, never re-picked.
-  it("never re-picks a food the person tapped off", () => {
+  it("never re-picks a food the person tapped off, but still fills a saved neutral food", () => {
     const defaults = choices.filter((item) => item.role === "protein" && item.default);
     const marks: Record<string, StarterMark> = { [defaults[0].id]: "neutral" };
-    expect(starterFillShortRoles(choices, marks)).not.toContain(defaults[0].id);
+    expect(starterFillShortRoles(choices, marks, 2, new Set([defaults[0].id]))).not.toContain(defaults[0].id);
+    // A re-opened setup whose saved foods are all neutral is not a tap-off (QA r2: nothing filled).
+    const allNeutral = Object.fromEntries(choices.map((item) => [item.id, "neutral" as const]));
+    expect(starterFillShortRoles(choices, allNeutral)).toHaveLength(6);
   });
 });
 

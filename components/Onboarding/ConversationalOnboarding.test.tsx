@@ -370,6 +370,38 @@ describe("ConversationalOnboarding", () => {
     expect(persistSkippedOnboarding).not.toHaveBeenCalled();
   });
 
+  // GPT-6 Sol WARN (onb2-p0): pick-for-me re-selected a food the person had just tapped off.
+  it("'Sprout, pick for me' never re-picks a food the person tapped off", async () => {
+    foodAccess.status = "pilot";
+    starterFixture.choices = [
+      { id: "chicken-breast-roasted", role: "protein", default: true },
+      { id: "turkey-breast-roasted", role: "protein", default: true },
+      { id: "salmon-wild-sockeye-cooked", role: "protein" },
+      { id: "white-rice-cooked", role: "carb", default: true },
+      { id: "brown-rice-cooked", role: "carb", default: true },
+      { id: "olive-oil", role: "fat", default: true },
+      { id: "avocado-oil", role: "fat", default: true },
+    ] as never;
+    starterFixture.marks = { "chicken-breast-roasted": "eats" };
+    // This test's hook keeps the marks it is given, so the tap-off really leaves "neutral".
+    starterSpies.mark.mockImplementation((id: string, value: string) => {
+      starterFixture.marks = { ...starterFixture.marks, [id]: value };
+    });
+    render(<ConversationalOnboarding />);
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
+    await fillRemainingRequiredFacts();
+    fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
+    await passPlanBeats();
+    fireEvent.click(await screen.findByRole("button", { name: /^Love Chicken breast/ }));
+    expect(starterSpies.mark).toHaveBeenCalledWith("chicken-breast-roasted", "neutral");
+    starterSpies.mark.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Sprout, pick for me" }));
+    expect(starterSpies.mark).not.toHaveBeenCalledWith("chicken-breast-roasted", "eats");
+    expect(starterSpies.mark).toHaveBeenCalledWith("turkey-breast-roasted", "eats");
+    expect(starterSpies.mark).toHaveBeenCalledWith("salmon-wild-sockeye-cooked", "eats");
+    starterSpies.mark.mockReset();
+  });
+
   it("the reward beat's confirm finishes instead of looping on itself once onComplete is"
     + " supplied (Sol review)", async () => {
     pickableFoods();
