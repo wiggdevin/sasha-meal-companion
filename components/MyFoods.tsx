@@ -349,7 +349,7 @@ function membershipCopy(food: Food, next: Food["status"]): string {
  * so it offers no Undo; it stays idempotent and keeps the row and its note. Writes queue, never join.
  */
 function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
-  setSaveError: (message: string | null) => void) {
+  setSaveError: (message: string | null) => void, onSaved?: (food: Food) => void) {
   const feedback = useActionFeedback();
   /** Per food, the newest move this screen made: only the newest may be rolled back. */
   const latest = useRef(new Map<string, number>());
@@ -367,6 +367,7 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
         { acknowledge: true, food: moved, note: null, account: h });
       const notice = foodMembershipNotice(result);
       if (notice && isCurrent(h)) setSaveError(notice);
+      if (result && isCurrent(h)) onSaved?.(moved);
       return result;
     // The row's Remove (or the sheet) is gone by the time the write lands, so the confirmation
     // needs the notice even when there is nothing to undo (a neutral row's Clear marks).
@@ -581,7 +582,9 @@ export function AvoidFoods({ renderAvoidStatus, onAvoidSaved }: {
   const [adding, setAdding] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const removalFeedback = useActionFeedback();
+  // The sheet, the row's Remove and their Undo share the Eats write path: queued in tap order, and
+  // a failed write rolls the row back while it is still that food's newest move.
+  const membership = useMembershipChange(setFoods, setSaveError, onAvoidSaved);
 
   useEffect(() => onAccountGone(() => {
     setOpen(null); setAdding(false); setSaveError(null); setEditing(false);
@@ -593,25 +596,7 @@ export function AvoidFoods({ renderAvoidStatus, onAvoidSaved }: {
   const openFood = open && foods ? foods[open] : null;
 
   function removeAvoid(id: string) {
-    if (!foods || removalFeedback.phase === "pending") return;
-    const previous = foods[id];
-    if (!previous) return;
-    const h = accountHandle();
-    const removed = setFoodStatus(id, "neutral").foods[id];
-    setFoods(loadStore().foods);
-    void removalFeedback.run(async () => {
-      const result = await setFoodMembership(removed.name, null,
-        { acknowledge: true, food: removed, note: null, account: h });
-      if (result && isCurrent(h)) onAvoidSaved?.(removed);
-      return result;
-    }, { kind: "change", successMessage: `${previous.name} removed from Avoid.`,
-      undo: { action: () => {
-        if (!isCurrent(h)) return;
-        setFoods(saved(setFoodStatus(id, "avoid").foods, id, setSaveError, onAvoidSaved));
-      } },
-    }).then((outcome) => {
-      if (!outcome.ok && isCurrent(h)) setFoods(upsertFood(previous).foods);
-    });
+    if (foods?.[id]) membership.change(id, "neutral");
   }
 
   return (
@@ -639,7 +624,7 @@ export function AvoidFoods({ renderAvoidStatus, onAvoidSaved }: {
           </div></div>
         )}
       </section>
-      <ActionFeedbackToast notice={removalFeedback.notice} onDismiss={removalFeedback.dismiss} />
+      <ActionFeedbackToast notice={membership.feedback.notice} onDismiss={membership.feedback.dismiss} />
 
       <AnimatePresence>
         {openFood && (
@@ -647,8 +632,7 @@ export function AvoidFoods({ renderAvoidStatus, onAvoidSaved }: {
             key={openFood.id}
             food={openFood}
             onSetStatus={(status) => {
-              setFoods(saved(setFoodStatus(openFood.id, status).foods, openFood.id,
-                setSaveError, onAvoidSaved));
+              membership.change(openFood.id, status);
               setOpen(null);
             }}
             onSetNote={(note) => setFoods(saved(
