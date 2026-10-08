@@ -151,6 +151,38 @@ describe("POST /api/foods/world intent: onboarding_default (W13 Sol round 2 BLOC
     expect(tables.user_settings[0].food_world_set_at).not.toBe("2026-10-01T00:00:00Z");
   });
 
+  it("an explicit close that lands between the default's check and its write still wins "
+    + "(Sol round 3 BLOCK: one atomic conditional write)", async () => {
+    // Another device closes the world while this default POST is in flight: the close commits
+    // right before the default's UPDATE runs. The old read-then-write saw null and reopened it.
+    const base = state.client as { from: (table: string) => Record<string, unknown> };
+    let raced = false;
+    state.client = { ...base, from: (table: string) => {
+      const builder = base.from(table);
+      if (table !== "user_settings") return builder;
+      const update = builder.update as (values: Row) => unknown;
+      builder.update = (values: Row) => {
+        if (!raced) {
+          raced = true;
+          Object.assign(tables.user_settings[0], { food_world: "closed", food_world_set_at: "2026-10-07T09:00:00Z" });
+        }
+        return update(values);
+      };
+      return builder;
+    } };
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "closed" } });
+    expect(raced).toBe(true);
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).toBe("2026-10-07T09:00:00Z");
+  });
+
+  it("answers 409 profile_required to the default when the account has no settings row yet", async () => {
+    tables.user_settings.length = 0;
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toMatchObject({ status: 409, body: { error: "profile_required" } });
+  });
+
   it("rejects an intent other than the one literal", async () => {
     expect((await post({ world: "open", intent: "user_choice" })).status).toBe(400);
   });
