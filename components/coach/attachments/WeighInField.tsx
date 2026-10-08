@@ -80,15 +80,21 @@ export default function WeighInField({ unit, disabled, value, onValueChange, onA
     }
     setLogged({ ...result.value, shown });
     onValueChange("");
+    // Each log is its own cycle: a timer from an earlier log (logged, undone, logged again inside
+    // the first window) must not flip or close this one.
+    const mine = ++cycle.current;
+    windowOver.current = false;
+    const own = (run: () => void) => () => { if (cycle.current === mine) run(); };
     // The button holds its "Logged" for its usual beat, then the card turns into the follow-ups.
-    later(CONFIRM_MS, () => { setPhase("after"); setUndoOpen(true); });
-    later(CONFIRM_MS + WEIGH_IN_UNDO_MS, closeUndo);
+    later(CONFIRM_MS, own(() => { setPhase("after"); setUndoOpen(true); }));
+    later(CONFIRM_MS + WEIGH_IN_UNDO_MS, own(closeUndo));
   }
 
   /** The undo window has passed: Undo leaves, and focus on it moves to the next follow-up. An undo
    *  still running keeps it until that answer is in. */
   const windowOver = useRef(false);
   const undoing = useRef(false);
+  const cycle = useRef(0);
   function closeUndo(): void {
     windowOver.current = true;
     if (undoing.current) return;

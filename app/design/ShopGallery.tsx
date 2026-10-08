@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import CareShop from "@/components/today/care/shop/CareShop";
+import DressedSprout from "@/components/today/care/shop/DressedSprout";
+import { MASCOTS, MASCOT_KEYS } from "@/components/today/island/mascots";
 import type { ShopState } from "@/components/today/care/shop/shop-state";
 import styles from "@/app/design/ShopGallery.module.css";
 
@@ -33,8 +35,18 @@ export default function ShopGallery() {
     <section aria-label="The open well" className={`matte ${styles.well}`}>
       <CareShop state={state} onChange={setState} today={TODAY} />
     </section>
+    <section aria-label="Every companion" className="flex flex-col gap-2">
+      <h2 className="m-0 text-overline text-muted">Every companion, in what is on</h2>
+      <div className="grid grid-cols-4 gap-1">
+        {MASCOT_KEYS.map((key) => <DressedSprout key={key} wearing={state.equipped} size={96} mascot={key}
+          label={MASCOTS[key].name} />)}
+      </div>
+    </section>
     <div className="flex flex-wrap gap-2">
       <Button variant="secondary" size="sm" onClick={() => setState(SAMPLE)}>Reset</Button>
+      <Button variant="secondary" size="sm" onClick={() => setState((s) => ({ ...s, owned: ["leaf-pin", "mittens",
+        "bucket-hat", "glasses", "shorts"], equipped: { pin: "leaf-pin", hands: "mittens", head: "bucket-hat",
+        eyes: "glasses", legs: "shorts" } }))}>Sample: dressed</Button>
       <Button variant="secondary" size="sm" onClick={() => setState((s) => ({ ...s, balance: s.balance + 25 }))}>Sample: +25 Seeds</Button>
       <Button variant="secondary" size="sm" onClick={() => setState((s) => ({ ...s, balance: 3 }))}>Sample: 3 Seeds</Button>
     </div>

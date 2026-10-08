@@ -358,3 +358,130 @@ describe("Eats membership feedback", () => {
     expect(screen.getByRole("alert")).toBeTruthy();
   });
 });
+
+/**
+ * UI audit 2026-10-07 (Foods r1 BLOCK): the Avoid list's sheet and its Undo wrote fire-and-forget,
+ * so a failed membership write left the row moved locally with no server mark behind it.
+ */
+describe("Avoid membership feedback", () => {
+  beforeEach(() => { seed(food({ id: "garlic", name: "Garlic", status: "avoid", note: "hurt on 9/12" })); });
+
+  it("rolls a failed sheet move back onto Avoid", async () => {
+    render(<AvoidFoods />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Garlic" }));
+    // The sheet saves its note first; only the status write that follows fails.
+    membership.set.mockImplementationOnce(async () => ({ truncated: false }))
+      .mockImplementationOnce(async () => { throw new Error("offline"); });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Remove from Avoid" })); });
+    await act(async () => {});
+    expect(membership.set.mock.calls.at(-1)?.slice(0, 2)).toEqual(["Garlic", null]);
+    expect(seeded.foods.garlic).toMatchObject({ status: "avoid", note: "hurt on 9/12" });
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
+
+  it("reports a saved removal to the caller and restores Avoid on Undo", async () => {
+    const onAvoidSaved = vi.fn();
+    render(<AvoidFoods onAvoidSaved={onAvoidSaved} />);
+    swipe(screen.getByRole("button", { name: "Edit Garlic" }), -200, 8);
+    await act(async () => {});
+    expect(seeded.foods.garlic.status).toBe("neutral");
+    expect(onAvoidSaved).toHaveBeenLastCalledWith(expect.objectContaining({ id: "garlic", status: "neutral" }));
+    const status = screen.getByRole("status");
+    expect(status.textContent).toContain("Garlic removed from Avoid.");
+    membership.set.mockImplementationOnce(async () => { throw new Error("offline"); });
+    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
+    await act(async () => {});
+    // The Undo's own write failed, so the row goes back to what the server last acknowledged.
+    expect(membership.set.mock.calls.at(-1)?.slice(0, 2)).toEqual(["Garlic", "avoid"]);
+    expect(seeded.foods.garlic.status).toBe("neutral");
+  });
+});
+
+/**
+ * Sol review of PR #23: a write a newer membership intent superseded (another tap, the coach) was
+ * reported as this screen's success with an Undo, and a failed one rolled back over the newer choice.
+ */
+describe("a superseded membership write", () => {
+  it("settles quietly: no confirmation and no Undo", async () => {
+    const { reserveFoodMembershipIntent } = await import("@/lib/foods/prefs-client");
+    let land!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((resolve) => { land = () => resolve({ truncated: false }); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // Another surface (the coach) marks the same food while this write is in flight.
+    reserveFoodMembershipIntent("Oats");
+    await act(async () => { land(); });
+    await act(async () => {});
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(screen.queryByText("Oats removed from Eats.")).toBeNull();
+  });
+
+  it("does not roll back over the newer choice when it fails", async () => {
+    const { reserveFoodMembershipIntent } = await import("@/lib/foods/prefs-client");
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    reserveFoodMembershipIntent("Oats");
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats.status).toBe("avoid");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("still rolls back after a note edit of the same row", async () => {
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, note: "crunchy", updatedAt: "2099-01-01T00:00:00.000Z" } };
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats).toMatchObject({ status: "eats", note: "crunchy" });
+  });
+
+  it("does not roll back over a newer choice of the same status", async () => {
+    const { reserveFoodMembershipIntent } = await import("@/lib/foods/prefs-client");
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // Another surface clears the same marks again (same status, a newer membership write).
+    reserveFoodMembershipIntent("Oats");
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "neutral", updatedAt: "2099-01-01T00:00:00.000Z" } };
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats.status).toBe("neutral");
+  });
+
+  it("offers an Undo that does nothing once the row has moved on", async () => {
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    const status = screen.getByRole("status");
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
+    const calls = membership.set.mock.calls.length;
+    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
+    expect(membership.set.mock.calls.length).toBe(calls);
+    expect(seeded.foods.oats.status).toBe("avoid");
+  });
+
+  it("still rolls back when the newer reservation changed nothing on the phone", async () => {
+    const { reserveFoodMembershipIntent } = await import("@/lib/foods/prefs-client");
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // The coach reserves, then its own read fails: it writes nothing and moves nothing.
+    reserveFoodMembershipIntent("Oats");
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats.status).toBe("eats");
+  });
+});

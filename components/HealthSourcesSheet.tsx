@@ -2,7 +2,7 @@
 
 import { accountHandle } from "@/lib/device/account";
 import Disclosure from "@/components/ui/Disclosure";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Sheet from "@/components/Sheet";
 import { connectOura, disconnectOura, issueToken, revokeToken } from "@/lib/health-client";
 import type { DailyHealthResponse } from "@/lib/health/contract";
@@ -193,7 +193,12 @@ export default function HealthSourcesSheet({ sources, onClose, onChanged, appleO
   const oura = sources.find((s) => s.kind === "oura" && !s.revoked);
   const shortcutUrl = process.env.NEXT_PUBLIC_APPLE_HEALTH_SHORTCUT_URL?.trim() || null;
 
+  // `busy` disables the buttons only after a repaint; a second tap before then must not send twice
+  // (two connection codes, one never shown).
+  const running = useRef(false);
   async function run(action: () => Promise<void>): Promise<void> {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -202,6 +207,7 @@ export default function HealthSourcesSheet({ sources, onClose, onChanged, appleO
     } catch {
       setError("That did not go through. Try again when you have a connection.");
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }
@@ -255,7 +261,11 @@ export default function HealthSourcesSheet({ sources, onClose, onChanged, appleO
           </Button>
         ) : (
           <Button disabled={!online}
-            onClick={() => { void connectOura(accountHandle()).catch(() => {}); }}>
+            onClick={() => {
+              if (running.current) return;
+              running.current = true;
+              void connectOura(accountHandle()).catch(() => {}).finally(() => { running.current = false; });
+            }}>
             Connect Oura
           </Button>
         ))}

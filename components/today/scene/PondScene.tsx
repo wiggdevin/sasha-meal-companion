@@ -8,6 +8,8 @@ import PondWater, { type KeyRow, type PondApi } from "@/components/today/scene/P
 import { BANDS, BOX, CLOUDS, KEY, LURE, SPRITE, bandShare, castFlight, linePath, rainbowHit, rodTip,
   type Band } from "@/components/today/scene/scene-geometry";
 import { initialSulk, nextChange, poke, pose as poseOf, sulkLine, updateDay, type Pose } from "@/components/today/scene/sulk";
+import { MASCOTS, named, sceneArt } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 import { requestTiltPermission, useWaterTilt } from "@/components/today/useWaterTilt";
 import { PEBBLE, SWIM_PATH, usePondMoments } from "@/components/today/scene/usePondMoments";
 import { MOMENTS, type MomentKey, type MomentPose } from "@/components/today/scene/moments";
@@ -62,6 +64,7 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
   cheer?: number;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
   const box = useRef<HTMLDivElement | null>(null);
   const water = useRef<PondApi | null>(null);
   const [onScreen, setOnScreen] = useState(true);
@@ -84,7 +87,7 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
   const sleepy = pet.mood === "sleepy";
   const current = poseOf(sulk, now);
   // Sprout's own moments (moments.ts): only while it fishes calmly, the day is fine and nothing else runs.
-  const moments = usePondMoments({ enabled: animate_ && current === "fishing" && action === "rest" && !caught && !sleepy && !keyOpen,
+  const moments = usePondMoments({ mascot, enabled: animate_ && current === "fishing" && action === "rest" && !caught && !sleepy && !keyOpen,
     splash: (x, y, strength) => water.current?.splash(x, y, strength) });
   const sprite: Sprite = current !== "fishing" ? current : moments.pose ?? (action === "cast" ? "cast"
     : action === "catch" ? "catch" : sleepy ? "doze" : "fishing");
@@ -228,8 +231,8 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
   }
   // What a screen reader hears: the mood, a sulk or a reply to the person's own tap. Sprout's
   // automatic moments only change the visible caption, so they never interrupt.
-  const spoken = sulkLine(sulk, now) ?? said ?? pet.line;
-  const shownLine = sulkLine(sulk, now) ?? said ?? moments.line ?? pet.line;
+  const spoken = named(sulkLine(sulk, now) ?? said ?? pet.line, mascot);
+  const shownLine = named(sulkLine(sulk, now) ?? said ?? moments.line ?? pet.line, mascot);
   // Only the pose on show and the one fading out are mounted; the rest load when needed.
   const [mounted, setMounted] = useState<Sprite[]>([sprite]);
   useEffect(() => {
@@ -261,7 +264,7 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
           style={{ transformOrigin: "44% 72%" }}
           animate={turning ? { scaleX: [1, -1, 1, -1, 1], y: ["0%", "-3%", "0%", "-3%", "0%"] } : { scaleX: 1, y: "0%" }}
           transition={turning ? { duration: 1.5, ease: "easeInOut" } : INSTANT}>
-          <Image src={`/pet/scene/sprout-${name}.webp`} alt="" fill sizes="330px" className={styles.art} draggable={false} />
+          <Image src={sceneArt(mascot, name)} alt="" fill sizes="330px" className={styles.art} draggable={false} />
         </motion.span>;
       })}
       {sprite === "lookback" && !reduce && <span className={styles.tears}>
@@ -288,14 +291,14 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
         animate={reduce ? { opacity: 1 } : { opacity: [0, 1, 1, 1, 0], left: SWIM_PATH.map((p) => pct(p.x, BOX.w)),
           top: SWIM_PATH.map((p) => pct(p.y, BOX.h)), scaleX: [1, 1, -1], y: [0, -3, 0, -3, 0] }}
         exit={{ opacity: 0 }} transition={{ duration: 4.6, ease: "easeInOut" }}>
-        <Image src="/pet/scene/sprout-swim.webp" alt="" width={180} height={154} sizes="90px" draggable={false} />
+        <Image src={sceneArt(mascot, "swim")} alt="" width={180} height={154} sizes="90px" draggable={false} />
       </motion.span>}
     </AnimatePresence>
-    <button type="button" className={`tap ${styles.pokeHit}`} aria-label="Sprout. Poke"
+    <button type="button" className={`tap ${styles.pokeHit}`} aria-label={`${MASCOTS[mascot].name}. Poke`}
       style={{ ...place(26, 112, 140), height: pct(208, BOX.h) }}
       onClick={(event) => { event.stopPropagation(); onPoke(); }} />
     <AnimatePresence>
-      {caught && <motion.span key={caught} className={styles.catch} role="img" aria-label={CATCH_ART[caught].label}
+      {caught && <motion.span key={caught} className={styles.catch} role="img" aria-label={named(CATCH_ART[caught].label, mascot)}
         style={place(rodTip("catch").x - 26, rodTip("catch").y + 10, 52)}
         initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.4, y: 30, rotate: -20 }}
         animate={{ opacity: 1, scale: 1, y: 0, rotate: [0, 12, -8, 0] }}

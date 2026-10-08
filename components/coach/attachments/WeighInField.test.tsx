@@ -82,6 +82,20 @@ describe("the weigh-in card", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: "Undo" })).toBeNull());
   });
 
+  it("keeps a second log's Undo for its own eight seconds after an undo and relog", async () => {
+    render(<Field w={writer()} initial="80" unit="kg" />);
+    fireEvent.click(screen.getByRole("button", { name: "Log" }));
+    await settle(CONFIRM_MS);
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    await settle(CONFIRM_MS);
+    fireEvent.click(screen.getByRole("button", { name: "Log" }));
+    await settle(CONFIRM_MS);
+    expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+    // Past the first log's window (it started 2 × CONFIRM_MS earlier), inside the second's.
+    await settle(WEIGH_IN_UNDO_MS - CONFIRM_MS);
+    expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+  });
+
   it("asks the chat for the trend or suggestions, and never for the log itself", async () => {
     const onAsk = vi.fn();
     render(<Field w={writer()} initial="80" unit="kg" onAsk={onAsk} />);

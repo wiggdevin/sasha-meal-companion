@@ -13,6 +13,7 @@
  * `tests/cards/manifest.ts`.
  */
 import Button from "@/components/ui/Button";
+import KcalText from "@/components/ui/KcalText";
 import type { Macros } from "@/lib/types";
 
 export type RewardPlateFood = { id: string; name: string; role: "protein" | "carb" | "fat" };
@@ -20,9 +21,16 @@ export type RewardPlateFood = { id: string; name: string; role: "protein" | "car
 export type RewardPlateTargets = { training: Macros; rest: Macros };
 
 function MacroLine({ title, macros }: { title: string; macros: Macros }) {
+  // Polish pass (2026-10-07): DESIGN.md's calorie rule ("Every calorie number carries the shared
+  // `.kcal` class") is a hard rule, not a style suggestion — this card's figure was plain text,
+  // the one calorie number in onboarding v2 that wasn't persimmon. `KcalText` is the house's own
+  // mechanism for it (components/CoachComposedCard.tsx, components/MyFoods.tsx already use it the
+  // same way); no new styling invented here.
   return <section className="olive-panel flex flex-col gap-1 p-3">
     <span className="text-tiny font-normal text-muted">{title}</span>
-    <strong className="text-heading font-light">{macros.kcal.toLocaleString()} kcal</strong>
+    <strong className="text-heading font-light">
+      <KcalText text={`${macros.kcal.toLocaleString()} kcal`} />
+    </strong>
     <span className="text-tiny font-normal">
       {macros.protein} g protein · {macros.carbs} g carbs · {macros.fat} g fat
     </span>

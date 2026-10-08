@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { sceneArt, type MascotKey } from "@/components/today/island/mascots";
 import { MOMENTS, momentLength, nextMomentIn, pickMoment, type MomentKey, type MomentPose } from "@/components/today/scene/moments";
 
 /** Where a skipped pebble lands, and the swim's path across the lake, in the scene's 350 × 420 box. */
@@ -10,9 +11,9 @@ export const SWIM_PATH = [{ x: 132, y: 262 }, { x: 292, y: 290 }, { x: 150, y: 3
 const RESUME_MS = 1500;
 
 /** Loads a moment's poses ahead of time (the scene mounts only the pose on show). */
-function preload(key: MomentKey) {
+function preload(key: MomentKey, mascot: MascotKey) {
   if (typeof Image === "undefined") return;
-  const sources = key === "swim" ? ["/pet/scene/sprout-swim.webp"] : MOMENTS[key].frames.map((f) => `/pet/scene/sprout-${f.pose}.webp`);
+  const sources = key === "swim" ? [sceneArt(mascot, "swim")] : MOMENTS[key].frames.map((f) => sceneArt(mascot, f.pose));
   for (const src of sources) { const img = new Image(); img.src = src; }
 }
 
@@ -21,10 +22,12 @@ function preload(key: MomentKey) {
  * day fine, the pond shown, nothing else happening), never the same twice in a row. A pebble lands with a
  * splash; a swim sends small ripples along its path. Stops at once when disabled.
  */
-export function usePondMoments({ enabled, splash }: { enabled: boolean; splash: (x: number, y: number, strength: number) => void }) {
+export function usePondMoments({ mascot = "sprout", enabled, splash }: { mascot?: MascotKey; enabled: boolean; splash: (x: number, y: number, strength: number) => void }) {
   const [playing, setPlaying] = useState<{ key: MomentKey; frame: number; run: number } | null>(null);
   const runs = useRef(0);
   const enabledRef = useRef(enabled);
+  const mascotRef = useRef(mascot);
+  useEffect(() => { mascotRef.current = mascot; }, [mascot]);
   useEffect(() => { enabledRef.current = enabled; }, [enabled]);
   const last = useRef<MomentKey | null>(null);
   const splashRef = useRef(splash);
@@ -48,7 +51,7 @@ export function usePondMoments({ enabled, splash }: { enabled: boolean; splash: 
       due.current = Date.now() + nextMomentIn();
       // Choose now and load its poses while waiting, so the moment never flashes in.
       upNext.current = pickMoment(last.current);
-      preload(upNext.current);
+      preload(upNext.current, mascotRef.current);
     }
     const timer = setTimeout(() => {
       const chosen = upNext.current;
@@ -96,7 +99,7 @@ export function usePondMoments({ enabled, splash }: { enabled: boolean; splash: 
     if (!enabledRef.current) return false;
     due.current = null;
     upNext.current = null;
-    preload(next);
+    preload(next, mascotRef.current);
     last.current = next;
     runs.current += 1;
     setPlaying({ key: next, frame: 0, run: runs.current });

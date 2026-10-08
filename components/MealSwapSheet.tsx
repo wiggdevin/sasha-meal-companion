@@ -193,6 +193,11 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       {error && <Notice tone="error" title={error} />}
       {target && options.length === 0 && !loading && <Notice tone="neutral"
         title="No verified close matches yet. Check your food rules, add foods to Eats, or edit this meal." />}
+      {/* Swaps are sized to the slot's target: with none (no target revision in force, or a slot that
+          carries no target) there is nothing to size them to, and the sheet says so rather than
+          showing an empty body (UI audit 2026-10-07). */}
+      {!target && <Notice tone="neutral"
+        title="Meals to swap in are sized to this meal's target, and it has none right now. You can still edit this meal." />}
       {/* One card system with the Foods hub and a menu's picks: a tap grows the card in place to show
           the meal's foods and "Swap to this" (components/recipes-hub/SuggestionCarousel.tsx). */}
       {options.length > 0 && <SuggestionCarousel label="Meals to swap in" nested
