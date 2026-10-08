@@ -18,14 +18,13 @@ import {
 import type { PlanStateAnswers } from "@/components/Onboarding/v2/facts-bridge";
 import FallingFoodPile from "@/components/Onboarding/FallingFoodPile";
 import FoodsTopPickChips from "@/components/Onboarding/FoodsTopPickChips";
-import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
 import {
   effectiveBand, emptyFacts, FactQuestion, firstUnconfirmedField, GoalPillRow, PlaybackSentence,
   type FactAnswer, type Goal, type OnboardingFactKey,
 } from "@/components/Onboarding/facts";
 import SavingStage from "@/components/Onboarding/SavingStage";
 import { readTypedAnswer } from "@/components/Onboarding/typed-answer";
-import type { StarterMark } from "@/lib/foods/starter";
+import type { Starter, StarterMark } from "@/lib/foods/starter";
 import type { FastPathFacts } from "@/lib/coach/onboarding-fast-path";
 import RewardPlateCard, { type RewardPlateFood, type RewardPlateTargets }
   from "@/components/Onboarding/reward/RewardPlateCard";
@@ -34,13 +33,14 @@ import { useStarterStep } from "@/components/Onboarding/useStarterStep";
 import {
   applyFactsToSettings, buildOnboardingStateFromFacts, factsToPartialSettings, type FactsLike,
 } from "@/components/Onboarding/v2/facts-bridge";
-import { clearOnboardingDraft, loadOnboardingDraft, saveOnboardingDraft }
-  from "@/components/Onboarding/v2/draft-store";
+import {
+  clearOnboardingDraft, loadOnboardingDraft, onboardingTargetRequestId, saveOnboardingDraft,
+} from "@/components/Onboarding/v2/draft-store";
 import { dbFood } from "@/lib/food-db";
 import { foodShortName } from "@/components/Onboarding/food-display-names";
 import { starterSelectionValid } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
-import { starterFood } from "@/lib/foods/starter";
+import { starterFillShortRoles, starterFood } from "@/lib/foods/starter";
 import { onboardingPlanPreview, type PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
 import { RATE_NOT_ELIGIBLE_ERROR, saveOnboardingPlan } from "@/lib/onboarding/save-plan";
 import { energyProfileFrom, isProfileComplete } from "@/lib/profile/energy";
@@ -95,6 +95,25 @@ export const ONBOARDING_SCOPE = { kind: "page", page: "onboarding" } as const;
  * and the reward beat default to real content (lane 4's cards, this lane's own reward card and
  * write path) unless a caller overrides the slot — see `ConversationalOnboardingSlots`.
  */
+/** Why the plan cannot be used yet, and the one step that fixes it. */
+type PlanNotice = { text: string; actionLabel: string; action: "foods" | "rules" | "facts" | "retry" };
+const RULES_UNCHECKED_NOTICE: PlanNotice = {
+  text: "Sprout couldn't check your food rules yet, so it can't pick foods for you.",
+  actionLabel: "Check again", action: "retry",
+};
+const FOODS_SHORT_NOTICE: PlanNotice = {
+  text: "Sprout couldn't fill every group from the foods your rules allow. Tap a few more you'd eat, or adjust your food rules.",
+  actionLabel: "Adjust food rules", action: "rules",
+};
+const PLAN_FOODS_SHORT_NOTICE: PlanNotice = {
+  text: "Your plan needs at least two foods you'd eat in each group before it can be saved.",
+  actionLabel: "Choose more foods", action: "foods",
+};
+const PROFILE_SHORT_NOTICE: PlanNotice = {
+  text: "A few answers are still missing, so Sprout can't build your plan yet.",
+  actionLabel: "Finish your answers", action: "facts",
+};
+
 export type OnboardingBeat =
   | "opener" | "facts" | "minor" | "week" | "safety" | "pace" | "day" | "foods" | "reward";
 
@@ -294,6 +313,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [checkingRules, setCheckingRules] = useState(false);
   const [showNumbers, setShowNumbers] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
+  /** GPT-6 Sol BLOCK (onb2-p0): why the plan cannot be used yet, with the one step that fixes it.
+   *  Shown instead of moving on; never a silent skip. Cleared on every beat change. */
+  const [planNotice, setPlanNotice] = useState<PlanNotice | null>(null);
   const [saving, setSavingState] = useState<SavingState | null>(null);
   const [typed, setTyped] = useState("");
   const [composerNote, setComposerNote] = useState<string | null>(null);
@@ -322,12 +344,16 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  settings write, on retry — `OnboardingFlow.tsx`'s own `savePlan` retries constraints alone
    *  via `retryOnboardingConstraints`, which this now does too). */
   const profileWritten = useRef(false);
+  /** The request the profile write above saved: a changed answer after a failed later step is a
+   *  new request, written again (with its own target request id). */
+  const profileWrittenKey = useRef<string | null>(null);
   const constraintsSaved = useRef(false);
   /** Gates the draft-save effect below until the resume-draft read (or its failure) has actually
    *  settled — see that effect's own comment for why. */
   const [draftChecked, setDraftChecked] = useState(false);
 
   function advance(next: OnboardingBeat) {
+    setPlanNotice(null);
     setBeat(next);
   }
 
@@ -363,6 +389,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setTyped("");
       setComposerNote(null);
       profileWritten.current = false;
+      profileWrittenKey.current = null;
       leaving.current = false;
       void (async () => {
         let settings: Settings;
@@ -440,6 +467,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setComposerNote(null);
       setExtractCalls(0);
       profileWritten.current = false;
+      profileWrittenKey.current = null;
       leaving.current = false;
     });
     return () => { live = false; unreadyFn(); ungoneFn(); };
@@ -734,11 +762,32 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   }
 
   /** Fills only the groups still short (a legacy plan needs one protein per planned meal), never
-   *  touching a tap, then moves on. */
+   *  touching a tap, then moves on — but only when the filled selection is one the plan can use.
+   *  GPT-6 Sol BLOCK (onb2-p0): with too few foods the rules allow (or that the person left on),
+   *  it used to move on anyway, and "Use this plan" then took the skip path. Now it stays on Foods
+   *  and says what to do. */
   function pickForMe() {
+    if ((foodAccess.status !== "pilot" && foodAccess.status !== "legacy") || !starter.choices) {
+      setPlanNotice(RULES_UNCHECKED_NOTICE);
+      return;
+    }
+    const choices = starter.choices;
     const need = foodAccess.status === "legacy" ? { protein: Math.max(2, plannedCount) } : {};
-    for (const id of pickForMeIds(starter.choices ?? [], starter.marks, need)) starter.mark(id, "eats");
-    advance("reward");
+    const added = starterFillShortRoles(choices, starter.marks, need);
+    for (const id of added) starter.mark(id, "eats");
+    const filled: Record<string, StarterMark> = { ...starter.marks };
+    for (const id of added) filled[id] = "eats";
+    if (selectionUsable(filled, choices)) { advance("reward"); return; }
+    setPlanNotice(FOODS_SHORT_NOTICE);
+  }
+
+  /** The selection rule "Use this plan" saves under: two foods per group, and for a legacy plan
+   *  enough distinct proteins for its meals. */
+  function selectionUsable(marks: Readonly<Record<string, StarterMark>>, choices: readonly Starter[]): boolean {
+    const ids = Object.entries(marks).filter(([, mark]) => mark === "eats").map(([id]) => id);
+    return choices.length > 0 && starterSelectionValid(ids, choices)
+      && (foodAccess.status === "pilot"
+        || (foodAccess.status === "legacy" && starterProteinAvailability(marks, choices, plannedCount).ready));
   }
 
   /** The account's real skip path (`lib/profile/onboarding-client.ts`, the same functions and the
@@ -780,14 +829,22 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     setSavingState({ title, step: "Saving your profile, targets and foods." });
     setLeaveError(null);
     const writesFoods = foodAccess.status === "legacy" || foodAccess.status === "pilot";
+    // GPT-6 Sol BLOCK (onb2-p0): ONE target request id per save, kept in the resume draft, so a
+    // retry after a lost target answer (the revision committed, the answer never arrived) is the
+    // same request and the server writes one revision. A changed answer is a new request.
+    const requestKey = JSON.stringify({ state: onboardingState, safety: safetyAnswers, day: todayIso() });
+    const targetRequestId = await onboardingTargetRequestId(requestKey);
     const result = await saveOnboardingPlan({
-      settings, onboardingState, safety: safetyAnswers,
+      settings, onboardingState, safety: safetyAnswers, targetRequestId,
       starter: writesFoods ? { status: foodAccess.status as "legacy" | "pilot", marks: starter.marks, plannedCount } : null,
     }, {
-      persistPlan: async (planSettings, state, now, deps, safety) => {
-        if (profileWritten.current) return { settings: planSettings, constraintsSaved: constraintsSaved.current };
-        const written = await persistCompletedOnboarding(planSettings, state, now, deps, safety);
+      persistPlan: async (planSettings, state, now, deps, safety, requestId) => {
+        if (profileWritten.current && profileWrittenKey.current === requestKey) {
+          return { settings: planSettings, constraintsSaved: constraintsSaved.current };
+        }
+        const written = await persistCompletedOnboarding(planSettings, state, now, deps, safety, requestId);
         profileWritten.current = true;
+        profileWrittenKey.current = requestKey;
         constraintsSaved.current = written.constraintsSaved;
         return written;
       },
@@ -814,8 +871,12 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   }, [router, settings, onboardingState, safetyAnswers, foodAccess.status, starter.marks, plannedCount]);
 
   const handleSkip = onSkip ?? (() => void leaveOnboarding());
-  const handleComplete = onComplete
-    ?? (() => { if (planReady) void savePlanAndFinish(); else void leaveOnboarding(); });
+  /** "Use this plan". GPT-6 Sol BLOCK (onb2-p0): it never takes the skip path. A plan that is not
+   *  ready yet says why and stays; only "Skip for now" skips. */
+  const handleComplete = onComplete ?? (() => {
+    if (planReady) { setPlanNotice(null); void savePlanAndFinish(); return; }
+    setPlanNotice(incompleteForPlan || plannedCountFailed ? PROFILE_SHORT_NOTICE : PLAN_FOODS_SHORT_NOTICE);
+  });
 
   /** The foods beat is done once the selection is one the plan can use. */
   const foodsReady = starterSelectionReady
@@ -951,6 +1012,17 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       </div>
     </motion.div>
     {leaveError && <p role="alert" className="relative z-[1] px-4 text-center text-caption text-alert">{leaveError}</p>}
+    {planNotice && <div role="status" data-testid="plan-notice"
+      className="relative z-[1] flex flex-col items-center gap-2 px-4 text-center">
+      <p className="m-0 text-caption text-graphite">{planNotice.text}</p>
+      <Button variant="secondary" size="sm" className="min-h-11"
+        onClick={() => {
+          if (planNotice.action === "retry") { setPlanNotice(null); foodAccess.retry(); starter.retry(); return; }
+          advance(planNotice.action === "foods" ? "foods" : planNotice.action === "rules" ? "safety" : "facts");
+        }}>
+        {planNotice.actionLabel}
+      </Button>
+    </div>}
     {composerNote && dockMode === "mic" && <p role="status" className={`${styles.composerNote} m-0 text-caption text-graphite`}>
       {composerNote}
     </p>}
@@ -966,7 +1038,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
           : askingField ? (TYPE_HINT[askingField] ?? "Or type it") : "Type to change anything"}
         /* Sol review round 2: "Use this plan" only once a real plan can be saved; otherwise the
          * honest "Not now" (distinct from the standing "Skip for now" link). */
-        confirmLabel={beat === "reward" ? ((onComplete || planReady) ? "Use this plan" : "Not now")
+        confirmLabel={beat === "reward" ? (leaveError && !saving ? "Try again" : "Use this plan")
           : `Done · ${lovedCount} loved`}
         confirmStatus={saving || confirmingFoods ? "pending" : undefined}
         onConfirm={handleDockConfirm}

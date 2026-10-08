@@ -33,7 +33,6 @@ import FoodsSafetyGate from "./FoodsSafetyGate";
 import type { AllergySafetyAnswer } from "./AllergyConditionGate";
 
 const ROLES: readonly FoodRole[] = ["protein", "carb", "fat"];
-const PICK_FOR_ME_PER_ROLE = 2;
 
 type Round = "love" | "avoid";
 type FoodsStepProps = {
@@ -41,29 +40,6 @@ type FoodsStepProps = {
   marks: Record<string, StarterMark>;
   onMark: (id: string, mark: StarterMark) => void;
 };
-
-/** "Sprout, pick for me": fills ONLY the groups still short of their count, never touching a
- *  food the person already tapped or avoided (live QA 2026-10-07: it used to add the defaults on
- *  top of every tap). The two-per-group fill is `starterFillShortRoles` (lib/foods/starter.ts);
- *  `need` tops a group up further (the legacy plan needs one distinct protein per planned meal),
- *  defaults first. It only fills in marks; nothing is saved here. */
-export function pickForMeIds(
-  choices: readonly Starter[], marks: Readonly<Record<string, StarterMark>>,
-  need: Partial<Record<FoodRole, number>> = {},
-): string[] {
-  const picked = starterFillShortRoles(choices, marks, PICK_FOR_ME_PER_ROLE);
-  for (const role of ROLES) {
-    const target = need[role] ?? PICK_FOR_ME_PER_ROLE;
-    if (target <= PICK_FOR_ME_PER_ROLE) continue;
-    const group = choices.filter((item) => item.role === role);
-    const have = group.filter((item) => marks[item.id] === "eats" || picked.includes(item.id)).length;
-    const open = group.filter((item) => marks[item.id] !== "eats" && marks[item.id] !== "avoid"
-      && !picked.includes(item.id));
-    const ordered = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
-    for (const item of ordered.slice(0, Math.max(0, target - have))) picked.push(item.id);
-  }
-  return picked;
-}
 
 /** The explicit, secondary "anything you never eat?" round — a red-washed, role-sectioned grid
  *  (not a falling pile; the pile choreography is reserved for the primary love round per the
@@ -106,7 +82,7 @@ function FallingFoodsStep({ choices, marks, onMark }: FoodsStepProps) {
     () => choices.filter((item) => item.role === "protein").length, [choices]);
 
   function pickForMe(): void {
-    for (const id of pickForMeIds(choices, marks)) onMark(id, "eats");
+    for (const id of starterFillShortRoles(choices, marks)) onMark(id, "eats");
   }
 
   return <FoodsSafetyGate confirmed={safety.confirmed} answer={safety.answer}

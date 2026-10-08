@@ -4,9 +4,8 @@
  */
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { STARTERS, type StarterMark } from "@/lib/foods/starter";
+import { STARTERS, starterFillShortRoles, type StarterMark } from "@/lib/foods/starter";
 import FallingFoodPile, { buildQueue, pickLane } from "./FallingFoodPile";
-import { pickForMeIds } from "./FoodsStep";
 
 afterEach(cleanup);
 
@@ -28,14 +27,14 @@ describe("pickLane", () => {
   });
 });
 
-describe("pickForMeIds", () => {
+describe("starterFillShortRoles (pick for me)", () => {
   const choices = STARTERS;
   it("fills only the groups still short and never touches a tap", () => {
     const proteins = choices.filter((item) => item.role === "protein").slice(0, 2);
     const marks: Record<string, StarterMark> = Object.fromEntries(proteins.map((item) => [item.id, "eats"]));
     const carb = choices.find((item) => item.role === "carb" && !item.default)!;
     marks[carb.id] = "eats";
-    const picked = pickForMeIds(choices, marks);
+    const picked = starterFillShortRoles(choices, marks);
     const roleOf = (id: string) => choices.find((item) => item.id === id)!.role;
     expect(picked.filter((id) => roleOf(id) === "protein")).toEqual([]);
     expect(picked.filter((id) => roleOf(id) === "carb")).toHaveLength(1);
@@ -44,8 +43,15 @@ describe("pickForMeIds", () => {
   });
 
   it("raises a group's count when the plan needs more proteins", () => {
-    const picked = pickForMeIds(choices, {}, { protein: 4 });
+    const picked = starterFillShortRoles(choices, {}, { protein: 4 });
     expect(picked.filter((id) => choices.find((item) => item.id === id)!.role === "protein")).toHaveLength(4);
+  });
+
+  // GPT-6 Sol WARN (onb2-p0): a food the person tapped off is theirs, never re-picked.
+  it("never re-picks a food the person tapped off", () => {
+    const defaults = choices.filter((item) => item.role === "protein" && item.default);
+    const marks: Record<string, StarterMark> = { [defaults[0].id]: "neutral" };
+    expect(starterFillShortRoles(choices, marks)).not.toContain(defaults[0].id);
   });
 });
 

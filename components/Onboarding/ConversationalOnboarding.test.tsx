@@ -145,6 +145,18 @@ async function passPlanBeats(): Promise<void> {
   fireEvent.click(await screen.findByRole("button", { name: "Looks right" }));
 }
 
+/** A pilot account whose rules allow two foods per group, none marked yet: "Sprout, pick for me"
+ *  can fill a usable plan (the mocked hook's `mark` is a spy, so the marks stay empty and the
+ *  reward beat is NOT ready unless a test marks them itself). */
+function pickableFoods(): void {
+  foodAccess.status = "pilot";
+  starterFixture.choices = [
+    { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+    { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+    { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+  ];
+}
+
 /** Walks the default flow to the reward beat, awaiting each sequential stream swap. */
 async function reachReward(): Promise<void> {
   fireEvent.click(screen.getByRole("button", { name: "Lose weight" })); // -> facts
@@ -319,29 +331,48 @@ describe("ConversationalOnboarding", () => {
   });
 
   it("'Sprout, pick for me' marks the default starter foods before advancing to the reward beat", async () => {
-    foodAccess.status = "legacy";
+    foodAccess.status = "pilot";
     starterFixture.choices = [
       { id: "chicken-breast-roasted", role: "protein", default: true },
+      { id: "turkey-breast-roasted", role: "protein", default: true },
       { id: "white-rice-cooked", role: "carb", default: true },
+      { id: "brown-rice-cooked", role: "carb", default: true },
       { id: "olive-oil", role: "fat", default: true },
+      { id: "avocado-oil", role: "fat", default: true },
     ] as never;
     render(<ConversationalOnboarding />);
     await reachReward();
     expect(starterSpies.mark).toHaveBeenCalledWith("chicken-breast-roasted", "eats");
   });
 
-  it("without a real onComplete and with no real data to save, the reward confirm is labelled"
-    + " honestly, not 'Use this plan' — and distinctly from the standing skip link (Sol review"
-    + " round 2; orchestrator round 3: two controls sharing one label read as a bug)", async () => {
+  // GPT-6 Sol BLOCK (onb2-p0): with too few foods the rules allow, pick-for-me moved on anyway
+  // and "Use this plan" then took the skip path.
+  it("'Sprout, pick for me' with too few allowed foods stays on Foods, says so, and offers to"
+    + " adjust the rules", async () => {
+    foodAccess.status = "pilot";
+    starterFixture.choices = [
+      { id: "chicken-breast-roasted", role: "protein", default: true },
+      { id: "white-rice-cooked", role: "carb", default: true },
+      { id: "olive-oil", role: "fat", default: true },
+    ] as never;
     render(<ConversationalOnboarding />);
-    await reachReward();
-    expect(screen.queryByRole("button", { name: "Use this plan" })).toBeNull();
-    screen.getByRole("button", { name: "Skip for now" }); // the standing link, unchanged
-    screen.getByRole("button", { name: "Not now" }); // the dock's own reward confirm
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
+    await fillRemainingRequiredFacts();
+    fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
+    await passPlanBeats();
+    fireEvent.click(await screen.findByRole("button", { name: "Sprout, pick for me" }));
+    const notice = await screen.findByTestId("plan-notice");
+    expect(notice.textContent).toMatch(/couldn't fill every group/);
+    expect(screen.queryByTestId("reward-plate-ready")).toBeNull();
+    screen.getByRole("button", { name: "Sprout, pick for me" }); // still on Foods
+    fireEvent.click(within(notice).getByRole("button", { name: "Adjust food rules" }));
+    await screen.findByTestId("safety-round");
+    expect(persistSkippedOnboarding).not.toHaveBeenCalled();
   });
 
-  it("the reward beat's confirm finishes instead of looping on itself, and earns its real label"
-    + " once onComplete is supplied (Sol review)", async () => {
+  it("the reward beat's confirm finishes instead of looping on itself once onComplete is"
+    + " supplied (Sol review)", async () => {
+    pickableFoods();
     const onComplete = vi.fn();
     render(<ConversationalOnboarding onComplete={onComplete} />);
     await reachReward();
@@ -349,12 +380,24 @@ describe("ConversationalOnboarding", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("without a supplied onComplete, the reward confirm still really leaves, not a fabricated save", async () => {
+  // GPT-6 Sol BLOCK (onb2-p0): "Use this plan" used to call the skip path whenever the plan was
+  // not ready, marking the account onboarded without saving the plan.
+  it("'Use this plan' on a plan that is not ready never skips: it explains, offers the fix and"
+    + " stays", async () => {
+    pickableFoods(); // the marks stay empty: the reward beat is reached but not ready
     render(<ConversationalOnboarding />);
     await reachReward();
-    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
-    await vi.waitFor(() => expect(persistSkippedOnboarding).toHaveBeenCalledTimes(1));
-    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    fireEvent.click(screen.getByRole("button", { name: "Use this plan" }));
+    const notice = await screen.findByTestId("plan-notice");
+    expect(notice.textContent).toMatch(/two foods you'd eat in each group/);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(persistSkippedOnboarding).not.toHaveBeenCalled();
+    expect(saveOnboardingPlan).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    screen.getByTestId("reward-plate-ready");
+    screen.getByRole("button", { name: "Skip for now" }); // the only skip, unchanged
+    fireEvent.click(within(notice).getByRole("button", { name: "Choose more foods" }));
+    await screen.findByRole("button", { name: "Sprout, pick for me" });
   });
 
   it("'Use this plan' really writes once every required fact and a ready pilot food selection"
@@ -413,10 +456,36 @@ describe("ConversationalOnboarding", () => {
     // The first attempt fails on constraints (profile already written); a retry must not call
     // persistCompletedOnboarding a second time, and must retry constraints narrowly.
     await screen.findByRole("alert");
-    fireEvent.click(screen.getByRole("button", { name: "Use this plan" }));
+    // A failed save is a retry state: the confirm says so (owner: "things didn't save").
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
     expect(persistCompletedOnboarding).toHaveBeenCalledTimes(1);
     expect(retryOnboardingConstraints).toHaveBeenCalledTimes(2);
+  });
+
+  // GPT-6 Sol BLOCK (onb2-p0): a target POST that committed but whose answer was lost used to be
+  // retried under a NEW request id, so the server wrote a second revision.
+  it("sends one target request id per save: a retry after a failure reuses it, from the draft",
+    async () => {
+    pickableFoods();
+    starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+    saveOnboardingPlan.mockResolvedValueOnce({ ok: false, error: "Couldn't reach the server" } as never);
+    await saveOnboardingDraft({ beat: "opener",
+      settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
+    render(<ConversationalOnboarding />);
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
+    fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
+    await passPlanBeats();
+    fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
+    await screen.findByRole("alert");
+    expect(replace).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    const ids = saveOnboardingPlan.mock.calls.map(([input]) => (input as { targetRequestId?: string }).targetRequestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).toBe(ids[0]);
   });
 
   it("ONB2-RULE-REREAD: Foods 'Done' re-reads account rules before advancing to the reward beat"
@@ -528,12 +597,7 @@ describe("ConversationalOnboarding", () => {
     });
 
     it("a pregnant user never sees the pace screen; the plan card says why", async () => {
-      foodAccess.status = "legacy";
-      starterFixture.choices = [
-        { id: "chicken-breast-roasted", role: "protein", default: true },
-        { id: "white-rice-cooked", role: "carb", default: true },
-        { id: "olive-oil", role: "fat", default: true },
-      ] as never;
+      pickableFoods();
       render(<ConversationalOnboarding />);
       await toWeek();
       fireEvent.click(await screen.findByRole("button", { name: "Skip this" }));
@@ -563,6 +627,7 @@ describe("ConversationalOnboarding", () => {
     });
 
     it("the plan card names every skipped default, with a Change link back to its beat", async () => {
+      pickableFoods();
       render(<ConversationalOnboarding />);
       await reachReward();
       const notes = screen.getByTestId("plan-notes");
@@ -609,7 +674,7 @@ describe("ConversationalOnboarding", () => {
       fireEvent.click(screen.getByRole("button", { name: "Use this plan" }));
       expect((await screen.findByRole("alert")).textContent).toMatch(/keep your calories about where you burn/);
       expect((await screen.findByTestId("plan-notes")).textContent).toMatch(/keep calories about where you burn/);
-      fireEvent.click(screen.getByRole("button", { name: "Use this plan" }));
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
       await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
     });
 

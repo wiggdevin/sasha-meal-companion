@@ -12,10 +12,9 @@ import ConversationalOnboarding from "@/components/Onboarding/ConversationalOnbo
 import FallingFoodPile from "@/components/Onboarding/FallingFoodPile";
 import RewardPlateCard from "@/components/Onboarding/reward/RewardPlateCard";
 import SavingStage from "@/components/Onboarding/SavingStage";
-import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
 import { dbFood } from "@/lib/food-db";
 import { foodShortName } from "@/components/Onboarding/food-display-names";
-import { STARTERS, type StarterMark } from "@/lib/foods/starter";
+import { STARTERS, starterFillShortRoles, type StarterMark } from "@/lib/foods/starter";
 import styles from "./ConversationalOnboarding.module.css";
 
 const DECK = STARTERS.filter((item) => item.diets.includes("omnivore"));
@@ -34,7 +33,7 @@ export default function OnboardingGallery() {
   const [shown, setShown] = useState<readonly string[]>(params.get("shown") === "all" ? DECK.map((item) => item.id) : []);
   const [showNumbers, setShowNumbers] = useState(false);
   const mark = (id: string, value: StarterMark) => setMarks((current) => ({ ...current, [id]: value }));
-  const loved = DECK.filter((item) => marks[item.id] === "eats" || pickForMeIds(DECK, marks).includes(item.id))
+  const loved = DECK.filter((item) => marks[item.id] === "eats" || starterFillShortRoles(DECK, marks).includes(item.id))
     .map((item) => ({ id: item.id, name: foodShortName(item.id, dbFood(item.id)?.name ?? item.id), role: item.role as "protein" | "carb" | "fat" }));
 
   if (params.get("saving") === "1") {
