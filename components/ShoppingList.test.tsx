@@ -49,12 +49,13 @@ describe("a shopping tick", () => {
     await act(async () => { fireEvent.click(screen.getByRole("checkbox", { name: "Milk, to buy" })); });
     fireEvent.click(screen.getByRole("button", { name: /In cart/ }));
     await act(async () => { fireEvent.click(screen.getByRole("checkbox", { name: "Milk, in cart" })); });
-    expect(summary()).toBe("0 of 1 in cart · This week");
+    await act(async () => { fireEvent.click(screen.getByRole("checkbox", { name: "Milk, to buy" })); });
+    expect(summary()).toBe("1 of 1 in cart · This week");
     await act(async () => { failFirst(new Error("offline")); });
-    // The newer tick (back to buy) stands; the failed first one does not flip it.
-    expect(summary()).toBe("0 of 1 in cart · This week");
+    // The newest tick (in cart) stands; the failed first one neither flips it nor speaks over it.
+    expect(summary()).toBe("1 of 1 in cart · This week");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText("offline")).toBeNull();
-    expect(setChecked.mock.calls.map((call) => call[1])).toEqual([true, false]);
+    expect(setChecked.mock.calls.map((call) => call[1])).toEqual([true, false, true]);
   });
 });
