@@ -9,6 +9,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { designGalleryOpen } from "@/app/design/gallery-access";
 
 export const config = {
   matcher: ["/((?!api/|auth/|_next/|sign-in|.*\\.[^/]+$).*)"],
@@ -16,6 +17,8 @@ export const config = {
 
 export default async function middleware(req: NextRequest): Promise<NextResponse> {
   let res = NextResponse.next({ request: req });
+  // The /design fixture galleries: local development with an explicit opt-in only (app/design/gallery-access.ts).
+  if (designGalleryOpen(req.nextUrl.pathname)) return res;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

@@ -116,22 +116,22 @@ describe("SlotCard feedback", () => {
 
   it("puts the page's eaten state on the eaten control, pending as busy and disabled", () => {
     const { rerender } = render(<SlotCard slot={slot} {...base} eatenFeedback="pending" />);
-    const tick = screen.getByRole("button", { name: "Mark Meal 1 eaten" }) as HTMLButtonElement;
+    const tick = screen.getByRole("button", { name: "Mark eaten, Meal 1" }) as HTMLButtonElement;
     expect(tick.getAttribute("data-feedback-state")).toBe("pending");
     expect(tick.getAttribute("aria-busy")).toBe("true");
     expect(tick.disabled).toBe(true);
     rerender(<SlotCard slot={{ ...slot, eaten: true }} {...base} eatenFeedback="success" />);
-    const done = screen.getByRole("button", { name: "Mark Meal 1 not eaten" });
+    const done = screen.getByRole("button", { name: "Eaten, Meal 1. Undo" });
     expect(done.getAttribute("data-feedback-state")).toBe("success");
-    expect(done.getAttribute("aria-pressed")).toBe("true");
+    expect(done.getAttribute("data-eaten")).toBe("true");
   });
 
   it("uses the same compact eaten control for a focus card", () => {
     const { rerender } = render(<SlotCard slot={slot} {...base} variant="focus" eatenFeedback="success" />);
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).getAttribute("data-feedback-state")).toBe("success");
+    expect(screen.getByRole("button", { name: "Mark eaten, Meal 1" }).getAttribute("data-feedback-state")).toBe("success");
     expect(screen.queryByRole("button", { name: "Eaten" })).toBeNull();
     rerender(<SlotCard slot={slot} {...base} variant="focus" />);
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).hasAttribute("data-feedback-state")).toBe(false);
+    expect(screen.getByRole("button", { name: "Mark eaten, Meal 1" }).hasAttribute("data-feedback-state")).toBe(false);
   });
 
   it("marks the card changed after a meal edit", () => {
@@ -255,8 +255,8 @@ describe("SlotCard compact detail", () => {
       targets: { kcal: 2000, protein: 150, carbs: 220, fat: 70 } } });
     fireEvent.click(screen.getByRole("button", { name: "Expand Meal 1" }));
     const detail = screen.getByRole("region", { name: "Meal 1 details" });
-    expect(within(detail).getByText("Share of daily target")).toBeTruthy();
-    fireEvent.click(within(detail).getByRole("button", { name: /Share of daily target/ }));
+    expect(within(detail).getByText("Daily share")).toBeTruthy();
+    fireEvent.click(within(detail).getByRole("button", { name: /Daily share/ }));
     expect(within(detail).getByRole("meter", { name: "Calories: 610 of 2,000" })).toBeTruthy();
     expect(within(detail).getByRole("meter", { name: "Protein: 53 of 150 grams" })).toBeTruthy();
     // Once in the collapsed row's summary, once beside the calorie meter.
@@ -270,7 +270,7 @@ describe("SlotCard compact detail", () => {
     const detail = screen.getByRole("region", { name: "Meal 1 details" });
     const text = detail.textContent ?? "";
     expect(text.indexOf("Ingredients")).toBeLessThan(text.indexOf("Preparation"));
-    expect(text.indexOf("Preparation")).toBeLessThan(text.indexOf("Share of daily target"));
+    expect(text.indexOf("Preparation")).toBeLessThan(text.indexOf("Daily share"));
     const rows = Array.from(detail.querySelectorAll("button[aria-controls]"));
     expect(rows).toHaveLength(2);
     for (const row of rows) expect(row.getAttribute("aria-expanded")).toBe("false");
@@ -280,7 +280,7 @@ describe("SlotCard compact detail", () => {
     renderDetailed({ dayTotals: { consumed: { kcal: 0, protein: 0, carbs: 0, fat: 0 }, targets: null } });
     fireEvent.click(screen.getByRole("button", { name: "Expand Meal 1" }));
     const detail = screen.getByRole("region", { name: "Meal 1 details" });
-    expect(within(detail).queryByText("Share of daily target")).toBeNull();
+    expect(within(detail).queryByText("Daily share")).toBeNull();
     expect(within(detail).queryByRole("meter")).toBeNull();
   });
 
@@ -289,7 +289,7 @@ describe("SlotCard compact detail", () => {
     renderDetailed({ onSaveComponents, foods: {} });
     fireEvent.click(screen.getByRole("button", { name: "Expand Meal 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Increase Rice" }));
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).textContent).toContain("670");
+    expect((document.querySelector("[data-meal-calories]") as HTMLElement).textContent).toContain("670");
     expect(onSaveComponents).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save ingredients" }));
     await waitFor(() => expect(onSaveComponents).toHaveBeenCalledOnce());
@@ -304,7 +304,7 @@ describe("SlotCard compact detail", () => {
     renderDetailed({ onSaveComponents: vi.fn(async () => {}), foods: {} });
     fireEvent.click(screen.getByRole("button", { name: "Expand Meal 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove Chicken breast" }));
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).textContent).toContain("362");
+    expect((document.querySelector("[data-meal-calories]") as HTMLElement).textContent).toContain("362");
     expect(screen.queryByText("Chicken breast")).toBeNull();
   });
 
@@ -315,7 +315,7 @@ describe("SlotCard compact detail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove Chicken breast" }));
     fireEvent.click(screen.getByRole("button", { name: "Undo remove Chicken breast" }));
     expect(screen.getByText("Chicken breast")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).textContent).not.toContain("362");
+    expect((document.querySelector("[data-meal-calories]") as HTMLElement).textContent).not.toContain("362");
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Chicken breast" }));
     act(() => { vi.advanceTimersByTime(5000); });
@@ -353,9 +353,9 @@ describe("SlotCard compact detail", () => {
     renderDetailed({ onSaveComponents: vi.fn(async () => {}), foods: {} });
     fireEvent.click(screen.getByRole("button", { name: "Expand Meal 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Increase Rice" }));
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).textContent).toContain("670");
+    expect((document.querySelector("[data-meal-calories]") as HTMLElement).textContent).toContain("670");
     fireEvent.click(screen.getByRole("button", { name: "Collapse Meal 1" }));
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).textContent).toContain("610");
+    expect((document.querySelector("[data-meal-calories]") as HTMLElement).textContent).toContain("610");
   });
 
 });

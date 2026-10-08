@@ -51,9 +51,9 @@ describe("SlotCard completion colors", () => {
       canSwap onToggleEaten={() => {}} onOpenSwap={() => {}}
       onPlanWithCoach={() => {}} onLogWhatYouAte={() => {}} />);
     expect(markup).toContain("Nothing planned yet.");
-    expect(markup).toContain("Plan with the coach");
+    expect(markup).toContain("Plan with Sasha");
     expect(markup).toContain("Log what you ate");
-    expect(markup).not.toContain("Mark Lunch eaten");
+    expect(markup).not.toContain("Mark eaten, Lunch");
     expect(markup).not.toContain("Swap Lunch");
   });
 
@@ -65,18 +65,18 @@ describe("SlotCard completion colors", () => {
     expect(markup).toContain('aria-label="Lunch, scheduled for 12:00 pm"');
     expect(markup).toContain('data-meal-time="true"');
     expect(markup).toContain('data-meal-calories="true"');
-    expect(markup).toContain('data-consume-control="calories"');
+    expect(markup).toContain('data-consume-control="tick"');
     expect(markup).not.toContain("border-l border-hairline");
     expect(markup.indexOf("Chicken and rice")).toBeLessThan(markup.indexOf("12:00"));
     expect(markup.indexOf("Chicken and rice")).toBeLessThan(markup.indexOf('data-meal-calories="true"'));
   });
 
-  it("combines the meal's position and time in one hero pill", () => {
+  it("leads the hero pill with the slot's name, then its time (meal cards v2: never a bare number)", () => {
     const markup = renderSlot("standard");
-    expect(markup).toContain('data-meal-position="1"');
-    expect(markup.indexOf('aria-hidden="true">1</span>')).toBeGreaterThan(-1);
-    expect(markup.indexOf('aria-hidden="true">1</span>')).toBeLessThan(markup.indexOf(">12:00</span>"));
-    expect(markup).not.toContain(">Lunch</span>");
+    expect(markup).toContain('data-meal-status="later"');
+    expect(markup.indexOf('aria-hidden="true">Lunch</span>')).toBeGreaterThan(-1);
+    expect(markup.indexOf('aria-hidden="true">Lunch</span>')).toBeLessThan(markup.indexOf(">12:00</span>"));
+    expect(markup).not.toContain("data-meal-position");
   });
 
   it("presents a planned meal in the After Dark hero and nutrition band", () => {
@@ -85,7 +85,7 @@ describe("SlotCard completion colors", () => {
     expect(markup).toContain('data-after-dark-hero="true"');
     expect(markup).toContain('data-after-dark-nutrition="true"');
     expect(markup.indexOf('data-after-dark-hero="true"')).toBeLessThan(markup.indexOf('data-after-dark-nutrition="true"'));
-    expect(markup).toContain('data-consume-control="calories"');
+    expect(markup).toContain('data-consume-control="tick"');
     expect(markup).toContain('data-macro-composition="true"');
   });
 
@@ -151,13 +151,15 @@ describe("SlotCard completion colors", () => {
     expect(markup).toContain("surface flex");
     expect(markup).not.toContain("meal-card-in");
   });
-  it("makes eaten meals dark with a light strikethrough", () => {
+  it("keeps eaten meals at full strength on the eaten surface", () => {
     const markup = renderToStaticMarkup(<SlotCard slot={{ ...baseSlot, eaten: true }}
       variant="standard" canSwap onToggleEaten={() => {}} onOpenSwap={() => {}} />);
     expect(markup).toContain("meal-card-in");
     expect(markup).toContain("meal-card-complete");
     expect(markup).not.toMatch(/class="[^"]*\bts\b/);
-    expect(markup).toContain('aria-label="Swap Lunch"');
+    // Eaten keeps full strength; the chip and the button carry the state, and an eaten meal is not swapped.
+    expect(markup).not.toContain("opacity-70");
+    expect(markup).not.toContain('aria-label="Swap Lunch"');
   });
 
   it("does not leave a filter on the entrance wrapper", () => {
@@ -189,8 +191,8 @@ describe("meal card editing and scheduling", () => {
       canSwap={false} onToggleEaten={() => {}} onOpenSwap={() => {}}
       onOpenEdit={() => {}} />);
     expect(markup).toContain('aria-label="Expand Lunch"');
-    expect(markup).toContain('aria-label="Mark Lunch not eaten"');
-    expect(markup).toContain('aria-label="Lunch, scheduled for 12:00 pm"');
+    expect(markup).toContain('aria-label="Eaten, Lunch. Undo"');
+    expect(markup).toContain('aria-label="Lunch, eaten, scheduled for 12:00 pm"');
   });
 
   it("snaps vertical movement to quarter hours in both directions", () => {
@@ -222,7 +224,8 @@ describe("compact meal card", () => {
       const markup = renderToStaticMarkup(<SlotCard slot={{ ...withMacros, eaten }} variant={variant}
         canSwap onToggleEaten={() => {}} onOpenSwap={() => {}} onOpenEdit={() => {}} />);
       expect(markup).toContain("Chicken and rice");
-      expect(markup).toContain('aria-label="Lunch, scheduled for 12:00 pm"');
+      expect(markup).toContain(eaten ? 'aria-label="Lunch, eaten, scheduled for 12:00 pm"'
+        : 'aria-label="Lunch, scheduled for 12:00 pm"');
       expect(markup).toContain('aria-label="512 calories: 40 grams protein, 50 grams carbs, 10 grams fat"');
       expect(markup).toContain('data-macro-composition="true"');
       expect(markup).toMatch(/aria-label="Expand Lunch"[^>]*aria-expanded="false"|aria-expanded="false"[^>]*aria-label="Expand Lunch"/);

@@ -92,6 +92,20 @@ describe("isAuthExempt", () => {
   it("does not exempt a null pathname", () => {
     expect(isAuthExempt(null)).toBe(false);
   });
+
+  it("exempts the /design galleries only in development with the explicit opt-in", () => {
+    try {
+      expect(isAuthExempt("/design/meal-cards")).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_DESIGN_GALLERY_OPEN", "1");
+      expect(isAuthExempt("/design/meal-cards")).toBe(true);
+      expect(isAuthExempt("/design")).toBe(true);
+      expect(isAuthExempt("/designer")).toBe(false);
+      vi.stubEnv("NODE_ENV", "production");
+      expect(isAuthExempt("/design/meal-cards")).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("AuthGate on an exempt path", () => {

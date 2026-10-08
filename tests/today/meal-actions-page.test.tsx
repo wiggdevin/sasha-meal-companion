@@ -208,7 +208,7 @@ describe("Today eaten feedback", () => {
     vibrate.mockClear();
     Object.defineProperty(window.navigator, "vibrate", { configurable: true, value: vibrate });
   });
-  const tick = () => screen.getByRole("button", { name: "Mark Meal 2 eaten" });
+  const tick = () => screen.getByRole("button", { name: "Mark eaten, Meal 2" });
 
   it("confirms a mark with the shared haptic on that slot's control, and Undo clears it", async () => {
     await mount();
@@ -218,7 +218,7 @@ describe("Today eaten feedback", () => {
     expect(eaten.mock.calls[0].slice(0, 2)).toEqual([date(), "meal-2"]);
     expect(vibrate).toHaveBeenCalledTimes(1);
     expect(tick().getAttribute("data-feedback-state")).toBe("success");
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).hasAttribute("data-feedback-state"))
+    expect(screen.getByRole("button", { name: "Mark eaten, Meal 1" }).hasAttribute("data-feedback-state"))
       .toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     await waitFor(() => expect(eaten).toHaveBeenCalledTimes(2));
@@ -378,7 +378,7 @@ describe("Today write safety", () => {
     let finish!: () => void;
     eaten.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({}); }));
     await mount();
-    fireEvent.click(screen.getByRole("button", { name: "Mark Meal 2 eaten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark eaten, Meal 2" }));
     await act(async () => {});
     await resetTestAccount("22222222-2222-4222-8222-222222222222");
     await act(async () => { finish(); });
@@ -389,7 +389,7 @@ describe("Today write safety", () => {
 
   it("never undoes an old account's eaten mark in a newly bound account", async () => {
     await mount();
-    fireEvent.click(screen.getByRole("button", { name: "Mark Meal 2 eaten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark eaten, Meal 2" }));
     await screen.findByText("Meal 2 marked eaten.");
     const undo = screen.getByRole("button", { name: "Undo" });
     await resetTestAccount("22222222-2222-4222-8222-222222222222");

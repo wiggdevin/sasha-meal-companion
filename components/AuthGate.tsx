@@ -15,6 +15,7 @@ import {
 import { signOutHere, signOutNotice } from "@/lib/device/sign-out";
 import { ActivityPromptProvider } from "@/components/ActivityMismatchPrompt";
 import Button from "@/components/ui/Button";
+import { designGalleryOpen } from "@/app/design/gallery-access";
 import {
   GateShell, OtherTabCard, SignedOutCard, UnsavedChangesCard,
 } from "@/components/GateShell";
@@ -52,6 +53,8 @@ const AUTH_EXEMPT_PATHS = ["/sign-in", "/auth/"];
 
 export function isAuthExempt(pathname: string | null): boolean {
   if (!pathname) return false;
+  // The /design fixture galleries, in local development with an explicit opt-in only.
+  if (designGalleryOpen(pathname)) return true;
   return AUTH_EXEMPT_PATHS.some((path) =>
     path.endsWith("/") ? pathname.startsWith(path) : pathname === path,
   );

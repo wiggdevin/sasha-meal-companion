@@ -123,7 +123,7 @@ describe("onOpenSlot reaches the right Today card", () => {
       onToggleEaten={() => {}} onOpenSwap={() => {}} onPlanWithCoach={() => {}} onLogWhatYouAte={() => {}} />);
     openSlotCard("meal-1");
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-    expect(document.activeElement?.textContent).toBe("Plan with the coach");
+    expect(document.activeElement?.textContent).toBe("Plan with Sasha");
   });
 
   it("does nothing when the slot has no card on screen", () => {

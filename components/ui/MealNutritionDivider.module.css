@@ -6,33 +6,9 @@
   padding: 0 16px;
 }
 
-/* The reference's ornament: a hairline, a small cream diamond, a short hairline. */
-.ornament {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 14px 4px 16px;
-  opacity: .6;
-}
-.ornament span {
-  height: 1px;
-  flex: 1;
-  background: #6a6f59;
-}
-.ornament span:last-child {
-  flex: none;
-  width: 56px;
-}
-.ornament i {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  background: #f3eee2;
-  transform: rotate(45deg);
-}
-
 /* The reference's olive spec panel. */
 .panel {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -63,12 +39,13 @@
   gap: 6px;
   font-size: 12px; /* KIT §14: nothing on a card under 12 px */
   letter-spacing: .06em;
-  color: #b1b2a9;
+  /* ≥ 4.5:1 on the olive panel (#b1b2a9 was 3.7:1; meal cards v2 review). */
+  color: #d4d0c5;
 }
 
 .specValue {
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 16px;
+  font-weight: 600;
   color: #e2dcd0;
 }
 
@@ -94,6 +71,11 @@
 
 .calorie {
   min-width: 72px;
+}
+
+/* The eaten button's ring and tick ride the label's colour (cream on olive, ink on the pill). */
+.eaten :global(.btn-label) {
+  gap: 6px;
 }
 
 .kcalUnit {
