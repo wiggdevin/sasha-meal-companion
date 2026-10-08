@@ -14,9 +14,13 @@ const api = vi.hoisted(() => ({
   undoSaveFavoriteMeal: vi.fn(),
 }));
 vi.mock("@/lib/favorite-meals-client", () => api);
-vi.mock("@/lib/device/account", () => ({ currentAccountOrNull: () => ({ userId: "u1", epoch: 1 }) }));
+vi.mock("@/lib/device/account", () => ({
+  currentAccountOrNull: () => ({ userId: "u1", epoch: 1 }),
+  AccountChanged: class AccountChanged extends Error {},
+}));
 
 import { useMealFavorites } from "./useMealFavorites";
+import { AccountChanged } from "@/lib/device/account";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 
 afterEach(cleanup);
@@ -123,4 +127,42 @@ describe("useMealFavorites", () => {
     await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
     await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
   });
+
+  it("settles quietly, with no unhandled rejection, when the account changes mid-write", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      api.favoriteMealFor.mockResolvedValue(null);
+      api.saveFavoriteMeal.mockRejectedValue(new AccountChanged());
+      const { result, fb } = setup();
+      await waitFor(() => expect(result.current.favoriteFor(planned)).toBeDefined());
+      await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(fb.notify).not.toHaveBeenCalled();
+      expect(result.current.favoriteFor(planned)?.pending).toBe(false);
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+
+  it("settles quietly, with no unhandled rejection, when Undo's own write hits an account change",
+    async () => {
+      const unhandled = vi.fn();
+      process.on("unhandledRejection", unhandled);
+      try {
+        api.favoriteMealFor.mockResolvedValue(null);
+        api.saveFavoriteMeal.mockResolvedValue({ ok: true, id: "saved-9", newlyFavored: [], skipped: [] });
+        api.undoSaveFavoriteMeal.mockRejectedValue(new AccountChanged());
+        const { result, fb } = setup();
+        await waitFor(() => expect(result.current.favoriteFor(planned)).toBeDefined());
+        await act(async () => { result.current.favoriteFor(planned)?.onToggle(); });
+        const notice = fb.notify.mock.calls.at(-1)?.[0];
+        await act(async () => { notice.action.action(); });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off("unhandledRejection", unhandled);
+      }
+    });
 });

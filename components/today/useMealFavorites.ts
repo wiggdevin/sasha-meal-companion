@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MealFavorite } from "@/components/MealFavoriteHeart";
 import type { ActionFeedbackNotice } from "@/components/ui/ActionFeedback";
-import { currentAccountOrNull } from "@/lib/device/account";
+import { AccountChanged } from "@/lib/device/account";
 import {
   favoriteMealFor, removeFavoriteMeal, saveFavoriteMeal, undoSaveFavoriteMeal, type FavoriteMealSource,
 } from "@/lib/favorite-meals-client";
@@ -64,12 +64,10 @@ export function useMealFavorites({ eligible, feedback }: {
   const save = useCallback(async (slot: ResolvedSlot, source: FavoriteMealSource, withUndo: boolean) => {
     const key = keyOf(source);
     const name = slot.meal?.name ?? slot.label;
-    const account = currentAccountOrNull();
     busy(key, true);
     try {
       const result = await saveFavoriteMeal({ name, components: slot.components, source },
         { eligible: eligible ?? undefined });
-      if (currentAccountOrNull()?.userId !== account?.userId) return;
       if (!result.ok) { feedback.notify({ tone: "error", message: result.message }); return; }
       setOne(key, result.id);
       if (!withUndo) return;
@@ -80,8 +78,12 @@ export function useMealFavorites({ eligible, feedback }: {
           void undoSaveFavoriteMeal(result.id, result.newlyFavored).then((undone) => {
             if (!undone.ok) { feedback.notify({ tone: "error", message: undone.message }); return; }
             setOne(key, null);
-          });
+          }).catch((error: unknown) => { if (!(error instanceof AccountChanged)) throw error; });
         } } });
+    } catch (error) {
+      // The write belongs to nobody now (account changed mid-write): settle quietly, as every
+      // other caller of this client does, rather than an unhandled rejection from `void save(...)`.
+      if (!(error instanceof AccountChanged)) throw error;
     } finally {
       busy(key, false);
     }
@@ -90,15 +92,15 @@ export function useMealFavorites({ eligible, feedback }: {
   const remove = useCallback(async (slot: ResolvedSlot, source: FavoriteMealSource, id: string) => {
     const key = keyOf(source);
     const name = slot.meal?.name ?? slot.label;
-    const account = currentAccountOrNull();
     busy(key, true);
     try {
       const result = await removeFavoriteMeal(id);
-      if (currentAccountOrNull()?.userId !== account?.userId) return;
       if (!result.ok) { feedback.notify({ tone: "error", message: result.message }); return; }
       setOne(key, null);
       feedback.notify({ tone: "success", message: `${name} removed from favorite meals. Its foods stay Favored.`,
         action: { label: "Undo", action: () => { void save(slot, source, false); } } });
+    } catch (error) {
+      if (!(error instanceof AccountChanged)) throw error;
     } finally {
       busy(key, false);
     }
