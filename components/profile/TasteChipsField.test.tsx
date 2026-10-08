@@ -23,7 +23,7 @@ const lib = vi.hoisted(() => ({
   confirm: vi.fn(),
   undo: vi.fn(),
   nextActionId: vi.fn(() => "action-1"),
-  syncOnce: vi.fn<() => Promise<{ pull: unknown; push: { failed: boolean } } | undefined>>(async () => undefined),
+  flushOutboxNow: vi.fn<() => Promise<boolean>>(async () => true),
 }));
 
 vi.mock("@/lib/profile/prefs-client", () => ({ requestTasteChips: lib.request }));
@@ -33,7 +33,7 @@ vi.mock("@/lib/profile/taste-confirm-client", () => ({
   undoTasteChips: lib.undo,
   newTasteActionId: lib.nextActionId,
 }));
-vi.mock("@/lib/sync/client", () => ({ syncOnce: lib.syncOnce }));
+vi.mock("@/lib/sync/client", () => ({ flushOutboxNow: lib.flushOutboxNow }));
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); lib.enabled.mockResolvedValue("enabled"); });
 
@@ -364,7 +364,7 @@ describe("TasteChipsField", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
       fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
       await waitFor(() => expect(lib.confirm).toHaveBeenCalledTimes(2));
-      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+      expect(lib.flushOutboxNow).toHaveBeenCalledTimes(1);
       expect(lib.confirm.mock.calls[0][0].actionId).toBe(lib.confirm.mock.calls[1][0].actionId);
       expect(await screen.findByText("Saved.")).toBeTruthy(); // the retry's success, shown honestly
     });
@@ -380,7 +380,7 @@ describe("TasteChipsField", () => {
       fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
       expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
       expect(lib.confirm).toHaveBeenCalledTimes(2); // the one bounded retry, never a third call
-      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+      expect(lib.flushOutboxNow).toHaveBeenCalledTimes(1);
     });
 
     it("never triggers the sync retry outside onboarding (Settings source)", async () => {
@@ -394,36 +394,39 @@ describe("TasteChipsField", () => {
       fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
       expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
       expect(lib.confirm).toHaveBeenCalledTimes(1);
-      expect(lib.syncOnce).not.toHaveBeenCalled();
+      expect(lib.flushOutboxNow).not.toHaveBeenCalled();
     });
 
-    it("does not retry Confirm when the sync pass itself leaves work queued, and surfaces the original failure", async () => {
+    it("does not retry Confirm when flushOutboxNow reports the settings op is still queued, and surfaces the original failure", async () => {
+      // flushOutboxNow re-reads the outbox after its sync pass and answers false unless nothing is
+      // left queued -- a plain "the pass didn't fail" is not the same question (a joined pass can
+      // answer success without ever reading THIS write's queue entry, or settle it as a conflict).
       bindAccount("user-onboarding");
       lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
       lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
         code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
-      lib.syncOnce.mockResolvedValue({ pull: {}, push: { failed: true } });
+      lib.flushOutboxNow.mockResolvedValue(false);
       await renderEnabled("onboarding");
       await type("okra");
       fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
       fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
       expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
-      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
-      expect(lib.confirm).toHaveBeenCalledTimes(1); // the sync never landed; retrying Confirm would just repeat the same 409
+      expect(lib.flushOutboxNow).toHaveBeenCalledTimes(1);
+      expect(lib.confirm).toHaveBeenCalledTimes(1); // the write never landed; retrying Confirm would just repeat the same 409
     });
 
-    it("does not retry Confirm when the sync pass itself rejects, and surfaces the original failure", async () => {
+    it("does not retry Confirm when flushOutboxNow itself rejects, and surfaces the original failure", async () => {
       bindAccount("user-onboarding");
       lib.request.mockResolvedValue({ ok: true, suggestion: SEND });
       lib.confirm.mockResolvedValue({ ok: false, reason: "refused", status: 409,
         code: "settings_not_synced", message: "Your settings have not reached the server yet. Try again after it syncs." });
-      lib.syncOnce.mockRejectedValue(new Error("offline"));
+      lib.flushOutboxNow.mockRejectedValue(new Error("offline"));
       await renderEnabled("onboarding");
       await type("okra");
       fireEvent.click(await screen.findByRole("button", { name: "Okra" }));
       fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
       expect(await screen.findByText("Your settings have not reached the server yet. Try again after it syncs.")).toBeTruthy();
-      expect(lib.syncOnce).toHaveBeenCalledTimes(1);
+      expect(lib.flushOutboxNow).toHaveBeenCalledTimes(1);
       expect(lib.confirm).toHaveBeenCalledTimes(1);
     });
   });

@@ -38,7 +38,7 @@ import Button from "@/components/ui/Button";
 import DietaryTextHint from "@/components/ui/DietaryTextHint";
 import Thinking from "@/components/ui/Thinking";
 import { accountHandle } from "@/lib/device/account";
-import { syncOnce } from "@/lib/sync/client";
+import { flushOutboxNow } from "@/lib/sync/client";
 import { CUISINE_LABELS, CUISINES, type CuisineKey } from "@/lib/profile/cuisines";
 import { requestTasteChips } from "@/lib/profile/prefs-client";
 import { readTasteChipsEnabled, type TasteChipsAvailability } from "@/lib/profile/taste-enabled-client";
@@ -263,15 +263,20 @@ export default function TasteChipsField({ source, heading, availability, onDisab
    * One confirm attempt, with the bounded onboarding-only retry (D9 followup #2): a 409
    * `settings_not_synced` means the account's settings row has not reached the server yet — the
    * onboarding step that mounts this field races its own first settings push, so the confirm can
-   * land just ahead of it. Retried exactly once, for `source: "onboarding"` only, after a sync pass
-   * that ACTUALLY LANDS (no throw, and nothing left in the outbox): the SAME action id and chips,
-   * so the server answers its stored receipt rather than writing twice if the first attempt really
-   * landed. A sync that fails or still has work queued never retries Confirm — resending the exact
-   * request that just got `settings_not_synced` into a settings row that still has not reached the
-   * server would only repeat the same 409 — so this surfaces that first outcome as a failure
-   * instead (the user's own retry tap bounds it the same way a second 409 would). A second
-   * `settings_not_synced` after a sync that did land (or anything else) is also shown as a
-   * failure, never retried again.
+   * land just ahead of it. Retried exactly once, for `source: "onboarding"` only, after
+   * `flushOutboxNow` (lib/sync/client.ts) answers that the account's settings write has ACTUALLY
+   * reached the server: the SAME action id and chips, so the server answers its stored receipt
+   * rather than writing twice if the first attempt really landed. A plain `syncOnce` with
+   * `!push.failed` is not proof of that — a joined pass answering a DIFFERENT caller's sync never
+   * even reads this device's own queue the way `flushOutboxNow` re-checks it, and a pass can
+   * "succeed" (nothing failed) while the settings op it cared about settled as a conflict rather
+   * than landing. `flushOutboxNow` re-reads the outbox after the pass and answers false unless
+   * nothing is left queued, which is the actual question here. A sync that does not clear the
+   * queue never retries Confirm — resending the exact request that just got `settings_not_synced`
+   * into a settings row that still has not reached the server would only repeat the same 409 — so
+   * this surfaces that first outcome as a failure instead (the user's own retry tap bounds it the
+   * same way a second 409 would). A second `settings_not_synced` after a sync that did land (or
+   * anything else) is also shown as a failure, never retried again.
    */
   async function attemptConfirm(request: TasteConfirmRequest, actionId: string): Promise<TasteConfirmResult> {
     const first = await confirmTasteChips(request);
@@ -279,7 +284,7 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     const settingsNotSynced = first.reason === "refused" && first.code === TASTE_CONFIRM_ERRORS.settingsNotSynced;
     if (source !== "onboarding" || !settingsNotSynced || syncRetriedFor.current === actionId) throw first;
     syncRetriedFor.current = actionId;
-    const synced = await syncOnce(accountHandle()).then((result) => !result?.push?.failed, () => false);
+    const synced = await flushOutboxNow(accountHandle()).catch(() => false);
     if (!synced) throw first;
     const second = await confirmTasteChips(request);
     if (second.ok) return second.result;
