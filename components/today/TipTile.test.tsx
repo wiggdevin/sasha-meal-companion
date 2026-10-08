@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import TipTile, { MAX_DOTS } from "./TipTile";
 import { APP_TIPS, boardTips, type BoardTip } from "@/lib/today/board";
@@ -76,12 +76,21 @@ describe("TipTile", () => {
     // A first cup drops the water tip's relevance: the board hands over a new order.
     rerender(<TipTile tips={[b, c, a]} />);
     expect(current(container).textContent).toContain(a.title);
-    expect(live(container).textContent).toContain("Tip 3 of 3.");
+    // Nothing new is said: the shown tip did not change.
+    expect(live(container).textContent).toContain("Tip 1 of 3.");
     fireEvent.click(screen.getByRole("button", { name: "Next tip" }));
     expect(current(container).textContent).toContain(b.title);
+    expect(live(container).textContent).toContain(`Tip 1 of 3. ${b.title}`);
     // A shown tip that leaves the list falls back to the first.
     rerender(<TipTile tips={[c, a]} />);
     expect(current(container).textContent).toContain(c.title);
+  });
+
+  it("moves on twice for two taps in one batch", () => {
+    const { container } = mount();
+    const next = screen.getByRole("button", { name: "Next tip" });
+    act(() => { fireEvent.click(next); fireEvent.click(next); });
+    expect(current(container).textContent).toContain(APP_TIPS[2].title);
   });
 
   it("draws every tip in one place, so the tile never changes height between them", () => {

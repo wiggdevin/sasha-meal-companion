@@ -37,14 +37,18 @@ describe("the body page's days", () => {
     expect(result.current.daily).toEqual(day("2026-10-07", 79.6));
   });
 
-  it("never let a slow older read paint over a newer one", async () => {
+  it("read one at a time: a burst of passes costs one more read, landing after the slow one", async () => {
     let slow!: (value: unknown) => void;
     reads.daily.mockImplementationOnce(() => new Promise((resolve) => { slow = resolve; }))
       .mockResolvedValueOnce(day("2026-10-07", 79.6));
     const { result } = renderHook(() => useBodyDashboard());
-    await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
-    expect(result.current.daily).toEqual(day("2026-10-07", 79.6));
+    await act(async () => {
+      for (let i = 0; i < 5; i++) window.dispatchEvent(new Event(SYNCED_EVENT));
+    });
+    expect(reads.daily).toHaveBeenCalledTimes(1);
     await act(async () => { slow(day("2026-10-06", 80)); });
+    await act(async () => {});
+    expect(reads.daily).toHaveBeenCalledTimes(2);
     expect(result.current.daily).toEqual(day("2026-10-07", 79.6));
   });
 });

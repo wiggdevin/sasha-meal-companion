@@ -261,7 +261,11 @@ export default function HealthSourcesSheet({ sources, onClose, onChanged, appleO
           </Button>
         ) : (
           <Button disabled={!online}
-            onClick={() => { void connectOura(accountHandle()).catch(() => {}); }}>
+            onClick={() => {
+              if (running.current) return;
+              running.current = true;
+              void connectOura(accountHandle()).catch(() => {}).finally(() => { running.current = false; });
+            }}>
             Connect Oura
           </Button>
         ))}

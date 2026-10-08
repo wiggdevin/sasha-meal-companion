@@ -58,12 +58,22 @@ export function useBodyDashboard(): BodyDashboardData {
     const h = currentAccountOrNull();
     if (h === null) return;
     let live = true;
+    // One read at a time: passes that arrive while one is out ask for a single read after it, so a
+    // burst of passes costs two requests and no older answer can land after a newer one.
+    let busy = false;
+    let again = false;
     const read = () => {
+      if (busy) { again = true; return; }
+      busy = true;
       const mine = ++dailyRead.current;
       const { from, to } = windowRange();
       // A result for an account that has since gone is dropped (the fetch rejects).
       void fetchDaily(h, from, to)
-        .then((next) => { if (live && mine === dailyRead.current) setDaily(next); }).catch(() => {});
+        .then((next) => { if (live && mine === dailyRead.current) setDaily(next); }, () => {})
+        .finally(() => {
+          busy = false;
+          if (live && again) { again = false; read(); }
+        });
     };
     read();
     window.addEventListener(SYNCED_EVENT, read);
