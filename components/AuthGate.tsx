@@ -15,6 +15,7 @@ import {
 import { signOutHere, signOutNotice } from "@/lib/device/sign-out";
 import { ActivityPromptProvider } from "@/components/ActivityMismatchPrompt";
 import Button from "@/components/ui/Button";
+import { designGalleryOpen } from "@/app/design/gallery-access";
 import {
   GateShell, OtherTabCard, SignedOutCard, UnsavedChangesCard,
 } from "@/components/GateShell";
@@ -50,15 +51,10 @@ export type Gate = "unknown" | "out" | "onboarding" | "in";
  */
 const AUTH_EXEMPT_PATHS = ["/sign-in", "/auth/"];
 
-/** `/design` and its sub-pages: development-only fixture galleries (app/design). */
-export function isDesignGallery(pathname: string): boolean {
-  return pathname === "/design" || pathname.startsWith("/design/");
-}
-
 export function isAuthExempt(pathname: string | null): boolean {
   if (!pathname) return false;
-  // The /design galleries (static fixtures, 404 in production) open without an account in development.
-  if (process.env.NODE_ENV !== "production" && isDesignGallery(pathname)) return true;
+  // The /design fixture galleries, in local development with an explicit opt-in only.
+  if (designGalleryOpen(pathname)) return true;
   return AUTH_EXEMPT_PATHS.some((path) =>
     path.endsWith("/") ? pathname.startsWith(path) : pathname === path,
   );

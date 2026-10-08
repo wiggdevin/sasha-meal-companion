@@ -4,7 +4,9 @@ Owner ask: "go through the meal cards … understand exactly what the user needs
 then when they're going through … then upgrade the design." The design stays Harvest (DESIGN.md);
 this note records what changed on the Today meal card (`components/SlotCard.tsx`) and why.
 
-Review gallery: `/design/meal-cards` (development only, static fixtures, every state).
+Review gallery: `/design/meal-cards` (static fixtures, every state). It opens without an account
+only under `next dev` with `NEXT_PUBLIC_DESIGN_GALLERY_OPEN=1` (`app/design/gallery-access.ts`);
+otherwise it is a normal signed-in page, and a production build answers 404.
 
 ## What the person needs
 
@@ -40,9 +42,14 @@ it stays.
 1. **Action strip.** The beige hinge becomes the card's action row on every planned card:
    `[✓ Eaten]` (olive primary, words and glyph) · `[Swap]` (secondary, when the slot can swap and is
    not eaten) · the details chevron at its end. The calorie numeral is a figure again, not a control.
-   Eaten, the button reads "Eaten" with a filled tick and `aria-pressed`; a tap undoes it.
+   Eaten, the button reads "Eaten" with a filled tick; a tap undoes it. Its accessible name starts
+   with the words on it ("Mark eaten, Meal 2" / "Eaten, Meal 2. Undo", WCAG 2.5.3 label in name),
+   so it is an action button whose name says the state, not an `aria-pressed` toggle (a pressed
+   toggle must keep one name; review round 1).
 2. **Status chip.** The photo chip reads `Next · 12:30 PM`, `Now · 12:30 PM`, `Eaten · 8:00 AM`, or
-   `Meal 3 · 6:30 PM` — a word first, never a bare number.
+   `Meal 3 · 6:30 PM` — a word first, never a bare number. At 370 px and below a compact later card's
+   chip keeps only its time (the photo is ~110 px wide and the slot name overran the title); Now,
+   Next and Eaten always show, and the chip's spoken label always names the slot.
 3. **Eaten** keeps full colour and contrast; the chip and the button carry the state. The dim is gone.
 4. **Protein on the compact card:** `433 kcal · 36 g protein` beside the photo (the split bar stays
    as texture under it).
