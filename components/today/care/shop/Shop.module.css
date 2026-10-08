@@ -18,12 +18,24 @@
   user-select: none;
   -webkit-user-drag: none;
 }
-/* Shorts follow the body: the pose's own art is the mask, so nothing shows past Sprout's outline. */
+/* Shorts follow the body: the pose's own art is the mask, so nothing shows past the companion's outline. */
 .bodyClip {
   -webkit-mask-image: url("/pet/hero/sprout-content.webp");
   mask-image: url("/pet/hero/sprout-content.webp");
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
+}
+.bodyClip[data-mascot="blueberry"] {
+  -webkit-mask-image: url("/pet/mascots/blueberry/content.webp");
+  mask-image: url("/pet/mascots/blueberry/content.webp");
+}
+.bodyClip[data-mascot="mushroom"] {
+  -webkit-mask-image: url("/pet/mascots/mushroom/content.webp");
+  mask-image: url("/pet/mascots/mushroom/content.webp");
+}
+.bodyClip[data-mascot="peapod"] {
+  -webkit-mask-image: url("/pet/mascots/peapod/content.webp");
+  mask-image: url("/pet/mascots/peapod/content.webp");
 }
 .leaf { object-fit: contain; }
 
