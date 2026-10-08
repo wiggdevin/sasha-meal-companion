@@ -5,7 +5,12 @@ import Button from "@/components/ui/Button";
 import Notice from "@/components/ui/Notice";
 import { APP_NAME } from "@/lib/brand";
 import type { Store } from "@/lib/types";
-import { meaningfulMomentReached, recordAppOpen } from "@/lib/install-prompt/readiness";
+import {
+  androidPromptOnCooldown,
+  meaningfulMomentReached,
+  recordAndroidPromptDeclined,
+  recordAppOpen,
+} from "@/lib/install-prompt/readiness";
 import {
   ANDROID_INSTALLED_EVENT,
   ANDROID_PROMPT_READY_EVENT,
@@ -70,17 +75,13 @@ function isIpad(ua: string, platform: string, maxTouchPoints: number): boolean {
   return /iPad/.test(ua) || (platform === "MacIntel" && maxTouchPoints > 1);
 }
 
-type IosOtherBrowser = "crios" | "fxios" | "edgios" | "opios";
-
-/** Chrome/Firefox/Edge/Opera on iOS all run on WebKit, but "Add to Home Screen" there makes a
- *  bookmark, not this PWA — only Safari's own Share sheet installs it (Chrome on iOS 16.4+ is the
- *  one documented exception). */
-function iosOtherBrowser(ua: string): IosOtherBrowser | null {
-  if (/CriOS/.test(ua)) return "crios";
-  if (/FxiOS/.test(ua)) return "fxios";
-  if (/EdgiOS/.test(ua)) return "edgios";
-  if (/OPiOS/.test(ua)) return "opios";
-  return null;
+/** Any other real iOS browser — Chrome, Firefox, Edge, Opera. These all run on WebKit, and on
+ *  iOS 16.4+ each one's own Share menu can "Add to Home Screen" too (Sol review, 2026-10-08,
+ *  BLOCK: the earlier copy falsely told Firefox/Edge/old-Chrome users this was impossible — the
+ *  UA cannot tell install CAPABILITY apart from which install API fires, so it never claims
+ *  inability for a real browser, only for an in-app webview, which has no Share menu at all). */
+function isOtherIosBrowser(ua: string): boolean {
+  return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
 }
 
 /** An in-app webview (Instagram, Facebook, TikTok, WeChat, X) — none of these expose a real
@@ -89,24 +90,10 @@ function isInAppWebview(ua: string): boolean {
   return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|TikTok/i.test(ua);
 }
 
-function iosVersion(ua: string): [number, number] | null {
-  const match = /OS (\d+)_(\d+)/.exec(ua);
-  if (!match) return null;
-  return [Number(match[1]), Number(match[2])];
-}
-
-/** iOS 16.4 shipped the WebKit changes Chrome-on-iOS install support needs. */
-function supportsIosChromeInstall(ua: string): boolean {
-  const version = iosVersion(ua);
-  if (!version) return false;
-  const [major, minor] = version;
-  return major > 16 || (major === 16 && minor >= 4);
-}
-
 type Variant =
   | { kind: "android" }
   | { kind: "ios-safari"; ipad: boolean }
-  | { kind: "ios-chrome-capable" }
+  | { kind: "ios-other-browser" }
   | { kind: "ios-open-safari" };
 
 function detectVariant(hasAndroidPrompt: boolean): Variant | null {
@@ -117,12 +104,10 @@ function detectVariant(hasAndroidPrompt: boolean): Variant | null {
   const maxTouchPoints = window.navigator.maxTouchPoints ?? 0;
   if (!isIos(ua, platform, maxTouchPoints)) return null;
 
-  const other = iosOtherBrowser(ua);
-  if (!other && !isInAppWebview(ua)) {
-    return { kind: "ios-safari", ipad: isIpad(ua, platform, maxTouchPoints) };
-  }
-  if (other === "crios" && supportsIosChromeInstall(ua)) return { kind: "ios-chrome-capable" };
-  return { kind: "ios-open-safari" };
+  // An in-app webview has no Share menu at all — checked first, since some spoof a browser token.
+  if (isInAppWebview(ua)) return { kind: "ios-open-safari" };
+  if (isOtherIosBrowser(ua)) return { kind: "ios-other-browser" };
+  return { kind: "ios-safari", ipad: isIpad(ua, platform, maxTouchPoints) };
 }
 
 function ShareIcon({ className }: { className?: string }) {
@@ -162,7 +147,7 @@ function IosShareGuide({ ipad, onDismiss }: { ipad: boolean; onDismiss: () => vo
   const location = ipad ? "top-right toolbar" : "bottom toolbar";
   return (
     <div className="shell">
-      <div className="surface flex flex-col gap-3 px-4 py-4">
+      <div className="surface flex flex-col gap-3 px-4 py-4" role="status">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-fog text-charcoal">
             <ShareIcon />
@@ -199,6 +184,7 @@ function IosShareGuide({ ipad, onDismiss }: { ipad: boolean; onDismiss: () => vo
 export default function InstallPrompt({ store }: { store: Pick<Store, "days"> }) {
   const [variant, setVariant] = useState<Variant | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [installError, setInstallError] = useState(false);
 
   const recompute = useCallback((currentStore: Pick<Store, "days">) => {
     if (typeof window === "undefined") return;
@@ -206,9 +192,14 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       setVariant(null);
       return;
     }
+    // `window.localStorage` can itself throw (sandboxed/third-party contexts) before any method on
+    // it is even called — the try sits here, around the reference, not just around the read/write
+    // helpers, which are already individually safe.
     let opens = 0;
+    let storage: Storage | null = null;
     try {
-      opens = recordAppOpen(window.localStorage, window.sessionStorage);
+      storage = window.localStorage;
+      opens = recordAppOpen(storage);
     } catch {
       opens = 0;
     }
@@ -216,7 +207,12 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       setVariant(null);
       return;
     }
-    setVariant(detectVariant(!!readDeferredInstallPrompt()));
+    const detected = detectVariant(!!readDeferredInstallPrompt());
+    if (detected?.kind === "android" && storage && androidPromptOnCooldown(storage, currentStore)) {
+      setVariant(null);
+      return;
+    }
+    setVariant(detected);
   }, []);
 
   useEffect(() => {
@@ -246,34 +242,58 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
 
   async function onInstall(): Promise<void> {
     setInstalling(true);
-    const outcome = await triggerAndroidInstall();
-    setInstalling(false);
-    if (outcome === "unavailable") {
+    setInstallError(false);
+    try {
+      const outcome = await triggerAndroidInstall();
+      if (outcome === "unavailable") {
+        setVariant(null);
+        return;
+      }
+      if (outcome === "error") {
+        setInstallError(true);
+        return;
+      }
+      if (outcome === "accepted") {
+        writeDismissed();
+        setVariant(null);
+        return;
+      }
+      // "dismissed": the browser's own prompt was declined. This is not the same as the user
+      // explicitly closing the card (the X button), so it is not suppressed forever (Sol review,
+      // 2026-10-08, WARN) — it waits out a cooldown or the next meal logged, whichever is sooner.
+      try {
+        recordAndroidPromptDeclined(window.localStorage, store);
+      } catch {
+        // Harmless: the prompt simply reappears sooner than intended.
+      }
       setVariant(null);
-      return;
+    } catch {
+      // A rejection `triggerAndroidInstall` itself did not catch (defense in depth) — restore the
+      // button and tell the user, rather than leaving it stuck on "Installing…".
+      setInstallError(true);
+    } finally {
+      setInstalling(false);
     }
-    // "accepted" or "dismissed" both close the card — a declined browser prompt is not re-asked
-    // immediately; the hint simply does not reappear until the next qualifying event/app open.
-    writeDismissed();
-    setVariant(null);
   }
 
   if (variant.kind === "android") {
     return (
       <div className="shell">
-        <Notice tone="info" title={`Install ${APP_NAME}`} onDismiss={dismiss}
+        <Notice tone={installError ? "error" : "info"} title={`Install ${APP_NAME}`} onDismiss={dismiss}
           action={{ label: installing ? "Installing…" : "Install", onClick: () => void onInstall(), disabled: installing }}>
-          Add {APP_NAME} to your home screen for one-tap access.
+          {installError
+            ? "That didn't work. Try again."
+            : `Add ${APP_NAME} to your home screen for one-tap access.`}
         </Notice>
       </div>
     );
   }
 
-  if (variant.kind === "ios-chrome-capable") {
+  if (variant.kind === "ios-other-browser") {
     return (
       <div className="shell">
         <Notice tone="info" title={`Install ${APP_NAME}`} onDismiss={dismiss}>
-          Tap Share, then Add to Home Screen — Chrome on this iPhone supports it too.
+          Tap Share in your browser, then Add to Home Screen.
         </Notice>
       </div>
     );

@@ -69,6 +69,28 @@ describe("android install capture", () => {
     expect(await triggerAndroidInstall()).toBe("unavailable");
   });
 
+  // Sol review, 2026-10-08, BLOCK: a rejected prompt()/userChoice left the caller's button stuck
+  // on "Installing…" forever — this must answer, never throw or hang.
+  it("answers error, never throws, when prompt() rejects", async () => {
+    const event = new Event("beforeinstallprompt") as unknown as BeforeInstallPromptEvent;
+    Object.defineProperty(event, "preventDefault", { value: () => {} });
+    Object.defineProperty(event, "prompt", { value: () => Promise.reject(new Error("blocked")) });
+    // A getter, not a pre-built rejected promise: it is created only once `triggerAndroidInstall`
+    // actually reads it, and is awaited (and so handled) in the same call — never unhandled.
+    Object.defineProperty(event, "userChoice", { get: () => Promise.reject(new Error("unused")) });
+    window.dispatchEvent(event);
+    await expect(triggerAndroidInstall()).resolves.toBe("error");
+  });
+
+  it("answers error, never throws, when userChoice rejects", async () => {
+    const event = new Event("beforeinstallprompt") as unknown as BeforeInstallPromptEvent;
+    Object.defineProperty(event, "preventDefault", { value: () => {} });
+    Object.defineProperty(event, "prompt", { value: () => Promise.resolve() });
+    Object.defineProperty(event, "userChoice", { get: () => Promise.reject(new Error("dismissed-ish")) });
+    window.dispatchEvent(event);
+    await expect(triggerAndroidInstall()).resolves.toBe("error");
+  });
+
   it("marks installed and fires the installed event on appinstalled", () => {
     fireBeforeInstallPrompt();
     expect(wasInstalledThisSession()).toBe(false);

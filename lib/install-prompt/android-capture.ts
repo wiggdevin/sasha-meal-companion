@@ -56,15 +56,21 @@ export function wasInstalledThisSession(): boolean {
 /**
  * Fires the captured prompt and reads `userChoice`. A missing deferred event (never captured,
  * already used, or already installed) answers `"unavailable"` rather than throwing — the card
- * treats that the same as dismissed.
+ * treats that the same as dismissed. A rejected `prompt()` or `userChoice` (Sol review, 2026-10-08,
+ * BLOCK: the button was left stuck on "Installing…") answers `"error"` instead of throwing, so the
+ * caller never has to guess whether it is safe to re-render.
  */
-export async function triggerAndroidInstall(): Promise<"accepted" | "dismissed" | "unavailable"> {
+export async function triggerAndroidInstall(): Promise<"accepted" | "dismissed" | "unavailable" | "error"> {
   const event = deferred;
   if (!event) return "unavailable";
   deferred = null;
-  await event.prompt();
-  const choice = await event.userChoice;
-  return choice.outcome;
+  try {
+    await event.prompt();
+    const choice = await event.userChoice;
+    return choice.outcome;
+  } catch {
+    return "error";
+  }
 }
 
 /** Test-only: resets module state between specs. */

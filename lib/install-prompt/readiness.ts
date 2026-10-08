@@ -2,34 +2,75 @@ import type { Store } from "@/lib/types";
 
 /** Durable across sessions: how many times the app has been opened on this device. */
 export const OPEN_COUNT_KEY = "meal-companion:install-prompt-opens";
-/** Per-tab guard so one session only ever increments the durable count once. */
-const OPEN_MARKED_KEY = "meal-companion:install-prompt-open-marked";
+/** When the most recently counted open happened (epoch ms). */
+const LAST_OPEN_AT_KEY = "meal-companion:install-prompt-last-open-at";
+/** A reopen at least this long after the last one counts as a new open even on the same day. */
+const OPEN_GAP_MS = 30 * 60 * 1000;
+
+/** How long a declined Android install prompt stays quiet. */
+export const ANDROID_DECLINE_COOLDOWN_DAYS = 7;
+const ANDROID_DECLINED_AT_KEY = "meal-companion:install-prompt-android-declined-at";
+const ANDROID_DECLINED_MEAL_COUNT_KEY = "meal-companion:install-prompt-android-declined-meals";
 
 type ReadWrite = Pick<Storage, "getItem" | "setItem">;
+type Read = Pick<Storage, "getItem">;
 
 function toCount(raw: string | null): number {
   const n = raw === null ? 0 : Number(raw);
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
 }
 
+function toTimestamp(raw: string | null): number | null {
+  if (raw === null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isSameCalendarDay(a: number, b: number): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return da.getFullYear() === db.getFullYear()
+    && da.getMonth() === db.getMonth()
+    && da.getDate() === db.getDate();
+}
+
 /**
- * Counts app opens, once per tab session (`session` guards the double-count), persisted across
- * sessions in `storage`. This is only the fallback "meaningful moment" for an account that has not
- * logged a meal yet — see `meaningfulMomentReached`.
+ * Counts app opens in durable storage — never a per-tab guard, which never counted a retained
+ * Safari tab that was simply reloaded or reopened (Sol review, 2026-10-08). A new open is a
+ * different calendar day from the last recorded one, or at least `OPEN_GAP_MS` since it, whichever
+ * comes first; this is only the fallback "meaningful moment" for an account that has not logged a
+ * meal yet — see `meaningfulMomentReached`. Never throws: a storage failure (private browsing,
+ * quota, disabled storage) answers the best count already known, or zero.
  */
-export function recordAppOpen(storage: ReadWrite, session: ReadWrite): number {
-  const current = toCount(storage.getItem(OPEN_COUNT_KEY));
-  if (session.getItem(OPEN_MARKED_KEY) === "1") return current;
-  session.setItem(OPEN_MARKED_KEY, "1");
-  const next = current + 1;
-  storage.setItem(OPEN_COUNT_KEY, String(next));
-  return next;
+export function recordAppOpen(storage: ReadWrite, now: number = Date.now()): number {
+  try {
+    const current = toCount(storage.getItem(OPEN_COUNT_KEY));
+    const last = toTimestamp(storage.getItem(LAST_OPEN_AT_KEY));
+    const isNewOpen = last === null || !isSameCalendarDay(last, now) || now - last >= OPEN_GAP_MS;
+    const next = isNewOpen ? current + 1 : current;
+    if (isNewOpen) {
+      // Only a counted open moves the reference point — otherwise a stream of reloads inside the
+      // gap would keep resetting their own clock and never cross it.
+      storage.setItem(OPEN_COUNT_KEY, String(next));
+      storage.setItem(LAST_OPEN_AT_KEY, String(now));
+    }
+    return next;
+  } catch {
+    return 0;
+  }
 }
 
 /** Pure: has this account ever logged (eaten or extra) a meal, on any stored day? */
 export function hasLoggedAnyMeal(store: Pick<Store, "days">): boolean {
   return Object.values(store.days ?? {}).some((day) =>
     (day.extras?.length ?? 0) > 0 || Object.keys(day.eaten ?? {}).length > 0);
+}
+
+/** Pure: the total count of logged (eaten or extra) meals across every stored day. Used only to
+ *  tell whether a NEW meal was logged after a declined Android prompt — see `androidPromptOnCooldown`. */
+export function loggedMealCount(store: Pick<Store, "days">): number {
+  return Object.values(store.days ?? {}).reduce((total, day) =>
+    total + Object.keys(day.eaten ?? {}).length + (day.extras?.length ?? 0), 0);
 }
 
 /**
@@ -39,4 +80,43 @@ export function hasLoggedAnyMeal(store: Pick<Store, "days">): boolean {
  */
 export function meaningfulMomentReached(store: Pick<Store, "days">, opens: number): boolean {
   return hasLoggedAnyMeal(store) || opens >= 2;
+}
+
+/**
+ * A declined (not dismissed-by-the-user) Android install prompt is not suppressed forever (Sol
+ * review, 2026-10-08, WARN): record when it happened and how many meals were logged by then.
+ * Never throws.
+ */
+export function recordAndroidPromptDeclined(
+  storage: ReadWrite,
+  store: Pick<Store, "days">,
+  now: number = Date.now(),
+): void {
+  try {
+    storage.setItem(ANDROID_DECLINED_AT_KEY, String(now));
+    storage.setItem(ANDROID_DECLINED_MEAL_COUNT_KEY, String(loggedMealCount(store)));
+  } catch {
+    // Private browsing / storage disabled — the prompt just reappears sooner, which is harmless.
+  }
+}
+
+/**
+ * True while a declined Android prompt should stay quiet: within `ANDROID_DECLINE_COOLDOWN_DAYS`
+ * of the decline AND no meal has been logged since. Either condition clearing re-allows the
+ * prompt. Never throws (a storage failure answers "not on cooldown", i.e. safe to show).
+ */
+export function androidPromptOnCooldown(
+  storage: Read,
+  store: Pick<Store, "days">,
+  now: number = Date.now(),
+): boolean {
+  try {
+    const declinedAt = toTimestamp(storage.getItem(ANDROID_DECLINED_AT_KEY));
+    if (declinedAt === null) return false;
+    const countAtDecline = toCount(storage.getItem(ANDROID_DECLINED_MEAL_COUNT_KEY));
+    if (loggedMealCount(store) > countAtDecline) return false;
+    return now - declinedAt < ANDROID_DECLINE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
 }

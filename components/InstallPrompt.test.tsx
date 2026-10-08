@@ -98,6 +98,19 @@ function fireBeforeInstallPrompt(outcome: "accepted" | "dismissed" = "accepted")
   return { preventDefault, prompt };
 }
 
+/** A captured prompt whose `prompt()` rejects — simulates the browser failing mid-install. */
+function fireBeforeInstallPromptThatRejects() {
+  const preventDefault = vi.fn();
+  const prompt = vi.fn().mockRejectedValue(new Error("blocked"));
+  const event = new Event("beforeinstallprompt") as unknown as BeforeInstallPromptEvent;
+  Object.defineProperty(event, "preventDefault", { value: preventDefault });
+  Object.defineProperty(event, "prompt", { value: prompt });
+  // A getter, not a pre-built rejected promise: read (and so handled) only once triggered.
+  Object.defineProperty(event, "userChoice", { get: () => Promise.reject(new Error("unused")) });
+  window.dispatchEvent(event);
+  return { preventDefault, prompt };
+}
+
 describe("InstallPrompt", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -204,6 +217,90 @@ describe("InstallPrompt", () => {
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
       expect(await screen.findByRole("button", { name: "Install" })).toBeTruthy();
     });
+
+    // Sol review, 2026-10-08, BLOCK: a rejected prompt()/userChoice left the button stuck on
+    // "Installing…" forever, with no way to retry.
+    it("restores the button and shows a short error when the prompt rejects", async () => {
+      asAgent(ANDROID_CHROME);
+      attachAndroidInstallCapture();
+      fireBeforeInstallPromptThatRejects();
+      render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
+      const button = await screen.findByRole("button", { name: "Install" });
+      fireEvent.click(button);
+      await screen.findByText(/didn.t work/i);
+      // The button is back to "Install" — never stuck on "Installing…" — and the card is still
+      // there (not dismissed by a failure).
+      expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+      expect(screen.queryByText(/Installing…/)).toBeNull();
+      expect(localStorage.getItem(DISMISSED_KEY)).toBeNull();
+    });
+
+    // Sol review, 2026-10-08, WARN: a declined (not dismissed-by-the-user) prompt must not be
+    // suppressed forever.
+    describe("a declined prompt (not a user dismiss)", () => {
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      /** Declines the real browser prompt (real timers — the async resolution needs them), then
+       *  unmounts and hands back the real epoch ms the decline was recorded at, so a later part of
+       *  the test can move the clock forward from exactly that point with fake timers. */
+      async function declineOnce(): Promise<number> {
+        asAgent(ANDROID_CHROME);
+        attachAndroidInstallCapture();
+        fireBeforeInstallPrompt("dismissed");
+        const rendered = render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
+        const button = await screen.findByRole("button", { name: "Install" });
+        fireEvent.click(button);
+        await waitFor(() => expect(screen.queryByText("Install Sasha")).toBeNull());
+        const declinedAt = Date.now();
+        rendered.unmount();
+        return declinedAt;
+      }
+
+      it("hides for now, without writing the permanent dismissal key", async () => {
+        await declineOnce();
+        expect(localStorage.getItem(DISMISSED_KEY)).toBeNull();
+      });
+
+      it("stays quiet on a later open within the cooldown, with nothing new logged", async () => {
+        const declinedAt = await declineOnce();
+        vi.useFakeTimers();
+        vi.setSystemTime(declinedAt + 3 * 24 * 60 * 60 * 1000); // 3 days — inside the 7-day cooldown
+        attachAndroidInstallCapture();
+        fireBeforeInstallPrompt("dismissed");
+        render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
+        expect(screen.queryByText("Install Sasha")).toBeNull();
+      });
+
+      it("reappears once a new meal is logged, even inside the cooldown", async () => {
+        const declinedAt = await declineOnce();
+        vi.useFakeTimers();
+        vi.setSystemTime(declinedAt + 60_000); // moments later — well inside the cooldown
+        const anotherMealLogged: Pick<Store, "days"> = {
+          days: {
+            "2026-10-08": {
+              date: "2026-10-08",
+              eaten: { "meal-1": "2026-10-08T12:00:00Z", "meal-2": "2026-10-08T18:00:00Z" },
+            },
+          },
+        };
+        attachAndroidInstallCapture();
+        fireBeforeInstallPrompt("dismissed");
+        render(<InstallPrompt store={anotherMealLogged} />);
+        expect(screen.getByText("Install Sasha")).toBeTruthy();
+      });
+
+      it("reappears once the cooldown passes, with nothing new logged", async () => {
+        const declinedAt = await declineOnce();
+        vi.useFakeTimers();
+        vi.setSystemTime(declinedAt + 8 * 24 * 60 * 60 * 1000); // past the 7-day cooldown
+        attachAndroidInstallCapture();
+        fireBeforeInstallPrompt("dismissed");
+        render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
+        expect(screen.getByText("Install Sasha")).toBeTruthy();
+      });
+    });
   });
 
   describe("iOS Safari visual guide (rule 2)", () => {
@@ -213,6 +310,14 @@ describe("InstallPrompt", () => {
       expect(screen.getByText(/bottom toolbar/)).toBeTruthy();
       expect(screen.getAllByText(/Share/)[0]).toBeTruthy();
       expect(screen.getByText(/Add to Home Screen/)).toBeTruthy();
+    });
+
+    // Sol review, 2026-10-08, WARN: every other variant uses Notice, which already carries
+    // role="status" — the guide (the one hand-built variant) must match.
+    it("announces itself as a status region, like every other variant", () => {
+      asAgent(IPHONE_SAFARI);
+      render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
+      expect(screen.getByRole("status").textContent).toContain("Add to Home Screen");
     });
 
     it("points at the top-right toolbar on iPad", () => {
@@ -232,25 +337,31 @@ describe("InstallPrompt", () => {
   });
 
   describe("other iOS browsers (rule 2)", () => {
-    it("says Chrome on iOS 16.4+ also supports Share → Add to Home Screen", () => {
+    // Sol review, 2026-10-08, BLOCK: Firefox, Edge and Chrome on iOS 16.4+ can all Add to Home
+    // Screen through their own Share menu — the UA cannot tell install capability apart from
+    // which browser's own Share menu fires, so none of them is ever told it is impossible.
+    it("tells Chrome on iOS to use its own Share menu", () => {
       asAgent(IPHONE_CHROME_164);
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
-      expect(screen.getByText(/Chrome on this iPhone supports it too/)).toBeTruthy();
+      expect(screen.getByText(/Tap Share in your browser, then Add to Home Screen/)).toBeTruthy();
+      expect(screen.queryByText(/Open this page in Safari/)).toBeNull();
     });
 
-    it("tells an older Chrome on iOS to open Safari instead", () => {
+    it("tells an older Chrome on iOS the same — never that it is impossible", () => {
       asAgent(IPHONE_CHROME_OLD);
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
-      expect(screen.getByText(/Open this page in Safari/)).toBeTruthy();
+      expect(screen.getByText(/Tap Share in your browser, then Add to Home Screen/)).toBeTruthy();
+      expect(screen.queryByText(/Open this page in Safari/)).toBeNull();
     });
 
-    it("tells Firefox on iOS to open Safari instead", () => {
+    it("tells Firefox on iOS to use its own Share menu — never that it is impossible", () => {
       asAgent(IPHONE_FIREFOX);
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
-      expect(screen.getByText(/Open this page in Safari/)).toBeTruthy();
+      expect(screen.getByText(/Tap Share in your browser, then Add to Home Screen/)).toBeTruthy();
+      expect(screen.queryByText(/Open this page in Safari/)).toBeNull();
     });
 
-    it("tells an in-app webview (Instagram) to open Safari instead", () => {
+    it("tells an in-app webview (Instagram) to open Safari instead — it has no Share menu at all", () => {
       asAgent(IPHONE_INSTAGRAM);
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
       expect(screen.getByText(/Open this page in Safari/)).toBeTruthy();
