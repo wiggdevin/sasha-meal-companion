@@ -36,7 +36,7 @@ describe("CoachActionCard copy", () => {
       [{ actionId: "10", kind: "add_to_eats", ...food, name: "salmon", flagged: [] },
         "Salmon → Favored"],
       [{ actionId: "11", kind: "remove_from_eats", ...food, name: "salmon", flagged: [] },
-        "Salmon → Avoid"],
+        "Took Salmon off Favored"],
     ];
     for (const [action, title] of cases) expect(actionTitle(action)).toBe(title);
   });

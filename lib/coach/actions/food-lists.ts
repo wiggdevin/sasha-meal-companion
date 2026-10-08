@@ -157,7 +157,9 @@ export const addToEats = listMark("add_to_eats", {
 
 export const removeFromEats = listMark("remove_from_eats", {
   eats: true,
-  title: (name) => `${displayName(name)} → Avoid`,
+  // Sol round 2 BLOCK: this clears the mark to neutral; it never puts the food on Avoid, and the
+  // card must not say it does (the food stays eligible for plans).
+  title: (name) => `Took ${displayName(name)} off Favored`,
   pending: (name) => `Marking ${name} no longer favored`,
   reply: (name) => `${name} is no longer favored.`,
   example: { rank: 80, lines: () => [
