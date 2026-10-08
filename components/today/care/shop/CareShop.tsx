@@ -93,6 +93,9 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   // after one, never leaves a line about the other companion.
   const [said, setSaidFor] = useState<{ text: string; mascot: string }>({ text: "", mascot });
   const setSaid = (text: string) => setSaidFor({ text, mascot });
+  // A change of companion clears the line, so switching back never brings an old one back.
+  const [saidFor, setSaidCompanion] = useState(mascot);
+  if (saidFor !== mascot) { setSaidCompanion(mascot); setSaidFor({ text: "", mascot }); }
   const [bought, setBought] = useState(0);
   const ledgerId = useId();
   // Taking an item off deselects it, so its Take-off button disappears with nothing in its place;

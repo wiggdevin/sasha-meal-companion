@@ -85,5 +85,8 @@ describe("the chosen companion in a care scene and the shop", () => {
     chosen.mascot = "blueberry";
     rerender(shop());
     expect(live()).toBe("");
+    chosen.mascot = "sprout";
+    rerender(shop());
+    expect(live()).toBe("");
   });
 });
