@@ -243,6 +243,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [userPicks, setUserPicks] = useState<readonly string[]>([]);
   /** Model calls this session's typed answers made (the extract client's budget). */
   const [extractCalls, setExtractCalls] = useState(0);
+  /** ONB2-RULE-REREAD: true while the Foods "Done" tap's fresh rules read is in flight, so a
+   *  second tap during that window cannot race it. */
+  const [confirmingFoods, setConfirmingFoods] = useState(false);
   const [reading, setReading] = useState(false);
   /** Shown on the safety card when a typed answer was a health or allergy detail. */
   const [safetyNote, setSafetyNote] = useState<string | null>(null);
@@ -340,6 +343,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
           // is asked every time, not cached) — only "facts" is restorable; anything past it
           // collapses back to "facts" so the account re-answers the allergy/condition question.
           if (draft.beat && draft.beat !== "opener") setBeat("facts");
+          // The model-call budget already spent this session carries over too, so a reload mid-
+          // setup cannot hand the account a second budget on top of the one it already used.
+          if (typeof draft.callsUsed === "number" && draft.callsUsed > 0) {
+            setExtractCalls(draft.callsUsed);
+          }
         } finally {
           if (live && h.epoch === handledEpoch) setDraftChecked(true);
         }
@@ -365,6 +373,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setUserPicks([]);
       setTyped("");
       setComposerNote(null);
+      setExtractCalls(0);
       profileWritten.current = false;
       leaving.current = false;
     });
@@ -381,8 +390,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  birth year nobody has nudged or confirmed yet) must not survive a reload as if it had been. */
   useEffect(() => {
     if (!base || !draftChecked) return;
-    void saveOnboardingDraft({ beat, settings: factsToPartialSettings(confirmedFactsOnly(facts)) });
-  }, [base, draftChecked, beat, facts]);
+    void saveOnboardingDraft({
+      beat, settings: factsToPartialSettings(confirmedFactsOnly(facts)),
+      ...(extractCalls > 0 ? { callsUsed: extractCalls } : {}),
+    });
+  }, [base, draftChecked, beat, facts, extractCalls]);
 
   // Every account is in the US (owner, 2026-10-07): the editors show feet/inches and pounds, so the
   // saved display units say so too. Storage stays cm/kg.
@@ -672,9 +684,40 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const lovedCount = selectedStarterIds.length;
   const dockMode: OnboardingDockMode | null = beat === "foods" && foodsReady ? "confirm" : BEAT_DOCK[beat];
 
+  /** Foods "Done": ONB2-RULE-REREAD (Sol r6 BLOCK on onb2-l4-r2). `starter.choices` here can be
+   *  minutes stale — a rule saved mid-flow through the inline rule editor never retriggers the
+   *  hook's own effect — so this re-reads the account's rules right now, the same discipline
+   *  `allergyRulesConfirmed` above already applies to the safety→foods hop, before ever trusting
+   *  the selection enough to show the reward beat (and, from there, to write it). A dropped or
+   *  failed reread fails closed: stay on Foods with a clear error rather than advance on a stale
+   *  list. */
+  async function confirmFoodsAndAdvance() {
+    if (confirmingFoods) return;
+    setConfirmingFoods(true);
+    try {
+      const freshChoices = await starter.reread();
+      if (!freshChoices) {
+        setLeaveError("Couldn’t verify your food rules. Try again.");
+        return;
+      }
+      const freshSelected = Object.entries(starter.marks)
+        .filter(([, mark]) => mark === "eats").map(([id]) => id);
+      const stillReady = starterSelectionValid(freshSelected, freshChoices)
+        && (foodAccess.status === "pilot"
+          || starterProteinAvailability(starter.marks, freshChoices, plannedCount).ready);
+      if (!stillReady) {
+        setLeaveError("A rule just changed what's safe to eat — choose again below.");
+        return;
+      }
+      advance("reward");
+    } finally {
+      setConfirmingFoods(false);
+    }
+  }
+
   function handleDockConfirm() {
     if (beat === "reward") handleComplete();
-    else if (beat === "foods" && foodsReady) advance("reward");
+    else if (beat === "foods" && foodsReady) void confirmFoodsAndAdvance();
   }
 
   const foodsContent = (() => {
@@ -772,7 +815,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
          * honest "Not now" (distinct from the standing "Skip for now" link). */
         confirmLabel={beat === "reward" ? ((onComplete || planReady) ? "Use this plan" : "Not now")
           : `Done · ${lovedCount} loved`}
-        confirmStatus={saving ? "pending" : undefined}
+        confirmStatus={saving || confirmingFoods ? "pending" : undefined}
         onConfirm={handleDockConfirm}
         escapeLabel="Sprout, pick for me" onEscape={beat === "foods" ? pickForMe : () => advance("reward")} />
     </div>}

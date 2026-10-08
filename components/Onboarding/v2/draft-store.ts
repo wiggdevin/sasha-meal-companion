@@ -33,6 +33,11 @@ export type OnboardingDraft = {
    *  the same bridge both the resume path and the error-fallback path (`OnboardingErrorBoundary`)
    *  read from. */
   settings: Partial<Settings>;
+  /** Model calls this session already spent against the per-account onboarding budget
+   *  (`lib/coach/onboarding-call-budget.ts`). Cheap to carry along with the rest of the draft so a
+   *  reload mid-setup does not hand the account a fresh budget it has already spent. Absent on an
+   *  older saved draft; callers treat that as 0. */
+  callsUsed?: number;
   savedAt: string;
 };
 

@@ -398,6 +398,55 @@ describe("ConversationalOnboarding", () => {
     expect(retryOnboardingConstraints).toHaveBeenCalledTimes(2);
   });
 
+  it("ONB2-RULE-REREAD: Foods 'Done' re-reads account rules before advancing to the reward beat"
+    + " (Sol r6 BLOCK on onb2-l4-r2)", async () => {
+    foodAccess.status = "pilot";
+    starterFixture.choices = [
+      { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+      { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+      { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+    ];
+    starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+    starterSpies.reread.mockClear();
+    await saveOnboardingDraft({ beat: "opener",
+      settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
+    render(<ConversationalOnboarding />);
+    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
+    await screen.findByTestId("allergy-condition-gate");
+    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+    // The reread happens before the beat advances to the reward card, not after.
+    await vi.waitFor(() => expect(starterSpies.reread).toHaveBeenCalledTimes(1));
+    await screen.findByRole("button", { name: "Use this plan" });
+  });
+
+  it("ONB2-RULE-REREAD: a rule saved just before Foods 'Done' drops the floor below two per role"
+    + " — the tap stays on Foods with one clean error, never the reward beat", async () => {
+    foodAccess.status = "pilot";
+    starterFixture.choices = [
+      { id: "p1", role: "protein" }, { id: "p2", role: "protein" },
+      { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+      { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+    ];
+    starterFixture.marks = { p1: "eats", p2: "eats", c1: "eats", c2: "eats", f1: "eats", f2: "eats" };
+    // The fresh read drops p2 to below the floor (only one protein left).
+    starterSpies.reread.mockImplementation(async () => [
+      { id: "p1", role: "protein" }, { id: "c1", role: "carb" }, { id: "c2", role: "carb" },
+      { id: "f1", role: "fat" }, { id: "f2", role: "fat" },
+    ]);
+    await saveOnboardingDraft({ beat: "opener",
+      settings: { sex: "female", birthYear: 1992, heightCm: 165, weightKg: 60 } });
+    render(<ConversationalOnboarding />);
+    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
+    await screen.findByTestId("allergy-condition-gate");
+    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("button", { name: "Use this plan" })).toBeNull();
+  });
+
   it("asks each missing fact as one plain question in US units, then offers That's me", async () => {
     render(<ConversationalOnboarding />);
     fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts, goal filled
