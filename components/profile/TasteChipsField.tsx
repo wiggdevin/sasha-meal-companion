@@ -37,8 +37,6 @@ import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFe
 import Button from "@/components/ui/Button";
 import DietaryTextHint from "@/components/ui/DietaryTextHint";
 import Thinking from "@/components/ui/Thinking";
-import { accountHandle } from "@/lib/device/account";
-import { flushOutboxNow } from "@/lib/sync/client";
 import { CUISINE_LABELS, CUISINES, type CuisineKey } from "@/lib/profile/cuisines";
 import { requestTasteChips } from "@/lib/profile/prefs-client";
 import { readTasteChipsEnabled, type TasteChipsAvailability } from "@/lib/profile/taste-enabled-client";
@@ -47,7 +45,7 @@ import {
 } from "@/lib/profile/taste-confirm-client";
 import {
   TASTE_CONFIRM_ERRORS,
-  type TasteConfirmRequest, type TasteConfirmResult, type TasteConfirmSource, type TasteKeys,
+  type TasteConfirmRequest, type TasteConfirmSource, type TasteKeys,
 } from "@/lib/profile/taste-confirm";
 import { SENSORY_TAG_TEXT, type TasteSuggestion } from "@/lib/profile/taste-chips";
 import type { TasteDislike } from "@/lib/profile/taste";
@@ -197,10 +195,6 @@ export default function TasteChipsField({ source, heading, availability, onDisab
   const [confirmed, setConfirmed] = useState<ReadonlySet<string>>(new Set());
   const pendingActionId = useRef<string | null>(null);
   const sequence = useRef(0);
-  /** Onboarding only (D9 followup #2): the one action id, if any, that already got the bounded
-   *  settings-sync retry below, so a user who taps Confirm again on the SAME tap (same actionId,
-   *  e.g. after the retry itself failed) is shown the failure rather than retried forever. */
-  const syncRetriedFor = useRef<string | null>(null);
   const feedback = useActionFeedback();
 
   useEffect(() => {
@@ -260,37 +254,20 @@ export default function TasteChipsField({ source, heading, availability, onDisab
   }
 
   /**
-   * One confirm attempt, with the bounded onboarding-only retry (D9 followup #2): a 409
+   * One confirm attempt, no automatic retry (Sol round 3 BLOCK, verified): a 409
    * `settings_not_synced` means the account's settings row has not reached the server yet — the
    * onboarding step that mounts this field races its own first settings push, so the confirm can
-   * land just ahead of it. Retried exactly once, for `source: "onboarding"` only, after
-   * `flushOutboxNow` (lib/sync/client.ts) answers that the account's settings write has ACTUALLY
-   * reached the server: the SAME action id and chips, so the server answers its stored receipt
-   * rather than writing twice if the first attempt really landed. A plain `syncOnce` with
-   * `!push.failed` is not proof of that — a joined pass answering a DIFFERENT caller's sync never
-   * even reads this device's own queue the way `flushOutboxNow` re-checks it, and a pass can
-   * "succeed" (nothing failed) while the settings op it cared about settled as a conflict rather
-   * than landing. `flushOutboxNow` re-reads the outbox after the pass and answers false unless
-   * nothing is left queued, which is the actual question here. A sync that does not clear the
-   * queue never retries Confirm — resending the exact request that just got `settings_not_synced`
-   * into a settings row that still has not reached the server would only repeat the same 409 — so
-   * this surfaces that first outcome as a failure instead (the user's own retry tap bounds it the
-   * same way a second 409 would). A second `settings_not_synced` after a sync that did land (or
-   * anything else) is also shown as a failure, never retried again.
+   * land just ahead of it. The earlier design tried to prove the settings write had actually
+   * landed before auto-retrying (first `syncOnce().push.failed`, then `flushOutboxNow`), but
+   * neither is sound: the server can drop an op without writing it and still answer `true`/"not
+   * failed", so an automatic retry could fire with no real ACK behind it, confirming twice. There
+   * is no automatic retry at all now — `confirm()` sends exactly once. On `settings_not_synced`
+   * the failure toast below carries its own "Try again" action, which calls `confirm()` again: it
+   * reuses the SAME `pendingActionId` (untouched by a failure, only cleared on success or a
+   * changed selection), so the server either answers the stored receipt (the row landed between
+   * taps) or refuses the same way again (it still has not) — harmless either way, since confirm is
+   * idempotent by action id. No sync call belongs in this path at all.
    */
-  async function attemptConfirm(request: TasteConfirmRequest, actionId: string): Promise<TasteConfirmResult> {
-    const first = await confirmTasteChips(request);
-    if (first.ok) return first.result;
-    const settingsNotSynced = first.reason === "refused" && first.code === TASTE_CONFIRM_ERRORS.settingsNotSynced;
-    if (source !== "onboarding" || !settingsNotSynced || syncRetriedFor.current === actionId) throw first;
-    syncRetriedFor.current = actionId;
-    const synced = await flushOutboxNow(accountHandle()).catch(() => false);
-    if (!synced) throw first;
-    const second = await confirmTasteChips(request);
-    if (second.ok) return second.result;
-    throw second;
-  }
-
   function confirm() {
     if (picked.length === 0) return;
     const actionId = pendingActionId.current ?? newTasteActionId();
@@ -304,7 +281,10 @@ export default function TasteChipsField({ source, heading, availability, onDisab
       cuisines: picked.filter((p): p is Extract<Picked, { kind: "cuisine" }> => p.kind === "cuisine")
         .map((p) => p.key),
     };
-    const sent = attemptConfirm(request, actionId);
+    const sent = confirmTasteChips(request).then((outcome) => {
+      if (outcome.ok) return outcome.result;
+      throw outcome;
+    });
     sent.catch(() => {});
     // The server may answer `ok` while some requested chips were `present` already (a no-op) or
     // `capped` (the 50-dislike / 6-cuisine limit, written to neither) — only `added` is what Undo
@@ -312,7 +292,20 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     // may just assume every requested chip landed (verified finding).
     void feedback.run(() => sent, { kind: "commit", failureMessage: writeFailureMessage })
       .then((result) => {
-        if (!result.ok) return;
+        if (!result.ok) {
+          const outcome = result.error as TasteWriteOutcome<unknown> | null | undefined;
+          const settingsNotSynced = outcome?.ok === false && outcome.reason === "refused"
+            && outcome.code === TASTE_CONFIRM_ERRORS.settingsNotSynced;
+          // Overrides the generic failure toast `run()` already showed, with one offering "Try
+          // again" over it: the SAME action id and chips go out again on tap, never a fresh one.
+          if (settingsNotSynced) {
+            feedback.notify({
+              tone: "error", message: writeFailureMessage(outcome),
+              action: { label: "Try again", action: confirm },
+            });
+          }
+          return;
+        }
         pendingActionId.current = null;
         const addedIds = keysToIds(result.value.added);
         const settledIds = new Set([...addedIds, ...keysToIds(result.value.present)]);
