@@ -18,17 +18,17 @@ type ProfileRow = { profile_id: unknown; source: unknown };
 type SettingsRow = { birth_year: unknown } | null;
 
 /**
- * `onDate` (YYYY-MM-DD) also reads the stored birth year, so a write that carries no birth year
- * of its own (a pinned revision) still builds nothing for an account under 18 on that date.
+ * `onDate` (YYYY-MM-DD, the date the revision takes effect) is required: the STORED birth year is
+ * judged on it, so a request that supplies its own adult birth year (a direct derive) or none at
+ * all (a pinned revision) still builds nothing for an account whose stored year is under 18.
  */
 export async function readTargetEligibility(
-  client: SupabaseClient, userId: string, onDate?: string,
+  client: SupabaseClient, userId: string, onDate: string,
 ): Promise<TargetEligibility> {
   const [constraints, profiles, settings] = await Promise.all([
     client.from("constraint_profiles").select("conditions").eq("user_id", userId).maybeSingle(),
     client.from("user_dietary_profiles").select("profile_id, source").eq("user_id", userId),
-    onDate ? client.from("user_settings").select("birth_year").eq("user_id", userId).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+    client.from("user_settings").select("birth_year").eq("user_id", userId).maybeSingle(),
   ]);
   if (constraints.error || profiles.error || settings.error) {
     throw new HttpError(503, "eligibility_unavailable", "Could not read the account's health answers.");
@@ -40,7 +40,8 @@ export async function readTargetEligibility(
   const birthYear = (settings.data as SettingsRow)?.birth_year;
   return targetEligibility({
     conditions,
-    ...(onDate ? { onDate, birthYear: typeof birthYear === "number" ? birthYear : null } : {}),
+    onDate,
+    birthYear: typeof birthYear === "number" ? birthYear : null,
     profiles: rows.filter((row) => typeof row.profile_id === "string").map((row) => ({
       profileId: row.profile_id as string,
       source: typeof row.source === "string" ? row.source : null,

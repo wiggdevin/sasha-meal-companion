@@ -3,9 +3,9 @@
 // for an account under 18.
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { restoreTargetRevision } from "@/lib/server/targets";
+import { restoreTargetRevision, writeTargetRevisionSet } from "@/lib/server/targets";
 import { decideProposal } from "@/lib/server/proposals";
-import { recomputeDerivedTarget } from "@/lib/server/target-recompute";
+import { recomputeDerivedTarget, settingsFromRow } from "@/lib/server/target-recompute";
 import { AdultOnlyError, SAFETY_CONDITION_TEXT } from "@/lib/profile/rate-eligibility";
 import { TODAY, USER, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
 
@@ -81,5 +81,21 @@ describe("a hold on an adaptive revision", () => {
     const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
     expect(outcome.status).toBe("written");
     expect(fake.writes.at(-1)).toMatchObject({ goal_rate_bp_week: 0, formula_name: "profile-energy-v1" });
+  });
+});
+
+describe("a direct derive request", () => {
+  // The request body says 1990; the account's stored birth year says 15 on the revision's date.
+  const adultBody = settingsFromRow(settingsRow({ birth_year: 1990, goal: "maintain" }));
+  const derive = (today = TODAY) => ({ operation: "derive" as const, input: {
+    settings: adultBody, latestWeighInKg: null, today, trainingWeekdays: [1, 3] } });
+
+  it("never lifts the stored under-18 birth year with an adult one from the body", async () => {
+    const rpc = vi.fn(async () => ({ data: null, error: null }));
+    const { client: c } = client({ user_settings: [{ user_id: USER, birth_year: 2011 }] }, rpc);
+    await expect(writeTargetRevisionSet(c, USER, derive())).rejects.toBeInstanceOf(AdultOnlyError);
+    await expect(writeTargetRevisionSet(c, USER, derive(), derive("2026-09-01")))
+      .rejects.toBeInstanceOf(AdultOnlyError);
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
