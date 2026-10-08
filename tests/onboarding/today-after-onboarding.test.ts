@@ -54,6 +54,21 @@ describe("Today right after onboarding", () => {
     }
     const linked = foodsFromSyncRows([{ ...foods[0], catalog_food_id: 1234 }], prefs, refs);
     expect(Object.values(linked)[0].catalogFoodId).toBe(1234);
+    const missing = { ...foods[0] } as Record<string, unknown>;
+    delete missing.catalog_food_id;
+    expect(Object.values(foodsFromSyncRows([missing], prefs, refs))[0].catalogFoodId).toBeUndefined();
+  });
+
+  it("keeps a catalog link of 0: the schema allows it, and it still needs a ref proof", () => {
+    const { foods, prefs, refs } = pulledRows();
+    for (const value of [0, "0"]) {
+      const local = foodsFromSyncRows([{ ...foods[0], catalog_food_id: value }], prefs, refs);
+      expect(Object.values(local)[0].catalogFoodId).toBe(0);
+      const ids = eligibleLocalFoodIds(local, {}, {
+        eligibleRefIds: [], eligibleFoodIds: [foods[0].id], eligibleCatalogFoodIds: [],
+      });
+      expect(ids.size).toBe(0);
+    }
   });
 
   it("verifies every pulled food before the device's ref cache knows its new id", () => {
