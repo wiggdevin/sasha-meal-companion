@@ -17,6 +17,8 @@ vi.mock("@/lib/device/account", () => ({
   accountFetch: (_h: unknown, url: string, init: RequestInit = {}) => fetch(url, init),
   accountJson: (_h: unknown, res: Response) => res.json(),
 }));
+// The companion is Sprout here; the companion's own art and name are covered in mascot-scenes.test.tsx.
+vi.mock("@/components/today/island/well-pet", () => ({ useMascot: () => "sprout", MASCOT_EVENT: "companion-changed" }));
 vi.mock("@/components/today/care/sound", () => ({
   play: vi.fn(), unlockAudio: vi.fn(), readMuted: () => true, silence: vi.fn(), writeMuted: vi.fn(),
 }));

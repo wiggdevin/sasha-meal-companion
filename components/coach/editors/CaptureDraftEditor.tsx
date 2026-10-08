@@ -233,14 +233,17 @@ export default function CaptureDraftEditor({
         <WorkingLine active={draft.saving === true} step="commit" />
         {draft.message && <p role="status" className={`px-1.5 ${META}`}>{draft.message}</p>}
         {draft.canSearchManually !== false && (
-          <button type="button" onClick={onSearchManually} className={`tap h-11 self-center px-4 ${SECTION}`}>Search manually</button>
+          <button type="button" disabled={draft.saving === true} onClick={onSearchManually}
+            className={`tap h-11 self-center px-4 disabled:opacity-40 ${SECTION}`}>Search manually</button>
         )}
         {draft.proposal.method === "photo" && onRerunAsLabel && !rerunUsed && (
-          <button type="button" onClick={() => { setRerunUsed(true); onRerunAsLabel(); }}
-            className={`tap h-11 self-center px-4 ${SECTION}`}>This was a nutrition label</button>
+          <button type="button" disabled={draft.saving === true}
+            onClick={() => { setRerunUsed(true); onRerunAsLabel(); }}
+            className={`tap h-11 self-center px-4 disabled:opacity-40 ${SECTION}`}>This was a nutrition label</button>
         )}
         {draft.showDismiss !== false && (
-          <button type="button" onClick={onDismiss} className={`tap h-11 self-center px-4 ${SECTION}`}>Dismiss</button>
+          <button type="button" disabled={draft.saving === true} onClick={onDismiss}
+            className={`tap h-11 self-center px-4 disabled:opacity-40 ${SECTION}`}>Dismiss</button>
         )}
     </div>
   );

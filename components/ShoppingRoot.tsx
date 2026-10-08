@@ -328,6 +328,8 @@ export default function ShoppingRoot() {
       onDraftChange={(next) => { setDraft(next); blankRequestId.current = null;
         if (next.locale !== draft?.locale) rememberLocation(owner.userId, next.locale); }}
       invalidateRevision={invalidateRevision}
+      onPantryPhoto={(items) => setPantry((current) =>
+        [...current.filter((row) => !items.some((item) => item.id === row.id)), ...items])}
       favorites={Object.values(loadStore().foods).filter((food) => food.status === "eats")
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((food) => food.name)}
       switcher={periods.length > 0 ? <div className="flex flex-wrap items-end gap-2">

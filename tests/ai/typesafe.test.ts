@@ -113,6 +113,18 @@ describe("TypeSafe SystemOne adapter", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  // W10 D9 item 4: `noRetry: true` skips the default 429/529 retry (suggest tests only mock this).
+  it("does not retry a 429 when noRetry is set", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ error: "rate limited" }, 429))
+      .mockResolvedValueOnce(jsonResponse(providerBody()));
+    const pending = systemOne(J({ message: "hello" }, "test"), { userId: "user-1", noRetry: true });
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(pending).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("returns null after a second retryable response", async () => {
     vi.useFakeTimers();
     // A fresh Response per request, as a real fetch gives: the body of each is read once.

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { play, readMuted } from "@/components/today/care/sound";
 import styles from "@/components/today/island/WellWater.module.css";
+import { MASCOTS, named, sceneArt } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 
 /** Where the glass breaks: across the basin, and how far down into the water body below the surface. */
 export const IMPACT = { x: 0.3, below: 0.3 } as const;
@@ -47,6 +49,10 @@ export default function WaterSwim({ run: asked, active, auto, surface, onSplash 
   onSplash: (x: number, strength: number) => void;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
+  // Read when the swim line is said, a beat after the swim starts.
+  const mascotRef = useRef(mascot);
+  useEffect(() => { mascotRef.current = mascot; }, [mascot]);
   const live = active && !reduce;
   const [phase, setPhase] = useState<"none" | "crack" | "mend">("none");
   const [said, setSaid] = useState("");
@@ -76,7 +82,7 @@ export default function WaterSwim({ run: asked, active, auto, surface, onSplash 
     setSaid("");
     if (!readMuted()) play("clack");
     const timers = [
-      setTimeout(() => setSaid("Sprout breaks through the glass for a swim."), POP_MS),
+      setTimeout(() => setSaid(named("Sprout breaks through the glass for a swim.", mascotRef.current)), POP_MS),
       setTimeout(() => splashRef.current(IMPACT.x, 110), SPLASH_MS),
       ...[0.35, 0.6, 0.85].map((u, i) => setTimeout(() => splashRef.current(IMPACT.x + (0.88 - IMPACT.x) * u, 28),
         SPLASH_MS + (SWIM_MS - SPLASH_MS) * u * (0.9 + i * 0.02))),
@@ -110,13 +116,13 @@ export default function WaterSwim({ run: asked, active, auto, surface, onSplash 
             top: [y - 0.14, y - 0.1, y - 0.06, y - 0.09, y - 0.05].map(pct),
             scale: [1.6, 0.62, 0.55, 0.52, 0.4], opacity: [0, 1, 1, 1, 0], rotate: [-18, 6, -4, 5, 0] }}
           transition={{ duration: (SWIM_MS - POP_MS) / 1000, delay: POP_MS / 1000, times: [0, 0.12, 0.45, 0.8, 1], ease: "easeInOut" }}>
-          <Image src="/pet/scene/sprout-swim.webp" alt="" width={180} height={154} sizes="120px" draggable={false} />
+          <Image src={sceneArt(mascot, "swim")} alt="" width={180} height={154} sizes="120px" draggable={false} />
         </motion.span>}
       </AnimatePresence>}
     </span>
     <span className="sr-only" aria-live="polite">{said}</span>
     {/* The keyboard's way to ask: hidden until it has focus, so touch sees no new chrome. */}
     {live && <button type="button" className={`tap ${styles.swimAsk}`}
-      onClick={(event) => { event.stopPropagation(); setKeyed((n) => n + 1); }}>Sprout, take a swim</button>}
+      onClick={(event) => { event.stopPropagation(); setKeyed((n) => n + 1); }}>{MASCOTS[mascot].name}, take a swim</button>}
   </>;
 }

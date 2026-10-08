@@ -68,6 +68,22 @@ See `AGENTS.md` for the path-by-path map and domain rules. Recipe eligibility us
 account's current rules and Avoid list; there are no hardcoded personal food exclusions.
 A calorie change never moves the protein portion.
 
+## Local integration test stack
+
+`pnpm test:integration` needs a Supabase branch or local stack (`SUPABASE_TEST_URL` etc., see
+`scripts/db-branch.sh`). `scripts/test-stack.sh` stands up a throwaway local one instead of
+using a remote branch — on ports 56321 (API) / 56322 (DB) / 56320 (shadow DB), project_id
+`mc-care-test`, so it never collides with meal-companion's own dev stack (54321/54322/54320) or
+any other project's local Supabase stack on this machine. It verifies the real `docker ps`
+container and schema before migrating or seeding anything; see the comment at the top of the
+script for the full design and the safety checks.
+
+```sh
+scripts/test-stack.sh              # start (or reuse) the isolated stack, migrate, write env
+source .supabase-test/.env && pnpm test:integration
+scripts/test-stack.sh stop         # tear down only this stack
+```
+
 ## Docs
 
 - [`docs/architecture.md`](docs/architecture.md) — system architecture.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsPresent } from "motion/react";
 import Sheet from "@/components/Sheet";
 import type { BarcodeResponse, ScanReply } from "@/lib/barcode/client";
 import { resolveScan } from "@/lib/barcode/resolve-scan";
@@ -40,8 +41,16 @@ export default function BarcodeScanSheet({
   /** This scan's own timing run: two scans in a session are two taps, never one row set. */
   const runRef = useRef<TimingRun | null>(null);
   const [phase, setPhase] = useState<Phase>("starting");
+  // A lookup that settles after the sheet has left (closed, unmounted, or exiting while another
+  // scan opens) belongs to nothing on screen: its answer is dropped, never handed to the page.
+  const present = useIsPresent();
+  const here = useRef(true);
+  useEffect(() => { here.current = present; }, [present]);
+  useEffect(() => () => { here.current = false; }, []);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
+  /** Takes the camera back if a hidden page let it go while a lookup ran (set by the camera effect). */
+  const resumeRef = useRef<() => void>(() => {});
 
   const resolve = useCallback(
     async (gtin: string) => {
@@ -52,10 +61,14 @@ export default function BarcodeScanSheet({
       if (h === null) { busyRef.current = false; return; }
       const run = runRef.current ?? undefined;
       const outcome = await resolveScan(h, gtin, hint, run);
+      if (!here.current) return;
       if (outcome.kind === "resolved") { onResolved(outcome.response, run); return; }
       busyRef.current = false;
       if (outcome.kind === "unreadable") setPhase("unreadable");
       else if (outcome.kind === "offline") setPhase("offline");
+      // Scanning goes on after an answer that is not a match, as before, even if the page was hidden
+      // (and the camera let go) while the lookup ran.
+      resumeRef.current();
     },
     [hint, onResolved]
   );
@@ -103,11 +116,19 @@ export default function BarcodeScanSheet({
     worker.addEventListener("message", (e: MessageEvent<ScanReply>) => onReplyRef.current(e.data));
 
     /* Camera permission is asked at the scan tap, never at app load, and is never required to
-       log (spec "Security"). */
-    void navigator.mediaDevices
+       log (spec "Security"). A hidden page lets the camera go and takes it back when shown. */
+    // One camera request at a time, so a quick hide and show can never leave two streams live.
+    let requesting = false;
+    /** `announce` false keeps the sheet's current line (an unreadable or offline answer) on resume. */
+    const start = (announce = true): void => {
+      if (requesting || streamRef.current) return;
+      requesting = true;
+      void navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } })
       .then((stream) => {
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        requesting = false;
+        // Closed, or hidden while the camera was being asked for: let it go (a show starts it again).
+        if (cancelled || document.visibilityState === "hidden") { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities?.() as { torch?: boolean } | undefined;
@@ -116,7 +137,7 @@ export default function BarcodeScanSheet({
           videoRef.current.srcObject = stream;
           void videoRef.current.play().catch(() => setPhase("denied"));
         }
-        setPhase("scanning");
+        if (announce) setPhase("scanning");
         // The camera is live: `decode` is running from here until a reading is accepted (T0 §1).
         // Its own run, so a second scan started before this one has settled is its own tap.
         runRef.current = beginRun("barcode");
@@ -137,13 +158,26 @@ export default function BarcodeScanSheet({
         };
         raf = requestAnimationFrame(tick);
       })
-      .catch(() => setPhase("denied"));
+      .catch(() => { requesting = false; if (!cancelled) setPhase("denied"); }); };
+    const stop = (): void => {
+      cancelAnimationFrame(raf);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setTorchOn(false);
+    };
+    const onVisibility = (): void => {
+      if (document.visibilityState === "hidden") stop();
+      else if (!streamRef.current && !requesting && !busyRef.current) { setPhase("starting"); start(); }
+    };
+    resumeRef.current = () => { if (!cancelled && document.visibilityState !== "hidden") start(false); };
+    start();
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
       worker.terminate();
-      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 

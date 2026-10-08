@@ -60,6 +60,7 @@ import { todayResolveInputs, type TodayLive } from "@/lib/today/resolve-inputs";
 import { openSlotCard } from "@/lib/today/open-slot-card";
 import { mergeTimeline } from "@/lib/today-timeline";
 import { viewedDateFromSearch } from "@/lib/url-date";
+import { viewedLogAt } from "@/lib/log/viewed-at";
 import { useBodyCapability } from "@/lib/health/capability-client";
 import { useTodayBody } from "@/lib/health/today-card";
 import ProposalCard from "@/components/ProposalCard";
@@ -182,6 +183,8 @@ export default function Today() {
   const [planMode, setPlanMode] = useState<"plan" | "log">("plan");
   const [logOpen, setLogOpen] = useState<"food" | "meal" | null>(null);
   const [logSlot, setLogSlot] = useState<SlotId | null>(null);
+  /** The meal card a label, capture or scan was handed off from; null when opened from anywhere else. */
+  const [handoffSlot, setHandoffSlot] = useState<SlotId | null>(null);
   const [openEntry, setOpenEntry] = useState<string | null>(null);
   const [breakdownEntry, setBreakdownEntry] = useState<string | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
@@ -480,10 +483,11 @@ export default function Today() {
   const generatedNotes = starterGate === "ready"
     ? generatedNotesForDay(planStore, viewedDate, eligibleFoodIds ?? undefined) : null;
   const proteinShort = proteinShortfall(generatedNotes);
-  // Logging always files under the current local date, even while Today displays another day.
-  const todayResolved = isToday ? resolved
-    : resolveDay(planStore, todayIso, 0, eligibleFoodIds ?? undefined);
-  const todayProjection = { consumed: todayResolved.consumed, targets: todayResolved.targets };
+  // A log started here files on the day on screen when that day is past, else on today
+  // (lib/log/viewed-at.ts), so its sheet previews the totals and targets of the day it files on.
+  const logDay = viewedDate && viewedDate > todayIso
+    ? resolveDay(planStore, todayIso, 0, eligibleFoodIds ?? undefined) : resolved;
+  const logProjection = { consumed: logDay.consumed, targets: logDay.targets };
   const nowM = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
 
   // The last slot whose time has arrived. Drives MISSED (below) — unchanged.
@@ -493,6 +497,8 @@ export default function Today() {
       if (timeToMinutes(s.time) <= nowM) currentSlotId = s.slot;
     }
   }
+  /** The slot a capture logs into: the meal card it came from, else the current slot, else the first. */
+  const captureSlot: SlotId = handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1";
 
   // The slot to promote: "what do I eat, right now?" That is the current
   // slot if it is still unticked; otherwise the first unticked slot after
@@ -559,6 +565,14 @@ export default function Today() {
     await saveMealEdit(viewedDate, slotId, baseMealId,
       { components: null, planned: plannedComponents(slotId), title: null });
     refresh();
+  }
+
+  /**
+   * When a meal logged from this screen was eaten: now on today, else the slot's own time on the day
+   * on screen (UI audit 2026-10-07: a log from a past day's card was filed under today, unseen).
+   */
+  function logAtFor(slotId: SlotId): Date | undefined {
+    return viewedLogAt(viewedDate, todayIso, resolved.slots.find((slot) => slot.slot === slotId)?.time);
   }
 
   function logFood(entry: LoggedFood, date?: string, notice?: string, saved?: string) {
@@ -782,7 +796,8 @@ export default function Today() {
     // One serving of the new food, through the durable commit path (calc audit #15); a food that
     // cannot be sent keeps its local card and says so. Never both. The sheet closes only once the
     // serving is committed or kept here; a refusal leaves it open with the draft.
-    const logged = await logLabelFood(food, currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1");
+    const slotId = handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1";
+    const logged = await logLabelFood(food, slotId, logAtFor(slotId));
     // Only the sheet this attempt came from: a newer one the user opened meanwhile stays open.
     return settleLabelLog(logged, { viewedDate, close: () => { if (isCurrentSheet()) setLabelOpen(false); }, refresh,
       confirmLogged, notify: todayFeedback.notify });
@@ -874,10 +889,11 @@ export default function Today() {
         onClose={() => setEditSlot(null)} />;
     }
     if (logOpen && logSlot === id) return <LogFoodSheet key={`log-${logOpen}-${id}`} mode={logOpen}
-      mine={store.foods} slot={id} projection={todayProjection} onAdd={logFood}
-      onSomethingElse={() => { setLogOpen(null); setLogSlot(null); setLabelOpen(true); }}
+      mine={store.foods} slot={id} projection={logProjection} onAdd={logFood} at={logAtFor(id)}
+      onSomethingElse={() => { setHandoffSlot(id); setLogOpen(null); setLogSlot(null); setLabelOpen(true); }}
       onClose={() => { setLogOpen(null); setLogSlot(null); }}
-      {...captureOverlayProps(setCaptureMode, () => setScanOpen(true))} />;
+      {...captureOverlayProps((mode) => { setHandoffSlot(id); setCaptureMode(mode); },
+        () => { setHandoffSlot(id); setScanOpen(true); })} />;
     return null;
   }
 
@@ -1096,11 +1112,13 @@ export default function Today() {
               mode={logOpen}
               mine={store.foods}
               slot={logSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1"}
-              projection={todayProjection}
+              projection={logProjection}
               onAdd={logFood}
-              onSomethingElse={() => { setLogOpen(null); setLabelOpen(true); }}
+              at={logAtFor(logSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
+              onSomethingElse={() => { setHandoffSlot(null); setLogOpen(null); setLabelOpen(true); }}
               onClose={() => { setLogOpen(null); setLogSlot(null); }}
-              {...captureOverlayProps(setCaptureMode, () => setScanOpen(true))}
+              {...captureOverlayProps((mode) => { setHandoffSlot(null); setCaptureMode(mode); },
+                () => { setHandoffSlot(null); setScanOpen(true); })}
             />
           )}
           {scanOpen && (
@@ -1115,8 +1133,9 @@ export default function Today() {
               key="scan-confirm"
               response={scanResult}
               run={scanRun ?? undefined}
-              slot={currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1"}
-              projection={todayProjection}
+              slot={handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1"}
+              eatenAt={logAtFor(handoffSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
+              projection={logProjection}
               onLogged={(_entryId, saved) => { setScanResult(null); setScanRun(null); refresh(); confirmLogged(saved); }}
               onClose={() => { setScanResult(null); setScanRun(null); }}
             />
@@ -1126,7 +1145,10 @@ export default function Today() {
               key={`capture-${captureMode}`}
               open
               initialMode={captureMode}
-              projection={todayProjection}
+              projection={logProjection}
+              // On a past day the slot and its time come from one choice, so they never disagree.
+              slot={handoffSlot ?? (logAtFor(captureSlot) ? captureSlot : undefined)}
+              at={logAtFor(captureSlot)}
               onOpenSearch={() => { setCaptureMode(null); setLogOpen("food"); }}
               onLogged={() => { setCaptureMode(null); refresh(); confirmLogged(); }}
               onClose={() => setCaptureMode(null)}

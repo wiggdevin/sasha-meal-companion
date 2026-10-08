@@ -174,3 +174,77 @@ describe("ScanConfirmSheet's three answers", () => {
     expect(screen.getByText("Search for it by what is on the pack.")).toBeTruthy();
   });
 });
+
+/** UI audit 2026-10-07 (scan BLOCK + C3): a late lookup after close, and the camera while hidden. */
+describe("BarcodeScanSheet's lifecycle", () => {
+  it("drops a lookup that settles after the sheet has closed", async () => {
+    let answer!: (value: unknown) => void;
+    scanGtin.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    const onResolved = vi.fn();
+    const view = render(<BarcodeScanSheet onResolved={onResolved} onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy());
+    await readTwice();
+    view.unmount();
+    await act(async () => { answer({ status: "not_found", gtin14: "05000000000000" }); });
+    expect(onResolved).not.toHaveBeenCalled();
+  });
+
+  it("lets the camera go while the page is hidden and takes it back when shown", async () => {
+    const stops: number[] = [];
+    let opened = 0;
+    camera(async () => {
+      opened += 1;
+      const track = { stop: () => { stops.push(opened); }, getCapabilities: () => ({}), applyConstraints: async () => {} };
+      return { getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream;
+    });
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    sheet();
+    await waitFor(() => expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy());
+    visibility.mockReturnValue("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(stops).toEqual([1]);
+    visibility.mockReturnValue("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    await waitFor(() => expect(opened).toBe(2));
+    visibility.mockRestore();
+  });
+
+  it("asks for the camera once through a quick hide and show, and never keeps two streams", async () => {
+    const pending: ((stream: MediaStream) => void)[] = [];
+    const stopped: number[] = [];
+    camera(() => new Promise((resolve) => { pending.push(resolve); }));
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    sheet();
+    visibility.mockReturnValue("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    visibility.mockReturnValue("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(pending).toHaveLength(1);
+    const track = { stop: () => { stopped.push(1); }, getCapabilities: () => ({}), applyConstraints: async () => {} };
+    await act(async () => { pending[0]({ getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream); });
+    expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy();
+    expect(stopped).toHaveLength(0);
+    visibility.mockRestore();
+  });
+
+  it("takes the camera back after an unreadable answer that came while hidden", async () => {
+    let opened = 0;
+    camera(async () => { opened += 1; return fakeStream(); });
+    scanGtin.mockRejectedValue(new BarcodeRejected("invalid_gtin"));
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    sheet();
+    await waitFor(() => expect(screen.getByText("Point the camera at the barcode.")).toBeTruthy());
+    let answer!: (value: unknown) => void;
+    scanGtin.mockReturnValueOnce(new Promise((_resolve, reject) => { answer = reject; }));
+    await readTwice();
+    visibility.mockReturnValue("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    visibility.mockReturnValue("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(opened).toBe(1);
+    await act(async () => { answer(new BarcodeRejected("invalid_gtin")); });
+    await waitFor(() => expect(opened).toBe(2));
+    expect(screen.getByText(/That is not a barcode we can read/)).toBeTruthy();
+    visibility.mockRestore();
+  });
+});
