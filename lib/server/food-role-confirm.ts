@@ -26,7 +26,7 @@ export async function confirmFoodRole(
 ): Promise<{ status: "persisted" | "unchanged"; role: StoredMealRole }> {
   const current = await ownedPref(client, userId, foodRefId);
   if (current.status !== "eats" && current.status !== "avoid") {
-    throw new HttpError(409, "membership_required", "Add this food to Eats or Avoids first.");
+    throw new HttpError(409, "membership_required", "Add this food to Favorites or Avoids first.");
   }
   if (current.role === proposedRole) return { status: "unchanged", role: proposedRole };
   if (current.role !== currentRole) {

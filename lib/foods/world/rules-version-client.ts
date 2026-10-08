@@ -23,6 +23,28 @@ export async function readRulesToken(account: AccountHandle): Promise<RulesToken
   }
 }
 
+/**
+ * The token plus the account's effective food world (`world`, Sol r2 BLOCK): the server reads it
+ * through `effectiveFoodWorld`, so an account taken off the release list or put on hold answers
+ * `closed`. A held open snapshot is used only while this says `open`; a missing or unknown value
+ * (an older server) is never `open`. Null when the token cannot be read.
+ */
+export async function readRulesState(account: AccountHandle):
+  Promise<{ token: RulesToken; world: "open" | "closed" | null } | null> {
+  try {
+    const res = await accountFetch(account, "/api/foods/rules-version", { cache: "no-store" },
+      { budget: "prefs" });
+    if (!res.ok) return null;
+    const raw = await accountJson<unknown>(account, res);
+    const token = parseRulesToken(raw);
+    if (!token) return null;
+    const world = (raw as { world?: unknown }).world;
+    return { token, world: world === "open" || world === "closed" ? world : null };
+  } catch {
+    return null;
+  }
+}
+
 export type Admission = Readonly<{ token: RulesToken | null }>;
 
 export type FreshAdmissionDeps<T extends Admission> = {

@@ -82,7 +82,7 @@ export default function FoodsTabs() {
           Foods
         </h1>
         <Segmented label="Foods" options={shopping ? TABS : [
-          { value: "eats", label: "Eats" }, { value: "avoids", label: "Avoids" },
+          { value: "eats", label: "Favorites" }, { value: "avoids", label: "Avoids" },
         ]}
           value={activeTab} onChange={setTab} panel={PANEL_ID} />
       </div>

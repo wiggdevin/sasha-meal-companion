@@ -20,7 +20,7 @@ describe("FoodSheet membership actions", () => {
   it.each([
     ["eats", "avoid", "Add to Avoid"],
     ["avoid", "neutral", "Remove from Avoid"],
-    ["neutral", "eats", "Add to Eats"],
+    ["neutral", "eats", "Add to Favorites"],
   ] as const)("maps %s to %s and labels the action %s", (status, next, label) => {
     expect(foodSheetAction(status)).toEqual({ next, label });
     expect(render(status)).toContain(label);

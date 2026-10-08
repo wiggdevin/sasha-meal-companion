@@ -76,7 +76,7 @@ export function scopeSlot(scope: CoachScope | undefined): SlotId | null {
 const PAGE_LABEL: Record<CoachPage, string> = {
   today: "Today (the day's meals, logging, water and weight)",
   body: "Body (weight, activity, profile and targets)",
-  foods: "Foods (the Eats and Avoid lists, recipes and shopping)",
+  foods: "Foods (the Favorites and Avoid lists, recipes and shopping)",
   settings: "Settings (profile, targets and schedule)",
 };
 

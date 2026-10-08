@@ -36,7 +36,9 @@ const DAY = 86_400_000;
 const CHICKEN = "universe:chicken-breast-roasted";
 
 /** The server double: what each route answers now, and every URL asked. */
-type Server = { token: RulesToken | null; body: MealSnapshotV3 | Record<string, unknown> | null; asked: string[] };
+type Server = { token: RulesToken | null; body: MealSnapshotV3 | Record<string, unknown> | null; asked: string[];
+  /** The effective world `GET /api/foods/rules-version` reports (Sol r2 BLOCK). */
+  world?: "open" | "closed" };
 let server: Server;
 
 function serve(): void {
@@ -44,7 +46,7 @@ function serve(): void {
     server.asked.push(url);
     if (url === "/api/foods/rules-version") {
       if (!server.token) throw new TypeError("Failed to fetch");
-      return Response.json(server.token);
+      return Response.json({ ...server.token, world: server.world ?? "open" });
     }
     if (url === "/api/foods/eligible?v=3") {
       if (!server.body) throw new TypeError("Failed to fetch");
@@ -127,6 +129,37 @@ describe("acceptance 10: a rule written on another device", () => {
     server.token = { rulesVersion: 8, evidenceVersion: 3 };
     server.body = body(8, 3);
     expect((await pool()).ids).toContain(CHICKEN);
+  });
+});
+
+describe("Sol r2 BLOCK: the held open snapshot needs the server to still say open", () => {
+  /** What a closed (unreleased) account gets from ?v=3: main's v2 body. */
+  const closedBody = () => ({ ...body(7, 3).eligible });
+
+  it.each([["removed from OPEN_WORLD_USER_IDS"], ["put on hold"]])("%s: the next run refetches and generates nothing open", async () => {
+    expect((await pool()).ids).toContain(CHICKEN);
+    expect((await readMealSnapshot(bindAccount(A)))?.snapshot.schemaVersion).toBe(3);
+    // Same token, but the server now reads the account's world as closed.
+    server.world = "closed";
+    server.body = closedBody();
+    server.asked = [];
+    const next = await pool();
+    expect(server.asked[0]).toBe("/api/foods/rules-version");
+    expect(server.asked).toContain("/api/foods/eligible?v=3");
+    expect(next.open).toBeUndefined();
+    expect(next.set.has(CHICKEN)).toBe(false);
+  });
+
+  it("an older server with no world field never lets a held open snapshot serve without a refetch", async () => {
+    await pool();
+    server.asked = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      server.asked.push(url);
+      if (url === "/api/foods/rules-version") return Response.json(server.token);
+      return Response.json(server.body);
+    }));
+    await pool();
+    expect(server.asked).toContain("/api/foods/eligible?v=3");
   });
 });
 

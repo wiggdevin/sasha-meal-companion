@@ -48,6 +48,7 @@ import { recipeAccessEnabled } from "@/lib/server/recipe-access";
 import { shoppingFocusActive } from "@/lib/shopping/focus";
 import { candidateFoods, type CandidateFoods } from "@/lib/server/candidate-foods";
 import { mealSnapshot, mealSnapshotParts, type MealSnapshotDeps, type SnapshotResponse } from "@/lib/server/meal-snapshot";
+import { effectiveFoodWorld } from "@/lib/foods/world/access";
 import { readRulesToken } from "@/lib/server/rules-clock";
 import { admitHistory, DEFAULT_TASTE_PORTS } from "@/lib/server/taste-admission";
 import { readTasteHistory } from "@/lib/server/taste-history";
@@ -166,7 +167,7 @@ async function readOpenSettings(client: SupabaseClient, userId: string) {
 async function readWorld(client: SupabaseClient, userId: string): Promise<"open" | "closed"> {
   const { data, error } = await client.from("user_settings").select("food_world").eq("user_id", userId).maybeSingle();
   if (error) throw error;
-  return (data as { food_world?: unknown } | null)?.food_world === "open" ? "open" : "closed";
+  return effectiveFoodWorld((data as { food_world?: unknown } | null)?.food_world, userId);
 }
 
 function unavailable(cause: unknown): never {

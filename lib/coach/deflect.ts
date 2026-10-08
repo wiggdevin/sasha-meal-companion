@@ -36,7 +36,7 @@ export const MEDICAL_PATTERNS: readonly { id: string; re: RegExp }[] = Object.fr
 /** Refer, do not prescribe — and name no condition, because every account reads the same line. */
 export const MEDICAL_DEFLECTION =
   "That is a question for your doctor, not for me. I can help with what you eat — targets, "
-  + "portions, the foods on your list — but I do not read symptoms, medication or test results. "
+  + "portions, the foods you like — but I do not read symptoms, medication or test results. "
   + "Write it down and bring it to your next appointment, and call your doctor sooner if it is "
   + "getting worse.";
 

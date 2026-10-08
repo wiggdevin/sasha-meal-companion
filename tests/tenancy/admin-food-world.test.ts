@@ -100,6 +100,7 @@ describe.skipIf(!LOCAL)("food world isolation (canary)", () => {
 
   beforeEach(() => {
     vi.stubEnv("OPEN_WORLD_ENABLED", "1");
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "*");
     vi.stubEnv("CONDITION_PACKS_ENABLED", "1");
     vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", "");
   });

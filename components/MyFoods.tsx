@@ -131,7 +131,7 @@ export function removeDragStyle(pull: number, width: number): {
  */
 function removeCopy(food: Food): { text: string; label: string } {
   if (food.status === "avoid") return { text: "Remove", label: `Remove ${food.name} from Avoid` };
-  if (food.status === "eats") return { text: "Remove", label: `Remove ${food.name} from Eats` };
+  if (food.status === "eats") return { text: "Remove", label: `Remove ${food.name} from Favorites` };
   return { text: "Clear marks", label: `Clear marks for ${food.name}` };
 }
 
@@ -337,9 +337,9 @@ export function foodMembershipError(error: unknown): string {
 /** What a membership write did, in the words its confirmation uses. */
 function membershipCopy(food: Food, next: Food["status"]): string {
   if (next === "avoid") return `${food.name} moved to Avoid.`;
-  if (next === "eats") return `${food.name} added to Eats.`;
+  if (next === "eats") return `${food.name} added to Favorites.`;
   if (food.status === "neutral") return `Marks cleared for ${food.name}.`;
-  return `${food.name} removed from ${food.status === "avoid" ? "Avoid" : "Eats"}.`;
+  return `${food.name} removed from ${food.status === "avoid" ? "Avoid" : "Favorites"}.`;
 }
 
 /**
@@ -631,7 +631,7 @@ export function AvoidFoods({ renderAvoidStatus, onAvoidSaved }: {
                   onToggle={() => setEditing((value) => !value)} />} />
               {avoid.length === 0 && (
                 <p className="m-0 px-1.5 pb-2 text-caption text-muted">
-                  Nothing here. Add one below, or move a food here from Eats.
+                  Nothing here. Add one below, or move a food here from Favorites.
                 </p>
               )}
             </div>

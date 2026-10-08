@@ -5,7 +5,8 @@
  * write below names this account's own id.
  *
  *   `closed` is always allowed: the stop switch.
- *   `open` answers 423 while the open world is unreleased (`OPEN_WORLD_ENABLED`) or the account is
+ *   `open` answers 423 while the open world is unreleased (`OPEN_WORLD_ENABLED`, or a non-empty
+ *   `OPEN_WORLD_USER_IDS` release list that does not name the account) or the account is
  *   held (`OPEN_WORLD_HOLD_USER_IDS`), and 409 `condition_review` while any stated condition is
  *   unconfirmed. Confirmations are accepted only in reviewed wording (`CONDITION_PACKS_ENABLED`,
  *   owner decision Q4); a `pack` choice adds the pack's allergen rules to the account first.
@@ -15,7 +16,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { openWorldHeld, openWorldReleased, type OpenWorldEnv } from "@/lib/foods/world/access";
+import {
+  effectiveFoodWorld, openWorldHeld, openWorldListed, openWorldOpenableFor, openWorldReleased,
+  type OpenWorldEnv,
+} from "@/lib/foods/world/access";
 import { planConfirmations, unconfirmedConditions } from "@/lib/foods/world/condition-gate";
 import type { ConditionPacksEnv } from "@/lib/policy/profiles/condition-packs";
 import { HttpError } from "@/lib/server/auth";
@@ -87,7 +91,7 @@ async function applyConfirmations(admin: SupabaseClient, userId: string, gate: A
  * row yet (409 `profile_required`, the client retries) or a choice was already made, which this
  * answers as a no-op with the account's own current world (the client settles on it).
  */
-async function settledDefault(admin: SupabaseClient, userId: string): Promise<FoodWorldResult> {
+async function settledDefault(admin: SupabaseClient, userId: string, env: Env): Promise<FoodWorldResult> {
   const current = await admin.from("user_settings").select("food_world,food_world_set_at")
     .eq("user_id", userId).maybeSingle();
   if (current.error) failed(current.error);
@@ -95,13 +99,14 @@ async function settledDefault(admin: SupabaseClient, userId: string): Promise<Fo
   if (!row) throw new HttpError(409, "profile_required", "Finish your profile first.");
   // A row that appeared after the write with nothing decided yet: retryable, never a settlement.
   if (!row.food_world_set_at) failed(new Error("food_world default raced a new settings row"));
-  return { status: 200, body: { world: row.food_world === "open" ? "open" : "closed" } };
+  return { status: 200, body: { world: effectiveFoodWorld(row.food_world, userId, env) } };
 }
 
 export async function setFoodWorld(admin: SupabaseClient, userId: string, req: FoodWorldRequest,
   env: Env = process.env as Env): Promise<FoodWorldResult> {
   if (req.world === "open" && openWorldHeld(userId, env)) return { status: 423, body: { error: "held" } };
-  if (req.world === "open" && !openWorldReleased(env)) {
+  // Staged release (OPEN_WORLD_USER_IDS): an account off a non-empty list is not released yet.
+  if (req.world === "open" && (!openWorldReleased(env) || !openWorldListed(userId, env))) {
     return { status: 423, body: { error: "open_world_not_released" } };
   }
   const gate = await readGate(admin, userId);
@@ -142,19 +147,19 @@ export async function setFoodWorld(admin: SupabaseClient, userId: string, req: F
       conditions: unconfirmedConditions(fresh.conditions, fresh.confirmed) } };
   }
   if (error) failed(error);
-  if (!data && isDefault) return settledDefault(admin, userId);
+  if (!data && isDefault) return settledDefault(admin, userId, env);
   if (!data) throw new HttpError(409, "profile_required", "Finish your profile first.");
   return { status: 200, body: { world: req.world } };
 }
 
 /** The account's own current `food_world` ('closed' when the row is missing: the same default
  *  the column itself carries, migration 20261213090000). */
-export async function readFoodWorld(admin: SupabaseClient, userId: string): Promise<"open" | "closed"> {
+export async function readFoodWorld(admin: SupabaseClient, userId: string,
+  env: Env = process.env as Env): Promise<"open" | "closed"> {
   const { data, error } = await admin.from("user_settings").select("food_world")
     .eq("user_id", userId).maybeSingle();
   if (error) failed(error);
-  const world = (data as { food_world?: string } | null)?.food_world;
-  return world === "open" ? "open" : "closed";
+  return effectiveFoodWorld((data as { food_world?: string } | null)?.food_world, userId, env);
 }
 
 /**
@@ -188,11 +193,13 @@ export async function readFoodWorldState(admin: SupabaseClient, userId: string,
   if (error) failed(error);
   const row = data as { food_world?: string; food_world_set_at?: string | null;
     food_world_default_due_at?: string | null; onboarded_at?: string | null } | null;
-  const world = row?.food_world === "open" ? "open" : "closed";
-  if (!row || world === "open") return { world, openDefaultPending: false, starterSeed: false };
+  const world = effectiveFoodWorld(row?.food_world, userId, env);
+  // A stored-open account the release settings read as closed never seeds the closed starter:
+  // its own choice comes back, unchanged, when it is allowed again (no write here).
+  if (!row || row.food_world === "open") return { world, openDefaultPending: false, starterSeed: false };
   let openDefaultPending = false;
   if (row.food_world_default_due_at && !row.food_world_set_at
-    && openWorldReleased(env) && !openWorldHeld(userId, env)) {
+    && openWorldOpenableFor(userId, env)) {
     const gate = await readGate(admin, userId);
     openDefaultPending = unconfirmedConditions(gate.conditions, gate.confirmed).length === 0;
   }
@@ -209,6 +216,6 @@ export async function readFoodWorldState(admin: SupabaseClient, userId: string,
 export async function invitationEligible(
   admin: SupabaseClient, userId: string, env: Env = process.env as Env,
 ): Promise<boolean> {
-  if (!openWorldReleased(env) || openWorldHeld(userId, env)) return false;
-  return (await readFoodWorld(admin, userId)) === "closed";
+  if (!openWorldOpenableFor(userId, env)) return false;
+  return (await readFoodWorld(admin, userId, env)) === "closed";
 }

@@ -192,7 +192,7 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       {loading && <p role="status" className="m-0 text-caption text-graphite">Checking your food rules and saved meals…</p>}
       {error && <Notice tone="error" title={error} />}
       {target && options.length === 0 && !loading && <Notice tone="neutral"
-        title="No verified close matches yet. Check your food rules, add foods to Eats, or edit this meal." />}
+        title="No close matches for this slot yet. Check your food rules, or edit this meal." />}
       {/* Swaps are sized to the slot's target: with none (no target revision in force, or a slot that
           carries no target) there is nothing to size them to, and the sheet says so rather than
           showing an empty body (UI audit 2026-10-07). */}

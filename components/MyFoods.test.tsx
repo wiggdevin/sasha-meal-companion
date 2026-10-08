@@ -115,7 +115,7 @@ describe("a food row", () => {
     fireEvent.pointerCancel(rowOf("Oats"), { pointerType: "touch", pointerId: 1 });
     await act(async () => {});
     expect(membership.set).not.toHaveBeenCalled();
-    expect(removeOf(/Remove Oats from Eats/).getAttribute("data-revealed")).toBe("false");
+    expect(removeOf(/Remove Oats from Favorites/).getAttribute("data-revealed")).toBe("false");
     expect(seeded.foods.oats.status).toBe("eats");
   });
 
@@ -123,7 +123,7 @@ describe("a food row", () => {
     render(<EatsFoods />);
     swipe(rowOf("Oats"), -100, 6);
     await act(async () => {});
-    expect(removeOf(/Remove Oats from Eats/).getAttribute("data-revealed")).toBe("true");
+    expect(removeOf(/Remove Oats from Favorites/).getAttribute("data-revealed")).toBe("true");
     expect(membership.set).not.toHaveBeenCalled();
     // The swipe's own click is swallowed: no edit sheet opens behind the revealed control.
     fireEvent.click(rowOf("Oats"), { detail: 1 });
@@ -143,7 +143,7 @@ describe("a food row", () => {
   it("gives Other foods the same edit and swipe behavior", async () => {
     render(<EatsFoods />);
     fireEvent.click(rowOf("Rice"));
-    expect(await screen.findByRole("button", { name: "Add to Eats" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Add to Favorites" })).toBeTruthy();
     cleanup();
     render(<EatsFoods />);
     swipe(rowOf("Rice"), -100);
@@ -168,7 +168,7 @@ describe("a food row", () => {
     expect(toggle.className).toContain("min-h-11");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    const remove = removeOf(/Remove Oats from Eats/);
+    const remove = removeOf(/Remove Oats from Favorites/);
     expect(remove.getAttribute("data-revealed")).toBe("true");
     expect(remove.className).toContain("min-h-11");
     fireEvent.click(remove);
@@ -236,7 +236,7 @@ describe("the favorite star", () => {
     render(<EatsFoods />);
     const star = screen.getByRole("button", { name: "Favorite Oats" });
     const row = star.closest<HTMLElement>("[data-food-row]")!;
-    const remove = removeOf(/Remove Oats from Eats/);
+    const remove = removeOf(/Remove Oats from Favorites/);
     const before = { className: star.className, index: [...row.children].indexOf(star) };
     for (let tap = 0; tap < 10; tap += 1) {
       fireEvent.pointerDown(star, { pointerType: "touch", pointerId: 1, clientX: 320, clientY: 100 });
@@ -255,7 +255,7 @@ describe("the favorite star", () => {
   it("is laid out before Remove, which overlays the row instead of joining its flow", () => {
     render(<EatsFoods />);
     const star = screen.getByRole("button", { name: "Favorite Oats" });
-    const remove = removeOf(/Remove Oats from Eats/);
+    const remove = removeOf(/Remove Oats from Favorites/);
     expect(star.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The CSS module's `.remove` is absolutely positioned; the star carries no class that moves it.
     expect(remove.className).toMatch(/remove/);
@@ -290,7 +290,7 @@ describe("Eats membership feedback", () => {
     swipe(rowOf("Oats"), -200, 8);
     await act(async () => {});
     const status = screen.getByRole("status");
-    expect(status.textContent).toContain("Oats removed from Eats.");
+    expect(status.textContent).toContain("Oats removed from Favorites.");
     await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
     expect(membership.set).toHaveBeenCalledTimes(2);
     expect(membership.set.mock.calls[1].slice(0, 2)).toEqual(["Oats", "eats"]);
@@ -306,7 +306,7 @@ describe("Eats membership feedback", () => {
     const alert = screen.getByRole("alert");
     expect(alert.querySelector('button[aria-label="Dismiss notification"]')).toBeTruthy();
     expect(seeded.foods.oats).toMatchObject({ status: "eats", note: "fine in the morning" });
-    expect(removeOf(/Remove Oats from Eats/)).toBeTruthy();
+    expect(removeOf(/Remove Oats from Favorites/)).toBeTruthy();
     expect(vibrate).not.toHaveBeenCalled();
   });
 
@@ -347,7 +347,7 @@ describe("Eats membership feedback", () => {
     expect(seeded.foods.oats.status).toBe("neutral");
     // The newer move, made while the first write is still in flight: back onto Eats from its sheet.
     fireEvent.click(rowOf("Oats"));
-    fireEvent.click(await screen.findByRole("button", { name: "Add to Eats" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add to Favorites" }));
     expect(seeded.foods.oats.status).toBe("eats");
     // A later local edit of the same food (another screen's write), still in the store.
     seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
@@ -414,7 +414,7 @@ describe("a superseded membership write", () => {
     await act(async () => { land(); });
     await act(async () => {});
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
-    expect(screen.queryByText("Oats removed from Eats.")).toBeNull();
+    expect(screen.queryByText("Oats removed from Favorites.")).toBeNull();
   });
 
   it("does not roll back over the newer choice when it fails", async () => {

@@ -113,7 +113,7 @@ export const REGISTRY: readonly CoachTool[] = Object.freeze([
     name: "search_foods",
     description:
       "Search the food catalogue and their own list for foods matching a short query. Returns names, "
-      + "per-100 g calories and whether each is on their Eats or Avoid list.",
+      + "per-100 g calories and whether each is on their Favorites or Avoid list.",
     input: z.object({
       query: z.string().min(1).max(64),
       limit: z.number().int().min(1).max(10).optional(),
@@ -191,7 +191,7 @@ export const REGISTRY: readonly CoachTool[] = Object.freeze([
     description:
       "Find complete published recipe candidates when kind is recipe; wish is the dish or cuisine "
       + "query. These are checked against current account rules and Avoids and returned as recipe "
-      + "cards. For meal or snack, build composed meal ideas from the person's foods. This tool "
+      + "cards. For meal or snack, build composed meal ideas that fit their rules, their Favorites first. This tool "
       + "only browses and never logs, saves, or changes a plan. If the person also asks to log "
       + "something they ate, keep that separate action in the final answer.",
     input: z.object({

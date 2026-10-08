@@ -143,21 +143,59 @@ describe("the admission input (Sol r1 BLOCK 1: fix the input, never the verdict)
       if (states.includes("unknown")) expect([item.entry.id, tags]).toEqual([item.entry.id, null]);
       else expect([item.entry.id, tags]).toEqual([item.entry.id,
         ALLERGEN_KEYS.filter((key) => item.allergens[key] === "listed")]);
-      expect({ ...admissionEvidence(item), allergenTags: null }).toEqual(universePolicyEvidence(item));
+      const { perAllergenEvidence, ...rest } = admissionEvidence(item);
+      expect(perAllergenEvidence).toBe(true);
+      expect({ ...rest, allergenTags: null }).toEqual(universePolicyEvidence(item));
     }
   });
 
-  it("with no rules, admits exactly the items with complete evidence and usable nutrition", () => {
+  // Owner direction 2026-10-08 ("no allow list"): an evidence gap only matters to a rule that needs
+  // the evidence. With no rules, every item with usable nutrition is admitted; before, the legacy
+  // no-tag-list gate (the closed world's Eats allow list) kept 192 of 319 items out of an account
+  // that avoids nothing, while an account WITH an unrelated allergen rule got them (W2b r2 note).
+  it("with no rules, admits every item with usable nutrition: an evidence gap no rule reads excludes nothing", () => {
     const rules: AdmissionRules = { profile: EMPTY_PROFILE, preferenceFlags: [], avoidFamilies: new Set() };
-    const expected = ITEMS.filter((item) => ALLERGEN_KEYS.every((key) => item.allergens[key] !== "unknown")
-      && usableForGeneration(item.food)).map((item) => item.entry.id).sort();
+    const expected = ITEMS.filter((item) => usableForGeneration(item.food)).map((item) => item.entry.id).sort();
     expect(admitUniverse(ITEMS, rules).admitted).toEqual(expected);
-    expect(expected.length).toBeGreaterThan(50);
-    expect(expected.length).toBeLessThan(ITEMS.length);
+    expect(ITEMS.some((item) => ALLERGEN_KEYS.some((key) => item.allergens[key] === "unknown"))).toBe(true);
+  });
+
+  it("an avoided allergen still decides for itself: an item whose state for it is not clear stays out", () => {
+    for (const key of ALLERGEN_KEYS) {
+      const rules: AdmissionRules = { profile: { ...EMPTY_PROFILE, avoid_allergens: [key] }, preferenceFlags: [],
+        avoidFamilies: new Set() };
+      const admitted = new Set(admitUniverse(ITEMS, rules).admitted);
+      const keys = key === "shellfish" ? [key, "crustacean"] : [key];
+      for (const item of ITEMS.filter((row) => admitted.has(row.entry.id))) {
+        for (const avoided of keys) expect([key, item.entry.id, item.allergens[avoided]]).toEqual([key, item.entry.id, "clear"]);
+      }
+    }
+  });
+
+  it("a diet flag still excludes what it names: no animal food for vegan, no meat or fish for vegetarian", () => {
+    const ANIMAL = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|ham|bacon|sausage|steak|fish|salmon|tuna|cod|tilapia|trout|halibut|catfish|sardine|anchov|mackerel|shrimp|prawn|crab|lobster|scallop|mussel|clam|oyster|octopus|squid|egg|milk|cheese|yogurt|butter|ghee|cream|paneer|whey|\bhoney\b/i;
+    const MEAT = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|ham|bacon|sausage|steak|fish|salmon|tuna|cod|tilapia|trout|halibut|catfish|sardine|anchov|mackerel|shrimp|prawn|crab|lobster|scallop|mussel|clam|oyster|octopus|squid/i;
+    const NOT_ANIMAL = /peanut butter|almond butter|cashew butter|sunflower seed butter|nut butter|coconut milk|almond milk|soy milk|oat milk|rice milk|eggplant|butternut|butter bean|cream of wheat/i;
+    for (const [flag, words] of [["vegan", ANIMAL], ["vegetarian", MEAT]] as const) {
+      const rules: AdmissionRules = { profile: EMPTY_PROFILE, preferenceFlags: [flag as PolicyPreferenceFlag],
+        avoidFamilies: new Set() };
+      const admitted = new Set(admitUniverse(ITEMS, rules).admitted);
+      const wrong = ITEMS.filter((item) => admitted.has(item.entry.id))
+        .filter((item) => words.test(item.row.name) && !NOT_ANIMAL.test(item.row.name)).map((item) => item.entry.id);
+      expect([flag, wrong]).toEqual([flag, []]);
+      expect(admitted.size).toBeGreaterThan(20);
+    }
   });
 });
 
 describe("Avoid families (W2b acceptance 2)", () => {
+  it("an Avoid mark on a food also keeps out the universe item that is a form of it (canned, smoked, ground …)", () => {
+    const rules: AdmissionRules = { profile: EMPTY_PROFILE, preferenceFlags: [], avoidFamilies: avoidFamilies(["Salmon"]) };
+    const admitted = admitUniverse(ITEMS, rules).admitted;
+    expect(admitted.filter((id) => id.includes("salmon"))).toEqual([]);
+    expect(ITEMS.some((item) => item.entry.id === "canned-salmon-pink")).toBe(true);
+  });
+
   const families = [...new Set(ITEMS.map((item) => baseFoodName(item.row.name)))]
     .filter((key) => ITEMS.filter((item) => baseFoodName(item.row.name) === key).length > 1);
 

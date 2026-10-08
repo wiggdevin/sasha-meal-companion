@@ -35,7 +35,7 @@ function Flags({ row }: { row: CatalogRow }) {
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       {row.prefStatus && (
-        <Tag>{row.prefStatus === "eats" ? "Eats" : "Avoid"}</Tag>
+        <Tag>{row.prefStatus === "eats" ? "Favored" : "Avoid"}</Tag>
       )}
       {row.qualityFlags.includes("energy_mismatch") && (
         <Tag tone="yellow" title="The source's calories and its macros disagree by more than 10%">Check kcal</Tag>
