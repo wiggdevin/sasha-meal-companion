@@ -266,7 +266,7 @@ describe("reason chips", () => {
     expect(chicken.length).toBeGreaterThan(0);
     for (const { meal } of chicken) expect(meal.reasons).toEqual(["eaten_often"]);
     expect(REASON_CHIP_COPY.eaten_often).toBe("You eat this often");
-    expect(REASON_CHIP_COPY.on_list).toBe("On your list");
+    expect(REASON_CHIP_COPY.on_list).toBe("Favorite");
     // A closed account's layout (no open inputs): no field at all.
     const closed = planMealsForDay("2026-10-06", FOUR, device([CHICKEN, YOGURT, TOFU]).foods);
     for (const { meal } of closed.meals) expect("reasons" in meal).toBe(false);

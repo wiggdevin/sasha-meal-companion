@@ -10,14 +10,14 @@ const meal: Meal = { id: "plate", name: "Plate", slot: "meal-2", prepMinutes: 0,
 const planned: ResolvedSlot = { ...empty, slot: "meal-2", meal };
 const notes: GeneratedNotes = {
   proteins: { available: 2, required: 3 },
-  shortages: { "meal-1": { missing: ["starch"], reason: "Add a breakfast starch or fruit to Eats" } },
+  shortages: { "meal-1": { missing: ["starch"], reason: "No breakfast starch or fruit fits yet — try another food" } },
   misses: { "meal-2": "These foods can’t reach this meal’s protein in usual portions" },
 };
 
 describe("slotNote", () => {
   it("gives an empty slot its shortage and a generated plate its miss", () => {
     expect(slotNote(empty, undefined, notes)).toEqual({
-      emptyReason: "Add a breakfast starch or fruit to Eats", planMiss: null });
+      emptyReason: "No breakfast starch or fruit fits yet — try another food", planMiss: null });
     expect(slotNote(planned, undefined, notes)).toEqual({
       emptyReason: null, planMiss: "These foods can’t reach this meal’s protein in usual portions" });
   });

@@ -158,7 +158,7 @@ export default function SlotCard({
   /** A flow this card started (ask the assistant, swap, log), rendered inside the card's own tray in
    *  place of its detail (components/Sheet.tsx, presentation "inset"). */
   attachment?: ReactNode;
-  /** Why the generator left this empty slot empty ("Add a breakfast starch or fruit to Eats"). */
+  /** Why the generator left this empty slot empty ("No breakfast starch or fruit fits yet — try another food"). */
   emptyReason?: string | null;
   /** Why the generated plate still misses this meal's target inside usual portions. */
   planMiss?: string | null;
