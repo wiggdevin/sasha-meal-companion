@@ -140,5 +140,11 @@ describe("first meal with an automatic meal count", () => {
     expect(settings.activeTargetProfile!.training.kcal).toBeGreaterThan(2600);
     // Five meals start at 07:30, so the first meal needs no shift at all.
     expect(settings.shiftMinutes).toBe(0);
+    // A plan edit that pins training calories to 1700 saves a three-meal layout (08:00 first),
+    // so the shift is taken against that layout, not the unpinned five-meal one.
+    const pinned = onboardingReducer(state, { type: "edit_plan", field: "trainingKcal", value: 1700 });
+    const edited = buildCompletedSettings(defaultSettings(), pinned, NOW);
+    expect(edited.trainingKcal).toBe(1700);
+    expect(edited.shiftMinutes).toBe(-30);
   });
 });
