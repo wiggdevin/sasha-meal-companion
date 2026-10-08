@@ -37,13 +37,16 @@ import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFe
 import Button from "@/components/ui/Button";
 import DietaryTextHint from "@/components/ui/DietaryTextHint";
 import Thinking from "@/components/ui/Thinking";
-import { CUISINE_LABELS, type CuisineKey } from "@/lib/profile/cuisines";
+import { CUISINE_LABELS, CUISINES, type CuisineKey } from "@/lib/profile/cuisines";
 import { requestTasteChips } from "@/lib/profile/prefs-client";
 import { readTasteChipsEnabled, type TasteChipsAvailability } from "@/lib/profile/taste-enabled-client";
 import {
   confirmTasteChips, newTasteActionId, undoTasteChips, type TasteWriteOutcome,
 } from "@/lib/profile/taste-confirm-client";
-import type { TasteConfirmRequest, TasteConfirmSource, TasteKeys } from "@/lib/profile/taste-confirm";
+import {
+  TASTE_CONFIRM_ERRORS,
+  type TasteConfirmRequest, type TasteConfirmSource, type TasteKeys,
+} from "@/lib/profile/taste-confirm";
 import { SENSORY_TAG_TEXT, type TasteSuggestion } from "@/lib/profile/taste-chips";
 import type { TasteDislike } from "@/lib/profile/taste";
 
@@ -79,6 +82,22 @@ function writeFailureMessage(error: unknown): string {
   return "That did not save. Try again.";
 }
 
+/**
+ * A small, fixed set of chips offered when Jev is down (D9 followup #3): `suggestion.jev === false`
+ * means nothing was classified from the text, so `suggestion.dislikes`/`cuisines` are empty and the
+ * field would otherwise show "Nothing to suggest from that yet." with no way to add a chip at all.
+ * These are explicitly CHOSEN by the user, never inferred from the text that failed to classify —
+ * the six most commonly disliked sensory tags and the six most broadly recognized cuisines, both
+ * already fixed, reviewed vocabularies (lib/profile/taste.ts, lib/profile/cuisines.ts), so nothing
+ * new is introduced here. The local safety check already ran before this point (the module
+ * docblock's step 1): a rule, a symptom or medical text never reaches here at all — only text that
+ * was safe to send, and for which Jev happened to be unavailable.
+ */
+const PRESET_DISLIKE_KEYS: readonly TasteDislike[] = [
+  "t:spicy_hot", "t:bitter", "t:sour", "t:strong_fish", "t:slimy", "t:gamey",
+];
+const PRESET_CUISINE_KEYS: readonly CuisineKey[] = CUISINES.slice(0, 6);
+
 function SuggestedChips({ suggestion, picked, confirmed, pending, onToggle }: {
   suggestion: Extract<TasteSuggestion, { route: "send" }>;
   picked: Picked[];
@@ -89,16 +108,28 @@ function SuggestedChips({ suggestion, picked, confirmed, pending, onToggle }: {
   onToggle: (p: Picked) => void;
 }) {
   // `likes` is never rendered: the confirm RPC has no field to write it to (see module docblock).
-  const options: Picked[] = [
-    ...suggestion.dislikes.map((chip): Picked => ({ kind: "dislike", key: chip.key, label: chip.label })),
-    ...suggestion.cuisines.map((chip): Picked => ({ kind: "cuisine", key: chip.key, label: CUISINE_LABELS[chip.key] })),
-  ];
+  const usingPresets = !suggestion.jev;
+  const options: Picked[] = usingPresets
+    ? [
+      ...PRESET_DISLIKE_KEYS.map((key): Picked => ({ kind: "dislike", key, label: tasteDislikeLabel(key) })),
+      ...PRESET_CUISINE_KEYS.map((key): Picked => ({ kind: "cuisine", key, label: CUISINE_LABELS[key] })),
+    ]
+    : [
+      ...suggestion.dislikes.map((chip): Picked => ({ kind: "dislike", key: chip.key, label: chip.label })),
+      ...suggestion.cuisines.map((chip): Picked => ({ kind: "cuisine", key: chip.key, label: CUISINE_LABELS[chip.key] })),
+    ];
   if (options.length === 0) {
     return <p className="m-0 text-tiny font-light text-muted">Nothing to suggest from that yet.</p>;
   }
   return (
     <div className="flex flex-col gap-2">
-      <div role="group" aria-label="Suggested taste chips" className="flex flex-wrap gap-2">
+      {usingPresets && (
+        <p className="m-0 text-tiny font-light text-muted">
+          We couldn&rsquo;t read suggestions from that just now — pick any that fit instead:
+        </p>
+      )}
+      <div role="group" aria-label={usingPresets ? "Taste chips to pick from" : "Suggested taste chips"}
+        className="flex flex-wrap gap-2">
         {options.map((option) => {
           const id = pickedId(option);
           const isConfirmed = confirmed.has(id);
@@ -222,6 +253,21 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     });
   }
 
+  /**
+   * One confirm attempt, no automatic retry (Sol round 3 BLOCK, verified): a 409
+   * `settings_not_synced` means the account's settings row has not reached the server yet — the
+   * onboarding step that mounts this field races its own first settings push, so the confirm can
+   * land just ahead of it. The earlier design tried to prove the settings write had actually
+   * landed before auto-retrying (first `syncOnce().push.failed`, then `flushOutboxNow`), but
+   * neither is sound: the server can drop an op without writing it and still answer `true`/"not
+   * failed", so an automatic retry could fire with no real ACK behind it, confirming twice. There
+   * is no automatic retry at all now — `confirm()` sends exactly once. On `settings_not_synced`
+   * the failure toast below carries its own "Try again" action, which calls `confirm()` again: it
+   * reuses the SAME `pendingActionId` (untouched by a failure, only cleared on success or a
+   * changed selection), so the server either answers the stored receipt (the row landed between
+   * taps) or refuses the same way again (it still has not) — harmless either way, since confirm is
+   * idempotent by action id. No sync call belongs in this path at all.
+   */
   function confirm() {
     if (picked.length === 0) return;
     const actionId = pendingActionId.current ?? newTasteActionId();
@@ -246,7 +292,20 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     // may just assume every requested chip landed (verified finding).
     void feedback.run(() => sent, { kind: "commit", failureMessage: writeFailureMessage })
       .then((result) => {
-        if (!result.ok) return;
+        if (!result.ok) {
+          const outcome = result.error as TasteWriteOutcome<unknown> | null | undefined;
+          const settingsNotSynced = outcome?.ok === false && outcome.reason === "refused"
+            && outcome.code === TASTE_CONFIRM_ERRORS.settingsNotSynced;
+          // Overrides the generic failure toast `run()` already showed, with one offering "Try
+          // again" over it: the SAME action id and chips go out again on tap, never a fresh one.
+          if (settingsNotSynced) {
+            feedback.notify({
+              tone: "error", message: writeFailureMessage(outcome),
+              action: { label: "Try again", action: confirm },
+            });
+          }
+          return;
+        }
         pendingActionId.current = null;
         const addedIds = keysToIds(result.value.added);
         const settledIds = new Set([...addedIds, ...keysToIds(result.value.present)]);

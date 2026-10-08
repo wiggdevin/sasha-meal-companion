@@ -38,12 +38,11 @@ type Phase = "closed" | "start" | "reading" | "draft" | "saving" | "done";
  *  a batch the route would reject whole. */
 const MAX_ITEMS = 40;
 const MAX_NAME_LENGTH = 160;
-/** The SAME route's `MAX_BYTES` (4 KB) on the whole request body -- smaller than 40 items at 160
- *  characters each would actually need (Sol WARN, verified: ~7.5 KB worst case), so a draft this
- *  component would otherwise let through can still be too large. Checked against the real
- *  encoded body right before sending, rather than guessing a safe static per-field length that
- *  would either be wrong for some item count or needlessly strict for most. */
-const CONFIRM_BODY_MAX_BYTES = 4 * 1024;
+/** The SAME route's `MAX_BYTES` (Followups #21: raised from 4 KB to 48 KB, item caps unchanged —
+ *  see app/api/pantry/photo/confirm/route.ts). Checked against the real encoded body right before
+ *  sending, rather than guessing a safe static per-field length that would either be wrong for
+ *  some item count or needlessly strict for most. */
+const CONFIRM_BODY_MAX_BYTES = 48 * 1024;
 
 function toDraft(names: readonly string[]): DraftItem[] {
   return names.map((name) => ({ id: crypto.randomUUID(), name, grams: "" }));
