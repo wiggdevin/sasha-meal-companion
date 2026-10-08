@@ -86,6 +86,7 @@ export default function LogFoodSheet({
   onClose,
   onCapture,
   onScan,
+  at,
 }: {
   mode: "food" | "meal";
   mine: Record<string, Food>;
@@ -99,6 +100,8 @@ export default function LogFoodSheet({
    * (`nutrition_unchecked`: "Saved. Nutrition not fully checked.").
    */
   onAdd: (entry: LoggedFood, date?: string, notice?: string, saved?: string) => void;
+  /** When the meal was eaten: the day on screen when that is not today (app/page.tsx), else now. */
+  at?: Date;
   onSomethingElse: () => void;
   onClose: () => void;
   /** The FAB's capture flow: this sheet closes first, then app/page.tsx sets the mode. */
@@ -293,7 +296,7 @@ export default function LogFoodSheet({
     try {
       let prepared: Awaited<ReturnType<typeof preparePickedCommit>>;
       try {
-        prepared = await preparePickedCommit({ picks, slot, meal });
+        prepared = await preparePickedCommit({ picks, slot, meal, at });
       } catch (e) {
         // The account changed under the tap: nothing of the old account is shown or written.
         if (!(e instanceof AccountChanged)) {

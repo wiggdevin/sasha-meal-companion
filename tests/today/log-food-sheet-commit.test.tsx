@@ -118,10 +118,10 @@ afterEach(() => {
   else process.env.NEXT_PUBLIC_CATALOG_SEARCH = savedFlag;
 });
 
-async function sheet(mode: "food" | "meal" = "food") {
+async function sheet(mode: "food" | "meal" = "food", at?: Date) {
   const { default: LogFoodSheet } = await import("@/components/LogFoodSheet");
   const onAdd = vi.fn();
-  render(<LogFoodSheet mode={mode} mine={MINE} slot="meal-1" onAdd={onAdd}
+  render(<LogFoodSheet mode={mode} mine={MINE} slot="meal-1" onAdd={onAdd} at={at}
     onSomethingElse={() => {}} onClose={() => {}} onCapture={() => {}} />);
   return onAdd;
 }
@@ -153,6 +153,19 @@ describe("a single pick", () => {
     fireEvent.change(grams, { target: { value: "150" } });
     for (let i = 0; i < 4; i += 1) fireEvent.click(screen.getByRole("button", { name: "More" }));
     expect(grams.value).toBe("300");
+  });
+
+  it("files a log from a past day on that day, card and request alike (UI audit 2026-10-07)", async () => {
+    const at = new Date("2026-10-05T08:30:00");
+    const onAdd = await sheet("food", at);
+    openFood("chicken breast roasted", dbFood(CHICKEN.id)!.name);
+    fireEvent.click(addButton());
+    await waitFor(() => expect(onAdd).toHaveBeenCalledOnce());
+    const { req, opts } = commitCall();
+    expect(req.local_date).toBe("2026-10-05");
+    expect(new Date(req.eaten_at).getTime()).toBe(at.getTime());
+    expect(opts.optimistic.date).toBe("2026-10-05");
+    expect(onAdd.mock.calls[0][1]).toBe("2026-10-05");
   });
 
   it("commits a bundled food once and hands Today the committed card once", async () => {

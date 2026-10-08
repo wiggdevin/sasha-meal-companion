@@ -60,6 +60,7 @@ import { todayResolveInputs, type TodayLive } from "@/lib/today/resolve-inputs";
 import { openSlotCard } from "@/lib/today/open-slot-card";
 import { mergeTimeline } from "@/lib/today-timeline";
 import { viewedDateFromSearch } from "@/lib/url-date";
+import { viewedLogAt } from "@/lib/log/viewed-at";
 import { useBodyCapability } from "@/lib/health/capability-client";
 import { useTodayBody } from "@/lib/health/today-card";
 import ProposalCard from "@/components/ProposalCard";
@@ -182,6 +183,8 @@ export default function Today() {
   const [planMode, setPlanMode] = useState<"plan" | "log">("plan");
   const [logOpen, setLogOpen] = useState<"food" | "meal" | null>(null);
   const [logSlot, setLogSlot] = useState<SlotId | null>(null);
+  /** The slot a label opened from a meal card logs into; null when it was opened from anywhere else. */
+  const [labelSlot, setLabelSlot] = useState<SlotId | null>(null);
   const [openEntry, setOpenEntry] = useState<string | null>(null);
   const [breakdownEntry, setBreakdownEntry] = useState<string | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
@@ -561,6 +564,14 @@ export default function Today() {
     refresh();
   }
 
+  /**
+   * When a meal logged from this screen was eaten: now on today, else the slot's own time on the day
+   * on screen (UI audit 2026-10-07: a log from a past day's card was filed under today, unseen).
+   */
+  function logAtFor(slotId: SlotId): Date | undefined {
+    return viewedLogAt(viewedDate, todayIso, resolved.slots.find((slot) => slot.slot === slotId)?.time);
+  }
+
   function logFood(entry: LoggedFood, date?: string, notice?: string, saved?: string) {
     // `upsertExtra`, not `addExtra`: the optimistic commit (T0 §3) has usually already put this
     // entry on the day, and a second copy would double the calories. On the date the COMMIT filed
@@ -782,7 +793,8 @@ export default function Today() {
     // One serving of the new food, through the durable commit path (calc audit #15); a food that
     // cannot be sent keeps its local card and says so. Never both. The sheet closes only once the
     // serving is committed or kept here; a refusal leaves it open with the draft.
-    const logged = await logLabelFood(food, currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1");
+    const slotId = labelSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1";
+    const logged = await logLabelFood(food, slotId, logAtFor(slotId));
     // Only the sheet this attempt came from: a newer one the user opened meanwhile stays open.
     return settleLabelLog(logged, { viewedDate, close: () => { if (isCurrentSheet()) setLabelOpen(false); }, refresh,
       confirmLogged, notify: todayFeedback.notify });
@@ -874,8 +886,8 @@ export default function Today() {
         onClose={() => setEditSlot(null)} />;
     }
     if (logOpen && logSlot === id) return <LogFoodSheet key={`log-${logOpen}-${id}`} mode={logOpen}
-      mine={store.foods} slot={id} projection={todayProjection} onAdd={logFood}
-      onSomethingElse={() => { setLogOpen(null); setLogSlot(null); setLabelOpen(true); }}
+      mine={store.foods} slot={id} projection={todayProjection} onAdd={logFood} at={logAtFor(id)}
+      onSomethingElse={() => { setLabelSlot(id); setLogOpen(null); setLogSlot(null); setLabelOpen(true); }}
       onClose={() => { setLogOpen(null); setLogSlot(null); }}
       {...captureOverlayProps(setCaptureMode, () => setScanOpen(true))} />;
     return null;
@@ -1098,7 +1110,8 @@ export default function Today() {
               slot={logSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1"}
               projection={todayProjection}
               onAdd={logFood}
-              onSomethingElse={() => { setLogOpen(null); setLabelOpen(true); }}
+              at={logAtFor(logSlot ?? currentSlotId ?? resolved.slots[0]?.slot ?? "meal-1")}
+              onSomethingElse={() => { setLabelSlot(null); setLogOpen(null); setLabelOpen(true); }}
               onClose={() => { setLogOpen(null); setLogSlot(null); }}
               {...captureOverlayProps(setCaptureMode, () => setScanOpen(true))}
             />
