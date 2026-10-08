@@ -14,7 +14,10 @@ import "server-only";
  *      limiter (lib/server/ratelimit.ts), keyed per user — NOT the client-reported count alone
  *      (Sol r1 BLOCK: a client that always sends 0 must still be stopped), and claimed once PER
  *      PROVIDER ATTEMPT, not once per request (Sol r2 BLOCK: a request that falls back from
- *      OpenRouter to Gemini makes two attempts and must spend two of the five, not one);
+ *      OpenRouter to Gemini makes two attempts and must spend two of the five, not one), and
+ *      every retry callModel makes inside one leg claims its own slot before it is sent (Sol p0
+ *      BLOCK 5: retries could otherwise exceed five real attempts); the client's own
+ *      `callsUsedThisSession` is never read for the decision;
  *   3. callModel's own gates (lib/ai/call.ts): the registry, attestation, the circuit breaker
  *      and the spend cap, same as every other lane.
  *
@@ -43,7 +46,9 @@ import {
 } from "@/lib/coach/onboarding-call-budget";
 import { redactAgeAndSex, sanitizeDietFlags } from "@/lib/coach/onboarding-fast-path";
 import { onboardingSafetyCheck, type OnboardingSafetyVerdict } from "@/lib/coach/onboarding-safety";
-import { onboardingModelFactsSchema, type OnboardingFacts } from "@/lib/coach/ui-blocks";
+import {
+  onboardingModelFactsProviderSchema, onboardingModelFactsSchema, type OnboardingFacts,
+} from "@/lib/coach/ui-blocks";
 import { HttpError } from "@/lib/server/auth";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 
@@ -108,7 +113,8 @@ function boundedError(e: unknown): { name: string; message: string } {
  * Claims one slot of the server-side budget, counted PER PROVIDER ATTEMPT, not per request (Sol
  * r2 BLOCK: counting once per request let one request that falls back from OpenRouter to Gemini
  * spend 2 of the 5 while the counter moved by 1). Called immediately before each of the two
- * provider calls below, so a request that falls back is correctly charged twice.
+ * provider calls below, so a request that falls back is correctly charged twice, and before
+ * every retry inside callModel (`beforeRetry`), so a retry is charged too.
  * `enforceRateLimit` is fail-closed by default, so a limiter outage also stops the call here
  * rather than let it through unmetered.
  */
@@ -160,9 +166,18 @@ export async function runOnboardingExtraction(
 
   const structured = deps.generateStructured ?? generateStructured;
   const openRouter = deps.generateOpenRouter ?? generateOpenRouter;
+  // Every provider ATTEMPT spends one slot, retries included (Sol p0 BLOCK 5): the first attempt
+  // of each leg is claimed below before the call, and each retry inside callModel claims its own
+  // slot through `beforeRetry` — a retry the budget cannot pay for is never sent.
+  let budgetSpent = false;
+  const beforeRetry = async (): Promise<boolean> => {
+    if (await claimOneModelCall(ctx.userId) === "ok") return true;
+    budgetSpent = true;
+    return false;
+  };
   const common = {
     userId: ctx.userId, admin: ctx.admin, schema: onboardingModelFactsSchema,
-    maxOutputTokens: ONBOARDING_EXTRACT_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: ONBOARDING_EXTRACT_MAX_OUTPUT_TOKENS, beforeRetry,
   };
 
   try {
@@ -190,19 +205,14 @@ export async function runOnboardingExtraction(
     assertPinnedSdk();
     const facts = await structured({
       ...common, payload: onboardingExtractPayload(redacted),
-      // Sol r3 BLOCK: generateStructured's own RETRIES (adapter.ts, up to 3 HTTP attempts per
-      // logical call) could otherwise spend more than one attempt against this one claimed
-      // slot. `abandonOnCapacity: true` suppresses a retry on the dominant case (capacity: a
-      // 429/503/open circuit) — `geminiRetryable` still allows one retry on a genuinely
-      // transient non-capacity failure, a narrower residual than Gemini's default, bounded by
-      // the existing $2/day spend cap and circuit breaker exactly as every other lane's retries
-      // already are. Capped exactly at 1 attempt is not available here: generateStructured has
-      // no per-call attempts override, and adding one is out of this lane's file ownership.
+      providerSchema: onboardingModelFactsProviderSchema,
+      // generateStructured may retry (adapter.ts, up to 3 attempts); each retry is metered by
+      // `beforeRetry` above, and `abandonOnCapacity` skips a retry on a capacity failure.
       timeoutMs: TIMEOUT_MS, abandonOnCapacity: true,
     });
     return { status: "ok", facts: sanitizeModelFacts(facts), provider: "google" };
   } catch (e) {
     console.error("onboarding extraction failed", { error: boundedError(e) });
-    return { status: "failed" };
+    return budgetSpent ? { status: "budget_exceeded" } : { status: "failed" };
   }
 }

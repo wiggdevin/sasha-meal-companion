@@ -184,6 +184,8 @@ export type StructuredArgs<T> = GenerateArgs<T> & {
   temperature?: number;
   /** Hand a no-capacity failure back at once, for a caller with another model (lib/ai/failures.ts). */
   abandonOnCapacity?: boolean;
+  /** Asked before each retry; false stops the call (lib/ai/call.ts RetryPolicy.beforeRetry). */
+  beforeRetry?: () => Promise<boolean>;
   /** The schema the PROVIDER is sent, when it must be stricter than the one the reply is parsed
    *  with. The coach sends one whose every key is required (lib/coach/wire.ts). */
   providerSchema?: ZodType;
@@ -242,7 +244,8 @@ export async function generateStructured<T>(
     policy: {
       attempts: RETRIES + 1, budgetMs: args.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS,
       attemptMs: args.attemptTimeoutMs ?? ATTEMPT_TIMEOUT_MS, backoffMs: BACKOFF_MS,
-      retryable: geminiRetryable(args.abandonOnCapacity), sleep: deps.sleep,
+      retryable: geminiRetryable(args.abandonOnCapacity), beforeRetry: args.beforeRetry,
+      sleep: deps.sleep,
     },
     transport: {
       open: async () => {

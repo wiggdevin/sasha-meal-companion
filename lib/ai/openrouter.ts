@@ -175,6 +175,8 @@ export type OpenRouterArgs<T> = {
    * RETRIES's second attempt on a model already known to be out of capacity.
    */
   abandonOnCapacity?: boolean;
+  /** Asked before each retry; false stops the call (lib/ai/call.ts RetryPolicy.beforeRetry). */
+  beforeRetry?: () => Promise<boolean>;
   /**
    * The `ai_calls.input_hash` to record instead of this transport's own text+image hash. Capture
    * (lib/ai/capture.ts) passes its Gemini twin's hash so the propose route's ten-minute duplicate
@@ -297,6 +299,7 @@ export async function generateOpenRouter<T>(
       // treats it — so it is billed once and never re-sampled into an invented answer.
       retryable: (e) => !isFinalReply(e) && !args.abandonOnCapacity
         && e instanceof ProviderHttpError && RETRYABLE_STATUSES.has(e.status),
+      beforeRetry: args.beforeRetry,
       sleep: deps.sleep,
     },
     transport: {

@@ -135,6 +135,13 @@ export type RetryPolicy = {
   backoffMs: readonly number[];
   /** Whether a failed attempt is worth another one. */
   retryable: (e: unknown) => boolean;
+  /**
+   * Asked before every attempt after the first, once the failed attempt was judged retryable
+   * and the backoff is over. False stops the call there: no further attempt is sent, and the
+   * last attempt's failure is recorded and thrown as usual. A caller that meters each provider
+   * attempt against its own budget (lib/server/onboarding-extract.ts) claims the next slot here.
+   */
+  beforeRetry?: () => Promise<boolean>;
   sleep?: (ms: number) => Promise<void>;
 };
 
@@ -247,6 +254,8 @@ async function attempt<R extends Billed, T>(
   let surchargeUsd = 0;
   let lastError: unknown = null;
   for (let n = 0; n < policy.attempts; n++) {
+    if (deadlineAt - Date.now() <= 0) break;
+    if (n > 0 && policy.beforeRetry && !(await policy.beforeRetry())) break;
     const remainingMs = deadlineAt - Date.now();
     if (remainingMs <= 0) break;
     try {
