@@ -39,6 +39,11 @@ export async function syncThenCatchUp(h: AccountHandle, foods: () => Record<stri
 }
 
 export async function catchUpAfterSync(h: AccountHandle, foods: Record<string, Food>): Promise<void> {
+  // A heart's Favored marks that did not finish (a crash, a rules change mid-run, no verified rules
+  // at the tap): re-judged under a fresh, deadline-bounded eligible read. Started, never awaited:
+  // the coach Undo flush runs after this pass resolves (lib/sync/account-sync.ts) and must never
+  // wait on it. Nothing pending costs one META key scan; a failure leaves the marks pending.
+  void resumeFavoriteMealMarks(h, foods).catch(() => {});
   await Promise.allSettled([
     // 20 foods a run means 53 take three syncs, and a mark made in airplane mode has to be picked
     // up whenever signal comes back. A caught-up cache costs one claims read and a filter.
@@ -60,9 +65,5 @@ export async function catchUpAfterSync(h: AccountHandle, foods: Record<string, F
     // Phase 18 W11 (D7): the account's shopping focus and the list/pantry keys it ranks by, at
     // most once a minute; a failure keeps what was held and never fails the pass.
     refreshShoppingFocus(h),
-    // A heart's Favored marks that did not finish (a crash, a rules change mid-run, no verified
-    // rules at the tap): re-judged under a fresh eligible read and finished. Nothing pending costs
-    // one META key scan.
-    resumeFavoriteMealMarks(h, foods),
   ]);
 }

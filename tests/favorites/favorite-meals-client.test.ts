@@ -540,16 +540,17 @@ describe("#4 two tabs saving the same plate make one meal", () => {
 });
 
 describe("#5 a rules change mid-run stops marking", () => {
-  it("leaves the rest pending, reports them skipped, and a later call re-judges them", async () => {
+  it("a name judged before the change stays pending; a later verdict under the new rules stands", async () => {
     let calls = 0;
     const judge = (): FavorVerdict => { calls += 1; if (calls === 1) noteFoodRulesChanged(); return "allowed"; };
     const first = await save({ judge, foods: POOL }, [BANANA_C, APPLE]);
-    expect(first).toMatchObject({ ok: true, newlyFavored: [], skipped: ["banana", "apple"] });
+    // Banana's verdict predates the change: no op, pending. Apple was judged under the new rules.
+    expect(first).toMatchObject({ ok: true, newlyFavored: ["apple"], skipped: ["banana"] });
     if (!first.ok) throw new Error("setup");
-    expect(await membershipOps()).toEqual([]);
-    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana", "apple"]);
+    expect((await membershipOps()).map((op) => op.payload.name_norm)).toEqual(["apple"]);
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
     const again = await save({ judge: allow, foods: POOL }, [BANANA_C, APPLE]);
-    expect(again).toMatchObject({ newlyFavored: ["banana", "apple"], skipped: [] });
+    expect(again).toMatchObject({ newlyFavored: ["apple", "banana"], skipped: [] });
   });
 });
 
@@ -562,5 +563,59 @@ describe("heart OFF drops pending marks", () => {
     await resumeFavoriteMealMarks(h, getFoods(), loader);
     expect(loader).not.toHaveBeenCalled();
     expect(readFoodMembership(h.userId, "banana")).toBeUndefined();
+  });
+});
+
+// ------------------------------------------------------------------ Sol round 2: the final check
+
+describe("the final check before each Eats op", () => {
+  it("Heart OFF while a run is in flight queues no Eats op and drops the pending marks", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    let removal: Promise<unknown> | undefined;
+    // The tap on the heart lands while the run is between its verdict and its op.
+    const judge = (): FavorVerdict => { removal ??= removeFavoriteMeal(first.id, { account: h }); return "allowed"; };
+    const again = await save({ judge }, [...PLATE, BANANA_C]);
+    await removal;
+    expect(again).toMatchObject({ ok: true, newlyFavored: [] });
+    expect(await membershipOps()).toEqual([]);
+    expect(readFoodMembership(h.userId, "banana")).toBeUndefined();
+    expect((await marksOf(first.id))?.pending).toEqual([]);
+  });
+
+  it("a rules change during the run's awaits leaves the name pending, with no op", async () => {
+    const judge = (): FavorVerdict => { queueMicrotask(() => noteFoodRulesChanged()); return "allowed"; };
+    const first = await save({ judge, foods: POOL }, [BANANA_C]);
+    expect(first).toMatchObject({ ok: true, newlyFavored: [], skipped: ["banana"] });
+    if (!first.ok) throw new Error("setup");
+    expect(await membershipOps()).toEqual([]);
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
+  });
+
+  it("a rules change during the ref await revokes the set: nothing is marked", async () => {
+    const eligible = openSet(FOODS);
+    const bumping = refs({ bundled: vi.fn(async () => { noteFoodRulesChanged(); return UNI_REF; }) });
+    const outcome = await save({ eligible, refs: bumping }, [...PLATE, BANANA_C]);
+    expect(outcome).toMatchObject({ ok: true, newlyFavored: [], skipped: ["banana"] });
+    expect(await membershipOps()).toEqual([]);
+  });
+
+  it("a stalled eligible read times out and leaves the marks pending", async () => {
+    const first = await save({ judge: () => "unverified" }, [...PLATE, BANANA_C]);
+    if (!first.ok) throw new Error("setup");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let called!: () => void;
+      const asked = new Promise<void>((resolve) => { called = resolve; });
+      const stalled = vi.fn(() => { called(); return new Promise<ReadonlySet<string>>(() => {}); });
+      const run = resumeFavoriteMealMarks(h, getFoods(), stalled);
+      await asked;
+      await vi.advanceTimersByTimeAsync(6_000);
+      await run;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect((await marksOf(first.id))?.pending.map((p) => p.nameNorm)).toEqual(["banana"]);
+    expect(await membershipOps()).toEqual([]);
   });
 });

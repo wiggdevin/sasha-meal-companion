@@ -18,13 +18,17 @@
  * - Marks are resumable rather than queued with the meal: each one needs a rule verdict and its own
  *   membership revision (`reserveFoodMembershipIntent`), which `setFoodMembership` keeps in its
  *   device cache and ordering, so queuing raw ops in the meal's transaction would bypass both.
- *   Instead a pending mark is finished, or re-judged, by the next save call for that plate and
- *   after every successful sync (`resumeFavoriteMealMarks`, lib/sync/post-sync.ts). The revision
- *   is recorded on the pending entry BEFORE its op is queued, so a crash in between still resumes
- *   as "this heart wrote it".
+ *   A pending mark is finished, or re-judged, by the next save call for that plate and after every
+ *   successful sync (`resumeFavoriteMealMarks`, started but never awaited by lib/sync/post-sync.ts,
+ *   its eligible read bounded by a deadline).
+ * - ONE rule closes the races (Sol r2): every await comes first (the refs, the claim transaction
+ *   that re-reads the meal and the pending list, the eligible read). Then, synchronously and with
+ *   no await before `setFoodMembership`, the run checks that the meal is not being removed in this
+ *   tab and that the rules epoch still equals the one its verdict was made under. A failed check
+ *   leaves the name pending, or drops it when the meal is gone.
+ * - A claimed mark whose revision was never recorded (a crash between the op and the record) is
+ *   never attributed to this heart, so Undo cannot clear a choice it did not make.
  * - Each meal's mark record is its own META key, read and written inside one transaction.
- * - A rules change while marking (the rules epoch moved) stops the run: the rest stay pending for
- *   re-judging and are reported as skipped by this call.
  * - Removal tombstones by id only, in one transaction with its delete op and the index change.
  *
  * Refs: an account food uses the refs its Foods row is known by (`foodRefsFor`) — the refs the swap
@@ -40,13 +44,14 @@ import {
 } from "@/lib/device/account";
 import { nextSort } from "@/lib/favorites";
 import { favoritesTx } from "@/lib/favorites-tx";
+import { withinBudget } from "@/lib/fetch-with-deadline";
 import { dbFood } from "@/lib/food-db";
 import type { Food } from "@/lib/foods";
 import { adoptUserFood, bundledFoodUserId, per100gFromBundled } from "@/lib/foods/adopt-client";
 import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import {
-  FoodMembershipSaveError, foodRefsFor, readFoodMembership, readPrefRefCache,
+  foodRefsFor, readFoodMembership, readPrefRefCache,
   reserveFoodMembershipIntent, setFoodMembership, type FoodMembershipIntent,
 } from "@/lib/foods/prefs-client";
 import { componentRuleMark, currentEligibleView, openWorldOf } from "@/lib/foods/rule-marks";
@@ -124,8 +129,12 @@ type SourceIndex = Record<string, { savedMealId: string; savedAt: string }>;
 
 /** META key prefix: one mark record per saved meal (`favorite_meal_marks:<meal id>`). */
 export const FAVORITE_MEAL_MARKS_PREFIX = "favorite_meal_marks:";
-/** `rev`: the membership revision reserved for this mark, written before its op is queued. */
-type PendingMark = { name: string; nameNorm: string; rev?: number };
+/**
+ * `claimed`: a run passed the meal and pending checks and may have queued this mark's op; `rev`:
+ * the revision that op carried, recorded once it was queued. A claimed mark with no `rev` (a crash
+ * in between) is never attributed to this heart, so Undo cannot clear a choice it did not make.
+ */
+type PendingMark = { name: string; nameNorm: string; rev?: number; claimed?: true };
 type DoneMark = { nameNorm: string; rev: number; localId?: string; undone?: true };
 type MarkRecord = { pending: PendingMark[]; done: DoneMark[]; skipped: string[] };
 
@@ -313,26 +322,15 @@ function alreadyFavored(h: AccountHandle, foods: Record<string, Food>, nameNorm:
   return Object.values(foods).some((f) => f.status === "eats" && normalizeFoodName(f.name) === nameNorm);
 }
 
-/** One durable Eats mark for this name, at the intent's revision. True only when it is the newest. */
-async function markFavored(
-  h: AccountHandle, name: string, local: Food | undefined, intent: FoodMembershipIntent,
-): Promise<boolean> {
-  try {
-    await setFoodMembership(name, "eats", { note: null, account: h, intent, ...(local ? { food: local } : {}) });
-  } catch (e) {
-    rethrowAccountChanged(e);
-    // The Foods row's refs could not be minted right now. The saved meal already resolved its
-    // ref, so the name-wide op still reaches it; queue that rather than lose the mark.
-    if (!(e instanceof FoodMembershipSaveError) || !local) return false;
-    try {
-      await setFoodMembership(name, "eats", { note: null, account: h, intent });
-    } catch (again) {
-      rethrowAccountChanged(again);
-      return false;
-    }
-  }
-  assertCurrent(h);
-  return markedAt(h, intent.nameNorm, intent.rev);
+/**
+ * Queue the durable Eats mark. Called with NO await between the final checks and this call:
+ * `setFoodMembership` reserves and runs synchronously up to its own first await. Name-only — the
+ * saved meal already resolved every ref, so the name-wide op reaches them without another ref read.
+ */
+function markFavored(h: AccountHandle, name: string, intent: FoodMembershipIntent): Promise<boolean> {
+  return setFoodMembership(name, "eats", { note: null, account: h, intent }).then(
+    () => { assertCurrent(h); return markedAt(h, intent.nameNorm, intent.rev); },
+    (e: unknown) => { rethrowAccountChanged(e); return false; });
 }
 
 function markedAt(h: AccountHandle, nameNorm: string, rev: number): boolean {
@@ -376,20 +374,39 @@ function runMarks(
   return run;
 }
 
+/**
+ * Claim one pending mark inside one transaction: the meal must still be live and the name still
+ * pending. A gone meal drops every pending mark. Returns what the run may do next.
+ */
+async function claimMark(h: AccountHandle, mealId: string, nameNorm: string):
+  Promise<"claimed" | "gone" | "not_pending"> {
+  return favoritesTx(h, "favorites_meals", async (tx) => {
+    const record = await tx.getMeta<MarkRecord>(marksKey(mealId));
+    if (!liveRow(await tx.get(mealId))) {
+      if (record?.pending.length) await tx.putMeta(marksKey(mealId), { ...record, pending: [] });
+      return "gone";
+    }
+    if (!record?.pending.some((p) => p.nameNorm === nameNorm)) return "not_pending";
+    await tx.putMeta(marksKey(mealId), { ...record, pending: record.pending.map((p) =>
+      p.nameNorm === nameNorm ? { ...p, claimed: true as const } : p) });
+    return "claimed";
+  });
+}
+
+/** Saved meals this tab is removing or has removed: read synchronously by the final check. */
+const removing = new Set<string>();
+const mealKey = (h: AccountHandle, mealId: string) => `${h.userId}|${mealId}`;
+
 async function markPending(
   h: AccountHandle, mealId: string, judge: FavorJudge,
 ): Promise<{ newlyFavored: string[]; skipped: string[] }> {
-  const epoch = foodRulesEpoch();
   const record = await getMeta<MarkRecord>(h, marksKey(mealId));
   if (!record) return { newlyFavored: [], skipped: [] };
   const foods = loadStore().foods;
   const unfinished: string[] = [];
-  let stopped = false;
   for (const mark of record.pending) {
-    // A rules change since this run began: nothing more is marked under the old verdicts.
-    if (stopped || foodRulesEpoch() !== epoch) { stopped = true; unfinished.push(mark.nameNorm); continue; }
     const local = localFoodNamed(foods, mark.nameNorm);
-    // An op queued before a crash: its reserved revision is still the newest mark, so it is ours.
+    // An op queued before a crash, its revision recorded: still the newest mark, so it is ours.
     if (mark.rev !== undefined && markedAt(h, mark.nameNorm, mark.rev)) {
       if (local && local.status !== "eats") setFoodStatus(local.id, "eats");
       await settle(h, mealId, mark.nameNorm,
@@ -397,24 +414,38 @@ async function markPending(
       continue;
     }
     if (alreadyFavored(h, foods, mark.nameNorm)) { await settle(h, mealId, mark.nameNorm, {}); continue; }
+    const verdictEpoch = foodRulesEpoch();
     const verdict = judge({ name: mark.name }, mark.nameNorm);
     if (verdict === "avoid" || verdict === "blocked") {
       await settle(h, mealId, mark.nameNorm, { skipped: true });
       continue;
     }
     if (verdict === "unverified") { unfinished.push(mark.nameNorm); continue; }
-    if (foodRulesEpoch() !== epoch) { stopped = true; unfinished.push(mark.nameNorm); continue; }
+    // Every await happens before the final check: the claim reads the meal and the pending list
+    // and records the claim in one transaction.
+    const claim = await claimMark(h, mealId, mark.nameNorm);
+    if (claim === "gone") break;
+    if (claim === "not_pending") continue;
+    // FINAL CHECK, synchronous, immediately before the op: the meal is not being removed here, and
+    // the rules have not changed since the verdict. Nothing awaits between it and the call.
+    assertCurrent(h);
+    if (removing.has(mealKey(h, mealId))) break;
+    if (foodRulesEpoch() !== verdictEpoch || alreadyFavored(h, loadStore().foods, mark.nameNorm)) {
+      unfinished.push(mark.nameNorm);
+      continue;
+    }
     const intent = reserveFoodMembershipIntent(mark.nameNorm, h);
-    await settle(h, mealId, mark.nameNorm, { rev: intent.rev });
-    if (!await markFavored(h, mark.name, local, intent)) { unfinished.push(mark.nameNorm); continue; }
+    const marked = await markFavored(h, mark.name, intent);
+    if (!marked) { unfinished.push(mark.nameNorm); continue; }
     if (local) setFoodStatus(local.id, "eats");
     await settle(h, mealId, mark.nameNorm,
       { done: { nameNorm: mark.nameNorm, rev: intent.rev, ...(local ? { localId: local.id } : {}) } });
   }
   const after = (await getMeta<MarkRecord>(h, marksKey(mealId))) ?? record;
+  const live = liveRow(await getRow(h, "favorites_meals", mealId) as Record<string, unknown> | undefined);
   return {
     newlyFavored: after.done.map((d) => d.nameNorm),
-    skipped: [...after.skipped, ...unfinished.filter((n) => !after.skipped.includes(n))],
+    skipped: live ? [...after.skipped, ...unfinished.filter((n) => !after.skipped.includes(n))] : after.skipped,
   };
 }
 
@@ -548,13 +579,15 @@ export async function resumeFavoriteMealMarks(
     }
   }
   if (waiting.length === 0) return;
-  let eligible: ReadonlySet<string>;
+  let eligible: ReadonlySet<string> | null;
   try {
-    eligible = await loadEligible(h, foods);
+    // Bounded: a read that never answers leaves every mark pending for the next pass.
+    eligible = await withinBudget(loadEligible(h, foods), "prefs", null);
   } catch (e) {
     rethrowAccountChanged(e);
     return;
   }
+  if (eligible === null) return;
   const judge = defaultFavorJudge(h, foods, loadStore().settings, eligible);
   for (const mealId of waiting) await runMarks(h, mealId, judge);
   announce();
@@ -570,6 +603,8 @@ export async function removeFavoriteMeal(
 ): Promise<FavoriteMealOutcome> {
   const h = opts.account === undefined ? currentAccountOrNull() : opts.account;
   if (h === null) return { ok: false, reason: "refused", message: "Sign in to change saved meals." };
+  // Synchronously, before any await: a mark run in this tab stops at its final check.
+  removing.add(mealKey(h, id));
   try {
     await favoritesTx(h, "favorites_meals", async (tx) => {
       const row = await tx.get(id);
@@ -589,6 +624,8 @@ export async function removeFavoriteMeal(
       if (record?.pending.length) await tx.putMeta(marksKey(id), { ...record, pending: [] });
     });
   } catch (e) {
+    // Not removed: a run may mark again (the meal and its heart still stand).
+    removing.delete(mealKey(h, id));
     if (e instanceof AccountChanged) throw e;
     return { ok: false, reason: "retry", message: "Couldn't remove this saved meal. Try again." };
   }
