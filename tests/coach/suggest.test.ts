@@ -9,7 +9,7 @@ vi.mock("@/lib/ai/typesafe", () => ({
 
 import { suggestOptions, type SuggestPorts } from "@/lib/coach/suggest";
 import { collectComposed } from "@/lib/coach/turn";
-import { NO_MEAL_FIT_MESSAGE, NO_SNACK_FIT_MESSAGE } from "@/lib/coach/suggest-messages";
+import { NO_MEAL_FIT_MESSAGE } from "@/lib/coach/suggest-messages";
 import { suggestionFoodIdentity } from "@/lib/coach/suggest-policy";
 import type { FoodHit } from "@/lib/coach/executors";
 import { TEST_PROFILE as DEFAULT_PROFILE } from "@/tests/helpers/constraint-profile";
@@ -40,6 +40,18 @@ function answer(score: number) {
     probabilities: { "0": 0, "1": 0, "2": 1 },
     confidence: 1,
   };
+}
+
+/** W10: a veto only removes/reorders a card once SUGGEST_VETO_LIVE=1 clears the §5 gate. */
+async function withVetoLive<T>(run: () => Promise<T>): Promise<T> {
+  const original = process.env.SUGGEST_VETO_LIVE;
+  process.env.SUGGEST_VETO_LIVE = "1";
+  try {
+    return await run();
+  } finally {
+    if (original === undefined) delete process.env.SUGGEST_VETO_LIVE;
+    else process.env.SUGGEST_VETO_LIVE = original;
+  }
 }
 
 function fixture(options: {
@@ -226,15 +238,18 @@ describe("suggestOptions", () => {
     expect(cards[0].fitNote).toBeNull();
   });
 
-  it("says why when Jev rejects every built candidate, instead of returning a bare empty list", async () => {
+  // Acceptance 4: vetoing every candidate is "vetoing too much" (removing them all would leave
+  // 0, well under 3) — Jev's influence is discarded for the whole run, so the formula order
+  // stands and no card shows a Jev label at all, in shadow or live.
+  it("keeps policy-clean cards in formula order when Jev rejects every one of them", async () => {
     const rejectAll = async (_state: unknown, questions: Record<string, unknown>) =>
       Object.fromEntries(Object.keys(questions).map((key) => [key, answer(0)]));
     const snack = await suggestOptions({ kind: "snack", count: 3 }, fixture({ jev: rejectAll }));
-    expect([...snack]).toEqual([]);
-    expect(snack.message).toBe(NO_SNACK_FIT_MESSAGE);
-    expect(JSON.parse(JSON.stringify(snack))).toEqual({ cards: [], message: NO_SNACK_FIT_MESSAGE });
+    expect(snack.length).toBeGreaterThanOrEqual(3);
+    expect(snack.every((card) => card.rankNote?.startsWith("fits") && !card.rankNote.includes("not a"))).toBe(true);
     const meal = await suggestOptions({ kind: "meal", count: 3 }, fixture({ jev: rejectAll }));
-    expect(meal.message).toBe(NO_MEAL_FIT_MESSAGE);
+    expect(meal.length).toBeGreaterThanOrEqual(3);
+    expect(meal.every((card) => card.rankNote?.startsWith("fits") && !card.rankNote.includes("not a"))).toBe(true);
   });
 
   // 2026-10-02 DeepSeek audit (MED, finding #3): every candidate blocked by the account's own
@@ -259,7 +274,7 @@ describe("suggestOptions", () => {
     expect(meal.message).toBe(NO_MEAL_FIT_MESSAGE);
   });
 
-  it("drops a Jev-rejected fourth candidate below a fit-equal candidate", async () => {
+  it("drops a Jev-rejected fourth candidate below a fit-equal candidate, once live", () => withVetoLive(async () => {
     const cards = await suggestOptions({ kind: "snack", count: 5 }, fixture({
       jev: async (_state, questions) => Object.fromEntries(Object.keys(questions).map((key) =>
         [key, answer(key === "plausible_3" ? 0 : 2)])),
@@ -268,10 +283,9 @@ describe("suggestOptions", () => {
     expect(cards.map((card) => card.anchorProtein)).not.toContain("Protein 4");
     expect(cards.at(-1)?.rankNote).toContain("natural snack");
     // C8: Jev ranked every card here, so each says so.
-    expect(cards.every((card) => card.provenance?.ai === true && card.provenance.source === "jev"))
-      .toBe(true);
+    expect(cards.every((card) => card.provenance?.ai === true && card.provenance.source === "jev")).toBe(true);
     expect(cards[0].provenance).toEqual({ ai: true, source: "jev", purpose: "suggest-options" });
-  });
+  }));
 
   it("ranks by macro fit multiplied by normalized plausibility", async () => {
     const suggestModule = await import("@/lib/coach/suggest") as typeof import("@/lib/coach/suggest") & {
@@ -284,7 +298,7 @@ describe("suggestOptions", () => {
     expect(suggestModule.suggestionRank(0.8, undefined)).toBe(0.8);
   });
 
-  it("drops sub-0.50 plausibility only when Jev is at least 0.60 confident", async () => {
+  it("drops sub-0.50 plausibility only when Jev is at least 0.60 confident, once live", () => withVetoLive(async () => {
     const lowPlausibility = (confidence: number) => async (_state: unknown,
       questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map((key) => [
       key, { ...answer(key === "plausible_0" ? 0.8 : 2), confidence },
@@ -299,7 +313,7 @@ describe("suggestOptions", () => {
 
     expect(confident.map((card) => card.anchorProtein)).not.toContain("Protein 1");
     expect(unsure.map((card) => card.anchorProtein)).toContain("Protein 1");
-  });
+  }));
 
   // 2026-10-03: one card per anchor family (lib/coach/meal-pairings.ts familyKey), so two refs
   // both labelled "Chicken" are one choice now; the same ref under another label stays deduped.

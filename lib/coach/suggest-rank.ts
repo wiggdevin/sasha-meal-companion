@@ -1,18 +1,57 @@
 import type { JevPayload, SuggestState } from "@/lib/ai/payloads";
 import type { ScoreAnswer, ScoreQuestion } from "@/lib/ai/jev-types";
-import type { ComposedMeal } from "@/lib/coach/compose";
+import type { ComposedItem, ComposedMeal } from "@/lib/coach/compose";
 import type { SuggestionCandidate } from "@/lib/coach/suggest-candidates";
 import type { SuggestInput } from "@/lib/coach/executors";
 import { SLOT_LABELS } from "@/lib/meals";
+import type { Part } from "@/lib/meals/parts";
 
 export type JevAnswers = Record<string, ScoreAnswer>;
 /** Phase 13 §9 R3: the port takes the builder's payload (lib/ai/payloads.ts), never raw state. */
 export type JevPort = (
   payload: JevPayload<"suggest-options", Record<string, ScoreQuestion>>,
-  options?: { userId?: string; deadlineMs?: number; signal?: AbortSignal },
+  options?: { userId?: string; deadlineMs?: number; signal?: AbortSignal; noRetry?: boolean },
 ) => Promise<JevAnswers | null>;
 
+/**
+ * Phase 18 W10, D9 item 4 / §5: the short-list veto changes no output until its precision on an
+ * independent, human-adjudicated holdout clears the stated gate (≥ 95 % precision, interval lower
+ * bound ≥ 90 %, at least 60 vetoes). Unset (the default) is shadow mode: every veto is recorded as
+ * a review reason only, never applied.
+ */
+export function suggestVetoLive(): boolean {
+  return process.env.SUGGEST_VETO_LIVE === "1";
+}
+
+/**
+ * §5's record of what shadow (or live) vetoes would have done, one line per run, with no food or
+ * account data — the candidate's position and the run's kind only.
+ */
+function recordVetoes(positions: readonly number[], total: number, kind: SuggestInput["kind"]): void {
+  if (positions.length === 0) return;
+  const mode = suggestVetoLive() ? "live" : "shadow";
+  console.warn(`[suggest-veto] ${mode} ${kind}: ${positions.length}/${total} vetoed`
+    + ` (positions ${positions.join(",")})`);
+}
+
 export { questionsFor } from "@/lib/coach/suggest-questions";
+
+const PART_LABEL: Partial<Record<Part, string>> = {
+  anchor: "protein", protein: "protein", starch: "starch", veg: "vegetable", fruit: "fruit", fat: "fat",
+};
+
+/**
+ * Phase 18 W10 acceptance 3: an item with no catalog-pinned revision is the account's own custom
+ * or label-scan text — the same boundary `lib/server/lookup-lane.ts`'s `resolveSubject` already
+ * draws for a model-reachable food name ("its name and brand are the user's own text ... they
+ * never become a search subject"). It never reaches Jev as typed: its template part stands in for
+ * it ("a protein food"), or "a custom food" with no part recorded.
+ */
+function jevSafeName(item: Pick<ComposedItem, "name" | "catalogFoodRevisionId" | "part">): string {
+  if (typeof item.catalogFoodRevisionId === "number") return item.name;
+  const label = item.part ? PART_LABEL[item.part] : undefined;
+  return label ? `a ${label} food` : "a custom food";
+}
 
 /** The complete ranking payload: no stored flags, notes, conditions, or dietary prose. */
 export function rankingState(
@@ -28,7 +67,7 @@ export function rankingState(
     wish: input.wish?.trim() || null,
     candidates: candidates.map(({ meal }, index) => ({
       index,
-      foods: meal.items.map((item) => ({ name: item.name, grams: item.grams })),
+      foods: meal.items.map((item) => ({ name: jevSafeName(item), grams: item.grams })),
       macros: { ...meal.totals },
     })),
   };
@@ -61,26 +100,52 @@ export function suggestionRank(fit: number, jevScore: number | undefined, pairin
   return base * (1 - PAIRING_WEIGHT + PAIRING_WEIGHT * Math.max(0, Math.min(1, pairing)));
 }
 
+/**
+ * Acceptance 5: a plate that misses the slot's fit never ranks ahead of one that fits, Jev or no
+ * Jev — `fitsTarget` is the primary key, the formula's own rank the tie-break within each group.
+ */
+function fitsFirst(a: SuggestionCandidate, b: SuggestionCandidate): number {
+  return Number(b.meal.fitsTarget) - Number(a.meal.fitsTarget);
+}
+
 export function rankCandidates(
   candidates: readonly SuggestionCandidate[],
   answers: JevAnswers | null,
   kind: SuggestInput["kind"],
 ): { candidate: SuggestionCandidate; reason: string; jevRanked: boolean }[] {
-  return candidates.map((candidate, position) => {
+  const scored = candidates.map((candidate, position) => {
     const answer = answers?.[`plausible_${position}`];
     const jev = answer !== undefined && answer.confidence >= 0.60 ? answer.score : undefined;
     const plausibility = jev === undefined ? undefined : jev / 2;
-    const rejected = plausibility !== undefined && plausibility < 0.50;
-    const rank = suggestionRank(candidate.fit, jev, candidate.pairing ?? candidate.meal.pairing);
-    const reason = jev === undefined
-      ? `fits ${Math.round(candidate.fit * 100)} %`
-      : `fits ${Math.round(candidate.fit * 100)} %, ${plausibilityLabel(kind, jev)}`;
-    return { candidate, rank, reason, rejected, jevRanked: jev !== undefined };
-  }).filter((row) => !row.rejected)
-    .sort((a, b) => b.rank - a.rank || b.candidate.fit - a.candidate.fit
-      || a.candidate.index - b.candidate.index)
-    // `jevRanked`: a usable Jev answer ranked this card (its provenance, lib/coach/suggest.ts).
-    .map(({ candidate, reason, jevRanked }) => ({ candidate, reason, jevRanked }));
+    const vetoed = plausibility !== undefined && plausibility < 0.50;
+    return { candidate, jev, pairing: candidate.pairing ?? candidate.meal.pairing, vetoed };
+  });
+  const vetoedPositions = scored.flatMap((row, position) => (row.vetoed ? [position] : []));
+  recordVetoes(vetoedPositions, scored.length, kind);
+  // Acceptance 4: removing every vetoed card would leave fewer than 3 — "too much" — so Jev's
+  // influence is discarded for the WHOLE run (not only the vetoed cards): the formula order
+  // stands exactly as if Jev had not answered at all.
+  const tooMuch = scored.length - vetoedPositions.length < 3;
+  const live = suggestVetoLive() && !tooMuch;
+  const kept = live ? scored.filter((row) => !row.vetoed) : scored;
+  // Acceptance 6 / shadow mode: a veto itself never changes the output until the gate passes —
+  // a vetoed card's rank is computed as if Jev had not answered for it specifically, same as
+  // `tooMuch`'s own whole-run fallback. A non-vetoed card's Jev reorder is never behind this gate.
+  const discardJev = (row: (typeof scored)[number]) => tooMuch || (row.vetoed && !live);
+  const rankOf = (row: (typeof scored)[number]) =>
+    suggestionRank(row.candidate.fit, discardJev(row) ? undefined : row.jev, row.pairing);
+  return [...kept]
+    .sort((a, b) => fitsFirst(a.candidate, b.candidate) || rankOf(b) - rankOf(a)
+      || b.candidate.fit - a.candidate.fit || a.candidate.index - b.candidate.index)
+    .map((row) => {
+      // `jevRanked`: a usable Jev answer actually ranked this card (its provenance,
+      // lib/coach/suggest.ts) — never true once that answer's influence was discarded above.
+      const jevRanked = !discardJev(row) && row.jev !== undefined;
+      const reason = jevRanked
+        ? `fits ${Math.round(row.candidate.fit * 100)} %, ${plausibilityLabel(kind, row.jev as number)}`
+        : `fits ${Math.round(row.candidate.fit * 100)} %`;
+      return { candidate: row.candidate, reason, jevRanked };
+    });
 }
 
 function plausibilityLabel(kind: SuggestInput["kind"], value: number): string {

@@ -69,6 +69,12 @@ export type SuggestPorts = ComposePorts & MealClockPorts & {
 
 export const SUGGEST_BUDGET_MS = 8_000;
 /**
+ * D9 item 4 / W10 acceptance 2: the formulas pick the top 5 to 8 admitted plates before the one
+ * optional Jev call — never the whole candidate list. A candidate past this cap keeps its formula
+ * order (acceptance 5) but is never sent to, or reordered by, Jev.
+ */
+export const SUGGEST_SHORTLIST_MAX = 8;
+/**
  * Candidate building stops here and keeps what it has, leaving the rest of the budget for the
  * evidence check and the Jev ranking. Before this, a long Eats list spent all 8 s searching and
  * the cards it had already built were dropped with the retry line (production, 2026-09-29/30).
@@ -107,13 +113,23 @@ export async function suggestOptions<T extends SuggestPorts>(
     if (built === NO_TARGET) return messageResult(NO_TARGET_SUGGEST_MESSAGE);
     const { requested, pendingSlots } = built;
     const needsNoCook = asksForNoCook(input.wish);
-    const evidencePort = ports.suggestionEvidence ?? loadSuggestionEvidence;
-    const evidence = await abortable(evidencePort(ports.userId,
-      built.candidates.flatMap((candidate) => candidate.meal.items),
-      { needsNoCook, facets: profileRuleFacets(ports.profile.profileRules) }), signal);
-    const filtered = filterSuggestionCandidates(
-      built.candidates, evidence, ports.profile, needsNoCook,
-    );
+    // Phase 18 W10: a pool-sourced candidate already passed a fresh admission read (D11) —
+    // `lib/coach/suggest-pool.ts`'s own doc comment. The Eats-era allergen/evidence recheck below
+    // reads `food_refs` by id, which a universe pool id is not one of, so it is skipped here
+    // rather than misjudging every such item "unverified". The pool carries no per-item prep-state
+    // evidence at all, though, so an explicit no-cook wish cannot be honestly cleared for it
+    // either — it fails closed (every pool candidate "requires preparation") rather than silently
+    // risking a meal that needs cooking.
+    const filtered = built.openWorld
+      ? { candidates: needsNoCook ? [] : built.candidates, blocked: 0, unverified: 0,
+        requiresPreparation: needsNoCook ? built.candidates.length : 0 }
+      : filterSuggestionCandidates(
+        built.candidates,
+        await abortable((ports.suggestionEvidence ?? loadSuggestionEvidence)(ports.userId,
+          built.candidates.flatMap((candidate) => candidate.meal.items),
+          { needsNoCook, facets: profileRuleFacets(ports.profile.profileRules) }), signal),
+        ports.profile, needsNoCook,
+      );
     const candidates = filtered.candidates;
     const withSlots = (meal: ComposedMeal): ComposedMeal => ({
       ...meal,
@@ -141,19 +157,54 @@ export async function suggestOptions<T extends SuggestPorts>(
       return messageResult(input.kind === "snack" ? NO_SNACK_FIT_MESSAGE : NO_MEAL_FIT_MESSAGE);
     }
 
-    const state = rankingState(input, candidates, pendingSlots);
+    // D9 item 4 / acceptance 2: the top 5-8 admitted plates only, formula order first
+    // (acceptance 5's fit-first order). A candidate past the cap is never sent to, or reordered
+    // by, Jev — but acceptance 5 still applies to it relative to EVERY other candidate, so it
+    // must not simply be appended after the (reordered) shortlist: a high-formula-rank candidate
+    // the builder withheld from Jev (acceptance 3's `jevEligible === false`) could then land
+    // behind every Jev-visible one, even a non-fitting one, which is exactly what acceptance 5
+    // forbids. Instead, only the SET of shortlisted slots is permuted by Jev; every other slot
+    // (overflow past the cap, or never Jev-eligible) keeps its original formula position.
+    const ordered = formulaOrder(candidates);
+    const shortlistIndices = ordered
+      .flatMap((candidate, position) => (candidate.jevEligible !== false ? [position] : []))
+      .slice(0, SUGGEST_SHORTLIST_MAX);
+    const shortlistSlots = new Set(shortlistIndices);
+    const shortlist = shortlistIndices.map((position) => ordered[position]);
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
     const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
     let answers: JevAnswers | null = null;
-    try {
-      answers = await abortable(ask(suggestPayload(state, input.kind), {
-        userId: ports.userId, deadlineMs: remainingMs, signal,
-      }), signal);
-    } catch (error) {
-      if (!isAbort(error)) throw error;
+    // "At most one Jev call" (D9 item 4) is the hard constraint; an account with fewer admitted
+    // plates than the 5-8 shortlist's typical size (acceptance 1 guarantees as few as 3 total)
+    // still gets its one call on whatever it has, never zero.
+    if (shortlist.length > 0) {
+      const state = rankingState(input, shortlist, pendingSlots);
+      try {
+        answers = await abortable(ask(suggestPayload(state, input.kind), {
+          userId: ports.userId, deadlineMs: remainingMs, signal, noRetry: true,
+        }), signal);
+      } catch (error) {
+        if (!isAbort(error)) throw error;
+      }
     }
     if (timedOut) return partialResult(fitOrdered);
-    const selected = rankCandidates(candidates, answers, input.kind)
+    const rankedShortlist = rankCandidates(shortlist, answers, input.kind);
+    // Walk `ordered` position by position: a shortlisted slot is filled, in turn, by Jev's own
+    // new order for that same set (a live-vetoed removal simply leaves fewer to draw from, so
+    // that many shortlisted slots contribute nothing — never backfilled from elsewhere). Every
+    // other slot keeps its original candidate, unreordered and unvetoed.
+    let nextRanked = 0;
+    const merged: { candidate: SuggestionCandidate; reason: string; jevRanked: boolean }[] = [];
+    for (let position = 0; position < ordered.length; position += 1) {
+      if (shortlistSlots.has(position)) {
+        if (nextRanked < rankedShortlist.length) merged.push(rankedShortlist[nextRanked]);
+        nextRanked += 1;
+      } else {
+        const candidate = ordered[position];
+        merged.push({ candidate, reason: `fits ${Math.round(candidate.fit * 100)} %`, jevRanked: false });
+      }
+    }
+    const selected = merged
       .slice(0, requested).map(({ candidate, reason, jevRanked }) => ({
         ...withSlots(candidate.meal),
         rankNote: reason,
@@ -184,13 +235,27 @@ export async function suggestOptions<T extends SuggestPorts>(
   }
 }
 
+/**
+ * The formula's own order: acceptance 5 — a plate that misses the slot's fit never ranks ahead of
+ * one that fits — then the SAME no-Jev rank `rankCandidates` (lib/coach/suggest-rank.ts) falls
+ * back to (fit weighted by pairing, `suggestionRank(fit, undefined, pairing)`), then a stable
+ * tie-break. Every fallback (a timeout, Jev down, too many vetoes) and the Jev shortlist cap all
+ * read this same order — a fit-only sort here would disagree with `rankCandidates`' own fallback
+ * whenever two candidates' pairing scores differ.
+ */
+function formulaOrder(candidates: readonly SuggestionCandidate[]): SuggestionCandidate[] {
+  const rankOf = (candidate: SuggestionCandidate) =>
+    suggestionRank(candidate.fit, undefined, candidate.pairing ?? candidate.meal.pairing);
+  return [...candidates].sort((a, b) => Number(b.meal.fitsTarget) - Number(a.meal.fitsTarget)
+    || rankOf(b) - rankOf(a) || b.fit - a.fit || a.index - b.index);
+}
+
 function fallbackCards(
   candidates: readonly SuggestionCandidate[],
   requested: number,
   withSlots: (meal: ComposedMeal) => ComposedMeal,
 ): ComposedMeal[] {
-  return [...candidates]
-    .sort((a, b) => b.fit - a.fit || a.index - b.index)
+  return formulaOrder(candidates)
     .slice(0, requested)
     .map(({ meal, fit }) => ({ ...withSlots(meal), rankNote: `fits ${Math.round(fit * 100)} %`,
       provenance: BY_APP }));

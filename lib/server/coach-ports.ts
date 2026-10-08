@@ -336,6 +336,7 @@ export function defaultPorts(
       }
       const { suggestOptions } = await import("@/lib/coach/suggest");
       const { eatsForSuggestions } = await import("@/lib/server/coach-context");
+      const { composePoolPorts } = await import("@/lib/server/compose-pool-ports"); // W10 acc. 1
       let eats: ReturnType<typeof eatsForSuggestions> | null = null;
       const suggestionEats = (uid: string) => (eats ??= eatsForSuggestions(client, uid));
       const day = viewedDay(admin, userId, clock, args.slot);
@@ -352,13 +353,13 @@ export function defaultPorts(
           searchExactUserFood(admin, uid, name, signal ?? opts.signal)),
         eatsNames: async (uid) => (await suggestionEats(uid)).all,
         eatsAnchors: async (uid) => (await suggestionEats(uid)).anchors,
+        ...composePoolPorts(client, admin, clock.now),
         // `uid` is read explicitly, like `eatsNames`/`eatsAnchors` above, not closed over, and
         // the suggest budget's own signal bounds the read the same way it bounds everything else
         // this port builds (2026-10-03 audit, finding #4: this used to run unbounded ahead of
         // it). Deliberately not memoized across calls: a promise cache keyed by neither `uid`
-        // nor `signal` would answer a differently-abled call — a different uid, or a later
-        // abort — with an earlier call's stale result (round-2 audit, DeepSeek MAJOR #1). Each
-        // `suggest()` invocation (one Plan-sheet request) still reads this at most once.
+        // nor `signal` would answer a differently-abled call with an earlier call's stale result
+        // (round-2 audit, DeepSeek MAJOR #1). Each `suggest()` call reads this at most once.
         ruleReviewRequired: async (uid, signal) => (await getRuleReviewStatus(client, uid, signal)).required,
         pendingSlots: () => pendingMealSlots(admin, userId, clock),
         slotClock: day.slotClock, timeOfDay: day.timeOfDay,

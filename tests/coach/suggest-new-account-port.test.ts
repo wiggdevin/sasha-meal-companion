@@ -42,6 +42,13 @@ vi.mock("@/lib/server/coach-context", () => ({
   foodLists: vi.fn(async () => lists.value),
   eatsForSuggestions: vi.fn(async () => ({ all: lists.value.eats, anchors: lists.value.eats })),
 }));
+// Phase 18 W10: the suggest port now also wires `composePoolPorts`' `openWorld`, which reads
+// `user_settings.food_world` through the bare `{}` client this file uses — every account here is
+// a brand-new, closed-world one, so the read is answered directly instead of faked through a
+// Supabase stub this test never otherwise needs.
+vi.mock("@/lib/server/meal-snapshot-v3", () => ({
+  mealSnapshotV3: vi.fn(async () => ({ world: "closed" })),
+}));
 
 const zero = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 const clock = { tz: "America/Denver", date: "2026-09-20" };
