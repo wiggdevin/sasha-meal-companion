@@ -123,6 +123,7 @@ const CASE_NAMES = {
   coach_undo_record: 1, coach_undo_perform: 1, food_signals: 1, taste_confirm: 1, taste_undo: 1,
   care_points_sync: 1, care_purchase: 1, care_equip: 1, care_accolades_sync: 1,
   care_accolades_seen: 1, care_message_mark: 1, care_log_grew: 1,
+  onboarding_events: 1, taste_dislike_remove: 1, taste_dislike_undo: 1,
 } as const;
 type CaseName = keyof typeof CASE_NAMES;
 
@@ -357,6 +358,35 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
       expect((await asA.rpc("taste_chips_undo", { p_user_id: a.id, p_action_id: actionId })).data)
         .toMatchObject({ status: "not_found" });
       expect([await rowsOf("user_settings", b.id), await rowsOf("taste_chip_receipts", b.id)]).toEqual(before);
+    },
+    taste_dislike_remove: async () => {
+      await seed("user_settings", b.id);
+      const before = await rowsOf("taste_dislike_removals", b.id);
+      const { error } = await asA.rpc("taste_dislike_remove", { p_user_id: b.id,
+        p_action_id: "00000000-0000-4000-8000-0000000000f3", p_key: "t:bitter" });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("taste_dislike_removals", b.id)).toEqual(before);
+    },
+    taste_dislike_undo: async () => {
+      const receipt = await seed("taste_dislike_removals", b.id);
+      const before = await rowsOf("taste_dislike_removals", b.id);
+      const actionId = String((receipt.row as { action_id: string }).action_id);
+      expect((await asA.rpc("taste_dislike_remove_undo", { p_user_id: b.id, p_action_id: actionId })).error?.message)
+        .toContain("forbidden");
+      // A's own id never reaches B's receipt.
+      expect((await asA.rpc("taste_dislike_remove_undo", { p_user_id: a.id, p_action_id: actionId })).data)
+        .toMatchObject({ status: "not_found" });
+      expect(await rowsOf("taste_dislike_removals", b.id)).toEqual(before);
+    },
+    onboarding_events: async () => {
+      // Followups #18: the batch is stored under auth.uid() only. A sends B's own event, with
+      // B's user id and B's client event id: it lands as A's row, B's rows stay as they were.
+      const seeded = await seed("onboarding_events", b.id);
+      const before = await rowsOf("onboarding_events", b.id);
+      const { data, error } = await asA.rpc("record_onboarding_events", { p_events: [seeded.row] });
+      expect(error).toBeNull();
+      expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: 0 }]);
+      expect(await rowsOf("onboarding_events", b.id)).toEqual(before);
     },
     coach_undo_perform: async () => {
       const record = await seed("coach_action_undos", b.id);
