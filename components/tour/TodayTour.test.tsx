@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import TodayTour, { AUTO_OPEN_DELAY_MS } from "./TodayTour";
-import { TOUR_SEEN_NAME, hasSeenTour } from "./tour-seen";
+import { TOUR_SEEN_NAME, hasSeenTour, readTourSeen } from "./tour-seen";
 import SproutStage from "@/components/today/island/Sprout";
 import { OFFER_MS } from "./TourOffer";
 
@@ -99,9 +99,34 @@ describe("TodayTour", () => {
     expect(screen.queryByRole("button", { name: "How Sasha works?" })).toBeNull();
   });
 
-  it("never throws when storage cannot be read", () => {
+  it("never opens by itself when storage cannot be read, and the companion still opens it", () => {
     const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
-    expect(() => { mount(ONBOARDED); wait(); }).not.toThrow();
+    expect(readTourSeen({ userId: "a", epoch: 1 })).toBe("unknown");
+    render(<MotionConfig reducedMotion="always">
+      <TodayTour onboardedAt={ONBOARDED} />
+      <SproutStage state={{ mood: "content", vitality: 0.7, line: "Sprout is doing fine." }} glance={null} bounce={0} />
+    </MotionConfig>);
+    wait();
+    expect(tour()).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sprout. Say hello" }));
+    fireEvent.click(screen.getByRole("button", { name: "How Sasha works?" }));
+    expect(tour()).toBeTruthy();
     spy.mockRestore();
+  });
+
+  it("never opens by itself when a write cannot be read back", () => {
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("full"); });
+    expect(readTourSeen({ userId: "a", epoch: 1 })).toBe("unknown");
+    mount(ONBOARDED);
+    wait();
+    expect(tour()).toBeNull();
+    spy.mockRestore();
+  });
+
+  it("proves unseen only with a working read and write, and leaves no probe behind", () => {
+    expect(readTourSeen({ userId: "a", epoch: 1 })).toBe("unseen");
+    expect(Object.keys(localStorage).filter((k) => k.includes("probe"))).toEqual([]);
+    localStorage.setItem(`smc:u:a:${TOUR_SEEN_NAME}`, ONBOARDED);
+    expect(readTourSeen({ userId: "a", epoch: 1 })).toBe("seen");
   });
 });

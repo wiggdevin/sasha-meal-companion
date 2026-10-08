@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { currentAccountOrNull, type AccountHandle } from "@/lib/device/account";
 import TourLayer, { type TourOpening } from "@/components/tour/TourLayer";
 import { TOUR_OPEN_EVENT, type TourOpenDetail } from "@/components/tour/tour-events";
-import { hasSeenTour, markTourSeen, shouldAutoOpenTour, tourStorageUsable } from "@/components/tour/tour-seen";
+import { markTourSeen, readTourSeen, shouldAutoOpenTour } from "@/components/tour/tour-seen";
 
 /** Today paints first; the overview follows a moment later so it reads as arriving, not blocking. */
 export const AUTO_OPEN_DELAY_MS = 700;
@@ -23,10 +23,8 @@ export default function TodayTour({ onboardedAt }: { onboardedAt: string | null 
   const auto = useRef(false);
 
   useEffect(() => {
-    if (!account || auto.current || !tourStorageUsable()) return;
-    let seen = true;
-    try { seen = hasSeenTour(account); } catch { return; }
-    if (!shouldAutoOpenTour({ onboardedAt, seen })) return;
+    if (!account || auto.current) return;
+    if (!shouldAutoOpenTour({ onboardedAt, seen: readTourSeen(account) })) return;
     auto.current = true;
     const timer = setTimeout(() => {
       markTourSeen(account);

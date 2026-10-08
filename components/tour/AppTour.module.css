@@ -274,7 +274,7 @@
   margin: -16px 0 0 -16px;
   border-radius: 9999px;
   background: rgb(var(--ink-rgb) / 0.2);
-  box-shadow: 0 0 0 2px var(--color-field), 0 6px 14px rgb(0 0 0 / 0.2);
+  box-shadow: 0 0 0 2px var(--color-field), var(--shadow-card);
   pointer-events: none;
   z-index: 3;
 }

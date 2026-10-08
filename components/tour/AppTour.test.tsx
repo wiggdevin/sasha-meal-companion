@@ -102,6 +102,16 @@ describe("AppTour", () => {
     companion.remove();
   });
 
+  it("appears without any fade or growth under reduced motion", () => {
+    renderTour("always");
+    const panel = document.querySelector<HTMLElement>("[data-tour-panel]")!;
+    const scrim = document.querySelector<HTMLElement>("[data-tour-scrim]")!;
+    // Drawn at rest on the first frame: no opacity ramp and no scale or offset to spring from.
+    expect(panel.style.opacity === "" || panel.style.opacity === "1").toBe(true);
+    expect(scrim.style.opacity === "" || scrim.style.opacity === "1").toBe(true);
+    expect(panel.style.transform).not.toMatch(/scale|translate/);
+  });
+
   it("draws still frames under reduced motion: nothing moves with time", () => {
     vi.useFakeTimers();
     renderTour("always");

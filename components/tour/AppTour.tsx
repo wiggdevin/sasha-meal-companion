@@ -33,7 +33,8 @@ function originOffset(origin: DOMRect | null | undefined): { x: number; y: numbe
  * folds back into it on close. Five steps, each an animated demo over a drawn meal card and a few
  * short lines; Back and Next move between them (and the arrow keys), the dots show where you are,
  * Skip is always there and Escape closes. Focus moves into the sheet, stays in it, and returns to
- * whatever had it before. Reduced motion: no movement anywhere; every demo is a still frame.
+ * whatever had it before. Reduced motion: nothing moves or fades — the sheet and its scrim simply appear and every demo is a
+ * still frame.
  */
 export default function AppTour({ onClose, origin, mascot = "sprout", returnFocusTo }: {
   onClose: (reason: TourCloseReason) => void;
@@ -138,14 +139,14 @@ export default function AppTour({ onClose, origin, mascot = "sprout", returnFocu
   return <div ref={rootRef} className={`fixed inset-0 z-[75] min-w-0 w-full max-w-full ${styles.root}`}
     role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={leadId} onKeyDown={onArrow}>
     <motion.div aria-hidden="true" className="sheet-popover-scrim absolute inset-0"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      transition={{ duration: reduce ? 0.12 : 0.2 }} />
+      data-tour-scrim="" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }}
+      exit={reduce ? { opacity: 0, transition: INSTANT } : { opacity: 0 }} transition={reduce ? INSTANT : { duration: 0.2 }} />
     <motion.div className={`sheet-surface min-w-0 ${styles.panel}`} data-tour-panel=""
-      initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.3, x: from.x, y: from.y }}
+      initial={reduce ? false : { opacity: 0, scale: 0.3, x: from.x, y: from.y }}
       animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, x: 0, y: 0 }}
-      exit={reduce ? { opacity: 0, transition: { duration: 0.12 } }
+      exit={reduce ? { opacity: 0, transition: INSTANT }
         : { opacity: 0, scale: 0.3, x: from.x, y: from.y, transition: { ...SPRINGS.smooth, opacity: { duration: 0.2, delay: 0.1 } } }}
-      transition={reduce ? { duration: 0.16 } : { ...SPRINGS.gentle, opacity: { duration: 0.18 } }}>
+      transition={reduce ? INSTANT : { ...SPRINGS.gentle, opacity: { duration: 0.18 } }}>
       <div className="flex min-h-0 flex-col gap-4 px-4 pb-4 pt-3">
         <div className="flex min-h-11 items-center justify-between gap-3">
           <div className={styles.dots} aria-hidden="true">
