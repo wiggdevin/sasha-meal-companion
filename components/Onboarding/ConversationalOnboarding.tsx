@@ -760,7 +760,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       {composerNote}
     </p>}
     <div className={styles.skipLink}>
-      <Button variant="ghost" size="sm" onClick={handleSkip}>Skip for now</Button>
+      <Button variant="ghost" size="sm" className="min-h-11" onClick={handleSkip}>Skip for now</Button>
     </div>
     {dockMode && <div className={styles.dockRow}>
       <OnboardingDock mode={dockMode} reduce={reduce}
