@@ -115,6 +115,10 @@
     "test": "tests/tenancy/admin-onboarding-extract.test.ts",
     "via": "@/app/api/onboarding/extract/route"
   },
+  "app/api/pantry/photo/route.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/pantry/photo/route"
+  },
   "app/api/plan/document/route.ts": {
     "test": "tests/tenancy/admin-media.test.ts",
     "via": "@/app/api/plan/document/route"
@@ -317,6 +321,10 @@
   "lib/server/oura.ts": {
     "test": "tests/tenancy/admin-jobs.test.ts",
     "via": "@/app/api/jobs/oura-pull/route"
+  },
+  "lib/server/pantry-photo.ts": {
+    "test": "tests/tenancy/admin-media.test.ts",
+    "via": "@/app/api/pantry/photo/route"
   },
   "lib/server/plan-document.ts": {
     "test": "tests/tenancy/admin-media.test.ts",
