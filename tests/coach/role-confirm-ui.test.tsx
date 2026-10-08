@@ -137,7 +137,7 @@ describe("role confirm on the coach card", () => {
     await act(async () => { fireEvent.click(use); });
     expect(use.getAttribute("data-status")).toBeNull();
     expect(screen.getByText("This food's group changed. Check it again.")).toBeTruthy();
-    expect(screen.getByText("It is now carbs in Eats.")).toBeTruthy();
+    expect(screen.getByText("It is now carbs in Favorites.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Keep as carbs" })).toBeTruthy();
 
     mocked.confirm.mockResolvedValueOnce({ status: "saved", role: "fat" });
@@ -153,7 +153,7 @@ describe("role confirm on the coach card", () => {
     card(action({ currentRole: "carb" }));
     const use = await screen.findByRole("button", { name: "Use as fat" });
     await act(async () => { fireEvent.click(use); });
-    expect(screen.getByText("This food isn't in Eats or Avoids.")).toBeTruthy();
+    expect(screen.getByText("This food isn't in Favorites or Avoids.")).toBeTruthy();
     expect(screen.queryByText("This food's group changed. Check it again.")).toBeNull();
     expect(screen.queryByRole("button", { name: "Use as fat" })).toBeNull();
     expect(screen.getByRole("button", { name: "Keep as is" })).toBeTruthy();

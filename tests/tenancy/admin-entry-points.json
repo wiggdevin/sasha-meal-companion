@@ -366,6 +366,10 @@
     "test": "tests/tenancy/admin-targets.test.ts",
     "via": "@/lib/server/targets"
   },
+  "lib/server/universe-refs.ts": {
+    "test": "tests/tenancy/admin-libs.test.ts",
+    "via": "@/lib/server/compose-pool-ports"
+  },
   "lib/server/viewed-day.ts": {
     "test": "tests/tenancy/admin-libs.test.ts",
     "via": "@/lib/server/coach-ports"

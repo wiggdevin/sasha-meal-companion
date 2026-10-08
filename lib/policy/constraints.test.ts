@@ -229,3 +229,51 @@ describe("evaluatePolicy: pregnancy/tuna (§9 R1)", () => {
     expect(verdict.verdict).not.toBe("blocked");
   });
 });
+
+describe("evaluatePolicy: no allow list for an account with no allergen rule and no condition (2026-10-08)", () => {
+  /** A server-read profile (lib/server/constraints.ts): `conditions` was selected and is empty. */
+  const NO_RULES: ConstraintProfile = { ...EMPTY_PROFILE, conditions: [] };
+  /** A catalog food with no allergen tag list, not on Eats: the case the legacy gate used to refuse. */
+  const catalogFood = evidence({ foodRefId: "cat-1", allergenTags: null, category: [], onEatsList: false });
+
+  it("a no-rules account gets a catalog food as allowed, Eats mark or not", () => {
+    expect(evaluatePolicy(NO_RULES, catalogFood)).toEqual({ verdict: "allowed" });
+    expect(evaluatePolicy(NO_RULES, { ...catalogFood, preferenceFlags: [] }).verdict).toBe("allowed");
+  });
+
+  it("an account with an allergen rule still gets unverified", () => {
+    expect(evaluatePolicy({ ...NO_RULES, avoid_allergens: ["peanut"] }, catalogFood).verdict).toBe("unverified");
+  });
+
+  it("an account with a stated condition keeps the gate: unverified", () => {
+    expect(evaluatePolicy({ ...NO_RULES, conditions: ["celiac"] }, catalogFood).verdict).toBe("unverified");
+  });
+
+  it("a food with no evidence entry (no category evidence read) keeps the gate (Sol r1 BLOCK 1)", () => {
+    expect(evaluatePolicy(NO_RULES, { ...catalogFood, category: null }).verdict).toBe("unverified");
+  });
+
+  it("with a banned category active, a food whose category cannot be determined stays unverified", () => {
+    expect(evaluatePolicy({ ...NO_RULES, banned_categories: ["beans"] }, { ...catalogFood, category: null }).verdict)
+      .toBe("unverified");
+    expect(evaluatePolicy({ ...NO_RULES, banned_categories: ["beans"] }, catalogFood).verdict).toBe("allowed");
+  });
+
+  it("a profile whose conditions were never read keeps the gate (fail closed)", () => {
+    expect(evaluatePolicy(EMPTY_PROFILE, catalogFood).verdict).toBe("unverified");
+  });
+
+  it("Avoid still blocks: the account's Avoid mark and an avoided food ref", () => {
+    expect(evaluatePolicy(NO_RULES, { ...catalogFood, onAvoidList: true }))
+      .toMatchObject({ verdict: "blocked", reason: "avoid_list" });
+    expect(evaluatePolicy({ ...NO_RULES, avoid_food_ref_ids: ["cat-1"] }, catalogFood))
+      .toMatchObject({ verdict: "blocked", reason: "avoid_list" });
+  });
+
+  it("diet and category rules still decide: a banned category blocks, an unknown diet facet stays unverified", () => {
+    expect(evaluatePolicy({ ...NO_RULES, banned_categories: ["beans"] }, { ...catalogFood, category: ["beans"] }).verdict)
+      .toBe("blocked");
+    expect(evaluatePolicy(NO_RULES, { ...catalogFood, foodName: "Mystery stew", preferenceFlags: ["vegan"] }).verdict)
+      .not.toBe("allowed");
+  });
+});

@@ -32,7 +32,7 @@ const { candidateFoods } = await import("@/lib/server/candidate-foods");
 const { eligibleFoods } = await import("@/lib/server/eligible-foods");
 const { getRuleReviewStatus } = await import("@/lib/server/constraints");
 
-const RELEASED = { OPEN_WORLD_ENABLED: "1", CONDITION_PACKS_ENABLED: "1" };
+const RELEASED = { OPEN_WORLD_ENABLED: "1", OPEN_WORLD_USER_IDS: "*", CONDITION_PACKS_ENABLED: "1" };
 let tables: Record<string, Row[]>;
 
 function loadWorld(options: WorldOptions = {}) {
@@ -270,17 +270,96 @@ describe("GET /api/foods/world/invitation (W13 acceptance 4)", () => {
   });
 });
 
+describe("staged release: OPEN_WORLD_USER_IDS", () => {
+  const ONBOARDED = "2026-10-07T09:00:00.000Z";
+  const invitation = async () => {
+    const { GET } = await import("@/app/api/foods/world/invitation/route");
+    return (await GET(new Request("https://app.test/api/foods/world/invitation"))).json();
+  };
+  const worldState = async () => {
+    const { GET } = await import("@/app/api/foods/world/route");
+    return (await GET(new Request("https://app.test/api/foods/world"))).json();
+  };
+
+  it.each([["unset", undefined], ["empty", ""], ["comma-only", " , "]])(
+    "%s releases NOBODY, even with the flag on (Sol r1 BLOCK 2)", async (_label, value) => {
+      vi.stubEnv("OPEN_WORLD_USER_IDS", value);
+      expect(await post({ world: "open" })).toEqual({ status: 423, body: { error: "open_world_not_released" } });
+      expect(await invitation()).toEqual({ eligible: false });
+    });
+
+  it("a stored-open account off the release list reads closed everywhere, and nothing is written (Sol r1 WARN 3)", async () => {
+    loadWorld({ world: "open" });
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "someone-else");
+    const before = JSON.stringify(tables.user_settings);
+    expect(await worldState()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: false });
+    const { readFoodWorld } = await import("@/lib/server/food-world");
+    expect(await readFoodWorld(state.client as never, A)).toBe("closed");
+    expect((await candidateFoods(state.client as never as never, A)).world).toBe("closed");
+    expect(JSON.stringify(tables.user_settings)).toBe(before);
+    vi.stubEnv("OPEN_WORLD_USER_IDS", A);
+    expect((await worldState()).world).toBe("open");
+  });
+
+  it("an account off a non-empty list is not released: 423, no invitation, no open default", async () => {
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "someone-else");
+    expect(await post({ world: "open" })).toEqual({ status: 423, body: { error: "open_world_not_released" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(await invitation()).toEqual({ eligible: false });
+    loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED });
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 423, body: { error: "open_world_not_released" } });
+    expect(await worldState()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: true });
+  });
+
+  it("a listed account opens, is invited and gets the open default", async () => {
+    vi.stubEnv("OPEN_WORLD_USER_IDS", `someone-else, ${A}`);
+    expect(await invitation()).toEqual({ eligible: true });
+    loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED });
+    expect(await worldState()).toEqual({ world: "closed", openDefaultPending: true, starterSeed: false });
+    expect(await post({ world: "open" })).toEqual({ status: 200, body: { world: "open" } });
+  });
+
+  it("`*` lists every account; the hold list still wins; the flag off still closes everything", async () => {
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "*");
+    expect(await invitation()).toEqual({ eligible: true });
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A);
+    expect(await post({ world: "open" })).toEqual({ status: 423, body: { error: "held" } });
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", "");
+    vi.stubEnv("OPEN_WORLD_USER_IDS", A);
+    vi.stubEnv("OPEN_WORLD_ENABLED", "");
+    expect(await post({ world: "open" })).toEqual({ status: 423, body: { error: "open_world_not_released" } });
+  });
+
+  it("closing is always allowed, listed or not", async () => {
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "someone-else");
+    loadWorld({ world: "open" });
+    expect(await post({ world: "closed" })).toEqual({ status: 200, body: { world: "closed" } });
+  });
+});
+
 describe("GET /api/foods/rules-version", () => {
   it("returns the two counters, no-store", async () => {
     const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2 });
+    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2, world: "closed" });
+  });
+
+  it("carries the effective world: open while released, closed off the list or on hold (Sol r2 BLOCK)", async () => {
+    loadWorld({ world: "open" });
+    const world = async () => (await (await rulesVersion(new Request("https://app.test/api/foods/rules-version"))).json()).world;
+    expect(await world()).toBe("open");
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "someone-else");
+    expect(await world()).toBe("closed");
+    vi.stubEnv("OPEN_WORLD_USER_IDS", "*");
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A);
+    expect(await world()).toBe("closed");
   });
 
   it("reads an account with no rule write yet as rulesVersion 0", async () => {
     tables.account_rules_clock = [];
     const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
-    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2 });
+    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2, world: "closed" });
   });
 });
 

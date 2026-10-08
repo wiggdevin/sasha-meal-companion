@@ -150,7 +150,15 @@ export async function composeDirectPlate(
   const ranking = rankPinnedPlates(input, pinned);
   const best = ranking.plates[0];
 
-  if (!best) {
+  // Open pool rows that are universe items need the account's catalog ref before any card can log
+  // or save them (lib/server/universe-refs.ts). One lookup, for the rows this plate holds only.
+  const universeRows = best ? best.rows.map((row) => row.food.id)
+    .filter((id) => !pinnedById.has(id) && id.startsWith("universe:")) : [];
+  const universeRefs = universeRows.length > 0 && ports.universeRefs
+    ? await ports.universeRefs(userId, universeRows) : {};
+  const unresolved = universeRows.find((id) => !universeRefs[id]);
+
+  if (!best || unresolved) {
     const items: ComposedItem[] = [...pinnedById.values()].map(({ hit, insteadOf }) => ({
       name: hit.name, foodRefId: hit.foodRefId as string,
       catalogFoodRevisionId: hit.catalogFoodRevisionId ?? null,
@@ -163,7 +171,8 @@ export async function composeDirectPlate(
       wish: args.wish, slot: args.slot ?? null, items, totals: ZERO_MACROS, target: args.target,
       flagged: items.filter((item) => item.verdict === "blocked").map((item) => item.name),
       fitsTarget: false, fitNote: null,
-      incomplete: { reason: ranking.shortage?.reason ?? "No coherent plate holds every named food" },
+      incomplete: { reason: !best ? ranking.shortage?.reason ?? "No coherent plate holds every named food"
+        : `I couldn't look up ${best.rows.find((row) => row.food.id === unresolved)?.food.name ?? "one of the foods"} right now. Try again in a moment` },
     };
   }
 
@@ -184,10 +193,12 @@ export async function composeDirectPlate(
     }
     // A pool-filled row's `Food.id` is an account-food id (or a universe pool id), neither a
     // `food_refs.id` — the ONLY id a logged, slotted or saved item can use. `poolRefs` resolves
-    // the real one for an account food; a universe-sourced fill (no ref at all, W8 dark today)
-    // keeps the pool id as a last resort rather than a card the actions can't build at all.
+    // the real one for an account food; `universeRefs` (above) the catalog ref and active revision
+    // for a universe row, and an unresolved universe row already returned the incomplete draft.
+    const universe = universeRefs[row.food.id];
     return {
-      name: row.food.name, foodRefId: poolRefs[row.food.id] ?? row.food.id, catalogFoodRevisionId: null,
+      name: row.food.name, foodRefId: universe?.foodRefId ?? poolRefs[row.food.id] ?? row.food.id,
+      catalogFoodRevisionId: universe?.catalogFoodRevisionId ?? null,
       grams, ...per100gOf(row.food), macros, verdict: "allowed" as const, part: row.part,
       ...(row.component.foodKey ? { foodKey: row.component.foodKey } : {}),
     };

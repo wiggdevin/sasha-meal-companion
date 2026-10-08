@@ -28,7 +28,10 @@ describe("suggest_options under focus (open pool)", () => {
   const open = inputsFor(openSnapshot());
   const ports = (overrides: Partial<SuggestPorts> = {}): SuggestPorts => ({
     userId: "u1", profile: TEST_PROFILE, target: async () => TARGET, eatsNames: async () => [],
-    searchFoods: async () => [], openWorld: async () => open, poolRefs: async () => ({}), ...overrides,
+    searchFoods: async () => [], openWorld: async () => open, poolRefs: async () => ({}),
+    universeRefs: async (_user, ids) => Object.fromEntries(ids.map((id, i) => [id,
+      { foodRefId: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`, catalogFoodRevisionId: i + 1 }])),
+    ...overrides,
   });
   const anchor = (card: { items: { part?: string; name: string }[] }) =>
     card.items.find((item) => item.part === "anchor")?.name;

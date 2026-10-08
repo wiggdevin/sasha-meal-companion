@@ -177,7 +177,7 @@ describe("Today plan sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use what I have" }));
     await screen.findByText("From Eats");
     expect(screen.queryByText("Outside Eats")).toBeNull();
-    expect(postTurn.mock.calls[1][0].text).toContain("only foods already in my Eats list");
+    expect(postTurn.mock.calls[1][0].text).toContain("only foods already in my Favorites");
   });
 
   it("keeps the sheet usable after a failed request and retries with the same message id", async () => {
@@ -330,7 +330,7 @@ describe("Today plan sheet", () => {
     answer(response());
     fireEvent.click(await screen.findByRole("button", { name: "Not this: Egg and rice bowl" }));
     await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    expect(postTurn.mock.calls[1][0].text).toContain("Use foods from my Eats list first");
+    expect(postTurn.mock.calls[1][0].text).toContain("Start with my Favorites");
     expect(postTurn.mock.calls[1][0].text).not.toContain("15 minutes");
     expect(searchCatalogRecipes).toHaveBeenCalledTimes(1);
   });

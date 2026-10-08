@@ -1,9 +1,9 @@
 /** Shared deterministic copy for suggestion results; safe to import in server-loop tests. */
 export const NOTHING_LEFT_MESSAGE = "There are no calories left in today's target for a snack.";
 export const NO_MEAL_FIT_MESSAGE =
-  "I couldn't find a meal option that fits this slot and your food rules yet. Try another idea or add foods to your Favored list.";
+  "I couldn't find a meal option that fits this slot and your food rules yet. Try another idea, or name a food you would like and I will build around it.";
 export const NO_SNACK_FIT_MESSAGE =
-  "I couldn't find a snack option that fits your food rules yet. Try another idea or add foods to your Favored list.";
+  "I couldn't find a snack option that fits your food rules yet. Try another idea, or name a food you would like and I will build around it.";
 export const SUGGEST_RETRY_MESSAGE = "I couldn't build those suggestions right now. Please try again.";
 export const SUGGEST_TIMEOUT_MESSAGE = "I ran out of time building options — ask again in a moment.";
 export const REQUIRES_PREPARATION_MESSAGE =
@@ -14,7 +14,7 @@ export const REQUIRES_PREPARATION_MESSAGE =
  * number: only the account's own mark can put a food on the list.
  */
 export const NO_SAVED_FOODS_MESSAGE =
-  "You have no saved foods yet. Add foods on the Foods tab, or ask me to plan a meal.";
+  "You have no Favorites yet. Name a food you like and I will build a meal around it, or star Favorites on the Foods tab.";
 /**
  * The day has no target the server can size against: no revision yet, or one not effective on this
  * day. "Targets are not set" is the rule (D1 §5.3) — target-fit composition is suppressed, not

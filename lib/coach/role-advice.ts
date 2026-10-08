@@ -132,7 +132,7 @@ async function persistStoredRole(foodRefId: string, role: StoredMealRole): Promi
   ]);
   const row = await getRow(h, "user_food_prefs", foodRefId) as Record<string, unknown> | undefined;
   if (!row || row.deleted_at || (row.status !== "eats" && row.status !== "avoid")) {
-    throw new Error("Confirm the food's Eats or Avoid membership before saving its role.");
+    throw new Error("Confirm the food's Favorites or Avoid membership before saving its role.");
   }
   if (row.role === "protein" || row.role === "carb" || row.role === "fat") return;
   const rev = typeof row.rev === "number" && Number.isSafeInteger(row.rev) ? row.rev : 0;

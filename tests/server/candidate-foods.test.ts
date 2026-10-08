@@ -21,7 +21,12 @@ vi.mock("@/lib/coach/suggest-policy", async (original) => ({
 
 const { candidateFoods } = await import("@/lib/server/candidate-foods");
 
-beforeEach(() => { evidence.answer = eatsEvidence(); });
+beforeEach(() => {
+  evidence.answer = eatsEvidence();
+  // An open account reads open only while it is released to it (lib/foods/world/access.ts).
+  vi.stubEnv("OPEN_WORLD_ENABLED", "1");
+  vi.stubEnv("OPEN_WORLD_USER_IDS", "*");
+});
 
 /** The double, with `failing` tables answering a database error on every read. */
 function db(options: WorldOptions = {}, failing: string[] = []) {

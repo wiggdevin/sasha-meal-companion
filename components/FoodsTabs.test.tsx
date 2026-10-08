@@ -67,10 +67,10 @@ function attribute(tag: string, name: string): string {
 describe("FoodsTabs", () => {
   const markup = renderToStaticMarkup(<FoodsTabs />);
 
-  it("switches the whole page from two real tabs, Eats first", () => {
+  it("switches the whole page from two real tabs, Favorites first", () => {
     expect(markup).toContain('role="tablist"');
     expect(markup.match(/role="tab"/g)).toHaveLength(2);
-    expect(tab(markup, "Eats")).toContain('aria-selected="true"');
+    expect(tab(markup, "Favorites")).toContain('aria-selected="true"');
     expect(tab(markup, "Avoids")).toContain('aria-selected="false"');
   });
 
@@ -78,13 +78,13 @@ describe("FoodsTabs", () => {
     const panel = markup.slice(markup.indexOf("<div role=\"tabpanel\""));
     const panelTag = panel.slice(0, panel.indexOf(">") + 1);
 
-    for (const label of ["Eats", "Avoids"]) {
+    for (const label of ["Favorites", "Avoids"]) {
       const controls = attribute(tab(markup, label), "aria-controls");
       expect(markup, label).toContain(`id="${controls}"`);
       expect(controls).toBe(attribute(panelTag, "id"));
     }
     expect(attribute(panelTag, "aria-labelledby"))
-      .toBe(attribute(tab(markup, "Eats"), "id"));
+      .toBe(attribute(tab(markup, "Favorites"), "id"));
   });
 });
 

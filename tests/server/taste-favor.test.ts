@@ -57,7 +57,8 @@ describe("favorable and POST agree", () => {
     const items = (await taste()).items;
     expect(items.map((item) => [item.key, item.favorable])).toEqual([
       ["u:banana", true], ["u:chicken-breast-roasted", true], ["f:mom's dal", true], ["f:greek yogurt", true],
-      ["u:broccoli-cooked", false], ["u:spinach-raw", false], ["u:spinach-cooked", false]]);
+      ["u:broccoli-cooked", false], ["u:egg-noodles-cooked", false], ["u:spinach-raw", false],
+      ["u:spinach-cooked", false]]);
     for (const item of items) expect((await rejection(item.key)) === null, item.key).toBe(item.favorable);
   });
 

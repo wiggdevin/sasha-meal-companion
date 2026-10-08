@@ -153,7 +153,7 @@ export function componentRuleMark(component: Pick<FoodComponent, "name">,
   const exact = (text: string) => text.trim().toLowerCase().replace(/\s+/g, " ");
   if (matches.length === 0 && admitted?.some((food) => exact(food.name) === exact(component.name))) return null;
   return matches.length === 0
-    ? { verdict: "unknown", reason: `${name} is not in your foods, so it cannot be checked against your rules.` }
+    ? { verdict: "unknown", reason: `${name} could not be checked against your food rules yet.` }
     : { verdict: "unknown", reason: `${name} has not been verified against your current food rules.` };
 }
 

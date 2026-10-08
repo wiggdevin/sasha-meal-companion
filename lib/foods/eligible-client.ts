@@ -11,7 +11,7 @@ import { foodRulesKey, type VerifiedEligibleSet } from "@/lib/foods/rule-marks";
 import { foodRulesEpoch, noteRulesRevision } from "@/lib/foods/rules-epoch";
 import type { EligibleFoods, ExcludedFoodRef } from "@/lib/server/eligible-foods";
 import { ruleMarkFromWire } from "@/lib/foods/rule-mark-wire";
-import { readRulesToken } from "@/lib/foods/world/rules-version-client";
+import { readRulesState } from "@/lib/foods/world/rules-version-client";
 import { sameRulesToken } from "@/lib/foods/world/freshness";
 import { openWorldInputs, type OpenWorldInputs } from "@/lib/meals/open-world";
 import { parseMealSnapshotV3, snapshotToken, snapshotV3Usable, type MealSnapshotV3 } from "@/lib/meals/snapshot-v3";
@@ -234,9 +234,13 @@ async function heldOpenSet(account: AccountHandle, foods: Record<string, Food>,
   // preference or bundled-universe contract, or older than 7 days, never seeds a run just because
   // its token still matches.
   if (!snapshotV3Usable(stored.snapshot, account.userId)) return { set: null, held: false };
-  const current = await readRulesToken(account);
+  const current = await readRulesState(account);
   if (current === null) throw new Error(SUGGESTIONS_NEED_CONNECTION);
-  if (!sameRulesToken(current, snapshotToken(stored.snapshot))) return { set: null, held: true };
+  // Sol r2 BLOCK: only while the server still says this account is open (released, listed, not
+  // held). Taken off the release list or put on hold: one refetch, which answers the closed body.
+  if (current.world !== "open" || !sameRulesToken(current.token, snapshotToken(stored.snapshot))) {
+    return { set: null, held: true };
+  }
   return { set: openStamped(foods, readPrefRefCache(account.userId), stored.snapshot, startedAt, account.userId),
     held: true };
 }
@@ -329,11 +333,12 @@ async function readOpenAnswer(account: AccountHandle, foods: Record<string, Food
     throw new Error("Couldn’t check your food rules. Try again.");
   }
   if (typeof snapshot.eligible.rulesRevision === "number") noteRulesRevision(snapshot.eligible.rulesRevision, account.userId);
-  const current = await readRulesToken(account);
+  const current = await readRulesState(account);
   if (current === null) throw new Error(SUGGESTIONS_NEED_CONNECTION);
   const refs = readPrefRefCache(account.userId);
   const set = openStamped(foods, refs, snapshot, startedAt, account.userId);
-  if (!sameRulesToken(current, snapshotToken(snapshot))) {
+  // The world closed (release list, hold) after this answer was built: never used either.
+  if (current.world !== "open" || !sameRulesToken(current.token, snapshotToken(snapshot))) {
     // Admitted under an older token: never used. An empty set clears nothing and generates nothing.
     return { set: new StampedEligibleSet([], new Map(), set.rulesKey, set.epoch, null, set.verifiedAt,
       account.userId), state: "stale" };
