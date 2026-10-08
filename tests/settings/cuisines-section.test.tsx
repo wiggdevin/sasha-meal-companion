@@ -4,8 +4,9 @@
  * whole list in vocabulary order; a seventh cannot be chosen; the country saves the picked ISO code,
  * and "Prefer not to say" saves null (clears it).
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { defaultSettings } from "@/lib/store";
 import type { ProfileDietPrefs } from "@/lib/sync/user-settings";
 import type { Settings } from "@/lib/types";
@@ -18,14 +19,12 @@ const taste = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/profile/taste-enabled-client", () => ({ readTasteChipsEnabled: taste.enabled }));
 vi.mock("@/lib/profile/prefs-client", () => ({ requestTasteChips: taste.request }));
-// Followups #1 (CONTRACT fu-backend, coord.md): not on this branch yet — the backend lane is
-// adding this helper beside lib/profile/prefs-client.ts. Mocked here so this suite exercises the
-// read-only-pill rendering and the remove control without depending on that module's landing;
-// the write path itself is covered once the real helper is in (see the PR report).
-const dislikeRemove = vi.hoisted(() => ({ remove: vi.fn(), undo: vi.fn() }));
-vi.mock("@/lib/profile/taste-dislike-remove-client", () => ({
-  removeTasteDislike: dislikeRemove.remove, undoRemoveTasteDislike: dislikeRemove.undo,
-}));
+// Followups #1: lib/profile/taste-dislike-remove-client.ts is the REAL, landed module —
+// deliberately not mocked, so the remove/Undo describe block below exercises it for real against
+// a faked global `fetch`. Only the lower-level sync write it settles onto is mocked (same seam
+// tests/profile/taste-dislike-remove-client.test.ts itself uses), so a test never touches IndexedDB.
+const sync = vi.hoisted(() => ({ applyServerUserSettings: vi.fn(async () => true) }));
+vi.mock("@/lib/sync/client", () => ({ applyServerUserSettings: sync.applyServerUserSettings }));
 // A plain select stands in for the kit's picker, which these tests do not exercise.
 vi.mock("@/components/ui/GlassSelect", () => ({
   default: ({ value, onChange, options, "aria-label": label }: {
@@ -132,5 +131,53 @@ describe("Settings › Your taste card (hotfix: a bare heading with the flag off
     render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes([]) })} />);
     await screen.findByLabelText("A taste, in your own words");
     expect(taste.enabled).toHaveBeenCalledTimes(1);
+  });
+});
+
+const TEST_USER = "22222222-2222-4222-8222-222222222222";
+const ROW = { rev: 9, diet_prefs: { taste: { dislikes: [] } } };
+const json = (status: number, body: unknown) => async () =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+describe("Settings › remove one taste dislike (Followups #1)", () => {
+  beforeEach(() => { bindAccount(TEST_USER); });
+  afterEach(() => { unbindAccount(); });
+
+  it("removes the pill on a 200 and offers Undo, which brings it back", async () => {
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(json(200, { status: "removed", actionId: "a1", key: "f:Okra", settings: ROW }))
+      .mockImplementationOnce(json(200, {
+        status: "undone", actionId: "a1", key: "f:Okra", restored: true, capped: false, settings: ROW,
+      }));
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      expect(screen.getByText("Okra")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.queryByText("Okra")).toBeNull());
+      await waitFor(() => expect(sync.applyServerUserSettings).toHaveBeenCalledWith(expect.anything(), ROW));
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(screen.getByText("Okra")).toBeTruthy());
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      const [removeUrl] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+      const [undoUrl, undoInit] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+      expect(removeUrl).toBe("/api/profile/taste/dislikes/remove");
+      expect(undoUrl).toBe("/api/profile/taste/dislikes/remove/undo");
+      expect(JSON.parse(String(undoInit.body))).toEqual({ actionId: "a1" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps the pill and shows a message on a failed remove", async () => {
+    vi.stubGlobal("fetch", vi.fn(json(502, { error: "taste_dislike_remove_failed", message: "That did not save. Try again." })));
+    try {
+      render(<CuisinesSection settings={settingsWith({ dietPrefs: withDislikes(["f:Okra"]) })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove Okra from your taste dislikes" }));
+      await waitFor(() => expect(screen.getByText("That did not save. Try again.")).toBeTruthy());
+      expect(screen.getByText("Okra")).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -5,16 +5,9 @@ import CuisineChips, { cuisineCount } from "@/components/CuisineChips";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import GlassSelect from "@/components/ui/GlassSelect";
 import TasteChipsField, { tasteDislikeLabel } from "@/components/profile/TasteChipsField";
-// Followups #1 (CONTRACT fu-backend, coord.md): the backend lane is adding this helper beside
-// lib/profile/prefs-client.ts (same POST/JSON/readJson pattern as requestTasteChips). It is NOT
-// on this branch yet — see the PR report's cross-branch-imports list. Expected shape:
-// removeTasteDislike(key) mints and keeps its own actionId (reused on a retry of the SAME key),
-// resolving to an outcome whose `.result` is `{ status, actionId, key, settings }` on success and
-// rejecting with an outcome whose `.reason`/`.message` describe the failure (offline/retry/refused
-// — same family as `TasteWriteOutcome` in lib/profile/taste-confirm-client.ts);
-// undoRemoveTasteDislike(actionId) resolves the same way to `{ status, actionId, key, restored,
-// capped, settings }`.
-import { removeTasteDislike, undoRemoveTasteDislike } from "@/lib/profile/taste-dislike-remove-client";
+import {
+  removeTasteDislike, undoRemoveTasteDislike, type TasteDislikeWriteOutcome,
+} from "@/lib/profile/taste-dislike-remove-client";
 import { countryFromValue, countryOptions, countryValue } from "@/lib/profile/countries";
 import { cuisinesFrom, type CuisineKey } from "@/lib/profile/cuisines";
 import { savePlaceSetting, type PlacePatch } from "@/lib/profile/cuisines-client";
@@ -27,11 +20,8 @@ import SettingsSection from "./Section";
 import { CAPTION, FIELD_LABEL } from "./settings-styles";
 import { useSettingsWrite } from "./use-settings-write";
 
-/** Duck-typed against the same outcome family `lib/profile/taste-confirm-client.ts`'s
- *  `TasteWriteOutcome` already uses (offline/retry/refused), rather than importing that helper's
- *  own (not-yet-landed) type name directly. */
 function dislikeRemoveFailureMessage(error: unknown): string {
-  const outcome = error as { ok?: boolean; reason?: string; message?: string } | null | undefined;
+  const outcome = error as TasteDislikeWriteOutcome<unknown> | null | undefined;
   if (outcome && outcome.ok === false) {
     if (outcome.reason === "offline") return "This waits for a connection.";
     if (outcome.reason === "retry") return outcome.message || "No connection. Try again.";
@@ -50,7 +40,6 @@ function dislikeRemoveFailureMessage(error: unknown): string {
 function DislikePill({ dislikeKey }: { dislikeKey: TasteDislike }) {
   const feedback = useActionFeedback();
   const [hidden, setHidden] = useState(false);
-  if (hidden) return null;
 
   function onRemove() {
     // The helper mints and owns the actionId for this tap (a retry of this same key reuses it
@@ -101,20 +90,26 @@ function DislikePill({ dislikeKey }: { dislikeKey: TasteDislike }) {
   }
 
   const label = tasteDislikeLabel(dislikeKey);
+  // The toast (and its Undo tap) must survive the pill it belongs to disappearing — `hidden` only
+  // skips the pill's own markup, never the feedback it is still waiting to show.
   return (
-    <div className="pill inline-flex items-center overflow-hidden">
-      <span className="flex h-11 items-center rounded-l-full px-4 text-tiny font-normal text-on-primary"
-        style={{ background: "var(--grad-ink)" }}>
-        {label}
-      </span>
-      <button type="button" aria-label={`Remove ${label} from your taste dislikes`}
-        disabled={feedback.phase === "pending"} onClick={onRemove}
-        className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-r-full text-on-primary disabled:opacity-40"
-        style={{ background: "var(--grad-ink)" }}>
-        ×
-      </button>
+    <>
+      {!hidden && (
+        <div className="pill inline-flex items-center overflow-hidden">
+          <span className="flex h-11 items-center rounded-l-full px-4 text-tiny font-normal text-on-primary"
+            style={{ background: "var(--grad-ink)" }}>
+            {label}
+          </span>
+          <button type="button" aria-label={`Remove ${label} from your taste dislikes`}
+            disabled={feedback.phase === "pending"} onClick={onRemove}
+            className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-r-full text-on-primary disabled:opacity-40"
+            style={{ background: "var(--grad-ink)" }}>
+            ×
+          </button>
+        </div>
+      )}
       <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
-    </div>
+    </>
   );
 }
 

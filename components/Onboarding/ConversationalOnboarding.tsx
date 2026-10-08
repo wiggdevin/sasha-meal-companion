@@ -23,16 +23,6 @@ import {
 } from "@/components/Onboarding/v2/facts-bridge";
 import { clearOnboardingDraft, loadOnboardingDraft, saveOnboardingDraft }
   from "@/components/Onboarding/v2/draft-store";
-// Followups #18 (CONTRACT fu-backend, coord.md): the backend lane is adding this helper
-// (lib/profile/onboarding-events-client.ts) — batches/queues events client-side, flushing on
-// screen transition and page hide, posting to POST /api/onboarding/events. NOT on this branch yet
-// — see the PR report's cross-branch-imports list. These are this call site's own expected names;
-// adjust once the real CONTRACT line for the helper's exact exports posts.
-import {
-  flushOnboardingEventsNow, recordPilotArmAssigned, recordQuestionEntered, recordQuestionLeft,
-  recordStepAbandoned, recordStepEntered, recordStepLeft,
-} from "@/lib/profile/onboarding-events-client";
-import type { OnboardingEventQuestion, OnboardingEventStep } from "@/lib/profile/onboarding-events";
 import { dbFood } from "@/lib/food-db";
 import { starterSelectionValid } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
@@ -116,14 +106,6 @@ const BEAT_LINE: Record<OnboardingBeat, string> = {
  *  dock's own confirm) still drive a real dock control. */
 const BEAT_DOCK: Record<OnboardingBeat, OnboardingDockMode> = {
   opener: "chips", facts: "chips", safety: "chips", foods: "game", reward: "confirm",
-};
-
-/** Followups #18: this shell's five beats, mapped onto the W15 event log's own fixed step
- *  vocabulary (`ONBOARDING_EVENT_STEPS`, which also has a sixth, "done", this shell reaches only
- *  on a completed finish — never a beat of its own). "safety" is named "allergy" there, matching
- *  what that beat actually asks. */
-const BEAT_STEP: Record<OnboardingBeat, OnboardingEventStep> = {
-  opener: "intro", facts: "facts", safety: "allergy", foods: "foods", reward: "reward",
 };
 
 /** Clear extension points for a caller that wants to render something other than this lane's own
@@ -278,59 +260,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  settled — see that effect's own comment for why. */
   const [draftChecked, setDraftChecked] = useState(false);
 
-  /**
-   * Followups #18: the W15 onboarding event log. Privacy-safe by construction — every call below
-   * names a step or question from the fixed enum (`lib/profile/onboarding-events.ts`), never an
-   * answer or free text. `pilotArmSent` guards the one-per-session `pilot_arm_assigned` emit;
-   * `stepEnteredRef` times the current beat (so its `step_left`/`step_abandoned` carries a real
-   * duration); `activeQuestionRef` is the single "question currently on screen", closed out by
-   * `leaveQuestion` whichever way it ends (answered, or the beat moves on without it — the fixed
-   * enum does not distinguish, by design: no answer content ever reaches this log either way);
-   * `finishedRef` tells the unmount cleanup a completed/skipped exit from an abandoned one, so a
-   * normal finish never double-counts as both.
-   *
-   * There is no real pilot-arm randomization yet (W15 itself, still ahead) — every session reports
-   * "control" as a documented placeholder so the event stream exists before that lands; nothing
-   * here claims to be running a live A/B.
-   */
-  const pilotArmSent = useRef(false);
-  const stepEnteredRef = useRef<{ step: OnboardingEventStep; at: number } | null>(null);
-  const activeQuestionRef = useRef<{ question: OnboardingEventQuestion; at: number } | null>(null);
-  const finishedRef = useRef(false);
-
-  // useCallback with an empty dependency array (only refs and imported functions inside, both
-  // stable) so these stay the same function identity across renders — plain function declarations
-  // here would otherwise make every effect below that lists them re-run on every render.
-  const leaveQuestion = useCallback(() => {
-    const open = activeQuestionRef.current;
-    if (!open) return;
-    activeQuestionRef.current = null;
-    recordQuestionLeft(open.question, Date.now() - open.at);
-  }, []);
-  const enterQuestion = useCallback((question: OnboardingEventQuestion) => {
-    leaveQuestion();
-    activeQuestionRef.current = { question, at: Date.now() };
-    recordQuestionEntered(question);
-  }, [leaveQuestion]);
-
   function advance(next: OnboardingBeat) {
     setBeat(next);
   }
-
-  /** Followups #18: a real finish (skip or "Use this plan"), called right before the navigate
-   *  away — closes the current step as a normal `step_left` (never `step_abandoned`), marks
-   *  "done", flips `finishedRef` so the unmount cleanup does not also fire an abandon for the same
-   *  exit, and flushes at once rather than leaving the last batch to the debounce on a page that is
-   *  about to unload. */
-  const finishOnboardingEvents = useCallback(() => {
-    leaveQuestion();
-    const open = stepEnteredRef.current;
-    if (open) recordStepLeft(open.step, Date.now() - open.at);
-    stepEnteredRef.current = null;
-    recordStepEntered("done");
-    finishedRef.current = true;
-    flushOnboardingEventsNow();
-  }, [leaveQuestion]);
 
   /** Loads the account's own settings (the base every write merges onto, same as
    *  `OnboardingFlow`'s own `base`), then checks for a resumable draft — a reload mid-setup should
@@ -360,11 +292,6 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       profileWritten.current = false;
       foodsWritten.current = false;
       leaving.current = false;
-      // A switched account is a fresh onboarding session for the event log too.
-      pilotArmSent.current = false;
-      stepEnteredRef.current = null;
-      activeQuestionRef.current = null;
-      finishedRef.current = false;
       void (async () => {
         let settings: Settings;
         try {
@@ -431,51 +358,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       profileWritten.current = false;
       foodsWritten.current = false;
       leaving.current = false;
-      pilotArmSent.current = false;
-      stepEnteredRef.current = null;
-      activeQuestionRef.current = null;
-      finishedRef.current = false;
     });
     return () => { live = false; unreadyFn(); ungoneFn(); };
   }, []);
-
-  /** Followups #18: one `pilot_arm_assigned` per bound account, the moment its settings load (the
-   *  same signal the rest of this shell treats as "a real account is here"). See this field's own
-   *  declaration above for why "control" is a documented placeholder, not a live assignment. */
-  useEffect(() => {
-    if (!base || pilotArmSent.current) return;
-    pilotArmSent.current = true;
-    recordPilotArmAssigned("control");
-  }, [base]);
-
-  /** Followups #18: one step_entered/step_left pair per beat change, timed against the moment this
-   *  effect last saw a different step. Closes out any question still open in the departing beat in
-   *  the same tick (`leaveQuestion`), so a question never straddles two steps. */
-  useEffect(() => {
-    const step = BEAT_STEP[beat];
-    const previous = stepEnteredRef.current;
-    if (previous && previous.step === step) return;
-    if (previous) {
-      recordStepLeft(previous.step, Date.now() - previous.at);
-      leaveQuestion();
-    }
-    stepEnteredRef.current = { step, at: Date.now() };
-    recordStepEntered(step);
-    // "opener" is the goal question and nothing else — there is no separate editor-open moment to
-    // hook, the way facts' other fields have (`openFieldEditor`).
-    if (step === "intro") enterQuestion("goal");
-  }, [beat, enterQuestion, leaveQuestion]);
-
-  /** Followups #18: a session that ends by closing the tab, navigating away or an uncaught error —
-   *  never through the finish/skip paths below, which already flip `finishedRef` first — is the
-   *  one case `step_abandoned` exists for. */
-  useEffect(() => () => {
-    if (finishedRef.current) return;
-    leaveQuestion();
-    const open = stepEnteredRef.current;
-    if (open) recordStepAbandoned(open.step, Date.now() - open.at);
-    flushOnboardingEventsNow();
-  }, [leaveQuestion]);
 
   /** Best-effort draft save on every confirmed change — see `draft-store.ts`'s own fail-soft
    *  contract; a failed save here never surfaces to the user. Gated on `draftChecked` so this
@@ -574,18 +459,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     if (allRequiredFactsConfirmed(facts)) advance("safety");
   }
 
-  /** Followups #18: closes out the open question only if it is really the one this answer ends —
-   *  `confirmGhostField` reaches here for any ghost-confidence field, not only one this shell ever
-   *  opened an editor (and so a tracked question) for. */
-  function leaveQuestionFor(key: OnboardingFactKey) {
-    if (activeQuestionRef.current?.question === key) leaveQuestion();
-  }
-
   function pickGoal(key: Goal) {
     // A direct tap is a confirmed, high-confidence answer — never a ghost guess (BRIEF.md §2:
     // "no safe default exists for this field... a tap is the only way this resolves").
     setFacts((current) => ({ ...current, goal: key, confidence: { ...current.confidence, goal: 1 } }));
-    leaveQuestionFor("goal");
     advance("facts");
   }
 
@@ -594,7 +471,6 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   function setFieldValue<K extends OnboardingFactKey>(key: K, value: NonNullable<FactsLike[K]>) {
     setFacts((current) => ({ ...current, [key]: value, confidence: { ...current.confidence, [key]: 1 } }));
     setEditingField(null);
-    leaveQuestionFor(key);
   }
 
   /** The facts sentence's gap-chip tap (BRIEF.md §4: "gaps point, they don't ask"). Birth year is
@@ -608,18 +484,15 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setFacts((current) => ({
         ...current, birthYear: seedYear, confidence: { ...current.confidence, birthYear: 0.6 },
       }));
-      enterQuestion("birthYear");
       return;
     }
     setEditingField(key);
-    enterQuestion(key);
   }
 
   /** A ghost chip's "Confirm" tap — the value is already there, this only raises it to high
    *  confidence; birth year's own ghost "Confirm" chip (next to its stepper) reaches this too. */
   function confirmGhostField(key: OnboardingFactKey) {
     setFacts((current) => ({ ...current, confidence: { ...current.confidence, [key]: 1 } }));
-    leaveQuestionFor(key);
   }
 
   function nudgeBirthYear(birthYear: number) {
@@ -676,13 +549,12 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       const mirrored = drained ? await mirroredOnboardedAt() : null;
       if (mirrored === null) throw new Error(ONBOARDING_SYNC_WARNING);
       await clearOnboardingDraft();
-      finishOnboardingEvents();
       router.replace("/");
     } catch {
       setLeaveError(ONBOARDING_SYNC_WARNING);
       leaving.current = false;
     }
-  }, [router, base, finishOnboardingEvents]);
+  }, [router, base]);
 
   /** "Use this plan": the same write path `OnboardingFlow.tsx`'s `savePlan()` drives —
    *  `persistCompletedOnboarding` (mints the target revision, writes `constraint_profiles`), then
@@ -740,14 +612,13 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       const mirrored = drained ? await mirroredOnboardedAt() : null;
       if (mirrored === null) throw new Error(ONBOARDING_SYNC_WARNING);
       await clearOnboardingDraft();
-      finishOnboardingEvents();
       router.replace("/");
     } catch (error) {
       setLeaveError(error instanceof Error ? error.message : "Couldn’t save your plan. Try again.");
       leaving.current = false;
       setSaving(false);
     }
-  }, [router, settings, onboardingState, foodAccess.status, starter, plannedCount, finishOnboardingEvents]);
+  }, [router, settings, onboardingState, foodAccess.status, starter, plannedCount]);
 
   const handleSkip = onSkip ?? (() => void leaveOnboarding());
   const handleComplete = onComplete
