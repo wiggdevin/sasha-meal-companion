@@ -360,16 +360,16 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
     latest.current.set(id, seq);
     const h = accountHandle();
     const moved = setFoodStatus(id, next).foods[id];
-    // The intent is this tap's place in the food's membership order. Once a newer one exists (another
-    // tap here, the coach, a starter seed), this write is not ours to report: it settles quietly, with
-    // no confirmation, no Undo and no rollback over the newer choice, and is never sent if still queued.
-    // A name with nothing to normalize reserves nothing: the write itself then fails with the usual alert.
+    // The intent is this write's place in the food's membership order, reserved when it is sent (the
+    // queue keeps taps in order, so the cache an earlier write left is read as before). Once a newer
+    // intent exists (the coach, a starter seed), the outcome is not this screen's to report: it settles
+    // quietly, with no confirmation and no Undo.
     let intent: ReturnType<typeof reserveFoodMembershipIntent> | undefined;
-    try { intent = reserveFoodMembershipIntent(moved.name, h); } catch { intent = undefined; }
     const superseded = () => intent !== undefined && !isLatestFoodMembershipIntent(intent);
     setFoods(loadStore().foods);
     setSaveError(null);
     void feedback.run(async () => {
+      intent = reserveFoodMembershipIntent(moved.name, h);
       const result = await setFoodMembership(moved.name, next === "neutral" ? null : next,
         { acknowledge: true, food: moved, note: null, account: h, intent });
       const notice = foodMembershipNotice(result);
@@ -384,8 +384,10 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
       undo: previous.status === next ? undefined
         : { action: () => { if (isCurrent(h)) change(id, previous.status); } },
     }).then((outcome) => {
-      // A failed move is undone locally only while it is still the newest move of that food.
-      if (!outcome.ok && isCurrent(h) && latest.current.get(id) === seq && !superseded()) {
+      // A failed move is undone locally only while it is still the newest move of that food and the
+      // row still holds what it wrote: a newer change (here, the coach) is never overwritten, while a
+      // newer reservation that changed nothing does not leave an unsaved status on screen.
+      if (!outcome.ok && isCurrent(h) && latest.current.get(id) === seq && loadStore().foods[id]?.status === next) {
         setFoods(upsertFood({ ...loadStore().foods[id], status: previous.status }).foods);
       }
     });

@@ -353,10 +353,9 @@ describe("Eats membership feedback", () => {
     seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
     await act(async () => { failFirst(new Error("offline")); });
     await act(async () => {});
-    // The failed first write must not put back "eats" over the newer local state, and, superseded by
-    // the newer move, it does not speak either: that move reports its own outcome.
+    // The failed first write must not put back "eats" over the newer local state.
     expect(seeded.foods.oats.status).toBe("avoid");
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("alert")).toBeTruthy();
   });
 });
 
@@ -431,5 +430,19 @@ describe("a superseded membership write", () => {
     await act(async () => {});
     expect(seeded.foods.oats.status).toBe("avoid");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("still rolls back when the newer reservation changed nothing on the phone", async () => {
+    const { reserveFoodMembershipIntent } = await import("@/lib/foods/prefs-client");
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // The coach reserves, then its own read fails: it writes nothing and moves nothing.
+    reserveFoodMembershipIntent("Oats");
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats.status).toBe("eats");
   });
 });
