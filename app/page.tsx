@@ -483,9 +483,11 @@ export default function Today() {
   const generatedNotes = starterGate === "ready"
     ? generatedNotesForDay(planStore, viewedDate, eligibleFoodIds ?? undefined) : null;
   const proteinShort = proteinShortfall(generatedNotes);
-  // A log started here files on the day on screen (lib/log/viewed-at.ts), so its sheet previews
-  // that day's totals and targets.
-  const logProjection = { consumed: resolved.consumed, targets: resolved.targets };
+  // A log started here files on the day on screen when that day is past, else on today
+  // (lib/log/viewed-at.ts), so its sheet previews the totals and targets of the day it files on.
+  const logDay = viewedDate && viewedDate > todayIso
+    ? resolveDay(planStore, todayIso, 0, eligibleFoodIds ?? undefined) : resolved;
+  const logProjection = { consumed: logDay.consumed, targets: logDay.targets };
   const nowM = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
 
   // The last slot whose time has arrived. Drives MISSED (below) — unchanged.
