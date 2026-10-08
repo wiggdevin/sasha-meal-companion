@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Store } from "@/lib/types";
 import {
   androidPromptOnCooldown,
@@ -6,9 +6,14 @@ import {
   hasLoggedAnyMeal,
   loggedMealCount,
   meaningfulMomentReached,
+  noteVisibilityHidden,
+  noteVisibilityVisible,
   OPEN_COUNT_KEY,
+  readOpenCount,
   recordAndroidPromptDeclined,
   recordAppOpen,
+  recordPageOpenOnce,
+  __resetPageOpenTrackingForTests,
 } from "./readiness";
 
 function fakeStorage(entries: Record<string, string> = {}): Storage {
@@ -179,5 +184,67 @@ describe("androidPromptOnCooldown / recordAndroidPromptDeclined", () => {
   it("never throws: a storage failure answers not-on-cooldown (safe to show)", () => {
     expect(androidPromptOnCooldown(throwingStorage(), storeWith({}), NOON)).toBe(false);
     expect(() => recordAndroidPromptDeclined(throwingStorage(), storeWith({}), NOON)).not.toThrow();
+  });
+});
+
+// Sol review round 2, 2026-10-08, BLOCK: the component used to call `recordAppOpen` on every
+// re-render (a clock tick producing a new `store` reference counted as a second open with nothing
+// actually reopened). `recordPageOpenOnce` is a module-level flag precisely so repeated calls
+// within one page load — however many times a component remounts or re-renders — only ever record
+// the first one.
+describe("recordPageOpenOnce", () => {
+  afterEach(() => {
+    __resetPageOpenTrackingForTests();
+  });
+
+  it("records the first call for this page load", () => {
+    const storage = fakeStorage();
+    expect(recordPageOpenOnce(storage, NOON)).toBe(1);
+    expect(readOpenCount(storage)).toBe(1);
+  });
+
+  it("answers null, and writes nothing more, on every later call in the same load", () => {
+    const storage = fakeStorage();
+    expect(recordPageOpenOnce(storage, NOON)).toBe(1);
+    // Many more calls — simulating many re-renders/remounts, including a clock tick an hour later
+    // (well past the 30-minute gap `recordAppOpen` alone would have treated as a new open).
+    expect(recordPageOpenOnce(storage, NOON + 60 * 60_000)).toBeNull();
+    expect(recordPageOpenOnce(storage, NOON + 2 * 60 * 60_000)).toBeNull();
+    expect(readOpenCount(storage)).toBe(1);
+  });
+});
+
+describe("noteVisibilityHidden / noteVisibilityVisible", () => {
+  afterEach(() => {
+    __resetPageOpenTrackingForTests();
+  });
+
+  it("counts nothing on a visible call with no prior hidden call", () => {
+    const storage = fakeStorage();
+    expect(noteVisibilityVisible(storage, NOON)).toBeNull();
+    expect(readOpenCount(storage)).toBe(0);
+  });
+
+  it("counts nothing on a quick tab-switch (hidden under 30 minutes)", () => {
+    const storage = fakeStorage({ [OPEN_COUNT_KEY]: "1" });
+    noteVisibilityHidden(NOON);
+    expect(noteVisibilityVisible(storage, NOON + 5 * 60_000)).toBeNull();
+    expect(readOpenCount(storage)).toBe(1);
+  });
+
+  it("counts a new open once hidden for at least 30 minutes", () => {
+    const storage = fakeStorage({ [OPEN_COUNT_KEY]: "1" });
+    noteVisibilityHidden(NOON);
+    expect(noteVisibilityVisible(storage, NOON + 30 * 60_000)).toBe(2);
+    expect(readOpenCount(storage)).toBe(2);
+  });
+
+  it("never counts twice for the same hidden period", () => {
+    const storage = fakeStorage({ [OPEN_COUNT_KEY]: "1" });
+    noteVisibilityHidden(NOON);
+    expect(noteVisibilityVisible(storage, NOON + 30 * 60_000)).toBe(2);
+    // Visible again with no new hidden call in between — nothing to count.
+    expect(noteVisibilityVisible(storage, NOON + 31 * 60_000)).toBeNull();
+    expect(readOpenCount(storage)).toBe(2);
   });
 });

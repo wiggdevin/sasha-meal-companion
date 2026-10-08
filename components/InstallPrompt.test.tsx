@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import InstallPrompt, { DISMISSED_KEY, LEGACY_DISMISSED_KEY, dismissedIn } from "./InstallPrompt";
 import {
   __resetAndroidInstallCaptureForTests,
@@ -10,7 +10,7 @@ import {
   attachAndroidInstallCapture,
   type BeforeInstallPromptEvent,
 } from "@/lib/install-prompt/android-capture";
-import { OPEN_COUNT_KEY } from "@/lib/install-prompt/readiness";
+import { OPEN_COUNT_KEY, __resetPageOpenTrackingForTests } from "@/lib/install-prompt/readiness";
 import type { Store } from "@/lib/types";
 
 const source = readFileSync(path.join(__dirname, "InstallPrompt.tsx"), "utf-8");
@@ -116,6 +116,7 @@ describe("InstallPrompt", () => {
     localStorage.clear();
     sessionStorage.clear();
     __resetAndroidInstallCaptureForTests();
+    __resetPageOpenTrackingForTests();
     window.matchMedia = ((query: string) => ({
       matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {},
     })) as never;
@@ -124,6 +125,7 @@ describe("InstallPrompt", () => {
   afterEach(() => {
     cleanup();
     __resetAndroidInstallCaptureForTests();
+    __resetPageOpenTrackingForTests();
   });
 
   describe("standalone and dismissal (rule 3)", () => {
@@ -176,6 +178,24 @@ describe("InstallPrompt", () => {
       render(<InstallPrompt store={EMPTY_STORE} />);
       expect(screen.getByText("Install Sasha")).toBeTruthy();
     });
+
+    // Sol review round 2, 2026-10-08, BLOCK: the effect that recorded an open used to rerun on
+    // every `store` prop change — a Today page left open across a clock tick (a new `store`
+    // reference each minute, nothing actually reopened) was counting itself as a second open.
+    it("never counts a clock tick (a new store reference) as another open", () => {
+      asAgent(IPHONE_SAFARI);
+      const { rerender } = render(<InstallPrompt store={{ days: {} }} />);
+      expect(localStorage.getItem(OPEN_COUNT_KEY)).toBe("1");
+
+      // Many re-renders with a brand-new store object each time, as a page left open across
+      // several clock ticks would produce — no visibilitychange, no actual reopen.
+      for (let i = 0; i < 5; i += 1) {
+        rerender(<InstallPrompt store={{ days: {} }} />);
+      }
+      expect(localStorage.getItem(OPEN_COUNT_KEY)).toBe("1");
+      // Still hidden: a single counted open is not "the second app open".
+      expect(screen.queryByText("Install Sasha")).toBeNull();
+    });
   });
 
   describe("Android/Chrome/Edge install (rule 1)", () => {
@@ -218,21 +238,43 @@ describe("InstallPrompt", () => {
       expect(await screen.findByRole("button", { name: "Install" })).toBeTruthy();
     });
 
-    // Sol review, 2026-10-08, BLOCK: a rejected prompt()/userChoice left the button stuck on
-    // "Installing…" forever, with no way to retry.
-    it("restores the button and shows a short error when the prompt rejects", async () => {
+    // Sol review round 1, 2026-10-08, BLOCK: a rejected prompt()/userChoice left the button
+    // stuck on "Installing…" forever. Sol review round 2, 2026-10-08, BLOCK: the FIRST fix for
+    // this still offered the same "Install" button to retry with, but a BeforeInstallPromptEvent
+    // can only ever be prompted once — clicking it again always answered "unavailable" and hid
+    // the whole card. The button must not come back until a genuinely fresh event is captured.
+    it("never leaves the button stuck, but also never re-offers the used-up event", async () => {
       asAgent(ANDROID_CHROME);
       attachAndroidInstallCapture();
       fireBeforeInstallPromptThatRejects();
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
       const button = await screen.findByRole("button", { name: "Install" });
       fireEvent.click(button);
-      await screen.findByText(/didn.t work/i);
-      // The button is back to "Install" — never stuck on "Installing…" — and the card is still
-      // there (not dismissed by a failure).
-      expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+
+      // Not stuck on "Installing…", and not hidden — but also no "Install" button to retry with,
+      // since the only captured event is already used up.
+      await screen.findByText(/isn.t available right now/i);
       expect(screen.queryByText(/Installing…/)).toBeNull();
+      expect(screen.queryByRole("button", { name: "Install" })).toBeNull();
+      expect(screen.getByText("Install Sasha")).toBeTruthy();
       expect(localStorage.getItem(DISMISSED_KEY)).toBeNull();
+    });
+
+    it("brings the button back only once a fresh beforeinstallprompt is captured", async () => {
+      asAgent(ANDROID_CHROME);
+      attachAndroidInstallCapture();
+      fireBeforeInstallPromptThatRejects();
+      render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
+      const firstButton = await screen.findByRole("button", { name: "Install" });
+      fireEvent.click(firstButton);
+      await screen.findByText(/isn.t available right now/i);
+      expect(screen.queryByRole("button", { name: "Install" })).toBeNull();
+
+      // A second click on nothing (there is no button) cannot happen; only a genuinely new
+      // captured prompt restores it.
+      fireBeforeInstallPrompt("accepted");
+      expect(await screen.findByRole("button", { name: "Install" })).toBeTruthy();
+      expect(screen.queryByText(/isn.t available right now/i)).toBeNull();
     });
 
     // Sol review, 2026-10-08, WARN: a declined (not dismissed-by-the-user) prompt must not be
@@ -365,6 +407,58 @@ describe("InstallPrompt", () => {
       asAgent(IPHONE_INSTAGRAM);
       render(<InstallPrompt store={STORE_WITH_LOGGED_MEAL} />);
       expect(screen.getByText(/Open this page in Safari/)).toBeTruthy();
+    });
+  });
+
+  describe("counting a real reopen via visibilitychange", () => {
+    function setVisibility(state: DocumentVisibilityState): void {
+      Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+      // A raw DOM dispatch is not wrapped in `act()` the way `fireEvent`/`render` are, so the
+      // resulting `setOpens` would otherwise not be flushed before the next assertion runs.
+      act(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    }
+
+    afterEach(() => {
+      Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    });
+
+    it("counts the second open once hidden for at least 30 minutes, then shown again", () => {
+      vi.useFakeTimers();
+      try {
+        asAgent(IPHONE_SAFARI);
+        render(<InstallPrompt store={EMPTY_STORE} />);
+        expect(localStorage.getItem(OPEN_COUNT_KEY)).toBe("1");
+        expect(screen.queryByText("Install Sasha")).toBeNull();
+
+        setVisibility("hidden");
+        vi.advanceTimersByTime(31 * 60 * 1000);
+        setVisibility("visible");
+
+        expect(localStorage.getItem(OPEN_COUNT_KEY)).toBe("2");
+        expect(screen.getByText("Install Sasha")).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not count a brief tab-switch under 30 minutes", () => {
+      vi.useFakeTimers();
+      try {
+        asAgent(IPHONE_SAFARI);
+        render(<InstallPrompt store={EMPTY_STORE} />);
+        expect(localStorage.getItem(OPEN_COUNT_KEY)).toBe("1");
+
+        setVisibility("hidden");
+        vi.advanceTimersByTime(5 * 60 * 1000);
+        setVisibility("visible");
+
+        expect(localStorage.getItem(OPEN_COUNT_KEY)).toBe("1");
+        expect(screen.queryByText("Install Sasha")).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

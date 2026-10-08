@@ -8,8 +8,11 @@ import type { Store } from "@/lib/types";
 import {
   androidPromptOnCooldown,
   meaningfulMomentReached,
+  noteVisibilityHidden,
+  noteVisibilityVisible,
+  readOpenCount,
   recordAndroidPromptDeclined,
-  recordAppOpen,
+  recordPageOpenOnce,
 } from "@/lib/install-prompt/readiness";
 import {
   ANDROID_INSTALLED_EVENT,
@@ -184,43 +187,81 @@ function IosShareGuide({ ipad, onDismiss }: { ipad: boolean; onDismiss: () => vo
 export default function InstallPrompt({ store }: { store: Pick<Store, "days"> }) {
   const [variant, setVariant] = useState<Variant | null>(null);
   const [installing, setInstalling] = useState(false);
-  const [installError, setInstallError] = useState(false);
+  // True once a captured prompt has been used up and failed (rejected, or already consumed) — a
+  // BeforeInstallPromptEvent can only ever be prompted once, so "Try again" on the SAME event is
+  // not offered (Sol review round 2, 2026-10-08, BLOCK); only a fresh `beforeinstallprompt` clears
+  // this, via `onReady` below.
+  const [promptUnavailable, setPromptUnavailable] = useState(false);
+  // The durable open count — read/recorded only at mount and on a real visibility change, never on
+  // a bare re-render (Sol review round 2, 2026-10-08, BLOCK: recomputing on every `store` prop
+  // change, e.g. a clock tick re-rendering the Today page, was counting a page left open as a
+  // second "open").
+  const [opens, setOpens] = useState(0);
 
-  const recompute = useCallback((currentStore: Pick<Store, "days">) => {
+  const recompute = useCallback((currentStore: Pick<Store, "days">, currentOpens: number) => {
     if (typeof window === "undefined") return;
     if (isStandalone() || wasInstalledThisSession() || readDismissed()) {
       setVariant(null);
       return;
     }
-    // `window.localStorage` can itself throw (sandboxed/third-party contexts) before any method on
-    // it is even called — the try sits here, around the reference, not just around the read/write
-    // helpers, which are already individually safe.
-    let opens = 0;
-    let storage: Storage | null = null;
-    try {
-      storage = window.localStorage;
-      opens = recordAppOpen(storage);
-    } catch {
-      opens = 0;
-    }
-    if (!meaningfulMomentReached(currentStore, opens)) {
+    if (!meaningfulMomentReached(currentStore, currentOpens)) {
       setVariant(null);
       return;
     }
     const detected = detectVariant(!!readDeferredInstallPrompt());
-    if (detected?.kind === "android" && storage && androidPromptOnCooldown(storage, currentStore)) {
-      setVariant(null);
-      return;
+    if (detected?.kind === "android") {
+      try {
+        if (androidPromptOnCooldown(window.localStorage, currentStore)) {
+          setVariant(null);
+          return;
+        }
+      } catch {
+        // Treated as "not on cooldown" — safe to show.
+      }
     }
     setVariant(detected);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Records (or, on a remount within the same page load, simply reads) the one open this load
+    // counts — see `recordPageOpenOnce`'s own doc comment for why this is a module-level guard,
+    // not component state.
+    try {
+      const recorded = recordPageOpenOnce(window.localStorage);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpens(recorded ?? readOpenCount(window.localStorage));
+    } catch {
+      setOpens(0);
+    }
+
+    function onVisibilityChange(): void {
+      if (document.visibilityState === "hidden") {
+        noteVisibilityHidden();
+        return;
+      }
+      try {
+        const recorded = noteVisibilityVisible(window.localStorage);
+        if (recorded !== null) setOpens(recorded);
+      } catch {
+        // No change — the gap just was not (yet) confirmed to be ≥30 minutes.
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
   useEffect(() => {
     // One-shot mount-time + event-triggered read of browser/storage state (UA, matchMedia,
     // localStorage, the captured install event) — there is nothing to synchronize continuously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    recompute(store);
-    const onReady = () => recompute(store);
+    recompute(store, opens);
+    const onReady = () => {
+      // A fresh captured prompt always means the old one (if any) is no longer the reason the
+      // card looks the way it does.
+      setPromptUnavailable(false);
+      recompute(store, opens);
+    };
     const onInstalled = () => {
       writeDismissed();
       setVariant(null);
@@ -231,7 +272,7 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       window.removeEventListener(ANDROID_PROMPT_READY_EVENT, onReady);
       window.removeEventListener(ANDROID_INSTALLED_EVENT, onInstalled);
     };
-  }, [recompute, store]);
+  }, [recompute, store, opens]);
 
   if (!variant) return null;
 
@@ -242,15 +283,13 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
 
   async function onInstall(): Promise<void> {
     setInstalling(true);
-    setInstallError(false);
     try {
       const outcome = await triggerAndroidInstall();
-      if (outcome === "unavailable") {
-        setVariant(null);
-        return;
-      }
-      if (outcome === "error") {
-        setInstallError(true);
+      if (outcome === "unavailable" || outcome === "error") {
+        // Either way there is no usable captured event left to retry with — a
+        // BeforeInstallPromptEvent fires `prompt()` at most once. Wait for the browser to offer a
+        // fresh one (`onReady` above) instead of offering a button that can only fail again.
+        setPromptUnavailable(true);
         return;
       }
       if (outcome === "accepted") {
@@ -269,21 +308,28 @@ export default function InstallPrompt({ store }: { store: Pick<Store, "days"> })
       setVariant(null);
     } catch {
       // A rejection `triggerAndroidInstall` itself did not catch (defense in depth) — restore the
-      // button and tell the user, rather than leaving it stuck on "Installing…".
-      setInstallError(true);
+      // button's enabled state and tell the user, rather than leaving it stuck on "Installing…".
+      setPromptUnavailable(true);
     } finally {
       setInstalling(false);
     }
   }
 
   if (variant.kind === "android") {
+    if (promptUnavailable) {
+      return (
+        <div className="shell">
+          <Notice tone="attention" title={`Install ${APP_NAME}`} onDismiss={dismiss}>
+            Install isn&rsquo;t available right now. Use your browser menu → Install app.
+          </Notice>
+        </div>
+      );
+    }
     return (
       <div className="shell">
-        <Notice tone={installError ? "error" : "info"} title={`Install ${APP_NAME}`} onDismiss={dismiss}
+        <Notice tone="info" title={`Install ${APP_NAME}`} onDismiss={dismiss}
           action={{ label: installing ? "Installing…" : "Install", onClick: () => void onInstall(), disabled: installing }}>
-          {installError
-            ? "That didn't work. Try again."
-            : `Add ${APP_NAME} to your home screen for one-tap access.`}
+          Add {APP_NAME} to your home screen for one-tap access.
         </Notice>
       </div>
     );

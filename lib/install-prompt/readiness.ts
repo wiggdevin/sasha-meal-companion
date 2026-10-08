@@ -60,6 +60,60 @@ export function recordAppOpen(storage: ReadWrite, now: number = Date.now()): num
   }
 }
 
+/** Reads the durable open count without recording anything. */
+export function readOpenCount(storage: Read): number {
+  try {
+    return toCount(storage.getItem(OPEN_COUNT_KEY));
+  } catch {
+    return 0;
+  }
+}
+
+/** Module-level, not component state: survives every remount within one page load, and is the
+ *  single source of truth for "has this load already recorded its open" — see `recordPageOpenOnce`. */
+let recordedThisLoad = false;
+/** When the page was last hidden (epoch ms), or null while visible / never hidden yet. */
+let hiddenAt: number | null = null;
+
+/**
+ * Records exactly one open per page load (Sol review, 2026-10-08, BLOCK: the effect that called
+ * `recordAppOpen` reran on every prop change — a Today page left open across a clock tick, with a
+ * new `store` reference each minute, was counting itself as a second open with nothing re-opened
+ * at all). Guarded by a module-level flag, not a ref or state, so it survives every remount of the
+ * component within this one page load and still resets on an actual full reload (a fresh module
+ * instance). Returns `null` on every call after the first — the caller already has the count from
+ * its first call, or can read it fresh with `readOpenCount` after a remount.
+ */
+export function recordPageOpenOnce(storage: ReadWrite, now: number = Date.now()): number | null {
+  if (recordedThisLoad) return null;
+  recordedThisLoad = true;
+  return recordAppOpen(storage, now);
+}
+
+/** Call when the page becomes hidden (`document.visibilityState === "hidden"`). */
+export function noteVisibilityHidden(now: number = Date.now()): void {
+  hiddenAt = now;
+}
+
+/**
+ * Call when the page becomes visible again. Counts a new open — through the same durable,
+ * day-or-gap `recordAppOpen` — only when the page was hidden for at least `OPEN_GAP_MS`; a quick
+ * tab-switch answers `null` and counts nothing. Never on a bare re-render: nothing calls this
+ * except the `visibilitychange` listener itself.
+ */
+export function noteVisibilityVisible(storage: ReadWrite, now: number = Date.now()): number | null {
+  const since = hiddenAt;
+  hiddenAt = null;
+  if (since === null || now - since < OPEN_GAP_MS) return null;
+  return recordAppOpen(storage, now);
+}
+
+/** Test-only: resets the module-level open-tracking state between specs. */
+export function __resetPageOpenTrackingForTests(): void {
+  recordedThisLoad = false;
+  hiddenAt = null;
+}
+
 /** Pure: has this account ever logged (eaten or extra) a meal, on any stored day? */
 export function hasLoggedAnyMeal(store: Pick<Store, "days">): boolean {
   return Object.values(store.days ?? {}).some((day) =>

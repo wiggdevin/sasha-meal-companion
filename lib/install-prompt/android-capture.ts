@@ -54,11 +54,13 @@ export function wasInstalledThisSession(): boolean {
 }
 
 /**
- * Fires the captured prompt and reads `userChoice`. A missing deferred event (never captured,
- * already used, or already installed) answers `"unavailable"` rather than throwing — the card
- * treats that the same as dismissed. A rejected `prompt()` or `userChoice` (Sol review, 2026-10-08,
- * BLOCK: the button was left stuck on "Installing…") answers `"error"` instead of throwing, so the
- * caller never has to guess whether it is safe to re-render.
+ * Fires the captured prompt and reads `userChoice`. `prompt()` can only ever be called once on a
+ * given event, win or lose — there is no way to re-fire a used or rejected one. A missing deferred
+ * event (never captured, already used, or already installed) answers `"unavailable"` rather than
+ * throwing. A rejected `prompt()` or `userChoice` (Sol review, 2026-10-08, BLOCK: the button was
+ * left stuck on "Installing…") answers `"error"` instead of throwing. Both leave the event consumed
+ * (`deferred` is already `null` by the time either can happen) — the caller (round 2, BLOCK) must
+ * not offer "Try again" on either outcome, only wait for a fresh `beforeinstallprompt`.
  */
 export async function triggerAndroidInstall(): Promise<"accepted" | "dismissed" | "unavailable" | "error"> {
   const event = deferred;
