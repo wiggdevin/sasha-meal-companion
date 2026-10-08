@@ -15,7 +15,8 @@
    for two 44px chip rows from the very first paint, before any measurement runs at all — the
    animate-to-measured-height behavior for every other mode, and for a chip row that genuinely
    needs only one row, is unchanged. */
-.dockFrame[data-mode="chips"] {
+/* Live QA 2026-10-07: never hold an EMPTY chip row open — that drew a 124px empty glass box. */
+.dockFrame[data-mode="chips"]:not([data-empty]) {
   /* Two 44px chip rows (`min-h-11`) + the 8px row gap + the content div's own 12px top/bottom
      padding (`p-3`) = 120px; a few px of headroom against rounding. */
   min-height: 124px;

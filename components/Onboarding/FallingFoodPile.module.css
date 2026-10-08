@@ -1,0 +1,22 @@
+/* Onboarding v2 food step stage (live QA 2026-10-07, defect 3).
+   Transparent: it no longer paints its own matte rectangle over the shell's backdrop (that drew a
+   hard band). Its top edge fades out with a mask, so a disc slides in from nothing instead of being
+   cut off at a line. Its height is what the screen has left once Sprout, the instruction, the loved
+   tray, Skip and the dock are placed, so the tray stays in view on a 375x812 phone. */
+.stage {
+  position: relative;
+  width: 100%;
+  height: clamp(220px, calc(100dvh - 520px), 440px);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 72px, black calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 72px, black calc(100% - 16px), transparent 100%);
+}
+
+/* Lane centres stay inside the screen: the first and last lane sit one disc half-width (plus the
+   disc's padding) from each edge, the rest spread evenly between. `--lane` is 0..1. */
+.lane {
+  position: absolute;
+  top: 0;
+  left: calc(60px + (100% - 120px) * var(--lane));
+  translate: -50% 0;
+}

@@ -11,9 +11,13 @@ import FallingFoodPile from "@/components/Onboarding/FallingFoodPile";
 import FoodsTopPickChips from "@/components/Onboarding/FoodsTopPickChips";
 import { pickForMeIds } from "@/components/Onboarding/FoodsStep";
 import {
-  effectiveBand, emptyFacts, firstMissingField, GoalPillRow, PlaybackSentence, SexChipRow,
-  type Goal, type OnboardingFactKey,
+  effectiveBand, emptyFacts, FactQuestion, firstUnconfirmedField, GoalPillRow, PlaybackSentence,
+  type FactAnswer, type Goal, type OnboardingFactKey,
 } from "@/components/Onboarding/facts";
+import SavingStage from "@/components/Onboarding/SavingStage";
+import { readTypedAnswer } from "@/components/Onboarding/typed-answer";
+import type { StarterMark } from "@/lib/foods/starter";
+import type { FastPathFacts } from "@/lib/coach/onboarding-fast-path";
 import RewardPlateCard, { type RewardPlateFood, type RewardPlateTargets }
   from "@/components/Onboarding/reward/RewardPlateCard";
 import { useOnboardingFoodAccess } from "@/components/Onboarding/useOnboardingFoodAccess";
@@ -97,16 +101,26 @@ const BEAT_LINE: Record<OnboardingBeat, string> = {
   facts: "Sprout is checking what it heard.",
   safety: "Sprout is waiting for anything you must never eat.",
   foods: "Sprout is watching for what you love.",
-  reward: "Sprout is holding up tomorrow's breakfast.",
+  reward: "Sprout is showing the foods your plan is built from.",
 };
-/** Every beat's own card now owns its primary action directly (`GoalPillRow`'s pills,
- *  `PlaybackSentence`'s own "That's me", `AllergyConditionGate`'s "No, nothing") — the dock's
- *  "chips" mode with an empty row is this shell's one way to render an otherwise-idle glass bar
- *  rather than inventing a fifth, unused mode. Only "foods" (the escape chip) and "reward" (the
- *  dock's own confirm) still drive a real dock control. */
-const BEAT_DOCK: Record<OnboardingBeat, OnboardingDockMode> = {
-  opener: "chips", facts: "chips", safety: "chips", foods: "game", reward: "confirm",
+/** What the dock shows on each beat. Live QA 2026-10-07 (defect 2): it used to be an empty
+ *  "chips" row on opener/facts/safety — a 124 px empty glass box. Now opener and facts get the
+ *  text composer (typing always works, read on the phone by `typed-answer.ts`), the safety beat
+ *  hides the dock (its own card owns every answer, and a typed allergy is never read here), foods
+ *  gets its escape or its Done, and reward its confirm. `null` hides the dock. A new beat (the
+ *  planned goal follow-up) is one more row here. */
+const BEAT_DOCK: Record<OnboardingBeat, OnboardingDockMode | null> = {
+  opener: "mic", facts: "mic", safety: null, foods: "game", reward: "confirm",
 };
+
+/** The composer's hint for whichever question is on screen. */
+const TYPE_HINT: Partial<Record<OnboardingFactKey, string>> = {
+  birthYear: "Or type your age", sex: "Or type it: female, male", heightCm: "Or type it: 5 10",
+  weightKg: "Or type it: 170", goal: "Or type it: lose fat",
+};
+const OPENER_HINT = "Or type it: lose fat, 34, 5 10, 170 lb";
+const BLOCKED_NOTE = "That sounds like a health or allergy detail. Sprout asks about those in a moment, safely.";
+const UNREAD_NOTE = "Sprout didn’t catch that. Try a number, like 34 or 5 10, or tap an answer.";
 
 /** Clear extension points for a caller that wants to render something other than this lane's own
  *  default (tests, mainly): each slot replaces this beat's default content, with no change to the
@@ -127,46 +141,6 @@ export type ConversationalOnboardingSlots = {
 
 function Placeholder({ label }: { label: string }) {
   return <p role="status" className="text-center text-caption text-muted">{label}</p>;
-}
-
-const NUMBER_FIELD_LABEL: Record<"heightCm" | "weightKg", string> = {
-  heightCm: "Height (cm)", weightKg: "Weight (kg)",
-};
-// Same bounds `lib/profile/onboarding-state.ts`'s own `finiteInRange`/`parsedWeightKg` enforce
-// (unedited) — GPT-6 Sol round-1 BLOCK: this editor accepted any positive number, including ones
-// the completion gate would later silently reject (`finiteInRange`/`parsedWeightKg` return `null`
-// outside these ranges, which reads back as "still missing", not an error the user ever sees).
-const NUMBER_FIELD_RANGE: Record<"heightCm" | "weightKg", { min: number; max: number }> = {
-  heightCm: { min: 50, max: 260 }, weightKg: { min: 20, max: 400 },
-};
-
-/**
- * Lane 3 (facts flow) ships `GoalPillRow`/`SexChipRow`/`BirthYearStepper` — this lane's own
- * minimal stand-in for the two remaining required fields, since no dedicated height/weight
- * picker landed with it. A plain labelled number field, not the legacy form's unit-aware
- * stepper: a known, documented simplification (QA-L5.md), not a silently skipped field — the
- * value still writes to the same `heightCm`/`weightKg` facts either way.
- */
-function NumberFieldEditor({ field, value, onSave }: {
-  field: "heightCm" | "weightKg"; value: number | undefined; onSave: (value: number) => void;
-}) {
-  const [text, setText] = useState(value !== undefined ? String(value) : "");
-  const parsed = Number(text);
-  const { min, max } = NUMBER_FIELD_RANGE[field];
-  const valid = text.trim() !== "" && Number.isFinite(parsed) && parsed >= min && parsed <= max;
-  return <form className="flex items-end gap-2"
-    onSubmit={(event) => { event.preventDefault(); if (valid) onSave(parsed); }}>
-    <label className="flex flex-col gap-1 text-caption text-graphite">
-      {NUMBER_FIELD_LABEL[field]}
-      <input type="number" inputMode="decimal" value={text} min={min} max={max}
-        onChange={(event) => setText(event.target.value)}
-        className="matte-reset well min-h-11 rounded-[12px] px-3 text-body text-charcoal" />
-      {text.trim() !== "" && !valid && <span role="alert" className="text-tiny text-alert">
-        Must be between {min} and {max}.
-      </span>}
-    </label>
-    <Button type="submit" variant="primary" size="sm" disabled={!valid}>Save</Button>
-  </form>;
 }
 
 /** One keyed beat's stream content: while it is the one LEAVING, it goes `inert` and gives up focus
@@ -190,9 +164,24 @@ function BeatLayer({ reduce, children }: { reduce: boolean; children: ReactNode 
 
 const ROLE_ORDER = ["protein", "carb", "fat"] as const;
 
-/** `PlaybackSentence.tsx`'s own `REQUIRED_FIELDS` (not exported — mirrored here, same five keys
- *  its module doc names: birth year, sex, height, weight, goal). */
+/** The five required facts (birth year, sex, height, weight, goal). */
 const REQUIRED_FACT_KEYS = ["goal", "sex", "birthYear", "heightCm", "weightKg"] as const;
+
+/** Merges facts read from a typed answer at their own confidence bands. A guess never replaces an
+ *  answer the person already confirmed; a confirmed reading replaces anything. */
+function mergeTypedFacts(current: FactsLike, found: FastPathFacts): FactsLike {
+  const next: FactsLike = { ...current, confidence: { ...current.confidence } };
+  for (const key of Object.keys(found) as OnboardingFactKey[]) {
+    if ((key as string) === "confidence" || found[key] === undefined) continue;
+    const incoming = found.confidence[key] ?? 0;
+    if (effectiveBand(current, key) === "high" && incoming < 0.85) continue;
+    (next as Record<string, unknown>)[key] = found[key];
+    next.confidence[key] = incoming;
+  }
+  return next;
+}
+
+type SavingState = { title: string; step: string };
 
 /** GPT-6 Sol round-2 BLOCK: `firstMissingField` only flags a field whose band is "empty" — a
  *  ghost-confidence birth year (the seeded guess `openFieldEditor` plants before it is nudged or
@@ -241,7 +230,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     { confirmed: false, answer: null });
   const [showNumbers, setShowNumbers] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSavingState] = useState<SavingState | null>(null);
+  const [typed, setTyped] = useState("");
+  const [composerNote, setComposerNote] = useState<string | null>(null);
+  /** Foods the falling game has already shown, held here so a remount of the game (a rules
+   *  re-check flips the foods beat to its placeholder and back) never replays them. */
+  const [shownFoodIds, setShownFoodIds] = useState<readonly string[]>([]);
+  /** The person's own taps, in order — the reward card lists these first. */
+  const [userPicks, setUserPicks] = useState<readonly string[]>([]);
   const leaving = useRef(false);
   /** GPT-6 Sol round-1 BLOCK: without these, a retry after a failure in a LATER step (the starter
    *  write, the drain) re-ran `persistCompletedOnboarding` too — it is not safe to call twice (it
@@ -289,6 +285,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setSafety({ confirmed: false, answer: null });
       setEditingField(null);
       setDraftChecked(false);
+      setShownFoodIds([]);
+      setUserPicks([]);
+      setTyped("");
+      setComposerNote(null);
       profileWritten.current = false;
       foodsWritten.current = false;
       leaving.current = false;
@@ -355,6 +355,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setSafety({ confirmed: false, answer: null });
       setEditingField(null);
       setDraftChecked(false);
+      setShownFoodIds([]);
+      setUserPicks([]);
+      setTyped("");
+      setComposerNote(null);
       profileWritten.current = false;
       foodsWritten.current = false;
       leaving.current = false;
@@ -438,23 +442,32 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
   }, [settings, onboardingState]);
 
+  /** The foods the reward card names: the person's own taps first (in tap order), then the rest
+   *  of the loved foods (Sprout's picks) in deck order. Live QA 2026-10-07 (defect 5): this used
+   *  to take the first default per role, so after "pick for me" it always said chicken, rice, oil. */
   const lovedFoods = useMemo<RewardPlateFood[]>(() => {
     if (!starter.choices) return [];
-    const foods: RewardPlateFood[] = [];
-    for (const role of ROLE_ORDER) {
-      const pick = starter.choices.find((item) => item.role === role && starter.marks[item.id] === "eats");
-      if (pick) foods.push({ id: pick.id, name: dbFood(pick.id)?.name ?? pick.id, role });
-    }
-    return foods;
-  }, [starter.choices, starter.marks]);
+    const loved = starter.choices.filter((item) => starter.marks[item.id] === "eats");
+    const byId = new Map(loved.map((item) => [item.id, item]));
+    const ordered = [
+      ...userPicks.map((id) => byId.get(id)).filter((item): item is NonNullable<typeof item> => !!item),
+      ...loved.filter((item) => !userPicks.includes(item.id)),
+    ];
+    return ordered.slice(0, 8).map((item) => ({
+      id: item.id, name: dbFood(item.id)?.name ?? item.id, role: item.role as RewardPlateFood["role"],
+    }));
+  }, [starter.choices, starter.marks, userPicks]);
 
-  /** "That's me" — PlaybackSentence's own confirm only requires ONE required field at high
-   *  confidence to render at all (`hasAnyHighConfidence`, not "every" field); without a gate here
-   *  a tap right after picking just the goal would advance straight past sex/birth year/height/
-   *  weight to a reward beat with nothing left to answer them on (GPT-6 Sol round-1 BLOCK). Round
-   *  2 found the first gate (`firstMissingField(facts) === null`, "not blank") still let a
-   *  ghost-confidence seeded birth year through unconfirmed — require every required field at
-   *  HIGH confidence instead. */
+  /** A tap in the foods beat: the starter mark, plus the tap order the reward card reads. */
+  function markFood(id: string, mark: StarterMark) {
+    starter.mark(id, mark);
+    setUserPicks((current) => mark === "eats"
+      ? (current.includes(id) ? current : [...current, id])
+      : current.filter((pick) => pick !== id));
+  }
+
+  /** "That's me": only shown once every required field is confirmed (live QA 2026-10-07: it
+   *  used to show after one field and then do nothing on tap). The gate stays here as well. */
   function confirmFacts() {
     if (allRequiredFactsConfirmed(facts)) advance("safety");
   }
@@ -466,39 +479,30 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     advance("facts");
   }
 
-  /** A direct tap on a chip-based field (goal/sex) — same "confirmed, high-confidence, never a
-   *  guess" rule `pickGoal` documents, generalised for any editor this beat opens. */
-  function setFieldValue<K extends OnboardingFactKey>(key: K, value: NonNullable<FactsLike[K]>) {
-    setFacts((current) => ({ ...current, [key]: value, confidence: { ...current.confidence, [key]: 1 } }));
-    setEditingField(null);
-  }
-
-  /** The facts sentence's gap-chip tap (BRIEF.md §4: "gaps point, they don't ask"). Birth year is
-   *  the one field `PlaybackSentence` edits entirely in-place (its own inline stepper) once it has
-   *  ANY value — tapping its empty gap seeds a plausible starting year at ghost confidence (never
-   *  "high": it is a seed, not a confirmed answer) so the stepper appears for the user to nudge or
-   *  confirm; every other field opens this beat's own editor panel below the sentence. */
-  function openFieldEditor(key: OnboardingFactKey) {
-    if (key === "birthYear") {
-      const seedYear = new Date().getUTCFullYear() - 25;
-      setFacts((current) => ({
-        ...current, birthYear: seedYear, confidence: { ...current.confidence, birthYear: 0.6 },
-      }));
-      return;
-    }
-    setEditingField(key);
-  }
-
-  /** A ghost chip's "Confirm" tap — the value is already there, this only raises it to high
-   *  confidence; birth year's own ghost "Confirm" chip (next to its stepper) reaches this too. */
-  function confirmGhostField(key: OnboardingFactKey) {
-    setFacts((current) => ({ ...current, confidence: { ...current.confidence, [key]: 1 } }));
-  }
-
-  function nudgeBirthYear(birthYear: number) {
+  /** An answer from the open question — confirmed, high confidence, never a guess. */
+  function answerFact(answer: FactAnswer) {
     setFacts((current) => ({
-      ...current, birthYear, confidence: { ...current.confidence, birthYear: 0.6 },
+      ...current, [answer.key]: answer.value, confidence: { ...current.confidence, [answer.key]: 1 },
     }));
+    setEditingField(null);
+    setComposerNote(null);
+  }
+
+  /** The question the facts beat asks now: the one the person tapped to change, else the first
+   *  required field not yet confirmed. `null` once every one is confirmed. */
+  const askingField: OnboardingFactKey | null = beat === "facts"
+    ? (editingField ?? firstUnconfirmedField(facts)) : null;
+
+  /** The dock's text composer on opener and facts. Read on the phone only (`typed-answer.ts`). */
+  function submitTyped(text: string) {
+    const answer = readTypedAnswer(text, beat === "facts" ? askingField : null);
+    if (answer.status === "blocked") { setComposerNote(BLOCKED_NOTE); return; }
+    if (answer.status === "unread") { setComposerNote(UNREAD_NOTE); return; }
+    setFacts((current) => mergeTypedFacts(current, answer.facts));
+    setTyped("");
+    setComposerNote(null);
+    setEditingField(null);
+    if (beat === "opener") advance("facts");
   }
 
   function confirmNoAllergy() {
@@ -528,8 +532,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     advance("foods");
   }
 
+  /** Fills only the groups still short (a legacy plan needs one protein per planned meal), never
+   *  touching a tap, then moves on. */
   function pickForMe() {
-    for (const id of pickForMeIds(starter.choices ?? [], starter.marks)) starter.mark(id, "eats");
+    const need = foodAccess.status === "legacy" ? { protein: Math.max(2, plannedCount) } : {};
+    for (const id of pickForMeIds(starter.choices ?? [], starter.marks, need)) starter.mark(id, "eats");
     advance("reward");
   }
 
@@ -542,6 +549,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     if (leaving.current) return;
     leaving.current = true;
     setLeaveError(null);
+    setSavingState({ title: "Saving…", step: "Taking you to Today." });
     try {
       const accountSettings = base ?? await loadOnboardingSettings();
       await persistSkippedOnboarding(accountSettings);
@@ -553,6 +561,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     } catch {
       setLeaveError(ONBOARDING_SYNC_WARNING);
       leaving.current = false;
+      setSavingState(null);
     }
   }, [router, base]);
 
@@ -564,7 +573,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     if (leaving.current) return;
     if (!settings || !onboardingState) { setLeaveError(ONBOARDING_SYNC_WARNING); return; }
     leaving.current = true;
-    setSaving(true);
+    const title = "Building your plan…";
+    setSavingState({ title, step: "Saving your profile and targets." });
     setLeaveError(null);
     try {
       // GPT-6 Sol round-2 BLOCK: the settings/target-revision write and the separate
@@ -592,6 +602,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       // opening "Use this plan" and this write finishing could otherwise still let a selection
       // through that no longer actually satisfies the two-per-role or protein-count floor.
       if ((foodAccess.status === "legacy" || foodAccess.status === "pilot") && !foodsWritten.current) {
+        setSavingState({ title, step: "Saving the foods you love." });
         const freshChoices = await starter.reread();
         if (!freshChoices) {
           throw new Error("Couldn’t verify your food rules. Go back to Foods and retry.");
@@ -608,15 +619,17 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         await persistStarterSelection(starter.marks, freshChoices);
         foodsWritten.current = true;
       }
+      setSavingState({ title, step: "Syncing your account." });
       const drained = await flushOutboxNow(accountHandle());
       const mirrored = drained ? await mirroredOnboardedAt() : null;
       if (mirrored === null) throw new Error(ONBOARDING_SYNC_WARNING);
       await clearOnboardingDraft();
+      setSavingState({ title, step: "Opening Today." });
       router.replace("/");
     } catch (error) {
       setLeaveError(error instanceof Error ? error.message : "Couldn’t save your plan. Try again.");
       leaving.current = false;
-      setSaving(false);
+      setSavingState(null);
     }
   }, [router, settings, onboardingState, foodAccess.status, starter, plannedCount]);
 
@@ -624,19 +637,26 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const handleComplete = onComplete
     ?? (() => { if (planReady) void savePlanAndFinish(); else void leaveOnboarding(); });
 
-  /** The dock no longer drives opener/facts (their own cards own that action now — see
-   *  `BEAT_DOCK`'s doc comment); only the reward beat's confirm reaches this. */
+  /** The foods beat is done once the selection is one the plan can use. */
+  const foodsReady = starterSelectionReady
+    && (foodAccess.status === "pilot" || proteinAvailability?.ready === true);
+  const lovedCount = selectedStarterIds.length;
+  const dockMode: OnboardingDockMode | null = beat === "foods" && foodsReady ? "confirm" : BEAT_DOCK[beat];
+
   function handleDockConfirm() {
     if (beat === "reward") handleComplete();
+    else if (beat === "foods" && foodsReady) advance("reward");
   }
 
   const foodsContent = (() => {
     if (foodAccess.status === "pilot") {
-      return <FoodsTopPickChips choices={starter.choices ?? []} marks={starter.marks} onMark={starter.mark} />;
+      return <FoodsTopPickChips choices={starter.choices ?? []} marks={starter.marks} onMark={markFood} />;
     }
     if (foodAccess.status === "legacy") {
       if (starter.choices) {
-        return <FallingFoodPile choices={starter.choices} marks={starter.marks} onMark={starter.mark} />;
+        return <FallingFoodPile choices={starter.choices} marks={starter.marks} onMark={markFood}
+          shownIds={shownFoodIds}
+          onShown={(id) => setShownFoodIds((current) => current.includes(id) ? current : [...current, id])} />;
       }
       return <Placeholder label={starter.error ?? "Checking your food rules…"} />;
     }
@@ -645,25 +665,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       : "Checking your food rules…"} />;
   })();
 
-  const factsEditor = (() => {
-    if (editingField === "goal") return <GoalPillRow value={facts.goal}
-      onSelect={(value) => setFieldValue("goal", value)} />;
-    if (editingField === "sex") return <SexChipRow value={facts.sex}
-      onSelect={(value) => setFieldValue("sex", value)} />;
-    if (editingField === "heightCm" || editingField === "weightKg") {
-      return <NumberFieldEditor key={editingField} field={editingField}
-        value={facts[editingField]} onSave={(value) => setFieldValue(editingField, value)} />;
-    }
-    return null;
-  })();
-
   const streamContent = (() => {
     if (beat === "opener") return <GoalPillRow value={facts.goal} onSelect={pickGoal} />;
-    if (beat === "facts") return slots.factsSentence ?? <div className="flex w-full flex-col gap-4">
-      <PlaybackSentence facts={facts} onHoldEdit={openFieldEditor} onGhostConfirm={confirmGhostField}
-        onEmptyTap={openFieldEditor} onBirthYearNudge={nudgeBirthYear}
-        onConfirmAll={confirmFacts} />
-      {factsEditor}
+    if (beat === "facts") return slots.factsSentence ?? <div className="flex w-full flex-col gap-5">
+      <PlaybackSentence facts={facts} activeField={askingField}
+        onEdit={(key) => { setEditingField(key); setComposerNote(null); }} />
+      {askingField
+        ? <FactQuestion key={askingField} field={askingField} facts={facts} onAnswer={answerFact} />
+        : <Button variant="primary" size="lg" block onClick={confirmFacts}>That&rsquo;s me</Button>}
     </div>;
     if (beat === "safety") return slots.allergyCard ?? <AllergyConditionGate answer={safety.answer}
       onConfirmNone={confirmNoAllergy} onAddRule={addAllergyRule}
@@ -673,12 +682,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       showNumbers={showNumbers} onToggleNumbers={() => setShowNumbers((value) => !value)} />;
   })();
 
-  /** VISUAL-SPEC.md §2: within the "facts" beat, `pointing` once a required field is still an
-   *  empty gap (the same field `PlaybackSentence`'s own `firstMissingField` already points Sprout
-   *  at in its own screen-reader copy, "Sprout is pointing at what's still missing") — `thinking`
-   *  otherwise, the general playback-review moment. Every other beat keeps its static §2 pose. */
+  /** VISUAL-SPEC.md §2: within the "facts" beat, `pointing` while a question is open, `thinking`
+   *  once everything is confirmed. Every other beat keeps its static §2 pose. */
   const guidePose: OnboardingPose = beat === "facts"
-    ? (firstMissingField(facts) ? "pointing" : "thinking")
+    ? (askingField ? "pointing" : "thinking")
     : BEAT_POSE[beat];
 
   return <div className={`${styles.shell} matte`} data-onboarding-v2="true"
@@ -716,24 +723,29 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         </AnimatePresence>
       </div>
     </motion.div>
-    {leaveError && <p role="alert" className="px-4 text-center text-caption text-alert">{leaveError}</p>}
+    {leaveError && <p role="alert" className="relative z-[1] px-4 text-center text-caption text-alert">{leaveError}</p>}
+    {composerNote && dockMode === "mic" && <p role="status" className={`${styles.composerNote} m-0 text-caption text-graphite`}>
+      {composerNote}
+    </p>}
     <div className={styles.skipLink}>
       <Button variant="ghost" size="sm" onClick={handleSkip}>Skip for now</Button>
     </div>
-    <div className={styles.dockRow}>
-      <OnboardingDock mode={BEAT_DOCK[beat]} reduce={reduce}
-        chips={[]}
-        /* Sol review round 2: labelling this "Use this plan" when no real plan has been built yet
-         * said more than the shell can back up; it earns the real label once either a caller
-         * explicitly hands this shell a real `onComplete`, or this lane's own write path has every
-         * required fact and a ready food selection. Orchestrator review round 3: "Skip for now"
-         * here duplicated the standing skip link's own label — same exit, but two controls sharing
-         * one name read as a bug, not an intentional pair. "Not now" stays just as honest without
-         * colliding. */
-        confirmLabel={beat === "reward" ? ((onComplete || planReady) ? "Use this plan" : "Not now") : "That's me"}
+    {dockMode && <div className={styles.dockRow}>
+      <OnboardingDock mode={dockMode} reduce={reduce}
+        value={typed} onChange={(value) => { setTyped(value); if (composerNote) setComposerNote(null); }}
+        onSubmit={submitTyped}
+        placeholder={beat === "opener" ? OPENER_HINT
+          : askingField ? (TYPE_HINT[askingField] ?? "Or type it") : "Type to change anything"}
+        /* Sol review round 2: "Use this plan" only once a real plan can be saved; otherwise the
+         * honest "Not now" (distinct from the standing "Skip for now" link). */
+        confirmLabel={beat === "reward" ? ((onComplete || planReady) ? "Use this plan" : "Not now")
+          : `Done · ${lovedCount} loved`}
         confirmStatus={saving ? "pending" : undefined}
         onConfirm={handleDockConfirm}
         escapeLabel="Sprout, pick for me" onEscape={beat === "foods" ? pickForMe : () => advance("reward")} />
-    </div>
+    </div>}
+    <AnimatePresence>
+      {saving && <SavingStage key="saving" title={saving.title} step={saving.step} />}
+    </AnimatePresence>
   </div>;
 }

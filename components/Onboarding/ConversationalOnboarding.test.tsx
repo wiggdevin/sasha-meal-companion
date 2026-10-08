@@ -91,22 +91,19 @@ beforeEach(() => {
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-/** Fills every required field PlaybackSentence still shows as a gap, after a goal is already
- *  picked (sex, height, weight, birth year) — "That's me" (GPT-6 Sol round-1 BLOCK) now only
- *  advances once all of them have a value, not just one. */
+/** Answers every required question the facts beat asks after the goal, one at a time, in US
+ *  units (age, sex, height in ft/in, weight in lb). "That's me" only appears once all of them are
+ *  confirmed (GPT-6 Sol round-1 BLOCK; live QA 2026-10-07). */
 async function fillRemainingRequiredFacts(): Promise<void> {
-  await screen.findByRole("button", { name: "Add your sex" });
-  fireEvent.click(screen.getByRole("button", { name: "Add your sex" }));
+  fireEvent.change(await screen.findByLabelText("Age"), { target: { value: "34" } });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(await screen.findByRole("button", { name: "Prefer not to say" }));
-  fireEvent.click(screen.getByRole("button", { name: "Add your height" }));
-  fireEvent.change(screen.getByLabelText("Height (cm)"), { target: { value: "165" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
-  fireEvent.click(screen.getByRole("button", { name: "Add your weight" }));
-  fireEvent.change(screen.getByLabelText("Weight (kg)"), { target: { value: "60" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
-  fireEvent.click(screen.getByRole("button", { name: "Add your age/birth year" }));
-  await screen.findByRole("group", { name: "Birth year" });
-  fireEvent.click(screen.getByRole("button", { name: "Confirm birth year" }));
+  fireEvent.change(await screen.findByLabelText("Feet"), { target: { value: "5" } });
+  fireEvent.change(screen.getByLabelText("Inches"), { target: { value: "5" } });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  fireEvent.change(await screen.findByLabelText("Weight"), { target: { value: "132" } });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  await screen.findByRole("button", { name: "That’s me" });
 }
 
 /** Walks the default flow to the reward beat, awaiting each sequential stream swap. */
@@ -136,7 +133,53 @@ describe("ConversationalOnboarding", () => {
     render(<ConversationalOnboarding />);
     screen.getByText(/What would feel different in eight weeks\?/);
     expect(screen.queryByRole("progressbar")).toBeNull();
-    screen.getByRole("group", { name: "Choose one" });
+    // Live QA 2026-10-07: the dock is a working text composer, never an empty box.
+    screen.getByRole("textbox", { name: "Tell Sasha" });
+  });
+
+  it("never renders the dock as an empty box on any beat: each beat's dock has a real control,"
+    + " or there is no dock at all", async () => {
+    const { container } = render(<ConversationalOnboarding />);
+    const dockControls = () => {
+      const dock = container.querySelector('[data-onboarding-dock="true"]');
+      if (!dock) return null;
+      return dock.querySelectorAll("[data-dock-live] button, [data-dock-live] textarea").length;
+    };
+    expect(dockControls()).toBeGreaterThan(0); // opener: the composer
+    fireEvent.click(screen.getByRole("button", { name: "Lose fat" }));
+    await screen.findByText("How old are you?");
+    expect(dockControls()).toBeGreaterThan(0); // facts: the composer
+    await fillRemainingRequiredFacts();
+    fireEvent.click(screen.getByRole("button", { name: "That’s me" }));
+    await screen.findByTestId("allergy-condition-gate");
+    await vi.waitFor(() => expect(dockControls()).toBeNull()); // safety: no dock
+    expect(container.querySelector('[data-empty="true"]')).toBeNull();
+  });
+
+  it("a typed answer moves the flow forward with no tap (read on the phone, no model call)", async () => {
+    render(<ConversationalOnboarding />);
+    const box = screen.getByRole("textbox", { name: "Tell Sasha" });
+    fireEvent.change(box, { target: { value: "lose fat, 34 years old" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    // goal and age are read; the facts beat asks the next question.
+    await screen.findByRole("button", { name: "Prefer not to say" });
+    expect(screen.getByTestId("facts-recap").textContent).toMatch(/34/);
+    expect(screen.getByTestId("facts-recap").textContent).toMatch(/lose fat/);
+    // While a question is open, a bare typed number answers it in its own US unit.
+    fireEvent.click(screen.getByRole("button", { name: "Female" }));
+    await screen.findByLabelText("Feet");
+    fireEvent.change(screen.getByRole("textbox", { name: "Tell Sasha" }), { target: { value: "5 10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await screen.findByLabelText("Weight");
+    expect(screen.getByTestId("facts-recap").textContent).toMatch(/5\u203210\u2033/);
+  });
+
+  it("a typed health or allergy detail is never read, and says why", async () => {
+    render(<ConversationalOnboarding />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Tell Sasha" }), { target: { value: "I have a peanut allergy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await screen.findByText(/health or allergy detail/);
+    screen.getByText(/What would feel different in eight weeks\?/);
   });
 
   it("advances to the real facts sentence after a goal is picked, with that goal already"
@@ -144,8 +187,10 @@ describe("ConversationalOnboarding", () => {
     render(<ConversationalOnboarding />);
     fireEvent.click(screen.getByRole("button", { name: "Build muscle" }));
     // The stream swap is sequential (AnimatePresence mode="wait"), so this is awaited.
-    await screen.findByRole("button", { name: "That’s me" });
-    screen.getByText(/build muscle/);
+    await screen.findByText("How old are you?");
+    expect(screen.getByTestId("facts-recap").textContent).toBe("You want to build muscle.");
+    // "That's me" waits until every required fact is confirmed.
+    expect(screen.queryByRole("button", { name: "That’s me" })).toBeNull();
   });
 
   it("renders a lane slot in place of its placeholder once one is supplied", async () => {
@@ -281,10 +326,13 @@ describe("ConversationalOnboarding", () => {
     fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
     await screen.findByTestId("allergy-condition-gate");
     fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
-    await screen.findByRole("button", { name: "Sprout, pick for me" });
-    fireEvent.click(screen.getByRole("button", { name: "Sprout, pick for me" }));
+    // Every group already has its two, so the dock offers Done (with the count), not pick-for-me.
+    fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
     const confirm = await screen.findByRole("button", { name: "Use this plan" });
     fireEvent.click(confirm);
+    // Full-stage saving state until navigation (live QA 2026-10-07, defect 6).
+    await screen.findByTestId("onboarding-saving");
+    screen.getByText("Building your plan…");
     await vi.waitFor(() => expect(persistCompletedOnboarding).toHaveBeenCalledTimes(1));
     // GPT-6 Sol round-2 BLOCK: pilot's loved foods used to be silently discarded — the write only
     // ever ran for "legacy". A pilot completion must persist them too.
@@ -312,8 +360,7 @@ describe("ConversationalOnboarding", () => {
     fireEvent.click(await screen.findByRole("button", { name: "That’s me" }));
     await screen.findByTestId("allergy-condition-gate");
     fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
-    await screen.findByRole("button", { name: "Sprout, pick for me" });
-    fireEvent.click(screen.getByRole("button", { name: "Sprout, pick for me" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Done · 6 loved" }));
     fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }));
     // The first attempt fails on constraints (profile already written); a retry must not call
     // persistCompletedOnboarding a second time, and must retry constraints narrowly.
@@ -324,51 +371,38 @@ describe("ConversationalOnboarding", () => {
     expect(retryOnboardingConstraints).toHaveBeenCalledTimes(2);
   });
 
-  it("the facts beat's gap chips open the real editors (goal/sex already landed), fill every"
-    + " required field through them, and 'That's me' is ready once they're all answered", async () => {
+  it("asks each missing fact as one plain question in US units, then offers That's me", async () => {
     render(<ConversationalOnboarding />);
     fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts, goal filled
-    await screen.findByRole("button", { name: "That’s me" });
-
-    // sex: tap the gap chip, then the SexChipRow it opens.
-    fireEvent.click(screen.getByRole("button", { name: "Add your sex" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Prefer not to say" }));
-    screen.getByText(/prefer not to say/);
-
-    // height / weight: the gap chip opens this lane's own minimal numeric editor.
-    fireEvent.click(screen.getByRole("button", { name: "Add your height" }));
-    fireEvent.change(screen.getByLabelText("Height (cm)"), { target: { value: "165" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add your weight" }));
-    fireEvent.change(screen.getByLabelText("Weight (kg)"), { target: { value: "60" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    // birth year: the gap chip seeds the inline stepper at ghost confidence; nudging it twice
-    // and tapping its own "Confirm" chip raises it to high, same as every other field.
-    fireEvent.click(screen.getByRole("button", { name: "Add your age/birth year" }));
-    await screen.findByRole("group", { name: "Birth year" });
-    fireEvent.click(screen.getByRole("button", { name: "Confirm birth year" }));
-
-    screen.getByRole("button", { name: "That’s me" });
+    await screen.findByText("How old are you?");
+    expect(screen.queryByText(/add this|and now\?|how old\?|\(cm\)|\(kg\)/)).toBeNull();
+    await fillRemainingRequiredFacts();
+    expect(screen.getByTestId("facts-recap").textContent)
+      .toBe("You\u2019re 34, sex not given, 5\u20325\u2033, 132 lb, and want to lose fat.");
+    // A tap on a value asks that question again.
+    fireEvent.click(screen.getByRole("button", { name: /Your weight: 132 lb/ }));
+    await screen.findByLabelText("Weight");
   });
 
-  it("never drafts a still-ghost (seeded, unconfirmed) birth year as if it were answered"
-    + " (GPT-6 Sol round-3 BLOCK: a resumed draft restores every saved field at HIGH confidence,"
-    + " so a ghost value that slipped into the draft would come back looking confirmed)", async () => {
+  it("never drafts a typed guess as if it were answered (GPT-6 Sol round-3 BLOCK: a resumed"
+    + " draft restores every saved field at HIGH confidence)", async () => {
     render(<ConversationalOnboarding />);
     fireEvent.click(screen.getByRole("button", { name: "Lose fat" })); // -> facts, goal confirmed
-    // Seed the birth year without ever nudging or confirming it — stays ghost confidence.
-    fireEvent.click(await screen.findByRole("button", { name: "Add your age/birth year" }));
-    await screen.findByRole("group", { name: "Birth year" });
+    await screen.findByText("How old are you?");
+    // A bare weight-looking number while age is asked is not an age; the fast path reads it as a
+    // ghost guess at most, which must not be drafted.
+    fireEvent.change(screen.getByRole("textbox", { name: "Tell Sasha" }), { target: { value: "I weigh 170" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await vi.waitFor(async () => {
       const draft = await loadOnboardingDraft();
-      expect(draft?.settings.birthYear).toBeUndefined();
+      expect(draft?.settings.goal).toBe("lose_fat");
+      expect(draft?.settings.weightKg).toBeUndefined();
     });
   });
 
   it("collapses the beat change to an instant swap under reduced motion", async () => {
     render(<MotionConfig reducedMotion="always"><ConversationalOnboarding /></MotionConfig>);
     fireEvent.click(screen.getByRole("button", { name: "Keep what I have" }));
-    await screen.findByRole("button", { name: "That’s me" });
+    await screen.findByText("How old are you?");
   });
 });

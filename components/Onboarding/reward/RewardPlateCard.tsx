@@ -1,8 +1,14 @@
 "use client";
 
 /**
- * Onboarding v2, lane 5 — the reward beat's plate card (BRIEF.md §1/§8, VISUAL-SPEC.md §8).
- * "Here's your plate for tomorrow," no numbers in the headline — the macro numbers live behind
+ * Onboarding v2, lane 5 — the reward beat's card (BRIEF.md §1/§8, VISUAL-SPEC.md §8).
+ *
+ * Live QA 2026-10-07 (defect 5): this said "Here's your plate for tomorrow", but it is not the
+ * plan — Today's planner (`planDay`) picks each meal from all of the person's Eats, so the names
+ * here and the first meal on Today differed. It now says only what is true: these are foods the
+ * plan is built from, the person's own taps first. No "tomorrow", no "breakfast".
+ *
+ * No numbers in the headline — the macro numbers live behind
  * one tertiary "See the numbers" tap, never inline on the card itself. The plate's own ingredient
  * list is drawn from the foods the account just marked "eats" in the foods beat (one per role
  * when available), not a full composed meal — composing an actual multi-item meal is
@@ -62,10 +68,15 @@ export default function RewardPlateCard({ targets, lovedFoods, showNumbers, onTo
   // warns about — caught live in this lane's own mobile QA run, not by a test.
   return <div className="matte-reset surface flex flex-col gap-4 rounded-[24px] p-5"
     data-testid="reward-plate-ready">
-    <h1 className="m-0 font-display text-heading text-charcoal">Here&rsquo;s your plate for tomorrow</h1>
-    {lovedFoods.length > 0 && <ul className="m-0 flex flex-wrap gap-2 p-0" aria-label="Tomorrow's foods">
+    <div className="flex flex-col gap-1">
+      <h1 className="m-0 font-display text-heading text-charcoal">Foods you&rsquo;ll see in your plan</h1>
+      <p className="m-0 text-caption text-graphite">
+        Your meals are built from these. Change them any time in Foods.
+      </p>
+    </div>
+    {lovedFoods.length > 0 && <ul className="m-0 flex flex-wrap gap-2 p-0" aria-label="Foods in your plan">
       {lovedFoods.map((food) => <li key={food.id}
-        className="rounded-full bg-fog px-3 py-1 text-caption text-charcoal">{food.name}</li>)}
+        className="inline-flex min-h-9 items-center rounded-full bg-fog px-3 text-caption text-charcoal">{food.name}</li>)}
     </ul>}
     <Button size="sm" variant="tertiary" className="self-start" aria-expanded={showNumbers}
       onClick={onToggleNumbers}>

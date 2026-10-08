@@ -23,14 +23,17 @@ const PILLS: { value: Goal; label: string }[] = [
 export function GoalPillRow({
   value,
   onSelect,
+  question,
 }: {
   value?: Goal;
   onSelect: (value: Goal) => void;
+  /** Replaces the opener's greeting when the goal is asked later in the facts beat. */
+  question?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex w-full flex-col gap-3">
       <p className="m-0 font-serif text-heading-sm text-charcoal">
-        Hey. I&rsquo;m {APP_NAME}. What would feel different in eight weeks?
+        {question ?? <>Hey. I&rsquo;m {APP_NAME}. What would feel different in eight weeks?</>}
       </p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Goal">
         {PILLS.map((pill) => (
@@ -39,7 +42,7 @@ export function GoalPillRow({
             type="button"
             onClick={() => onSelect(pill.value)}
             aria-pressed={value === pill.value}
-            className={`${CHIP_FILL} min-h-11 rounded-full px-4 text-body-sm font-medium text-charcoal data-[pressed=true]:text-on-primary`}
+            className={`${CHIP_FILL} min-h-12 rounded-full px-5 text-body font-medium text-charcoal data-[pressed=true]:text-on-primary`}
             data-pressed={value === pill.value}
             style={value === pill.value ? { background: "var(--grad-ink)" } : undefined}
           >

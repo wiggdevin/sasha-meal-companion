@@ -74,7 +74,7 @@ describe("FoodsStep reduced motion", () => {
   it("renders a static 4-column grid (VISUAL-SPEC.md §6) with no spring-in wrapper, no falling", () => {
     render(<FallingFoodsStep choices={starterChoices([], profile)} marks={{}} onMark={vi.fn()} />);
     confirmNoAllergy();
-    const grid = screen.getByTestId("food-pile");
+    const grid = screen.getByTestId("food-grid");
     expect(grid.className).toContain("grid-cols-4");
     // No motion wrapper div sits between the grid and a disc under reduced motion.
     expect(grid.firstElementChild?.tagName).toBe("BUTTON");

@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { birthYearEcho, heightEchoCm, weightEchoKg } from "@/components/Onboarding/facts/unit-echo";
+import {
+  ageFromBirthYear, birthYearFromAge, heightImperial, weightImperial,
+} from "@/components/Onboarding/facts/unit-echo";
 
-describe("unit-echo", () => {
-  it("echoes height as imperial then the stored metric value", () => {
-    expect(heightEchoCm(178)).toBe("5'10\" → 178 cm");
+const TODAY = new Date("2026-10-07T00:00:00.000Z");
+
+describe("unit-echo (US accounts: imperial only, metric stored underneath)", () => {
+  it("reads height back in feet and inches, never cm", () => {
+    expect(heightImperial(178)).toBe("5′10″");
+    expect(heightImperial(178)).not.toMatch(/cm/);
   });
 
-  it("echoes weight as imperial then the stored metric value", () => {
-    expect(weightEchoKg(75)).toBe("165 lb → 75 kg");
+  it("reads weight back in pounds, never kg", () => {
+    expect(weightImperial(75)).toBe("165 lb");
+    expect(weightImperial(75)).not.toMatch(/kg/);
   });
 
-  it("always shows the heard age next to the mapped birth year, never the year alone", () => {
-    expect(birthYearEcho(1992, new Date("2026-10-07T00:00:00.000Z"))).toBe("34 → born 1992");
+  it("maps an age to a birth year and back", () => {
+    expect(birthYearFromAge(34, TODAY)).toBe(1992);
+    expect(ageFromBirthYear(1992, TODAY)).toBe(34);
   });
 });

@@ -42,14 +42,23 @@ type FoodsStepProps = {
   onMark: (id: string, mark: StarterMark) => void;
 };
 
-/** "Sprout, pick for me": a sensible default spread for a tired user — the curated defaults,
- *  two per role, skipping anything already avoided. Still gated by the confirm/Undo pattern one
- *  level up; this only fills in marks, it never saves by itself. */
-export function pickForMeIds(choices: readonly Starter[], marks: Record<string, StarterMark>): string[] {
+/** "Sprout, pick for me": fills ONLY the groups still short of their count, never touching a
+ *  food the person already tapped (live QA 2026-10-07: it used to add the defaults on top of every
+ *  tap). Curated defaults first, then the rest of the deck in order; avoided foods are skipped.
+ *  `need` raises a group's count (the legacy plan needs one distinct protein per planned meal).
+ *  It only fills in marks; nothing is saved here. */
+export function pickForMeIds(
+  choices: readonly Starter[], marks: Record<string, StarterMark>,
+  need: Partial<Record<FoodRole, number>> = {},
+): string[] {
   const picked: string[] = [];
   for (const role of ROLES) {
-    const defaults = choices.filter((item) => item.role === role && item.default && marks[item.id] !== "avoid");
-    for (const item of defaults.slice(0, PICK_FOR_ME_PER_ROLE)) picked.push(item.id);
+    const group = choices.filter((item) => item.role === role);
+    const have = group.filter((item) => marks[item.id] === "eats").length;
+    const short = Math.max(0, (need[role] ?? PICK_FOR_ME_PER_ROLE) - have);
+    const open = group.filter((item) => marks[item.id] !== "eats" && marks[item.id] !== "avoid");
+    const ordered = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
+    for (const item of ordered.slice(0, short)) picked.push(item.id);
   }
   return picked;
 }

@@ -21,14 +21,17 @@ const OPTIONS: { value: SexAnswer; label: string }[] = [
 export function SexChipRow({
   value,
   onSelect,
+  question,
 }: {
   value?: SexAnswer;
   onSelect: (value: SexAnswer) => void;
+  /** The facts beat's own plain question; the original wording stays the default. */
+  question?: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <p className="m-0 text-body text-charcoal">
-        Now the boring part, for the math — are you male or female?
+    <div className="flex w-full flex-col gap-3">
+      <p className={question ? "m-0 font-serif text-heading-sm text-charcoal" : "m-0 text-body text-charcoal"}>
+        {question ?? "Now the boring part, for the math — are you male or female?"}
       </p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Sex">
         {OPTIONS.map((option) => (
@@ -37,7 +40,7 @@ export function SexChipRow({
             type="button"
             onClick={() => onSelect(option.value)}
             aria-pressed={value === option.value}
-            className={`${CHIP_FILL} min-h-11 min-w-0 flex-1 basis-0 rounded-full px-3 text-center text-body-sm font-medium text-charcoal data-[pressed=true]:text-on-primary`}
+            className={`${CHIP_FILL} min-h-12 min-w-0 flex-1 basis-0 rounded-full px-3 text-center text-body-sm font-medium text-charcoal data-[pressed=true]:text-on-primary`}
             data-pressed={value === option.value}
             style={value === option.value ? { background: "var(--grad-ink)" } : undefined}
           >

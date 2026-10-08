@@ -22,7 +22,9 @@ describe("RewardPlateCard", () => {
   it("ready: shows the headline and loved foods with no numbers in the headline", () => {
     render(<RewardPlateCard targets={TARGETS} lovedFoods={FOODS} showNumbers={false}
       onToggleNumbers={vi.fn()} />);
-    expect(screen.getByText("Here’s your plate for tomorrow")).toBeTruthy();
+    expect(screen.getByText("Foods you’ll see in your plan")).toBeTruthy();
+    // Live QA 2026-10-07: never claims to be the plan itself (Today's planner picks the meals).
+    expect(screen.queryByText(/tomorrow|breakfast/i)).toBeNull();
     expect(screen.getByText("Chicken breast")).toBeTruthy();
     expect(screen.queryByTestId("reward-plate-numbers")).toBeNull();
     expect(screen.queryByText(/kcal/)).toBeNull();

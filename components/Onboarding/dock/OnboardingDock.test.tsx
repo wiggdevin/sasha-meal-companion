@@ -12,8 +12,16 @@ import OnboardingDock from "./OnboardingDock";
 afterEach(cleanup);
 
 describe("OnboardingDock", () => {
+  it("mic mode with no voice wired: the round button is Send, never a dead mic (live QA 2026-10-07)", () => {
+    const onSubmit = vi.fn();
+    render(<OnboardingDock mode="mic" reduce={false} value="34" onSubmit={onSubmit} />);
+    expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onSubmit).toHaveBeenCalledWith("34");
+  });
+
   it("mic mode: one labelled answer field and a record control, nothing else", () => {
-    render(<OnboardingDock mode="mic" reduce={false} value="" placeholder="Tell Sasha" />);
+    render(<OnboardingDock mode="mic" reduce={false} value="" placeholder="Tell Sasha" onMicTap={vi.fn()} />);
     // Sol review: this is an answer to Sasha's question, not a search — no search/searchbox role.
     screen.getByRole("textbox", { name: "Tell Sasha" });
     expect(screen.queryByRole("searchbox")).toBeNull();
