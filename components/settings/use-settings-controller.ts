@@ -116,6 +116,7 @@ function localPatch(h: AccountHandle | null, current: Store, patch: Partial<Sett
 
 export function useSettingsController() {
   const [store, setStore] = useState<Store | null>(null);
+  const pinQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [bodySheetOpen, setBodySheetOpen] = useState(false);
   const [daily, setDaily] = useState<DailyFetch | null>(null);
   const [targets, setTargets] = useState<TargetsResponse | null>(null);
@@ -223,7 +224,11 @@ export function useSettingsController() {
 
   function writePin(pin: TargetPin): void {
     setSaveError(null);
-    void persistTargetPin(pin).then(
+    // In tap order: a pin waits for the one before it, so a slow first tap never lands after a later
+    // one and shows its older value (UI audit r1).
+    const run = pinQueue.current.catch(() => {}).then(() => persistTargetPin(pin));
+    pinQueue.current = run;
+    void run.then(
       (next) => { setStore(next); refreshTargets(); },
       (e: unknown) => {
         if (e instanceof AccountChanged) return;
