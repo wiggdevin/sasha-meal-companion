@@ -113,6 +113,45 @@ describe("POST /api/foods/world (W2b acceptance 5)", () => {
     expect((await post({ world: "wide" })).status).toBe(400);
     expect((await post({ world: "open", userId: "someone-else" })).status).toBe(400);
   });
+
+  it("opting in keeps the account's Eats marks as Favored marks, byte-for-byte (W13 acceptance 6)", async () => {
+    const before = JSON.stringify(tables.user_food_prefs);
+    expect(await post({ world: "open" })).toEqual({ status: 200, body: { world: "open" } });
+    // `eats` is the unchanged wire status (D13) — "Favored" is only ever how it is read back to
+    // the user. Opting in writes nothing to user_food_prefs at all.
+    expect(JSON.stringify(tables.user_food_prefs)).toBe(before);
+    expect(tables.user_food_prefs.map((row: Row) => row.status)).toEqual(["eats", "eats", "avoid"]);
+  });
+});
+
+describe("GET /api/foods/world (W13)", () => {
+  it("answers the account's own current world", async () => {
+    const { GET } = await import("@/app/api/foods/world/route");
+    const res = await GET(new Request("https://app.test/api/foods/world"));
+    expect(await res.json()).toEqual({ world: "closed" });
+    loadWorld({ world: "open" });
+    const res2 = await GET(new Request("https://app.test/api/foods/world"));
+    expect(await res2.json()).toEqual({ world: "open" });
+  });
+});
+
+describe("GET /api/foods/world/invitation (W13 acceptance 4)", () => {
+  it("is eligible only once released, not held and still closed", async () => {
+    const { GET } = await import("@/app/api/foods/world/invitation/route");
+    const req = () => new Request("https://app.test/api/foods/world/invitation");
+    expect(await (await GET(req())).json()).toEqual({ eligible: true });
+
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", A);
+    expect(await (await GET(req())).json()).toEqual({ eligible: false });
+    vi.stubEnv("OPEN_WORLD_HOLD_USER_IDS", "");
+
+    vi.stubEnv("OPEN_WORLD_ENABLED", "");
+    expect(await (await GET(req())).json()).toEqual({ eligible: false });
+    vi.stubEnv("OPEN_WORLD_ENABLED", "1");
+
+    loadWorld({ world: "open" });
+    expect(await (await GET(req())).json()).toEqual({ eligible: false });
+  });
 });
 
 describe("GET /api/foods/rules-version", () => {

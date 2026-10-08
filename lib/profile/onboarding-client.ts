@@ -1,6 +1,6 @@
 "use client";
 import {
-  accountHandle, assertCurrent, rethrowAccountChanged, type AccountHandle,
+  accountFetch, accountHandle, assertCurrent, rethrowAccountChanged, type AccountHandle,
 } from "@/lib/device/account";
 
 import { publishBodyProfile } from "@/lib/body-profile-client";
@@ -143,7 +143,28 @@ export type OnboardingPersistence = {
   saveConstraints: (patch: Parameters<typeof saveConstraints>[0], rev: number) => Promise<SaveResult>;
   localDate: () => string;
   hasWeighIn: (localDate: string) => boolean;
+  /** W13 (D14): "New accounts become open at onboarding completion." Best-effort and silent —
+   *  held, unreleased or a transient failure all just leave the account closed; onboarding never
+   *  fails or retries over this. */
+  openFoodWorld: (h: AccountHandle) => Promise<void>;
 };
+
+/**
+ * `POST /api/foods/world` is the only writer of `food_world` (lib/server/food-world.ts) and
+ * refuses an unauthenticated write, so this cannot go through the `user_settings` outbox sync
+ * the rest of onboarding uses — it is its own direct call, and its failure is never onboarding's
+ * to surface: a held account (D14 Q5), an unreleased open world, or an unmet condition gate all
+ * mean exactly "stay closed", not an error to retry.
+ */
+async function openFoodWorld(h: AccountHandle): Promise<void> {
+  try {
+    await accountFetch(h, "/api/foods/world", { method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ world: "open" }) }, { budget: "prefs" });
+  } catch {
+    // best-effort: see the doc comment above.
+  }
+}
 
 const persistence: OnboardingPersistence = {
   saveLocal: (settings) => saveStore({ ...loadStore(), settings }),
@@ -153,6 +174,7 @@ const persistence: OnboardingPersistence = {
   saveConstraints: (patch, rev) => saveConstraints(patch, rev),
   localDate: todayIso,
   hasWeighIn: (localDate) => typeof getDay(localDate)?.weightLb === "number",
+  openFoodWorld,
 };
 
 const constraintsUnavailable = () => ({
@@ -223,6 +245,9 @@ export async function persistCompletedOnboarding(
   assertCurrent(h);
   deps.saveLocal(savedSettings);
   const constraints = await applyFlagConstraints(h, state.flags, deps);
+  // W13 (D14): only a FIRST completion opens the world — a later re-run of this same function
+  // (an account editing its profile again) must never re-invite an account that chose `closed`.
+  if (!base.onboardedAt) await deps.openFoodWorld(h);
   return { settings: savedSettings, ...constraints };
 }
 

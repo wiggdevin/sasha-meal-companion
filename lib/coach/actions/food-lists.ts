@@ -138,24 +138,30 @@ export const removeFromAvoid = listMark("remove_from_avoid", {
   reply: (name) => `Removing ${name} from your Avoid list.`,
 });
 
+/**
+ * D13 (Phase 18 W13): the wire kind, every field name and the sync op stay `eats` — only the
+ * copy a person reads changes, from "Eats" to "Favored". Removing says "no longer favored"
+ * rather than "off your list", because an open-world account's food can still appear without the
+ * mark (D13: "Favored favors and never limits").
+ */
 export const addToEats = listMark("add_to_eats", {
   eats: true,
-  title: (name) => `${displayName(name)} → Eats`,
-  pending: (name) => `Adding ${name} to your Eats list`,
-  reply: (name) => `Adding ${name} to your Eats list.`,
+  title: (name) => `${displayName(name)} → Favored`,
+  pending: (name) => `Adding ${name} to your Favored list`,
+  reply: (name) => `Adding ${name} to your Favored list.`,
   example: { rank: 70, lines: () => [
     '  User: "put salmon back on my eats list"',
-    '  Final: { "kind": "final", "text": "Salmon is on your Eats list.", "actions": [{ "kind": "add_to_eats", "name": "salmon" }] }',
+    '  Final: { "kind": "final", "text": "Salmon is on your Favored list.", "actions": [{ "kind": "add_to_eats", "name": "salmon" }] }',
   ] },
 });
 
 export const removeFromEats = listMark("remove_from_eats", {
   eats: true,
   title: (name) => `${displayName(name)} → Avoid`,
-  pending: (name) => `Removing ${name} from your Eats list`,
-  reply: (name) => `Removing ${name} from your Eats list.`,
+  pending: (name) => `Marking ${name} no longer favored`,
+  reply: (name) => `${name} is no longer favored.`,
   example: { rank: 80, lines: () => [
     '  User: "take salmon off my eats list"',
-    '  Final: { "kind": "final", "text": "Salmon is off your Eats list.", "actions": [{ "kind": "remove_from_eats", "name": "salmon" }] }',
+    '  Final: { "kind": "final", "text": "Salmon is no longer favored.", "actions": [{ "kind": "remove_from_eats", "name": "salmon" }] }',
   ] },
 });

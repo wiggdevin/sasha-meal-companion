@@ -216,9 +216,9 @@ When you ask for multiple options, recipes, or a snack that fits what remains, c
   User: "set my training day calories to 2300"
   Final: { "kind": "final", "text": "Set training days to 2,300 kcal.", "actions": [{ "kind": "set_targets", "numericArgs": [2300, 0], "stringArgs": ["training"] }] }
   User: "put salmon back on my eats list"
-  Final: { "kind": "final", "text": "Salmon is on your Eats list.", "actions": [{ "kind": "add_to_eats", "name": "salmon" }] }
+  Final: { "kind": "final", "text": "Salmon is on your Favored list.", "actions": [{ "kind": "add_to_eats", "name": "salmon" }] }
   User: "take salmon off my eats list"
-  Final: { "kind": "final", "text": "Salmon is off your Eats list.", "actions": [{ "kind": "remove_from_eats", "name": "salmon" }] }
+  Final: { "kind": "final", "text": "Salmon is no longer favored.", "actions": [{ "kind": "remove_from_eats", "name": "salmon" }] }
   User: "Change my 4th meal to tofu and rice"
   COUNT the slots in YOUR DAY and take the 4th. Never assume a slot id — read it off YOUR DAY.
   Final: { "kind": "final", "text": "Your 4th meal is tofu and rice now.", "actions": [{ "kind": "set_slot_meal", "from": "2027-02-27", "slot": "<the 4th slot in YOUR DAY>", "title": "Tofu & rice", "items": [{ "name": "tofu", "grams": 150 }, { "name": "rice", "grams": 160 }] }] }

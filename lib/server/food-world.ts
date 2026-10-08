@@ -106,3 +106,27 @@ export async function setFoodWorld(admin: SupabaseClient, userId: string, req: F
   if (!data) throw new HttpError(409, "profile_required", "Finish your profile first.");
   return { status: 200, body: { world: req.world } };
 }
+
+/** The account's own current `food_world` ('closed' when the row is missing: the same default
+ *  the column itself carries, migration 20261213090000). */
+export async function readFoodWorld(admin: SupabaseClient, userId: string): Promise<"open" | "closed"> {
+  const { data, error } = await admin.from("user_settings").select("food_world")
+    .eq("user_id", userId).maybeSingle();
+  if (error) failed(error);
+  const world = (data as { food_world?: string } | null)?.food_world;
+  return world === "open" ? "open" : "closed";
+}
+
+/**
+ * W13 (D14): whether to show this account the dismissible open-world invitation. False for an
+ * already-open account (nothing to invite into), a held account (D14, Q5 — stays `closed` with
+ * no invitation until the owner decides), or while the open world is unreleased. A held or
+ * unreleased account answers `eligible: false` without reading the account's own row at all, so
+ * the one `OPEN_WORLD_HOLD_USER_IDS` allowlist is the only thing deciding it either way.
+ */
+export async function invitationEligible(
+  admin: SupabaseClient, userId: string, env: Env = process.env as Env,
+): Promise<boolean> {
+  if (!openWorldReleased(env) || openWorldHeld(userId, env)) return false;
+  return (await readFoodWorld(admin, userId)) === "closed";
+}

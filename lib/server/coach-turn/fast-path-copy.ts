@@ -48,6 +48,6 @@ export function fastSuggestionReply(
     return `Here are ${composed.length} snacks that fit what you have left today.`;
   }
   const source = composed.every((card) => card.allItemsOnEats === true)
-    ? "from your Eats list" : "built around your Eats foods";
+    ? "from your Favored list" : "built around your Favored foods";
   return `Here are ${composed.length} ${kind} options ${source}.`;
 }

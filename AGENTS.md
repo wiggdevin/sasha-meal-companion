@@ -289,6 +289,21 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   `co` part ships only under the ruling and passes H1–H5 (`tests/foods/pairing-gate.test.ts`,
   `tests/foods/pairing-check-artifact.test.ts`); Jev never grades its own labels — the holdout is
   human-labelled only (`tests/foods/pairing-calibration.test.ts`).
+- Favored rename, star merge and account move-over (Phase 18 W13, D13, D14, ruling
+  `docs/decisions/2026-10-05-phase-18-open-questions.md` Q5). The wire name stays `eats` —
+  `status = 'eats'`, the sync op, `add_to_eats`/`remove_from_eats` and `/api/foods/eligible`
+  never rename; only the copy a person reads changes, to "Favored". A new account opens
+  (`food_world = 'open'`) at onboarding completion (`lib/profile/onboarding-client.ts`
+  `persistCompletedOnboarding`, first completion only) with 0 default or inherited Favored marks:
+  the legacy zero-food auto-seed (`lib/foods/today-starter.ts`) never runs for an open account.
+  An existing account keeps its Eats marks as Favored marks, unchanged, when it opts in —
+  `POST /api/foods/world` never writes `user_food_prefs`. A held account
+  (`OPEN_WORLD_HOLD_USER_IDS`) never sees the invitation (`GET /api/foods/world/invitation`) and
+  stays `closed`. The one-time star merge (`scripts/star-to-favored.ts`) turns a live
+  `favorites_foods` star into a Favored mark by name family, unless the family is already on
+  Avoid — never overriding it — and converges to 0 further writes on a second run. Guarded by
+  `tests/foods/food-world.test.ts`, `tests/foods/today-starter.test.ts` and
+  `tests/foods/star-to-favored.test.ts`.
 
 ## Data model in one line
 `Food { id, name, role: protein|carb|fat, unit, perUnit: {protein,carbs,fat}, status: eats|avoid, note?, noCook?, updatedAt }`.

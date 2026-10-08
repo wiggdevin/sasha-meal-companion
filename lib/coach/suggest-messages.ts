@@ -1,9 +1,9 @@
 /** Shared deterministic copy for suggestion results; safe to import in server-loop tests. */
 export const NOTHING_LEFT_MESSAGE = "There are no calories left in today's target for a snack.";
 export const NO_MEAL_FIT_MESSAGE =
-  "I couldn't find a meal option that fits this slot and your food rules yet. Try another idea or add foods to your Eats list.";
+  "I couldn't find a meal option that fits this slot and your food rules yet. Try another idea or add foods to your Favored list.";
 export const NO_SNACK_FIT_MESSAGE =
-  "I couldn't find a snack option that fits your food rules yet. Try another idea or add foods to your Eats list.";
+  "I couldn't find a snack option that fits your food rules yet. Try another idea or add foods to your Favored list.";
 export const SUGGEST_RETRY_MESSAGE = "I couldn't build those suggestions right now. Please try again.";
 export const SUGGEST_TIMEOUT_MESSAGE = "I ran out of time building options — ask again in a moment.";
 export const REQUIRES_PREPARATION_MESSAGE =
