@@ -9,6 +9,7 @@
     {"path": "/api/jobs/backup", "schedule": "45 3 * * *"},
     {"path": "/api/jobs/facet-warm", "schedule": "20 4-7 * * *"},
     {"path": "/api/jobs/spend-sweep", "schedule": "*/15 * * * *"},
-    {"path": "/api/jobs/signal-purge", "schedule": "50 4 * * *"}
+    {"path": "/api/jobs/signal-purge", "schedule": "50 4 * * *"},
+    {"path": "/api/jobs/onboarding-events-purge", "schedule": "55 4 * * *"}
   ]
 }

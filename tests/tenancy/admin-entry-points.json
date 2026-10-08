@@ -75,6 +75,10 @@
     "test": "tests/tenancy/admin-jobs.test.ts",
     "via": "@/app/api/jobs/media-sweep/route"
   },
+  "app/api/jobs/onboarding-events-purge/route.ts": {
+    "test": "tests/tenancy/admin-onboarding-events-purge.test.ts",
+    "via": "@/app/api/jobs/onboarding-events-purge/route"
+  },
   "app/api/jobs/oura-pull/route.ts": {
     "test": "tests/tenancy/admin-jobs.test.ts",
     "via": "@/app/api/jobs/oura-pull/route"

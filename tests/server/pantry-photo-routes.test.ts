@@ -82,4 +82,37 @@ describe("POST /api/pantry/photo/confirm", () => {
     expect(res.status).toBe(400);
     expect(mocks.confirm).not.toHaveBeenCalled();
   });
+
+  // Followups #21: the route's MAX_BYTES was raised from 4 KB to 48 KB; the item caps (40 items,
+  // 160-char names) are unchanged. The worst-case encoded body — 40 items at the 160-char name
+  // limit, each with a gram amount — must fit under 48 KB and be accepted (not 413), and padding
+  // it past 48 KB must still be refused.
+  it("accepts the largest encoded body (40 items x 160-char names) under the new 48 KB ceiling", async () => {
+    const items = Array.from({ length: 40 }, (_, i) => ({ name: "x".repeat(160), grams: 123.5 + i }));
+    const body = { requestId: "11111111-1111-4111-8111-111111111111", items };
+    const encodedBytes = Buffer.byteLength(JSON.stringify(body), "utf8");
+    expect(encodedBytes).toBeLessThan(48 * 1024);
+
+    const written = items.map((item, i) => ({ id: `p${i}`, userId, name: item.name, identity: {},
+      confirmedGrams: item.grams, confirmedAt: "2026-10-07T00:00:00Z", revision: 1, source: "photo" as const }));
+    mocks.confirm.mockResolvedValue({ written, failed: [] });
+    mocks.mark.mockResolvedValue(written.map((w) => ({ ...w, ruleMark: null })));
+
+    const res = await confirmRoute(json(body));
+    expect(res.status).toBe(200);
+    const parsed = await res.json();
+    expect(parsed.items).toHaveLength(40);
+  });
+
+  it("still rejects a body padded past the new 48 KB ceiling", async () => {
+    const items = Array.from({ length: 40 }, () => ({ name: "x".repeat(160), grams: 1,
+      // Padding field the Zod shape doesn't know about -- oversized body, same 413 the old 4 KB
+      // ceiling answered, just at the new size.
+      note: "y".repeat(2000) }));
+    const body = { requestId: "11111111-1111-4111-8111-111111111111", items };
+    expect(Buffer.byteLength(JSON.stringify(body), "utf8")).toBeGreaterThan(48 * 1024);
+    const res = await confirmRoute(json(body));
+    expect(res.status).toBe(413);
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
 });

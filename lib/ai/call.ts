@@ -219,7 +219,19 @@ export async function callModel<R extends Billed, T>(call: ModelCall<R, T>): Pro
   try {
     // The reservation may have outlived the caller: no attempt starts after it stopped.
     if (call.signal?.aborted) throw abortError();
-    await call.transport.open?.();
+    try {
+      await call.transport.open?.();
+    } catch (e) {
+      // Followups #14: open() runs once, before any attempt() calls send() — a Gemini Files API
+      // 403 PERMISSION_DENIED during a large media upload fails here, not inside attempt()'s own
+      // retry loop. Unclassified and unrecorded, this used to leave no "permission_denied" row for
+      // assertCircuitClosed (lib/ai/circuit.ts) to find, so a project-wide denial on this path
+      // alone never opened the circuit. Same classify+record attempt()'s own catch-all does, with
+      // no billed tokens (no attempt reached send()) and no retry (open() is not per-attempt).
+      const message = e instanceof Error ? e.message : "unknown";
+      await settled(classifyFailure(e), null, message, 0);
+      throw e;
+    }
     try {
       return await attempt(call, model, abortError, settled);
     } finally {

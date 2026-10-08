@@ -70,12 +70,21 @@ export type MealSnapshotV3Response = MealSnapshotV3;
  * — losing to correctness and to "Favored never limits meals" (spec §1) — otherwise. A true
  * guarantee for an unbounded admitted set needs paging with a token pinned across every page
  * (D11's one-token-window freshness design), which is a larger protocol change than this slice.
+ *
+ * Followups #6 (2026-10-08, Sol: "keep complete admitted snapshots and measure overages"): still
+ * no trimming, measurement unchanged; this now also bumps a process-lifetime overage counter
+ * (`snapshotV3Overages`) so an overage is a countable signal, not only a line to grep for, while a
+ * durable cross-invocation count (if this ever needs one) would be a server table, not this.
  */
+let overageCount = 0;
+
 export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHOT_V3_MAX_BYTES): MealSnapshotV3 {
   const bytes = Buffer.byteLength(JSON.stringify(body), "utf8");
   if (bytes <= maxBytes) return body;
+  overageCount += 1;
   console.error("meal snapshot v3: over the 250 KB target (stated exception, D11/acceptance 5); "
     + "the body is sent complete rather than risk ranking or admission correctness", {
+    metric: "snapshot_v3_overage", count: overageCount,
     accountId: body.accountId, bytes, maxBytes,
     foods: Buffer.byteLength(JSON.stringify(body.foods), "utf8"),
     admittedRefIds: body.admittedRefIds.length, admittedUniverseIds: body.admittedUniverseIds.length,
@@ -83,6 +92,18 @@ export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHO
     eligible: Buffer.byteLength(JSON.stringify(body.eligible), "utf8"),
   });
   return body;
+}
+
+/** The process-lifetime count of v3 snapshot overages (`checkByteBudget`). Each serverless
+ *  invocation starts at 0 — a sampling signal alongside the structured log line, not a durable
+ *  metric across invocations. */
+export function snapshotV3Overages(): number {
+  return overageCount;
+}
+
+/** Test-only: resets the process-lifetime overage counter. */
+export function resetSnapshotV3Overages(): void {
+  overageCount = 0;
 }
 
 /** The account's admitted taste evidence, as the preference inputs read it. */
