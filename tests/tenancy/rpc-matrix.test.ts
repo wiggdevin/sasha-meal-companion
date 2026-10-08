@@ -12,6 +12,12 @@
  * `_sync_current`, `_sync_upsert` and `_sync_tombstone` were executable by `authenticated` and
  * trusted their `p_user_id` (PR #247 finding). Migration 20261103090000 (branch
  * fix/p9-sync-rpc-grants) revokes that; the three cases at the end prove A is now refused.
+ *
+ * The four target writers (`write_target_revision`, `_if_active`, `_pair`,
+ * `approve_target_proposal`) bound p_user_id to auth.uid(), but a signed-in user could still call
+ * them for their OWN account and skip every server-side target check. Migration 20261228090000
+ * makes them service-role only (lib/server/target-writes.ts); the last cases prove A is refused
+ * for A and for B, and the manifest no longer lists them.
  */
 // Refuses any non-local database before anything else runs (review r8).
 import "./local-only";
@@ -116,9 +122,9 @@ describe.skipIf(!HAS_DB)("RPC manifest (spec 3.3)", () => {
 
 /** Case ids, so the manifest check above can run without a database. */
 const CASE_NAMES = {
-  assert_caller: 1, apply_sync_op: 1, approve_target_proposal: 1, contradictions: 1,
+  assert_caller: 1, apply_sync_op: 1, contradictions: 1,
   food_ref: 1, weigh_in: 1, revoke_token: 1, food_membership: 1, food_note: 1, sync_changes: 1,
-  target_revision: 1, compute_item_snapshot: 1,
+  compute_item_snapshot: 1,
   recipe_accept: 1, recipe_consumed: 1, recipe_undo: 1, shopping_window: 1,
   coach_undo_record: 1, coach_undo_perform: 1, food_signals: 1, taste_confirm: 1, taste_undo: 1,
   care_points_sync: 1, care_purchase: 1, care_equip: 1, care_accolades_sync: 1,
@@ -158,16 +164,6 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
         base_rev: 1, payload: { cups: 99 }, client_ts: new Date().toISOString() } });
       expect(error?.message).toContain("forbidden");
       expect(await rowsOf("water_log", b.id)).toEqual(before);
-    },
-    approve_target_proposal: async () => {
-      const proposal = await seed("target_proposals", b.id);
-      const before = await rowsOf("target_proposals", b.id);
-      expect((await asA.rpc("approve_target_proposal",
-        { p_user_id: b.id, p_proposal_id: proposal.match.id })).error?.message).toContain("forbidden");
-      expect((await asA.rpc("approve_target_proposal",
-        { p_user_id: a.id, p_proposal_id: proposal.match.id })).data)
-        .toMatchObject({ status: "not_found" });
-      expect(await rowsOf("target_proposals", b.id)).toEqual(before);
     },
     contradictions: async () => {
       const { data, error } = await asA.rpc("food_membership_contradictions", { p_user: b.id });
@@ -226,17 +222,6 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
         { p_user_id: b.id, p_since: 0, p_limit: 10 });
       expect(error?.message).toContain("forbidden");
       expect(data).toBeNull();
-    },
-    target_revision: async () => {
-      await seed("target_profiles", b.id);
-      const before = await rowsOf("target_profiles", b.id);
-      expect((await asA.rpc("write_target_revision", { p_user_id: b.id, p_row: {} }))
-        .error?.message).toContain("forbidden");
-      expect((await asA.rpc("write_target_revision_pair",
-        { p_user_id: b.id, p_predecessor: {}, p_row: {} })).error?.message).toContain("forbidden");
-      expect((await asA.rpc("write_target_revision_if_active",
-        { p_user_id: b.id, p_row: {}, p_expected_id: null })).error?.message).toContain("forbidden");
-      expect(await rowsOf("target_profiles", b.id)).toEqual(before);
     },
     compute_item_snapshot: async () => {
       // Security invoker: B's user food and its ref are hidden from A by RLS.
@@ -551,6 +536,31 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
     expect(error).not.toBeNull();
     expect(await rowsOf("water_log", b.id)).toEqual(before);
   });
+
+  const TARGET_WRITERS = (owner: string, proposalId: string) => [
+    ["write_target_revision", { p_user_id: owner, p_row: {} }],
+    ["write_target_revision_if_active",
+      { p_user_id: owner, p_row: {}, p_expected_id: null, p_expected_settings_rev: null }],
+    ["write_target_revision_pair", { p_user_id: owner, p_predecessor: {}, p_row: {} }],
+    ["approve_target_proposal", { p_user_id: owner, p_proposal_id: proposalId }],
+  ] as const;
+
+  for (const who of ["A", "B"] as const) {
+    it(`the target writers are refused to A for ${who}'s account (service role only)`, async () => {
+      const owner = who === "A" ? a.id : b.id;
+      const [profile, proposal] = [await seed("target_profiles", owner),
+        await seed("target_proposals", owner)];
+      expect(profile.match).toBeTruthy();
+      const before = [await rowsOf("target_profiles", owner), await rowsOf("target_proposals", owner)];
+      for (const [fn, args] of TARGET_WRITERS(owner, String(proposal.match.id))) {
+        const { data, error } = await asA.rpc(fn, args);
+        // 42501 permission denied for function: refused before the body runs.
+        expect({ fn, code: error?.code, data }).toEqual({ fn, code: "42501", data: null });
+      }
+      expect([await rowsOf("target_profiles", owner), await rowsOf("target_proposals", owner)])
+        .toEqual(before);
+    });
+  }
 
   it("_sync_tombstone is refused to A and leaves B's row alive", async () => {
     const food = await seed("user_foods", b.id);

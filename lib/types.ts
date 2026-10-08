@@ -11,7 +11,7 @@ import type { CuisineKey } from "./profile/cuisines";
 
 export type DayType = "training-10" | "training-7-fasted" | "rest";
 
-/** Mon/Thu/Fri = 10am training · Wed = 7am fasted · Tue/Sat/Sun = rest */
+/** Ritual slot ids are historical; training weekdays are `training-10`, fasted is an override. */
 export type SlotId =
   | "coffee"
   | "pouches-pre"

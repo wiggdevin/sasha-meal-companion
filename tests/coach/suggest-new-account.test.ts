@@ -140,7 +140,8 @@ describe.skipIf(!LOCAL)("the walkthrough account's suggestion turn, end to end",
     });
     if (constraints.error) throw constraints.error;
     // effective_from is tomorrow: the UTC `onboardedAt` a 22:20 MDT completion writes.
-    const target = await client.rpc("write_target_revision", {
+    // Target writes are service-role only (migration 20261228090000).
+    const target = await admin.rpc("write_target_revision", {
       p_user_id: userId,
       p_row: {
         effective_from: "2026-09-21", target_source: "derived", mode: "grams",

@@ -26,17 +26,21 @@ const TRAINING_LABEL = "Training day";
 const REST_LABEL = "Rest day";
 const CLEAR_LABEL = "Follow the schedule";
 
-/** The line under each type. Wednesday's variant says so, or the user cannot tell them apart. */
+/** The line under each type. The fasted variant survives only on a date the account saved it. */
 const TYPE_NOTE: Record<DayType, string> = {
-  "training-10": "10am session, usual slot times",
-  "training-7-fasted": "Wednesday's fasted 7am session",
+  "training-10": "Usual slot times",
+  "training-7-fasted": "Fasted 7am session",
   rest: "Slots and targets follow a rest day",
 };
 
-/** Wednesday's rest day maps to the fasted 7am variant, every other day to 10am. */
+/**
+ * The training day a row offers: always `training-10`. Wednesday's fasted 7am variant was the
+ * first client's week (onboarding v2 G6); no account is offered it by weekday. `date` stays in
+ * the signature for the callers.
+ */
 export function trainingDayTypeFor(date: string): DayType {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(year, month - 1, day).getDay() === 3 ? "training-7-fasted" : "training-10";
+  void date;
+  return "training-10";
 }
 
 /**
@@ -44,7 +48,8 @@ export function trainingDayTypeFor(date: string): DayType {
  * (an override wins), so `current` lands on the row the user is looking at.
  */
 export function dayTypeChoices(dayType: DayType, date: string, locked: boolean): DayTypeChoice[] {
-  const training = trainingDayTypeFor(date);
+  // A fasted session this date already saved stays the training row; nothing new offers it.
+  const training = dayType === "training-7-fasted" ? dayType : trainingDayTypeFor(date);
   return [
     {
       kind: "type",
@@ -142,7 +147,7 @@ export function createChoiceGate(): ChoiceGate {
  */
 export function dayTypeLabel(dayType: DayType, override: DayType | undefined): string {
   if (!override) {
-    if (dayType === "training-7-fasted") return "Wednesday \u00b7 fasted 7am";
+    if (dayType === "training-7-fasted") return "Training \u00b7 fasted 7am";
     return dayType === "rest" ? REST_LABEL : TRAINING_LABEL;
   }
   return override === "rest" ? "Locked as a rest day" : "Locked as a training day";
@@ -151,7 +156,7 @@ export function dayTypeLabel(dayType: DayType, override: DayType | undefined): s
 /** The day type in the chip's own words, for the accessible name. */
 const SPOKEN_LABEL: Record<DayType, string> = {
   "training-10": "training day",
-  "training-7-fasted": "Wednesday fasted training day",
+  "training-7-fasted": "fasted training day",
   rest: "rest day",
 };
 

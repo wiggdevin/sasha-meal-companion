@@ -1,7 +1,7 @@
 // Server-side target recompute (#330, user 40707946's stale revision): derives from the stored
 // user_settings row, writes through write_target_revision, converges when a newer settings write
 // races it, and leaves adaptive/proposal revisions alone.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { deriveTargetRevision } from "@/lib/profile/derive";
 import {
   localDate, weighInKgToKeep, recomputeDerivedTarget, settingsFromRow,
@@ -9,6 +9,8 @@ import {
 import {
   TODAY, USER, activeOn, fakeClient, settingsRow, staleTarget, type Row,
 } from "./recompute-fake";
+
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
 
 describe("recomputeDerivedTarget", () => {
   it("replaces the stale 2104 kcal revision with the app's own derivation, effective today", async () => {

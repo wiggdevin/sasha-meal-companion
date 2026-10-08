@@ -1,6 +1,7 @@
 /** Resolve the effective server target revision for a day. No numeric fallback exists. */
 import type { DayType, Macros, Settings } from "./types";
 import { deriveTargetRevision } from "./profile/derive";
+import type { TargetEligibility } from "./profile/rate-eligibility";
 import { dayTypeFor } from "./plan";
 import { targetRevisionOn } from "./targets/revision";
 
@@ -58,12 +59,14 @@ export function applyDerivedProfile(
   today: Date,
   latestWeighInKg?: number | null,
   trainingWeekdays: readonly number[] = settings.trainingWeekdays ?? [],
+  eligibility?: TargetEligibility,
 ): Settings {
   const revision = deriveTargetRevision({
     settings,
     latestWeighInKg: latestWeighInKg ?? null,
     today: today.toISOString().slice(0, 10),
     trainingWeekdays,
+    ...(eligibility ? { eligibility } : {}),
     source: settings.trainingKcal !== null || settings.restKcal !== null
       || settings.proteinG !== null ? "manual" : "derived",
   });

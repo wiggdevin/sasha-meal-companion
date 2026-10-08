@@ -55,8 +55,16 @@ function namesSpecies(text: string, word: string): boolean {
     .test(text);
 }
 
-export function isPregnant(conditions: readonly string[] | undefined): boolean {
-  return (conditions ?? []).some((condition) => PREGNANCY.test(condition));
+/**
+ * The free-text conditions name pregnancy, or the account holds the `pregnancy` dietary profile
+ * (onboarding v2 G7: the life-stage profile alone did not arm this check). `profileIds` is the
+ * account's profile-instance ids where the caller read them (lib/server/policy-profile.ts).
+ */
+export function isPregnant(
+  conditions: readonly string[] | undefined, profileIds?: readonly string[] | null,
+): boolean {
+  return (profileIds ?? []).includes("pregnancy")
+    || (conditions ?? []).some((condition) => PREGNANCY.test(condition));
 }
 
 /**
@@ -90,11 +98,12 @@ export function namesUnspecifiedTuna(
 /** The card's line for unspecified tuna on a pregnancy profile, or null when it does not apply. */
 export function pregnancyTunaFinding(input: {
   conditions: readonly string[] | undefined;
+  profileIds?: readonly string[] | null;
   ingredientsText: string | null | undefined;
   tags?: readonly string[] | null;
   foodName?: string | null;
 }): AllergenFinding | null {
-  if (!isPregnant(input.conditions)) return null;
+  if (!isPregnant(input.conditions, input.profileIds)) return null;
   if (!namesUnspecifiedTuna(input.ingredientsText, input.tags, input.foodName)) return null;
   return {
     allergen: "tuna_mercury",

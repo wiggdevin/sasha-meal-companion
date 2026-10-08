@@ -1,5 +1,11 @@
 /** GET/POST /api/targets — JWT, 8 KB, 30/min/user. The floor sequence is re-applied server-side
- *  in `authorTargets`; a 422 names the minimum percentage that satisfies the floor. */
+ *  in `authorTargets`; a 422 names the minimum percentage that satisfies the floor.
+ *
+ *  Pace holds (onboarding v2 G1–G3): every write reads the account's own stored safety answers
+ *  (lib/server/target-eligibility.ts). A held account derives at a 0 pace whatever
+ *  `goalRateBpWeek` the body carries (the revision's `inputs.goalRateBpWeek` says 0), and kidney
+ *  disease takes standard protein. Under 18 on the revision's date answers 422 `adult_only` and
+ *  writes nothing. */
 import { z } from "zod";
 import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
@@ -12,6 +18,7 @@ import {
 import { BODY_FAT_SOURCES, type Settings, type TargetRevision } from "@/lib/types";
 import { validateRate } from "@/lib/profile/rate-goal";
 import { accountDay } from "@/lib/server/account-day";
+import { AdultOnlyError } from "@/lib/profile/rate-eligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -152,6 +159,10 @@ export async function POST(req: Request): Promise<Response> {
     }
     return Response.json(await authorTargets(client, userId, body));
   } catch (e) {
+    // Under 18 on the revision's date: no plan is built (owner decision 2026-10-08).
+    if (e instanceof AdultOnlyError) {
+      return Response.json({ error: e.code, message: e.message }, { status: 422 });
+    }
     if (e instanceof FloorViolationError) {
       return Response.json({ error: e.code, message: e.message,
         minProteinPct: e.minProteinPct, minFatPct: e.minFatPct }, { status: 422 });

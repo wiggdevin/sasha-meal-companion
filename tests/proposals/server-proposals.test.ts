@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { decideProposal, listProposals, ProposalConflictError } from "@/lib/server/proposals";
+import { adminFake } from "@/tests/helpers/admin-fake";
+
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
 
 const PROPOSED = { kcalTrain: 2250, kcalRest: 1800, proteinG: 135, fatG: 85, carbG: 210,
   deltaKcalTrain: 50, deltaKcalRest: 50, raisedToFloor: false };
@@ -18,7 +21,9 @@ function clientWith(rows: Record<string, unknown>[], rpcResult: unknown, updated
       order: async () => ({ data: rows, error: null }) }) }),
     update,
   }));
-  return { client: { from, rpc } as never, rpc, update };
+  const client = { from, rpc } as never;
+  adminFake.client = client;
+  return { client, rpc, update };
 }
 
 describe("listProposals", () => {
