@@ -1,14 +1,15 @@
 /**
- * Onboarding v2, lane 3 — the recessed-fill look every chip in this folder shares, written out in
- * raw tokens instead of the shared `.well` class (tests/design/buttons.test.ts's ratchet: a `well`
- * class on a `<button>` tag is the legacy recipe `components/ui/Button` replaced, and is barred
- * from growing outside the files already grandfathered onto its allowlist). This reproduces
- * `.well`'s own rule (app/globals.css) — `box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.06);
- * background: var(--color-fog);` — as Tailwind arbitrary-value utilities, so nothing here is a
- * `well`-class button and nothing here is an inline `style` object either (which would otherwise
- * need its own entry in tests/design/inline-style.test.ts's ALLOWED list for a property that
- * guard doesn't even cover). Every caller still supplies its own `rounded-*` utility (every chip
- * here is `rounded-full`, not `.well`'s own 16px) — this constant stays out of that property so
- * two radius classes on one element never fight the cascade.
+ * Onboarding v2 — the one chip surface every chip and stepper in the conversational shell shares.
+ *
+ * Live QA 2026-10-07 (defect 1): this used to be `.well`'s light fog fill
+ * (`bg-[var(--color-fog)]`) with `text-charcoal`. The shell carries `.matte`, which turns
+ * `text-charcoal` cream but leaves `--color-fog` light, so every chip read cream on cream (about
+ * 1.1:1). The recipe is now the dock's own chip surface (`dock/OnboardingDock.module.css`
+ * `.chipSurface`): a faint tint and a hairline drawn from `--ink-rgb`, which `.matte` remaps to
+ * cream and the light ground keeps as ink — so the same chip reads correctly on either scope.
+ * `tests/design/contrast-scan.test.ts` rule 6 now fails a light fill under a `.matte` ancestor in
+ * another file, which is how this slipped past the scan before.
+ *
+ * Every caller supplies its own `rounded-*` and its own min-height (≥ 44 px, DESIGN.md).
  */
-export const CHIP_FILL = "bg-[var(--color-fog)] shadow-[0_0_0_1px_rgb(var(--ink-rgb)/0.06)]";
+export const CHIP_FILL = "bg-[rgb(var(--ink-rgb)/0.08)] shadow-[0_0_0_1px_rgb(var(--ink-rgb)/0.18)]";

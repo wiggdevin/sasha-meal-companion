@@ -18,13 +18,22 @@ import { describe, expect, it } from "vitest";
  *      fill it needs.
  *   5. A gauge hue or rim colour as text (`text-gauge-*`, `text-yellow`, `text-orange`, `text-sage`,
  *      `text-tertiary` …), or a bare `.macro-*` gauge class on an element that is not a fill.
+ *   6. A light surface (`well`, `bg-fog`, an arbitrary `bg-[var(--color-fog)]` …) inside a `.matte`
+ *      scope with no `.matte-reset` between them. `.matte` turns the text roles cream but leaves
+ *      `--color-fog` light, so the label reads cream on cream (onboarding v2 live QA, 2026-10-07:
+ *      every chip in the facts beat). The `.matte` ancestor is followed ACROSS files: a component
+ *      rendered inside a `.matte` element in another file (and every component it renders in turn)
+ *      is scanned as matte-scoped.
  */
 const ROOT = new URL("../../", import.meta.url).pathname;
 const SOURCE_ROOTS = ["app", "components"];
 
 const ON_OLIVE = /^text-on-olive(-muted)?(\/.*)?$/;
 const ON_FILL = /^text-on-(primary|selected)(\/.*)?$/;
-const LIGHT_SURFACE = /^(well|surface|olive-panel|pill-in|sheet-surface|attached-sheet|logged-card-in|meal-card-in|chip-off|chip-idle|btn-ink|notice|bg-(fog|field|surface|paper|secondary|background|neutral|white|[a-z]+-wash)(\/.*)?)$/;
+const LIGHT_SURFACE = /^(well|surface|olive-panel|pill-in|sheet-surface|attached-sheet|logged-card-in|meal-card-in|chip-off|chip-idle|btn-ink|notice|bg-(fog|field|surface|paper|secondary|background|neutral|white|[a-z]+-wash)(\/.*)?|bg-\[var\(--color-(fog|field|surface|paper|ivory|beige|oat|cream)[a-z-]*\)\](\/.*)?)$/;
+/** Light surfaces that are a real problem under `.matte` (rule 6). `olive-panel` is excluded: it is
+ *  a translucent tint that reads correctly on the matte (contrast-table.ts ".olive-panel in .matte"). */
+const MATTE_LIGHT_SURFACE = /^(well|surface|pill-in|sheet-surface|chip-off|chip-idle|bg-(fog|field|surface|paper|background|white)(\/.*)?|bg-\[var\(--color-(fog|field|surface|paper|ivory|beige|oat|cream)[a-z-]*\)\](\/.*)?)$/;
 /** A class or recipe that paints a fill `text-on-primary` can sit on. */
 const FILL_MARKER = /(\bbg-(primary|selected|alert|red|red-ink|charcoal|well-dark|olive-[a-z-]+|sage-ink)\b|\bbtn-primary\b|\bbtn-icon\b|\bchip-on\b|\bday-lens\b|\bsegment-lens\b|\btab-pill\b|--grad-(ink|fab|produce)\b|--color-(primary|selected|alert)\b)/;
 const GAUGE_TEXT = /^text-(gauge-[a-z-]+|yellow|orange|orange-warm|sage|green|sky|tangerine|signal|tertiary|clay)(\/.*)?$/;
@@ -66,20 +75,27 @@ function constants(source: ts.SourceFile): Map<string, ts.Expression> {
   return found;
 }
 
-type Scope = { source: ts.SourceFile; consts: Map<string, ts.Expression>; imports: Map<string, string> };
+type Scope = {
+  source: ts.SourceFile; consts: Map<string, ts.Expression>; imports: Map<string, string>;
+  /** Every imported binding (default or named) a JSX tag can name → its local source file. */
+  components: Map<string, string>;
+};
 
 function scopeOf(path: string): Scope {
   const source = parse(path);
   const imports = new Map<string, string>();
+  const components = new Map<string, string>();
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
     const file = moduleFile(path, statement.moduleSpecifier.text);
     const named = statement.importClause?.namedBindings;
     if (file && named && ts.isNamedImports(named)) {
-      for (const element of named.elements) imports.set(element.name.text, file);
+      for (const element of named.elements) { imports.set(element.name.text, file); components.set(element.name.text, file); }
     }
+    const fallback = statement.importClause?.name;
+    if (file && fallback) components.set(fallback.text, file);
   }
-  return { source, consts: constants(source), imports };
+  return { source, consts: constants(source), imports, components };
 }
 
 const scopes = new Map<string, Scope>();
@@ -169,7 +185,7 @@ function walk(node: ts.Expression, at: Scope, depth: number, onCondition: (text:
 
 type Finding = { file: string; line: number; rule: string; classes: string };
 
-function scanFile(path: string): Finding[] {
+function scanFile(path: string, matteFiles: ReadonlySet<string> = new Set()): Finding[] {
   const at = scope(path);
   const file = relative(ROOT, path);
   const text = at.source.getFullText();
@@ -196,11 +212,22 @@ function scanFile(path: string): Finding[] {
       && attribute.name.getText(at.source) === "style" && FILL_MARKER.test(attribute.getText(at.source)));
   }
 
-  function visit(node: ts.Node, panelAbove: boolean) {
+  function visit(node: ts.Node, panelAbove: boolean, matteAbove: boolean) {
     let panelHere = panelAbove;
+    let matteHere = matteAbove;
     const opening = ts.isJsxElement(node) ? node.openingElement : ts.isJsxSelfClosingElement(node) ? node : null;
     if (opening) {
       const painted = styleFill(opening);
+      const sets = classesOf(opening).map((set) => set.map((c) => c.split(":").at(-1)!.replace(/^!|!$/g, "")));
+      if (sets.some((bare) => bare.includes("matte-reset"))) matteHere = false;
+      else if (sets.some((bare) => bare.includes("matte"))) matteHere = true;
+      for (const [index, bare] of sets.entries()) {
+        // An element that IS the matte (the meal card's own root) paints the matte over its surface.
+        if (matteAbove && !bare.includes("matte") && !bare.includes("matte-reset")
+          && bare.some((c) => MATTE_LIGHT_SURFACE.test(c))) {
+          report(opening, "light surface inside .matte without .matte-reset", classesOf(opening)[index]);
+        }
+      }
       for (const set of classesOf(opening)) {
         const bare = set.map((c) => c.split(":").at(-1)!.replace(/^!|!$/g, ""));
         const panel = bare.includes("olive-panel");
@@ -215,14 +242,106 @@ function scanFile(path: string): Finding[] {
         panelHere ||= panel;
       }
     }
-    ts.forEachChild(node, (child) => visit(child, panelHere));
+    ts.forEachChild(node, (child) => visit(child, panelHere, matteHere));
   }
-  visit(at.source, false);
+  visit(at.source, false, matteFiles.has(path));
   return findings;
 }
 
+/** Follows a barrel's `export { X } from "./x"` to the file that defines `X`. */
+function definingFile(file: string, name: string, depth = 0): string {
+  if (depth > 4 || file.endsWith(".tsx")) return file;
+  const source = parse(file);
+  for (const statement of source.statements) {
+    if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier
+      || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const target = moduleFile(file, statement.moduleSpecifier.text);
+    if (!target) continue;
+    const clause = statement.exportClause;
+    if (!clause || (ts.isNamedExports(clause) && clause.elements.some((e) => e.name.text === name))) {
+      const found = definingFile(target, name, depth + 1);
+      if (found.endsWith(".tsx")) return found;
+    }
+  }
+  return file;
+}
+
+/** The JSX tag of an element when it names an imported local component file. */
+function tagFile(opening: ts.JsxOpeningLikeElement, at: Scope): string | null {
+  if (!ts.isIdentifier(opening.tagName)) return null;
+  const file = at.components.get(opening.tagName.text);
+  return file ? definingFile(file, opening.tagName.text) : null;
+}
+
+/**
+ * Rule 6's cross-file half: every source file rendered inside a `.matte` element somewhere (with no
+ * `.matte-reset` between them), followed transitively — a matte-scoped component's own children
+ * are matte-scoped too, unless it wraps them in `.matte-reset`.
+ */
+function matteScopedFiles(files: readonly string[]): Set<string> {
+  const inside = new Set<string>();
+  const renders = (path: string, startInMatte: boolean, found: (file: string) => void) => {
+    const at = scope(path);
+    const classSetsOf = (opening: ts.JsxOpeningLikeElement): string[][] => {
+      for (const attribute of opening.attributes.properties) {
+        if (!ts.isJsxAttribute(attribute) || attribute.name.getText(at.source) !== "className" || !attribute.initializer) continue;
+        if (ts.isStringLiteral(attribute.initializer)) return [attribute.initializer.text.split(/\s+/)];
+        if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) return classSets(attribute.initializer.expression, at);
+      }
+      return [[]];
+    };
+    const openingOf = (node: ts.Node) => ts.isJsxElement(node) ? node.openingElement
+      : ts.isJsxSelfClosingElement(node) ? node : null;
+    const flags = (opening: ts.JsxOpeningLikeElement) => {
+      const sets = classSetsOf(opening).map((set) => set.map((c) => c.split(":").at(-1)!));
+      return { reset: sets.some((bare) => bare.includes("matte-reset")), matte: sets.some((bare) => bare.includes("matte")) };
+    };
+    // A component whose root element is `.matte` renders its detached JSX (a `const content = <X/>`
+    // later placed as `{content}`) inside that root too, so a root-level `.matte` makes every
+    // detached JSX root in the file start matte-scoped.
+    let rootMatte = startInMatte;
+    (function findRoot(node: ts.Node, underJsx: boolean) {
+      const opening = openingOf(node);
+      if (opening && !underJsx) { const f = flags(opening); if (f.matte && !f.reset) rootMatte = true; }
+      ts.forEachChild(node, (child) => findRoot(child, underJsx || opening !== null));
+    })(at.source, false);
+    (function visit(node: ts.Node, inMatte: boolean, underJsx: boolean) {
+      const opening = openingOf(node);
+      let here = opening && !underJsx ? rootMatte : inMatte;
+      if (opening) {
+        const f = flags(opening);
+        if (f.reset) here = false;
+        else if (f.matte) here = true;
+        const file = tagFile(opening, at);
+        if (here && file) found(file);
+      }
+      ts.forEachChild(node, (child) => visit(child, here, underJsx || opening !== null));
+    })(at.source, startInMatte, false);
+  };
+  // Followed transitively only inside the feature folder that owns the `.matte` root (a shell and
+  // its own parts, e.g. components/Onboarding/**). A root directly under app/ or components/ (the
+  // dock, the meal card) is followed one hop, since its shared children (sheets that portal out,
+  // toasts) render outside that scope at runtime.
+  const queue: { file: string; root: string }[] = [];
+  const owned = (file: string, root: string) => {
+    const folder = dirname(root);
+    const shallow = SOURCE_ROOTS.some((name) => folder === join(ROOT, name));
+    return shallow ? dirname(file) === folder : file.startsWith(`${folder}/`);
+  };
+  const add = (root: string) => (file: string) => {
+    if (inside.has(file) || !/\.tsx$/.test(file)) return;
+    inside.add(file);
+    if (owned(file, root)) queue.push({ file, root });
+  };
+  for (const file of files) renders(file, false, add(file));
+  while (queue.length) { const next = queue.shift()!; renders(next.file, true, add(next.root)); }
+  return inside;
+}
+
 function scanAll(): Finding[] {
-  return SOURCE_ROOTS.flatMap((root) => sourceFiles(join(ROOT, root))).flatMap(scanFile);
+  const files = SOURCE_ROOTS.flatMap((root) => sourceFiles(join(ROOT, root)));
+  const matteFiles = matteScopedFiles(files);
+  return files.flatMap((file) => scanFile(file, matteFiles));
 }
 
 describe("contrast scan", () => {
@@ -248,5 +367,17 @@ describe("contrast scan", () => {
     expect(rules).toContain("text-on-primary on a light surface");
     expect(rules).toContain("text-on-primary with no primary fill in the file");
     expect(rules.filter((rule) => rule === "gauge")).toHaveLength(2);
+  });
+
+  it("catches a light chip inside a .matte ancestor in ANOTHER file, including the arbitrary"
+    + " bg-[var(--color-fog)] fill (onboarding v2 live QA: cream text on fog chips)", () => {
+    const shell = join(ROOT, "tests/design/fixtures/matte-shell.tsx");
+    const chip = join(ROOT, "tests/design/fixtures/matte-chip.tsx");
+    const matteFiles = matteScopedFiles([shell]);
+    expect(matteFiles.has(chip)).toBe(true);
+    const rules = scanFile(chip, matteFiles).map((f) => f.rule);
+    expect(rules.filter((rule) => rule === "light surface inside .matte without .matte-reset")).toHaveLength(2);
+    // The same chip outside any .matte scope is fine, and a .matte-reset wrapper clears it.
+    expect(scanFile(chip).map((f) => f.rule)).not.toContain("light surface inside .matte without .matte-reset");
   });
 });
