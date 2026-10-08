@@ -54,14 +54,17 @@ function Question({ id, children }: { id?: string; children: ReactNode }) {
   return <p id={id} className="m-0 font-serif text-heading-sm text-charcoal">{children}</p>;
 }
 
-function NumberInput({ label, value, onChange, suffix, min, max }: {
+function NumberInput({ label, value, onChange, suffix, min, max, decimal = false }: {
   label: string; value: string; onChange: (value: string) => void; suffix?: string; min: number; max: number;
+  /** Accepts a tenth (a weight): the decimal keypad, and no whole-number step for the form to refuse. */
+  decimal?: boolean;
 }) {
   const id = useId();
   return <div className="flex min-w-0 flex-1 flex-col gap-1">
     <label htmlFor={id} className="text-caption text-graphite">{label}</label>
     <span className="relative flex items-center">
-      <input id={id} type="number" inputMode="numeric" enterKeyHint="done" min={min} max={max} value={value}
+      <input id={id} type="number" inputMode={decimal ? "decimal" : "numeric"} step={decimal ? "any" : undefined}
+        enterKeyHint="done" min={min} max={max} value={value}
         onChange={(event) => onChange(event.target.value)} className={`${FIELD_CLASS} ${suffix ? "pr-10" : ""}`} />
       {suffix && <span aria-hidden="true" className="pointer-events-none absolute right-3 text-body text-muted">{suffix}</span>}
     </span>
@@ -86,12 +89,15 @@ function NumberForm({ question, valid, error, onSave, children }: {
 
 function AgeQuestion({ facts, today, onAnswer }: { facts: OnboardingFacts; today: Date; onAnswer: (a: FactAnswer) => void }) {
   const known = factValue(facts, "birthYear");
-  const [text, setText] = useState(known !== undefined ? String(ageFromBirthYear(known, today)) : "");
+  const seeded = known !== undefined ? String(ageFromBirthYear(known, today)) : "";
+  const [text, setText] = useState(seeded);
   const age = Number(text);
   const valid = text.trim() !== "" && Number.isInteger(age) && age >= AGE_MIN && age <= AGE_MAX;
   const error = text.trim() !== "" && !valid ? `Enter an age from ${AGE_MIN} to ${AGE_MAX}.` : null;
   return <NumberForm question={QUESTION.birthYear!} valid={valid} error={error}
-    onSave={() => onAnswer({ key: "birthYear", value: birthYearFromAge(age, today) })}>
+    // An age left as shown keeps the stored birth year: converting back could move it by one.
+    onSave={() => onAnswer({ key: "birthYear",
+      value: known !== undefined && text === seeded ? known : birthYearFromAge(age, today) })}>
     <NumberInput label="Age" suffix="yrs" value={text} onChange={setText} min={AGE_MIN} max={AGE_MAX} />
   </NumberForm>;
 }
@@ -99,8 +105,10 @@ function AgeQuestion({ facts, today, onAnswer }: { facts: OnboardingFacts; today
 function HeightQuestion({ facts, onAnswer }: { facts: OnboardingFacts; onAnswer: (a: FactAnswer) => void }) {
   const known = factValue(facts, "heightCm");
   const start = known !== undefined ? cmToFtIn(known) : null;
-  const [feet, setFeet] = useState(start ? String(start.ft) : "");
-  const [inches, setInches] = useState(start ? String(start.in) : "");
+  const seeded = { feet: start ? String(start.ft) : "", inches: start ? String(start.in) : "" };
+  const [feet, setFeet] = useState(seeded.feet);
+  const [inches, setInches] = useState(seeded.inches);
+  const untouched = known !== undefined && feet === seeded.feet && inches === seeded.inches;
   const ft = Number(feet);
   const inch = inches.trim() === "" ? 0 : Number(inches);
   const shapeOk = feet.trim() !== "" && Number.isInteger(ft) && Number.isFinite(inch) && inch >= 0 && inch < 12;
@@ -108,7 +116,8 @@ function HeightQuestion({ facts, onAnswer }: { facts: OnboardingFacts; onAnswer:
   const valid = shapeOk && cm >= HEIGHT_CM.min && cm <= HEIGHT_CM.max;
   const error = feet.trim() !== "" && !valid ? "Enter feet, and inches from 0 to 11." : null;
   return <NumberForm question={QUESTION.heightCm!} valid={valid} error={error}
-    onSave={() => onAnswer({ key: "heightCm", value: Math.round(cm * 10) / 10 })}>
+    // A height left as shown keeps the stored centimetres: the inch display rounds them.
+    onSave={() => onAnswer({ key: "heightCm", value: untouched ? known : Math.round(cm * 10) / 10 })}>
     <NumberInput label="Feet" suffix="ft" value={feet} onChange={setFeet} min={3} max={8} />
     <NumberInput label="Inches" suffix="in" value={inches} onChange={setInches} min={0} max={11} />
   </NumberForm>;
@@ -116,14 +125,19 @@ function HeightQuestion({ facts, onAnswer }: { facts: OnboardingFacts; onAnswer:
 
 function WeightQuestion({ facts, onAnswer }: { facts: OnboardingFacts; onAnswer: (a: FactAnswer) => void }) {
   const known = factValue(facts, "weightKg");
-  const [text, setText] = useState(known !== undefined ? String(Math.round(kgToLb(known))) : "");
+  // Shown to the tenth of a pound, so a stored weight reopens close to what was measured.
+  const seeded = known !== undefined ? String(Math.round(kgToLb(known) * 10) / 10) : "";
+  const [text, setText] = useState(seeded);
   const lb = Number(text);
   const kg = Number.isFinite(lb) ? lbToKg(lb) : NaN;
   const valid = text.trim() !== "" && kg >= WEIGHT_KG.min && kg <= WEIGHT_KG.max;
   const error = text.trim() !== "" && !valid ? "Enter your weight in pounds." : null;
   return <NumberForm question={QUESTION.weightKg!} valid={valid} error={error}
-    onSave={() => onAnswer({ key: "weightKg", value: Math.round(kg * 10) / 10 })}>
-    <NumberInput label="Weight" suffix="lb" value={text} onChange={setText} min={45} max={880} />
+    // A weight left as shown keeps the stored kilograms exactly (Sol p0 WARN): no new measurement,
+    // so no rounding through pounds.
+    onSave={() => onAnswer({ key: "weightKg",
+      value: known !== undefined && text === seeded ? known : Math.round(kg * 10) / 10 })}>
+    <NumberInput label="Weight" suffix="lb" value={text} onChange={setText} min={45} max={880} decimal />
   </NumberForm>;
 }
 

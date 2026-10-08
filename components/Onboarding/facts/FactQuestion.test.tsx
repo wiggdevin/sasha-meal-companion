@@ -48,8 +48,36 @@ describe("FactQuestion", () => {
   it("pre-fills a guessed value so one tap confirms it", () => {
     const onAnswer = vi.fn();
     render(<FactQuestion field="weightKg" facts={{ weightKg: 75, confidence: { weightKg: 0.6 } }} onAnswer={onAnswer} />);
-    expect((screen.getByLabelText("Weight") as HTMLInputElement).value).toBe("165");
+    expect((screen.getByLabelText("Weight") as HTMLInputElement).value).toBe("165.3");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(onAnswer).toHaveBeenCalledWith({ key: "weightKg", value: 74.8 });
+    expect(onAnswer).toHaveBeenCalledWith({ key: "weightKg", value: 75 });
+  });
+
+  it("reopening a precise stored weight shows its pounds and re-saves the same kg (Sol p0 WARN)", () => {
+    const onAnswer = vi.fn();
+    render(<FactQuestion field="weightKg" facts={{ weightKg: 72.35, confidence: { weightKg: 1 } }} onAnswer={onAnswer} />);
+    expect((screen.getByLabelText("Weight") as HTMLInputElement).value).toBe("159.5");
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onAnswer).toHaveBeenCalledWith({ key: "weightKg", value: 72.35 });
+  });
+
+  it("an edited weight is a new measurement, converted from the pounds typed", () => {
+    const onAnswer = vi.fn();
+    render(<FactQuestion field="weightKg" facts={{ weightKg: 72.35, confidence: { weightKg: 1 } }} onAnswer={onAnswer} />);
+    fireEvent.change(screen.getByLabelText("Weight"), { target: { value: "160.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onAnswer).toHaveBeenCalledWith({ key: "weightKg", value: 72.8 });
+  });
+
+  it("reopening a stored height or age re-saves the stored value unchanged", () => {
+    const onHeight = vi.fn();
+    render(<FactQuestion field="heightCm" facts={{ heightCm: 177.3, confidence: { heightCm: 1 } }} onAnswer={onHeight} />);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onHeight).toHaveBeenCalledWith({ key: "heightCm", value: 177.3 });
+    cleanup();
+    const onAge = vi.fn();
+    render(<FactQuestion field="birthYear" facts={{ birthYear: 1990, confidence: { birthYear: 1 } }} today={TODAY} onAnswer={onAge} />);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onAge).toHaveBeenCalledWith({ key: "birthYear", value: 1990 });
   });
 });
