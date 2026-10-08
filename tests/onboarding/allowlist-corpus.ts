@@ -48,6 +48,32 @@ export const MEDICINE_AND_CONDITION: readonly string[] = [
   "I'm recovering from heart surgery, want to walk daily",
 ];
 
+/** Final Sol review r3 (BLOCK: "I have a fit every week") and the sweep after it: sentences made
+ *  only of onboarding-shaped words that still name a health event, an injury, self-harm, a
+ *  pregnancy or an eating rule. */
+export const DUAL_MEANING: readonly string[] = [
+  "I have a fit every week",
+  "I had a fit last month",
+  "I cut myself every week",
+  "I fast every week",
+  "I fast 3 days a week",
+  "I have a stone",
+  "I have a mass",
+  "my cycle is every 28 days",
+  "my back is out",
+  "I have drop foot",
+  "my feet are bad",
+  "my body is done",
+  "I went into labor 2 weeks ago",
+  "I'm 20 weeks",
+  "I'm about 5 months along",
+  "3 months postpartum, want to lose weight",
+  "I'm run down all the time",
+  "I want to eat under 800 a day",
+  "I skip meals to lose weight",
+  "I'm heavy every month",
+];
+
 export const NORMAL_OPENERS: readonly string[] = [
   "lose 20 pounds, I'm 34, 5 foot 6, 170",
   "I want to lose weight",

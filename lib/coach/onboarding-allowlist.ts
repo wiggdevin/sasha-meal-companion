@@ -16,53 +16,56 @@
  * Words never on this list, on purpose: every health, body-part, symptom, medicine and clinician
  * word; every food, drink and diet name (diet flags come from the tap-only safety and Foods
  * steps); "take" in any form (how people name a medicine); "feel", "tired", "energy", "health";
- * vague nouns ("thing", "stuff", "issue"); reason and condition joiners ("because", "since",
+ * vague nouns ("thing", "stuff", "issue"); words with a second, health meaning (final Sol review
+ * r3: "I have a fit every week"): "fit" (a seizure), "mass" and "stone" (a growth), "back" (an
+ * injury), "cycle" (menstrual), "fast" and "skip" (eating rules), "myself" (self-harm: "I cut
+ * myself"), "heavy", "spin", "turn"; reason and condition joiners ("because", "since",
  * "unless", "except", "due"); "can't", "won't", "shouldn't", "avoid", "allowed" (rule forms).
  * tests/onboarding/allowlist-gate.test.ts pins that no word here matches a deny pattern.
  *
  * Pure. No I/O.
  */
 
-const FUNCTION_WORDS = `a an the i i'm im i've ive i'd id me my myself we we're our us you your it it's its
-this that is am are was were be been being do does did doing have has had having and or but so as at by
-for from in into of on to with about than then too very really quite pretty just also still mostly
-usually always often sometimes generally typically normally currently right now these days around
-roughly approximately approx about maybe probably like ish what how much many more less most least
-some any all each every both other another few lot lots little bit kind sort not no don't dont do
-never yes yeah yep ok okay sure hi hello hey thanks thank please would will could should want wants
-wanted wanting need needs needed hope hoping hoped trying try tried tries looking aim aiming plan
-planning planned goal goals target targets get gets got getting go goes going went able here there
-up down out over under between least start started starting begin back again already well
-know think say said tell rather prefer prefers skip one ones who which good better great`;
+const FUNCTION_WORDS = `a an the i i'm im i've ive i'd id me my we we're our us you your it it's its this that is am are was
+were be been being do does did doing have has had having and or but so as at by for from in into of
+on to with about than then too very really quite pretty just also still mostly usually always often
+sometimes generally typically normally currently right now these days around roughly approximately
+approx about maybe probably like ish what how much many more less most least some any all each every
+both other another few lot lots little bit kind sort not no don't dont do never yes yeah yep ok okay
+sure hi hello hey thanks thank please would will could should want wants wanted wanting need needs
+needed hope hoping hoped trying try tried tries looking aim aiming plan planning planned goal goals
+target targets get gets got getting go goes going went able here there up down out over under
+between least start started starting begin again already well know think say said tell rather prefer
+prefers one ones who which good better great`;
 
 const NUMBER_WORDS = `zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen
 fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety
 hundred half quarter once twice thrice couple`;
 
-const GOAL_WORDS = `lose losing lost drop dropping dropped cut cutting shed shedding gain gaining gained
-build building built add adding pack packing put weight weights fat body muscle muscles muscular mass
-lean leaner leaning tone toned toning bulk bulking recomp recomposition maintain maintaining
-maintenance keep keeping stay staying same where steady stronger strong strength fit fitter fitness
-shape healthy healthier slim slimmer trim smaller bigger size progress slowly slow fast faster quickly
-quick gradual gradually steadily pace rate per`;
+const GOAL_WORDS = `lose losing lost drop dropping dropped cut cutting shed shedding gain gaining gained build building
+built add adding pack packing put weight weights fat body muscle muscles muscular lean leaner
+leaning tone toned toning bulk bulking recomp recomposition maintain maintaining maintenance keep
+keeping stay staying same where steady stronger strong strength fitter fitness composition shape healthy
+healthier slim slimmer trim smaller bigger size progress slowly slow quick gradual gradually
+steadily pace rate per`;
 
-const MEASURE_WORDS = `pounds pound lb lbs kg kgs kilo kilos kilogram kilograms ft foot feet in inch inches
-cm cms centimeter centimeters centimetre centimetres m meter meters metre metres tall height weigh
-weighs weighed weighing currently stone st heavy`;
+const MEASURE_WORDS = `pounds pound lb lbs kg kgs kilo kilos kilogram kilograms ft foot feet in inch inches cm cms
+centimeter centimeters centimetre centimetres m meter meters metre metres tall height weigh weighs
+weighed weighing currently`;
 
 const AGE_SEX_WORDS = `age aged old years year yrs yr yo born birthday turning turned turn male female man
 woman guy girl boy lady gal dude men women`;
 
-const ACTIVITY_WORDS = `active activity inactive sedentary lightly light moderate moderately very
-exercise exercises exercising workout workouts work works working out train trains training trained
-gym lift lifts lifting lifted weightlifting powerlifting bodybuilding strength cardio run runs running
-ran runner jog jogs jogging walk walks walking walked hike hikes hiking swim swims swimming bike bikes
-biking cycle cycles cycling ride riding spin yoga pilates crossfit hiit boxing climbing climb dance
-dancing sport sports play plays playing basketball soccer football tennis volleyball baseball softball
-golf hockey rowing row martial arts class classes session sessions steps step desk job office sit sits
-sitting seated stand stands standing feet all day days week weeks weekly month months daily everyday
-hour hours minute minutes mins min times time job jobs shift shifts physical labor labour busy home
-school student retired`;
+const ACTIVITY_WORDS = `active activity inactive sedentary lightly light moderate moderately very exercise exercises
+exercising workout workouts work works working out train trains training trained gym lift lifts
+lifting lifted weightlifting powerlifting bodybuilding strength cardio run runs running ran runner
+jog jogs jogging walk walks walking walked hike hikes hiking swim swims swimming bike bikes biking
+cycling ride riding yoga pilates crossfit hiit boxing climbing climb dance dancing sport sports play
+plays playing basketball soccer football tennis volleyball baseball softball golf hockey rowing row
+martial arts class classes session sessions steps step desk job office sit sits sitting seated stand
+stands standing feet all day days week weeks weekly month months daily everyday hour hours minute
+minutes mins min times time job jobs shift shifts physical  busy home school student
+retired`;
 
 const DAY_WORDS = `monday mondays tuesday tuesdays wednesday wednesdays thursday thursdays friday fridays
 saturday saturdays sunday sundays mon tue tues wed thu thur thurs fri sat sun weekday weekdays weekend
@@ -107,7 +110,29 @@ const SHAPE_PATTERNS: readonly RegExp[] = [
   /\b(?:after|before|when|whenever|every ?time)\s+(?:i\s+)?(?:eat|eating|ate)\b/,
   // An eating rule ("I don't eat after 7", "I only eat dinner"): a rule, read by the tap-only steps.
   /\b(?:don'?t|do not|never|not|no|only|stop|stopped|can'?t|cannot|won'?t)\s+(?:\w+\s+)?(?:eat|eats|eating|ate)\b/,
+  // A calorie or intake ceiling ("eat under 800"): an eating-disorder signal, never a goal.
+  /\b(?:eat|eats|eating|ate)\b[^.!;]{0,20}\b(?:under|below|less than|no more than|at most)\s+\d/,
+  // "I'm 20 weeks", "about 5 months in": a pregnancy said without the word.
+  /\b(?:i'?m|i am|im)\s+(?:about\s+|around\s+|almost\s+|nearly\s+)?\d{1,2}\s+(?:weeks?|months?)\b/,
+  /\b\d{1,2}\s+(?:weeks?|months?)\s+(?:along|in|pregnant|postpartum)\b/,
+  /\brun down\b|\bworn out\b/,
 ];
+
+/** The goal phrases "get fit" and "stay fit" are read as "fitness"; "fit" alone is never a word
+ *  here ("I have a fit every week" is a seizure). */
+const FIT_PHRASE = /\b(get|getting|got|stay|staying|keep|keeping|be|more|very|super)\s+fit\b/g;
+
+/** A body word only in its measurement or goal use: "5 foot 6", "on my feet all day", "body fat".
+ *  Anything else ("my foot", "drop foot", "my body is…") keeps the text local. */
+function bodyWordsInPlace(words: readonly string[]): boolean {
+  return words.every((word, i) => {
+    if (word === "foot" || word === "feet" || word === "ft") {
+      return NUMBER.test(words[i - 1] ?? "") || (words[i - 2] === "on" && (words[i - 1] === "my" || words[i - 1] === "your"));
+    }
+    if (word === "body") return ["fat", "weight", "composition", "recomp", "recomposition"].includes(words[i + 1] ?? "");
+    return true;
+  });
+}
 
 /** Lowercased, accents folded, quote marks unified, digits split from their unit
  *  ("5'6\"" → "5 ' 6 \"", "170lbs" → "170 lbs", "7am" → "7 am", "y.o." → "yo"). */
@@ -145,14 +170,15 @@ export type OnboardingAllowlistVerdict =
 export function onboardingAllowlistVerdict(text: string): OnboardingAllowlistVerdict {
   const raw = typeof text === "string" ? text : "";
   if (raw.length > ONBOARDING_ALLOWLIST_MAX_CHARS) return { send: false, reason: "too_long" };
-  const norm = normalizeOnboardingText(raw);
+  const norm = normalizeOnboardingText(raw).replace(FIT_PHRASE, "$1 fitness");
   if (norm.length === 0) return { send: false, reason: "empty" };
   if (!PLAIN_CHARS.test(norm)) return { send: false, reason: "characters" };
   if (SHAPE_PATTERNS.some((pattern) => pattern.test(norm))) return { send: false, reason: "shape" };
   const words = tokens(norm);
   if (words.length === 0) return { send: false, reason: "empty" };
   if (words.length > MAX_TOKENS) return { send: false, reason: "too_long" };
-  return words.every(knownToken) ? { send: true } : { send: false, reason: "unknown_word" };
+  if (!words.every(knownToken)) return { send: false, reason: "unknown_word" };
+  return bodyWordsInPlace(words) ? { send: true } : { send: false, reason: "shape" };
 }
 
 export function onboardingMayReachModel(text: string): boolean {

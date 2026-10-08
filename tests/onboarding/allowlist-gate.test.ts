@@ -20,7 +20,7 @@ import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { TEST_USER } from "@/tests/helpers/account";
 import { ACCEPTANCE_LOCAL, HEALTH_CORPUS, REDTEAM_CORPUS } from "@/tests/fixtures/taste-safety-corpus";
 import {
-  MEDICINE_AND_CONDITION, NORMAL_OPENERS, SOL_REVIEW_MEDICINE,
+  DUAL_MEANING, MEDICINE_AND_CONDITION, NORMAL_OPENERS, SOL_REVIEW_MEDICINE,
 } from "@/tests/onboarding/allowlist-corpus";
 
 vi.mock("@/lib/server/auth", async (orig) => ({
@@ -61,7 +61,7 @@ const opts = { now: NOW, online: true, fetchImpl: routeFetch as never };
 const REVIEWED_GOAL_STATEMENTS = ["I'm trying to lose weight", "I'm bulking"];
 
 const W5B = [...ACCEPTANCE_LOCAL, ...HEALTH_CORPUS].map((c) => c.text);
-const KEEP_LOCAL = [...W5B, ...REDTEAM_CORPUS, ...SOL_REVIEW_MEDICINE, ...MEDICINE_AND_CONDITION]
+const KEEP_LOCAL = [...W5B, ...REDTEAM_CORPUS, ...SOL_REVIEW_MEDICINE, ...MEDICINE_AND_CONDITION, ...DUAL_MEANING]
   .filter((text) => !REVIEWED_GOAL_STATEMENTS.includes(text));
 
 describe("the onboarding vocabulary", () => {
@@ -75,7 +75,7 @@ describe("the onboarding vocabulary", () => {
     expect(flagged).toEqual([]);
   });
 
-  it.each(["take", "taking", "took", "feel", "tired", "energy", "health", "pill", "doctor", "diet",
+  it.each(["fit", "myself", "fast", "stone", "cycle", "back", "mass", "skip", "labor", "take", "taking", "took", "feel", "tired", "energy", "health", "pill", "doctor", "diet",
     "vegan", "keto", "thing", "stuff", "because", "since", "avoid", "can't", "allergic", "pain"])(
     "never holds %s", (word) => {
       expect(ONBOARDING_WORDS.has(word)).toBe(false);
@@ -98,6 +98,17 @@ describe("the allowlist verdict", () => {
     ["   ", "empty"],
   ])("keeps %s local (%s)", (text, reason) => {
     expect(onboardingAllowlistVerdict(text)).toEqual({ send: false, reason });
+  });
+
+  it.each(DUAL_MEANING)("keeps a dual-meaning sentence local: %s", (text) => {
+    expect(onboardingMayReachModel(text)).toBe(false);
+  });
+
+  it("reads the goal and measure uses of those words", () => {
+    for (const text of ["I want to get fit", "stay fit and lose 10 lb", "5 foot 6", "6 feet tall",
+      "on my feet all day", "lose body fat"]) {
+      expect(onboardingMayReachModel(text), text).toBe(true);
+    }
   });
 
   it("reads foot and inch marks, glued units and clock times", () => {
