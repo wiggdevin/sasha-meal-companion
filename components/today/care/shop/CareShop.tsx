@@ -11,6 +11,8 @@ import { LEDGER_COPY, SHOP_ITEMS, itemById, words, type CareScene, type ShopItem
 import { equip, pendingSeeds, purchase, seeds, type EquipOutcome, type PurchaseOutcome, type ShopState } from "@/components/today/care/shop/shop-state";
 import { play, readMuted, unlockAudio } from "@/components/today/care/sound";
 import styles from "@/components/today/care/shop/Shop.module.css";
+import { named } from "@/components/today/island/mascots";
+import { useMascot } from "@/components/today/island/well-pet";
 
 /** A seed: the Seeds glyph, in the currentColor of its place. */
 function Seed() {
@@ -65,6 +67,9 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   const [busy, setBusy] = useState(false);
   const retry = useRef<{ itemId: string; actionId: string } | null>(null);
   const reduce = useReducedMotionConfig() ?? false;
+  const mascot = useMascot();
+  // The wearables are painted for Sprout's shape: another companion sees them, but cannot wear them yet.
+  const wears = mascot === "sprout";
   // Sprout fills the stage, whatever room the well gives it.
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(196);
@@ -94,7 +99,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   const [playing, setPlaying] = useState<CareScene | null>(null);
   // What Sprout has on: its own things, and the chosen item tried on in its slot.
   const wearing: Partial<Record<Slot, string>> = { ...state.equipped };
-  if (item && !care) wearing[item.slot] = item.id;
+  if (item && !care && wears) wearing[item.slot] = item.id;
   const pending = pendingSeeds(state);
 
   const choose = (next: ShopItem) => {
@@ -103,6 +108,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     // Say so whenever the preview actually changes what Sprout has on — an owned item not yet worn
     // previews exactly like an unbought one. Selecting an already-worn item changes nothing to say.
     if (next.scene) setSaid("");
+    else if (!wears) setSaid("");
     else if (state.equipped[next.slot] !== next.id) setSaid(`Sprout tries on ${words(next).the}.`);
   };
   const buy = async (target: ShopItem) => {
@@ -148,7 +154,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     const result = await decide.equip(state, target.slot, on ? target.id : null);
     setBusy(false);
     if (result === "failed") { setSaid("That did not go through. Try again."); return; }
-    if (result === "conflict") { setSaid("Sprout changed on another device. Try again."); onRefresh?.(); return; }
+    if (result === "conflict") { setSaid("Your companion changed on another device. Try again."); onRefresh?.(); return; }
     if (!result.ok) return;
     onChange(result.state);
     if (!on) { setChosen(null); tileRefs.current[target.id]?.focus(); }
@@ -156,7 +162,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   };
 
   const shortBy = item && !owned ? Math.max(0, item.price - state.balance) : 0;
-  return <section className={styles.shop} aria-label="Sprout's shop">
+  return <section className={styles.shop} aria-label={named("Sprout's shop", mascot)}>
     <div className={styles.top}>
       <button type="button" className={`tap ${styles.balance}`} aria-expanded={ledgerOpen} aria-controls={ledgerId}
         aria-label={`${seeds(state.balance)}. ${ledgerOpen ? "Hide" : "Show"} recent Seeds`} onClick={() => setLedgerOpen((o) => !o)}>
@@ -189,8 +195,8 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     <div ref={stage} className={styles.stage}>
     <motion.div key={bought} className={styles.stageBody} initial={bought && !reduce ? { scale: 0.96, y: 6 } : false}
       animate={{ scale: 1, y: 0 }} transition={reduce ? INSTANT : SPRINGS.bouncy}>
-      <DressedSprout wearing={wearing} size={size}
-        label={`Sprout${Object.keys(wearing).length ? `, wearing ${Object.values(wearing).map((id) => itemById(id!)?.name.toLowerCase()).join(", ")}` : ""}`} />
+      <DressedSprout wearing={wearing} size={size} mascot={mascot}
+        label={named(`Sprout${Object.keys(wearing).length ? `, wearing ${Object.values(wearing).map((id) => itemById(id!)?.name.toLowerCase()).join(", ")}` : ""}`, mascot)} />
     </motion.div>
     </div>
 
@@ -201,7 +207,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
         return <li key={entry.id}>
           <button type="button" ref={(el) => { tileRefs.current[entry.id] = el ?? undefined; }}
             className={`tap ${styles.tile}`} aria-pressed={chosen === entry.id}
-            aria-label={`${entry.name}, ${mine ? (on ? "yours, on Sprout" : "yours") : seeds(entry.price)}`} onClick={() => choose(entry)}>
+            aria-label={named(`${entry.name}, ${mine ? (on ? "yours, on Sprout" : "yours") : seeds(entry.price)}`, mascot)} onClick={() => choose(entry)}>
             <span className={styles.tileArt}><Image src={entry.art} alt="" fill sizes="48px" draggable={false} /></span>
             {mine ? <span className={styles.tileMark}>{on ? "On" : "Yours"}</span>
               : <span className={styles.tilePrice}><Seed />{entry.price}</span>}
@@ -214,7 +220,8 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
       <div className={styles.actionText}>
         <span className={styles.actionName}>{item ? item.name : "Try something on"}</span>
         <span className={styles.actionNote}>
-          {!item ? "Tap an item: Sprout tries it on."
+          {!item ? (wears ? "Tap an item: Sprout tries it on." : "Tap an item to see it. Only Sprout can wear these for now.")
+            : !care && !wears ? "Only Sprout can wear this for now."
             : owned && care ? "Yours. It plays any time."
             : owned ? (worn ? `Sprout has ${words(item).it} on.` : `Yours. Sprout can wear ${words(item).it}.`)
             : shortBy > 0 ? `${seeds(shortBy)} more to go.` : `Balance after: ${seeds(state.balance - item.price)}.`}
@@ -224,17 +231,17 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
         {/* One shared key: Buy, Wear and Take off are the same action slot, so a purchase or a wear
             toggle updates this button in place and keeps keyboard focus on it, never dropping focus
             to the page when the slot swaps to a different label. */}
-        {!owned && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
+        {!owned && (care || wears) && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
           status={busy ? "pending" : undefined} onClick={() => void buy(item)}
           aria-label={`Buy ${words(item).the} for ${seeds(item.price)}`}>Buy · {item.price}</Button>}
         {owned && care && <Button key="action" variant="primary" size="sm" onClick={() => setPlaying(care)}>Play</Button>}
-        {owned && !care && !worn && <Button key="action" variant="primary" size="sm" disabled={busy}
+        {owned && !care && wears && !worn && <Button key="action" variant="primary" size="sm" disabled={busy}
           status={busy ? "pending" : undefined} onClick={() => void wear(item, true)}>Wear</Button>}
         {owned && worn && <Button key="action" variant="secondary" size="sm" disabled={busy}
           status={busy ? "pending" : undefined} onClick={() => void wear(item, false)}>Take off</Button>}
       </div>}
     </div>
-    <p className="sr-only" aria-live="polite">{said}</p>
+    <p className="sr-only" aria-live="polite">{named(said, mascot)}</p>
     <AnimatePresence>
       {playing && <CareScenePlayer key={playing} scene={playing} onClose={() => setPlaying(null)} />}
     </AnimatePresence>
