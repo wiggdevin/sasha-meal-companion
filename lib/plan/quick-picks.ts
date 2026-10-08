@@ -39,11 +39,11 @@ export function rankPicks(slotTime: string, target: Macros | undefined, date: st
 }
 
 const NEED: Record<QuickPick, string> = {
-  "Choose for me": "Use foods from my Eats list first and pick what fits best.",
+  "Choose for me": "Start with my Favorites and pick what fits best.",
   "High protein": "Prioritize protein.",
   "Ready in 15 min": "Prefer meals I can make in 15 minutes or less.",
   "Something light": "Keep it light and easy to digest.",
-  "Use what I have": "Use only foods already in my Eats list.",
+  "Use what I have": "Use only foods already in my Favorites.",
   "Surprise me": "Try something I have not had recently, with some variety in flavour.",
 };
 

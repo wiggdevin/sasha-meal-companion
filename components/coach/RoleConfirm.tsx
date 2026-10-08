@@ -64,8 +64,8 @@ function rememberDecision(actionId: string, decision: "saved" | "kept"): void {
 }
 
 function freshLine(fresh: Extract<RoleConfirmResult, { status: "changed" }>["fresh"]): string {
-  if (!fresh) return "It is no longer in Eats or Avoids.";
-  const list = fresh.status === "eats" ? "Eats" : "Avoids";
+  if (!fresh) return "It is no longer in Favorites or Avoids.";
+  const list = fresh.status === "eats" ? "Favorites" : "Avoids";
   return fresh.role ? `It is now ${ROLE_WORD[fresh.role]} in ${list}.` : `It has no group yet in ${list}.`;
 }
 
@@ -73,7 +73,7 @@ function refusalMessage(result: Refusal): Message {
   if (result.status === "changed") {
     return { tone: "attention", title: "This food's group changed. Check it again.", body: freshLine(result.fresh) };
   }
-  if (result.status === "not_member") return { tone: "attention", title: "This food isn't in Eats or Avoids." };
+  if (result.status === "not_member") return { tone: "attention", title: "This food isn't in Favorites or Avoids." };
   return { tone: "attention", title: "This food is still syncing.", body: "Try again in a moment." };
 }
 

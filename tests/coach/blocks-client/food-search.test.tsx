@@ -25,7 +25,7 @@ function block(intent: FoodSearchBlockV1["intent"], overrides: Partial<FoodSearc
 describe("food search block", () => {
   it.each([
     ["log", "Log", "logFood"],
-    ["eats", "Eats", "markEats"],
+    ["eats", "Favor", "markEats"],
     ["avoid", "Avoid", "markAvoid"],
   ] as const)("routes %s through its context callback", async (intent, label, callback) => {
     const handler = vi.fn();
@@ -39,9 +39,9 @@ describe("food search block", () => {
   it("shows an already marked row instead of a redundant membership button", () => {
     render(<FoodSearchBlock block={block("eats", { results: [{ ...row, status: "eats" }] })}
       ctx={blockContext()} />);
-    expect(screen.getByText("In Eats")).toBeTruthy();
-    expect(screen.getByText("Eats")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Eats" })).toBeNull();
+    expect(screen.getByText("Favored")).toBeTruthy();
+    expect(screen.getByText("Favor")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Favor" })).toBeNull();
   });
 
   it("shows blocked rows and calories without implying neutral is a safety result", () => {
@@ -61,7 +61,7 @@ describe("food search block", () => {
   it("describes existing Eats membership without claiming the food is a favorite", () => {
     render(<FoodSearchBlock block={block("eats", { results: [{ ...row, status: "eats" }] })}
       ctx={blockContext()} />);
-    expect(screen.getByText("In Eats")).toBeTruthy();
+    expect(screen.getByText("Favored")).toBeTruthy();
     expect(screen.queryByText("Favorite")).toBeNull();
   });
 

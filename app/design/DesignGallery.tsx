@@ -144,7 +144,7 @@ export default function DesignGallery() {
             <Chip selected={unit === "kg"} onClick={() => setUnit("kg")}>kg</Chip>
           </div>
           <Segmented label="Foods" panel="d-panel" value={tab} onChange={setTab}
-            options={[{ value: "eats", label: "Eats" }, { value: "avoids", label: "Avoids" }]} />
+            options={[{ value: "eats", label: "Favorites" }, { value: "avoids", label: "Avoids" }]} />
         </Surface>
       </Block>
 

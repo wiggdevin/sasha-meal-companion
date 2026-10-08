@@ -39,7 +39,7 @@ const ports = {
 };
 
 
-const NO_SNACK = "I couldn't find a snack option that fits your food rules yet. Try another idea or add foods to your Favored list.";
+const NO_SNACK = "I couldn't find a snack option that fits your food rules yet. Try another idea, or name a food you would like and I will build around it.";
 
 function emptyWithMessage(message: string) {
   const cards = [] as unknown[];

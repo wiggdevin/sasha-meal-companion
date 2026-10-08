@@ -266,8 +266,8 @@ describe("Today, the page", () => {
     pinned.store = { ...pinned.store, foods: {} }; // D5: one protein repeats; none is short.
     await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
     const notice = await screen.findByText(/0 eligible proteins for 3 meals\./);
-    expect(notice.textContent).toBe("0 eligible proteins for 3 meals. Add a verified protein in Foods.");
-    expect(within(notice).getByRole("link", { name: "Foods" }).getAttribute("href")).toBe("/foods#eats");
+    expect(notice.textContent).toBe("0 eligible proteins for 3 meals. Star a protein you like in Foods › Favorites.");
+    expect(within(notice).getByRole("link", { name: "Foods › Favorites" }).getAttribute("href")).toBe("/foods#eats");
   });
 
   afterEach(cleanup);

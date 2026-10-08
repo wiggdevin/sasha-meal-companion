@@ -124,3 +124,29 @@ describe("checkDraft", () => {
     expect(suggestions[0].verdict).toBe("unverified");
   });
 });
+
+describe("checkItem with the server-read profile of an account with no allergen rule and no condition", () => {
+  // lib/server/constraints.ts always reads `conditions`; an account with no rules reads [].
+  const NO_RULES = { avoid_allergens: [], avoid_food_ref_ids: [], banned_categories: [], conditions: [] };
+
+  it("a catalog food off Eats with no tag list is allowed, not unverified (no allow list)", () => {
+    expect(checkItem(item({ allergenTags: null, category: [], onEatsList: false }), NO_RULES)).toEqual({ verdict: "allowed" });
+  });
+
+  it("a draft food with NO evidence entry stays unverified (Sol r1 BLOCK 1)", () => {
+    const [row] = checkDraft({ title: "x", items: [{ foodRefId: null, name: "zorblax loaf", grams: 100 }] } as never, NO_RULES);
+    expect(row.verdict).toBe("unverified");
+  });
+
+  it("with a banned category active, a food whose category is unknown stays unverified", () => {
+    expect(checkItem(item({ allergenTags: null, category: null, onEatsList: false }),
+      { ...NO_RULES, banned_categories: ["beans"] })).toEqual({ verdict: "unverified" });
+  });
+
+  it("the same food stays unverified for an account with an allergen rule, and Avoid blocks it", () => {
+    expect(checkItem(item({ allergenTags: null, category: [], onEatsList: false }), { ...NO_RULES, avoid_allergens: ["soy"] }))
+      .toEqual({ verdict: "unverified" });
+    expect(checkItem(item({ allergenTags: null, category: [], onEatsList: false, onAvoidList: true }), NO_RULES).verdict)
+      .toBe("blocked");
+  });
+});

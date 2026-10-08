@@ -137,6 +137,32 @@
       }
     },
     {
+      "key": "u:egg-noodles-cooked",
+      "name": "Egg noodles, cooked",
+      "days180": 1,
+      "lastOn": "2026-09-14",
+      "favored": false,
+      "favorable": false,
+      "h": 0.7126,
+      "q": 0,
+      "provenance": {
+        "match": "universe",
+        "estimated": false,
+        "sources": {
+          "log": 0,
+          "recipe": 1,
+          "tick": 0,
+          "mixed_dish": 0
+        },
+        "collapsed": 0,
+        "choices": {
+          "swap_pick": 0,
+          "plan_add": 0,
+          "shopping_manual": 0
+        }
+      }
+    },
+    {
       "key": "u:spinach-raw",
       "name": "Spinach, raw",
       "days180": 1,

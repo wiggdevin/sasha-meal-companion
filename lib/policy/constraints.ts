@@ -76,6 +76,16 @@ export type PolicyEvidence = {
   onEatsList: boolean;
   /** This account's own `user_food_prefs.status` for this food is `avoid`. */
   onAvoidList: boolean;
+  /**
+   * Phase 18 D4 (the "no evidence" row of the exclusions table): the evidence carries a derived,
+   * deterministic state for EVERY allergen key (listed, clear or unknown: an open-world universe
+   * item), so the legacy no-tag-list gate below never decides it. That gate
+   * is the closed world's allow list (only an Eats mark lifts it); with this flag the verdict is
+   * exactly the resolved marks. It clears nothing else: an avoided allergen still decides for
+   * itself (an `unknown` state stays unverified), and every diet, category, custom and profile
+   * rule still marks as before.
+   */
+  perAllergenEvidence?: true;
   /** Confirmed preferences are matched here in code, never sent to Jev. */
   preferenceFlags?: readonly PolicyPreferenceFlag[];
   /**
@@ -181,6 +191,8 @@ const SOURCE_ORDER: Record<PolicyMarkSource, number> = {
  * guard and then never matched the tag "gluten" — one trailing space silently switched gluten
  * blocking off. Writes are normalized now; this stays tolerant so an already-stored padded row
  * cannot bypass it either.
+ *
+ * The legacy no-tag-list gate at the end is lifted only by `liftsLegacyGate` (below).
  */
 export function evaluatePolicy(profile: ConstraintProfile, e: PolicyEvidence): PolicyVerdict {
   const enhanced = e.facetAction !== undefined || e.preferenceFlags !== undefined
@@ -195,7 +207,8 @@ export function evaluatePolicy(profile: ConstraintProfile, e: PolicyEvidence): P
     const withFindings = { ...resolved, allergens: findings };
     return enhanced ? { ...withFindings, marks } : withFindings;
   }
-  if (resolved.verdict !== "allowed" || e.allergenTags !== null || e.onEatsList) {
+  if (resolved.verdict !== "allowed" || e.allergenTags !== null || e.onEatsList || e.perAllergenEvidence
+    || liftsLegacyGate(profile, e)) {
     return enhanced ? { ...resolved, marks } : resolved;
   }
   const legacy = { verdict: "unverified" as const };
@@ -204,6 +217,30 @@ export function evaluatePolicy(profile: ConstraintProfile, e: PolicyEvidence): P
       facet: "allergens", source: "ingredient", outcome: "unknown",
     }] }
     : legacy;
+}
+
+/**
+ * Owner direction 2026-10-08 ("no allow list"): the legacy no-tag-list gate exists for an allergen
+ * the evidence cannot speak to. An account that avoids NO allergen and has stated NO condition has
+ * nothing for that gate to protect, so a food whose evidence was actually read follows the normal
+ * verdict there instead of needing an Eats mark (the closed world's allow list). Fail closed:
+ *   - `conditions` must have been read (the server profile readers always select it) and be
+ *     empty; a profile object without the field (EMPTY_PROFILE, a caller that never read the row)
+ *     keeps the gate;
+ *   - the food's evidence must have been read: `category` is the revision's `policy_categories`
+ *     (stored, or derived from the revision row), so `null` means no evidence entry at all (an
+ *     unfamiliar draft name, an unread row) and keeps the gate (Sol r1 BLOCK 1). That also keeps a
+ *     food whose category cannot be determined unverified while any banned category is active.
+ * Any allergen rule or condition keeps today's behaviour exactly. Avoid, diet, category, custom and
+ * profile rules mark before the gate and are unchanged; no Jev input is read.
+ */
+export function noAllergenOrConditionRule(profile: ConstraintProfile): boolean {
+  return profile.avoid_allergens.every((key) => !key.trim())
+    && Array.isArray(profile.conditions) && profile.conditions.every((text) => !text.trim());
+}
+
+function liftsLegacyGate(profile: ConstraintProfile, e: PolicyEvidence): boolean {
+  return e.category !== null && noAllergenOrConditionRule(profile);
 }
 
 /**

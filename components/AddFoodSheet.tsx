@@ -249,7 +249,7 @@ export default function AddFoodSheet({
         footer={
           <div className="flex flex-col gap-2.5">
             <Button variant="primary" size="lg" block disabled={!canSave || customSaving} onClick={saveCustom}>
-              {confirmAvoid?.startsWith("custom:") ? "Add back to Eats" : "Add to my foods"}
+              {confirmAvoid?.startsWith("custom:") ? "Add back to Favorites" : "Add to my foods"}
             </Button>
             <WorkingLine active={customSaving} step="commit" />
             {customError && <Notice tone="error" title={customError} />}
