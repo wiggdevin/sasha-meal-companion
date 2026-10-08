@@ -5,6 +5,7 @@
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { STARTERS, starterFillShortRoles, type StarterMark } from "@/lib/foods/starter";
+import { dbFood } from "@/lib/food-db";
 import FallingFoodPile, { buildQueue, pickLane, PILE_TIMING } from "./FallingFoodPile";
 
 afterEach(cleanup);
@@ -86,5 +87,20 @@ describe("FallingFoodPile end state and remount", () => {
     expect(within(grid).getAllByRole("button")).toHaveLength(3);
     expect(within(grid).getByRole("button", { name: /Olive oil/ }).getAttribute("aria-pressed")).toBe("true");
     expect(buildQueue(deck)).toHaveLength(3);
+  });
+
+  it("the end grid offers the whole eligible deck, past the 14 that fell, with the taps kept (Sol r2 BLOCK)", () => {
+    const big = STARTERS.slice(0, 20);
+    const fell = buildQueue(big).map((item) => item.id);
+    expect(fell).toHaveLength(14);
+    const unseen = big.find((item) => !fell.includes(item.id))!;
+    render(<FallingFoodPile choices={big} marks={{ [fell[0]]: "eats" }} onMark={vi.fn()}
+      shownIds={fell} onShown={vi.fn()} />);
+    const grid = screen.getByTestId("food-grid");
+    expect(within(grid).getAllByRole("button")).toHaveLength(20);
+    expect(within(grid).getAllByRole("button", { pressed: true })).toHaveLength(1);
+    // A food that never fell is still there to tap.
+    within(grid).getByRole("button", { name: new RegExp(`Love ${(dbFood(unseen.id)?.name ?? unseen.id).replace(/[()]/g, ".")}`) });
+    screen.getByText(/full list/);
   });
 });

@@ -23,8 +23,9 @@
  * - The page holds still for `PILE_TIMING.settleMs` before the first disc, so the instruction can
  *   be read. Reduced motion never animates at all (the grid from the start, as before).
  * - Discs spawn about three times further apart and fall about two and a half times slower.
- * - "Just pick from the list" opens the same end grid (`FoodGrid`) at once, with every food in
- *   the deck; a tap there writes the same `onMark` the falling discs do.
+ * - "Just pick from the list" opens the same end grid (`FoodGrid`) at once. Every grid (the list,
+ *   the end of the fall, reduced motion) shows the whole eligible deck with the taps kept; only the
+ *   fall is capped at 14. A tap there writes the same `onMark` the falling discs do.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -254,15 +255,15 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
   const finished = !reduceMotion && game.issued >= remaining.length && game.falling.length === 0;
   // The end grid: everything shown this session plus anything marked loved, in deck order, current
   // deck only (an excluded food never comes back).
-  // "Just pick from the list" offers the whole eligible deck; the reduced-motion grid keeps the
-  // session's 14-food cap (VISUAL-SPEC.md §6, components/Onboarding/foods-reskin.test.tsx).
-  const gridItems = listMode ? deck : reduceMotion ? queue
-    : queue.filter((item) => shown.includes(item.id) || marks[item.id] === "eats");
+  // Every grid — "Just pick from the list", the end of the fall, and reduced motion — shows the
+  // whole eligible deck with the taps kept (Sol r2 BLOCK): only the animation is capped at 14, so
+  // a food that never fell is still one tap away.
+  const gridItems = deck;
 
   if (reduceMotion || finished || listMode) {
     return <div className="flex w-full flex-col gap-3" data-testid="falling-food-pile" data-state="grid">
       <Instruction choices={choices} marks={marks} />
-      {finished && <p className="m-0 text-caption text-graphite">That&rsquo;s all of them. Tap any you missed.</p>}
+      {finished && <p className="m-0 text-caption text-graphite">Here&rsquo;s the full list. Tap any you&rsquo;d eat.</p>}
       <FoodGrid items={gridItems} marks={marks} onMark={onMark} />
       <FoodTray loved={loved} />
     </div>;
