@@ -7,7 +7,9 @@
  * the meal.
  *
  * The date the server files is `local_date`, so that is the one date: the card, the request and
- * the page's own `onAdd` all take it. The first test is what the day looks like when they do; the
+ * the page's own `onAdd` all take it. (Since the UI audit of 2026-10-07 a log started on a past day
+ * carries that day in its request — `lib/log/viewed-at.ts` — so the one date is then the day on
+ * screen; a request eaten now, as below, still files on today and only there.) The first test is what the day looks like when they do; the
  * two below pin the wiring in the sheet and the page, which no node test can click.
  */
 import "fake-indexeddb/auto";

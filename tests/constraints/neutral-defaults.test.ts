@@ -212,6 +212,7 @@ describe("onboarding completion", () => {
         saveConstraints,
         localDate: () => "2026-10-26",
         hasWeighIn: () => true,
+        openFoodWorld: async () => {},
       } satisfies Parameters<typeof persistCompletedOnboarding>[3],
       saveConstraints,
     };

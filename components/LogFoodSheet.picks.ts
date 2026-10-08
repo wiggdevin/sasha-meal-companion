@@ -60,7 +60,9 @@ export function localOnlyMessage(result: NotSent): string {
 /** The card a typed label is logged as: one of the food's own units, its real grams when known. */
 export function labelCard(food: Food, at: Date): LoggedFood {
   const db = mineAsDb(food);
-  return sheetCard(db, db.portions[0], 1, { id: `${at.getTime().toString(36)}-lbl`, at: at.toISOString() },
+  // The time alone is not unique: a past day's logs share their slot's clock time.
+  const id = `${at.getTime().toString(36)}-${crypto.randomUUID().slice(0, 8)}-lbl`;
+  return sheetCard(db, db.portions[0], 1, { id, at: at.toISOString() },
     { [food.id]: food });
 }
 

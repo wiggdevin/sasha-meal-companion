@@ -63,6 +63,8 @@ export const SAMPLE_ACTIONS: CoachAction[] = [
       requiresConfirmation: true } },
   { actionId: "a25", flagged: ["salmon"], kind: "remove_from_eats", ...food, name: "salmon" },
   { actionId: "a26", flagged: [], kind: "add_to_shopping_list", names: ["eggs", "oat milk"] },
+  { actionId: "a27", flagged: [], kind: "set_shopping_focus", on: true, days: 10 },
+  { actionId: "a28", flagged: [], kind: "set_shopping_focus", on: false },
 ];
 
 /** An action kind a newer server may send an older phone (design §8.5). */
@@ -132,6 +134,9 @@ export const WIRE_SAMPLES: Record<string, unknown>[] = [
   wire({ kind: "remove_from_eats", name: "salmon" }),
   wire({ kind: "add_to_shopping_list", stringArgs: ["eggs", "oat milk"] }),
   wire({ kind: "add_to_shopping_list", stringArgs: [] }),
+  wire({ kind: "set_shopping_focus", stringArgs: ["on"], numericArgs: [10] }),
+  wire({ kind: "set_shopping_focus", stringArgs: ["off"] }),
+  wire({ kind: "set_shopping_focus" }),
   { kind: "log_mood", mood: "fine" },
   { kind: "log_water", ml: 250, numericArgs: [480] },
 ];
@@ -164,6 +169,8 @@ export const STRICT_SAMPLES: Record<string, unknown>[] = [
   { kind: "add_to_shopping_list", names: ["eggs", "oat milk"] },
   { kind: "add_to_shopping_list", names: [] },
   { kind: "add_to_shopping_list", names: Array.from({ length: 21 }, (_, i) => `item${i}`) },
+  { kind: "set_shopping_focus", on: true, days: 32 },
+  { kind: "set_shopping_focus", on: true },
 ];
 
 /** Stored rows replayed from the database, including legacy rows without titles or ranges. */

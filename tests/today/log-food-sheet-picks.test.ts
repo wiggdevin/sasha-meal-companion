@@ -152,8 +152,12 @@ describe("logLabelFood", () => {
 
   it("builds the label card from the food's own unit (#383)", () => {
     const db = mineAsDb(LABEL);
-    expect(labelCard(LABEL, new Date(0))).toEqual(
-      sheetCard(db, db.portions[0], 1, { id: "0-lbl", at: new Date(0).toISOString() }, { [LABEL.id]: LABEL }));
-    expect(labelCard(LABEL, new Date(0))).toMatchObject({ qty: 1, grams: 28.3495 });
+    const card = labelCard(LABEL, new Date(0));
+    expect({ ...card, id: "x" }).toEqual({ ...sheetCard(db, db.portions[0], 1, { id: "x", at: new Date(0).toISOString() },
+      { [LABEL.id]: LABEL }), id: "x" });
+    expect(card).toMatchObject({ qty: 1, grams: 28.3495 });
+    // Two labels logged at the same time (a past day's slot clock) are two cards (UI audit 2026-10-07).
+    expect(labelCard(LABEL, new Date(0)).id).not.toBe(card.id);
+    expect(card.id).toMatch(/^0-[0-9a-f]{8}-lbl$/);
   });
 });

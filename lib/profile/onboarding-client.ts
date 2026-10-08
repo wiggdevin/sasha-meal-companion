@@ -12,6 +12,7 @@ import { isProfileComplete } from "@/lib/profile/energy";
 import { targetSourceFor } from "@/lib/profile/derive";
 import { getDay, loadStore, saveStore } from "@/lib/store";
 import { getRow } from "@/lib/sync/idb";
+import { openFoodWorldAtOnboarding } from "@/lib/foods/world-open-client";
 import { mutateUserSettings, USER_SETTINGS_KEY } from "@/lib/sync/outbox";
 import { settingsProfileFromRow, settingsProfileToRow,
   type UserSettingsProfileRow } from "@/lib/sync/user-settings";
@@ -146,7 +147,20 @@ export type OnboardingPersistence = {
   saveConstraints: (patch: Parameters<typeof saveConstraints>[0], rev: number) => Promise<SaveResult>;
   localDate: () => string;
   hasWeighIn: (localDate: string) => boolean;
+  /** W13 (D14): "New accounts become open at onboarding completion." Never fails onboarding;
+   *  a transient failure is retried after later sync passes until the server settles it
+   *  (lib/foods/world-open-client.ts). */
+  openFoodWorld: (h: AccountHandle) => Promise<void>;
 };
+
+/**
+ * Exported for its own test; every onboarding caller reaches it only through `persistence`.
+ * Durable since Sol round 2: lib/foods/world-open-client.ts records a pending intent before
+ * any network call and retries it after every successful sync until the server settles it.
+ */
+export async function openFoodWorld(h: AccountHandle): Promise<void> {
+  await openFoodWorldAtOnboarding(h);
+}
 
 const persistence: OnboardingPersistence = {
   saveLocal: (settings) => saveStore({ ...loadStore(), settings }),
@@ -156,6 +170,7 @@ const persistence: OnboardingPersistence = {
   saveConstraints: (patch, rev) => saveConstraints(patch, rev),
   localDate: todayIso,
   hasWeighIn: (localDate) => typeof getDay(localDate)?.weightLb === "number",
+  openFoodWorld,
 };
 
 const constraintsUnavailable = () => ({
@@ -240,6 +255,9 @@ export async function persistCompletedOnboarding(
   deps.saveLocal(savedSettings);
   if (conditions.length > 0) return { settings: savedSettings, constraintsSaved: true };
   const constraints = await applyFlagConstraints(h, state.flags, deps);
+  // W13 (D14): only a FIRST completion opens the world — a later re-run of this same function
+  // (an account editing its profile again) must never re-invite an account that chose `closed`.
+  if (!base.onboardedAt) await deps.openFoodWorld(h);
   return { settings: savedSettings, ...constraints };
 }
 
@@ -263,7 +281,8 @@ export async function persistSkippedOnboarding(
   base: Settings,
   now = new Date(),
   deps: Pick<
-    OnboardingPersistence, "saveLocal" | "saveSynced" | "loadConstraints" | "saveConstraints"
+    OnboardingPersistence,
+    "saveLocal" | "saveSynced" | "loadConstraints" | "saveConstraints" | "openFoodWorld"
   > = persistence,
 ): Promise<Settings> {
   const h = accountHandle();
@@ -273,5 +292,10 @@ export async function persistSkippedOnboarding(
   assertCurrent(h);
   deps.saveLocal(settings);
   await deps.saveSynced(settings, "skip");
+  // W13 (D14): a skip IS onboarding completion (D1 §6.1; it stamps `onboarded_at` the same as the
+  // answered path), so it must open the world on a FIRST skip exactly like a first "complete" —
+  // otherwise an account that skips onboarding can never be invited at all, because `base.onboardedAt`
+  // is set by this same stamp and every later call (skip or complete) would see it already set.
+  if (!base.onboardedAt) await deps.openFoodWorld(h);
   return settings;
 }

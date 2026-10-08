@@ -3,9 +3,13 @@ import type { IngredientIdentity, ShoppingPeriod, ShoppingPurchaseWindow } from 
 import { recipeServingFit, suggestedServingFraction } from "@/lib/recipes/adapt";
 import { occasionFit } from "@/lib/recipes/occasion";
 import type { Occasion } from "@/lib/meals/occasion";
+import { recipeTastePoints, type TasteValues } from "@/lib/meals/preference";
 import {
   aggregateShopping, identityKey, type AggregateOptions, type RecipeUse, type ShoppingAggregation,
 } from "@/lib/shopping/aggregate";
+
+/** The same normalized identity `lib/meals/parts.ts`'s `foodKey` gives a plate row's food. */
+const ingredientKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** `targetProtein` (grams) adds the protein-shortfall term to the fit (audit S3); null skips it. */
 export type PlanSlot = { localDate: string; slotId: string; targetKcal: number | null;
@@ -37,6 +41,12 @@ export type PlannerInput = {
   availableEquipment?: readonly string[];
   favoriteRecipeIds?: readonly string[];
   existingPurchaseWindows?: readonly ShoppingPurchaseWindow[];
+  /**
+   * D8's caller table ("Recipe search, the coach and the shopping planner"): when the account's
+   * quantized pref-2 values are available, `RECIPE_TASTE_POINTS × (T − 1)` over a candidate's
+   * ingredients by grams adds to its score. Absent (no caller wires this up yet): no term at all.
+   */
+  taste?: TasteValues;
 };
 export type PlanChoice = RecipeUse & { candidateRevisionId: string;
   servingFraction: number; preparedOn: string; reuseLimitDays: 3; storageGuidance: string;
@@ -137,10 +147,15 @@ function scoreCandidate(input: PlannerInput, candidate: RecipeCandidate,
   const costPenalty = incrementalCheckout === null ? 0
     : Math.min(5, incrementalCheckout / Math.max(1, input.period.budgetAmount ?? 20) * 5);
   const occasion = slot.occasion ? occasionFit(candidate, slot.occasion) * OCCASION_WEIGHT : 0;
+  const taste = input.taste
+    ? recipeTastePoints(candidate.ingredients.map((ingredient) => ({
+      key: ingredientKey(ingredient.name), amount: ingredient.grams ?? 0,
+    })), input.taste, slot.occasion ?? null)
+    : 0;
   return occasion + fit * 10 + pinBonus + keys.filter((key) => basket.has(key)).length * 3
     + keys.filter((key) => already.has(key)).length * 2
     - keys.filter((key) => !basket.has(key) && !already.has(key)).length * 2
-    + (input.favoriteRecipeIds?.includes(candidate.recipeId) ? 1 : 0)
+    + (input.favoriteRecipeIds?.includes(candidate.recipeId) ? 1 : 0) + taste
     + (input.period.variety === "repeat_friendly" ? repeat * 2 : 0)
     - varietyPenalty - simplePenalty - costPenalty;
 }

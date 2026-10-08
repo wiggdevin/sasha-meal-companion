@@ -25,6 +25,9 @@ vi.mock("@/lib/profile/instances-client", () => ({ fetchProfileInstances: mocks.
 vi.mock("@/lib/rule-review-client", () => ({ loadRuleReview: mocks.loadRuleReview }));
 vi.mock("@/lib/store", () => ({ loadStore: mocks.loadStore, saveStoreFor: mocks.saveStoreFor }));
 vi.mock("@/lib/foods/starter-seed", () => ({ seedZeroFoodAccount: mocks.seedZeroFoodAccount }));
+vi.mock("@/lib/foods/world-open-client", () => ({
+  markWorldOpenPending: async () => undefined, drainWorldOpenPending: async () => undefined,
+}));
 
 import { refreshStarterGate } from "./today-starter";
 
@@ -55,7 +58,10 @@ describe("Today starter gate", () => {
   });
 
   it("preserves the legacy starter for an explicitly disabled account", async () => {
-    mocks.accountJson.mockResolvedValue({ enabled: false });
+    // W13 round 5: the legacy seed needs the server's exact { world: "closed", starterSeed: true }
+    // (one body answers both reads).
+    mocks.accountJson.mockResolvedValue({ enabled: false, world: "closed", starterSeed: true,
+      openDefaultPending: false });
     expect(await refreshStarterGate()).toBe("ready");
     expect(mocks.seedZeroFoodAccount).toHaveBeenCalledOnce();
     expect(mocks.seedZeroFoodAccount).toHaveBeenCalledWith(profile, instances);

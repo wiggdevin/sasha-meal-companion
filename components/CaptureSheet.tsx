@@ -83,6 +83,10 @@ export type CaptureSheetProps = {
   onClose: () => void;
   onLogged: (entryId: string) => void;
   onOpenSearch: () => void;
+  /** When the meal was eaten: the day on screen when that is not today (app/page.tsx), else now. */
+  at?: Date;
+  /** The meal card the capture came from, if any; else the slot for the time now. */
+  slot?: SlotId;
 };
 
 // #4a4c42 is DESIGN.md text-secondary (line 13) — same token and 14 px size as CaptureConfirm.tsx's
@@ -187,13 +191,14 @@ function CaptureBody({
   );
 }
 
-/** Capture is always "now", whatever day the Today screen is showing: the commit's eaten_at is
- *  this instant, and local_date must agree with it in this zone (lib/log/contract.ts). Its own
- *  hook so useCaptureFlow keeps room for the brief's settle() under the length budget. */
-function useCaptureWhen(): { localDate: string; tz: string } {
+/** When the capture was eaten: `at` (a past day on Today, lib/log/viewed-at.ts), else this instant.
+ *  local_date must agree with eaten_at in this zone (lib/log/contract.ts). Its own hook so
+ *  useCaptureFlow keeps room for the brief's settle() under the length budget. */
+function useCaptureWhen(at?: Date): { localDate: string; tz: string; at?: Date } {
   const [when] = useState(() => ({
     localDate: new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" })
-      .format(new Date()),
+      .format(at ?? new Date()),
+    at,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }));
   return when;
@@ -203,8 +208,8 @@ function useCaptureWhen(): { localDate: string; tz: string } {
  *  gives the sheet no slot prop, so it reads the current slot the same way Today does: the last
  *  slot whose time has arrived, else the first slot of the day, else meal-1 (slotForNow). Split
  *  out of useCaptureFlow so that hook's own line count stays under the file's function budget. */
-function useSlotNow(localDate: string): () => SlotId {
-  const slotRef = useRef<SlotId | null>(null);
+function useSlotNow(localDate: string, fixed?: SlotId): () => SlotId {
+  const slotRef = useRef<SlotId | null>(fixed ?? null);
   return () => {
     if (slotRef.current === null) {
       const now = new Date();
@@ -222,12 +227,12 @@ function useSlotNow(localDate: string): () => SlotId {
  *  keeps room there for the brief's settle() and run(). */
 async function commitAndReport(
   draft: ProposeResponse, edits: DraftEdits, entryId: string, tz: string, slot: SlotId,
-  saveLabelAsFood: boolean, run?: TimingRun,
+  saveLabelAsFood: boolean, run?: TimingRun, eatenAt?: Date,
 ): Promise<SaveResult> {
   // One verdict, the same one the card and the log sheet read: a 2xx the client could not read,
   // and a conflict that hands back the entry, are both entries the user has — and a sheet that calls
   // either a failure sends them to Save again and puts a second meal in their log.
-  return savedFrom(await commitDraft(draft, edits, { entryId, tz, slot, saveLabelAsFood, run }));
+  return savedFrom(await commitDraft(draft, edits, { entryId, tz, slot, saveLabelAsFood, run, eatenAt }));
 }
 
 /**
@@ -236,7 +241,8 @@ async function commitAndReport(
  * brief's, unchanged: `settle` closes over the method the hook derives from `initialMode` (the
  * same rule the component uses for `mode`), and `run` takes only the work.
  */
-function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: ProposeResponse | undefined) {
+function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: ProposeResponse | undefined,
+  at?: Date, slot?: SlotId) {
   const method = initialMode === "confirm" ? "text" : initialMode;
   const [draft, setDraft] = useState<ProposeResponse | null>(
     initialMode === "confirm" ? (initialDraft ?? EMPTY_DRAFT("text")) : null,
@@ -247,8 +253,8 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
   const [saving, setSaving] = useState(false);
   /** The timing run this capture opened, held across the confirm step so the commit closes it. */
   const runRef = useRef<TimingRun | null>(null);
-  const when = useCaptureWhen();
-  const slotNow = useSlotNow(when.localDate);
+  const when = useCaptureWhen(at);
+  const slotNow = useSlotNow(when.localDate, slot);
 
   function settle(outcome: CaptureOutcome) {
     if (outcome.kind === "draft") {
@@ -281,7 +287,7 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
     const entryId = crypto.randomUUID();
     setSaving(true);
     const outcome = await commitAndReport(draft, edits, entryId, when.tz, slotNow(), saveLabelAsFood,
-      runRef.current ?? undefined);
+      runRef.current ?? undefined, when.at);
     setSaving(false);
     if (outcome.ok) {
       clearDraft(draft.draftId);
@@ -302,11 +308,11 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
  * pretend: one line and a way into the Phase 2 search, which logs with no signal.
  */
 export default function CaptureSheet({
-  open, initialMode, initialDraft, projection, onClose, onLogged, onOpenSearch,
+  open, initialMode, initialDraft, projection, onClose, onLogged, onOpenSearch, at, slot,
 }: CaptureSheetProps): React.JSX.Element | null {
   const online = useOnline();
   const [text, setText] = useState("");
-  const flow = useCaptureFlow(initialMode, initialDraft);
+  const flow = useCaptureFlow(initialMode, initialDraft, at, slot);
   const [coachProjection, setCoachProjection] = useState<DayProjection | null>(null);
   useEffect(() => {
     if (!open || projection) return;
