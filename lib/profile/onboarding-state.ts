@@ -61,6 +61,13 @@ export type OnboardingState = {
   heightUnit: HeightUnit;
   weight: string;
   weightUnit: WeightUnit;
+  /**
+   * The exact kilograms behind a `weight` text this module wrote itself (a seeded or converted
+   * value). The text is rounded for display (68 kg shows as "149.9" lb), so reading it back would
+   * store 67.993 kg for an untouched 68 kg answer. While `weight` still equals `text` in `unit`,
+   * `parsedWeightKg` returns `kg`; any edit makes the text differ and the typed value wins.
+   */
+  weightSeed?: { text: string; unit: WeightUnit; kg: number };
   activityLevel: ActivityLevel | null;
   trainingWeekdays: number[];
   goal: Goal | null;
@@ -199,6 +206,9 @@ export function dismissOnboardingInvite(
 
 export function createOnboardingState(settings: Settings, initial = 0): OnboardingState {
   const weightUnit = settings.weightUnit ?? "lb";
+  const seededWeight = settings.weightKg === null || settings.weightKg === undefined
+    ? ""
+    : text(weightUnit === "lb" ? Math.round(kgToLb(settings.weightKg) * 10) / 10 : settings.weightKg);
   return {
     step: Math.max(0, Math.min(5, initial)),
     body: {
@@ -215,10 +225,10 @@ export function createOnboardingState(settings: Settings, initial = 0): Onboardi
     bodyFatSource: settings.bodyFatSource ?? null,
     bodyFatMeasuredOn: settings.bodyFatMeasuredOn ?? null,
     heightUnit: settings.heightUnit ?? "ft_in",
-    weight: settings.weightKg === null || settings.weightKg === undefined
-      ? ""
-      : text(weightUnit === "lb" ? Math.round(kgToLb(settings.weightKg) * 10) / 10 : settings.weightKg),
+    weight: seededWeight,
     weightUnit,
+    ...(seededWeight && typeof settings.weightKg === "number"
+      ? { weightSeed: { text: seededWeight, unit: weightUnit, kg: settings.weightKg } } : {}),
     activityLevel: settings.activityLevel ?? null,
     // No weekday is preselected (D1 §6.3). An empty list is an explicit rest-only schedule,
     // not "unset", so a new account is never handed someone else's training week.
@@ -239,6 +249,11 @@ function toggle<T>(values: T[], value: T): T[] {
 }
 
 export function parsedWeightKg(state: OnboardingState): number | null {
+  const seed = state.weightSeed;
+  if (seed && seed.text === state.weight && seed.unit === state.weightUnit
+    && Number.isFinite(seed.kg) && seed.kg >= 20 && seed.kg <= 400) {
+    return Math.round(seed.kg * 1000) / 1000;
+  }
   const raw = Number(state.weight.trim());
   if (!Number.isFinite(raw) || raw <= 0) return null;
   const kg = state.weightUnit === "lb" ? raw / LB_PER_KG : raw;
@@ -275,9 +290,14 @@ export function onboardingReducer(
     case "edit_weight":
       return { ...state, weight: action.value };
     case "set_weight_unit":
-      return action.value === state.weightUnit ? state : {
-        ...state, weight: convertedWeight(state, action.value), weightUnit: action.value,
-      };
+      if (action.value === state.weightUnit) return state;
+      {
+        const kg = parsedWeightKg(state);
+        const weight = convertedWeight(state, action.value);
+        return { ...state, weight, weightUnit: action.value,
+          ...(kg === null ? { weightSeed: undefined }
+            : { weightSeed: { text: weight, unit: action.value, kg } }) };
+      }
     case "set_activity":
       return { ...state, activityLevel: action.value };
     case "toggle_weekday":
