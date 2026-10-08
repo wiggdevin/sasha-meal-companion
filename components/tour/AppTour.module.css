@@ -1,0 +1,505 @@
+/* The first-run overview (components/tour/AppTour.tsx). A centred sheet over the scrim, a beige
+   stage holding a small drawn meal card and a ghost finger, the step's words under it. Every
+   colour is a token or a role; only transform and opacity animate (motion drives them). */
+
+.root {
+  padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* The stage: a recessed beige tray the demo plays in. Its height is fixed, so a step change never
+   moves the words below it. */
+.stage {
+  position: relative;
+  height: 272px;
+  border-radius: 24px;
+  background: var(--grad-recess);
+  box-shadow: inset 0 1px 2px rgb(var(--ink-rgb) / 0.06);
+  overflow: hidden;
+}
+
+/* A demo's own box, centred in the stage; the finger and the card share its coordinates. */
+.rig {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 240px;
+  margin-left: -120px;
+}
+
+/* ---- the drawn meal card ---------------------------------------------------------------- */
+
+.card {
+  position: relative;
+  width: 240px;
+  border-radius: 24px;
+  background: var(--grad-matte);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.photo {
+  position: relative;
+  height: 56px;
+  overflow: hidden;
+}
+.photoImg {
+  object-fit: cover;
+}
+
+/* The photo chip: a frosted ivory pill over the photo. */
+.chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--grad-card);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.chip[data-tone="now"] {
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+}
+.chip[data-tone="eaten"] {
+  background: var(--color-sage-wash);
+  color: var(--color-sage-ink);
+}
+
+.body {
+  height: 40px;
+  padding: 4px 12px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.title {
+  font-size: 16px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kcal {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The action strip at the card's foot: a thin strip of three equal icon zones split by hairlines. */
+.strip {
+  position: relative;
+  height: 36px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.12);
+}
+.zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.zone + .zone {
+  border-left: 1px solid rgb(var(--ink-rgb) / 0.12);
+}
+.zone[data-on] {
+  color: var(--color-gauge-carbs-end);
+}
+
+/* The favorite heart: a small ivory disc at the photo's top right. */
+.heart {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--grad-card);
+  color: var(--color-text-primary);
+}
+.heart[data-on] {
+  color: var(--color-red);
+}
+
+/* The opened card's beige tray: ingredients with − / + and ×, then search. */
+.tray {
+  margin: 0 8px 8px;
+  padding: 6px 8px;
+  border-radius: 16px;
+  background: var(--color-fog);
+  overflow: hidden;
+}
+.row {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.rowName {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowAmount {
+  min-width: 40px;
+  text-align: center;
+  font-weight: 600;
+}
+.glyph {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--grad-card);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.12);
+  font-size: 12px;
+  font-weight: 600;
+}
+.search {
+  margin-top: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--color-field);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.12);
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+/* The removed-food Undo under the card. */
+.undo {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 200px;
+  margin-left: -100px;
+  height: 32px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background: var(--grad-matte);
+  color: var(--color-on-charcoal);
+  font-size: 12px;
+}
+.undoAction {
+  font-weight: 600;
+  color: var(--color-gauge-carbs-end);
+}
+
+/* ---- swipe trays behind the card ---------------------------------------------------------- */
+
+.behind {
+  position: absolute;
+  top: 0;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.behindLeft { left: 0; }
+.behindRight { right: 0; flex-direction: row-reverse; }
+.behindPill {
+  height: 116px;
+  width: 64px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+.behindSwap { background: var(--grad-ink); color: var(--color-on-primary); }
+.behindClear { background: var(--grad-ink); color: var(--color-on-primary); }
+.behindDelete { background: var(--color-red); color: var(--color-on-primary); }
+
+/* ---- the ghost finger --------------------------------------------------------------------- */
+
+.finger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.2);
+  box-shadow: 0 0 0 2px var(--color-field), 0 6px 14px rgb(0 0 0 / 0.2);
+  pointer-events: none;
+  z-index: 3;
+}
+.ripple {
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+/* A hold: a ring that fills while the finger waits. */
+.holdRing {
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 3px var(--color-gauge-carbs);
+}
+
+/* A still frame's direction mark (reduced motion): a short arrow beside the finger. */
+.arrow {
+  position: absolute;
+  z-index: 3;
+  color: var(--color-primary);
+  pointer-events: none;
+}
+
+/* ---- step 1: the day's meals ------------------------------------------------------------- */
+
+.dayList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dayRow {
+  height: 52px;
+  border-radius: 16px;
+  background: var(--grad-matte);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  box-shadow: var(--shadow-card);
+}
+.dayThumb {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dayText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dayTime {
+  font-size: 12px;
+}
+.dayTitle {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tick {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.3);
+  flex-shrink: 0;
+}
+.tick[data-on] {
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+  box-shadow: none;
+}
+.foods {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.food {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--grad-card);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.12);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ---- step 2: callouts ---------------------------------------------------------------------- */
+
+.highlight {
+  position: absolute;
+  border-radius: 16px;
+  box-shadow: 0 0 0 2px var(--color-gauge-fat), 0 0 0 6px rgb(var(--ink-rgb) / 0.08);
+  pointer-events: none;
+  z-index: 2;
+}
+.callout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 152px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* ---- step 4: gesture picker ---------------------------------------------------------------- */
+
+.gestureChips {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px;
+}
+
+/* ---- step 5: the coach ------------------------------------------------------------------- */
+
+.composer {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  width: 260px;
+  margin-left: -130px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--grad-card);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.12), var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 14px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+.composerText {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.composerHint {
+  color: var(--color-text-muted);
+}
+.mic {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.micPulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+.reply {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  width: 220px;
+  margin-left: -110px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: var(--grad-bubble);
+  background-color: var(--color-field);
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+/* ---- the dialog chrome --------------------------------------------------------------------- */
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.2);
+}
+.dot[data-on] {
+  background: var(--color-primary);
+}
+
+.guide {
+  flex-shrink: 0;
+}
+
+.points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.point {
+  position: relative;
+  padding-left: 14px;
+}
+.point::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.6em;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+}
+/* A line about one of the card's icons: the icon in a small recessed disc, then the words. */
+.iconPoint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pointIcon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: -2px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-fog);
+}

@@ -8,6 +8,7 @@ import type { PetState, PetWhen } from "@/lib/today/pet-mood";
 import { MASCOTS, type MascotKey } from "@/components/today/island/mascots";
 import { wellArt } from "@/components/today/island/well-pet";
 import styles from "@/components/today/island/Sprout.module.css";
+import { requestTour } from "@/components/tour/tour-events";
 
 /** Sprout alone at any size (onboarding v2's guide); see SproutFigure.tsx. */
 export { SPROUT_HERO_ART, SproutFigure, type SproutPose } from "@/components/today/island/SproutFigure";
@@ -96,8 +97,13 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
   const name = MASCOTS[mascot].name;
   const art = wellArt(mascot, state.mood);
   return <div className={styles.stage} data-mood={state.mood}>
+    {/* A tap says hello and then opens "How Sasha works" out of the pet (components/tour). */}
     <button ref={self} type="button" className={`tap ${styles.pet}`} aria-label={`${name}. Say hello`}
-      onClick={() => { setHello((count) => count + 1); if (!reduce) void hopOnce(hop); }}>
+      aria-haspopup="dialog" onClick={() => {
+        setHello((count) => count + 1);
+        if (reduce) requestTour(self.current);
+        else void hopOnce(hop).then(() => requestTour(self.current));
+      }}>
       <span aria-hidden="true" className={styles.shadow} data-still={reduce || undefined} />
       <span aria-hidden="true" className={styles.reflection} data-still={reduce || undefined}>
         <Image src={art} alt="" fill sizes="104px" draggable={false} className={styles.img} />
