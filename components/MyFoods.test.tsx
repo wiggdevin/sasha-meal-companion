@@ -353,9 +353,10 @@ describe("Eats membership feedback", () => {
     seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
     await act(async () => { failFirst(new Error("offline")); });
     await act(async () => {});
-    // The failed first write must not put back "eats" over the newer local state.
+    // The failed first write must not put back "eats" over the newer local state, and with the row
+    // moved on, its failure is not this screen's to report: the newer choice owns the row.
     expect(seeded.foods.oats.status).toBe("avoid");
-    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 
@@ -430,6 +431,49 @@ describe("a superseded membership write", () => {
     await act(async () => {});
     expect(seeded.foods.oats.status).toBe("avoid");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("never sends a queued move over a newer choice", async () => {
+    let failFirst!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // A second move queues behind the first: back onto Eats from its sheet.
+    fireEvent.click(rowOf("Oats"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add to Eats" }));
+    // The coach then moves it to Avoid on the phone before the queue gets to the second move.
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid", updatedAt: "2026-10-07T00:00:00.000Z" } };
+    await act(async () => { failFirst(); });
+    await act(async () => {});
+    // The queued Eats move was never sent, and nothing rolled back over the coach's Avoid.
+    expect(membership.set.mock.calls.some((call) => call[1] === "eats")).toBe(false);
+    expect(seeded.foods.oats.status).toBe("avoid");
+  });
+
+  it("does not roll back over a newer choice of the same status", async () => {
+    let fail!: () => void;
+    membership.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("offline")); }));
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    // Another surface clears the same marks again (same status, a newer write).
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "neutral", updatedAt: "2099-01-01T00:00:00.000Z" } };
+    await act(async () => { fail(); });
+    await act(async () => {});
+    expect(seeded.foods.oats.status).toBe("neutral");
+  });
+
+  it("offers an Undo that does nothing once the row has moved on", async () => {
+    render(<EatsFoods />);
+    swipe(rowOf("Oats"), -200, 8);
+    await act(async () => {});
+    const status = screen.getByRole("status");
+    seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
+    const calls = membership.set.mock.calls.length;
+    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
+    expect(membership.set.mock.calls.length).toBe(calls);
+    expect(seeded.foods.oats.status).toBe("avoid");
   });
 
   it("still rolls back when the newer reservation changed nothing on the phone", async () => {
