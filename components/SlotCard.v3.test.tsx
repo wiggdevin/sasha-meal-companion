@@ -90,11 +90,9 @@ describe("the three-zone icon strip", () => {
     expect(document.activeElement).toBe(tick);
   });
 
-  it("says the eaten outcome aloud, since the zone shows only a glyph", () => {
-    const { rerender } = render(<Card slot={{ ...lunch, eaten: true }} eatenFeedback="success" />);
-    expect(screen.getByRole("status").textContent).toBe("Eaten");
-    rerender(<Card eatenFeedback="failed" />);
-    expect(screen.getByRole("status").textContent).toContain("did not save");
+  it("leaves the spoken outcome to the page's named toast: no second live region on the card", () => {
+    render(<Card slot={{ ...lunch, eaten: true }} eatenFeedback="success" />);
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
 

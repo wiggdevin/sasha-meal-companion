@@ -61,19 +61,15 @@ export function MealEatenButton({ eaten, label, feedback, onToggleEaten, classNa
   const eatenProps = feedbackStateProps(feedback);
   const busy = feedback === "pending";
   // Pending, the zone stays focusable (aria-disabled, never disabled) and ignores the tap, so a
-  // keyboard user keeps their place; the outcome is spoken from a live region beside it.
-  const spoken = feedback === "success" || feedback === "changed" ? (eaten ? "Eaten" : "Not eaten")
-    : feedback === "failed" ? "That did not save. Try again." : "";
-  return <>
-    <button type="button" onClick={() => { if (!busy) onToggleEaten(); }} aria-disabled={busy || undefined}
-      aria-busy={busy || undefined} data-feedback-state={eatenProps["data-feedback-state"]}
-      data-eaten={eaten ? "true" : "false"} data-consume-control="tick"
-      aria-label={eaten ? `Eaten, ${label}. Undo` : `Mark eaten, ${label}`}
-      className={`${eatenProps.className} ${styles.eatenZone} ${className}`}>
-      <CheckIcon filled={eaten} />
-    </button>
-    <span className="sr-only" role="status" aria-live="polite">{spoken}</span>
-  </>;
+  // keyboard user keeps their place. The outcome is spoken once, by the page's named toast
+  // ("Meal 2 marked eaten.", with Undo), never a second unnamed announcement here (Sol v3 review).
+  return <button type="button" onClick={() => { if (!busy) onToggleEaten(); }} aria-disabled={busy || undefined}
+    aria-busy={busy || undefined} data-feedback-state={eatenProps["data-feedback-state"]}
+    data-eaten={eaten ? "true" : "false"} data-consume-control="tick"
+    aria-label={eaten ? `Eaten, ${label}. Undo` : `Mark eaten, ${label}`}
+    className={`${eatenProps.className} ${styles.eatenZone} ${className}`}>
+    <CheckIcon filled={eaten} />
+  </button>;
 }
 
 /** The boundary between a meal's hero and its detail. Featured, the reference's olive spec panel:

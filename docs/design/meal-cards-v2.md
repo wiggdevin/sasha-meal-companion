@@ -70,15 +70,18 @@ format (inventory in this branch's PR description).
 Owner: the cards are far too big; delete the macro bar; the action strip is too tall and unbalanced —
 three equal thirds, icons not pills; add a heart; once a card is open the ingredients are what matter.
 
-1. **Smaller.** Featured photo 132 px (was 168), title 24 px (was 28), a tighter spec panel; compact
-   cards 116 px tall (was 152), photo 34 % (was 38 %), title and calories 17 px. The compact chip moves
+1. **Smaller.** Featured photo 132 px (was 168), title and calories 20 px (was 28), a tighter spec
+   panel; compact cards 116 px tall (was 152), photo 34 % (was 38 %), title and calories 16 px — every
+   size on the DESIGN.md type scale, radii on its radius scale. The compact chip moves
    off the narrow photo to the top of the text column, so its status word shows at every width.
 2. **No macro bar** anywhere. The featured panel keeps the gram counts; a compact card says its
    numbers through its figures (calories and protein, spoken in full).
 3. **Strip:** one 44 px row of three equal icon zones — eaten | swap | details — told apart by tone
    (olive wash, the tray, ink 4 %), hairlines between, each zone its whole third as the tap target.
-   Eaten: an open ring, then a solid olive zone with a filled tick, which undoes. The swap zone stays
-   (empty) when the meal cannot swap, so the thirds never shift. Names unchanged.
+   Eaten: an open ring, then a solid olive zone with a filled tick, which undoes. The swap zone keeps
+   a faint glyph when the meal cannot swap, so the thirds never shift. Names unchanged. A pending zone
+   stays focusable (aria-disabled); the outcome is spoken once, by the page's named toast. Swipe and
+   hold start on the card's hero, as before; the strip's zones are buttons.
 4. **Heart** (`components/MealFavoriteHeart.tsx`): outline / filled on the photo. On saves the plate as
    a favorite meal (`favorites_meals`) and marks its foods Favored; off removes only the saved meal, so
    it never takes a food out of a plan. Hidden until the page passes `favorite` — the writer
