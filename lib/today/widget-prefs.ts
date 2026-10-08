@@ -120,13 +120,13 @@ export function effectiveWidgetPrefs(prefs: WidgetPrefs, show: boolean): WidgetP
 export function saveWidgetPrefs(account: AccountHandle | null, prefs: WidgetPrefs, show: boolean): boolean {
   if (!account) return false;
   const effective = effectiveWidgetPrefs(prefs, show);
-  // Kept for this tab regardless of whether the write below actually lands — a remount must see
-  // this attempt, not whatever older value storage still has readable.
+  // Kept for this tab regardless of whether the write below actually lands (`writeAccountItem`
+  // itself never reports a blocked or full store back to its caller — it only answers void) — a
+  // remount must see this attempt, not whatever older value storage still has readable.
   sessionPrefs.set(sessionKey(account), effective);
   try {
-    // `writeAccountItem` now reports a blocked or full store back to its caller (#470 followup)
-    // instead of always answering as if the write landed.
-    return writeAccountItem(account, NAME, JSON.stringify(effective));
+    writeAccountItem(account, NAME, JSON.stringify(effective));
+    return true;
   } catch {
     return false;
   }

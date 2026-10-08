@@ -32,23 +32,6 @@ describe("account storage (Phase 9 §0.4)", () => {
     expect(localStorage.getItem(`smc:u:${A}:x`)).toBeNull();
   });
 
-  it("reports whether the write actually landed (#470 followup)", () => {
-    const a = bindAccount(A);
-    expect(writeAccountItem(a, "x", "1")).toBe(true);
-    expect(localStorage.getItem(`smc:u:${A}:x`)).toBe("1");
-  });
-
-  it("reports false, instead of throwing, for a blocked or full store", () => {
-    const a = bindAccount(A);
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); };
-    try {
-      expect(writeAccountItem(a, "x", "1")).toBe(false);
-    } finally {
-      Storage.prototype.setItem = original;
-    }
-  });
-
   it("keeps A's coach transcript out of B's reads", () => {
     const a = bindAccount(A);
     writeCache(a, "t1", { messages: [{ role: "user", text: "A secret" } as never], actions: [] });

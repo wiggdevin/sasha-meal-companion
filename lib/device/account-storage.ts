@@ -30,23 +30,12 @@ export function readAccountItem(h: AccountHandle, name: string): string | null {
   }
 }
 
-/**
- * Returns whether the value actually landed in storage (#470 followup): a missing, blocked or full
- * store never throws out of here, but it must not look identical to a real write either, or a
- * caller that only checks "did this throw" (`saveWidgetPrefs`, before this fix) reports success for
- * a write that silently went nowhere. `assertCurrent` still throws `AccountChanged` as before — that
- * is the caller's own stale-handle bug, not a storage failure, and is never folded into `false`.
- */
-export function writeAccountItem(h: AccountHandle, name: string, value: string): boolean {
+export function writeAccountItem(h: AccountHandle, name: string, value: string): void {
   assertCurrent(h);
-  const store = storage();
-  if (!store) return false;
   try {
-    store.setItem(accountKey(h, name), value);
-    return true;
+    storage()?.setItem(accountKey(h, name), value);
   } catch {
     // Full or disabled storage: the value is lost, the caller's work is not.
-    return false;
   }
 }
 

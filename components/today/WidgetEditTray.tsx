@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Fold from "@/components/ui/Fold";
-import Notice from "@/components/ui/Notice";
 import { CARD_META, CARD_SECTION } from "@/lib/design/meal-type";
 import {
   COMING_PANELS, PANEL_NAME, WIDGET_PANELS, isConditionalPanel, movePanel, type WidgetPanel, type WidgetPrefs,
@@ -35,14 +34,8 @@ function Arrow({ path }: { path: string }) {
  * is disabled once only one ORDINARY panel is left, not merely one panel of any kind: a gated panel
  * can vanish on its own gate's say, so "one always stays" has to mean one the user actually chose.
  */
-export default function WidgetEditTray({ prefs, onChange, onDone, saveFailed, onDismissSaveFailed }: {
+export default function WidgetEditTray({ prefs, onChange, onDone }: {
   prefs: WidgetPrefs; onChange: (next: WidgetPrefs) => void; onDone: () => void;
-  /** #470 followup: `saveWidgetPrefs` now reports a write that silently went nowhere (storage full
-   *  or blocked) instead of answering as if it always landed. True for this visit until the next
-   *  edit succeeds or the note is dismissed; the choice itself still applies for this visit either
-   *  way (`saveWidgetPrefs`'s own session cache), so this is a quiet heads-up, not a blocker. */
-  saveFailed?: boolean;
-  onDismissSaveFailed?: () => void;
 }) {
   const { panels } = prefs;
   const ordinaryCount = panels.filter((panel) => !isConditionalPanel(panel)).length;
@@ -97,9 +90,6 @@ export default function WidgetEditTray({ prefs, onChange, onDone, saveFailed, on
         <h3 className={`m-0 ${CARD_SECTION}`}>In the widget</h3>
         <Button ref={doneRef} variant="primary" size="sm" onClick={onDone}>Done</Button>
       </div>
-      {saveFailed && <Notice tone="attention"
-        title="Couldn't save this layout. It will hold for now, but won't be remembered next time."
-        onDismiss={onDismissSaveFailed} />}
       <ul className={styles.trayList}>
         {panels.map((panel, at) => <li key={panel} className={styles.trayRow}>
           <span className="min-w-0 flex-1 truncate text-caption text-charcoal">{PANEL_NAME[panel]}</span>

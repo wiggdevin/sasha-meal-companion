@@ -80,9 +80,6 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
     ? { ...DEFAULT_PREFS, panels: preview.panels ?? DEFAULT_PREFS.panels, expanded: preview.expanded ?? false,
       index: preview.index ?? 0 } : DEFAULT_PREFS);
   const [editing, setEditing] = useState(false);
-  /** #470 followup: `saveWidgetPrefs` now reports a write that silently went nowhere; a quiet note
-   *  in the edit tray, not a blocker — the choice still applies for this visit either way. */
-  const [saveFailed, setSaveFailed] = useState(false);
   const [direction, setDirection] = useState<1 | -1>(1);
   const [width, setWidth] = useState(0);
   // The first measured layout snaps into place; only later changes spring (no grow-from-nothing on load).
@@ -162,7 +159,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
   const update = (next: WidgetPrefs) => {
     const shown = effectiveWidgetPrefs(next, show);
     setPrefs(shown);
-    if (fixedHour === undefined) setSaveFailed(!saveWidgetPrefs(account, shown, show));
+    if (fixedHour === undefined) saveWidgetPrefs(account, shown, show);
   };
   // A design-gallery preview (PR #470 review R3, NIT) passes no account at all: it never persists,
   // and a real read here could seed this tab's per-account session cache (lib/today/widget-prefs.ts)
@@ -394,8 +391,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
       <span aria-hidden="true" className={well.lid} data-settling={settling || undefined} />
     </section>
     <AnimatePresence initial={false}>
-      {editing && <WidgetEditTray key="tray" prefs={effective} onChange={update} onDone={closeTray}
-        saveFailed={saveFailed} onDismissSaveFailed={() => setSaveFailed(false)} />}
+      {editing && <WidgetEditTray key="tray" prefs={effective} onChange={update} onDone={closeTray} />}
     </AnimatePresence>
   </div>;
 }
