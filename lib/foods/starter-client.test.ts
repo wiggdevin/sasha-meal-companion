@@ -11,6 +11,27 @@ const base = { "chicken-breast-roasted": "eats", "turkey-breast-roasted": "eats"
   "olive-oil": "eats", "avocado-oil": "eats", "egg-white": "avoid" } as const;
 
 describe("starter membership persistence", () => {
+  it("a failed write rejects only after every sibling in its batch has settled (final Sol BLOCK)", async () => {
+    bindAccount("11111111-1111-4111-8111-111111111111");
+    const saved = {} as Record<string, ReturnType<typeof starterFood>>;
+    const mark = vi.fn(async (food: ReturnType<typeof starterFood>) => {
+      if (food.id === "starter:chicken-breast-roasted") throw new Error("boom");
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    const deps = { existing: () => saved, mark,
+      save: (food: ReturnType<typeof starterFood>) => { saved[food.id] = food; } };
+    await expect(persistStarterSelection(base, choices, deps)).rejects.toThrow("boom");
+    // The three siblings in the first batch of four landed before the error surfaced, so a retry
+    // sees them as already written and queues only what is still missing.
+    expect(Object.keys(saved).sort()).toEqual(["starter:brown-rice-cooked",
+      "starter:turkey-breast-roasted", "starter:white-rice-cooked"]);
+    mark.mockClear();
+    mark.mockImplementation(async () => {});
+    expect(await persistStarterSelection(base, choices, deps)).toBe(4);
+    expect(mark.mock.calls.map(([food]) => food.id)).not.toContain("starter:turkey-breast-roasted");
+    unbindAccount();
+  });
+
   it("writes reviewed eats and avoids through the membership path and is idempotent", async () => {
     bindAccount("11111111-1111-4111-8111-111111111111");
     const saved = {} as Record<string, ReturnType<typeof starterFood>>;

@@ -43,7 +43,7 @@ import {
 } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
 import {
-  defaultStarterWriter, persistStarterSelection, STARTER_RULE_CHANGED_ERROR,
+  defaultStarterWriter, persistStarterSelection, STARTER_RULE_CHANGED_ERROR, starterMarksStand,
   STARTER_RULES_UNAVAILABLE_ERROR, type StarterWriter,
 } from "@/lib/foods/starter-client";
 import {
@@ -93,6 +93,10 @@ export type SavePlanRefusal = "adult_only" | "rate_not_eligible";
 export const FOODS_NOT_DELIVERED_ERROR =
   "Some of your foods haven't saved yet. Check your connection, then tap Try again.";
 
+/** The server kept a newer mark for a chosen food (another device changed it meanwhile). */
+export const FOODS_CHANGED_ELSEWHERE_ERROR =
+  "Some of your foods were changed on another device. Check your picks, then tap Use this plan again.";
+
 export const RATE_NOT_ELIGIBLE_ERROR =
   "Your saved health answers keep your calories about where you burn, so there's no pace to set. Tap Use this plan again.";
 
@@ -115,6 +119,8 @@ export type SaveOnboardingPlanDeps = {
   ) => Promise<number>;
   /** The delivery gate: every op this save queued (settings and each food) reached the server. */
   deliverWrites: typeof flushOnboardingWritesNow;
+  /** After delivery: every chosen food holds the mark this save wrote (none was rejected). */
+  marksStand: typeof starterMarksStand;
   mirrorOnboardedAt: typeof mirroredOnboardedAt;
 };
 
@@ -136,6 +142,7 @@ const defaultDeps: SaveOnboardingPlanDeps = {
   readRules: readFreshStarterRules,
   writeStarter: persistStarterSelection,
   deliverWrites: flushOnboardingWritesNow,
+  marksStand: starterMarksStand,
   mirrorOnboardedAt: mirroredOnboardedAt,
 };
 
@@ -149,8 +156,9 @@ export async function saveOnboardingPlan(
   input: SaveOnboardingPlanInput,
   deps: Partial<SaveOnboardingPlanDeps> = {},
 ): Promise<SaveOnboardingPlanResult> {
-  const { persistPlan, retryConstraints, readRules, writeStarter, deliverWrites, mirrorOnboardedAt } =
-    { ...defaultDeps, ...deps };
+  const { persistPlan, retryConstraints, readRules, writeStarter, deliverWrites, marksStand,
+    mirrorOnboardedAt } = { ...defaultDeps, ...deps };
+  let writtenChoices: readonly Starter[] | null = null;
   const h = accountHandle();
   try {
     const safety = input.safety ?? {};
@@ -191,6 +199,7 @@ export async function saveOnboardingPlan(
       // WRITE) instead of letting it fetch a second time — the read above already covers the same
       // window that recheck exists to close.
       await writeStarter(marks, freshChoices, { ...defaultStarterWriter, freshRules: async () => fresh });
+      writtenChoices = freshChoices;
     }
 
     // GPT-6 Sol BLOCK (onb2-p0): the gate covers EVERY op this save queued, the food membership
@@ -200,6 +209,11 @@ export async function saveOnboardingPlan(
     if (!delivery.delivered) {
       return { ok: false, error: delivery.pending.foodMembership > 0
         ? FOODS_NOT_DELIVERED_ERROR : ONBOARDING_SYNC_WARNING };
+    }
+    // A rejected food op leaves the queue too: the delivery gate alone cannot tell it from an
+    // applied one, so the chosen marks are checked against what the server answered.
+    if (input.starter && writtenChoices && !marksStand(input.starter.marks, writtenChoices)) {
+      return { ok: false, error: FOODS_CHANGED_ELSEWHERE_ERROR };
     }
     const mirrored = await mirrorOnboardedAt();
     if (mirrored === null) return { ok: false, error: ONBOARDING_SYNC_WARNING };

@@ -31,6 +31,7 @@ function baseDeps(overrides: Partial<SaveOnboardingPlanDeps> = {}): SaveOnboardi
     readRules: vi.fn(async () => ({ profile: rules, instances: [] })),
     writeStarter: vi.fn(async () => 2),
     deliverWrites: vi.fn(async () => ({ delivered: true, pending: { userSettings: 0, foodMembership: 0 } })),
+    marksStand: vi.fn(() => true),
     mirrorOnboardedAt: vi.fn(async () => "2026-10-07T00:00:00.000Z"),
     ...overrides,
   };

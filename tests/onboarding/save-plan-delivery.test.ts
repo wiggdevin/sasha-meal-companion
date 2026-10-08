@@ -13,7 +13,12 @@ import { allOps } from "@/lib/sync/idb";
 import { enqueue, mutateUserSettings, USER_SETTINGS_KEY } from "@/lib/sync/outbox";
 import { createOnboardingState } from "@/lib/profile/onboarding-state";
 import { defaultSettings } from "@/lib/store";
-import { FOODS_NOT_DELIVERED_ERROR, saveOnboardingPlan } from "@/lib/onboarding/save-plan";
+import {
+  FOODS_CHANGED_ELSEWHERE_ERROR, FOODS_NOT_DELIVERED_ERROR, saveOnboardingPlan,
+} from "@/lib/onboarding/save-plan";
+import { loadStore, saveStoreFor } from "@/lib/store";
+import { starterFood } from "@/lib/foods/starter";
+import { normalizeFoodName } from "@/lib/foods/normalize";
 import type { OpsResponse, SyncOp } from "@/lib/sync/types";
 import { resetTestAccount } from "@/tests/helpers/account";
 import type { AccountHandle } from "@/lib/device/account";
@@ -77,6 +82,7 @@ function deps() {
     retryConstraints: vi.fn(async () => true),
     readRules: vi.fn(async () => ({ profile: rules, instances: [] })),
     writeStarter: vi.fn(async () => { if ((await allOps(h)).every((op) => op.op_id !== FOOD_OP_ID)) await queueFood(); return 1; }),
+    marksStand: vi.fn(() => true),
   };
 }
 
@@ -122,5 +128,41 @@ describe("the onboarding save's delivery gate", () => {
     await queueFood();
     const delivery = await flushOnboardingWritesNow(h, { fetchFn });
     expect(delivery).toEqual({ delivered: false, pending: { userSettings: 0, foodMembership: 1 } });
+  });
+
+  it("a food op the server REJECTS for a newer mark leaves the queue but never opens Today", async () => {
+    const chicken = starterFood("chicken-breast-roasted", "eats");
+    const store = loadStore();
+    saveStoreFor(h, { ...store, foods: Object.fromEntries(Object.keys(sixFoods).map((id) => {
+      const food = starterFood(id, "eats");
+      return [food.id, food];
+    })) }, { silent: true });
+    const nameNorm = normalizeFoodName(chicken.name);
+    const posted: SyncOp[][] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.startsWith("/api/sync/changes")) return json({ changes: [], next_cursor: 0, has_more: false });
+      const body = JSON.parse(String(init?.body)) as { ops: SyncOp[] };
+      posted.push(body.ops);
+      return json({ results: body.ops.map((op) => op.entity === "food_membership"
+        ? { op_id: op.op_id, status: "rejected", user_id: h.userId, name_norm: nameNorm,
+          current_status: "avoid", current_rev: 2 }
+        : { op_id: op.op_id, status: "applied", rev: 1, seq: 1 }), server_time: ONBOARDED_AT });
+    }));
+    const { marksStand: _real, ...rest } = deps();
+    void _real;
+    const d = { ...rest,
+      writeStarter: vi.fn(async () => {
+        await enqueue(h, { op_id: FOOD_OP_ID, entity: "food_membership",
+          entity_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", kind: "update", base_rev: null,
+          payload: { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", name_norm: nameNorm, status: "eats", note: null, rev: 1 },
+          client_ts: ONBOARDED_AT });
+        return 1;
+      }) };
+
+    const result = await saveOnboardingPlan(input(), d as never);
+
+    expect(posted.flat().some((op) => op.entity === "food_membership")).toBe(true);
+    await expect(allOps(h)).resolves.toEqual([]);
+    expect(result).toEqual({ ok: false, error: FOODS_CHANGED_ELSEWHERE_ERROR });
   });
 });

@@ -160,12 +160,41 @@ export async function persistStarterSelection(
     // A rejection from one item surfaces (and stops the NEXT batch from starting) only after
     // every item already in flight in this batch settles — same non-atomic-loop caveat as before,
     // now scoped to a batch instead of one item.
-    await Promise.all(batch.map(async ({ food }) => {
+    // allSettled, not all (final Sol review BLOCK): `Promise.all` rejected on the first failure
+    // while its siblings were still in flight, so the save offered Try again and a retry could
+    // snapshot `existing` before those writes landed and queue the same memberships twice.
+    const settled = await Promise.allSettled(batch.map(async ({ food }) => {
       await deps.mark(food, h);
       assertCurrent(h);
       deps.save(food);
     }));
+    const failed = settled.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    if (failed) throw failed.reason;
     written += batch.length;
   }
   return written;
+}
+
+/**
+ * Final Sol review BLOCK: a food op the server REJECTS (a newer mark from another device) leaves
+ * the queue like an applied one, and the phone reconciles the food to the server's mark. So an
+ * empty queue alone does not prove the chosen foods were saved. True when every mark
+ * `persistStarterSelection` would write for this selection is what this phone now holds for that
+ * food — the server's answer, after the delivery pass.
+ */
+export function starterMarksStand(
+  marks: Readonly<Record<string, StarterMark>>,
+  allowed: readonly Starter[],
+  existing: () => Record<string, Food> = writer.existing,
+): boolean {
+  const allowedIds = new Set(allowed.map((item) => item.id));
+  const knownIds = new Set(STARTERS.map((item) => item.id));
+  const foods = Object.values(existing());
+  return Object.entries(marks).every(([id, mark]) => {
+    if (mark === "neutral" || !knownIds.has(id) || (mark === "eats" && !allowedIds.has(id))) return true;
+    const food = starterFood(id, mark);
+    const held = foods.find((item) =>
+      item.id === food.id || item.name.toLowerCase() === food.name.toLowerCase());
+    return held?.status === mark;
+  });
 }
