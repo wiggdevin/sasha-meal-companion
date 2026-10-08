@@ -7,7 +7,7 @@ import { restoreTargetRevision, writeTargetRevisionSet } from "@/lib/server/targ
 import { decideProposal } from "@/lib/server/proposals";
 import { recomputeDerivedTarget, settingsFromRow } from "@/lib/server/target-recompute";
 import { AdultOnlyError, SAFETY_CONDITION_TEXT } from "@/lib/profile/rate-eligibility";
-import { TODAY, USER, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
+import { TODAY, USER, activeOn, fakeClient, settingsRow, staleTarget } from "./recompute-fake";
 
 type Row = Record<string, unknown>;
 
@@ -97,5 +97,44 @@ describe("a direct derive request", () => {
     await expect(writeTargetRevisionSet(c, USER, derive(), derive("2026-09-01")))
       .rejects.toBeInstanceOf(AdultOnlyError);
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("a hold with a revision scheduled after today", () => {
+  const paced = { goal: "lose_fat", goal_rate_bp_week: -50 };
+  const dates = ["2026-10-03", "2026-10-04", "2026-10-05", "2026-10-12", "2027-01-01"];
+
+  it("neutralises today's adaptive pace and every scheduled pace, on their own dates", async () => {
+    const fake = fakeClient(settingsRow(paced), [
+      staleTarget({ formula_name: "adaptive-tdee-v1", goal_rate_bp_week: -50, input_goal: "lose_fat" }),
+      staleTarget({ id: "f1", rev: 6, effective_from: "2026-10-05", formula_name: "proposal-v1",
+        goal_rate_bp_week: -50, input_goal: "lose_fat", input_weight_source: "weigh-in",
+        input_weight_kg: 70 }),
+    ], [], held);
+    const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    expect(outcome.status).toBe("written");
+    expect(fake.writes.map((w) => [w.effective_from, w.goal_rate_bp_week]))
+      .toEqual([[TODAY, 0], ["2026-10-05", 0]]);
+    expect(fake.writes[1]).toMatchObject({ input_weight_kg: 70, input_weight_source: "weigh-in" });
+    for (const date of dates) expect(activeOn(fake.targets, date)?.goal_rate_bp_week).toBe(0);
+  });
+
+  it("neutralises a scheduled pace even when today's revision has none", async () => {
+    const fake = fakeClient(settingsRow(paced), [
+      staleTarget(),
+      staleTarget({ id: "f1", rev: 6, effective_from: "2026-10-12", goal_rate_bp_week: -50,
+        input_goal: "lose_fat" }),
+    ], [], held);
+    const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    expect(outcome.status).toBe("written");
+    for (const date of dates) expect(activeOn(fake.targets, date)?.goal_rate_bp_week).toBe(0);
+  });
+
+  it("still leaves a scheduled revision alone when the account has no hold", async () => {
+    const fake = fakeClient(settingsRow(paced), [staleTarget(),
+      staleTarget({ id: "f1", rev: 6, effective_from: "2026-10-12", goal_rate_bp_week: -50 })]);
+    await expect(recomputeDerivedTarget(fake.client, USER, { today: TODAY }))
+      .resolves.toMatchObject({ status: "skipped", reason: "future_revision" });
+    expect(fake.writes).toEqual([]);
   });
 });
