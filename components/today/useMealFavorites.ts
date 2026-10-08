@@ -33,28 +33,37 @@ export function useMealFavorites({ eligible, feedback }: {
   const asked = useRef(new Map<string, FavoriteMealSource>());
   const reading = useRef(new Set<string>());
   const epoch = useRef(0);
+  /** The sync epoch each plate was last read in: an older one is read again, its heart kept meanwhile. */
+  const readAt = useRef(new Map<string, number>());
+  const [, setSyncs] = useState(0);
 
   useEffect(() => {
-    const onSynced = () => { epoch.current += 1; reading.current.clear(); setSaved({}); };
+    // A sync re-reads every plate in place (never a blank cache, so no heart blinks off and on).
+    const onSynced = () => { epoch.current += 1; reading.current.clear(); setSyncs((value) => value + 1); };
     window.addEventListener(SYNCED_EVENT, onSynced);
     return () => window.removeEventListener(SYNCED_EVENT, onSynced);
   }, []);
 
-  // After every render: read the plates the cards asked for that are neither known nor in flight.
+  // After every render: read the plates the cards asked for that are not current nor in flight.
   useEffect(() => {
     for (const [key, source] of asked.current) {
-      if (key in saved || reading.current.has(key)) continue;
+      if (readAt.current.get(key) === epoch.current || reading.current.has(key)) continue;
       reading.current.add(key);
       const at = epoch.current;
       void favoriteMealFor(source).catch(() => null).then((id) => {
         reading.current.delete(key);
-        if (at === epoch.current) setSaved((value) => ({ ...value, [key]: id }));
+        if (at !== epoch.current) return;
+        readAt.current.set(key, at);
+        setSaved((value) => ({ ...value, [key]: id }));
       });
     }
     asked.current.clear();
   });
 
-  const setOne = (key: string, id: string | null) => setSaved((value) => ({ ...value, [key]: id }));
+  const setOne = (key: string, id: string | null) => {
+    readAt.current.set(key, epoch.current);
+    setSaved((value) => ({ ...value, [key]: id }));
+  };
   const busy = (key: string, on: boolean) => setPending((value) => {
     const next = new Set(value);
     if (on) next.add(key); else next.delete(key);
@@ -111,7 +120,8 @@ export function useMealFavorites({ eligible, feedback }: {
     if (slot.meal === null) return undefined;
     const source = sourceOf(date, slot);
     const key = keyOf(source);
-    if (!(key in saved)) { asked.current.set(key, source); return undefined; }
+    if (readAt.current.get(key) !== epoch.current) asked.current.set(key, source);
+    if (!(key in saved)) return undefined;
     const id = saved[key];
     return {
       on: id !== null, pending: pending.has(key),

@@ -120,11 +120,17 @@ describe("useMealFavorites", () => {
     expect(result.current.favoriteFor(planned)?.on).toBe(false);
   });
 
-  it("re-reads after a sync", async () => {
-    api.favoriteMealFor.mockResolvedValueOnce(null).mockResolvedValue("saved-3");
+  it("re-reads after a sync, keeping the heart on screen meanwhile", async () => {
+    api.favoriteMealFor.mockResolvedValueOnce(null);
+    let answer: (id: string) => void = () => {};
+    api.favoriteMealFor.mockImplementation(() => new Promise<string>((resolve) => { answer = resolve; }));
     const { result } = setup();
     await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(false));
     await act(async () => { window.dispatchEvent(new Event(SYNCED_EVENT)); });
+    // The re-read is in flight: the card still has its heart (no blink).
+    await waitFor(() => expect(api.favoriteMealFor).toHaveBeenCalledTimes(2));
+    expect(result.current.favoriteFor(planned)?.on).toBe(false);
+    await act(async () => { answer("saved-3"); });
     await waitFor(() => expect(result.current.favoriteFor(planned)?.on).toBe(true));
   });
 
