@@ -47,7 +47,7 @@ export const QUESTION: Partial<Record<OnboardingFactKey, string>> = {
   sex: "Male or female? It sets the math.",
   heightCm: "How tall are you?",
   weightKg: "What do you weigh right now?",
-  goal: "What's your goal?",
+  goal: "What’s your goal?",
 };
 
 function Question({ id, children }: { id?: string; children: ReactNode }) {

@@ -2,35 +2,27 @@
  * Onboarding v2 — reads one typed answer from the dock's text composer (live QA 2026-10-07,
  * defect 2: the composer was an empty box; the owner: "typing must work").
  *
- * Local only, zero model calls, nothing leaves the phone:
- *   1. `onboardingSafetyCheck` (lib/coach/onboarding-safety.ts) runs first. A health, allergy or
- *      symptom statement is never parsed here; the shell points the person at the safety question.
- *   2. The question being asked reads a bare answer in its own US unit ("34" while asking age,
+ *   1. The question being asked reads a bare answer in its own US unit ("34" while asking age,
  *      "5 10" while asking height, "170" while asking weight) — the person answered that question,
- *      so the value is confirmed (high band).
- *   3. Otherwise `extractFastPath` (lib/coach/onboarding-fast-path.ts) reads whatever it can, each
- *      field at its own confidence band (a bare number stays a ghost that needs one tap).
- *
- * UI-NEEDS (backend lane): the model step for free sentences ("trying to drop a few pounds before
- * summer") belongs in `lib/onboarding/extract-client.ts` as
- *   `extractOnboardingFacts(text, { asking, now }): Promise<TypedAnswer>`
- * with this same return type: run this local pass first, and call `/api/onboarding/extract` only
- * for what it left unread. `readTypedAnswer` is the one call the shell makes, so the swap is one
- * import.
+ *      so the value is confirmed (high band). Safety runs first even here.
+ *   2. Anything else goes to `extractOnboardingFacts` (lib/onboarding/extract-client.ts): the local
+ *      safety check, the zero-model fast path, then the bounded model call for goal / activity /
+ *      cooking effort only. When the model leg does not answer (budget, offline, failure) its local
+ *      reading still counts, so the flow keeps going.
  */
-import { extractFastPath, type FastPathFacts } from "@/lib/coach/onboarding-fast-path";
+import { extractOnboardingFacts, type OnboardingBlockedReason } from "@/lib/onboarding/extract-client";
+import type { FastPathFacts } from "@/lib/coach/onboarding-fast-path";
 import { onboardingSafetyCheck } from "@/lib/coach/onboarding-safety";
 import type { OnboardingFactKey } from "@/lib/coach/ui-blocks";
 import { ftInToCm } from "@/lib/units/height";
 import { lbToKg } from "@/lib/health/units";
 
 export type TypedAnswer =
-  | { status: "ok"; facts: FastPathFacts }
-  | { status: "blocked"; reason: "medical" | "allergy_or_condition" | "symptom" }
-  | { status: "unread" };
+  | { status: "ok"; facts: FastPathFacts; callsUsed: number }
+  | { status: "blocked"; reason: OnboardingBlockedReason; callsUsed: number }
+  | { status: "unread"; callsUsed: number };
 
 const CONFIRMED = 1;
-
 /** A bare answer to the question on screen, read in that question's own unit. */
 function contextual(text: string, asking: OnboardingFactKey | null, now: Date): FastPathFacts | null {
   const norm = text.trim().toLowerCase().replace(/[’‘′]/g, "'").replace(/[″“”]/g, "\"");
@@ -57,12 +49,26 @@ function contextual(text: string, asking: OnboardingFactKey | null, now: Date): 
   return null;
 }
 
-export function readTypedAnswer(text: string, asking: OnboardingFactKey | null, now = new Date()): TypedAnswer {
+/** The contextual reading alone (pure; exported for tests). */
+export function readAskedAnswer(text: string, asking: OnboardingFactKey | null, now = new Date()): FastPathFacts | null {
+  return onboardingSafetyCheck(text).blocked ? null : contextual(text, asking, now);
+}
+
+export async function readTypedAnswer(text: string, asking: OnboardingFactKey | null, opts: {
+  callsUsed?: number; now?: Date; extract?: typeof extractOnboardingFacts;
+} = {}): Promise<TypedAnswer> {
+  const now = opts.now ?? new Date();
+  const callsUsed = opts.callsUsed ?? 0;
   const verdict = onboardingSafetyCheck(text);
-  if (verdict.blocked) return { status: "blocked", reason: verdict.reason };
+  if (verdict.blocked) return { status: "blocked", reason: verdict.reason, callsUsed };
   const direct = contextual(text, asking, now);
-  if (direct) return { status: "ok", facts: direct };
-  const found = extractFastPath(text, now);
-  const keys = Object.keys(found).filter((key) => key !== "confidence");
-  return keys.length > 0 ? { status: "ok", facts: found } : { status: "unread" };
+  if (direct) return { status: "ok", facts: direct, callsUsed };
+  const result = await (opts.extract ?? extractOnboardingFacts)(text, { callsUsed, now });
+  if (result.status === "blocked") {
+    return { status: "blocked", reason: result.blockedReason ?? "allergy_or_condition", callsUsed: result.callsUsed };
+  }
+  const keys = Object.keys(result.facts).filter((key) => key !== "confidence");
+  return keys.length > 0
+    ? { status: "ok", facts: result.facts as FastPathFacts, callsUsed: result.callsUsed }
+    : { status: "unread", callsUsed: result.callsUsed };
 }

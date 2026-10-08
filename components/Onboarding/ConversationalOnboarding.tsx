@@ -30,11 +30,14 @@ import { clearOnboardingDraft, loadOnboardingDraft, saveOnboardingDraft }
 import { dbFood } from "@/lib/food-db";
 import { starterSelectionValid } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
-import { persistStarterSelection } from "@/lib/foods/starter-client";
+import { starterFood } from "@/lib/foods/starter";
+import { onboardingPlanPreview, type PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
+import { saveOnboardingPlan } from "@/lib/onboarding/save-plan";
+import { todayIso } from "@/lib/settings/date";
 import { mealCountFor } from "@/lib/plan";
 import { accountHandle, onAccountGone, onAccountReady } from "@/lib/device/account";
 import {
-  CONSTRAINT_SAVE_WARNING, loadOnboardingSettings, mirroredOnboardedAt, ONBOARDING_SYNC_WARNING,
+  loadOnboardingSettings, mirroredOnboardedAt, ONBOARDING_SYNC_WARNING,
   persistCompletedOnboarding, persistSkippedOnboarding, retryOnboardingConstraints,
 } from "@/lib/profile/onboarding-client";
 import { buildCompletedSettings, missingProfileFields } from "@/lib/profile/onboarding-state";
@@ -119,7 +122,7 @@ const TYPE_HINT: Partial<Record<OnboardingFactKey, string>> = {
   weightKg: "Or type it: 170", goal: "Or type it: lose fat",
 };
 const OPENER_HINT = "Or type it: lose fat, 34, 5 10, 170 lb";
-const BLOCKED_NOTE = "That sounds like a health or allergy detail. Sprout asks about those in a moment, safely.";
+const BLOCKED_NOTE = "That sounds like a health or allergy detail. Add it here, so every plan respects it.";
 const UNREAD_NOTE = "Sprout didn’t catch that. Try a number, like 34 or 5 10, or tap an answer.";
 
 /** Clear extension points for a caller that wants to render something other than this lane's own
@@ -162,7 +165,6 @@ function BeatLayer({ reduce, children }: { reduce: boolean; children: ReactNode 
   </motion.div>;
 }
 
-const ROLE_ORDER = ["protein", "carb", "fat"] as const;
 
 /** The five required facts (birth year, sex, height, weight, goal). */
 const REQUIRED_FACT_KEYS = ["goal", "sex", "birthYear", "heightCm", "weightKg"] as const;
@@ -238,6 +240,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [shownFoodIds, setShownFoodIds] = useState<readonly string[]>([]);
   /** The person's own taps, in order — the reward card lists these first. */
   const [userPicks, setUserPicks] = useState<readonly string[]>([]);
+  /** Model calls this session's typed answers made (the extract client's budget). */
+  const [extractCalls, setExtractCalls] = useState(0);
+  const [reading, setReading] = useState(false);
+  /** Shown on the safety card when a typed answer was a health or allergy detail. */
+  const [safetyNote, setSafetyNote] = useState<string | null>(null);
   const leaving = useRef(false);
   /** GPT-6 Sol round-1 BLOCK: without these, a retry after a failure in a LATER step (the starter
    *  write, the drain) re-ran `persistCompletedOnboarding` too — it is not safe to call twice (it
@@ -251,7 +258,6 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  via `retryOnboardingConstraints`, which this now does too). */
   const profileWritten = useRef(false);
   const constraintsSaved = useRef(false);
-  const foodsWritten = useRef(false);
   /** Gates the draft-save effect below until the resume-draft read (or its failure) has actually
    *  settled — see that effect's own comment for why. */
   const [draftChecked, setDraftChecked] = useState(false);
@@ -290,7 +296,6 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setTyped("");
       setComposerNote(null);
       profileWritten.current = false;
-      foodsWritten.current = false;
       leaving.current = false;
       void (async () => {
         let settings: Settings;
@@ -360,7 +365,6 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       setTyped("");
       setComposerNote(null);
       profileWritten.current = false;
-      foodsWritten.current = false;
       leaving.current = false;
     });
     return () => { live = false; unreadyFn(); ungoneFn(); };
@@ -379,7 +383,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     void saveOnboardingDraft({ beat, settings: factsToPartialSettings(confirmedFactsOnly(facts)) });
   }, [base, draftChecked, beat, facts]);
 
-  const settings = useMemo(() => (base ? applyFactsToSettings(base, facts) : null), [base, facts]);
+  // Every account is in the US (owner, 2026-10-07): the editors show feet/inches and pounds, so the
+  // saved display units say so too. Storage stays cm/kg.
+  const settings = useMemo(() => (base
+    ? { ...applyFactsToSettings(base, facts), heightUnit: "ft_in" as const, weightUnit: "lb" as const }
+    : null), [base, facts]);
   const onboardingState = useMemo(
     () => (settings ? buildOnboardingStateFromFacts(settings, facts) : null), [settings, facts]);
 
@@ -388,8 +396,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   // `FoodsTopPickChips` (which reads `starter.choices`) always saw `null` — an empty picker and a
   // "Sprout, pick for me" that could never select anything. Pilot accounts need the same
   // safety-filtered starter list this shell now shows them.
+  // The love round starts with nothing marked: only foods the person taps (or Sprout fills in on
+  // request) are saved (live QA 2026-10-07: 29 unseen defaults were saved as Eats).
   const starter = useStarterStep(onboardingState,
-    foodAccess.status === "legacy" || foodAccess.status === "pilot");
+    foodAccess.status === "legacy" || foodAccess.status === "pilot", { preselectDefaults: false });
 
   const selectedStarterIds = Object.entries(starter.marks)
     .filter(([, mark]) => mark === "eats").map(([id]) => id);
@@ -458,6 +468,22 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }));
   }, [starter.choices, starter.marks, userPicks]);
 
+  /** The meals Today will open on, built by Today's own `resolveDay` over the picked foods
+   *  (`lib/onboarding/plan-preview.ts`), so the preview and Today agree. Empty while anything is
+   *  missing. */
+  const previewMeals = useMemo<PlanPreviewMeal[]>(() => {
+    if (beat !== "reward" || !settings || !onboardingState || !starter.choices) return [];
+    if (missingProfileFields(onboardingState).length > 0) return [];
+    try {
+      const completed = buildCompletedSettings(settings, onboardingState, new Date());
+      const picked = starter.choices.filter((item) => starter.marks[item.id] === "eats")
+        .map((item) => starterFood(item.id, "eats"));
+      return onboardingPlanPreview(completed, picked, todayIso()).meals.slice(0, 3);
+    } catch {
+      return [];
+    }
+  }, [beat, settings, onboardingState, starter.choices, starter.marks]);
+
   /** A tap in the foods beat: the starter mark, plus the tap order the reward card reads. */
   function markFood(id: string, mark: StarterMark) {
     starter.mark(id, mark);
@@ -467,9 +493,17 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   }
 
   /** "That's me": only shown once every required field is confirmed (live QA 2026-10-07: it
-   *  used to show after one field and then do nothing on tap). The gate stays here as well. */
+   *  used to show after one field and then do nothing on tap). The gate stays here as well. If a
+   *  typed health detail already took the person through the safety card, go straight to foods. */
   function confirmFacts() {
-    if (allRequiredFactsConfirmed(facts)) advance("safety");
+    if (allRequiredFactsConfirmed(facts)) advance(safety.confirmed ? "foods" : "safety");
+  }
+
+  /** After the safety card: back to any fact still missing (the card can come early, when a typed
+   *  answer was a health detail), else on to foods. */
+  function afterSafety() {
+    setSafetyNote(null);
+    advance(allRequiredFactsConfirmed(facts) ? "foods" : "facts");
   }
 
   function pickGoal(key: Goal) {
@@ -493,22 +527,39 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const askingField: OnboardingFactKey | null = beat === "facts"
     ? (editingField ?? firstUnconfirmedField(facts)) : null;
 
-  /** The dock's text composer on opener and facts. Read on the phone only (`typed-answer.ts`). */
-  function submitTyped(text: string) {
-    const answer = readTypedAnswer(text, beat === "facts" ? askingField : null);
-    if (answer.status === "blocked") { setComposerNote(BLOCKED_NOTE); return; }
-    if (answer.status === "unread") { setComposerNote(UNREAD_NOTE); return; }
-    setFacts((current) => mergeTypedFacts(current, answer.facts));
-    setTyped("");
-    setComposerNote(null);
-    setEditingField(null);
-    if (beat === "opener") advance("facts");
+  /** The dock's text composer on opener and facts (`typed-answer.ts`): the asked question's own
+   *  unit first, then the extract client. A health or allergy detail opens the safety card. */
+  async function submitTyped(text: string) {
+    if (reading) return;
+    const from = beat;
+    setReading(true);
+    try {
+      const answer = await readTypedAnswer(text, from === "facts" ? askingField : null, { callsUsed: extractCalls });
+      setExtractCalls(answer.callsUsed);
+      if (answer.status === "blocked") {
+        setTyped("");
+        setComposerNote(null);
+        setSafetyNote(BLOCKED_NOTE);
+        advance("safety");
+        return;
+      }
+      if (answer.status === "unread") { setComposerNote(UNREAD_NOTE); return; }
+      setFacts((current) => mergeTypedFacts(current, answer.facts));
+      setTyped("");
+      setComposerNote(null);
+      setEditingField(null);
+      if (from === "opener") advance("facts");
+    } catch {
+      setComposerNote(UNREAD_NOTE);
+    } finally {
+      setReading(false);
+    }
   }
 
   function confirmNoAllergy() {
     setSafety({ confirmed: true, answer: "none" });
     onAllergyAnswer?.("none");
-    advance("foods");
+    afterSafety();
   }
   function addAllergyRule() {
     setSafety((current) => ({ ...current, answer: "rule" }));
@@ -529,7 +580,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       return;
     }
     setSafety((current) => ({ confirmed: true, answer: current.answer ?? "rule" }));
-    advance("foods");
+    afterSafety();
   }
 
   /** Fills only the groups still short (a legacy plan needs one protein per planned meal), never
@@ -565,73 +616,47 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
   }, [router, base]);
 
-  /** "Use this plan": the same write path `OnboardingFlow.tsx`'s `savePlan()` drives —
-   *  `persistCompletedOnboarding` (mints the target revision, writes `constraint_profiles`), then
-   *  the starter-food write for a legacy account (re-read first, per ONB2-RULE-REREAD), then the
-   *  same drain-and-mirror gate `leaveOnboarding` uses before it ever navigates away. */
+  /** "Use this plan": one call to `saveOnboardingPlan` (lib/onboarding/save-plan.ts — profile,
+   *  target revision and constraints in parallel, one fresh rules read for the food write
+   *  (ONB2-RULE-REREAD), batched food writes, then the drain-and-mirror gate), behind the
+   *  full-screen saving state. The profile write is guarded here so a retry after a later failure
+   *  never mints a second target revision (GPT-6 Sol round-1/2 BLOCK); a constraints-only failure
+   *  retries the constraints alone. */
   const savePlanAndFinish = useCallback(async () => {
     if (leaving.current) return;
     if (!settings || !onboardingState) { setLeaveError(ONBOARDING_SYNC_WARNING); return; }
     leaving.current = true;
     const title = "Building your plan…";
-    setSavingState({ title, step: "Saving your profile and targets." });
+    setSavingState({ title, step: "Saving your profile, targets and foods." });
     setLeaveError(null);
-    try {
-      // GPT-6 Sol round-2 BLOCK: the settings/target-revision write and the separate
-      // `constraint_profiles` write inside `persistCompletedOnboarding` can fail independently.
-      // Marking `profileWritten` only AFTER checking `constraintsSaved` meant a constraints-only
-      // failure still re-ran the WHOLE function — including the settings write that had already
-      // succeeded — on retry. `profileWritten` now flips as soon as the call returns at all;
-      // `constraintsSaved` tracks its own half and retries narrowly via
-      // `retryOnboardingConstraints`, the same split `OnboardingFlow.tsx`'s own `savePlan` uses.
-      if (!profileWritten.current) {
-        const result = await persistCompletedOnboarding(settings, onboardingState);
+    const writesFoods = foodAccess.status === "legacy" || foodAccess.status === "pilot";
+    const result = await saveOnboardingPlan({
+      settings, onboardingState,
+      starter: writesFoods ? { status: foodAccess.status as "legacy" | "pilot", marks: starter.marks, plannedCount } : null,
+    }, {
+      persistPlan: async (planSettings, state) => {
+        if (profileWritten.current) return { settings: planSettings, constraintsSaved: constraintsSaved.current };
+        const written = await persistCompletedOnboarding(planSettings, state);
         profileWritten.current = true;
-        constraintsSaved.current = result.constraintsSaved;
-      }
-      if (!constraintsSaved.current) {
-        if (!await retryOnboardingConstraints(onboardingState.flags)) {
-          throw new Error(CONSTRAINT_SAVE_WARNING);
-        }
-        constraintsSaved.current = true;
-      }
-      // GPT-6 Sol round-2 BLOCK: pilot accounts could mark foods "loved" and see them on the
-      // reward plate, but this write only ever ran for "legacy" — the selection was silently
-      // never saved. Also re-validates the FRESH (post-reread) choices before writing, not just
-      // the ones `planReady` was computed from a moment earlier — a rule saved in the gap between
-      // opening "Use this plan" and this write finishing could otherwise still let a selection
-      // through that no longer actually satisfies the two-per-role or protein-count floor.
-      if ((foodAccess.status === "legacy" || foodAccess.status === "pilot") && !foodsWritten.current) {
-        setSavingState({ title, step: "Saving the foods you love." });
-        const freshChoices = await starter.reread();
-        if (!freshChoices) {
-          throw new Error("Couldn’t verify your food rules. Go back to Foods and retry.");
-        }
-        const freshSelectedIds = Object.entries(starter.marks)
-          .filter(([, mark]) => mark === "eats").map(([id]) => id);
-        if (!starterSelectionValid(freshSelectedIds, freshChoices)) {
-          throw new Error("A rule just changed what's safe to eat — go back to Foods and choose again.");
-        }
-        if (foodAccess.status === "legacy"
-          && !starterProteinAvailability(starter.marks, freshChoices, plannedCount).ready) {
-          throw new Error("A rule just changed what's safe to eat — go back to Foods and choose again.");
-        }
-        await persistStarterSelection(starter.marks, freshChoices);
-        foodsWritten.current = true;
-      }
-      setSavingState({ title, step: "Syncing your account." });
-      const drained = await flushOutboxNow(accountHandle());
-      const mirrored = drained ? await mirroredOnboardedAt() : null;
-      if (mirrored === null) throw new Error(ONBOARDING_SYNC_WARNING);
-      await clearOnboardingDraft();
-      setSavingState({ title, step: "Opening Today." });
-      router.replace("/");
-    } catch (error) {
-      setLeaveError(error instanceof Error ? error.message : "Couldn’t save your plan. Try again.");
+        constraintsSaved.current = written.constraintsSaved;
+        return written;
+      },
+      retryConstraints: async (flags) => {
+        const ok = await retryOnboardingConstraints(flags);
+        if (ok) constraintsSaved.current = true;
+        return ok;
+      },
+    });
+    if (!result.ok) {
+      setLeaveError(result.error);
       leaving.current = false;
       setSavingState(null);
+      return;
     }
-  }, [router, settings, onboardingState, foodAccess.status, starter, plannedCount]);
+    setSavingState({ title, step: "Opening Today." });
+    await clearOnboardingDraft();
+    router.replace("/");
+  }, [router, settings, onboardingState, foodAccess.status, starter.marks, plannedCount]);
 
   const handleSkip = onSkip ?? (() => void leaveOnboarding());
   const handleComplete = onComplete
@@ -674,11 +699,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         ? <FactQuestion key={askingField} field={askingField} facts={facts} onAnswer={answerFact} />
         : <Button variant="primary" size="lg" block onClick={confirmFacts}>That&rsquo;s me</Button>}
     </div>;
-    if (beat === "safety") return slots.allergyCard ?? <AllergyConditionGate answer={safety.answer}
-      onConfirmNone={confirmNoAllergy} onAddRule={addAllergyRule}
-      onRulesConfirmed={() => void allergyRulesConfirmed()} />;
+    if (beat === "safety") return slots.allergyCard ?? <div className="flex w-full flex-col gap-3">
+      {safetyNote && <p role="status" className="m-0 text-body text-graphite">{safetyNote}</p>}
+      <AllergyConditionGate answer={safety.answer}
+        onConfirmNone={confirmNoAllergy} onAddRule={addAllergyRule}
+        onRulesConfirmed={() => void allergyRulesConfirmed()} />
+    </div>;
     if (beat === "foods") return slots.foodGame ?? foodsContent;
-    return slots.plateReward ?? <RewardPlateCard targets={targets} lovedFoods={lovedFoods}
+    return slots.plateReward ?? <RewardPlateCard targets={targets} lovedFoods={lovedFoods} meals={previewMeals}
       showNumbers={showNumbers} onToggleNumbers={() => setShowNumbers((value) => !value)} />;
   })();
 
@@ -733,7 +761,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     {dockMode && <div className={styles.dockRow}>
       <OnboardingDock mode={dockMode} reduce={reduce}
         value={typed} onChange={(value) => { setTyped(value); if (composerNote) setComposerNote(null); }}
-        onSubmit={submitTyped}
+        onSubmit={(text) => void submitTyped(text)} listening={reading}
         placeholder={beat === "opener" ? OPENER_HINT
           : askingField ? (TYPE_HINT[askingField] ?? "Or type it") : "Type to change anything"}
         /* Sol review round 2: "Use this plan" only once a real plan can be saved; otherwise the

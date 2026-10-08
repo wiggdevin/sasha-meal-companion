@@ -6,7 +6,9 @@
  * Live QA 2026-10-07 (defect 5): this said "Here's your plate for tomorrow", but it is not the
  * plan — Today's planner (`planDay`) picks each meal from all of the person's Eats, so the names
  * here and the first meal on Today differed. It now says only what is true: these are foods the
- * plan is built from, the person's own taps first. No "tomorrow", no "breakfast".
+ * plan is built from, the person's own taps first. No "tomorrow", no "breakfast". When the shell
+ * passes `meals` (Today's own `resolveDay` over the same foods, `lib/onboarding/plan-preview.ts`),
+ * the card also shows today's first meals by their real labels and times.
  *
  * No numbers in the headline — the macro numbers live behind
  * one tertiary "See the numbers" tap, never inline on the card itself. The plate's own ingredient
@@ -21,6 +23,7 @@
 import Button from "@/components/ui/Button";
 import KcalText from "@/components/ui/KcalText";
 import type { Macros } from "@/lib/types";
+import type { PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
 
 export type RewardPlateFood = { id: string; name: string; role: "protein" | "carb" | "fat" };
 
@@ -43,12 +46,21 @@ function MacroLine({ title, macros }: { title: string; macros: Macros }) {
   </section>;
 }
 
-export default function RewardPlateCard({ targets, lovedFoods, showNumbers, onToggleNumbers }: {
+function MealRow({ meal }: { meal: PlanPreviewMeal }) {
+  return <li className="matte-reset flex flex-col gap-0.5 rounded-[16px] bg-fog px-3 py-2.5">
+    <span className="text-tiny font-normal text-muted">{meal.label} · {meal.time}</span>
+    <span className="text-body text-charcoal">{meal.name}</span>
+  </li>;
+}
+
+export default function RewardPlateCard({ targets, lovedFoods, meals = [], showNumbers, onToggleNumbers }: {
   /** `null` while the preview is still being derived (missing a required fact this card cannot
    *  fix) — renders the "preparing" state rather than a crash or a stale number. */
   targets: RewardPlateTargets | null;
   /** The foods the account marked "eats" in the foods beat, one per role when available. */
   lovedFoods: readonly RewardPlateFood[];
+  /** Today's first meals, exactly as Today will build them. */
+  meals?: readonly PlanPreviewMeal[];
   showNumbers: boolean;
   onToggleNumbers: () => void;
 }) {
@@ -74,6 +86,10 @@ export default function RewardPlateCard({ targets, lovedFoods, showNumbers, onTo
         Your meals are built from these. Change them any time in Foods.
       </p>
     </div>
+    {meals.length > 0 && <section className="flex flex-col gap-2" aria-label="Your first meals today">
+      <h2 className="m-0 text-caption font-medium text-graphite">Your first meals today</h2>
+      <ul className="m-0 flex flex-col gap-2 p-0">{meals.map((meal) => <MealRow key={meal.label} meal={meal} />)}</ul>
+    </section>}
     {lovedFoods.length > 0 && <ul className="m-0 flex flex-wrap gap-2 p-0" aria-label="Foods in your plan">
       {lovedFoods.map((food) => <li key={food.id}
         className="inline-flex min-h-9 items-center rounded-full bg-fog px-3 text-caption text-charcoal">{food.name}</li>)}

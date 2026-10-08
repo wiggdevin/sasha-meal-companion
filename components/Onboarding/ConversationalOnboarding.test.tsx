@@ -53,6 +53,10 @@ vi.mock("@/lib/device/account", () => ({
     return () => {};
   },
   onAccountGone: () => () => {},
+  // The extract client's model leg: unreachable in tests, so typed answers use the local reading.
+  accountFetch: vi.fn(async () => { throw new Error("offline in tests"); }),
+  accountJson: vi.fn(),
+  rethrowAccountChanged: vi.fn(),
 }));
 
 const foodAccess = vi.hoisted(() => ({
@@ -77,8 +81,27 @@ vi.mock("@/components/Onboarding/useStarterStep", () => ({
   }),
 }));
 const persistStarterSelection = vi.fn(async (_marks: unknown, _choices: unknown) => 0);
-vi.mock("@/lib/foods/starter-client", () => ({
-  persistStarterSelection: (marks: unknown, choices: unknown) => persistStarterSelection(marks, choices),
+/** `saveOnboardingPlan` (lib/onboarding/save-plan.ts, tested in its own suite) stood in by its
+ *  contract: it calls the shell's `persistPlan`/`retryConstraints` deps, writes the foods, drains. */
+type SaveDeps = {
+  persistPlan: (settings: unknown, state: unknown) => Promise<{ constraintsSaved: boolean }>;
+  retryConstraints: (flags: unknown) => Promise<boolean>;
+};
+const saveOnboardingPlan = vi.fn(async (input: {
+  settings: unknown; onboardingState: { flags: unknown }; starter?: { marks: unknown } | null;
+}, deps: SaveDeps) => {
+  const written = await deps.persistPlan(input.settings, input.onboardingState);
+  if (!written.constraintsSaved && !await deps.retryConstraints(input.onboardingState.flags)) {
+    return { ok: false as const, error: "Your allergen rules could not be saved — retry from Foods › Avoids" };
+  }
+  if (input.starter) await persistStarterSelection(input.starter.marks, []);
+  if (!await flushOutboxNow() || await mirroredOnboardedAt() === null) {
+    return { ok: false as const, error: "Your setup could not be saved to your account — check your connection and try again" };
+  }
+  return { ok: true as const };
+});
+vi.mock("@/lib/onboarding/save-plan", () => ({
+  saveOnboardingPlan: (input: never, deps: never) => saveOnboardingPlan(input, deps),
 }));
 
 beforeEach(() => {
@@ -174,12 +197,16 @@ describe("ConversationalOnboarding", () => {
     expect(screen.getByTestId("facts-recap").textContent).toMatch(/5\u203210\u2033/);
   });
 
-  it("a typed health or allergy detail is never read, and says why", async () => {
+  it("a typed health or allergy detail is never read: it opens the safety card, and the facts"
+    + " questions follow it", async () => {
     render(<ConversationalOnboarding />);
     fireEvent.change(screen.getByRole("textbox", { name: "Tell Sasha" }), { target: { value: "I have a peanut allergy" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await screen.findByText(/health or allergy detail/);
-    screen.getByText(/What would feel different in eight weeks\?/);
+    await screen.findByTestId("allergy-condition-gate");
+    screen.getByText(/health or allergy detail/);
+    fireEvent.click(screen.getByRole("button", { name: "No, nothing" }));
+    // Nothing was answered yet, so the facts beat comes next (not foods).
+    await screen.findByText("How old are you?");
   });
 
   it("advances to the real facts sentence after a goal is picked, with that goal already"

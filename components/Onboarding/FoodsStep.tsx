@@ -21,7 +21,7 @@
  */
 import { useMemo, useState } from "react";
 import { dbFood } from "@/lib/food-db";
-import { STARTERS, type Starter, type StarterMark } from "@/lib/foods/starter";
+import { STARTERS, starterFillShortRoles, type Starter, type StarterMark } from "@/lib/foods/starter";
 import { ROLE_LABELS, type FoodRole } from "@/lib/foods";
 import Button from "@/components/ui/Button";
 import SearchField from "@/components/ui/SearchField";
@@ -43,22 +43,24 @@ type FoodsStepProps = {
 };
 
 /** "Sprout, pick for me": fills ONLY the groups still short of their count, never touching a
- *  food the person already tapped (live QA 2026-10-07: it used to add the defaults on top of every
- *  tap). Curated defaults first, then the rest of the deck in order; avoided foods are skipped.
- *  `need` raises a group's count (the legacy plan needs one distinct protein per planned meal).
- *  It only fills in marks; nothing is saved here. */
+ *  food the person already tapped or avoided (live QA 2026-10-07: it used to add the defaults on
+ *  top of every tap). The two-per-group fill is `starterFillShortRoles` (lib/foods/starter.ts);
+ *  `need` tops a group up further (the legacy plan needs one distinct protein per planned meal),
+ *  defaults first. It only fills in marks; nothing is saved here. */
 export function pickForMeIds(
-  choices: readonly Starter[], marks: Record<string, StarterMark>,
+  choices: readonly Starter[], marks: Readonly<Record<string, StarterMark>>,
   need: Partial<Record<FoodRole, number>> = {},
 ): string[] {
-  const picked: string[] = [];
+  const picked = starterFillShortRoles(choices, marks, PICK_FOR_ME_PER_ROLE);
   for (const role of ROLES) {
+    const target = need[role] ?? PICK_FOR_ME_PER_ROLE;
+    if (target <= PICK_FOR_ME_PER_ROLE) continue;
     const group = choices.filter((item) => item.role === role);
-    const have = group.filter((item) => marks[item.id] === "eats").length;
-    const short = Math.max(0, (need[role] ?? PICK_FOR_ME_PER_ROLE) - have);
-    const open = group.filter((item) => marks[item.id] !== "eats" && marks[item.id] !== "avoid");
+    const have = group.filter((item) => marks[item.id] === "eats" || picked.includes(item.id)).length;
+    const open = group.filter((item) => marks[item.id] !== "eats" && marks[item.id] !== "avoid"
+      && !picked.includes(item.id));
     const ordered = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
-    for (const item of ordered.slice(0, short)) picked.push(item.id);
+    for (const item of ordered.slice(0, Math.max(0, target - have))) picked.push(item.id);
   }
   return picked;
 }
