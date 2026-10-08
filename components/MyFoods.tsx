@@ -11,8 +11,8 @@ import { kcalPer100Label } from "@/lib/foods/display";
 import { roleFromName } from "@/lib/foods/role";
 import {
   FOOD_MEMBERSHIP_SAVE_MESSAGE, FOOD_MEMBERSHIP_TRUNCATED_MESSAGE,
-  FoodMembershipSaveError, FoodPartialSaveError, saveFoodEdits, setFoodMembership,
-  type FoodEditFields,
+  FoodMembershipSaveError, FoodPartialSaveError, isLatestFoodMembershipIntent, reserveFoodMembershipIntent,
+  saveFoodEdits, setFoodMembership, type FoodEditFields,
 } from "@/lib/foods/prefs-client";
 import { loadStore, setFoodNote, setFoodStatus, upsertFood } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
@@ -360,25 +360,32 @@ function useMembershipChange(setFoods: (foods: Record<string, Food>) => void,
     latest.current.set(id, seq);
     const h = accountHandle();
     const moved = setFoodStatus(id, next).foods[id];
+    // The intent is this tap's place in the food's membership order. Once a newer one exists (another
+    // tap here, the coach, a starter seed), this write is not ours to report: it settles quietly, with
+    // no confirmation, no Undo and no rollback over the newer choice, and is never sent if still queued.
+    // A name with nothing to normalize reserves nothing: the write itself then fails with the usual alert.
+    let intent: ReturnType<typeof reserveFoodMembershipIntent> | undefined;
+    try { intent = reserveFoodMembershipIntent(moved.name, h); } catch { intent = undefined; }
+    const superseded = () => intent !== undefined && !isLatestFoodMembershipIntent(intent);
     setFoods(loadStore().foods);
     setSaveError(null);
     void feedback.run(async () => {
       const result = await setFoodMembership(moved.name, next === "neutral" ? null : next,
-        { acknowledge: true, food: moved, note: null, account: h });
+        { acknowledge: true, food: moved, note: null, account: h, intent });
       const notice = foodMembershipNotice(result);
       if (notice && isCurrent(h)) setSaveError(notice);
       if (result && isCurrent(h)) onSaved?.(moved);
       return result;
     // The row's Remove (or the sheet) is gone by the time the write lands, so the confirmation
     // needs the notice even when there is nothing to undo (a neutral row's Clear marks).
-    }, { kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h),
+    }, { kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h) || superseded(),
       successMessage: membershipCopy(previous, next),
       failureMessage: foodMembershipError,
       undo: previous.status === next ? undefined
         : { action: () => { if (isCurrent(h)) change(id, previous.status); } },
     }).then((outcome) => {
       // A failed move is undone locally only while it is still the newest move of that food.
-      if (!outcome.ok && isCurrent(h) && latest.current.get(id) === seq) {
+      if (!outcome.ok && isCurrent(h) && latest.current.get(id) === seq && !superseded()) {
         setFoods(upsertFood({ ...loadStore().foods[id], status: previous.status }).foods);
       }
     });
