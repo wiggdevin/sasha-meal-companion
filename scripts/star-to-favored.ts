@@ -13,7 +13,12 @@
  *   (no flag)                        read-only report: starred rows, the distinct (account,
  *                                     family) pairs they resolve to, and how many would be
  *                                     favored, are already Favored, or are skipped because the
- *                                     family is on Avoid. No account id or food name is printed.
+ *                                     family is on Avoid (any member of it, never a capped
+ *                                     set), plus stars skipped because they point at another
+ *                                     account's food or at nothing readable. No account id or
+ *                                     food name is printed. Every read of account rows carries
+ *                                     the star owner's explicit user_id (the one exception reads
+ *                                     only id + user_id, to count a foreign star).
  *   --commit                         performs the merge: `set_food_membership(..., 'eats', ...)`
  *                                     for every family that is neither already `eats` nor
  *                                     `avoid`. Never overrides Avoid (acceptance 3) — an avoided
@@ -22,7 +27,8 @@
  *                                     already `eats` is left alone, not re-written at a higher rev.
  *   --commit --production            required together, the owner's deliberate step on production.
  *   --branch-check                   seeds one star in each of the three outcomes (favor, already
- *                                     Favored, on Avoid) for a throwaway user, runs --commit
+ *                                     Favored, on Avoid) plus one on another account's food, for
+ *                                     two throwaway users, runs --commit
  *                                     twice, and verifies: first run favors exactly one family and
  *                                     skips the Avoid one; second run favors 0 more. Refuses
  *                                     production.
@@ -30,16 +36,21 @@
 import { fileURLToPath } from "node:url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { baseFoodName } from "@/lib/foods/base-name";
+// Sol round 2 BLOCK: nothing here may import a module that loads `server-only`
+// (lib/server/membership-revisions.ts does): under plain `tsx` that package's default export
+// throws at import, before any flag is read. These three modules are server-side but import-safe
+// for a CLI; tests/foods/star-to-favored-cli.test.ts starts the real script to prove it.
 import { adminClient } from "@/lib/server/admin";
 import { readByIdBatches } from "@/lib/server/date-chunks";
-import { readFamilySets, readMembershipRevisions } from "@/lib/server/membership-revisions";
 import { fetchAllRows } from "@/lib/server/paged-read";
 import { projectRef } from "@/scripts/food-membership-audit";
 
 const PRODUCTION_REF = "fivatgdpuenszxxnijpc";
 
 function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  const text = (error as { message?: unknown } | null)?.message;
+  return typeof text === "string" ? text : String(error);
 }
 
 /** Throws when the flags would write somewhere they should not. Pure; reads only its inputs. */
@@ -84,102 +95,152 @@ async function allStars(admin: SupabaseClient): Promise<StarRow[]> {
     .order("user_id").order("food_ref_id").range(from, to));
 }
 
-/** Each live star's resolved display name, by (user, food_ref_id); a ref with no readable name
- *  (deleted food, broken row) maps to null and is dropped — never guessed at. `.in(...)` lookups
- *  are chunked (`readByIdBatches`) so a large star table never hits the row cap on this side
- *  either — the same pagination risk Sol flagged for the star scan itself. */
-async function starNames(admin: SupabaseClient, stars: readonly StarRow[]): Promise<Map<string, string | null>> {
-  const refIds = [...new Set(stars.map((s) => s.food_ref_id))];
-  if (refIds.length === 0) return new Map();
+/** A ref's name as `owner` may read it: the owner's own live user food or an active catalog
+ *  revision; `"foreign"` for a user food that belongs to another account (never named); null
+ *  when nothing readable exists (deleted food, broken row) — never guessed at. */
+const FOREIGN: unique symbol = Symbol("foreign");
+type RefName = string | typeof FOREIGN | null;
+
+/**
+ * Sol round 2 BLOCK: every read is scoped to the star's OWNER. `favorites_foods` accepts any
+ * `food_ref_id`, so a star can point at another account's user food; this privileged script
+ * must never read that food's name, nor apply its family to the owner's preferences. A user
+ * food is read with an explicit `user_id = owner` filter; a user ref the owner's read does not
+ * return is checked by id only (no name column) to tell "foreign" from "gone", for the report.
+ */
+async function refNamesFor(
+  admin: SupabaseClient, owner: string, refIds: readonly string[],
+): Promise<Map<string, RefName>> {
+  const out = new Map<string, RefName>();
+  if (refIds.length === 0) return out;
   const refs = await readByIdBatches(refIds, (batch) => selectAll<RefRow>(admin.from("food_refs")
     .select("id,kind,catalog_food_id,user_food_id").in("id", batch)));
   const userFoodIds = refs.flatMap((r) => r.kind === "user" && r.user_food_id ? [r.user_food_id] : []);
   const catalogIds = refs.flatMap((r) => r.kind === "catalog" && r.catalog_food_id !== null
     ? [r.catalog_food_id] : []);
-  const [userFoods, catalog] = await Promise.all([
+  const [ownFoods, catalog] = await Promise.all([
     readByIdBatches(userFoodIds, (batch) => selectAll<{ id: string; name: string }>(admin
-      .from("user_foods").select("id,name").in("id", batch))),
+      .from("user_foods").select("id,name").eq("user_id", owner).is("deleted_at", null).in("id", batch))),
     readByIdBatches(catalogIds, (batch) => selectAll<{ catalog_food_id: number; description: string }>(admin
       .from("catalog_food_revisions").select("catalog_food_id,description")
       .in("catalog_food_id", batch).eq("is_active", true))),
   ]);
-  const byUserFood = new Map(userFoods.map((f) => [f.id, f.name]));
+  const byUserFood = new Map(ownFoods.map((f) => [f.id, f.name]));
+  const notOwn = userFoodIds.filter((id) => !byUserFood.has(id));
+  const otherOwner = new Set((await readByIdBatches(notOwn, (batch) => selectAll<{ id: string; user_id: string }>(
+    admin.from("user_foods").select("id,user_id").in("id", batch))))
+    .filter((f) => f.user_id !== owner).map((f) => f.id));
   const byCatalog = new Map(catalog.map((f) => [Number(f.catalog_food_id), f.description]));
-  const nameByRef = new Map<string, string | null>();
   for (const ref of refs) {
-    const name = ref.kind === "user" ? (ref.user_food_id ? byUserFood.get(ref.user_food_id) : undefined)
-      : ref.kind === "catalog" && ref.catalog_food_id !== null ? byCatalog.get(ref.catalog_food_id) : undefined;
-    nameByRef.set(ref.id, name ?? null);
+    if (ref.kind === "user") {
+      const id = ref.user_food_id;
+      out.set(ref.id, id && otherOwner.has(id) ? FOREIGN : (id ? byUserFood.get(id) : undefined) ?? null);
+    } else {
+      out.set(ref.id, ref.kind === "catalog" && ref.catalog_food_id !== null
+        ? byCatalog.get(Number(ref.catalog_food_id)) ?? null : null);
+    }
   }
-  return new Map(stars.map((s) => [`${s.user_id}:${s.food_ref_id}`, nameByRef.get(s.food_ref_id) ?? null]));
+  return out;
+}
+
+/** The owner's own membership marks for `families` (`food_membership_revisions`, explicit
+ *  `user_id`). Read here rather than through lib/server/membership-revisions.ts, which loads
+ *  `server-only` (see the import note above). */
+async function membershipMarks(
+  admin: SupabaseClient, owner: string, families: readonly string[],
+): Promise<Map<string, { status: "eats" | "avoid" | null; rev: number }>> {
+  const rows = await readByIdBatches([...families], (batch) => selectAll<{
+    name_norm: string; status: string | null; rev: unknown }>(admin.from("food_membership_revisions")
+    .select("name_norm,status,rev").eq("user_id", owner).in("name_norm", batch)));
+  const out = new Map<string, { status: "eats" | "avoid" | null; rev: number }>();
+  for (const row of rows) {
+    const rev = Number(row.rev);
+    if (!Number.isSafeInteger(rev) || rev < 0) throw new Error("malformed food membership revision");
+    out.set(row.name_norm, { status: row.status === "eats" || row.status === "avoid" ? row.status : null, rev });
+  }
+  return out;
+}
+
+/**
+ * Every family this owner has on Avoid through a live preference row, over ALL of the account's
+ * Avoid prefs — never a capped write set. Sol round 2 BLOCK: the previous check read only the
+ * refs `favor_family_sets` returned, which stops at 50 per family, so an Avoid on a 51st
+ * same-family catalog ref was missed and the family was written `eats`. This is the rule
+ * `_favor_family_avoided` applies in SQL (migration 20261215090000_favor_food_families.sql):
+ * any Avoid pref whose ref's name (owner's user food, or active catalog revision) normalizes to
+ * the family. The legacy backfill (20260911000700) writes such prefs with no membership row.
+ */
+async function avoidedFamilies(admin: SupabaseClient, owner: string): Promise<Set<string>> {
+  const prefs = await fetchAllRows<{ food_ref_id: string }>((from, to) => admin.from("user_food_prefs")
+    .select("food_ref_id").eq("user_id", owner).eq("status", "avoid")
+    .order("food_ref_id").range(from, to));
+  const names = await refNamesFor(admin, owner, prefs.map((p) => p.food_ref_id));
+  const out = new Set<string>();
+  for (const name of names.values()) {
+    if (name === null || name === FOREIGN) continue;
+    const family = baseFoodName(name);
+    if (family) out.add(family);
+  }
+  return out;
 }
 
 export type StarPlanEntry = { userId: string; family: string; status: "eats" | "avoid" | null; rev: number };
-
-/**
- * Whether ANY current ref in `family`'s full write set (`favor_family_sets`, migration
- * 20261215090000 — the exact ref ids `set_food_membership` would touch) carries `status =
- * 'avoid'` on `user_food_prefs` right now. Sol review BLOCK: `food_membership_revisions` alone
- * is not the ground truth — `backfill_legacy()` (supabase/migrations/20260911000700_legacy_
- * backfill.sql) writes `user_food_prefs.status = 'avoid'` directly for a migrated account, with
- * no matching `food_membership_revisions` row at all, so a family only ever marked that way read
- * as `status: null` (unmarked) from the revisions table alone — `commitStarMerge` would then
- * write `eats` over it. This checks the live preference rows for the family's own ref set too.
- */
-async function hasLiveAvoidRef(
-  admin: SupabaseClient, userId: string, refIds: readonly string[],
-): Promise<boolean> {
-  if (refIds.length === 0) return false;
-  const rows = await readByIdBatches(refIds, (batch) => selectAll<{ status: string }>(admin
-    .from("user_food_prefs").select("status").eq("user_id", userId).eq("status", "avoid")
-    .in("food_ref_id", batch)));
-  return rows.length > 0;
-}
+export type StarPlan = {
+  entries: StarPlanEntry[];
+  /** Stars on another account's user food: skipped, never named, never written. */
+  skippedForeign: number;
+  /** Stars whose food has no readable name (deleted, broken): skipped, never guessed at. */
+  skippedUnreadable: number;
+};
 
 /** Every live star, resolved to one (account, family) plan entry each, deduplicated. */
-export async function planStarMerge(admin: SupabaseClient): Promise<StarPlanEntry[]> {
+export async function planStarMerge(admin: SupabaseClient): Promise<StarPlan> {
   const stars = await allStars(admin);
-  const names = await starNames(admin, stars);
-  const byUser = new Map<string, Set<string>>();
+  const refsByOwner = new Map<string, string[]>();
   for (const star of stars) {
-    const name = names.get(`${star.user_id}:${star.food_ref_id}`);
-    const family = name ? baseFoodName(name) : null;
-    if (!family) continue;
-    (byUser.get(star.user_id) ?? byUser.set(star.user_id, new Set()).get(star.user_id)!).add(family);
+    (refsByOwner.get(star.user_id) ?? refsByOwner.set(star.user_id, []).get(star.user_id)!).push(star.food_ref_id);
   }
-  const entries: StarPlanEntry[] = [];
-  for (const [userId, families] of byUser) {
-    const names2 = [...families].sort();
-    const [marks, sets] = await Promise.all([
-      readMembershipRevisions(userId, names2),
-      readFamilySets(userId, names2),
-    ]);
-    for (const family of names2) {
+  const plan: StarPlan = { entries: [], skippedForeign: 0, skippedUnreadable: 0 };
+  for (const [owner, refIds] of [...refsByOwner].sort(([a], [b]) => a.localeCompare(b))) {
+    const names = await refNamesFor(admin, owner, refIds);
+    const families = new Set<string>();
+    for (const refId of refIds) {
+      const name = names.get(refId) ?? null;
+      if (name === FOREIGN) { plan.skippedForeign += 1; continue; }
+      const family = name ? baseFoodName(name) : "";
+      if (!family) { plan.skippedUnreadable += 1; continue; }
+      families.add(family);
+    }
+    if (families.size === 0) continue;
+    const sorted = [...families].sort();
+    const [marks, avoided] = await Promise.all([membershipMarks(admin, owner, sorted), avoidedFamilies(admin, owner)]);
+    for (const family of sorted) {
       const mark = marks.get(family);
-      const liveAvoid = mark?.status !== "avoid" && await hasLiveAvoidRef(admin, userId, sets.get(family) ?? []);
-      const status: "eats" | "avoid" | null = mark?.status === "avoid" || liveAvoid ? "avoid" : mark?.status ?? null;
-      entries.push({ userId, family, status, rev: mark?.rev ?? 0 });
+      const status = mark?.status === "avoid" || avoided.has(family) ? "avoid" : mark?.status ?? null;
+      plan.entries.push({ userId: owner, family, status, rev: mark?.rev ?? 0 });
     }
   }
-  return entries;
+  return plan;
 }
 
 export type StarMergeReport = { starredRows: number; pairs: number; toFavor: number;
-  alreadyFavored: number; skippedAvoid: number };
+  alreadyFavored: number; skippedAvoid: number; skippedForeign: number; skippedUnreadable: number };
 
-export function summarize(entries: readonly StarPlanEntry[], starredRows: number): StarMergeReport {
+export function summarize(plan: StarPlan, starredRows: number): StarMergeReport {
+  const { entries } = plan;
   return { starredRows, pairs: entries.length,
     toFavor: entries.filter((e) => e.status === null).length,
     alreadyFavored: entries.filter((e) => e.status === "eats").length,
-    skippedAvoid: entries.filter((e) => e.status === "avoid").length };
+    skippedAvoid: entries.filter((e) => e.status === "avoid").length,
+    skippedForeign: plan.skippedForeign, skippedUnreadable: plan.skippedUnreadable };
 }
 
 /** Writes `eats` for every entry with no current mark. Never touches an `avoid` or already-`eats`
  *  family — the first is "never overrides Avoid" (acceptance 3), the second is what makes a
  *  second run a no-op (also acceptance 3). Returns how many families it wrote. */
-export async function commitStarMerge(admin: SupabaseClient, entries: readonly StarPlanEntry[]): Promise<number> {
+export async function commitStarMerge(admin: SupabaseClient, plan: StarPlan): Promise<number> {
   let written = 0;
-  for (const entry of entries) {
+  for (const entry of plan.entries) {
     if (entry.status !== null) continue; // already eats, or avoid: never touched
     const { error } = await admin.rpc("set_food_membership", {
       p_user: entry.userId, p_name_norm: entry.family, p_status: "eats",
@@ -204,47 +265,67 @@ function printReport(label: string, r: StarMergeReport): void {
   console.log(`${label}: ${JSON.stringify(r)}`);
 }
 
+async function createTestUser(admin: SupabaseClient, suffix: string): Promise<string> {
+  const created = await admin.auth.admin.createUser({
+    email: `star-merge-${suffix}@example.invalid`, password: crypto.randomUUID(), email_confirm: true,
+  });
+  if (created.error || !created.data.user) throw new Error(created.error?.message ?? "test user missing");
+  return created.data.user.id;
+}
+
+async function insertOrThrow(query: PromiseLike<{ error: { message: string } | null }>): Promise<void> {
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+}
+
+/** Seeds user foods + refs for `userId`; returns the ref ids in `names` order. */
+async function seedFoods(admin: SupabaseClient, userId: string, names: readonly string[]): Promise<string[]> {
+  const foods = names.map((name) => ({ id: crypto.randomUUID(), user_id: userId, name,
+    kind: "custom", per_100g: {}, allergen_tags: [] }));
+  await insertOrThrow(admin.from("user_foods").insert(foods));
+  const refs = foods.map((food) => ({ id: crypto.randomUUID(), kind: "user", user_food_id: food.id }));
+  await insertOrThrow(admin.from("food_refs").insert(refs));
+  return refs.map((ref) => ref.id);
+}
+
 async function branchCheck(admin: SupabaseClient): Promise<void> {
   const url = process.env.SUPABASE_URL ?? "";
   if (url.includes(PRODUCTION_REF)) throw new Error(`--branch-check refuses production project ${PRODUCTION_REF}`);
   if (!url) throw new Error("--branch-check needs SUPABASE_URL pointed at the current branch");
   const suffix = crypto.randomUUID().slice(0, 8);
-  const created = await admin.auth.admin.createUser({
-    email: `star-merge-${suffix}@example.invalid`, password: crypto.randomUUID(), email_confirm: true,
-  });
-  if (created.error || !created.data.user) throw new Error(created.error?.message ?? "test user missing");
-  const userId = created.data.user.id;
+  const userId = await createTestUser(admin, suffix);
+  const otherId = await createTestUser(admin, `${suffix}-other`);
   try {
-    const settings = await admin.from("user_settings").insert({ user_id: userId,
-      first_opened_at: new Date().toISOString() });
-    if (settings.error) throw new Error(settings.error.message);
+    for (const id of [userId, otherId]) {
+      await insertOrThrow(admin.from("user_settings").insert({ user_id: id,
+        first_opened_at: new Date().toISOString() }));
+    }
     const names = [`star merge favor ${suffix}`, `star merge eats ${suffix}`, `star merge avoid ${suffix}`];
-    const foods = names.map((name) => ({ id: crypto.randomUUID(), user_id: userId, name,
-      kind: "custom", per_100g: {}, allergen_tags: [] }));
-    const insertedFoods = await admin.from("user_foods").insert(foods);
-    if (insertedFoods.error) throw new Error(insertedFoods.error.message);
-    const refs = foods.map((food) => ({ id: crypto.randomUUID(), kind: "user", user_food_id: food.id }));
-    const insertedRefs = await admin.from("food_refs").insert(refs);
-    if (insertedRefs.error) throw new Error(insertedRefs.error.message);
+    const refs = await seedFoods(admin, userId, names);
+    // Another account's private food, starred by the test user (favorites_foods accepts any ref).
+    const [foreignRef] = await seedFoods(admin, otherId, [`star merge foreign ${suffix}`]);
     // Seed the pre-existing marks for the "already eats" and "on Avoid" cases.
-    const marked = await admin.rpc("set_food_membership", { p_user: userId,
-      p_name_norm: names[1], p_status: "eats", p_note: null, p_rev: 1 });
-    if (marked.error) throw new Error(marked.error.message);
-    const avoided = await admin.rpc("set_food_membership", { p_user: userId,
-      p_name_norm: names[2], p_status: "avoid", p_note: null, p_rev: 1 });
-    if (avoided.error) throw new Error(avoided.error.message);
-    // Star all three.
-    const starred = await admin.from("favorites_foods").insert(refs.map((ref, i) => ({
-      user_id: userId, food_ref_id: ref.id, sort: i, deleted_at: null,
-    })));
-    if (starred.error) throw new Error(starred.error.message);
+    for (const [name, status] of [[names[1], "eats"], [names[2], "avoid"]] as const) {
+      const marked = await admin.rpc("set_food_membership", { p_user: userId,
+        p_name_norm: name, p_status: status, p_note: null, p_rev: 1 });
+      if (marked.error) throw new Error(marked.error.message);
+    }
+    await insertOrThrow(admin.from("favorites_foods").insert([...refs, foreignRef].map((ref, i) => ({
+      user_id: userId, food_ref_id: ref, sort: i, deleted_at: null,
+    }))));
 
-    const firstPlan = (await planStarMerge(admin)).filter((e) => e.userId === userId);
-    if (firstPlan.length !== 3) throw new Error(`expected 3 plan entries, found ${firstPlan.length}`);
+    const own = (plan: StarPlan): StarPlan => ({ ...plan,
+      entries: plan.entries.filter((e) => e.userId === userId) });
+    const firstPlan = own(await planStarMerge(admin));
+    if (firstPlan.entries.length !== 3) throw new Error(`expected 3 plan entries, found ${firstPlan.entries.length}`);
+    if (firstPlan.skippedForeign < 1) throw new Error("the foreign star was not skipped");
+    if (firstPlan.entries.some((e) => e.family.includes("foreign"))) {
+      throw new Error("the foreign star's family reached the plan");
+    }
     const firstWritten = await commitStarMerge(admin, firstPlan);
     if (firstWritten !== 1) throw new Error(`expected 1 write on the first run, wrote ${firstWritten}`);
 
-    const marksAfter = await readMembershipRevisions(userId, names.map(baseFoodName));
+    const marksAfter = await membershipMarks(admin, userId, names.map(baseFoodName));
     if (marksAfter.get(baseFoodName(names[0]))?.status !== "eats") {
       throw new Error("the neutral star was not favored");
     }
@@ -252,15 +333,16 @@ async function branchCheck(admin: SupabaseClient): Promise<void> {
       throw new Error("the star merge overrode an Avoid mark");
     }
 
-    const secondPlan = (await planStarMerge(admin)).filter((e) => e.userId === userId);
-    const secondWritten = await commitStarMerge(admin, secondPlan);
+    const secondWritten = await commitStarMerge(admin, own(await planStarMerge(admin)));
     if (secondWritten !== 0) throw new Error(`expected 0 writes on the second run, wrote ${secondWritten}`);
 
     console.log("star merge --branch-check: 1 favored, 1 already-favored skipped, "
-      + "1 avoid skipped, second run converged with 0 writes");
+      + "1 avoid skipped, 1 foreign star skipped, second run converged with 0 writes");
   } finally {
-    const removed = await admin.auth.admin.deleteUser(userId);
-    if (removed.error) console.warn(`star merge branch-check cleanup failed: ${removed.error.message}`);
+    for (const id of [userId, otherId]) {
+      const removed = await admin.auth.admin.deleteUser(id);
+      if (removed.error) console.warn(`star merge branch-check cleanup failed: ${removed.error.message}`);
+    }
   }
 }
 

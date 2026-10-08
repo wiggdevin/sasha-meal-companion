@@ -3,11 +3,10 @@
  * changes) and never overrides Avoid. Exercises the pure plan/commit functions over the in-memory
  * PostgREST double (tests/helpers/occasion-fake-db.ts), with a `set_food_membership` RPC double
  * that mutates `food_membership_revisions` the same way the real migration's function does, so
- * `readMembershipRevisions` (the same reader lib/server/taste-favor.ts uses) sees the write back.
+ * the script's own membership read sees the write back.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { familyRefs } from "@/tests/helpers/favor-fakes";
-import { fakeDb, type Row } from "@/tests/helpers/occasion-fake-db";
+import { fakeDb, type QueryLog, type Row } from "@/tests/helpers/occasion-fake-db";
 
 const state = vi.hoisted(() => ({ client: null as unknown }));
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => state.client }));
@@ -16,13 +15,10 @@ const { assertWriteTarget, commitStarMerge, planStarMerge, summarize } =
   await import("@/scripts/star-to-favored");
 
 const USER = "11111111-1111-4111-8111-111111111111";
+const OTHER = "22222222-2222-4222-8222-222222222222";
 
 function rpc(tables: Record<string, Row[]>) {
   return (name: string, args: Record<string, unknown>) => {
-    if (name === "favor_family_sets") {
-      const families = args.p_families as string[];
-      return families.map((family) => ({ name: family, ref_ids: familyRefs(tables, args.p_user as string, family) }));
-    }
     if (name !== "set_food_membership") throw new Error(`unexpected rpc ${name}`);
     const rows = (tables.food_membership_revisions ??= []);
     const existing = rows.find((r) => r.user_id === args.p_user && r.name_norm === args.p_name_norm);
@@ -31,6 +27,8 @@ function rpc(tables: Record<string, Row[]>) {
     return { rev: args.p_rev, status: args.p_status, updated: 1, truncated: false, notes_kept: 0 };
   };
 }
+
+let queries: QueryLog[] = [];
 
 function loadFixture() {
   const foods = [
@@ -59,10 +57,11 @@ function loadFixture() {
   };
   const fake = fakeDb(tables, rpc(tables));
   state.client = fake.client;
+  queries = fake.queries;
   return tables;
 }
 
-beforeEach(() => { state.client = null; });
+beforeEach(() => { state.client = null; queries = []; });
 
 describe("assertWriteTarget", () => {
   it("allows a plain --commit on a branch (not production)", () => {
@@ -85,15 +84,14 @@ describe("assertWriteTarget", () => {
 describe("planStarMerge / commitStarMerge", () => {
   it("plans exactly one family per outcome: favor, already-favored, Avoid (incl. legacy)", async () => {
     const tables = loadFixture();
-    const entries = await planStarMerge(state.client as never);
-    const report = summarize(entries, tables.favorites_foods.length);
-    expect(report).toEqual({ starredRows: 4, pairs: 4, toFavor: 1, alreadyFavored: 1, skippedAvoid: 2 });
+    const plan = await planStarMerge(state.client as never);
+    expect(summarize(plan, tables.favorites_foods.length)).toEqual({ starredRows: 4, pairs: 4, toFavor: 1,
+      alreadyFavored: 1, skippedAvoid: 2, skippedForeign: 0, skippedUnreadable: 0 });
   });
 
   it("writes Favored only for the neutral family, and NEVER overrides Avoid (acceptance 3)", async () => {
     const tables = loadFixture();
-    const entries = await planStarMerge(state.client as never);
-    const written = await commitStarMerge(state.client as never, entries);
+    const written = await commitStarMerge(state.client as never, await planStarMerge(state.client as never));
     expect(written).toBe(1);
     const marks = tables.food_membership_revisions;
     expect(marks.find((m) => m.name_norm === "oat milk")?.status).toBe("eats");
@@ -105,10 +103,9 @@ describe("planStarMerge / commitStarMerge", () => {
 
   it("never overrides a legacy-backfilled Avoid that has no food_membership_revisions row at all (Sol review BLOCK)", async () => {
     const tables = loadFixture();
-    const entries = await planStarMerge(state.client as never);
-    const shrimp = entries.find((e) => e.family === "shrimp");
-    expect(shrimp?.status).toBe("avoid");
-    await commitStarMerge(state.client as never, entries);
+    const plan = await planStarMerge(state.client as never);
+    expect(plan.entries.find((e) => e.family === "shrimp")?.status).toBe("avoid");
+    await commitStarMerge(state.client as never, plan);
     expect(tables.user_food_prefs.find((p) => p.food_ref_id === "ref-f-legacy-avoid")?.status).toBe("avoid");
     expect(tables.food_membership_revisions.some((m) => m.name_norm === "shrimp")).toBe(false);
   });
@@ -125,7 +122,53 @@ describe("planStarMerge / commitStarMerge", () => {
     const tables = loadFixture();
     tables.food_refs.push({ id: "ref-ghost", kind: "user", catalog_food_id: null, user_food_id: "missing" });
     tables.favorites_foods.push({ user_id: USER, food_ref_id: "ref-ghost", deleted_at: null, sort: 9 });
-    const entries = await planStarMerge(state.client as never);
-    expect(entries).toHaveLength(4); // the ghost star contributes nothing
+    const plan = await planStarMerge(state.client as never);
+    expect(plan.entries).toHaveLength(4); // the ghost star contributes nothing
+    expect(plan.skippedUnreadable).toBe(1);
+  });
+
+  it("never overrides an Avoid on a family member outside the 50-ref write set (Sol round 2 BLOCK)", async () => {
+    const tables = loadFixture();
+    // 51 catalog rows named "Tuna, ...": set_food_membership / favor_family_sets stop at 50 refs,
+    // and the Avoid sits on the 51st, the row a capped check never sees.
+    for (let i = 0; i < 51; i += 1) {
+      tables.catalog_food_revisions.push({ catalog_food_id: 1000 + i, description: `Tuna, cut ${i}`, is_active: true });
+      tables.food_refs.push({ id: `ref-tuna-${String(i).padStart(2, "0")}`, kind: "catalog",
+        catalog_food_id: 1000 + i, user_food_id: null });
+    }
+    tables.favorites_foods.push({ user_id: USER, food_ref_id: "ref-tuna-00", deleted_at: null, sort: 10 });
+    tables.user_food_prefs.push({ user_id: USER, food_ref_id: "ref-tuna-50", status: "avoid", updated_at: "2020-01-01" });
+    const plan = await planStarMerge(state.client as never);
+    expect(plan.entries.find((e) => e.family === "tuna")?.status).toBe("avoid");
+    await commitStarMerge(state.client as never, plan);
+    expect(tables.food_membership_revisions.some((m) => m.name_norm === "tuna")).toBe(false);
+  });
+
+  it("skips a star on ANOTHER account's user food: never named, never written (Sol round 2 BLOCK)", async () => {
+    const tables = loadFixture();
+    tables.user_foods.push({ id: "f-foreign", user_id: OTHER, name: "Grandma stew" });
+    tables.food_refs.push({ id: "ref-foreign", kind: "user", catalog_food_id: null, user_food_id: "f-foreign" });
+    tables.favorites_foods.push({ user_id: USER, food_ref_id: "ref-foreign", deleted_at: null, sort: 11 });
+    const plan = await planStarMerge(state.client as never);
+    expect(plan.skippedForeign).toBe(1);
+    expect(plan.entries.some((e) => e.family.includes("stew"))).toBe(false);
+    await commitStarMerge(state.client as never, plan);
+    expect(tables.food_membership_revisions.some((m) => String(m.name_norm).includes("stew"))).toBe(false);
+    expect(summarize(plan, tables.favorites_foods.length).skippedForeign).toBe(1);
+  });
+
+  it("reads every account-owned table with the owner's explicit user_id", async () => {
+    loadFixture();
+    await planStarMerge(state.client as never);
+    for (const table of ["food_membership_revisions", "user_food_prefs"]) {
+      const reads = queries.filter((q) => q.table === table);
+      expect(reads.length).toBeGreaterThan(0);
+      expect(reads.every((q) => q.filters.includes("eq:user_id"))).toBe(true);
+    }
+    // user_foods: every read that can return a name is owner-scoped; the only other read is the
+    // id-only foreign check (it has no deleted_at filter and selects id,user_id).
+    const named = queries.filter((q) => q.table === "user_foods" && q.filters.includes("is:deleted_at"));
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.every((q) => q.filters.includes("eq:user_id"))).toBe(true);
   });
 });
