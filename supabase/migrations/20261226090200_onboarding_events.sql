@@ -46,14 +46,24 @@ end $$;
 create function public.onboarding_event_shape_valid(p_kind text, p_step text, p_question text,
   p_pilot_arm text, p_duration_ms integer) returns boolean
   language sql immutable parallel safe set search_path = '' as $fn$
-    select case p_kind
+    -- coalesce(..., false): every branch below is an AND-chain over nullable inputs (p_step,
+    -- p_question, p_pilot_arm, p_duration_ms), and `x in (...)`/`x is null` on a NULL input makes
+    -- the whole chain evaluate to SQL NULL, not false. A bare `case` would then hand that NULL
+    -- straight to the table's CHECK, which treats NULL as satisfied -- the bug this closes: a
+    -- `step_left` with no step must come back false, never NULL. The `else false` branch also
+    -- covers an unknown or null p_kind.
+    select coalesce(case p_kind
       when 'pilot_arm_assigned' then
         p_pilot_arm in ('control', 'treatment') and p_step is null and p_question is null
           and p_duration_ms is null
       when 'step_entered' then
         p_step in ('intro', 'facts', 'allergy', 'foods', 'reward', 'done')
           and p_question is null and p_pilot_arm is null and p_duration_ms is null
-      when 'step_left', 'step_abandoned' then
+      when 'step_left' then
+        p_step in ('intro', 'facts', 'allergy', 'foods', 'reward', 'done')
+          and p_question is null and p_pilot_arm is null
+          and p_duration_ms is not null and p_duration_ms between 0 and 86400000
+      when 'step_abandoned' then
         p_step in ('intro', 'facts', 'allergy', 'foods', 'reward', 'done')
           and p_question is null and p_pilot_arm is null
           and p_duration_ms is not null and p_duration_ms between 0 and 86400000
@@ -67,7 +77,7 @@ create function public.onboarding_event_shape_valid(p_kind text, p_step text, p_
           and p_step is null and p_pilot_arm is null
           and p_duration_ms is not null and p_duration_ms between 0 and 86400000
       else false
-    end
+    end, false)
   $fn$;
 comment on function public.onboarding_event_shape_valid(text, text, text, text, integer) is
   'Followups #18: which of step/question/pilot_arm/duration_ms a kind may carry. The one place the onboarding_events vocabulary is fixed; lib/profile/onboarding-events.ts mirrors it exactly.';
@@ -101,8 +111,11 @@ create index onboarding_events_at on public.onboarding_events (at);
 create index onboarding_events_user_at on public.onboarding_events (user_id, at);
 
 alter table public.onboarding_events enable row level security;
--- No select policy for `authenticated` at all (spec: "no client reads") -- only the insert policy
--- below. A role with no select grant and no policy reads nothing, even its own rows.
+-- No select POLICY for `authenticated` at all (spec: "no client reads") -- only the insert policy
+-- below. RLS with no applicable policy for a command returns zero rows for that role, so
+-- `authenticated` reads nothing here, and no select GRANT exists either (see
+-- `record_onboarding_events` below for why its insert must avoid RETURNING/a writable CTE, which
+-- would otherwise need one).
 create policy onboarding_events_insert on public.onboarding_events for insert to authenticated
   with check (user_id = (select auth.uid()));
 -- Hosted default privileges grant ALL on a new table to anon, authenticated and service_role.
@@ -117,14 +130,28 @@ grant select, insert, delete on table public.onboarding_events to service_role;
 -- event the table would refuse (bad shape for its kind, bad flow_version, outside the clock
 -- window) is skipped and counted as rejected, so one bad event never fails its batch; a repeat of
 -- a stored client_event_id (or of one earlier in the same batch) is a duplicate.
+--
+-- Deliberately a per-row loop with an exception handler, not a single
+-- `insert ... on conflict (...) do nothing [returning ...]` (the shape record_food_signals,
+-- 20261219090000, uses): Postgres requires SELECT privilege on the target table for `ON CONFLICT`
+-- (to probe the arbiter index), and once granted, an `ON CONFLICT` write under RLS with no SELECT
+-- POLICY for the role still fails "new row violates row-level security policy" (it cannot resolve
+-- visibility for the conflict check). The same is true of RETURNING / a writable CTE read back via
+-- SELECT. `food_signal_events` has an owner SELECT policy, so none of this bites there; this table
+-- has NONE by design (spec: "no client reads"), so its insert must reach the table only through a
+-- bare `insert ... values (...)` with no RETURNING and no ON CONFLICT -- a true duplicate
+-- `client_event_id` is instead caught as a `unique_violation` per row, inside its own
+-- subtransaction (cheap at this table's 20-row batch cap) so one duplicate never aborts the batch.
+-- This needs no SELECT grant and no SELECT policy, matching the table's actual read capability.
 create function public.record_onboarding_events(p_events jsonb)
   returns table (inserted integer, duplicates integer, rejected integer)
   language plpgsql security invoker set search_path = '' as $$
 declare
   v_uid uuid := auth.uid();
   v_total integer;
-  v_eligible integer;
-  v_inserted integer;
+  v_eligible integer := 0;
+  v_inserted integer := 0;
+  v_event record;
 begin
   if v_uid is null then
     raise exception 'record_onboarding_events: sign in' using errcode = '42501';
@@ -135,28 +162,29 @@ begin
   end if;
   v_total := jsonb_array_length(p_events);
 
-  with batch as (
-    select e.*
-      from jsonb_to_recordset(p_events) as e(client_event_id uuid, at timestamptz,
+  for v_event in
+    select b.client_event_id, b.at, b.flow_version, b.kind, b.step, b.question, b.pilot_arm,
+           b.duration_ms
+      from jsonb_to_recordset(p_events) as b(client_event_id uuid, at timestamptz,
         flow_version text, kind text, step text, question text, pilot_arm text, duration_ms integer)
-  ), eligible as (
-    select b.* from batch b
      where b.client_event_id is not null and b.at is not null
        and b.flow_version in ('onboarding_v2')
        and public.onboarding_event_shape_valid(b.kind, b.step, b.question, b.pilot_arm, b.duration_ms)
        and b.at <= now() + interval '10 minutes'
        and b.at >= now() - interval '14 days'
-  ), stored as (
-    insert into public.onboarding_events (user_id, client_event_id, at, flow_version, kind, step,
-      question, pilot_arm, duration_ms)
-    select v_uid, b.client_event_id, b.at, b.flow_version, b.kind, b.step, b.question, b.pilot_arm,
-           b.duration_ms
-      from eligible b
-    on conflict (user_id, client_event_id) do nothing
-    returning 1
-  )
-  select (select count(*) from eligible)::integer, (select count(*) from stored)::integer
-    into v_eligible, v_inserted;
+  loop
+    v_eligible := v_eligible + 1;
+    begin
+      insert into public.onboarding_events (user_id, client_event_id, at, flow_version, kind, step,
+        question, pilot_arm, duration_ms)
+      values (v_uid, v_event.client_event_id, v_event.at, v_event.flow_version, v_event.kind,
+        v_event.step, v_event.question, v_event.pilot_arm, v_event.duration_ms);
+      v_inserted := v_inserted + 1;
+    exception when unique_violation then
+      -- A retry of the same (user_id, client_event_id): counted as a duplicate, stored once.
+      null;
+    end;
+  end loop;
 
   return query select v_inserted, v_eligible - v_inserted, v_total - v_eligible;
 end $$;
