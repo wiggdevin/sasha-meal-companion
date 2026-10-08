@@ -24,7 +24,7 @@ export const wellArt = (mascot: MascotKey, mood: PetMood): string =>
   mascot === "sprout" ? PET_ART[mood] : MASCOTS[mascot].art[mood];
 
 /** Fired after the companion is changed on this phone (Settings), so an open well redraws at once. */
-export const MASCOT_EVENT = "meal-companion:mascot";
+export const MASCOT_EVENT = "companion-changed";
 
 // The settings live in a JSON blob that loadStore parses on every call: read once, and again only
 // after a sync pass, a local change, or a new subscriber (a well that just opened).
