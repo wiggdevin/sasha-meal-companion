@@ -21,6 +21,7 @@
  * against `app/globals.css`). The circle + caption are wrapped in their own inner flex column
  * below so they stack regardless of `.btn-label`'s own direction.
  */
+import { Check } from "lucide-react";
 import Button, { type ButtonVariant } from "@/components/ui/Button";
 import { foodDiscArtUrl } from "./food-disc-art";
 
@@ -38,12 +39,14 @@ export default function FoodDisc({ id, shortName, label, pressed, variant, size 
   onToggle: () => void;
 }) {
   const art = foodDiscArtUrl(id);
-  const circlePx = size === "md" ? 96 : 64;
+  const circleSize = size === "md" ? "size-24" : "size-16"; // 96 px / 64 px
   return <Button aria-label={label} aria-pressed={pressed} variant={variant}
     className="h-auto w-auto flex-col gap-1 rounded-2xl p-1" onClick={onToggle}>
     <span className="flex flex-col items-center gap-1">
-      <span className="overflow-hidden rounded-full bg-[rgb(var(--ink-rgb)/0.08)]"
-        style={{ width: circlePx, height: circlePx }}>
+      {/* Live QA 2026-10-07: a loved disc was told apart only by a faint olive tint. It now carries
+          a ring and a check badge, so a tap reads at a glance in the end grid. */}
+      <span className={`relative inline-flex ${circleSize}`}>
+      <span className={`h-full w-full overflow-hidden rounded-full bg-[rgb(var(--ink-rgb)/0.08)] ${pressed ? "ring-[3px] ring-[rgb(var(--ink-rgb)/0.85)]" : ""}`}>
         {art
           /* eslint-disable-next-line @next/next/no-img-element -- art host isn't fixed yet; no
              next/image remotePatterns entry exists to point at, same as PhotoCapture.tsx's blob URL */
@@ -52,6 +55,11 @@ export default function FoodDisc({ id, shortName, label, pressed, variant, size 
               text-center text-tiny leading-tight">
             {shortName}
           </span>}
+      </span>
+        {pressed && <span aria-hidden="true" data-loved-badge="true"
+          className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full text-on-primary [background:var(--grad-ink)]">
+          <Check size={14} strokeWidth={3} />
+        </span>}
       </span>
       {/* whitespace-normal overrides .btn's inherited nowrap so a long name can actually wrap;
           line-clamp-2 (not -1, GPT-6 Sol r4 WARN) so that wrapped second line is still shown

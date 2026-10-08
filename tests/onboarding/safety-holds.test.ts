@@ -1,0 +1,176 @@
+// Onboarding v2 G7 + G1 on the phone: the safety round's taps travel in the constraint patch,
+// are written BEFORE the target revision, and a held account saves no pace.
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetTestAccount } from "@/tests/helpers/account";
+import { defaultSettings } from "@/lib/store";
+import {
+  buildCompletedSettings, constraintPatchForFlags, createOnboardingState, missingProfileFields,
+  onboardingReducer,
+} from "@/lib/profile/onboarding-state";
+import { persistCompletedOnboarding } from "@/lib/profile/onboarding-client";
+import { AdultOnlyError, eligibilityFromSafetyAnswers } from "@/lib/profile/rate-eligibility";
+
+const NOW = new Date(2026, 9, 8, 9, 30);
+
+beforeEach(async () => {
+  await resetTestAccount();
+});
+
+function losingState(birthYear = "1991") {
+  let state = createOnboardingState(defaultSettings());
+  for (const action of [
+    { type: "edit_body", key: "heightCm", value: "163" },
+    { type: "edit_body", key: "birthYear", value: birthYear },
+    { type: "set_sex", value: "female" },
+    { type: "edit_weight", value: "170" },
+    { type: "set_activity", value: "light" },
+    { type: "set_goal", value: "lose_fat" },
+  ] as const) state = onboardingReducer(state, action);
+  return state;
+}
+
+const profile = { avoid_allergens: [], avoid_food_ref_ids: [], banned_categories: [],
+  conditions: ["IBS"], notes: null };
+
+describe("constraintPatchForFlags conditions", () => {
+  it("adds the safety entries to the account's own list without duplicates", () => {
+    expect(constraintPatchForFlags([], profile, ["Pregnant", "IBS", "  "]))
+      .toEqual({ conditions: ["IBS", "Pregnant"] });
+    expect(constraintPatchForFlags([], profile, ["IBS"])).toBeNull();
+    expect(constraintPatchForFlags([], profile)).toBeNull();
+  });
+});
+
+describe("a held account in onboarding", () => {
+  const held = eligibilityFromSafetyAnswers({ pregnancy: "breastfeeding" });
+
+  it("needs no pace and saves none; the preview holds maintenance", () => {
+    const state = { ...losingState(), goalRateBpWeek: null };
+    expect(missingProfileFields(state)).toContain("goal rate");
+    expect(missingProfileFields(state, held)).toEqual([]);
+    const settings = buildCompletedSettings(defaultSettings(), losingState(), NOW, held);
+    expect(settings.goal).toBe("lose_fat");
+    expect(settings.goalRateBpWeek).toBeNull();
+    expect(settings.activeTargetProfile?.inputs?.goalRateBpWeek).toBe(0);
+    const free = buildCompletedSettings(defaultSettings(), losingState(), NOW);
+    expect(free.goalRateBpWeek).toBe(-50);
+    expect(settings.activeTargetProfile!.training.kcal)
+      .toBeGreaterThan(free.activeTargetProfile!.training.kcal);
+  });
+
+  it("refuses to build a plan for an age under 18", () => {
+    expect(() => buildCompletedSettings(defaultSettings(), losingState("2010"), NOW))
+      .toThrow(AdultOnlyError);
+  });
+
+  it("writes the hold before the target revision", async () => {
+    const order: string[] = [];
+    const saveConstraints = vi.fn(async (patch: Record<string, unknown>) => {
+      order.push(`constraints:${JSON.stringify(patch.conditions)}`);
+      return { status: "ok" as const, profile: { ...profile, conditions: patch.conditions as string[] },
+        rev: 1 };
+    });
+    const result = await persistCompletedOnboarding(defaultSettings(), losingState(), NOW, {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => { order.push("target"); return undefined; }),
+      saveWeighIn: vi.fn(async () => null),
+      loadConstraints: vi.fn(async () => ({ profile, rev: 0 })),
+      saveConstraints,
+      localDate: () => "2026-10-08",
+      hasWeighIn: () => true,
+      openFoodWorld: async () => {},
+    }, { pregnancy: "pregnant" });
+    expect(order).toEqual(['constraints:["IBS","Pregnant"]', "target"]);
+    expect(saveConstraints).toHaveBeenCalledTimes(1);
+    expect(result.constraintsSaved).toBe(true);
+    expect(result.settings.goalRateBpWeek).toBeNull();
+  });
+
+  it("writes nothing else when the hold cannot be saved", async () => {
+    const saveSynced = vi.fn(async () => undefined);
+    const result = await persistCompletedOnboarding(defaultSettings(), losingState(), NOW, {
+      saveLocal: vi.fn(),
+      saveSynced,
+      saveWeighIn: vi.fn(async () => null),
+      loadConstraints: vi.fn(async () => null),
+      saveConstraints: vi.fn(),
+      localDate: () => "2026-10-08",
+      hasWeighIn: () => true,
+      openFoodWorld: async () => {},
+    }, { clinicianDiet: true });
+    expect(result.constraintsSaved).toBe(false);
+    // Final Sol review r3: the shell runs the whole save again on Try again.
+    expect(result.profileWritten).toBe(false);
+    expect(saveSynced).not.toHaveBeenCalled();
+  });
+});
+
+describe("an account whose hold is STORED, not tapped this round (final Sol review r2 BLOCK)", () => {
+  it("saves the held plan the screen showed instead of failing as an incomplete profile", async () => {
+    const state = { ...losingState(), goalRateBpWeek: null };
+    const deps = {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => undefined),
+      saveWeighIn: vi.fn(async () => null),
+      loadConstraints: vi.fn(async () => ({ profile, rev: 0 })),
+      saveConstraints: vi.fn(async () => ({ status: "ok" as const, profile, rev: 1 })),
+      localDate: () => "2026-10-08",
+      hasWeighIn: () => true,
+      openFoodWorld: async () => {},
+    };
+    await expect(persistCompletedOnboarding(defaultSettings(), state, NOW, deps, {}))
+      .rejects.toThrow(/incomplete/);
+    const result = await persistCompletedOnboarding(defaultSettings(), state, NOW, deps, {}, undefined,
+      { holds: ["kidney"], minor: false });
+    expect(result.settings.goalRateBpWeek).toBeNull();
+    expect(result.settings.activeTargetProfile?.inputs?.goalRateBpWeek).toBe(0);
+  });
+});
+
+describe("Your day: first meal time", () => {
+  it("saves the first meal as the whole-day shift for the chosen meal count", () => {
+    let state = onboardingReducer(losingState(), { type: "set_meals_per_day", value: 3 });
+    state = onboardingReducer(state, { type: "set_first_meal_time", value: "06:30" });
+    expect(onboardingReducer(state, { type: "set_first_meal_time", value: "6:30" })).toBe(state);
+    const settings = buildCompletedSettings(defaultSettings(), state, NOW);
+    expect(settings.shiftMinutes).toBe(-90);
+    expect(settings.mealsPerDay).toBe(3);
+    expect(buildCompletedSettings(defaultSettings(), losingState(), NOW).shiftMinutes)
+      .toBe(defaultSettings().shiftMinutes);
+  });
+});
+
+describe("the country chip (ruling 2026-10-08)", () => {
+  it("writes the country only from a chip the flow showed, never by default", async () => {
+    const { ONBOARDING_COUNTRY_CHIP } = await import("@/lib/profile/onboarding-state");
+    expect(createOnboardingState(defaultSettings()).countryCode).toBeUndefined();
+    expect(buildCompletedSettings(defaultSettings(), losingState(), NOW).countryCode)
+      .toBe(defaultSettings().countryCode);
+    const shown = onboardingReducer(losingState(), { type: "set_country", value: ONBOARDING_COUNTRY_CHIP });
+    expect(buildCompletedSettings(defaultSettings(), shown, NOW).countryCode).toBe("US");
+    const off = onboardingReducer(shown, { type: "set_country", value: null });
+    expect(buildCompletedSettings(defaultSettings(), off, NOW).countryCode).toBeNull();
+    expect(onboardingReducer(shown, { type: "set_country", value: "usa" })).toBe(shown);
+  });
+});
+
+describe("first meal with an automatic meal count", () => {
+  it("shifts against the layout the derived calories choose, not the three-meal default", () => {
+    let state: ReturnType<typeof losingState> = { ...losingState(), mealsPerDay: null };
+    for (const action of [{ type: "edit_weight", value: "260" }, { type: "edit_body", key: "heightCm", value: "190" },
+      { type: "set_sex", value: "male" }, { type: "set_goal", value: "gain_muscle" },
+      { type: "set_activity", value: "very_active" }, { type: "set_first_meal_time", value: "07:30" }] as const) {
+      state = onboardingReducer(state, action);
+    }
+    const settings = buildCompletedSettings(defaultSettings(), state, NOW);
+    expect(settings.activeTargetProfile!.training.kcal).toBeGreaterThan(2600);
+    // Five meals start at 07:30, so the first meal needs no shift at all.
+    expect(settings.shiftMinutes).toBe(0);
+    // A plan edit that pins training calories to 1700 saves a three-meal layout (08:00 first),
+    // so the shift is taken against that layout, not the unpinned five-meal one.
+    const pinned = onboardingReducer(state, { type: "edit_plan", field: "trainingKcal", value: 1700 });
+    const edited = buildCompletedSettings(defaultSettings(), pinned, NOW);
+    expect(edited.trainingKcal).toBe(1700);
+    expect(edited.shiftMinutes).toBe(-30);
+  });
+});

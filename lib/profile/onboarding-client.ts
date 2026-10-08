@@ -22,6 +22,10 @@ import {
 import { latestWeighInKg, saveMorningWeight } from "@/lib/today/water-and-weight";
 import type { Settings, TargetRevision } from "@/lib/types";
 import {
+  eligibilityFromSafetyAnswers, RATE_HOLDS, safetyConditionEntries, type SafetyAnswers,
+  type TargetEligibility,
+} from "@/lib/profile/rate-eligibility";
+import {
   buildCompletedSettings, buildSkippedSettings, changedPlanFields, constraintPatchForFlags,
   type OnboardingState, type PlanField, type PreferenceFlag, weightLbFor,
 } from "./onboarding-state";
@@ -83,13 +87,18 @@ export async function saveOnboardingSettings(
   pinFields: readonly PlanField[] = [],
   writeTargets: typeof persistDerivedTargetRevision = persistDerivedTargetRevision,
   readLatestWeighIn: typeof latestWeighInKg = latestWeighInKg,
+  /** The save's one target request id (see `persistCompletedOnboarding`). */
+  targetRequestId?: string,
 ): Promise<TargetRevision | undefined> {
   const h = accountHandle();
   // The revision dates from the LOCAL day onboarding finished, not the UTC day: an evening
   // completion in a negative-offset zone would otherwise leave today with no target (lane G).
   const targetDate = settings.onboardedAt ? localIsoDay(settings.onboardedAt) : undefined;
+  // The id rides as a trailing argument only when the caller minted one.
+  const write = (input: Parameters<typeof writeTargets>[0]) => targetRequestId === undefined
+    ? writeTargets(input) : writeTargets(input, undefined, undefined, targetRequestId);
   const revision = mode === "complete" && targetDate && isProfileComplete(settings)
-    ? await writeTargets({
+    ? await write({
         settings,
         latestWeighInKg: readLatestWeighIn(targetDate, settings),
         today: targetDate,
@@ -138,6 +147,7 @@ export type OnboardingPersistence = {
     settings: Settings,
     mode: OnboardingSaveMode,
     pinFields?: readonly PlanField[],
+    targetRequestId?: string,
   ) => Promise<TargetRevision | undefined | void>;
   saveWeighIn: (localDate: string, lb: number) => Promise<string | null>;
   loadConstraints: () => Promise<ConstraintLoad>;
@@ -161,7 +171,8 @@ export async function openFoodWorld(h: AccountHandle): Promise<void> {
 
 const persistence: OnboardingPersistence = {
   saveLocal: (settings) => saveStore({ ...loadStore(), settings }),
-  saveSynced: saveOnboardingSettings,
+  saveSynced: (settings, mode, pinFields, targetRequestId) =>
+    saveOnboardingSettings(settings, mode, pinFields, undefined, undefined, targetRequestId),
   saveWeighIn: (date, lb) => saveMorningWeight(date, lb, () => {}, { skipTargets: true }),
   loadConstraints: () => loadConstraints(),
   saveConstraints: (patch, rev) => saveConstraints(patch, rev),
@@ -185,13 +196,14 @@ async function applyFlagConstraints(
   h: AccountHandle,
   flags: readonly PreferenceFlag[],
   deps: Pick<OnboardingPersistence, "loadConstraints" | "saveConstraints">,
+  conditions: readonly string[] = [],
 ): Promise<{ constraintsSaved: true } | { constraintsSaved: false; error: string }> {
   // PR #248 review r2 #1: every await is followed by a check of the handle the flow started with.
   const loaded = await deps.loadConstraints();
   assertCurrent(h);
   if (!loaded) return constraintsUnavailable();
   let result = await deps.saveConstraints(
-    { ...(constraintPatchForFlags(flags, loaded.profile) ?? {}), baseRev: loaded.rev },
+    { ...(constraintPatchForFlags(flags, loaded.profile, conditions) ?? {}), baseRev: loaded.rev },
     loaded.rev,
   );
   assertCurrent(h);
@@ -199,7 +211,7 @@ async function applyFlagConstraints(
   if (result.status === "error") return constraintsUnavailable();
   // One rebase onto the profile the conflict returned, then give up and say so.
   result = await deps.saveConstraints(
-    { ...(constraintPatchForFlags(flags, result.profile) ?? {}), baseRev: result.rev },
+    { ...(constraintPatchForFlags(flags, result.profile, conditions) ?? {}), baseRev: result.rev },
     result.rev,
   );
   return result.status === "ok" ? { constraintsSaved: true } : constraintsUnavailable();
@@ -215,16 +227,43 @@ export type CompletedOnboardingResult = {
   settings: Settings;
   constraintsSaved: boolean;
   error?: string;
+  /** False when the safety round's condition write failed before anything else was written (no
+   *  weigh-in, settings or target): a retry must run the whole save again (final Sol review r3). */
+  profileWritten?: false;
 };
 
+/**
+ * `safety` is the safety round's taps (lib/profile/rate-eligibility.ts). When they add condition
+ * entries, the constraint row is written FIRST, so the target revision the server derives next
+ * already sees the hold (a held account derives at a 0 pace; kidney disease, standard protein).
+ * If that write fails, nothing else is written and the caller offers the step again.
+ */
 export async function persistCompletedOnboarding(
   base: Settings,
   state: OnboardingState,
   now = new Date(),
   deps: OnboardingPersistence = persistence,
+  safety: SafetyAnswers = {},
+  /** GPT-6 Sol BLOCK (onb2-p0): minted ONCE per onboarding save and sent on every attempt, so a
+   *  retry after a lost target answer is the same request and the server writes one revision. */
+  targetRequestId?: string,
+  /** The account's stored pace holds the shell planned under (final Sol review BLOCK): merged
+   *  with this round's taps, so a stored hold the round did not repeat builds the same held plan
+   *  the screen showed, instead of failing as an incomplete profile with no pace. */
+  storedEligibility?: TargetEligibility | null,
 ): Promise<CompletedOnboardingResult> {
   const h = accountHandle();
-  const settings = buildCompletedSettings(base, state, now);
+  const conditions = safetyConditionEntries(safety);
+  const round = eligibilityFromSafetyAnswers(safety);
+  const eligibility: TargetEligibility = storedEligibility ? {
+    holds: RATE_HOLDS.filter((hold) => round.holds.includes(hold) || storedEligibility.holds.includes(hold)),
+    minor: round.minor || storedEligibility.minor,
+  } : round;
+  const settings = buildCompletedSettings(base, state, now, eligibility);
+  if (conditions.length > 0) {
+    const first = await applyFlagConstraints(h, state.flags, deps, conditions);
+    if (!first.constraintsSaved) return { settings: base, ...first, profileWritten: false };
+  }
   const weightLb = weightLbFor(state);
   const localDate = deps.localDate();
   if (weightLb !== null
@@ -233,14 +272,26 @@ export async function persistCompletedOnboarding(
   }
   // PR #248 review r2 #1: a weigh-in answered after a switch must not lead into B's settings.
   assertCurrent(h);
-  const revision = await deps.saveSynced(settings, "complete", changedPlanFields(base, settings));
+  // ONB2-P0 (GOAL defect 6): the settings+target-revision write and the constraints write touch
+  // different rows and neither reads the other's result, so they no longer wait on each other —
+  // only the weigh-in stays before both (`writeTargets` reads it through `latestWeighInKg`).
+  // G7: a safety-round condition patch was already written (with the flags) before the target, so
+  // there is no second constraints write then.
+  const [revision, constraints] = await Promise.all([
+    targetRequestId === undefined
+      ? deps.saveSynced(settings, "complete", changedPlanFields(base, settings))
+      : deps.saveSynced(settings, "complete", changedPlanFields(base, settings), targetRequestId),
+    conditions.length > 0
+      ? Promise.resolve({ constraintsSaved: true } as const)
+      : applyFlagConstraints(h, state.flags, deps),
+  ]);
   const savedSettings = revision ? settingsWithTargetRevision(settings, revision) : settings;
   assertCurrent(h);
   deps.saveLocal(savedSettings);
-  const constraints = await applyFlagConstraints(h, state.flags, deps);
   // W13 (D14): only a FIRST completion opens the world — a later re-run of this same function
   // (an account editing its profile again) must never re-invite an account that chose `closed`.
-  if (!base.onboardedAt) await deps.openFoodWorld(h);
+  // A completion that wrote safety conditions stays closed (a condition closes an open account).
+  if (!base.onboardedAt && conditions.length === 0) await deps.openFoodWorld(h);
   return { settings: savedSettings, ...constraints };
 }
 

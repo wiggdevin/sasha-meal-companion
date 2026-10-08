@@ -12,6 +12,13 @@ describe("isPregnant", () => {
     expect(isPregnant(["32 weeks pregnant"])).toBe(true);
   });
 
+  it("reads an active pregnancy dietary profile too (onboarding v2 G7)", () => {
+    expect(isPregnant([], ["halal", "pregnancy"])).toBe(true);
+    expect(isPregnant(undefined, ["lactation", "trying_to_conceive"])).toBe(false);
+    expect(pregnancyTunaFinding({ conditions: [], profileIds: ["pregnancy"],
+      ingredientsText: "tuna, water, salt" })?.allergen).toBe("tuna_mercury");
+  });
+
   it("is false for no conditions, unrelated conditions, or a word that only contains the stem", () => {
     expect(isPregnant(undefined)).toBe(false);
     expect(isPregnant([])).toBe(false);

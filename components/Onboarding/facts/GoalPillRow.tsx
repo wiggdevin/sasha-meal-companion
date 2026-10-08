@@ -14,23 +14,27 @@ import { CHIP_FILL } from "@/components/Onboarding/facts/chip-fill";
 import type { Goal } from "@/components/Onboarding/facts/types";
 
 const PILLS: { value: Goal; label: string }[] = [
-  { value: "lose_fat", label: "Lose fat" },
-  { value: "maintain", label: "Keep what I have" },
+  // Question set v2 (V8): the reviewed wording.
+  { value: "lose_fat", label: "Lose weight" },
   { value: "gain_muscle", label: "Build muscle" },
-  { value: "recomp", label: "Both at once" },
+  { value: "recomp", label: "Lose fat and build muscle" },
+  { value: "maintain", label: "Keep my weight" },
 ];
 
 export function GoalPillRow({
   value,
   onSelect,
+  question,
 }: {
   value?: Goal;
   onSelect: (value: Goal) => void;
+  /** Replaces the opener's greeting when the goal is asked later in the facts beat. */
+  question?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex w-full flex-col gap-3">
       <p className="m-0 font-serif text-heading-sm text-charcoal">
-        Hey. I&rsquo;m {APP_NAME}. What would feel different in eight weeks?
+        {question ?? <>Hey. I&rsquo;m {APP_NAME}. What&rsquo;s your main goal right now?</>}
       </p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Goal">
         {PILLS.map((pill) => (
@@ -39,9 +43,8 @@ export function GoalPillRow({
             type="button"
             onClick={() => onSelect(pill.value)}
             aria-pressed={value === pill.value}
-            className={`${CHIP_FILL} min-h-11 rounded-full px-4 text-body-sm font-medium text-charcoal data-[pressed=true]:text-on-primary`}
+            className={`${CHIP_FILL} min-h-12 rounded-full px-5 text-body font-medium text-charcoal data-[pressed=true]:text-on-primary data-[pressed=true]:[background:var(--grad-ink)]`}
             data-pressed={value === pill.value}
-            style={value === pill.value ? { background: "var(--grad-ink)" } : undefined}
           >
             {pill.label}
           </button>

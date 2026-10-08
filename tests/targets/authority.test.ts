@@ -8,12 +8,18 @@ import { defaultSettings } from "@/lib/store";
 import {
   persistDerivedTargetRevision, restoreTargetRevisionOnline, settingsWithTargetRevision,
 } from "@/lib/targets/client";
+import { NO_HOLDS } from "@/lib/profile/rate-eligibility";
 import { applyDerivedProfile, resolveTargets } from "@/lib/targets";
 import type { TargetProfile } from "@/lib/api-types";
 import type { Settings } from "@/lib/types";
 import { resetTestAccount } from "@/tests/helpers/account";
+import { adminFake } from "@/tests/helpers/admin-fake";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/server/admin", async () => (await import("@/tests/helpers/admin-fake")).adminModule);
+
+/** The fake serves the reads and, as the service-role client, the target write RPCs. */
+const asAdmin = <T>(client: T): never => { adminFake.client = client; return client as never; };
 
 beforeEach(async () => {
   await resetTestAccount();
@@ -291,12 +297,13 @@ describe("the target authority revision", () => {
 
   it("persists derivation through write_target_revision and returns the assigned revision", async () => {
     const rpc = vi.fn(async () => ({ data: REVISION_ROW, error: null }));
-    const result = await writeDerivedTargets({ rpc } as never, REVISION_ROW.user_id, {
+    const result = await writeDerivedTargets(asAdmin({ rpc }), REVISION_ROW.user_id, {
       settings: completeSettings(),
       latestWeighInKg: 59.25,
       today: EFFECTIVE_DATE,
       trainingWeekdays: TRAINING_WEEKDAYS,
       source: "derived",
+      eligibility: NO_HOLDS,
     });
 
     expect(rpc).toHaveBeenCalledWith("write_target_revision", {
@@ -322,13 +329,14 @@ describe("the target authority revision", () => {
   it("stores the account's macro minimum, never a 1,500 kcal male floor (step D)", async () => {
     const rpc = vi.fn(async () => ({ data: { ...REVISION_ROW,
       input_weight_source: "onboarding", input_weight_kg: 80 }, error: null }));
-    await writeDerivedTargets({ rpc } as never, REVISION_ROW.user_id, {
+    await writeDerivedTargets(asAdmin({ rpc }), REVISION_ROW.user_id, {
       settings: completeSettings({ sex: "male", weightKg: 80, goal: "lose_fat",
         goalRateBpWeek: -50 }),
       latestWeighInKg: null,
       today: EFFECTIVE_DATE,
       trainingWeekdays: TRAINING_WEEKDAYS,
       source: "derived",
+      eligibility: NO_HOLDS,
     });
 
     // 80 kg at 165 cm: protein basis 30 × 1.65² = 81.7 → 80 kg → 160 g; 640 + 450 + 400.
@@ -345,10 +353,16 @@ describe("the target authority revision", () => {
     const restoredRow = { ...priorRow, id: "00000000-0000-4000-8000-000000000002", rev: 5 };
     const maybeSingle = vi.fn(async () => ({ data: priorRow, error: null }));
     const rpc = vi.fn(async () => ({ data: restoredRow, error: null }));
+    // The eligibility read (lib/server/target-eligibility.ts) sees an account with no holds.
+    const noAnswers = { select: () => ({ eq: () => Object.assign(
+      Promise.resolve({ data: [], error: null }),
+      { maybeSingle: async () => ({ data: null, error: null }) }) }) };
     const client = {
-      from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }) }),
+      from: (table: string) => table === "target_profiles"
+        ? { select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }) } : noAnswers,
       rpc,
     } as never;
+    asAdmin(client);
 
     const result = await restoreTargetRevision(
       client,

@@ -59,7 +59,7 @@ import { createHash } from "node:crypto";
 import { GoogleGenAI, type Part } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ZodType } from "zod";
-import { toGeminiSchema } from "@/lib/ai/json-schema";
+import { geminiRequestSchema, stripJsonFence } from "@/lib/ai/gemini-schema";
 import { withMediaPart, type UploadedFile } from "@/lib/ai/gemini-media";
 
 const RETRIES = 2;                    // 3 attempts in total
@@ -184,6 +184,8 @@ export type StructuredArgs<T> = GenerateArgs<T> & {
   temperature?: number;
   /** Hand a no-capacity failure back at once, for a caller with another model (lib/ai/failures.ts). */
   abandonOnCapacity?: boolean;
+  /** Asked before each retry; false stops the call (lib/ai/call.ts RetryPolicy.beforeRetry). */
+  beforeRetry?: () => Promise<boolean>;
   /** The schema the PROVIDER is sent, when it must be stricter than the one the reply is parsed
    *  with. The coach sends one whose every key is required (lib/coach/wire.ts). */
   providerSchema?: ZodType;
@@ -217,13 +219,6 @@ async function deleteFromFiles(name: string): Promise<void> {
   await new GoogleGenAI({ apiKey: key }).files.delete({ name });
 }
 
-/** Strip the ```json … ``` wrapper a chat model adds around an object. */
-export function stripJsonFence(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("```")) return trimmed;
-  return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-}
-
 export async function generateStructured<T>(
   args: StructuredArgs<T>, deps: GenerateDeps = {}
 ): Promise<T> {
@@ -242,11 +237,12 @@ export async function generateStructured<T>(
     policy: {
       attempts: RETRIES + 1, budgetMs: args.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS,
       attemptMs: args.attemptTimeoutMs ?? ATTEMPT_TIMEOUT_MS, backoffMs: BACKOFF_MS,
-      retryable: geminiRetryable(args.abandonOnCapacity), sleep: deps.sleep,
+      retryable: geminiRetryable(args.abandonOnCapacity), beforeRetry: args.beforeRetry,
+      sleep: deps.sleep,
     },
     transport: {
       open: async () => {
-        jsonSchema = toGeminiSchema(args.providerSchema ?? args.schema);
+        jsonSchema = geminiRequestSchema(args.schema, args.providerSchema);
         ({ parts, uploaded } = await withMediaPart(payload.parts, payload.media,
           deps.uploadMedia ?? uploadToFiles));
       },
@@ -269,7 +265,7 @@ export async function generateStructured<T>(
     },
     price: (model, billed) => estimateCostUsd(model, billed.inputTokens, billed.outputTokens),
     maxAttemptCostUsd: (model) => reserveCostUsd(model, inputTokensUpperBound([...payload.parts.map((p) =>
-      p.text ?? ""), JSON.stringify(toGeminiSchema(args.providerSchema ?? args.schema))],
+      p.text ?? ""), JSON.stringify(geminiRequestSchema(args.schema, args.providerSchema))],
     payload.media ? 1 : 0), args.maxOutputTokens),
     observe: (model, result) => {
       deps.onProviderText?.(model, result.text);

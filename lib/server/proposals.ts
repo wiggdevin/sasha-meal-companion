@@ -8,6 +8,11 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { HttpError } from "@/lib/server/auth";
+import { accountDay } from "@/lib/server/account-day";
+import { readTargetEligibility } from "@/lib/server/target-eligibility";
+import { activeProfile } from "@/lib/server/targets";
+import { rpcApproveTargetProposal } from "@/lib/server/target-writes";
+import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
 import type {
   DecideRequest, DecideResponse, ProposalSummary, ProposedTargets,
 } from "@/lib/api-types";
@@ -54,12 +59,33 @@ async function readOne(
   return data ? toSummary(data) : null;
 }
 
+/**
+ * Pace holds (onboarding v2 G1-G3): approving copies the active revision's pace into the new one
+ * (`approve_target_proposal`), so an account under 18 approves nothing, and a held account
+ * approves only once its revision in force is at a 0 pace (a hold re-derives it at once,
+ * lib/server/target-recompute.ts `recomputeAfterHoldChange`). A proposal built before the hold
+ * could carry a deficit; the next weekly proposal is built at a 0 pace.
+ */
+async function assertApprovalEligible(client: SupabaseClient, userId: string): Promise<void> {
+  const day = await accountDay(client, userId, { purpose: "approve proposal" });
+  const eligibility = await readTargetEligibility(client, userId, day.date);
+  if (eligibility.minor) throw new AdultOnlyError();
+  if (paceAllowed(eligibility)) return;
+  const active = await activeProfile(client, userId, day.date);
+  if (active && Number(active.goal_rate_bp_week ?? 0) !== 0) {
+    throw new HttpError(409, "rate_not_eligible",
+      "Your health answers changed. A new suggestion will follow at maintenance.");
+  }
+}
+
 export async function decideProposal(
   client: SupabaseClient, userId: string, proposalId: string, req: DecideRequest,
 ): Promise<DecideResponse> {
   if (req.decision === "approve") {
-    const { data, error } = await client.rpc("approve_target_proposal",
-      { p_user_id: userId, p_proposal_id: proposalId });
+    await assertApprovalEligible(client, userId);
+    // Service role (lib/server/target-writes.ts): `authenticated` cannot execute the approval
+    // (migration 20261228090000), so the eligibility check above cannot be skipped.
+    const { data, error } = await rpcApproveTargetProposal(userId, proposalId);
     if (error) throw error;
     const result = data as { status: string; target_profile_id?: string; current?: Record<string, unknown> };
     if (result.status === "not_found") throw new HttpError(404, "not_found", "No such proposal.");

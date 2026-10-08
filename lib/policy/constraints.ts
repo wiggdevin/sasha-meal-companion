@@ -36,6 +36,12 @@ export type ConstraintProfile = {
    */
   conditions?: readonly string[];
   /**
+   * The account's dietary-profile ids, where the caller read them with the row
+   * (lib/server/policy-profile.ts). Read only by the pregnancy tuna check: the `pregnancy`
+   * profile arms it as the free text does (onboarding v2 G7).
+   */
+  profileIds?: readonly string[];
+  /**
    * Phase 13 §4, §9 R5: this account's confirmed dietary-profile hard rules, read once per turn
    * beside the constraint row (lib/server/policy-profile.ts). Carried here so it travels with the
    * profile to every coach call site, but `evaluatePolicy` reads only `PolicyEvidence.profileRules`:
@@ -247,8 +253,8 @@ function allergenFindings(profile: ConstraintProfile, e: PolicyEvidence): Allerg
   // §9 R1: independent of the account's own avoid list — a pregnancy profile stays unverified
   // for unspecified tuna even when fish is not one of its allergens.
   const tuna = pregnancyTunaFinding({
-    conditions: profile.conditions, ingredientsText: e.ingredientsText, tags: e.allergenTags,
-    foodName: e.foodName,
+    conditions: profile.conditions, profileIds: profile.profileIds,
+    ingredientsText: e.ingredientsText, tags: e.allergenTags, foodName: e.foodName,
   });
   return tuna ? [...findings, tuna] : findings;
 }

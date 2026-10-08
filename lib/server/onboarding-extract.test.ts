@@ -50,6 +50,12 @@ describe("runOnboardingExtraction — the local safety guard blocks before any p
     "my doctor put me on mesalamine, I want to lose fat",
     "I'm allergic to peanuts, 28 years old, trying to build muscle",
     "I get rectal bleeding sometimes, otherwise 180 cm 80 kg",
+    // Onboarding v2 G14: medicine names the first word list missed.
+    "I'm on Ozempic and want to lose 30 lb, 41, 5'7\", 210 lb",
+    "started Wegovy last month, female, 38, 190 pounds",
+    "Mounjaro has me eating less, I want to keep my weight",
+    "on semaglutide, trying to build muscle",
+    "my weight loss shots make me less hungry",
   ];
 
   it.each(MEDICAL_AND_BODY_STAT_TEXTS)(
@@ -153,7 +159,7 @@ describe("runOnboardingExtraction — no demographic field ever reaches a payloa
       confidence: { goal: 0.9, dietFlags: 0.8 },
     });
     const generateOpenRouter = vi.fn(async () => leaky);
-    const outcome = await runOnboardingExtraction("I want to lose fat, vegetarian", NOW,
+    const outcome = await runOnboardingExtraction("I want to lose fat", NOW,
       { ...ctx(), callsUsedThisSession: 0 }, { generateOpenRouter: generateOpenRouter as never });
     expect(outcome).toEqual({
       status: "ok",
@@ -273,5 +279,68 @@ describe("runOnboardingExtraction — the ≤5 calls per session budget (dry run
     }
     expect(outcomes).toEqual(["ok", "ok", "ok", "ok", "ok", "budget_exceeded"]);
     expect(generateOpenRouter).toHaveBeenCalledTimes(ONBOARDING_MAX_MODEL_CALLS);
+  });
+});
+
+describe("runOnboardingExtraction — every provider attempt counts, retries included (Sol p0 BLOCK 5)", () => {
+  it("sends exactly ONBOARDING_MAX_MODEL_CALLS real Gemini attempts across requests whose " +
+    "retries the adapter would otherwise make for free", async () => {
+    readyGemini();
+    const { generateStructured: realGenerateStructured } = await import("@/lib/ai/adapter");
+    const { spendAdmin } = await import("@/tests/ai/spend-admin");
+    let sends = 0;
+    // A transient, non-capacity failure: generateStructured retries it (3 attempts per call).
+    const callGemini = async () => { sends += 1; throw new Error("boom"); };
+    const generateStructured = ((args: Parameters<typeof realGenerateStructured>[0]) =>
+      realGenerateStructured(args, { sleep: async () => {}, callGemini })) as never;
+    const user = { ...ctx(), admin: spendAdmin([]) as never };
+    const outcomes: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const outcome = await runOnboardingExtraction("I want to lose fat", NOW,
+        { ...user, callsUsedThisSession: 0 }, { generateStructured });
+      outcomes.push(outcome.status);
+    }
+    // Request 1: three attempts (3 slots). Request 2: two attempts, its third is refused before
+    // it is sent. Request 3: nothing left, no I/O.
+    expect(sends).toBe(ONBOARDING_MAX_MODEL_CALLS);
+    expect(outcomes).toEqual(["failed", "budget_exceeded", "budget_exceeded"]);
+  });
+
+  it("an OpenRouter leg whose retry is refused does not fall back to Gemini for free", async () => {
+    readyOpenRouter();
+    readyGemini();
+    const user = ctx();
+    // Spend four of the five slots first.
+    const ok = vi.fn(async () => OK_FACTS);
+    for (let i = 0; i < ONBOARDING_MAX_MODEL_CALLS - 1; i += 1) {
+      await runOnboardingExtraction("I want to lose fat", NOW,
+        { ...user, callsUsedThisSession: 0 }, { generateOpenRouter: ok as never });
+    }
+    let openRouterSends = 0;
+    const generateOpenRouter = vi.fn(async (args: { beforeRetry?: () => Promise<boolean> }) => {
+      openRouterSends += 1;
+      // callModel's contract: ask before the retry, stop when refused.
+      if (args.beforeRetry && await args.beforeRetry()) openRouterSends += 1;
+      throw new ProviderHttpError(503, "no capacity");
+    });
+    const generateStructured = vi.fn(async () => OK_FACTS);
+    const outcome = await runOnboardingExtraction("I want to lose fat", NOW,
+      { ...user, callsUsedThisSession: 0 },
+      { generateOpenRouter: generateOpenRouter as never, generateStructured: generateStructured as never });
+    expect(openRouterSends).toBe(1);
+    expect(generateStructured).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ status: "budget_exceeded" });
+  });
+});
+
+describe("the Gemini leg's provider schema", () => {
+  it("converts to Gemini's structured-output subset (the parse schema's open map does not)", async () => {
+    const { toGeminiSchema } = await import("@/lib/ai/json-schema");
+    const { onboardingModelFactsProviderSchema } = await import("@/lib/coach/ui-blocks");
+    expect(() => toGeminiSchema(onboardingModelFactsSchema)).toThrow(/additionalProperties/);
+    const schema = toGeminiSchema(onboardingModelFactsProviderSchema) as {
+      properties: { confidence: { properties: Record<string, unknown> } } };
+    expect(Object.keys(schema.properties.confidence.properties).sort())
+      .toEqual(["activity", "cookingEffort", "dietFlags", "goal"]);
   });
 });

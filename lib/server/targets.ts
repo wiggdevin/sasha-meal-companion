@@ -18,6 +18,11 @@ import {
 import type { TargetProfile, TargetsRequest, TargetsResponse } from "@/lib/api-types";
 import { targetRevisionFromProfile, targetSeedFromProfile } from "@/lib/targets/revision";
 import { ACCOUNT_DAY_LAST_RESORT_ZONE, accountDay, isoDateIn } from "@/lib/server/account-day";
+import { readTargetEligibility } from "@/lib/server/target-eligibility";
+import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
+import {
+  rpcWriteTargetRevision, rpcWriteTargetRevisionIfActive, rpcWriteTargetRevisionPair,
+} from "@/lib/server/target-writes";
 
 export { targetRevisionFromProfile } from "@/lib/targets/revision";
 
@@ -102,21 +107,21 @@ function revisionPayload(
   };
 }
 
+/**
+ * Every write goes through the service-role RPCs (lib/server/target-writes.ts) for `userId`, the
+ * id the caller verified; `authenticated` cannot execute them (migration 20261228090000), so the
+ * checks in this module cannot be skipped from a phone. Reads stay on the caller's client.
+ */
 async function writeRevisionRow(
-  client: SupabaseClient,
   userId: string,
   payload: Record<string, unknown>,
 ): Promise<TargetProfile> {
-  const { data, error } = await client.rpc("write_target_revision", {
-    p_user_id: userId,
-    p_row: payload,
-  });
+  const { data, error } = await rpcWriteTargetRevision(userId, payload);
   if (error) throw error;
   return data as TargetProfile;
 }
 
 async function persistRevision(
-  client: SupabaseClient,
   userId: string,
   revision: TargetRevision,
   effectiveFrom?: string,
@@ -124,17 +129,31 @@ async function persistRevision(
   requestId?: string,
 ): Promise<TargetRevision> {
   const row = await writeRevisionRow(
-    client, userId, revisionPayload(revision, effectiveFrom, floors, requestId));
+    userId, revisionPayload(revision, effectiveFrom, floors, requestId));
   const persisted = targetRevisionFromProfile(row);
   if (!persisted) throw new Error("Target authority returned an incomplete revision");
   return persisted;
 }
 
+/**
+ * The input with the account's own pace holds and stored birth year, judged on the revision's
+ * own date (lib/server/target-eligibility.ts). A server caller that already read them for that
+ * date (the recompute plans with them) passes them in; nothing taken from a request body ever
+ * carries them, and a birth year in the request body can never lift the stored adult floor.
+ */
+async function withEligibility(
+  client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput,
+): Promise<DeriveTargetRevisionInput> {
+  return input.eligibility ? input
+    : { ...input, eligibility: await readTargetEligibility(client, userId, input.today) };
+}
+
 export async function writeDerivedTargets(
-  client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput, requestId?: string,
+  client: SupabaseClient, userId: string, rawInput: DeriveTargetRevisionInput, requestId?: string,
 ): Promise<TargetRevision> {
+  const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: targetSourceFor(input.settings) });
-  return persistRevision(client, userId, revision, undefined, revision.floors, requestId);
+  return persistRevision(userId, revision, undefined, revision.floors, requestId);
 }
 
 /**
@@ -144,16 +163,13 @@ export async function writeDerivedTargets(
  * (`write_target_revision_if_active`).
  */
 export async function writeDerivedTargetsIfActive(
-  client: SupabaseClient, userId: string, input: DeriveTargetRevisionInput,
+  client: SupabaseClient, userId: string, rawInput: DeriveTargetRevisionInput,
   expectedActiveId: string | null, expectedSettingsRev: number | null = null,
 ): Promise<TargetRevision | null> {
+  const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: input.source ?? targetSourceFor(input.settings) });
-  const { data, error } = await client.rpc("write_target_revision_if_active", {
-    p_user_id: userId,
-    p_row: revisionPayload(revision, undefined, revision.floors),
-    p_expected_id: expectedActiveId,
-    p_expected_settings_rev: expectedSettingsRev,
-  });
+  const { data, error } = await rpcWriteTargetRevisionIfActive(userId,
+    revisionPayload(revision, undefined, revision.floors), expectedActiveId, expectedSettingsRev);
   if (error) throw error;
   if ((data as { conflict?: unknown } | null)?.conflict === true) return null;
   const persisted = targetRevisionFromProfile(data as TargetProfile);
@@ -172,11 +188,10 @@ async function plannedRevision(
   userId: string,
   write: TargetRevisionWrite,
 ): Promise<{ revision: TargetRevision; floors: TargetRevisionFloors }> {
-  void client;
-  void userId;
+  const input = await withEligibility(client, userId, write.input);
   const revision = deriveTargetRevision({
-    ...write.input,
-    source: targetSourceFor(write.input.settings),
+    ...input,
+    source: targetSourceFor(input.settings),
   });
   return { revision, floors: revision.floors };
 }
@@ -188,20 +203,31 @@ export async function writeTargetRevisionSet(
   current: TargetRevisionWrite,
   predecessor?: TargetRevisionWrite,
 ): Promise<{ revision: TargetRevision; predecessor?: TargetRevision }> {
+  // Each revision of the pair is judged on its own date (the stored birth year), so neither an
+  // Undo predecessor nor the new revision can build a plan for an account under 18 on its date.
+  const reads = new Map<string, ReturnType<typeof readTargetEligibility>>();
+  const eligibilityOn = (date: string) => {
+    if (!reads.has(date)) reads.set(date, readTargetEligibility(client, userId, date));
+    return reads.get(date)!;
+  };
+  const [currentEligibility, predecessorEligibility] = await Promise.all([
+    current.input.eligibility ?? eligibilityOn(current.input.today),
+    predecessor ? predecessor.input.eligibility ?? eligibilityOn(predecessor.input.today) : null,
+  ]);
+  const held = (write: TargetRevisionWrite, eligibility = currentEligibility): TargetRevisionWrite =>
+    ({ ...write, input: { ...write.input, eligibility } });
   if (!predecessor) {
-    const revision = await writeDerivedTargets(client, userId, current.input, current.requestId);
+    const revision = await writeDerivedTargets(client, userId, held(current).input,
+      current.requestId);
     return { revision };
   }
   const [prior, next] = await Promise.all([
-    plannedRevision(client, userId, predecessor),
-    plannedRevision(client, userId, current),
+    plannedRevision(client, userId, held(predecessor, predecessorEligibility ?? currentEligibility)),
+    plannedRevision(client, userId, held(current)),
   ]);
-  const { data, error } = await client.rpc("write_target_revision_pair", {
-    p_user_id: userId,
-    p_predecessor: revisionPayload(
-      prior.revision, undefined, prior.floors, predecessor.requestId),
-    p_row: revisionPayload(next.revision, undefined, next.floors, current.requestId),
-  });
+  const { data, error } = await rpcWriteTargetRevisionPair(userId,
+    revisionPayload(prior.revision, undefined, prior.floors, predecessor.requestId),
+    revisionPayload(next.revision, undefined, next.floors, current.requestId));
   if (error) throw error;
   const rows = data as { predecessor?: TargetProfile; revision?: TargetProfile };
   const persistedPredecessor = rows.predecessor
@@ -223,7 +249,15 @@ export async function restoreTargetRevision(
   if (!data) throw new HttpError(404, "target_revision_not_found", "Target revision not found");
   const previous = targetRevisionFromProfile(data as TargetProfile);
   if (!previous) throw new HttpError(409, "legacy_target_revision", "Target revision cannot be restored");
-  return persistRevision(client, userId, {
+  // Pace holds (onboarding v2 G1-G3): a restore never brings back a plan for an account under
+  // 18, nor a loss or gain pace the account's current answers hold.
+  const eligibility = await readTargetEligibility(client, userId, effectiveFrom);
+  if (eligibility.minor) throw new AdultOnlyError();
+  if (!paceAllowed(eligibility) && Number(previous.inputs.goalRateBpWeek ?? 0) !== 0) {
+    throw new HttpError(409, "rate_not_eligible",
+      "That plan had a weight-change pace. Your current answers keep calories at maintenance.");
+  }
+  return persistRevision(userId, {
     ...previous,
     effectiveFrom,
     inputs: { ...previous.inputs, effectiveDate: effectiveFrom },
@@ -306,12 +340,17 @@ export async function authorTargets(
     kcalRest: Math.max(req.kcalRest, floors.kcalMin),
     ...floored.grams,
   }, floors);
-  const settings = await client.from("user_settings")
-    .select("weight_kg, training_weekdays, activity_level, goal")
-    .eq("user_id", userId).maybeSingle();
+  const [settings, eligibility] = await Promise.all([
+    client.from("user_settings")
+      .select("weight_kg, training_weekdays, activity_level, goal")
+      .eq("user_id", userId).maybeSingle(),
+    readTargetEligibility(client, userId, req.effectiveFrom),
+  ]);
   if (settings.error) throw settings.error;
+  // Under 18: no plan, pinned or derived (owner decision 2026-10-08).
+  if (eligibility.minor) throw new AdultOnlyError();
   const weight = Number(settings.data?.weight_kg);
-  const profile = await writeRevisionRow(client, userId, {
+  const profile = await writeRevisionRow(userId, {
     effective_from: req.effectiveFrom,
     target_source: "manual",
     mode: req.mode,
@@ -335,7 +374,9 @@ export async function authorTargets(
     carb_g_min: floors.carbGMin,
     // A manual row keeps the rate and the minimum's provenance of the revision it pins over
     // (step D); before this the database default zeroed a confirmed rate on every pin.
-    goal_rate_bp_week: req.goalRateBpWeek ?? active.goal_rate_bp_week ?? 0,
+    // A held account (pregnancy, eating disorder, kidney disease, clinician diet) keeps 0.
+    goal_rate_bp_week: paceAllowed(eligibility)
+      ? req.goalRateBpWeek ?? active.goal_rate_bp_week ?? 0 : 0,
     kcal_min_source: active.kcal_min_source ?? "legacy_default",
     // Pins change the numbers, not the formula start the engine learns from (step E1).
     ...seedColumns(targetSeedFromProfile(active)),

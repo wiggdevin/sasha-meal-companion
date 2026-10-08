@@ -28,6 +28,7 @@ export async function readPolicyProfile(
     getProfile(client, userId), readAccountProfileSets(client, userId),
   ]);
   return {
-    profile: { ...profile, profileRules: activeHardRulesFor(stored, asOf) }, rev, instances: all,
+    profile: { ...profile, profileRules: activeHardRulesFor(stored, asOf),
+      profileIds: all.map((instance) => instance.profileId) }, rev, instances: all,
   };
 }

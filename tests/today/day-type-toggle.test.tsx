@@ -30,7 +30,8 @@ import type { AccountHandle } from "@/lib/device/account";
 
 let h: AccountHandle;
 
-// 2026-09-07 is a Monday (training-10), 09-08 a Tuesday and 09-09 a Wednesday (training-7-fasted).
+// 2026-09-07 is a Monday, 09-08 a Tuesday and 09-09 a Wednesday. Every weekday trains at
+// training-10 (onboarding v2 G6: the first client's Wednesday fasted session is nobody's default).
 const MON = "2026-09-07";
 const TUE = "2026-09-08";
 const WED = "2026-09-09";
@@ -90,7 +91,8 @@ describe("dayTypeChoices", () => {
 
   it("maps the training row to the date's own variant", () => {
     expect(dayTypeChoices("rest", TUE, false)[0].dayType).toBe("training-10");
-    expect(dayTypeChoices("rest", WED, true)[0].dayType).toBe("training-7-fasted");
+    expect(dayTypeChoices("rest", WED, true)[0].dayType).toBe("training-10");
+    // A fasted session the date already saved stays its training row.
     expect(dayTypeChoices("training-7-fasted", WED, false)[0].dayType).toBe("training-7-fasted");
   });
 
@@ -240,7 +242,7 @@ describe("dayTypeLabel", () => {
   it("keeps the weekday chip copy when the override is cleared", () => {
     expect(dayTypeLabel("rest", undefined)).toBe("Rest day");
     expect(dayTypeLabel("training-10", undefined)).toBe("Training day");
-    expect(dayTypeLabel("training-7-fasted", undefined)).toBe("Wednesday \u00b7 fasted 7am");
+    expect(dayTypeLabel("training-7-fasted", undefined)).toBe("Training \u00b7 fasted 7am");
   });
 
   it("names the lock once an override is in play", () => {
@@ -256,7 +258,7 @@ describe("dayTypeChipName", () => {
     expect(dayTypeChipName("training-10", false))
       .toBe("Day type: training day, on the schedule. Change");
     expect(dayTypeChipName("training-7-fasted", false))
-      .toBe("Day type: Wednesday fasted training day, on the schedule. Change");
+      .toBe("Day type: fasted training day, on the schedule. Change");
   });
 });
 
@@ -325,9 +327,11 @@ describe("DayTypeMenu", () => {
     expect(rowSegment(markup, "Follow the schedule")).not.toContain("<svg");
   });
 
-  it("offers the Wednesday fasted session from a locked rest day", () => {
+  it("never offers a Wednesday fasted session from a locked rest day (G6)", () => {
     const markup = render("rest", WED, true);
-    expect(rowSegment(markup, "Training day")).toContain("Wednesday&#x27;s fasted 7am session");
+    expect(rowSegment(markup, "Training day")).toContain("Usual slot times");
+    expect(markup).not.toContain("Wednesday");
+    expect(markup).not.toContain("fasted");
     expect(markup).toContain("Now: Locked as a rest day — calories follow.");
   });
 
@@ -499,14 +503,14 @@ describe("savePlanDay", () => {
     expect(getDay(FAIL_DATE)).toBeUndefined();
   });
 
-  it("switches a locked rest day to locked training with the date's own variant", async () => {
+  it("switches a locked rest day to locked training at training-10, Wednesday too", async () => {
     const training = dayTypeChoices("rest", WED, true)[0];
     await savePlanDay(WED, dayTypeChoicePatch(training));
-    expect(getDay(WED)?.dayTypeOverride).toBe("training-7-fasted");
+    expect(getDay(WED)?.dayTypeOverride).toBe("training-10");
     expect((await allOps(h)).at(-1)?.payload).toMatchObject({
-      day_type_override: "training-7-fasted",
+      day_type_override: "training-10",
     });
-    expect(dayTypeFor(WED, getDay(WED)?.dayTypeOverride)).toBe("training-7-fasted");
+    expect(dayTypeFor(WED, getDay(WED)?.dayTypeOverride)).toBe("training-10");
   });
 });
 

@@ -30,6 +30,11 @@ vi.mock("@/lib/server/dietary-profiles", () => ({
   legacyBackedProfileIds: (...a: unknown[]) => legacyBackedProfileIds(...a),
 }));
 
+const recomputeAfterHoldChange = vi.fn();
+vi.mock("@/lib/server/target-recompute", () => ({
+  recomputeAfterHoldChange: (...a: unknown[]) => recomputeAfterHoldChange(...a),
+}));
+
 const { GET, PUT, DELETE } = await import("@/app/api/profile/instances/route");
 const { HttpError } = await import("@/lib/server/auth");
 
@@ -289,5 +294,20 @@ describe("DELETE /api/profile/instances", () => {
     const res = await DELETE(new Request("https://x.test/api/profile/instances",
       { method: "DELETE" }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("pace holds follow a profile change (onboarding v2 G1)", () => {
+  it("re-derives the target after removing a profile that holds the pace, and only then", async () => {
+    recomputeAfterHoldChange.mockReset().mockResolvedValue(undefined);
+    legacyBackedProfileIds.mockReset().mockResolvedValue(new Set());
+    deleteAccountProfileInstance.mockReset().mockResolvedValue(undefined);
+    const del = (id: string) => DELETE(new Request(`https://x.test/api/profile/instances?profileId=${id}`,
+      { method: "DELETE" }));
+    expect((await del("pregnancy")).status).toBe(200);
+    expect(recomputeAfterHoldChange).toHaveBeenCalledWith({}, "u1", "instances");
+    recomputeAfterHoldChange.mockClear();
+    expect((await del("halal")).status).toBe(200);
+    expect(recomputeAfterHoldChange).not.toHaveBeenCalled();
   });
 });

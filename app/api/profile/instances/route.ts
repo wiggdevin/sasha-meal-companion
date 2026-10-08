@@ -25,6 +25,8 @@ import {
 import { HttpError, requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
+import { profileAffectsPace } from "@/lib/profile/rate-eligibility";
+import { recomputeAfterHoldChange } from "@/lib/server/target-recompute";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -139,6 +141,7 @@ export async function PUT(req: Request): Promise<Response> {
       return { profileId: built.profileId, source: built.source, confirmedAt: built.confirmedAt,
         rules: built.rules, options: built.options };
     });
+    if (profileAffectsPace(profileId)) await recomputeAfterHoldChange(client, userId, "instances");
     return Response.json({ instance });
   } catch (error) {
     return jsonError(error);
@@ -157,6 +160,7 @@ export async function DELETE(req: Request): Promise<Response> {
       throw new HttpError(409, "legacy_flag", "Turn this off in your food preferences.");
     }
     await deleteAccountProfileInstance(client, userId, profileId);
+    if (profileAffectsPace(profileId)) await recomputeAfterHoldChange(client, userId, "instances");
     return Response.json({ ok: true });
   } catch (error) {
     return jsonError(error);

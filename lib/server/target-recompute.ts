@@ -24,6 +24,11 @@
  *   newer and skips (`pins_differ`), leaving the phone's own target post in charge.
  * - A revision dated after the run's date (a phone clock ahead of the account zone) is left alone:
  *   a write dated today could not supersede it, so the run skips instead of writing a dead row.
+ * - The account's pace holds (lib/server/target-eligibility.ts) are read on every plan: a held
+ *   account derives at a 0 pace, and an account under 18 is skipped (`adult_only`). Under a hold,
+ *   the revision in force today and every scheduled later revision that carries a pace (adaptive
+ *   and proposal revisions too) are superseded on their own dates by 0-pace derivations, so no
+ *   date after the hold has a pace.
  * - The run's date is the phone's own day when the batch carries one (t24b, owner ruling "phone's
  *   local day everywhere"), else the account's stored zone, the request's zone, and UTC as
  *   the logged last resort (lib/server/account-day.ts).
@@ -37,8 +42,11 @@ import { isProfileComplete } from "@/lib/profile/energy";
 import type { TargetProfile } from "@/lib/api-types";
 import type { Macros, Settings, TargetRevision } from "@/lib/types";
 import { settingsProfileFromRow, type UserSettingsProfileRow } from "@/lib/sync/user-settings";
-import { activeProfile, writeDerivedTargetsIfActive } from "@/lib/server/targets";
+import { activeProfile, writeDerivedTargets, writeDerivedTargetsIfActive } from "@/lib/server/targets";
 import { resolveAccountDay } from "@/lib/server/account-day";
+import { fetchAllRows } from "@/lib/server/paged-read";
+import { readTargetEligibility } from "@/lib/server/target-eligibility";
+import { isMinorOn, paceAllowed } from "@/lib/profile/rate-eligibility";
 
 const SETTINGS_COLUMNS = [
   "rev", "time_zone", "height_cm", "height_unit", "weight_unit", "birth_year", "sex",
@@ -57,7 +65,7 @@ type SettingsRow = UserSettingsProfileRow & {
 
 export type RecomputeSkip =
   | "no_settings" | "not_onboarded" | "incomplete_profile" | "authoritative_formula"
-  | "future_revision" | "pins_differ";
+  | "future_revision" | "pins_differ" | "adult_only";
 
 type Derived = ReturnType<typeof deriveTargetRevision>;
 
@@ -148,13 +156,33 @@ function samePins(left: Pins, right: Pins): boolean {
     && left.proteinG === right.proteinG;
 }
 
-async function hasFutureRevision(
+/** The revision that takes effect on each date after `after` (highest `rev` per date), in date
+ *  order: a lower `rev` on the same date never comes into force. Every scheduled row is read,
+ *  paged past the API's 1,000-row cap (lib/server/paged-read.ts) and failing whole, so a paced
+ *  revision can never sit beyond the read and take effect after a new hold. */
+async function futureRevisions(
   client: SupabaseClient, userId: string, after: string,
-): Promise<boolean> {
-  const { data, error } = await client.from("target_profiles").select("id")
-    .eq("user_id", userId).gt("effective_from", after).limit(1);
-  if (error) throw error;
-  return (data ?? []).length > 0;
+): Promise<TargetProfile[]> {
+  const data = await fetchAllRows<TargetProfile>((from, to) => client.from("target_profiles")
+    .select("*").eq("user_id", userId).gt("effective_from", after)
+    .order("effective_from", { ascending: true }).order("rev", { ascending: false })
+    .order("id", { ascending: true }).range(from, to) as unknown as PromiseLike<{
+      data: TargetProfile[] | null; error: { message: string } | null }>);
+  const byDate = new Map<string, TargetProfile>();
+  for (const row of data) {
+    const kept = byDate.get(row.effective_from);
+    if (!kept || row.rev > kept.rev) byDate.set(row.effective_from, row);
+  }
+  return [...byDate.values()].sort((a, b) => a.effective_from < b.effective_from ? -1 : 1);
+}
+
+function hasPace(profile: Pick<TargetProfile, "goal_rate_bp_week"> | null): boolean {
+  return Number(profile?.goal_rate_bp_week ?? 0) !== 0;
+}
+
+function pinsOf(profile: TargetProfile): Pins {
+  return { trainingKcal: num(profile.pin_training_kcal), restKcal: num(profile.pin_rest_kcal),
+    proteinG: num(profile.pin_protein_g) };
 }
 
 function sameMacros(left: Macros | null | undefined, right: Macros): boolean {
@@ -203,7 +231,11 @@ export function revisionMatches(active: TargetProfile, expected: Derived): boole
 type Plan =
   | { kind: "skip"; reason: RecomputeSkip; active: TargetProfile | null; today?: string }
   | { kind: "derive"; rev: number | null; active: TargetProfile | null;
-      input: DeriveTargetRevisionInput; expected: Derived };
+      input: DeriveTargetRevisionInput; expected: Derived }
+  /** A held account with a pace in force today or scheduled for a later date: one 0-pace
+   *  revision per such date, each dated as the revision it supersedes. */
+  | { kind: "neutralise"; active: TargetProfile | null; today: string;
+      writes: { input: DeriveTargetRevisionInput; expected: Derived }[] };
 
 type DayHints = Pick<RecomputeOptions, "clientDay" | "requestZone">;
 
@@ -219,6 +251,42 @@ async function plan(
   // Only a revision this formula wrote, as derived or manual, is the recompute's to replace. A legacy
   // row (null formula or source, left null on purpose by the authority migration) cannot be
   // classified, and an adaptive or proposal revision is authoritative: both are left alone.
+  // The account's own pace holds (G1–G3), read before the formula check: a held account whose
+  // revision in force (adaptive or proposal included) still carries a pace is re-derived from its
+  // profile at a 0 pace, so a new hold never leaves a deficit in force. Under 18 derives nothing.
+  const eligibility = await readTargetEligibility(client, userId, today);
+  // Under 18 nothing is derived at all (owner decisions 2026-10-08).
+  if (isMinorOn(settingsFromRow(row).birthYear, today) || eligibility.minor) {
+    return { kind: "skip", reason: "adult_only", active, today };
+  }
+  const held = !paceAllowed(eligibility);
+  const future = await futureRevisions(client, userId, today);
+  if (held) {
+    // A hold leaves no date with a pace: the revision in force today and every revision
+    // scheduled after it that carries one (adaptive and proposal revisions included) is
+    // superseded on its own date by a 0-pace derivation from the profile, keeping that
+    // revision's weigh-in weight and pins. Nothing scheduled can bring a deficit back later.
+    const paced = [...(hasPace(active) ? [{ profile: active!, date: today }] : []),
+      ...future.filter(hasPace).map((profile) => ({ profile, date: profile.effective_from }))];
+    if (paced.length > 0) {
+      const writes = [];
+      for (const { profile, date } of paced) {
+        const settings = settingsFromRow(row, pinsOf(profile));
+        if (!isProfileComplete(settings)) {
+          return { kind: "skip", reason: "incomplete_profile", active, today };
+        }
+        const dated = date === today ? eligibility
+          : await readTargetEligibility(client, userId, date);
+        const input: DeriveTargetRevisionInput = {
+          settings, latestWeighInKg: weighInKgToKeep(profile), today: date,
+          trainingWeekdays: row.training_weekdays ?? [], source: targetSourceFor(settings),
+          eligibility: dated,
+        };
+        writes.push({ input, expected: deriveTargetRevision(input) });
+      }
+      return { kind: "neutralise", active, today, writes };
+    }
+  }
   if (active && (active.formula_name !== TARGET_FORMULA_NAME
     || (active.target_source !== "derived" && active.target_source !== "manual"))) {
     return { kind: "skip", reason: "authoritative_formula", active, today };
@@ -234,13 +302,14 @@ async function plan(
   if (!isProfileComplete(settings)) {
     return { kind: "skip", reason: "incomplete_profile", active, today };
   }
-  if (await hasFutureRevision(client, userId, today)) {
+  if (future.length > 0) {
     return { kind: "skip", reason: "future_revision", active, today };
   }
   const latestWeighInKg = weighInKgToKeep(active);
   const trainingWeekdays = row.training_weekdays ?? [];
   const input: DeriveTargetRevisionInput = {
     settings, latestWeighInKg, today, trainingWeekdays, source: targetSourceFor(settings),
+    eligibility,
   };
   return { kind: "derive", rev: row.rev, active, input, expected: deriveTargetRevision(input) };
 }
@@ -258,7 +327,12 @@ export async function recomputeDerivedTarget(
   const finish = async (next: Plan): Promise<RecomputeOutcome | null> => {
     // A skip after a write (an adaptive revision won the race, the profile became incomplete) is
     // reported as the skip: the derived row written earlier is not the one left in force.
-    if (next.kind === "skip") return { status: "skipped", reason: next.reason, active: next.active };
+    if (next.kind === "skip") {
+      // The 0-pace revisions a hold wrote stay in force on their own dates under a later one.
+      if (written && next.reason === "future_revision") return settled();
+      return { status: "skipped", reason: next.reason, active: next.active };
+    }
+    if (next.kind === "neutralise") return null;
     if (next.active && revisionMatches(next.active, next.expected)) {
       return written ? settled() : { status: "unchanged", active: next.active, expected: next.expected };
     }
@@ -272,6 +346,17 @@ export async function recomputeDerivedTarget(
     today ??= next.kind === "derive" ? next.input.today : next.today;
     const done = await finish(next);
     if (done) return done;
+    if (next.kind === "neutralise") {
+      if (options.dryRun) {
+        return { status: "would_write", active: next.active, expected: next.writes[0].expected };
+      }
+      // Unconditional writes (`write_target_revision`): the conditional RPC refuses any date with
+      // a later revision, and a 0 pace is the safe side of any race. The next round verifies.
+      let last: TargetRevision | null = null;
+      for (const write of next.writes) last = await writeDerivedTargets(client, userId, write.input);
+      if (last) written = { revision: last, rounds: round };
+      continue;
+    }
     if (next.kind !== "derive") throw new Error("unreachable");
     if (options.dryRun) return { status: "would_write", active: next.active, expected: next.expected };
     const revision = await writeDerivedTargetsIfActive(client, userId, next.input,
@@ -287,4 +372,21 @@ export async function recomputeDerivedTarget(
   if (done) return done;
   return { status: "unsettled", active: await activeProfile(client, userId, today),
     rounds: MAX_ROUNDS };
+}
+
+/**
+ * After a write that can add or remove a pace hold (a `conditions` change, or a dietary profile
+ * that holds the pace), bring the derived revision in line with it: a new hold sets the pace to 0
+ * now, not at the next profile edit, and a removed hold restores the stored preset. Best effort:
+ * a failure is logged and the next settings op retries, never failing the rule write itself.
+ */
+export async function recomputeAfterHoldChange(
+  client: SupabaseClient, userId: string, purpose: string,
+): Promise<void> {
+  try {
+    await recomputeDerivedTarget(client, userId);
+  } catch (e) {
+    console.error(`${purpose}: target recompute for ${userId} failed: ${
+      e instanceof Error ? e.message : "unknown"}`);
+  }
 }

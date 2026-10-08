@@ -140,13 +140,26 @@ export function starterDefaultIds(choices: readonly Starter[]): string[] {
 }
 
 export type StarterMark = "eats" | "avoid" | "neutral";
+export type InitialStarterOptions = {
+  /**
+   * true (the legacy grid's default): every curated default starts marked "eats", and the user
+   * reviews the whole visible grid before saving. false: nothing is pre-marked; only the user's
+   * own taps, foods named in their text and their saved foods start marked. A surface that does
+   * not show every pre-marked food (onboarding v2's falling pile) must pass false, or every
+   * default it never showed is saved as a liked food (2026-10-07 QA: 29 Eats nobody chose).
+   */
+  preselectDefaults?: boolean;
+};
+
 export function initialStarterSelection(
   flags: readonly string[], profile: Profile, prefsText: string,
   instances: readonly ProfileInstance[] = [], existingFoods: readonly Food[] = [],
+  options: InitialStarterOptions = {},
 ): Record<string, StarterMark> {
   const choices = starterChoices(flags, profile, instances);
-  const marks: Record<string, StarterMark> = Object.fromEntries(
-    starterDefaultIds(choices).map((id) => [id, "eats"]));
+  const preselect = options.preselectDefaults ?? true;
+  const marks: Record<string, StarterMark> = preselect ? Object.fromEntries(
+    starterDefaultIds(choices).map((id) => [id, "eats"])) : {};
   const allowed = new Set(choices.map((item) => item.id));
   for (const [id, status] of mentionedFoodChoices(prefsText, STARTERS)) {
     if (status === "avoid" || allowed.has(id)) marks[id] = status;
@@ -160,6 +173,35 @@ export function initialStarterSelection(
     else marks[item.id] = food.status;
   }
   return marks;
+}
+
+/**
+ * "Pick for me" without overriding the user: the ids to add so that every role reaches the
+ * two-per-role floor `starterSelectionValid` asks for, or the higher count `need` names for a role
+ * (a legacy plan needs one distinct protein per planned meal; a number applies to every role).
+ * Roles already at their count get nothing; a food the user liked or avoided is never re-marked,
+ * and neither is any id in `skip` — the foods the person tapped off in this flow (GPT-6 Sol WARN
+ * onb2-p0). A `neutral` mark alone stays available: a saved food the account left neutral (a
+ * re-opened setup) is not a tap-off. Curated defaults come first in catalog order, then any other
+ * allowed food of that role. Returns [] when every role is already covered, and fewer than asked
+ * when the allowed foods run out (the caller checks the result). Pure.
+ */
+export function starterFillShortRoles(
+  choices: readonly Starter[], marks: Readonly<Record<string, StarterMark>>,
+  need: number | Partial<Record<FoodRole, number>> = 2,
+  skip: ReadonlySet<string> = new Set(),
+): string[] {
+  const added: string[] = [];
+  for (const role of ["protein", "carb", "fat"] as const) {
+    const target = Math.max(2, typeof need === "number" ? need : need[role] ?? 2);
+    const ofRole = choices.filter((item) => item.role === role);
+    const have = ofRole.filter((item) => marks[item.id] === "eats").length;
+    const open = ofRole.filter((item) => !skip.has(item.id)
+      && (marks[item.id] === undefined || marks[item.id] === "neutral"));
+    const ordered = [...open.filter((item) => item.default), ...open.filter((item) => !item.default)];
+    added.push(...ordered.slice(0, Math.max(0, target - have)).map((item) => item.id));
+  }
+  return added;
 }
 
 export function starterSelectionValid(ids: readonly string[], choices: readonly Starter[]): boolean {
