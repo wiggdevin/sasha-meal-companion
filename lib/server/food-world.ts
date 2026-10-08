@@ -5,7 +5,8 @@
  * write below names this account's own id.
  *
  *   `closed` is always allowed: the stop switch.
- *   `open` answers 423 while the open world is unreleased (`OPEN_WORLD_ENABLED`) or the account is
+ *   `open` answers 423 while the open world is unreleased (`OPEN_WORLD_ENABLED`, or a non-empty
+ *   `OPEN_WORLD_USER_IDS` release list that does not name the account) or the account is
  *   held (`OPEN_WORLD_HOLD_USER_IDS`), and 409 `condition_review` while any stated condition is
  *   unconfirmed. Confirmations are accepted only in reviewed wording (`CONDITION_PACKS_ENABLED`,
  *   owner decision Q4); a `pack` choice adds the pack's allergen rules to the account first.
@@ -15,7 +16,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { openWorldHeld, openWorldReleased, type OpenWorldEnv } from "@/lib/foods/world/access";
+import {
+  openWorldHeld, openWorldListed, openWorldOpenableFor, openWorldReleased, type OpenWorldEnv,
+} from "@/lib/foods/world/access";
 import { planConfirmations, unconfirmedConditions } from "@/lib/foods/world/condition-gate";
 import type { ConditionPacksEnv } from "@/lib/policy/profiles/condition-packs";
 import { HttpError } from "@/lib/server/auth";
@@ -101,7 +104,8 @@ async function settledDefault(admin: SupabaseClient, userId: string): Promise<Fo
 export async function setFoodWorld(admin: SupabaseClient, userId: string, req: FoodWorldRequest,
   env: Env = process.env as Env): Promise<FoodWorldResult> {
   if (req.world === "open" && openWorldHeld(userId, env)) return { status: 423, body: { error: "held" } };
-  if (req.world === "open" && !openWorldReleased(env)) {
+  // Staged release (OPEN_WORLD_USER_IDS): an account off a non-empty list is not released yet.
+  if (req.world === "open" && (!openWorldReleased(env) || !openWorldListed(userId, env))) {
     return { status: 423, body: { error: "open_world_not_released" } };
   }
   const gate = await readGate(admin, userId);
@@ -192,7 +196,7 @@ export async function readFoodWorldState(admin: SupabaseClient, userId: string,
   if (!row || world === "open") return { world, openDefaultPending: false, starterSeed: false };
   let openDefaultPending = false;
   if (row.food_world_default_due_at && !row.food_world_set_at
-    && openWorldReleased(env) && !openWorldHeld(userId, env)) {
+    && openWorldOpenableFor(userId, env)) {
     const gate = await readGate(admin, userId);
     openDefaultPending = unconfirmedConditions(gate.conditions, gate.confirmed).length === 0;
   }
@@ -209,6 +213,6 @@ export async function readFoodWorldState(admin: SupabaseClient, userId: string,
 export async function invitationEligible(
   admin: SupabaseClient, userId: string, env: Env = process.env as Env,
 ): Promise<boolean> {
-  if (!openWorldReleased(env) || openWorldHeld(userId, env)) return false;
+  if (!openWorldOpenableFor(userId, env)) return false;
   return (await readFoodWorld(admin, userId)) === "closed";
 }
