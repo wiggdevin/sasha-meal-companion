@@ -38,6 +38,12 @@ type Phase = "closed" | "start" | "reading" | "draft" | "saving" | "done";
  *  a batch the route would reject whole. */
 const MAX_ITEMS = 40;
 const MAX_NAME_LENGTH = 160;
+/** The SAME route's `MAX_BYTES` (4 KB) on the whole request body -- smaller than 40 items at 160
+ *  characters each would actually need (Sol WARN, verified: ~7.5 KB worst case), so a draft this
+ *  component would otherwise let through can still be too large. Checked against the real
+ *  encoded body right before sending, rather than guessing a safe static per-field length that
+ *  would either be wrong for some item count or needlessly strict for most. */
+const CONFIRM_BODY_MAX_BYTES = 4 * 1024;
 
 function toDraft(names: readonly string[]): DraftItem[] {
   return names.map((name) => ({ id: crypto.randomUUID(), name, grams: "" }));
@@ -124,9 +130,15 @@ export default function PantryPhotoCapture({ onConfirmed }: {
     }));
     const payloadKey = JSON.stringify(payload);
     // Reuse the id only while it still names exactly this payload; any edit since the last
-    // attempt is a fresh intent and gets a fresh id (see the `attempted` docblock above).
+    // attempt is a fresh intent and gets a fresh id (see the `attempted` docblock above). A
+    // UUID is always 36 characters, so the id picked below never changes this size check.
     const requestId = attempted.current?.payload === payloadKey
       ? attempted.current.requestId : crypto.randomUUID();
+    const bodySize = new TextEncoder().encode(JSON.stringify({ requestId, items: payload })).length;
+    if (bodySize > CONFIRM_BODY_MAX_BYTES) {
+      setError("That’s too many items, or some names are too long. Remove a few and try again.");
+      return;
+    }
     attempted.current = { requestId, payload: payloadKey };
     setPhase("saving");
     setError(null);

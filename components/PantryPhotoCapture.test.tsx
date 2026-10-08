@@ -172,3 +172,23 @@ describe("PantryPhotoCapture's request id (Sol BLOCK, verified)", () => {
     expect(secondId).not.toBe(firstId);
   });
 });
+
+describe("PantryPhotoCapture's request-body size (Sol r2 WARN, verified)", () => {
+  it("refuses to confirm a draft whose encoded body exceeds the route's own 4 KB cap", async () => {
+    // The confirm route's Zod schema permits up to 40 items at 160 characters each -- about
+    // 7.5 KB encoded, well over its own MAX_BYTES (4 KB). A draft at (or near) that ceiling must
+    // be caught here, not sent to be refused by the route with no clue why.
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Photograph your pantry" }));
+    await waitFor(() => expect(screen.getByDisplayValue("Carrots")).toBeTruthy());
+    const addField = screen.getByLabelText("Add an item");
+    const longName = "x".repeat(160);
+    for (let i = 0; i < 38; i += 1) { // 2 already drafted + 38 = the 40-item cap
+      fireEvent.change(addField, { target: { value: longName } });
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(screen.getByText(/too many items, or some names are too long/)).toBeTruthy());
+    expect(mocked.confirm).not.toHaveBeenCalled();
+  });
+});
