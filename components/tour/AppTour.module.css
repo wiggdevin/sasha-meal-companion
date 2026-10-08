@@ -9,20 +9,30 @@
   justify-content: center;
 }
 
+/* Header and footer stay put; only the middle scrolls when a step is taller than the screen. */
 .panel {
   position: relative;
   width: 100%;
   max-width: 400px;
   max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.scroller {
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior-x: contain;
+  margin: 0 -16px;
+  padding: 0 16px;
 }
 
 /* The stage: a recessed beige tray the demo plays in. Its height is fixed, so a step change never
    moves the words below it. */
 .stage {
   position: relative;
-  height: 272px;
+  height: 240px;
   border-radius: 24px;
   background: var(--grad-recess);
   box-shadow: inset 0 1px 2px rgb(var(--ink-rgb) / 0.06);
@@ -139,6 +149,19 @@
 }
 .heart[data-on] {
   color: var(--color-red);
+}
+
+/* The opened card's compact header (meal-cards-v3). */
+.openHead {
+  height: 48px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.macros {
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* The opened card's beige tray: ingredients with − / + and ×, then search. */
@@ -272,6 +295,8 @@
 /* A still frame's direction mark (reduced motion): a short arrow beside the finger. */
 .arrow {
   position: absolute;
+  top: 0;
+  left: 0;
   z-index: 3;
   color: var(--color-primary);
   pointer-events: none;

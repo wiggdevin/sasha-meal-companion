@@ -103,34 +103,12 @@ export default function AppTour({ onClose, origin, mascot = "sprout", returnFocu
   };
 
   const slide = reduce ? INSTANT : SPRINGS.smooth;
-  return <div ref={rootRef} className={`fixed inset-0 z-[75] min-w-0 w-full max-w-full ${styles.root}`}
-    role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={leadId} onKeyDown={onArrow}>
-    <motion.div aria-hidden="true" className="sheet-popover-scrim absolute inset-0"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      transition={{ duration: reduce ? 0.12 : 0.2 }} />
-    <motion.div className={`sheet-surface min-w-0 ${styles.panel}`} data-tour-panel=""
-      initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.3, x: from.x, y: from.y }}
-      animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, x: 0, y: 0 }}
-      exit={reduce ? { opacity: 0, transition: { duration: 0.12 } }
-        : { opacity: 0, scale: 0.3, x: from.x, y: from.y, transition: { ...SPRINGS.smooth, opacity: { duration: 0.2, delay: 0.1 } } }}
-      transition={reduce ? { duration: 0.16 } : { ...SPRINGS.gentle, opacity: { duration: 0.18 } }}>
-      <div className="flex flex-col gap-4 px-4 pb-4 pt-3">
-        <div className="flex min-h-11 items-center justify-between gap-3">
-          <div className={styles.dots} aria-hidden="true">
-            {TOUR_STEPS.map((s, i) => <motion.span key={s.id} className={styles.dot} data-on={i === step || undefined}
-              initial={false} animate={{ scaleX: i === step ? 2.25 : 1 }} style={{ originX: 0.5 }}
-              transition={reduce ? INSTANT : SPRINGS.snappy} />)}
-          </div>
-          <span className="sr-only" aria-live="polite">{`Step ${step + 1} of ${TOUR_STEPS.length}: ${current.title}`}</span>
-          <Button variant="ghost" size="sm" onClick={() => onClose("skip")}>Skip</Button>
-        </div>
-
-        <AutoHeight spring="smooth">
-          <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+  const stepBody = (
             <motion.div key={current.id} className="flex min-w-0 flex-col gap-4" data-step={current.id}
               initial={reduce ? { opacity: 0 } : { opacity: 0, x: 32 * direction }}
               animate={{ opacity: 1, x: 0 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, x: -32 * direction }}
+              exit={reduce ? { opacity: 0, transition: INSTANT }
+                : { opacity: 0, x: -32 * direction, transition: { x: SPRINGS.snappy, opacity: { duration: 0.15 } } }}
               transition={reduce ? INSTANT : { x: slide, opacity: { duration: 0.2 } }}>
               <TourDemo kind={current.id} reduce={reduce} />
               <div className="flex items-center gap-3">
@@ -154,8 +132,35 @@ export default function AppTour({ onClose, origin, mascot = "sprout", returnFocu
                 </ul>
               </div>
             </motion.div>
-          </AnimatePresence>
+  );
+  return <div ref={rootRef} className={`fixed inset-0 z-[75] min-w-0 w-full max-w-full ${styles.root}`}
+    role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={leadId} onKeyDown={onArrow}>
+    <motion.div aria-hidden="true" className="sheet-popover-scrim absolute inset-0"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: reduce ? 0.12 : 0.2 }} />
+    <motion.div className={`sheet-surface min-w-0 ${styles.panel}`} data-tour-panel=""
+      initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.3, x: from.x, y: from.y }}
+      animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, x: 0, y: 0 }}
+      exit={reduce ? { opacity: 0, transition: { duration: 0.12 } }
+        : { opacity: 0, scale: 0.3, x: from.x, y: from.y, transition: { ...SPRINGS.smooth, opacity: { duration: 0.2, delay: 0.1 } } }}
+      transition={reduce ? { duration: 0.16 } : { ...SPRINGS.gentle, opacity: { duration: 0.18 } }}>
+      <div className="flex min-h-0 flex-col gap-4 px-4 pb-4 pt-3">
+        <div className="flex min-h-11 items-center justify-between gap-3">
+          <div className={styles.dots} aria-hidden="true">
+            {TOUR_STEPS.map((s, i) => <motion.span key={s.id} className={styles.dot} data-on={i === step || undefined}
+              initial={false} animate={{ width: i === step ? 20 : 8 }}
+              transition={reduce ? INSTANT : SPRINGS.snappy} />)}
+          </div>
+          <span className="sr-only" aria-live="polite">{`Step ${step + 1} of ${TOUR_STEPS.length}: ${current.title}`}</span>
+          <Button variant="ghost" size="sm" onClick={() => onClose("skip")}>Skip</Button>
+        </div>
+
+        <div className={styles.scroller}>
+        <AutoHeight spring="smooth">
+          {/* Reduced motion swaps the step at once; otherwise the old one leaves before the new arrives. */}
+          {reduce ? stepBody : <AnimatePresence mode="wait" initial={false} custom={direction}>{stepBody}</AnimatePresence>}
         </AutoHeight>
+        </div>
 
         <div className="flex items-center gap-2">
           {step > 0 && <Button variant="tertiary" onClick={() => go(-1)}>Back</Button>}

@@ -38,14 +38,14 @@ describe("AppTour", () => {
   it("teaches the card's taps and gestures in words", () => {
     renderTour();
     next();
-    expect(screen.getByText("The heart saves the meal as a favorite meal.")).toBeTruthy();
+    expect(screen.getByText("Tap the heart to save this meal and favor its foods.")).toBeTruthy();
     expect(screen.getByText(/three icons: Mark eaten, Swap and Expand/)).toBeTruthy();
     next();
-    expect(screen.getByText(/^Mark eaten: tap to tick the meal off/)).toBeTruthy();
+    expect(screen.getByText(/^Mark eaten: tap to tick it off/)).toBeTruthy();
     expect(screen.getByText(/^Swap: other meals open inside the card/)).toBeTruthy();
-    expect(screen.getByText(/Tap it again to undo/)).toBeTruthy();
+    expect(screen.getByText(/tap again to undo/)).toBeTruthy();
     expect(screen.getByText(/Undo for 5 seconds/)).toBeTruthy();
-    expect(screen.getByText(/Plan with Sasha and Log what you ate/)).toBeTruthy();
+    expect(screen.getByText(/Plan with Sasha or Log what you ate/)).toBeTruthy();
     next();
     expect(screen.getByText("Swipe right to swap.")).toBeTruthy();
     expect(screen.getByText("Swipe left to show Clear, then Delete.")).toBeTruthy();

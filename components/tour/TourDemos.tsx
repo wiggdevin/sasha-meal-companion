@@ -25,8 +25,9 @@ import styles from "@/components/tour/AppTour.module.css";
 const STRIP_Y = 114;
 const MARK_X = 40;
 const CHEVRON_X = 200;
-const ROW1_Y = 152;
-const ROW2_Y = 180;
+/* Opened: a 48 px compact header, then the tray, then the strip. */
+const ROW1_Y = 68;
+const ROW2_Y = 96;
 const PLUS_X = 198;
 const REMOVE_X = 214;
 
@@ -80,46 +81,50 @@ export type MiniCardState = {
 
 /** The simplified meal card (meal-cards-v3): a compact photo with its chip and the favorite heart,
  *  the title and calories, and a thin strip of three equal icon zones (Mark eaten, Swap, Expand);
- *  opened, its tray of ingredients with − / + and ×, and search. */
+ *  opened, a compact header (thumbnail, title, kcal and P/C/F) over its ingredients with − / + and
+ *  ×, and search, the strip still at the foot. */
 export function MiniMealCard({ state, reduce }: { state: MiniCardState; reduce: boolean }) {
   return <motion.div className={`matte ${styles.card}`} initial={false}
     animate={{ scale: state.lifted ? 1.04 : 1 }} transition={press(reduce)}>
-    <div className={styles.photo}>
-      <Image src="/meal-art/rice-bowl.webp" alt="" fill sizes="240px" className={styles.photoImg} draggable={false} />
-      <motion.span layout={!reduce} className={`matte-reset ${styles.chip}`} data-tone={state.tone ?? "next"}
-        transition={press(reduce)}>
-        {state.tone === "eaten" && <Check />}
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span key={state.chip} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }} transition={reduce ? INSTANT : SPRINGS.snappy}>{state.chip}</motion.span>
-        </AnimatePresence>
-      </motion.span>
-      <motion.span className={`matte-reset ${styles.heart}`} data-on={state.favorite || undefined} initial={false}
-        animate={{ scale: state.favorite ? [1, 1.25, 1] : 1 }} transition={reduce ? INSTANT : SPRINGS.bouncy}>
-        <TourIcon name={state.favorite ? "hearted" : "heart"} size={14} />
-      </motion.span>
-    </div>
-    <div className={styles.body}>
-      <span className={`font-display text-charcoal ${styles.title}`}>Chicken rice bowl</span>
-      <span className={`kcal ${styles.kcal}`}>540 <span className="text-muted">kcal</span></span>
-    </div>
-    <div className={styles.strip}>
-      <span className={`${styles.zone} text-charcoal`} data-on={state.eaten || undefined} data-zone="eaten">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span key={state.eaten ? "on" : "off"} className="flex" initial={reduce ? false : { scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : SPRINGS.bouncy}>
-            <TourIcon name={state.eaten ? "checked" : "check"} />
-          </motion.span>
-        </AnimatePresence>
-      </span>
-      <span className={`${styles.zone} text-charcoal`} data-zone="swap"><TourIcon name="swap" /></span>
-      <motion.span className={`${styles.zone} text-charcoal`} data-zone="expand" initial={false}
-        animate={{ rotate: state.open ? 180 : 0 }} transition={press(reduce)}>
-        <TourIcon name="expand" />
-      </motion.span>
-    </div>
+    <motion.div initial={false} animate={{ height: !state.open ? "auto" : 0, opacity: !state.open ? 1 : 0 }}
+      transition={reduce ? INSTANT : { height: SPRINGS.gentle, opacity: FADES.base }} className="overflow-hidden">
+      <div className={styles.photo}>
+        <Image src="/meal-art/rice-bowl.webp" alt="" fill sizes="240px" className={styles.photoImg} draggable={false} />
+        <motion.span layout={!reduce} className={`matte-reset ${styles.chip}`} data-tone={state.tone ?? "next"}
+          transition={press(reduce)}>
+          {state.tone === "eaten" && <Check />}
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span key={state.chip} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }} transition={reduce ? INSTANT : SPRINGS.snappy}>{state.chip}</motion.span>
+          </AnimatePresence>
+        </motion.span>
+        <span className={`matte-reset ${styles.heart}`} data-on={state.favorite || undefined}>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span key={state.favorite ? "on" : "off"} className="flex" initial={reduce ? false : { scale: 0.5 }}
+              animate={{ scale: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : SPRINGS.bouncy}>
+              <TourIcon name={state.favorite ? "hearted" : "heart"} size={14} />
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      </div>
+      <div className={styles.body}>
+        <span className={`font-display text-charcoal ${styles.title}`}>Chicken rice bowl</span>
+        <span className={`kcal ${styles.kcal}`}>540 <span className="text-muted">kcal</span></span>
+      </div>
+    </motion.div>
     <motion.div initial={false} animate={{ height: state.open ? "auto" : 0, opacity: state.open ? 1 : 0 }}
       transition={reduce ? INSTANT : { height: SPRINGS.gentle, opacity: FADES.base }} className="overflow-hidden">
+      {/* Opened (meal-cards-v3): a compact header — thumbnail, title, kcal and P/C/F inline — so the
+          ingredients sit near the top. */}
+      <div className={styles.openHead}>
+        <span className={styles.dayThumb}>
+          <Image src="/meal-art/rice-bowl.webp" alt="" fill sizes="36px" className={styles.photoImg} draggable={false} />
+        </span>
+        <span className={styles.dayText}>
+          <span className={`font-display text-charcoal ${styles.dayTitle}`}>Chicken rice bowl</span>
+          <span className={`text-muted ${styles.macros}`}><span className="kcal">540</span> kcal · P 42 · C 58 · F 14</span>
+        </span>
+      </div>
       <div className={`matte-reset ${styles.tray}`}>
         <div className={styles.row}>
           <span className={styles.rowName}>Chicken</span>
@@ -145,6 +150,21 @@ export function MiniMealCard({ state, reduce }: { state: MiniCardState; reduce: 
         <div className={`${styles.search} text-muted`}><SearchIcon size={12} />&nbsp;Search to add</div>
       </div>
     </motion.div>
+    <div className={styles.strip}>
+      <span className={`${styles.zone} text-charcoal`} data-on={state.eaten || undefined} data-zone="eaten">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span key={state.eaten ? "on" : "off"} className="flex" initial={reduce ? false : { scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : SPRINGS.bouncy}>
+            <TourIcon name={state.eaten ? "checked" : "check"} />
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span className={`${styles.zone} text-charcoal`} data-zone="swap"><TourIcon name="swap" /></span>
+      <motion.span className={`${styles.zone} text-charcoal`} data-zone="expand" initial={false}
+        animate={{ rotate: state.open ? 180 : 0 }} transition={press(reduce)}>
+        <TourIcon name="expand" />
+      </motion.span>
+    </div>
   </motion.div>;
 }
 
@@ -260,10 +280,10 @@ function TapsDemo({ reduce }: { reduce: boolean }) {
 /* ---- step 4: gestures --------------------------------------------------------------------------- */
 
 type Gesture = "right" | "left" | "hold";
-const GESTURES: { id: Gesture; label: string }[] = [
-  { id: "right", label: "Swipe right" },
-  { id: "left", label: "Swipe left" },
-  { id: "hold", label: "Hold and drag" },
+const GESTURES: { id: Gesture; label: string; short: string }[] = [
+  { id: "right", label: "Swipe right", short: "Right" },
+  { id: "left", label: "Swipe left", short: "Left" },
+  { id: "hold", label: "Hold and drag", short: "Hold" },
 ];
 const GESTURE_BEATS: Record<Gesture, readonly number[]> = {
   right: [600, 450, 1100, 900],
@@ -292,8 +312,8 @@ function GestureFrame({ gesture, beat, reduce }: { gesture: Gesture; beat: numbe
     chip = beat === 2 ? "Next · 12:15 PM" : beat === 3 || beat === 4 ? "Next · 12:00 PM" : "Next · 12:30 PM";
     finger = beat === 0 ? { x: 120, y: 66 } : beat >= 1 && beat <= 4 ? { x: 120, y: 66 + y, down: true, hold: true } : null;
   }
-  const arrow = gesture === "right" ? { x: 156, y: 54, dir: "right" as const }
-    : gesture === "left" ? { x: 4, y: 54, dir: "left" as const } : { x: 132, y: 20, dir: "up" as const };
+  const arrow = gesture === "right" ? { x: 108, y: 146, dir: "right" as const }
+    : gesture === "left" ? { x: 108, y: 146, dir: "left" as const } : { x: 108, y: 146, dir: "up" as const };
   return <div className={styles.rig} data-beat={beat} data-gesture={gesture}>
     {gesture === "right" && <div className={`${styles.behind} ${styles.behindLeft}`}>
       <span className={`${styles.behindPill} ${styles.behindSwap}`}>Swap</span>
@@ -328,8 +348,8 @@ function GesturesDemo({ reduce }: { reduce: boolean }) {
     {/* The one part of a stage a person can use: it picks which gesture plays (or which still frame
         shows). It is a real control, so it stays reachable even though the drawing is hidden. */}
     <div className={`matte-reset pill-in ${styles.gestureChips}`} role="group" aria-label="Gesture to show">
-      {GESTURES.map((g) => <Chip key={g.id} selected={g.id === gesture}
-        onClick={() => { setPicked(true); setGesture(g.id); }}>{g.label}</Chip>)}
+      {GESTURES.map((g) => <Chip key={g.id} selected={g.id === gesture} aria-label={g.label}
+        onClick={() => { setPicked(true); setGesture(g.id); }}>{g.short}</Chip>)}
     </div>
   </>;
 }
