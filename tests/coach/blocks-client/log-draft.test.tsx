@@ -76,6 +76,42 @@ describe("log_draft block", () => {
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
+  it("lets nothing else move the card while Log it is saving (UI audit 2026-10-07)", async () => {
+    let land!: (value: { entryIds: string[]; summary: string }) => void;
+    const commitBarcode = vi.fn(() => new Promise<{ entryIds: string[]; summary: string }>((resolve) => { land = resolve; }));
+    const onBlockStatus = vi.fn();
+    const onSearchManually = vi.fn();
+    render(<LogDraftBlock block={barcodeBlock}
+      ctx={context({ commitBarcode, onBlockStatus, onSearchManually })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log it" }));
+    await waitFor(() => expect(commitBarcode).toHaveBeenCalledOnce());
+    const dismiss = screen.getByRole("button", { name: "Dismiss" }) as HTMLButtonElement;
+    const search = screen.getByRole("button", { name: "Search manually" }) as HTMLButtonElement;
+    expect(dismiss.disabled).toBe(true);
+    expect(search.disabled).toBe(true);
+    fireEvent.click(dismiss);
+    fireEvent.click(search);
+    land({ entryIds: ["entry-1"], summary: "Plain rice crackers" });
+    // The entry landed, so the card says so; it never claimed "Dismissed" in between.
+    expect(await screen.findByText("Logged")).toBeTruthy();
+    expect(onBlockStatus.mock.calls.map((call) => call[1])).toEqual(["committed"]);
+    expect(onSearchManually).not.toHaveBeenCalled();
+  });
+
+  it("lets Log it wait while a Dismiss is being saved", async () => {
+    let saved!: () => void;
+    const onBlockStatus = vi.fn(() => new Promise<void>((resolve) => { saved = resolve; }));
+    const commitBarcode = vi.fn();
+    render(<LogDraftBlock block={barcodeBlock} ctx={context({ commitBarcode, onBlockStatus })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    const log = screen.getByRole("button", { name: "Log it" }) as HTMLButtonElement;
+    expect(log.disabled).toBe(true);
+    fireEvent.click(log);
+    saved();
+    expect(await screen.findByText("Dismissed")).toBeTruthy();
+    expect(commitBarcode).not.toHaveBeenCalled();
+  });
+
   it("commits and undoes on one local date with a replay-stable entry id", async () => {
     const commit = vi.mocked(commitLogEntry);
     commit.mockResolvedValue({ status: "queued" });

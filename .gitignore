@@ -50,6 +50,9 @@ next-env.d.ts
 # supabase cli local state (linked project, version check)
 supabase/.temp/
 
+# scripts/test-stack.sh's scratch workdir and generated env file (isolated mc-care-test stack)
+/.supabase-test/
+
 # zxing-wasm reader wasm, copied from node_modules by postinstall, never committed
 public/zxing/
 

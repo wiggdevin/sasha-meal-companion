@@ -7,7 +7,7 @@
  * a view and no function in either file runs long.
  */
 import { accountHandle, currentAccountOrNull } from "@/lib/device/account";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyProfile, type BodyProfileRead } from "@/lib/body-profile-client";
 import { chartDays, TDEE_WINDOW_DAYS } from "@/lib/body-window";
 import { fetchExpenditure, fetchProposals, fetchTargets, type Fresh } from "@/lib/estimator-client";
@@ -15,6 +15,7 @@ import { fetchDaily } from "@/lib/health-client";
 import type { DailyHealthRow } from "@/lib/health/contract";
 import type { ExpenditureResponse, ProposalSummary } from "@/lib/api-types";
 import { loadStore, saveStore } from "@/lib/store";
+import { SYNCED_EVENT } from "@/lib/sync/client";
 
 /** Local yyyy-mm-dd, `offsetDays` from `now` (0 is today, negative is earlier). */
 export function isoDate(offsetDays: number, now: Date = new Date()): string {
@@ -41,21 +42,42 @@ export function useBodyDashboard(): BodyDashboardData {
   const [estimate, setEstimate] = useState<ExpenditureResponse | null>(null);
   const [pendingProposal, setPendingProposal] = useState<Fresh<ProposalSummary[]> | null>(null);
   const profile = useBodyProfile();
+  /** Only the newest daily read may land: a slow answer never paints over a newer one. */
+  const dailyRead = useRef(0);
 
   const reload = useCallback(async () => {
+    const read = ++dailyRead.current;
     const { from, to } = windowRange();
-    setDaily(await fetchDaily(accountHandle(), from, to));
+    const next = await fetchDaily(accountHandle(), from, to);
+    if (read === dailyRead.current) setDaily(next);
   }, []);
 
+  // The days follow every sync pass — a weigh-in from another device, or this one's queued weigh-in
+  // posting — like the profile does. The nightly estimate and proposals change only overnight.
   useEffect(() => {
     const h = currentAccountOrNull();
     if (h === null) return;
     let live = true;
-    const { from, to } = windowRange();
-    // A result for an account that has since gone is dropped (the fetch rejects).
-    void fetchDaily(h, from, to)
-      .then((next) => { if (live) setDaily(next); }).catch(() => {});
-    return () => { live = false; };
+    // One read at a time: passes that arrive while one is out ask for a single read after it, so a
+    // burst of passes costs two requests and no older answer can land after a newer one.
+    let busy = false;
+    let again = false;
+    const read = () => {
+      if (busy) { again = true; return; }
+      busy = true;
+      const mine = ++dailyRead.current;
+      const { from, to } = windowRange();
+      // A result for an account that has since gone is dropped (the fetch rejects).
+      void fetchDaily(h, from, to)
+        .then((next) => { if (live && mine === dailyRead.current) setDaily(next); }, () => {})
+        .finally(() => {
+          busy = false;
+          if (live && again) { again = false; read(); }
+        });
+    };
+    read();
+    window.addEventListener(SYNCED_EVENT, read);
+    return () => { live = false; window.removeEventListener(SYNCED_EVENT, read); };
   }, []);
 
   useEffect(() => {
