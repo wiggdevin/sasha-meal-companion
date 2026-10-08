@@ -27,11 +27,12 @@ function CheckIcon({ filled }: { filled: boolean }) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6"
       fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : 0} />
-    <motion.path d="m8 12.4 2.8 2.8L16.2 9.6" stroke="currentColor" strokeWidth="2"
+    {/* An open ring until the meal is eaten, so the button never reads as already ticked. */}
+    {filled && <motion.path d="m8 12.4 2.8 2.8L16.2 9.6" stroke="currentColor" strokeWidth="2"
       strokeLinecap="round" strokeLinejoin="round"
-      initial={reduceMotion || !filled ? false : { pathLength: 0 }}
+      initial={reduceMotion ? false : { pathLength: 0 }}
       animate={{ pathLength: 1 }}
-      transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.23, 1, 0.32, 1] }} />
+      transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.23, 1, 0.32, 1] }} />}
   </svg>;
 }
 
@@ -48,7 +49,9 @@ export function MealCalories({ kcal }: { kcal: number }) {
 }
 
 /** The card's main action, in words: "Mark eaten" (olive) until the meal is ticked off, then "Eaten"
- *  (secondary, pressed), which undoes it. The page's feedback phase shows on the button itself. */
+ *  (secondary), which undoes it. Each name starts with the words on the button (WCAG 2.5.3), so the
+ *  name changes with the state and there is no aria-pressed to contradict it. The page's feedback
+ *  phase shows on the button itself. */
 export function MealEatenButton({ eaten, label, feedback, onToggleEaten }: {
   eaten: boolean;
   label: string;
@@ -57,8 +60,8 @@ export function MealEatenButton({ eaten, label, feedback, onToggleEaten }: {
 }) {
   const eatenProps = feedbackStateProps(feedback);
   return <Button size="sm" variant={eaten ? "secondary" : "primary"} onClick={onToggleEaten}
-    data-feedback-state={eatenProps["data-feedback-state"]} aria-pressed={eaten}
-    aria-label={eaten ? `Mark ${label} not eaten` : `Mark ${label} eaten`} data-consume-control="tick"
+    data-feedback-state={eatenProps["data-feedback-state"]} data-eaten={eaten ? "true" : "false"}
+    aria-label={eaten ? `Eaten, ${label}. Undo` : `Mark eaten, ${label}`} data-consume-control="tick"
     confirmLabel={eaten ? "Eaten" : "Not eaten"} leading={<CheckIcon filled={eaten} />}
     className={`shrink-0 ${styles.eaten}`}>
     {eaten ? "Eaten" : "Mark eaten"}

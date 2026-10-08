@@ -116,22 +116,22 @@ describe("SlotCard feedback", () => {
 
   it("puts the page's eaten state on the eaten control, pending as busy and disabled", () => {
     const { rerender } = render(<SlotCard slot={slot} {...base} eatenFeedback="pending" />);
-    const tick = screen.getByRole("button", { name: "Mark Meal 1 eaten" }) as HTMLButtonElement;
+    const tick = screen.getByRole("button", { name: "Mark eaten, Meal 1" }) as HTMLButtonElement;
     expect(tick.getAttribute("data-feedback-state")).toBe("pending");
     expect(tick.getAttribute("aria-busy")).toBe("true");
     expect(tick.disabled).toBe(true);
     rerender(<SlotCard slot={{ ...slot, eaten: true }} {...base} eatenFeedback="success" />);
-    const done = screen.getByRole("button", { name: "Mark Meal 1 not eaten" });
+    const done = screen.getByRole("button", { name: "Eaten, Meal 1. Undo" });
     expect(done.getAttribute("data-feedback-state")).toBe("success");
-    expect(done.getAttribute("aria-pressed")).toBe("true");
+    expect(done.getAttribute("data-eaten")).toBe("true");
   });
 
   it("uses the same compact eaten control for a focus card", () => {
     const { rerender } = render(<SlotCard slot={slot} {...base} variant="focus" eatenFeedback="success" />);
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).getAttribute("data-feedback-state")).toBe("success");
+    expect(screen.getByRole("button", { name: "Mark eaten, Meal 1" }).getAttribute("data-feedback-state")).toBe("success");
     expect(screen.queryByRole("button", { name: "Eaten" })).toBeNull();
     rerender(<SlotCard slot={slot} {...base} variant="focus" />);
-    expect(screen.getByRole("button", { name: "Mark Meal 1 eaten" }).hasAttribute("data-feedback-state")).toBe(false);
+    expect(screen.getByRole("button", { name: "Mark eaten, Meal 1" }).hasAttribute("data-feedback-state")).toBe(false);
   });
 
   it("marks the card changed after a meal edit", () => {

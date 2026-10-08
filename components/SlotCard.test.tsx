@@ -53,7 +53,7 @@ describe("SlotCard completion colors", () => {
     expect(markup).toContain("Nothing planned yet.");
     expect(markup).toContain("Plan with Sasha");
     expect(markup).toContain("Log what you ate");
-    expect(markup).not.toContain("Mark Lunch eaten");
+    expect(markup).not.toContain("Mark eaten, Lunch");
     expect(markup).not.toContain("Swap Lunch");
   });
 
@@ -191,7 +191,7 @@ describe("meal card editing and scheduling", () => {
       canSwap={false} onToggleEaten={() => {}} onOpenSwap={() => {}}
       onOpenEdit={() => {}} />);
     expect(markup).toContain('aria-label="Expand Lunch"');
-    expect(markup).toContain('aria-label="Mark Lunch not eaten"');
+    expect(markup).toContain('aria-label="Eaten, Lunch. Undo"');
     expect(markup).toContain('aria-label="Lunch, eaten, scheduled for 12:00 pm"');
   });
 

@@ -23,6 +23,7 @@ import { useMealDetail, type DayTotals } from "./SlotCardDetail";
 import { feedbackStateProps, type ActionFeedbackPhase } from "@/components/ui/ActionFeedback";
 import { InsetSheetHost } from "@/components/Sheet";
 import { SlotRuleMarkLine } from "@/components/SlotRuleMarks";
+import Notice from "@/components/ui/Notice";
 
 /* DESIGN.md Motion > Card entrance: 500–800 ms on
    cubic-bezier(0.2, 0.8, 0.2, 1), translateY 16 px, scale 0.98,
@@ -72,8 +73,7 @@ export function formatTime(time: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-/** The chip's first word: Now or Next on the focus card, Eaten once ticked off, else the slot's own
- *  name ("Meal 3", "Snack") — never a bare number (meal cards v2). */
+/** The chip's first word: Now/Next on the focus card, Eaten once ticked off, else the slot's name (meal cards v2). */
 export function slotStatus(slot: Pick<ResolvedSlot, "label" | "eaten">, focusLabel?: "Now" | "Next"): string {
   if (slot.eaten) return "Eaten";
   return focusLabel ?? slot.label;
@@ -177,7 +177,8 @@ export default function SlotCard({
   // header in the same commit, so focus goes straight to the one that opened the flow (Sol review S4).
   const planButton = useRef<HTMLButtonElement | null>(null);
   const logButton = useRef<HTMLButtonElement | null>(null);
-  const openedBy = useRef<"plan" | "log">("plan");
+  const openedBy = useRef<"plan" | "log" | "swap" | "other">("plan");
+  const [returnTo, setReturnTo] = useState<"swap" | "toggle">("toggle");
   useLayoutEffect(() => {
     if (wasAttached.current && !attached) {
       const active = document.activeElement;
@@ -186,16 +187,18 @@ export default function SlotCard({
       if (handOff && slot.meal === null) {
         (openedBy.current === "log" && logButton.current ? logButton : planButton).current?.focus({ preventScroll: true });
       }
+      // A planned card's footer gives focus back to Swap when Swap opened the flow, else to its details control.
+      if (slot.meal !== null) { setReturnTo(openedBy.current === "swap" ? "swap" : "toggle"); openedBy.current = "other"; }
     }
     wasAttached.current = attached;
   }, [attached, slot.meal]);
   const planEmpty = () => { openedBy.current = "plan"; onPlanWithCoach?.(); };
   const logEmpty = () => { openedBy.current = "log"; onLogWhatYouAte?.(); };
-  const eatenControl = <MealEatenButton eaten={slot.eaten} label={slot.label} feedback={eatenFeedback}
-    onToggleEaten={onToggleEaten} />;
+  const eatenControl = <MealEatenButton eaten={slot.eaten} label={slot.label} feedback={eatenFeedback} onToggleEaten={onToggleEaten} />;
   const meal = useMealDetail(slot, onOpenEdit, dayTotals, onPlanWithCoach, editor, previewMacros,
     slot.eaten ? undefined : onAteSomethingElse, footerFocus,
-    { eatenControl, onSwap: canSwap && !slot.eaten ? onOpenSwap : undefined });
+    { eatenControl, onSwap: canSwap && !slot.eaten ? () => { openedBy.current = "swap"; onOpenSwap(); } : undefined,
+      returnTo });
   // While a flow is open the card takes its compact hero, so the meal it acts on stays at the top and
   // the flow sits right under it on one screen (2026-10-04).
   const expanded = meal.expanded && !attached;
@@ -254,7 +257,7 @@ export default function SlotCard({
   // The generator's miss, inside the card's tray under the rule mark: a "needs a look" line.
   const missLine = <AnimatePresence initial={false}>
     {showMiss && <Fold key="miss">
-      <p data-slot-plan-miss="true" className="notice-attention m-0 mt-3 px-3 py-2 text-caption">{planMiss}</p>
+      <div data-slot-plan-miss="true" className="pt-3"><Notice tone="attention" title={planMiss} /></div>
     </Fold>}
   </AnimatePresence>;
   const withActions = (card: ReactNode) => <div ref={groupRef} data-card-group="true" data-slot-card={slot.slot}
@@ -273,7 +276,7 @@ export default function SlotCard({
           <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
             <span className="flex min-w-0 items-baseline gap-2">
               <span className="truncate text-[16px] font-medium text-charcoal">{slot.label}</span>
-              <span className="text-tiny tabular-nums text-muted">{formatTime(slot.time)}</span>
+              <span className="text-tiny tabular-nums text-muted">{formatTime(slot.time).toUpperCase()}</span>
             </span>
             {!attached && <Button ref={planButton} onClick={planEmpty}>Plan</Button>}
           </div>
@@ -293,7 +296,7 @@ export default function SlotCard({
               {slot.label}
             </span>
             <span className="text-tiny font-normal tabular-nums text-muted">
-              {formatTime(slot.time)}
+              {formatTime(slot.time).toUpperCase()}
             </span>
           </div>
           {!attached && <>
@@ -352,7 +355,7 @@ export default function SlotCard({
             <MealPhoto src={illustrativeImage} className={dark.heroPhoto} compact={compact} transition={morph} />
             <div className={dark.heroFooter}>
               <motion.h3 className={dark.heroTitle} {...glide}>{slot.meal.name}</motion.h3>
-              <motion.div data-compact-figures="" className={dark.figures} {...glide}>
+              <motion.div data-meal-figures="" className={dark.figures} {...glide}>
                 <MealCalories kcal={shownMacros.kcal} />
                 {compact && <span data-compact-protein="" className={dark.protein}>
                   <span aria-hidden="true" />

@@ -354,8 +354,6 @@ over a charcoal scrim at 45 %. The dock is matte charcoal at 94 % with a light b
 - **Ground:** `.harvest-ground`, pure CSS and still: oat with a soft lighter wash at the top and a
   3 % fractal-noise grain (`--grain`, an inline SVG). No video, no WebGL.
 - **Matte grain:** the same grain at 3 % over the meal card and the dock (`.matte::before`).
-- **Ornament:** the reference's divider — a hairline, a small rotated cream diamond, a short hairline
-  — between a featured meal's title and its macro panel.
 - **Gauge:** the arc alone on an ink-6 % track, gradient arc with round caps, no glow.
 - **Today calendar:** the Day card's calendar face: a seven-day strip under the day's heading, then the
   ledger, a charcoal tab with the calories left that opens to protein, carbs and fat. Double-tap the

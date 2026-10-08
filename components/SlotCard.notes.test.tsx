@@ -58,8 +58,9 @@ describe("an empty generated slot shows why it is empty (U28)", () => {
 describe("an under-target plate says so inside its card (U29, meal cards v2)", () => {
   it("draws the miss as a needs-a-look line in the card's beige tray", () => {
     render(<Card slot={planned} planMiss={MISS} />);
-    const line = screen.getByText(MISS);
-    expect(line.className).toContain("notice-attention");
+    const line = screen.getByText(MISS).closest("[data-slot-plan-miss]") as HTMLElement;
+    // A Notice, never a bare line (DESIGN.md Don'ts), in the "needs a look" tone.
+    expect(line.querySelector('[data-tone="attention"]')).not.toBeNull();
     // In the tray, which maps the text roles back to ink (`matte-reset`, DESIGN.md §Contrast).
     expect(line.closest("[data-card-tray]")?.className).toContain("matte-reset");
     expect(line.closest("[data-fold]")).toBeTruthy();

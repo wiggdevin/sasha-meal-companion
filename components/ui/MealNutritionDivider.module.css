@@ -39,7 +39,8 @@
   gap: 6px;
   font-size: 12px; /* KIT §14: nothing on a card under 12 px */
   letter-spacing: .06em;
-  color: #b1b2a9;
+  /* ≥ 4.5:1 on the olive panel (#b1b2a9 was 3.7:1; meal cards v2 review). */
+  color: #d4d0c5;
 }
 
 .specValue {

@@ -180,12 +180,12 @@ describe("SlotCard", () => {
 
   it("shows no tick, swap or edit control until a meal exists", () => {
     const empty = slotCard(EMPTY_SLOT);
-    expect(empty).not.toContain("Mark Breakfast eaten");
+    expect(empty).not.toContain("Mark eaten, Breakfast");
     expect(empty).not.toContain("Swap Breakfast");
     expect(empty).not.toContain("Expand Breakfast");
     // And all three are there the moment the slot carries a meal, so this is a state, not a typo.
     const planned = slotCard(PLANNED_SLOT);
-    expect(planned).toContain("Mark Breakfast eaten");
+    expect(planned).toContain("Mark eaten, Breakfast");
     expect(planned).toContain("Swap Breakfast");
     expect(planned).toContain("Expand Breakfast");
   });
@@ -194,7 +194,7 @@ describe("SlotCard", () => {
     const markup = slotCard(PLANNED_SLOT);
     expect(markup).toContain("Oats and berries");
     expect(markup).toContain("300 calories: 10 grams protein, 54 grams carbs, 6 grams fat");
-    expect(markup).toContain("Mark Breakfast eaten");
+    expect(markup).toContain("Mark eaten, Breakfast");
     expect(markup).toContain("More for Breakfast");
     expect(markup).toContain("Clear Breakfast");
     expect(markup).toContain("Delete Breakfast");
@@ -211,7 +211,7 @@ describe("SlotCard", () => {
 
   it("flips the tick's label once the slot is eaten", () => {
     const markup = slotCard({ ...PLANNED_SLOT, eaten: true, eatenAt: "2026-09-20T08:10:00.000Z" });
-    expect(markup).toContain("Mark Breakfast not eaten");
+    expect(markup).toContain("Eaten, Breakfast. Undo");
   });
 
   it("keeps the collapsed meal card limited to its primary meal information", () => {

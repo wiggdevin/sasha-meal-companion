@@ -153,7 +153,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1;
   color: #e2dcd0;
@@ -346,6 +346,10 @@
 }
 
 @media (max-width: 370px) {
+  /* A compact photo is ~110 px wide here: a later meal's chip keeps only its time, so it never runs
+     onto the title (the slot's name is still read out by the chip's label). */
+  .compact .slotPill[data-meal-status="later"] .slotPillStatus,
+  .compact .slotPill[data-meal-status="later"] .slotPillDot { display: none; }
   .hero { padding-top: 156px; }
   .heroPhoto { height: 144px; }
   .snackArt { width: 44px; }

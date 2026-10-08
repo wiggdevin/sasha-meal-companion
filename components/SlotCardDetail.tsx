@@ -258,7 +258,7 @@ export function MealDetail({ id, label, components, macros, dayTotals, prepMinut
           aside={prepMinutes != null && prepMinutes > 0 ? `${prepMinutes} min` : undefined}>
           <div className="flex flex-col items-start gap-2 pb-3">
             <p className="m-0 text-tiny text-muted">Step-by-step guidance or a substitution, for this plate.</p>
-            {onAsk && <Button size="sm" onClick={onAsk}>{`Ask ${ASSISTANT_NAME} how to make it`}</Button>}
+            {onAsk && <Button size="sm" variant="tertiary" onClick={onAsk}>{`Ask ${ASSISTANT_NAME} how to make it`}</Button>}
           </div>
         </Disclosure>
         {targets && <Disclosure variant="row" size="sm" divider bodyClassName="" spring="gentle" title="Daily share"
@@ -286,7 +286,7 @@ function FoldingActions({ children, ...motionProps }: React.ComponentProps<typeo
  * control that opened the flow is gone.
  */
 export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, onAsk, inlineSearch, onAteElse,
-  onSwap, eatenControl, focusOnMount }: {
+  onSwap, eatenControl, focusOnMount, returnTo = "toggle" }: {
   label: string; expanded: boolean; controls: string;
   onToggle: () => void; onSearch?: () => void; onAsk?: () => void; inlineSearch?: boolean;
   /** "Ate something else": log what was eaten instead of this planned meal. */
@@ -296,11 +296,15 @@ export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, 
   /** The eaten button (components/ui/MealNutritionDivider MealEatenButton), drawn first in the strip. */
   eatenControl?: ReactNode;
   focusOnMount?: boolean;
+  /** Which strip control takes focus back when a flow closes: the one that opened it (Swap), or the
+   *  details control when that one is gone. */
+  returnTo?: "swap" | "toggle";
 }) {
   const reduceMotion = useReducedMotion();
   const toggleButton = useRef<HTMLButtonElement | null>(null);
+  const swapButton = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
-    const target = toggleButton.current;
+    const target = (returnTo === "swap" && swapButton.current) || toggleButton.current;
     // Only while focus is still lost (the page) or still in this card: a footer that comes back late,
     // after the user has moved on to another card's flow, never pulls focus away from it.
     const active = document.activeElement;
@@ -328,19 +332,19 @@ export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, 
           ellipsises first (2026-10-04). */}
       <div className="flex min-w-0 items-center gap-1.5 px-3 pt-3">
       {!inlineSearch && onSearch && <Button size="sm" onClick={onSearch} aria-label={`Search foods for ${label}`}
-        leading={<SearchIcon size={16} />} className={`flex-auto ${dark.footerButton}`}>
+        leading={<SearchIcon size={16} />} className={dark.footerButton}>
         <span>Search foods</span></Button>}
       <Button size="sm" onClick={onAsk} aria-label={`Ask ${ASSISTANT_NAME} about ${label}`}
-        className={`flex-auto shrink-0 ${dark.footerButton}`}>
+        className={`shrink-0 ${dark.footerButton}`}>
         <span>Ask {ASSISTANT_NAME}</span></Button>
       {onAteElse && <Button size="sm" onClick={onAteElse} aria-label={`Ate something else for ${label}`}
-        className={`flex-auto ${dark.footerButton}`}><span>Ate something else</span></Button>}
+        className={dark.footerButton}><span>Ate something else</span></Button>}
       </div>
     </FoldingActions>}
     </AnimatePresence>
     <div className="flex min-w-0 items-center gap-1.5 p-3">
       {eatenControl}
-      {onSwap && <Button size="sm" onClick={onSwap} aria-label={`Swap ${label}`} className="shrink-0">Swap</Button>}
+      {onSwap && <Button ref={swapButton} size="sm" onClick={onSwap} aria-label={`Swap ${label}`} className="shrink-0">Swap</Button>}
       <span className="min-w-0 flex-1" />
       <Button ref={toggleButton} size="sm" shape="circle" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
         aria-expanded={expanded} aria-controls={controls} onClick={toggle} className="shrink-0 text-muted">
@@ -352,7 +356,8 @@ export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, 
 
 export function useMealDetail(slot: ResolvedSlot, onOpenEdit: (() => void) | undefined,
   dayTotals?: DayTotals, onAsk?: () => void, editor?: IngredientEditor, previewMacros?: Macros | null,
-  onAteElse?: () => void, footerFocus = false, strip?: { eatenControl?: ReactNode; onSwap?: () => void }) {
+  onAteElse?: () => void, footerFocus = false,
+  strip?: { eatenControl?: ReactNode; onSwap?: () => void; returnTo?: "swap" | "toggle" }) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
   const toggle = () => {
@@ -366,7 +371,7 @@ export function useMealDetail(slot: ResolvedSlot, onOpenEdit: (() => void) | und
     footer: <MealCardFooter label={slot.label} expanded={expanded} controls={id} onToggle={toggle}
       onSearch={onOpenEdit} onAsk={onAsk} onAteElse={onAteElse}
       inlineSearch={Boolean(editor)} focusOnMount={footerFocus}
-      eatenControl={strip?.eatenControl} onSwap={strip?.onSwap} />,
+      eatenControl={strip?.eatenControl} onSwap={strip?.onSwap} returnTo={strip?.returnTo} />,
     detail: expanded ? <MealDetail key="detail" id={id} label={slot.label} components={slot.components}
       macros={previewMacros ?? slot.macros} dayTotals={dayTotals} prepMinutes={slot.meal?.prepMinutes}
       editor={editor} marked={slot} onAsk={onAsk} /> : null,

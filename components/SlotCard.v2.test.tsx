@@ -3,7 +3,7 @@
  * Meal cards v2 (docs/design/meal-cards-v2.md): what the person needs at first glance — the status
  * word and time, calories and protein, one labelled way to tick the meal off and a visible Swap.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MotionConfig } from "motion/react";
 import SlotCard from "./SlotCard";
@@ -54,9 +54,9 @@ describe("meal card action strip", () => {
   it.each(["focus", "standard"] as const)("gives the %s card a labelled eaten button", (variant) => {
     const onToggleEaten = vi.fn();
     render(<Card variant={variant} onToggleEaten={onToggleEaten} />);
-    const tick = screen.getByRole("button", { name: "Mark Meal 2 eaten" });
+    const tick = screen.getByRole("button", { name: "Mark eaten, Meal 2" });
     expect(tick.textContent).toContain("Mark eaten");
-    expect(tick.getAttribute("aria-pressed")).toBe("false");
+    expect(tick.getAttribute("data-eaten")).toBe("false");
     fireEvent.click(tick);
     expect(onToggleEaten).toHaveBeenCalledTimes(1);
   });
@@ -70,9 +70,9 @@ describe("meal card action strip", () => {
 
   it("turns the eaten button into an undo once eaten, and keeps the card at full strength", () => {
     render(<Card slot={{ ...lunch, eaten: true }} />);
-    const done = screen.getByRole("button", { name: "Mark Meal 2 not eaten" });
+    const done = screen.getByRole("button", { name: "Eaten, Meal 2. Undo" });
     expect(done.textContent).toContain("Eaten");
-    expect(done.getAttribute("aria-pressed")).toBe("true");
+    expect(done.getAttribute("data-eaten")).toBe("true");
     expect(document.querySelector(".opacity-70")).toBeNull();
   });
 
@@ -84,6 +84,17 @@ describe("meal card action strip", () => {
     expect(swap.textContent).toBe("Swap");
     fireEvent.click(swap);
     expect(onOpenSwap).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives focus back to Swap when the swap flow it opened closes", async () => {
+    const flow = <button key="swap" type="button">Inside the flow</button>;
+    const { rerender } = render(<Card />);
+    fireEvent.click(screen.getByRole("button", { name: "Swap Meal 2" }));
+    rerender(<Card attachment={flow} />);
+    (await screen.findByRole("button", { name: "Inside the flow" })).focus();
+    rerender(<Card />);
+    const swap = await screen.findByRole("button", { name: "Swap Meal 2" });
+    await waitFor(() => expect(document.activeElement).toBe(swap));
   });
 
   it("hides Swap on an eaten meal and when the slot cannot swap", () => {
@@ -98,7 +109,7 @@ describe("meal card action strip", () => {
 describe("meal card figures", () => {
   it("puts protein beside the calories on a compact card", () => {
     render(<Card />);
-    const figures = document.querySelector("[data-compact-figures]") as HTMLElement;
+    const figures = document.querySelector("[data-meal-figures]") as HTMLElement;
     expect(figures.textContent).toContain("541");
     expect(figures.textContent).toContain("52 g protein");
   });
