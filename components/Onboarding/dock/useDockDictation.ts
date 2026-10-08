@@ -17,11 +17,20 @@
  * and the copy are DictateMic's, unchanged.
  */
 
-import { useEffect, useState } from "react";
-import { dictationCopy, dictationStatus, MIC_UNAVAILABLE_COPY, useMicAvailable } from "@/components/DictateMic";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { dictationCopy, dictationStatus, MIC_UNAVAILABLE_COPY } from "@/components/DictateMic";
+import { onAccountGone, onAccountReady } from "@/lib/device/account";
 import { HoldController, type HoldView } from "@/lib/coach/hold";
 import { latestCallbackPorts, type HoldCallbacks } from "@/lib/coach/hold-ports";
-import { dictationIo } from "@/lib/voice/dictation-io";
+import { hasMediaRecorder, micAvailable } from "@/lib/coach/speech-api";
+import { dictationIo, isStandalone } from "@/lib/voice/dictation-io";
+
+/** Whether the mic can work on THIS page: the installed app only records (`dictationIo`), so
+ *  there a recogniser alone is not enough (Sol review). */
+export function dockMicAvailable(): boolean {
+  return isStandalone() ? hasMediaRecorder() : micAvailable();
+}
+const noSubscription = (): (() => void) => () => {};
 
 export type DockMicMode = "record" | "stop" | "busy";
 
@@ -52,13 +61,16 @@ export type DockDictation = {
   toggle: () => void;
 };
 
-export function useDockDictation({ readBox, writeBox, active }: {
+export function useDockDictation({ readBox, writeBox, active, session }: {
   readBox: () => string;
   writeBox: (text: string) => void;
   /** The dock shows the composer now; leaving it ends any session at once. */
   active: boolean;
+  /** What the words are an answer to (the beat): when it changes, an open session ends, so words
+   *  said for one question never land in the next one's box. */
+  session: string;
 }): DockDictation {
-  const available = useMicAvailable();
+  const available = useSyncExternalStore(noSubscription, dockMicAvailable, () => false);
   const [view, setView] = useState<HoldView | null>(null);
 
   // ONE controller for the shell's life; the shell's inline callbacks are read at call time
@@ -93,6 +105,25 @@ export function useDockDictation({ readBox, writeBox, active }: {
   useEffect(() => {
     if (!active) hold.cancel();
   }, [active, hold]);
+
+  // Nor the question: a new beat ends the session (Sol review — a goal tapped mid-sentence).
+  const lastSession = useRef(session);
+  useEffect(() => {
+    if (lastSession.current === session) return;
+    lastSession.current = session;
+    hold.cancel();
+  }, [session, hold]);
+
+  // Nor the account: words said while one account was bound never fill another's box.
+  useEffect(() => {
+    let epoch: number | null = null;
+    const offReady = onAccountReady((h) => {
+      if (epoch !== null && h.epoch !== epoch) hold.cancel();
+      epoch = h.epoch;
+    });
+    const offGone = onAccountGone(() => hold.cancel());
+    return () => { offReady(); offGone(); };
+  }, [hold]);
 
   const mode: DockMicMode = view?.busy || view?.settling ? "busy" : view?.listening ? "stop" : "record";
   const line = view ? dictationStatus(view) ?? onboardingDictationCopy(view.notice) : null;

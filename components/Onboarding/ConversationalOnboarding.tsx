@@ -361,6 +361,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     readBox: () => typed,
     writeBox: (text) => { setTyped(text); setComposerNote(null); },
     active: BEAT_DOCK[beat] === "mic",
+    session: beat,
   });
 
   function advance(next: OnboardingBeat) {

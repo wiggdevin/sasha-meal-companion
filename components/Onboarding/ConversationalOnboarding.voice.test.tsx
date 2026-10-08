@@ -157,6 +157,23 @@ describe("onboarding voice", () => {
     expect(screen.getByTestId("facts-recap").textContent).toMatch(/34/);
     // The facts beat keeps the mic: every free-text beat takes voice.
     expect(mic()).toBeTruthy();
+  }, 15_000);
+
+  it("a goal tapped mid-sentence ends the session: words for one question never fill the next", async () => {
+    vi.stubGlobal("SpeechRecognition", FakeRecognition);
+    render(<ConversationalOnboarding />);
+    fireEvent.click(mic());
+    const recognition = FakeRecognition.made[0];
+    act(() => { recognition.onstart?.(); recognition.say("I want to", false); });
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
+    await screen.findByText("How old are you?");
+    expect(recognition.abort).toHaveBeenCalled();
+    // What was already heard stays visible and editable for review; nothing more joins it.
+    expect(box().readOnly).toBe(false);
+    act(() => { recognition.say("I want to and I'm 34"); });
+    expect(box().value).toBe("I want to");
+    expect(mic().getAttribute("aria-pressed")).toBe("false");
+    expect(account.accountFetch).not.toHaveBeenCalled();
   });
 
   it("a spoken health or allergy detail is never read: Send opens the safety card", async () => {
