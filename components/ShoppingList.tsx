@@ -77,6 +77,7 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   async function toggle(line: ShoppingLine) {
     const next = !isChecked(line);
     const seq = ++tickSeq.current;
+    setError(null);
     setTicks((current) => ({ ...current, [line.id]: { revision: line.revision, value: next, seq } }));
     try { await actions.setChecked(line, next); }
     catch (cause) {
@@ -86,7 +87,8 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
         const { [line.id]: _dropped, ...rest } = current;
         return rest;
       });
-      setError(cause instanceof Error ? cause.message : "That tick did not save.");
+      // Only the newest tick speaks: an older failure must not sit over a newer success.
+      if (tickSeq.current === seq) setError(cause instanceof Error ? cause.message : "That tick did not save.");
     }
   }
   async function remove(targets: ShoppingLine[]) {

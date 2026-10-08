@@ -98,6 +98,20 @@ describe("log_draft block", () => {
     expect(onSearchManually).not.toHaveBeenCalled();
   });
 
+  it("lets Log it wait while a Dismiss is being saved", async () => {
+    let saved!: () => void;
+    const onBlockStatus = vi.fn(() => new Promise<void>((resolve) => { saved = resolve; }));
+    const commitBarcode = vi.fn();
+    render(<LogDraftBlock block={barcodeBlock} ctx={context({ commitBarcode, onBlockStatus })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    const log = screen.getByRole("button", { name: "Log it" }) as HTMLButtonElement;
+    expect(log.disabled).toBe(true);
+    fireEvent.click(log);
+    saved();
+    expect(await screen.findByText("Dismissed")).toBeTruthy();
+    expect(commitBarcode).not.toHaveBeenCalled();
+  });
+
   it("commits and undoes on one local date with a replay-stable entry id", async () => {
     const commit = vi.mocked(commitLogEntry);
     commit.mockResolvedValue({ status: "queued" });

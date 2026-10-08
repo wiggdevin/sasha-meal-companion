@@ -175,7 +175,11 @@ export default function LogDraftBlock({ block, ctx }: {
   /** A commit in flight owns the card: the entry lands either way, so a Dismiss must not hide it. */
   function dismiss(): void {
     if (claimed.current) return;
-    void update("dismissed").catch(() => setError("That card status did not save. Try again."));
+    // A dismissal being saved owns the card too, so Log it cannot start under it.
+    claimed.current = true;
+    setBusy(true);
+    void update("dismissed").catch(() => setError("That card status did not save. Try again."))
+      .finally(() => { claimed.current = false; setBusy(false); });
   }
 
   async function undo(): Promise<void> {

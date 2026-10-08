@@ -53,6 +53,8 @@ describe("a shopping tick", () => {
     await act(async () => { failFirst(new Error("offline")); });
     // The newer tick (back to buy) stands; the failed first one does not flip it.
     expect(summary()).toBe("0 of 1 in cart · This week");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("offline")).toBeNull();
     expect(setChecked.mock.calls.map((call) => call[1])).toEqual([true, false]);
   });
 });
