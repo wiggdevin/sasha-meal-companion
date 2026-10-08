@@ -145,6 +145,16 @@ function commitCall(n = 0): { req: LogCommitRequest; opts: { optimistic: { date:
 }
 
 describe("a single pick", () => {
+  it("scales grams typed by hand with the count, so the stepper never moves alone (UI audit r1)", async () => {
+    process.env.NEXT_PUBLIC_CATALOG_SEARCH = "1";
+    await sheet();
+    fireEvent.click(screen.getByRole("button", { name: "Catalog bread" }));
+    const grams = await screen.findByRole("textbox", { name: "Grams" }) as HTMLInputElement;
+    fireEvent.change(grams, { target: { value: "150" } });
+    for (let i = 0; i < 4; i += 1) fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(grams.value).toBe("300");
+  });
+
   it("commits a bundled food once and hands Today the committed card once", async () => {
     const onAdd = await sheet();
     openFood("chicken breast roasted", dbFood(CHICKEN.id)!.name);
