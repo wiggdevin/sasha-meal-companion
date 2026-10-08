@@ -74,6 +74,8 @@ export const SUGGEST_BUDGET_MS = 8_000;
  * order (acceptance 5) but is never sent to, or reordered by, Jev.
  */
 export const SUGGEST_SHORTLIST_MAX = 8;
+/** D9 item 4 / acceptance 2: below this many Jev-eligible admitted plates, the call is skipped. */
+export const SUGGEST_SHORTLIST_MIN = 5;
 /**
  * Candidate building stops here and keeps what it has, leaving the rest of the budget for the
  * evidence check and the Jev ranking. Before this, a long Eats list spent all 8 s searching and
@@ -174,10 +176,10 @@ export async function suggestOptions<T extends SuggestPorts>(
     const ask: JevPort = ports.systemOne ?? ((payload, options) => callSystemOne(payload, options));
     const remainingMs = Math.max(1, SUGGEST_BUDGET_MS - (Date.now() - startedAt));
     let answers: JevAnswers | null = null;
-    // "At most one Jev call" (D9 item 4) is the hard constraint; an account with fewer admitted
-    // plates than the 5-8 shortlist's typical size (acceptance 1 guarantees as few as 3 total)
-    // still gets its one call on whatever it has, never zero.
-    if (shortlist.length > 0) {
+    // Owner ruling (W10b): acceptance 2 reads "on 5 to 8 admitted plates" as a real floor, not
+    // just an upper bound — below 5, the call is skipped entirely (formula order, same as a
+    // Jev-down answer). With 3-4 cards (acceptance 1's own minimum), that is simply the result.
+    if (shortlist.length >= SUGGEST_SHORTLIST_MIN) {
       const state = rankingState(input, shortlist, pendingSlots);
       try {
         answers = await abortable(ask(suggestPayload(state, input.kind), {

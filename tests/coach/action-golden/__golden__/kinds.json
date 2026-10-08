@@ -19,5 +19,6 @@
   "remove_from_eats",
   "add_to_shopping_list",
   "skip_slot",
-  "restore_slot"
+  "restore_slot",
+  "set_shopping_focus"
 ]

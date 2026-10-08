@@ -565,6 +565,29 @@
         }
       ],
       "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "set_shopping_focus",
+          "on": true,
+          "days": 10,
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
+    },
+    {
+      "actions": [
+        {
+          "kind": "set_shopping_focus",
+          "on": false,
+          "actionId": "g1",
+          "flagged": []
+        }
+      ],
+      "clarifications": []
     }
   ],
   "batch": {
@@ -1022,6 +1045,19 @@
           "oat milk"
         ],
         "actionId": "g25",
+        "flagged": []
+      },
+      {
+        "kind": "set_shopping_focus",
+        "on": true,
+        "days": 10,
+        "actionId": "g26",
+        "flagged": []
+      },
+      {
+        "kind": "set_shopping_focus",
+        "on": false,
+        "actionId": "g27",
         "flagged": []
       }
     ],

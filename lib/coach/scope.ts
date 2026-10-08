@@ -26,7 +26,7 @@ const PAGE_KINDS: Record<CoachPage, readonly ActionKind[]> = {
     "shift_schedule"],
   body: ["log_weight", "log_water", "update_profile", "set_targets"],
   foods: ["add_to_avoid", "remove_from_avoid", "add_to_eats", "remove_from_eats",
-    "add_to_shopping_list", "save_recipe"],
+    "add_to_shopping_list", "save_recipe", "set_shopping_focus"],
   settings: ["update_profile", "set_targets", "shift_schedule"],
 };
 

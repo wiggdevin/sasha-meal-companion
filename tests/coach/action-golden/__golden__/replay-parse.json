@@ -434,6 +434,25 @@
   {
     "ok": true,
     "data": {
+      "actionId": "a27",
+      "flagged": [],
+      "kind": "set_shopping_focus",
+      "on": true,
+      "days": 10
+    }
+  },
+  {
+    "ok": true,
+    "data": {
+      "actionId": "a28",
+      "flagged": [],
+      "kind": "set_shopping_focus",
+      "on": false
+    }
+  },
+  {
+    "ok": true,
+    "data": {
       "actionId": "r1",
       "flagged": [],
       "kind": "log_meal",

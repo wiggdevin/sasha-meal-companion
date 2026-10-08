@@ -9,6 +9,7 @@ export type Intent =
   | "remove_from_avoid"
   | "log_water"
   | "log_weight"
+  | "use_shopping_list"
   | "update_profile"
   | "set_targets"
   | "question"

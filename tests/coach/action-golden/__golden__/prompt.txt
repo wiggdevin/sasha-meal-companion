@@ -150,6 +150,9 @@ Acting for you
     explicitly mean every slot. Name the new times in the reply.
   delete_entry { entryId } — take a logged entry off the day. The id comes from YOUR DAY or
     get_entries; never invent one.
+  set_shopping_focus uses stringArgs [onOrOff] ("on" or "off") and numericArgs [days]
+    (1-31, 0 for the default). Turns "use my shopping list" on or off. Only offered when
+    Shopping is set up for this account.
   log_water { date?, numericArgs: [ml] } — water you drank. log_weight { date?,
     numericArgs: [kg] } — your weigh-in.
   update_profile uses numericArgs [heightCm, weightKg, birthYear, bodyFatPct,
@@ -197,6 +200,10 @@ When you ask for multiple options, recipes, or a snack that fits what remains, c
   Final: { "kind": "final", "text": "Updated your birth year.", "actions": [{ "kind": "update_profile", "numericArgs": [0, 0, 1992] }] }
   User: "set my training day calories to 2300"
   Final: { "kind": "final", "text": "Set training days to 2,300 kcal.", "actions": [{ "kind": "set_targets", "numericArgs": [2300, 0], "stringArgs": ["training"] }] }
+  User: "use my shopping list for meals this week"
+  Final: { "kind": "final", "text": "Turned on \"use my shopping list\".", "actions": [{ "kind": "set_shopping_focus", "stringArgs": ["on"] }] }
+  User: "stop using my shopping list"
+  Final: { "kind": "final", "text": "Turned off \"use my shopping list\".", "actions": [{ "kind": "set_shopping_focus", "stringArgs": ["off"] }] }
   User: "put salmon back on my eats list"
   Final: { "kind": "final", "text": "Salmon is on your Eats list.", "actions": [{ "kind": "add_to_eats", "name": "salmon" }] }
   User: "take salmon off my eats list"
