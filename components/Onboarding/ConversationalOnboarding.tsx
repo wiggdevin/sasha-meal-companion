@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotionConfig } from "m
 import Button from "@/components/ui/Button";
 import SproutGuide, { type OnboardingPose } from "@/components/Onboarding/SproutGuide";
 import OnboardingDock, { type OnboardingDockMode } from "@/components/Onboarding/dock/OnboardingDock";
+import { useDockDictation } from "@/components/Onboarding/dock/useDockDictation";
 import WeekBeat from "@/components/Onboarding/beats/WeekBeat";
 import SafetyRound, { type SafetyRoundResult } from "@/components/Onboarding/beats/SafetyRound";
 import PaceBeat from "@/components/Onboarding/beats/PaceBeat";
@@ -353,6 +354,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   /** Gates the draft-save effect below until the resume-draft read (or its failure) has actually
    *  settled — see that effect's own comment for why. */
   const [draftChecked, setDraftChecked] = useState(false);
+  /** Voice on every beat that takes free text (the dock's composer, `BEAT_DOCK` "mic"): the words
+   *  fill the box for review, and only Send reads them — through `submitTyped`, the typed answer's
+   *  own local safety gate and extract budget. */
+  const dictation = useDockDictation({
+    readBox: () => typed,
+    writeBox: (text) => { setTyped(text); setComposerNote(null); },
+    active: BEAT_DOCK[beat] === "mic",
+  });
 
   function advance(next: OnboardingBeat) {
     setPlanNotice(null);
@@ -724,7 +733,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   /** The dock's text composer on opener and facts (`typed-answer.ts`): the asked question's own
    *  unit first, then the extract client. A health or allergy detail opens the safety card. */
   async function submitTyped(text: string) {
-    if (reading) return;
+    // A spoken answer reaches here only through the same Send, once the mic has let go of the box.
+    if (reading || dictation.locked) return;
     const from = beat;
     setReading(true);
     try {
@@ -892,6 +902,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     && (foodAccess.status === "pilot" || proteinAvailability?.ready === true);
   const lovedCount = selectedStarterIds.length;
   const dockMode: OnboardingDockMode | null = beat === "foods" && foodsReady ? "confirm" : BEAT_DOCK[beat];
+  const composerLine = composerNote ?? dictation.line;
 
   /** Foods "Done": ONB2-RULE-REREAD (Sol r6 BLOCK on onb2-l4-r2). `starter.choices` here can be
    *  minutes stale — a rule saved mid-flow through the inline rule editor never retriggers the
@@ -981,9 +992,11 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
 
   /** VISUAL-SPEC.md §2: within the "facts" beat, `pointing` while a question is open, `thinking`
    *  once everything is confirmed. Every other beat keeps its static §2 pose. */
-  const guidePose: OnboardingPose = beat === "facts"
-    ? (askingField ? "pointing" : "thinking")
+  const guidePose: OnboardingPose = dockMode === "mic" && dictation.hearing ? "listening"
+    : dockMode === "mic" && (reading || dictation.mode === "busy") ? "thinking"
+    : beat === "facts" ? (askingField ? "pointing" : "thinking")
     : BEAT_POSE[beat];
+  const guideLine = guidePose === "listening" ? "Sprout is listening to you." : BEAT_LINE[beat];
 
   return <div className={`${styles.shell} matte`} data-onboarding-v2="true"
     data-scope-kind={ONBOARDING_SCOPE.kind} data-scope-page={ONBOARDING_SCOPE.page}>
@@ -1008,7 +1021,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
             has a position shift to track here, never a size one.) */}
         <motion.div layout="position" transition={reduce ? INSTANT : CONTAINER_ENTER}
           className={styles.guide}>
-          <SproutGuide pose={guidePose} line={BEAT_LINE[beat]} size={BEAT_SIZE[beat]} />
+          <SproutGuide pose={guidePose} line={guideLine} size={BEAT_SIZE[beat]} />
         </motion.div>
         {/* Sol review round 2: a simultaneous crossfade kept two full beats (wildly different
             heights) in flow at once, which could shift the scroller under a control mid-tap — this
@@ -1032,8 +1045,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
         {planNotice.actionLabel}
       </Button>
     </div>}
-    {composerNote && dockMode === "mic" && <p role="status" className={`${styles.composerNote} m-0 text-caption text-graphite`}>
-      {composerNote}
+    {composerLine && dockMode === "mic" && <p role="status" data-testid="composer-line"
+      className={`${styles.composerNote} m-0 text-caption text-graphite`}>
+      {composerLine}
     </p>}
     {/* The under-18 stop carries its own "Look around" exit; a second one would say the same. */}
     {beat !== "minor" && <div className={styles.skipLink}>
@@ -1042,7 +1056,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     {dockMode && <div className={styles.dockRow}>
       <OnboardingDock mode={dockMode} reduce={reduce}
         value={typed} onChange={(value) => { setTyped(value); if (composerNote) setComposerNote(null); }}
-        onSubmit={(text) => void submitTyped(text)} listening={reading}
+        onSubmit={(text) => void submitTyped(text)} listening={reading || dictation.locked}
+        onMicTap={dictation.available ? dictation.toggle : undefined} micLabel="Say it"
+        micActive={dictation.mode === "stop"} micBusy={dictation.mode === "busy"}
+        micSeconds={dictation.secondsLeft} micDisabled={reading}
         placeholder={beat === "opener" ? OPENER_HINT
           : askingField ? (TYPE_HINT[askingField] ?? "Or type it") : "Type to change anything"}
         /* Sol review round 2: "Use this plan" only once a real plan can be saved; otherwise the

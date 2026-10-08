@@ -21,3 +21,12 @@
      padding (`p-3`) = 120px; a few px of headroom against rounding. */
   min-height: 124px;
 }
+
+/* Voice lane (2026-10-08): the mic while it is open — the coach composer's recording red
+   (`--color-alert`, DESIGN.md §Colors) with its `.coach-recording-button` ring. Cream on the red
+   (the `.matte` scope's own text role) clears 4.5:1. Here, not a JSX `style` object
+   (tests/design/inline-style.test.ts). */
+.micLive {
+  background: var(--color-alert);
+  color: var(--color-on-primary);
+}
