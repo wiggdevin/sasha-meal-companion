@@ -12,12 +12,14 @@
  * lib/sync/post-sync.ts) re-posts `POST /api/foods/world { world: "open" }` while the intent
  * exists. The intent clears only on an answer that settles it:
  * - 200 `{ world: "open" }`: done.
+ * - 200 `{ world: "closed" }`: the account already decided (the server's no-op answer to a late
+ *   default); the intent clears.
  * - 423 `held` / `open_world_not_released`: the account stays closed by policy; the invitation
  *   (`GET /api/foods/world/invitation`) offers it later.
  * - 409 `condition_review`: a person must confirm conditions; the invitation flow owns that.
  * - any other 4xx a retry cannot change (logged once, by status only).
- * Kept for the next pass: 5xx, 401, 408, 425, 429, 409 `profile_required`, a body that does not
- * say open, a timeout or a network failure.
+ * Kept for the next pass: 5xx, 401, 408, 425, 429, 409 `profile_required`, a 200 body that names
+ * no world, a timeout or a network failure.
  *
  * The POST is idempotent (opening an open account is a no-op), so a retry is always safe. It also
  * carries `intent: "onboarding_default"`, which the server refuses once this account's
@@ -75,7 +77,11 @@ async function postOpen(h: AccountHandle): Promise<"opened" | "settled" | "retry
   if (res.ok) {
     try {
       const body = await accountJson<{ world?: unknown } | null>(h, res);
-      return body?.world === "open" ? "opened" : "retry";
+      // Sol round 3 WARN: the server answers a default that comes after a choice already made
+      // (lib/server/food-world.ts, `food_world_set_at`) with 200 and that account's own world.
+      // `closed` there means someone decided: settled, never retried forever.
+      if (body?.world === "open") return "opened";
+      return body?.world === "closed" ? "settled" : "retry";
     } catch {
       return "retry";
     }

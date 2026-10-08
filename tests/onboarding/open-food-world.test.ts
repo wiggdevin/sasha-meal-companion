@@ -99,6 +99,8 @@ describe("drainWorldOpenPending: which answers settle the intent", () => {
     ["423 unreleased", json(423, { error: "open_world_not_released" })],
     ["409 condition_review", json(409, { error: "condition_review", conditions: ["ckd"] })],
     ["400", json(400, { error: "bad_request" })],
+    // Sol round 3 WARN: the server's no-op answer once the account already decided.
+    ["200 { world: closed } (the account already chose)", json(200, { world: "closed" })],
   ])("clears on %s (the invitation covers it later)", async (_label, res) => {
     mocked.meta.set("account-a:food_world_open_pending", { since: "2026-10-07T00:00:00Z" });
     vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -109,7 +111,7 @@ describe("drainWorldOpenPending: which answers settle the intent", () => {
 
   it.each([
     ["500", json(500, {})], ["401", json(401, {})], ["429", json(429, {})],
-    ["a 200 that does not say open", json(200, { world: "closed" })],
+    ["a 200 that names no world", json(200, {})],
   ])("keeps the intent on %s", async (_label, res) => {
     mocked.meta.set("account-a:food_world_open_pending", { since: "2026-10-07T00:00:00Z" });
     mocked.fetch.mockResolvedValue(res);
