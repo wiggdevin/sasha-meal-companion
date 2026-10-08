@@ -298,8 +298,14 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   default or inherited Favored marks. The open is durable (`lib/foods/world-open-client.ts`): a
   pending intent in the account's META store, re-posted after every successful sync
   (`lib/sync/post-sync.ts`) until the server answers 200 open, 423, 409 `condition_review` or
-  another final 4xx. The legacy zero-food auto-seed (`lib/foods/today-starter.ts`) runs only on
-  an affirmative `closed` read; an open account or a failed read seeds nothing.
+  another final 4xx. The retry sends `intent: "onboarding_default"`, which `setFoodWorld`
+  (`lib/server/food-world.ts`) refuses once `user_settings.food_world_set_at` (migration
+  `20261227090100`, applied to production) is already stamped for the account — a backend-side
+  guarantee, needing no UI change, that the retry can never re-open an account a person already
+  decided about (the default's own first success, or their own Settings close). An explicit
+  Settings POST (no `intent`) always applies and restamps. The legacy zero-food auto-seed
+  (`lib/foods/today-starter.ts`) runs only on an affirmative `closed` read; an open account or a
+  failed read seeds nothing.
   An existing account keeps its Eats marks as Favored marks, unchanged, when it opts in —
   `POST /api/foods/world` never writes `user_food_prefs`. A held account
   (`OPEN_WORLD_HOLD_USER_IDS`) never sees the invitation (`GET /api/foods/world/invitation`) and
