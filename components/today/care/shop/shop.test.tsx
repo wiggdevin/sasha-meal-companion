@@ -14,8 +14,13 @@ const sound = vi.hoisted(() => ({ play: vi.fn(), unlockAudio: vi.fn(), muted: fa
 vi.mock("@/components/today/care/sound", () => ({
   play: sound.play, unlockAudio: sound.unlockAudio, readMuted: () => sound.muted, silence: () => {},
 }));
-import { LEDGER_COPY, SHOP_ITEMS, SLOTS, itemById } from "./catalog";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { LEAVES, LEDGER_COPY, SHOP_ITEMS, SLOTS, itemById, placesFor } from "./catalog";
+import { MASCOTS, MASCOT_KEYS } from "@/components/today/island/mascots";
 import { equip, pendingSeeds, purchase, seeds, type ShopState } from "./shop-state";
+
+const SHOP_CSS = readFileSync(join(process.cwd(), "components/today/care/shop/Shop.module.css"), "utf8");
 
 /** A click that lets the shop's rules (async, so the server can decide on Today) settle. */
 const click = async (el: Element) => { await act(async () => { fireEvent.click(el); }); };
@@ -73,6 +78,29 @@ describe("the shop's rules", () => {
       expect(item.price).toBeGreaterThan(0);
     }
     for (const line of Object.values(LEDGER_COPY)) expect(line).not.toMatch(/\b(less|under|fast|skip|calorie)/i);
+  });
+
+  it("fits every wearable on every companion, except a hat on Pod, over the 768 px art", () => {
+    for (const item of SHOP_ITEMS.filter((entry) => !entry.scene)) {
+      for (const mascot of MASCOT_KEYS) {
+        const places = placesFor(item, mascot);
+        if (mascot === "peapod" && item.slot === "head") { expect(places).toBeNull(); continue; }
+        expect(places, `${item.id} on ${mascot}`).not.toBeNull();
+        for (const place of places ?? []) {
+          // The part's box overlaps the art (shorts may hang below it: they are clipped to the body).
+          const h = place.w / item.aspect;
+          expect(place.x).toBeGreaterThan(0); expect(place.x).toBeLessThan(768);
+          expect(place.y + h / 2).toBeGreaterThan(0); expect(place.y - h / 2).toBeLessThan(768);
+          expect(place.w).toBeGreaterThan(0);
+        }
+      }
+    }
+    // Every leaf drawn over a hat, and every outline a pair of shorts is clipped to, is a real file.
+    for (const src of Object.values(LEAVES)) expect(existsSync(join(process.cwd(), "public", src!))).toBe(true);
+    for (const mascot of MASCOT_KEYS) {
+      expect(existsSync(join(process.cwd(), "public", MASCOTS[mascot].art.content))).toBe(true);
+      if (mascot !== "sprout") expect(SHOP_CSS).toContain(`[data-mascot="${mascot}"]`);
+    }
   });
 });
 

@@ -7,7 +7,7 @@ import { INSTANT, SPRINGS } from "@/lib/design/motion";
 import Button from "@/components/ui/Button";
 import DressedSprout from "@/components/today/care/shop/DressedSprout";
 import CareScenePlayer from "@/components/today/care/CareScenePlayer";
-import { LEDGER_COPY, SHOP_ITEMS, itemById, words, type CareScene, type ShopItem, type Slot } from "@/components/today/care/shop/catalog";
+import { LEDGER_COPY, SHOP_ITEMS, canWear, itemById, words, type CareScene, type ShopItem, type Slot } from "@/components/today/care/shop/catalog";
 import { equip, pendingSeeds, purchase, seeds, type EquipOutcome, type PurchaseOutcome, type ShopState } from "@/components/today/care/shop/shop-state";
 import { play, readMuted, unlockAudio } from "@/components/today/care/sound";
 import styles from "@/components/today/care/shop/Shop.module.css";
@@ -71,8 +71,6 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   const retry = useRef<{ itemId: string; actionId: string } | null>(null);
   const reduce = useReducedMotionConfig() ?? false;
   const mascot = useMascot();
-  // The wearables are painted for Sprout's shape: another companion sees them, but cannot wear them yet.
-  const wears = mascot === "sprout";
   // Sprout fills the stage, whatever room the well gives it.
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(196);
@@ -92,7 +90,8 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   // that companion is still chosen: a change of companion with the shop open, or a purchase that settles
   // after one, never leaves a line about the other companion.
   const [said, setSaidFor] = useState<{ text: string; mascot: string }>({ text: "", mascot });
-  const setSaid = (text: string) => setSaidFor({ text, mascot });
+  // Lines are written with Sprout's name and said with the chosen companion's.
+  const setSaid = (text: string) => setSaidFor({ text: named(text, mascot), mascot });
   // A change of companion clears the line, so switching back never brings an old one back.
   const [saidFor, setSaidCompanion] = useState(mascot);
   if (saidFor !== mascot) { setSaidCompanion(mascot); setSaidFor({ text: "", mascot }); }
@@ -105,12 +104,15 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   const owned = item ? state.owned.includes(item.id) : false;
   // A care scene (a massage) is done for Sprout: it plays, it is never worn or tried on.
   const care = item?.scene ?? null;
-  // Another companion wears nothing: what Sprout has on stays with Sprout and is not shown as on.
-  const worn = item && !care && wears ? state.equipped[item.slot] === item.id : false;
+  // Each companion wears an item at its own fit; one with no fit (a hat on Pod) cannot wear it, and an
+  // item it cannot wear is never shown as on, though it stays equipped for the companions that can.
+  const fits = item ? canWear(item, mascot) : false;
+  const worn = item && fits ? state.equipped[item.slot] === item.id : false;
   const [playing, setPlaying] = useState<CareScene | null>(null);
-  // What Sprout has on: its own things, and the chosen item tried on in its slot.
-  const wearing: Partial<Record<Slot, string>> = wears ? { ...state.equipped } : {};
-  if (item && !care && wears) wearing[item.slot] = item.id;
+  // What the companion has on: what it can wear of the equipped things, and the chosen item tried on.
+  const wearing: Partial<Record<Slot, string>> = Object.fromEntries(Object.entries(state.equipped)
+    .filter(([, id]) => { const on = id ? itemById(id) : undefined; return on ? canWear(on, mascot) : false; }));
+  if (item && fits) wearing[item.slot] = item.id;
   const pending = pendingSeeds(state);
 
   const choose = (next: ShopItem) => {
@@ -119,7 +121,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     // Say so whenever the preview actually changes what Sprout has on — an owned item not yet worn
     // previews exactly like an unbought one. Selecting an already-worn item changes nothing to say.
     if (next.scene) setSaid("");
-    else if (!wears) setSaid("Only Sprout can wear this for now.");
+    else if (!canWear(next, mascot)) setSaid(`Sprout cannot wear ${words(next).the}.`);
     else if (state.equipped[next.slot] !== next.id) setSaid(`Sprout tries on ${words(next).the}.`);
   };
   const buy = async (target: ShopItem) => {
@@ -214,7 +216,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     <ul className={styles.tiles} aria-label="Items">
       {offered.map((entry) => {
         const mine = state.owned.includes(entry.id);
-        const on = wears && state.equipped[entry.slot] === entry.id;
+        const on = canWear(entry, mascot) && state.equipped[entry.slot] === entry.id;
         return <li key={entry.id}>
           <button type="button" ref={(el) => { tileRefs.current[entry.id] = el ?? undefined; }}
             className={`tap ${styles.tile}`} aria-pressed={chosen === entry.id}
@@ -231,22 +233,22 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
       <div className={styles.actionText}>
         <span className={styles.actionName}>{item ? item.name : "Try something on"}</span>
         <span className={styles.actionNote}>
-          {!item ? (wears ? "Tap an item: Sprout tries it on." : "Tap an item to see it. Only Sprout can wear these for now.")
-            : !care && !wears ? "Only Sprout can wear this for now."
+          {named(!item ? "Tap an item: Sprout tries it on."
+            : !care && !fits ? `Sprout cannot wear ${words(item).the}.`
             : owned && care ? "Yours. It plays any time."
             : owned ? (worn ? `Sprout has ${words(item).it} on.` : `Yours. Sprout can wear ${words(item).it}.`)
-            : shortBy > 0 ? `${seeds(shortBy)} more to go.` : `Balance after: ${seeds(state.balance - item.price)}.`}
+            : shortBy > 0 ? `${seeds(shortBy)} more to go.` : `Balance after: ${seeds(state.balance - item.price)}.`, mascot)}
         </span>
       </div>
       {item && <div className={styles.actionButtons}>
         {/* One shared key: Buy, Wear and Take off are the same action slot, so a purchase or a wear
             toggle updates this button in place and keeps keyboard focus on it, never dropping focus
             to the page when the slot swaps to a different label. */}
-        {!owned && (care || wears) && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
+        {!owned && (care || fits) && <Button key="action" variant="primary" size="sm" disabled={shortBy > 0 || busy}
           status={busy ? "pending" : undefined} onClick={() => void buy(item)}
           aria-label={`Buy ${words(item).the} for ${seeds(item.price)}`}>Buy · {item.price}</Button>}
         {owned && care && <Button key="action" variant="primary" size="sm" onClick={() => setPlaying(care)}>Play</Button>}
-        {owned && !care && wears && !worn && <Button key="action" variant="primary" size="sm" disabled={busy}
+        {owned && !care && fits && !worn && <Button key="action" variant="primary" size="sm" disabled={busy}
           status={busy ? "pending" : undefined} onClick={() => void wear(item, true)}>Wear</Button>}
         {owned && worn && <Button key="action" variant="secondary" size="sm" disabled={busy}
           status={busy ? "pending" : undefined} onClick={() => void wear(item, false)}>Take off</Button>}
