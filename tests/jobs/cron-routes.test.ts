@@ -9,6 +9,7 @@ const mocked = vi.hoisted(() => ({
   expiredCounts: 0,
   spendSweeps: 0,
   signalPurges: 0,
+  onboardingEventsPurges: 0,
   deleteMedia: vi.fn(async () => undefined),
   pullTwoDays: vi.fn(async () => ({ inserted: 1, updated: 0, skipped: 0 })),
   runEstimate: vi.fn(async () => ({ status: "estimating", tdeeKcal: 2200 })),
@@ -110,6 +111,7 @@ const admin = {
     if (fn === "ai_spend_sweep") { mocked.spendSweeps += 1; return { data: 1, error: null }; }
     // Phase 18 W6: one partial purge pass (fewer rows than a full batch) ends the run.
     if (fn === "food_signal_events_purge") { mocked.signalPurges += 1; return { data: 3, error: null }; }
+    if (fn === "onboarding_events_purge") { mocked.onboardingEventsPurges += 1; return { data: 3, error: null }; }
     return { data: "proposal-1", error: null };
   }),
   storage: { from: () => ({ upload: mocked.upload }) },
@@ -183,6 +185,7 @@ const routeLoaders: Record<string, () => Promise<CronRoute>> = {
   "/api/jobs/weekly-review": () => import("@/app/api/jobs/weekly-review/route"),
   "/api/jobs/spend-sweep": () => import("@/app/api/jobs/spend-sweep/route"),
   "/api/jobs/signal-purge": () => import("@/app/api/jobs/signal-purge/route"),
+  "/api/jobs/onboarding-events-purge": () => import("@/app/api/jobs/onboarding-events-purge/route"),
 };
 
 const manifest = JSON.parse(
@@ -199,6 +202,7 @@ const jobRuns: Record<string, () => number> = {
   "/api/jobs/weekly-review": () => mocked.writeWeeklyReview.mock.calls.length,
   "/api/jobs/spend-sweep": () => mocked.spendSweeps,
   "/api/jobs/signal-purge": () => mocked.signalPurges,
+  "/api/jobs/onboarding-events-purge": () => mocked.onboardingEventsPurges,
 };
 
 const cronRequest = (path: string, method: "GET" | "POST", token?: string) => new Request(
@@ -211,6 +215,7 @@ beforeEach(() => {
   mocked.expiredCounts = 0;
   mocked.spendSweeps = 0;
   mocked.signalPurges = 0;
+  mocked.onboardingEventsPurges = 0;
   vi.stubEnv("CRON_SECRET", "cron-secret");
   vi.stubEnv("ESTIMATOR_ENABLED", "1");
   vi.stubEnv("HEALTH_INGEST_ENABLED", "1");
