@@ -1,5 +1,14 @@
 # Phase 10 — Conversational onboarding
 
+**Superseded by implementation (owner decision, 2026-10-08).** This draft was never built as
+written: no `onboarding_drafts` table or live `coach_threads` reference exists, `kind =
+'onboarding'` was never added to the `coach_threads` check constraint
+(`supabase/migrations/20261126090000_coach_conversations.sql:5`), and the system that actually
+shipped (`components/Onboarding/ConversationalOnboarding.tsx` plus the onb3 rework) uses its own
+scope and schema. For what real accounts experience today, see
+`docs/specs/onboarding-as-built.md` instead. Archive this file as historical context for the onb3
+lanes that build on its ideas, not as a description of current behavior.
+
 **DRAFT — decisions confirmed by Devin (DECIDED) and by the overnight run (DECIDED (run)).
 Audited by GPT-6 Sol through round 25; last round 2 BLOCK resolved in spec, not re-audited.**
 Devin accepted every DECIDED (run) choice on 2026-09-23 and approved audit rounds past round 3.

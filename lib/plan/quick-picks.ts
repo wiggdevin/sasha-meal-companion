@@ -1,8 +1,10 @@
 /**
  * The plan sheet's one-tap asks, and the order it shows them in. The order is a guess at what this
  * person most likely wants for this slot, from facts the sheet already holds — the slot's clock time
- * and its protein share — so it costs no model call and shows on the first frame. Every pick becomes
- * an ordinary coach planning turn: Jev classifies and ranks it, and the account's rules still apply.
+ * and its protein share — so it costs no model call and shows on the first frame. On a meal slot a
+ * pick is a typed chip (lib/plan/chips.ts, POST /api/plan/ideas): cards built in code from the
+ * account's admitted pool, never a coach turn. The prompts below remain for a non-meal slot and as
+ * the coach's own words for a typed wish, a photo or a link.
  */
 import { cleanIngredients, dishTitle, MAX_PLAN_SKIPPED, skippedWish, type InspireResult,
   type PlanSource } from "@/lib/plan/inspire-types";

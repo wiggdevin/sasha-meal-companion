@@ -9,6 +9,11 @@ coach tables, §3.7 sync CAS, §4.4 policy, §4.5 coach, §5 endpoints, §6 AI c
 > **Superseded in part (2026-09-15).** The "propose, never commit" rule and acceptance criteria 1 and 3 no longer
 > bind the action set in `docs/specs/phase-8-coach-actions.md`. The server still writes nothing during a turn; the
 > phone applies coach actions. Ruling: `docs/decisions/2026-09-15-coach-applies-actions.md`.
+>
+> **Superseded in part (2026-10).** The `"nous" | "gemini"` provider type and the Nous
+> retention-gating narrative below (`503 nous_unconfirmed`, the Nous retention record) describe a
+> retired design. The Nous Portal transport was removed from the codebase 2026-10-01; the current
+> model lanes, attestation gates and retention handling are in `docs/ai-data-handling.md`.
 
 Give Sasha a chat coach that can read her day, week, targets and constraints through a fixed
 read-only tool set, and can propose — never commit — a log entry (Phase 8 lets it apply a

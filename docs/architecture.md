@@ -987,6 +987,10 @@ model or SDK change, a live canary of 20 items from Meal Companion's eval set, r
 
 Each phase: tests green → deploy → the reviewer's manual gate.
 
+**This table stops at Phase 8.** Phases 9 onward are each scoped in their own file under
+`docs/specs/` (`phase-9-tenancy-blank-slate.md` through `phase-19-day-rebalance.md`); see that
+directory for the full phase list and current scope.
+
 | Phase | Scope | Exit gate |
 |---|---|---|
 | **0 Foundations** | Supabase Auth + request-local server client; privileged server boundary; v2.1 user schema; entity sync with CAS + `change_log`; export and backup; endpoint matrix; pinned AI adapter | Cross-user denial tests pass on every table, view, function and route; two-client CAS conflict tests pass; retired route gone |

@@ -12,6 +12,9 @@ import {
 } from "@/lib/profile/rate-eligibility";
 import type { PaceChoices } from "@/lib/profile/pace";
 import type { ActivityLevel, Goal } from "@/lib/types";
+import type { PracticeId } from "@/lib/profile/onboarding-prefs-parse";
+import type { TasteDislike } from "@/lib/profile/taste";
+import type { CuisineKey } from "@/lib/profile/cuisines";
 
 /** The safety round's chips (§1c), "No, none of these" aside. */
 export const SAFETY_PICKS = ["allergy", "pregnancy", "medicine", "condition", "clinician_diet"] as const;
@@ -59,10 +62,18 @@ export type PlanAnswers = {
   /** Never stored: used once for the "about Month YYYY" line. */
   goalWeightLb: number | null;
   day: DayAnswer | null;
+  /** Owner 2026-10-08 (always on, overriding D2's pilots): the food practices tapped or typed, as
+   *  existing rule flags; null until answered (an empty list is "none"). */
+  practices?: PracticeId[] | null;
+  /** Foods to stay away from: taste dislikes (`f:<family>`), which lower rank and never exclude. */
+  dislikes?: TasteDislike[] | null;
+  /** Favored cuisines, at most 6. */
+  cuisines?: CuisineKey[] | null;
 };
 
 export function emptyPlanAnswers(): PlanAnswers {
-  return { week: null, safety: null, paceBp: null, goalWeightLb: null, day: null };
+  return { week: null, safety: null, paceBp: null, goalWeightLb: null, day: null,
+    practices: null, dislikes: null, cuisines: null };
 }
 
 /** The safety round as the backend's `SafetyAnswers` (lib/profile/rate-eligibility.ts). */

@@ -22,6 +22,11 @@ each start from a floor and are proven against it.
   `meal-log`, `coach-turn`, `coach-action`. Steps are the real hops: `decode`, `lookup`, `sign`,
   `upload`, `propose`, `model` (server-reported), `ground`, `confirm-shown`, `commit`,
   `card-visible`; coach: `sent`, `first-text`, `reply-done`, `action-applied`.
+- Amendment 2026-10-08 (Plan-sheet chips, `POST /api/plan/ideas`): one path per chip,
+  `plan-chip:choose`, `plan-chip:protein`, `plan-chip:quick15`, `plan-chip:light`,
+  `plan-chip:on_hand`, `plan-chip:surprise`, and a server-reported `server` step (the route's own
+  build time); migration `20261229090000`. Later steps already in `lib/timing.ts`: `dictation`,
+  `attach`, `action-failed`, `action-undone`.
 - The server adds its own `model` and `ground` ms to the propose/coach response so the client
   can store one row set per run. `ai_calls.latency_ms` stays the provider-side truth.
 - `pnpm timings [--path X] [--days N]` prints p50 / p95 / n per path and step from
@@ -32,6 +37,8 @@ each start from a floor and are proven against it.
 - `lib/fetch-with-deadline.ts`: `AbortController` wrapper with per-call budgets: sign 5 s,
   upload 20 s, propose 25 s, barcode 8 s, commit 10 s, coach 40 s, search 6 s. A timeout is a
   typed error the sheet copy already handles ("Capture is resting, try search").
+  Later budgets, same table in `lib/fetch-with-deadline.ts`: prefs 6 s, timings 10 s, transcribe
+  8 s, undo 10 s, and (2026-10-08) ideas 9 s for a Plan-sheet chip.
 - After 2 s on any step the sheet shows what it is doing ("Reading the label…", "Finding
   matches…", "Saving…") — one component, `components/WorkingLine.tsx`, no new dependency.
 

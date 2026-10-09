@@ -6,6 +6,12 @@ import type { ResolvedSlot } from "@/lib/types";
 import type { InspireResult } from "@/lib/plan/inspire-types";
 
 const postTurn = vi.hoisted(() => vi.fn());
+// Chips go to POST /api/plan/ideas; this double serves them from the same mocked coach reply.
+vi.mock("@/lib/plan/ideas-client", async (original) => ({
+  ...(await original<typeof import("@/lib/plan/ideas-client")>()),
+  requestPlanIdeas: async (...args: [unknown, { chip: string }]) =>
+    (await import("@/tests/helpers/plan-ideas")).ideasFromTurn(postTurn)(...args),
+}));
 const uploadPlanPhoto = vi.hoisted(() => vi.fn());
 const readPlanPhoto = vi.hoisted(() => vi.fn());
 const proposePlate = vi.hoisted(() => vi.fn());

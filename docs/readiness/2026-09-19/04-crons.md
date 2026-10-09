@@ -6,7 +6,8 @@
 
 ## Registration
 
-The current production deployment contains all six cron definitions from `vercel.json`:
+The current production deployment contains all six cron definitions from `vercel.json` as sampled
+on 2026-09-19:
 
 | Path | Schedule | Latest scheduled observation |
 |---|---|---|
@@ -17,13 +18,26 @@ The current production deployment contains all six cron definitions from `vercel
 | `/api/jobs/weekly-review` | `30 1 * * 1` | No scheduled run in the 24-hour Friday window |
 | `/api/jobs/backup` | `45 3 * * *` | 2026-09-19T03:45:39.094Z, GET 200 |
 
+**Since extended** to four newer cron routes, all shipped with both GET and POST plus the same
+`CRON_SECRET` bearer check from day one (no 405 history to record):
+
+| Path | Schedule | GET/POST + bearer check |
+|---|---|---|
+| `/api/jobs/facet-warm` | `20 4-7 * * *` | `GET = POST`, `CRON_SECRET` checked before the rate limiter |
+| `/api/jobs/spend-sweep` | `*/15 * * * *` | `GET = POST = run`, bearer-checked |
+| `/api/jobs/signal-purge` | `50 4 * * *` | `GET = POST = run`, bearer-checked |
+| `/api/jobs/onboarding-events-purge` | `55 4 * * *` | `GET = POST = run`, bearer-checked |
+
 Vercel's primary documentation says cron invocations are HTTP GET requests. The production versions of `estimate`, `oura-pull`, `weekly-proposal`, and `weekly-review` export only `POST`; the first two are confirmed failing with 405, and the weekly routes have the same deterministic incompatibility. `backup` aliases GET to POST and `media-sweep` exports both, so both succeeded.
 
 Primary sources: [Cron Jobs](https://vercel.com/docs/cron-jobs), [Managing Cron Jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs), and [Vercel limits](https://vercel.com/docs/limits).
 
 ## Limit calculation
 
-The project is on Pro. Vercel documents a 100-cron limit for Pro projects. Six registered jobs use **6%** of the limit, leaving **94** slots; quantity is not the problem.
+The project is on Pro. Vercel documents a 100-cron limit for Pro projects. `vercel.json` now
+registers **10** jobs (the original six plus `facet-warm`, `spend-sweep`, `signal-purge` and
+`onboarding-events-purge`), using **10%** of the limit, leaving **90** slots; quantity is not the
+problem.
 
 ## W1 repair and proof
 

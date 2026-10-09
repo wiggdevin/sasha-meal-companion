@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import CatalogRecipeResults from "@/components/CatalogRecipeResults";
 import Sheet from "@/components/Sheet";
 import { composedActions } from "@/components/CoachComposedCard";
@@ -8,7 +9,7 @@ import { formatTime } from "@/components/SlotCard";
 import { postTurn, type CoachClientTurnResponse } from "@/lib/coach-client";
 import { AccountChanged, assertCurrent, currentAccountOrNull,
   type AccountHandle } from "@/lib/device/account";
-import type { CoachTurnRequest } from "@/lib/coach/types";
+import { MEAL_SLOT_IDS, type CoachTurnRequest, type MealSlotId } from "@/lib/coach/types";
 import { planTurnFields, type ComponentScope } from "@/components/plan/turn-scope";
 import type { ComposedMeal } from "@/lib/coach/compose";
 import type { Macros, Provenance, ResolvedSlot } from "@/lib/types";
@@ -43,6 +44,10 @@ import AiLabel from "@/components/ui/AiLabel";
 import PhotoPrivacyNotice from "@/components/ui/PhotoPrivacyNotice";
 import { inspirePrompt, inspireSource, looksLikeUrl, notAgainList, pickPrompt, rankPicks,
   recipeSearchFor, wishPrompt, type PlanAsk as Ask, type QuickPick } from "@/lib/plan/quick-picks";
+import { CHIP_OF, MAX_EXCLUDE_IDS, MAX_STATED_FOODS, type PlanIdeasResponse } from "@/lib/plan/chips";
+import { PlanIdeasError, requestPlanIdeas, startChipRun, type ChipRun } from "@/lib/plan/ideas-client";
+
+const isMealSlotId = (id: string): id is MealSlotId => (MEAL_SLOT_IDS as readonly string[]).includes(id);
 
 export function planLabel(slot: Pick<ResolvedSlot, "slot" | "label">): string {
   return slot.slot.startsWith("meal-") ? `Meal ${slot.slot.slice(5)}` : slot.label;
@@ -81,6 +86,8 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
 }) {
   const recipeAccess = useRecipeAccess();
   const [response, setResponse] = useState<CoachClientTurnResponse | null>(null);
+  // A chip's answer (POST /api/plan/ideas, code-built): shown in place of a coach reply.
+  const [ideas, setIdeas] = useState<PlanIdeasResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [reading, setReading] = useState<string | null>(null);
   const [onlyEats, setOnlyEats] = useState(false);
@@ -96,10 +103,11 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
   const [openingAccount] = useState(currentAccountOrNull);
   const [tz] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const label = planLabel(slot);
+  const mealSlot = isMealSlotId(slot.slot);
   // One id per batch of ideas shown (a fresh `response` is a fresh slate): the Plan sheet's own
   // "Not this" / "Add" signals (Phase 18 W6) share it for as long as these same ideas are on screen.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const slateId = useMemo(() => crypto.randomUUID(), [response]);
+  const slateId = useMemo(() => crypto.randomUUID(), [response, ideas]);
   const picks = useMemo(() => rankPicks(slot.time, target, date), [slot.time, target, date]);
   const recipesOn = recipeAccess.enabled && slot.slot.startsWith("meal-");
   const threadId = useRef<string | null>(null);
@@ -108,6 +116,10 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
   const requestBusy = useRef(false);
   const readingRef = useRef(false);
   const lastAsk = useRef<Ask>({ kind: "pick", pick: "Choose for me" });
+  /** The failed ask's own retry: a coach turn replays its pending turn, a chip its request. */
+  const retryRef = useRef<(() => void) | null>(null);
+  /** The chip run whose cards are about to render; closed (card-visible) once they have. */
+  const chipRun = useRef<{ timing: ChipRun; serverMs: number } | null>(null);
   const logMode = mode === "log";
   const photo = usePlanPhoto({ slot: slot.slot, date, time: slot.time, targetKcal: target?.kcal, onError: setError,
     onAccountChanged: onClose, onLogged: (filed) => { onLogged?.(filed); onClose(); } });
@@ -169,12 +181,14 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
       assertCurrent(h);
       threadId.current = answer.threadId;
       pending.current = null;
+      setIdeas(null);
       setResponse(answer);
       setOnlyEats(pendingEatsOnly.current);
       return true;
     } catch (caught) {
       if (caught instanceof AccountChanged) { onClose(); return false; }
       const failure = planFailure(caught);
+      retryRef.current = () => { void request(pending.current?.text ?? "", true); };
       setError(failure.message);
       setRetryAvailable(failure.retryable);
       return false;
@@ -183,6 +197,58 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
       setLoading(false);
     }
   }
+
+  /**
+   * A chip, answered by code (POST /api/plan/ideas): no coach turn and no model call but at most
+   * a Jev ranking. `excludeIds` are the ideas said no to; "Use what I have" also sends the foods
+   * named in the sheet (the box, split on commas, and a photo's or link's foods).
+   */
+  async function requestIdeas(pick: QuickPick, excludeIds: readonly string[] = [],
+    onAccept?: () => void): Promise<boolean> {
+    if (requestBusy.current) return false;
+    const h = account();
+    if (!h) return false;
+    const chip = CHIP_OF[pick];
+    const stated = chip === "on_hand" ? [...draft.split(","), ...(found?.ingredients ?? [])]
+      .map((name) => name.trim().slice(0, 80)).filter(Boolean).slice(0, MAX_STATED_FOODS) : [];
+    if (!isMealSlotId(slot.slot)) return false;
+    const body = { chip, slot: slot.slot, date, zone: tz,
+      ...(excludeIds.length ? { excludeIds: excludeIds.slice(-MAX_EXCLUDE_IDS) } : {}),
+      ...(stated.length ? { stated } : {}) };
+    requestBusy.current = true;
+    onAccept?.();
+    setLoading(true);
+    setError(null);
+    setRetryAvailable(false);
+    const timing = startChipRun(chip);
+    try {
+      const answer = await requestPlanIdeas(h, body, timing);
+      assertCurrent(h);
+      chipRun.current = { timing, serverMs: answer.serverMs };
+      pendingEatsOnly.current = false;
+      setOnlyEats(false);
+      setResponse(null);
+      setIdeas(answer);
+      return true;
+    } catch (caught) {
+      if (caught instanceof AccountChanged) { onClose(); return false; }
+      retryRef.current = () => { void requestIdeas(pick, excludeIds); };
+      setError(caught instanceof PlanIdeasError ? caught.message : "Couldn’t find meal ideas. Try again.");
+      setRetryAvailable(caught instanceof PlanIdeasError ? caught.retryable : true);
+      return false;
+    } finally {
+      requestBusy.current = false;
+      setLoading(false);
+    }
+  }
+
+  // card-visible: the chip's run closes once its cards (or its line) are on screen.
+  useEffect(() => {
+    const run = chipRun.current;
+    if (!run || !ideas) return;
+    chipRun.current = null;
+    run.timing.done(run.serverMs);
+  }, [ideas]);
 
   // One reader (lib/recipes/recipe-freshness.ts): a new ask aborts the search before it, only the
   // newest lands, and a rule change reads the shown recipes again ("Checking…" meanwhile).
@@ -213,6 +279,8 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
   function sendAsk(ask: Ask, skippedNow: readonly string[] = [], fresh?: () => void): Promise<boolean> {
     const planSkipped = notAgainList(skippedNow);
     const onAccept = fresh && (() => { lastAsk.current = ask; findRecipes(ask); fresh(); });
+    // Every chip on a meal slot is code-built (lib/plan/chips.ts); `skippedNow` are its ideas' ids.
+    if (ask.kind === "pick" && mealSlot) return requestIdeas(ask.pick, skippedNow, onAccept || undefined);
     if (ask.kind === "pick") {
       return request(pickPrompt(ask.pick, label, slot.slot, date, skippedNow), false,
         ask.pick === "Use what I have", false, { planSkipped, onAccept });
@@ -232,8 +300,9 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
     queueMicrotask(() => {
       if (!live) return;
       const ask: Ask = { kind: "pick", pick: "Choose for me" };
-      void request(planPrompt(slot.slot, label, date), false, false, true,
-        { onAccept: () => { lastAsk.current = ask; findRecipes(ask); } });
+      const accept = () => { lastAsk.current = ask; findRecipes(ask); };
+      if (mealSlot) void requestIdeas("Choose for me", [], accept);
+      else void request(planPrompt(slot.slot, label, date), false, false, true, { onAccept: accept });
     });
     return () => { live = false; };
     // One sheet opening has one fixed date and slot. Today keys it when either changes. Log mode
@@ -329,17 +398,21 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
   // showing's offered slate: it must never claim a meal the reply never made selectable, and it
   // must stay the same set for every signal under one slateId (Sol review r2 BLOCK — `aside` and
   // `skipped` are UI state, not part of what the turn offered).
-  const shownIdeas = (response?.composed ?? []).filter((meal) => selectable(meal)
+  /** The id a "Not this" remembers: a chip idea's own id, a coach card's title. */
+  const skipKey = (meal: ComposedMeal) => (ideas ? meal.ideaId ?? meal.wish : meal.wish);
+  const shownIdeas = (ideas?.cards ?? response?.composed ?? []).filter((meal) => selectable(meal)
     && (!onlyEats || meal.allItemsOnEats === true));
-  const choices = aside ? [] : shownIdeas.filter((meal) => !skipped.includes(meal.wish));
-  const reply = response?.messages.findLast((message) => message.role === "assistant")?.content;
+  const choices = aside ? [] : shownIdeas.filter((meal) => !skipped.includes(skipKey(meal)));
+  const reply = ideas ? ideas.message
+    : response?.messages.findLast((message) => message.role === "assistant")?.content;
+  const replyProvenance = ideas?.provenance ?? response?.provenance;
   const busy = loading || Boolean(reading) || placer.placing || photo.logging !== null;
   const tone = replyTone(reply);
-  const empty = !loading && Boolean(response) && !aside && choices.length === 0;
+  const empty = !loading && Boolean(response || ideas) && !aside && choices.length === 0;
 
   function skip(meal: ComposedMeal) {
     if (!idle()) return;
-    const next = [...skipped, meal.wish];
+    const next = [...skipped, skipKey(meal)];
     setSkipped(next);
     sendIdeaSignal("not_this", meal);
     // Every card said no to: the next three come by themselves, steering away from these.
@@ -425,15 +498,17 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
           current={readOf((photo.shown ?? found)!.kind)}
           onSwitch={(read) => { void readSource({ as: read }); }} />}
         {error && <Notice tone="error" title={error} action={retryAvailable ? { label: "Try again", disabled: loading,
-          onClick: () => { void request(pending.current?.text ?? "", true); } } : undefined} />}
+          onClick: () => { retryRef.current?.(); } } : undefined} />}
         {reply && !loading && !aside && <div className="flex min-w-0 flex-col gap-1.5">
-          {tone ? <Notice tone={tone} title={reply}>{empty ? EMPTY_BODY : undefined}</Notice>
+          {tone ? <Notice tone={tone} title={reply}>{empty && ideas?.offer !== "add_items" ? EMPTY_BODY : undefined}</Notice>
             : <p className="m-0 text-body-md text-charcoal">{reply}</p>}
-          <AiLabel provenance={response?.provenance} className="self-start" />
+          {ideas?.offer === "add_items" && recipeAccess.enabled && <Link href="/foods#shopping"
+            className="self-start text-caption font-medium text-charcoal underline">Add to pantry</Link>}
+          <AiLabel provenance={replyProvenance} className="self-start" />
         </div>}
         {empty && !tone && <Notice tone="neutral" title={EMPTY_TITLE}>{EMPTY_BODY}</Notice>}
         {!loading && choices.map((meal, index) => <IdeaCard key={`${meal.wish}-${index}`} meal={meal}
-          provenance={response?.provenance}
+          provenance={replyProvenance}
           label={label} busy={busy} placing={placer.placing && placingWish === meal.wish}
           onPlace={() => place(meal)} onSkip={() => skip(meal)} />)}
         {recipesOn && recipes && recipes.list.length > 0 && <section aria-label="Full recipes"

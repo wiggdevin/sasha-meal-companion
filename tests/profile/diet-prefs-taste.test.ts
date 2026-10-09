@@ -34,6 +34,7 @@ import {
 } from "@/lib/sync/user-settings";
 import type { Settings } from "@/lib/types";
 import { dietPrefsWithWater } from "@/lib/water-prefs";
+import { settingsWithPrefsAnswers } from "@/lib/profile/onboarding-prefs-parse";
 
 const TASTE = { dislikes: ["f:okra", "t:slimy", "t:spicy_hot"] };
 const STORED: ProfileDietPrefs = { flags: ["vegetarian"], text: "No meat", lifestyle: { cookingEffort: "minimal" },
@@ -89,6 +90,14 @@ describe("every diet_prefs writer keeps taste", () => {
     await saveDiet(["vegan"], 4);
     const queued = await mocked.mutate.mock.results[0].value;
     expect(queued.op.payload.diet_prefs).toEqual({ ...STORED, flags: ["vegan"] });
+  });
+
+  it("onboarding v2's stay-away and cuisine answers (settingsWithPrefsAnswers) add dislikes and keep every other key", () => {
+    const base = { ...defaultSettings(), dietPrefs: STORED } as Settings;
+    const next = settingsWithPrefsAnswers(base, { cuisines: ["italian"], dislikes: ["f:okra", "f:mushrooms"] });
+    expect(next.dietPrefs).toEqual({ ...STORED, taste: { dislikes: [...TASTE.dislikes, "f:mushrooms"] } });
+    expect(next.cuisines).toEqual(["italian"]);
+    expect(settingsWithPrefsAnswers(base, { cuisines: null, dislikes: [] })).toBe(base);
   });
 
   it("the eval harness's flag writer (scripts/eval/coach-streak-jev.ts) spreads the stored object", () => {
@@ -169,6 +178,9 @@ describe("diet_prefs inventory", () => {
     "lib/profile/onboarding-state.ts": "writer",
     "lib/foods/diet-client.ts": "writer",
     "lib/water-prefs.ts": "writer",
+    "lib/profile/onboarding-prefs-parse.ts": "writer",
+    // Reads the stored flags to seed the practice question; writes go through settingsWithPrefsAnswers.
+    "components/Onboarding/ConversationalOnboarding.tsx": "reader",
     "lib/water-client.ts": "writer",
     "components/settings/WaterSection.tsx": "writer",
     "scripts/eval/coach-streak-jev.ts": "writer",

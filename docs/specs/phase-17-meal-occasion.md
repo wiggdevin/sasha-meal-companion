@@ -163,6 +163,12 @@ plate.
   only after O3 clients are out. A rescore with perfect Jev answers still scores plates 25–81 % per
   cuisine: plate plausibility is bounded by the curated sides and templates, not by facets alone.
 
+  **Deprioritized (owner decision, 2026-10-08).** The seed holdout above has been self-labeled by
+  the build agent since 2026-10-05 and never reviewed by an owner or a per-cuisine reviewer.
+  Getting it reviewed and re-running `scripts/eval/facets-occasion-eval.ts --live --freeze` is
+  explicitly deprioritized against other work; the gate stays shut (v2 facets never reach ranking)
+  until that review happens. No code or test depends on this landing soon.
+
 - **O4 is split (2026-10-05, owner approved).** The first O4 build mixed a sound planner/recipe
   slice with a `compose_meal` rewrite that re-implemented the engine's part, template and sizing
   rules beside it; each review round closed one route and opened another (GPT-6 Sol re-plan,

@@ -28,16 +28,21 @@ afterEach(() => {
 });
 
 describe("the vocabulary", () => {
-  it("names the nine paths of spec §1, in the spec's order", () => {
+  it("names the nine paths of spec §1, in the spec's order, then one path per Plan-sheet chip", () => {
     expect(TIMING_PATHS).toEqual(["barcode", "label", "photo", "voice", "text", "search-log",
-      "meal-log", "coach-turn", "coach-action"]);
+      "meal-log", "coach-turn", "coach-action",
+      // Spec §1 amendment 2026-10-08: POST /api/plan/ideas, timed per chip.
+      "plan-chip:choose", "plan-chip:protein", "plan-chip:quick15", "plan-chip:light",
+      "plan-chip:on_hand", "plan-chip:surprise"]);
   });
 
   it("names the capture hops and the coach hops as steps", () => {
     expect(TIMING_STEPS).toEqual(["decode", "lookup", "sign", "upload", "propose", "model",
       "ground", "confirm-shown", "commit", "card-visible",
       "dictation", "attach", "sent", "first-text", "reply-done", "action-applied", "action-failed",
-      "action-undone"]);
+      "action-undone",
+      // Spec §1 amendment 2026-10-08: the ideas route's own build time, server-reported.
+      "server"]);
   });
 });
 
