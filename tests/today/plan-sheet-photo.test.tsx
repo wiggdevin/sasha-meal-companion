@@ -30,7 +30,7 @@ vi.mock("@/components/coach/editors/useCaptureRevisions", () => ({
 import { captureProposal } from "@/tests/coach/editors/fixtures";
 
 import PlanSheet from "@/components/PlanSheet";
-import { MealCardFooter } from "@/components/SlotCardDetail";
+import { MealDetail } from "@/components/SlotCardDetail";
 
 const slot: ResolvedSlot = {
   slot: "meal-2", label: "Meal 2", time: "12:30", meal: null, components: [],
@@ -259,14 +259,14 @@ describe("Plan sheet photos", () => {
     expect(readPlanPhoto.mock.calls[0][3]).toMatchObject({ as: "plate" });
   });
 
-  it("puts Ate something else among a planned card's expanded actions", () => {
+  it("puts Ate something else among a planned card's expanded links (cards v4)", () => {
     const onAteElse = vi.fn();
-    render(<MealCardFooter label="Meal 2" expanded controls="c" onToggle={vi.fn()} onAsk={vi.fn()}
-      inlineSearch onAteElse={onAteElse} />);
+    const zero = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+    render(<MealDetail id="d" label="Meal 2" components={[]} macros={zero} onAsk={vi.fn()} onAteElse={onAteElse} />);
     fireEvent.click(screen.getByRole("button", { name: "Ate something else for Meal 2" }));
     expect(onAteElse).toHaveBeenCalledTimes(1);
     cleanup();
-    render(<MealCardFooter label="Meal 2" expanded controls="c" onToggle={vi.fn()} onAsk={vi.fn()} inlineSearch />);
+    render(<MealDetail id="d" label="Meal 2" components={[]} macros={zero} onAsk={vi.fn()} />);
     expect(screen.queryByRole("button", { name: /Ate something else/ })).toBeNull();
   });
 });

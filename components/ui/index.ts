@@ -20,5 +20,5 @@ export { default as Disclosure } from "@/components/ui/Disclosure";
 export { default as Segmented, tabId } from "@/components/ui/Segmented";
 export { default as GlassSelect } from "@/components/ui/GlassSelect";
 export type { GlassSelectOption } from "@/components/ui/GlassSelect";
-export { default as MealNutritionDivider } from "@/components/ui/MealNutritionDivider";
+export { MealEatenButton } from "@/components/ui/MealNutritionDivider";
 export { default as RuleMark, RULE_MARK_LABEL } from "@/components/ui/RuleMark";

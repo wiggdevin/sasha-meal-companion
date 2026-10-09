@@ -67,7 +67,8 @@ describe("SlotCard completion colors", () => {
     expect(markup).toContain('data-meal-calories="true"');
     expect(markup).toContain('data-consume-control="tick"');
     expect(markup).not.toContain("border-l border-hairline");
-    expect(markup.indexOf("Chicken and rice")).toBeLessThan(markup.indexOf("12:00"));
+    // Cards v4: the eyebrow (status and time) over the title, the merged figures under it.
+    expect(markup.indexOf("12:00")).toBeLessThan(markup.indexOf("Chicken and rice"));
     expect(markup.indexOf("Chicken and rice")).toBeLessThan(markup.indexOf('data-meal-calories="true"'));
   });
 
@@ -83,8 +84,9 @@ describe("SlotCard completion colors", () => {
     const markup = renderSlot("standard");
     expect(markup).toContain('data-after-dark-meal="true"');
     expect(markup).toContain('data-after-dark-hero="true"');
-    expect(markup).toContain('data-after-dark-nutrition="true"');
-    expect(markup.indexOf('data-after-dark-hero="true"')).toBeLessThan(markup.indexOf('data-after-dark-nutrition="true"'));
+    // Cards v4: no spec panel under the hero; the figures live in the hero's text.
+    expect(markup).not.toContain("data-after-dark-nutrition");
+    expect(markup.indexOf('data-after-dark-hero="true"')).toBeLessThan(markup.indexOf("data-meal-figures"));
     expect(markup).toContain('data-consume-control="tick"');
     // Meal cards v3: no proportional macro bar on any card.
     expect(markup).not.toContain("data-macro-composition");
@@ -98,23 +100,21 @@ describe("SlotCard completion colors", () => {
     expect(markup).not.toContain("macro-kcal");
   });
 
-  it("keeps gram counts off a collapsed card and shows them on a featured one", () => {
-    expect(renderSlot("standard")).not.toContain('data-macro-legend="true"');
-    expect(renderSlot("focus")).toContain('data-macro-legend="true"');
+  it.each(["focus", "standard"] as const)("shows one merged calories · protein line and no gram legend (%s, v4)", (variant) => {
+    const markup = renderSlot(variant);
+    expect(markup).not.toContain("data-macro-legend");
+    expect(markup).toMatch(/>500<\/strong>/);
+    expect(markup).toContain(">40g protein<");
   });
 
-  it("sets a featured meal's calories on the hero and its grams in the divider's spec panel", () => {
+  it("sets a featured meal's figures in the hero, then the strip", () => {
     const markup = renderSlot("focus");
     const hero = markup.indexOf('data-after-dark-hero="true"');
     const calories = markup.indexOf('data-meal-calories="true"');
-    const nutrition = markup.indexOf('data-after-dark-nutrition="true"');
-    const legend = markup.indexOf('data-macro-legend="true"');
     const expander = markup.indexOf('aria-label="Expand Lunch"');
     expect(hero).toBeGreaterThan(-1);
     expect(calories).toBeGreaterThan(hero);
-    expect(nutrition).toBeGreaterThan(calories);
-    expect(legend).toBeGreaterThan(nutrition);
-    expect(expander).toBeGreaterThan(legend);
+    expect(expander).toBeGreaterThan(calories);
   });
 
   it("speaks a compact meal's numbers from the hero's figures (v3: no bar)", () => {

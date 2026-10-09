@@ -64,7 +64,7 @@ const PLUS = <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" 
   strokeWidth="1.6" strokeLinecap="round"><path d="M2.5 6h7M6 2.5v7" /></svg>;
 
 function UndoRow({ name, onUndo }: { name: string; onUndo: () => void }) {
-  return <div role="status" className="flex min-h-11 items-center gap-2 border-b border-hairline py-1">
+  return <div role="status" className="flex min-h-10 items-center gap-2 py-1">
     <span className="min-w-0 flex-1 truncate text-caption text-muted">Removed {name}</span>
     <Button variant="ghost" size="sm" onClick={onUndo} aria-label={`Undo remove ${name}`} className="-mr-2">Undo</Button>
   </div>;
@@ -190,14 +190,14 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
       <div className="grid grid-cols-[minmax(0,1fr)]">
         {shown.map((component, index) => <Fragment key={`${component.name}-${index}`}>
           {removed && removed.index === index && <UndoRow name={removed.component.name} onUndo={undoRemove} />}
-          <div className={index < shown.length - 1 ? "border-b border-hairline" : ""} data-ingredient-line="">
-          <div className="flex min-h-11 items-center gap-2 py-1">
+          <div data-ingredient-line="">
+          <div className="flex min-h-10 items-center gap-2 py-1">
             {/* A long catalog name wraps to two lines before it ellipsises, so "Game meat, deer" stays
                 readable; the stepper keeps its width (Kimi K8, 2026-10-04). */}
             <span data-ingredient-name="" className="min-w-0 flex-1 line-clamp-2 break-words text-caption leading-snug text-on-charcoal"
               title={component.name}>{component.name}</span>
             {editor ? <>
-              <div className="flex h-8 shrink-0 items-center rounded-full bg-selected-soft px-0.5 shadow-[inset_0_0_0_1px_var(--color-hairline),inset_0_1px_2px_rgb(var(--ink-rgb)/0.05)]">
+              <div className={`flex h-8 shrink-0 items-center px-0.5 ${dark.stepper}`}>
                 <StepButton label={`Decrease ${component.name}`} disabled={saving} onClick={() => step(index, -1)}>{MINUS}</StepButton>
                 <span className="min-w-12 text-center text-tiny tabular-nums text-charcoal">{ingredientQtyLabel(component,
                   portionForName(component.name), `${formatQty(component.qty)} ${component.unit}`)}</span>
@@ -217,7 +217,7 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
         </Fragment>)}
         {removed && removed.index >= shown.length && <UndoRow name={removed.component.name} onUndo={undoRemove} />}
       </div>
-      {editor && <div className="mt-1 space-y-3 border-t border-hairline pt-3">
+      {editor && <div className="mt-1 space-y-3 pt-2">
         <CatalogSearch mine={editor.foods} maxResults={5} onPick={(row) => { void add(row); }} />
         {searchError && <Notice tone="error" title={searchError} />}
         {saveError && <Notice tone="error" title={saveError} />}
@@ -228,20 +228,23 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
   </section>;
 }
 
-export function MealDetail({ id, label, components, macros, dayTotals, prepMinutes, editor, marked, onAsk }: {
+export function MealDetail({ id, label, components, macros, dayTotals, prepMinutes, editor, marked, onAsk,
+  onAteElse, onSearch }: {
   id: string; label: string; components: FoodComponent[]; macros: Macros; dayTotals?: DayTotals;
   prepMinutes?: number; editor?: IngredientEditor; marked?: MarkedSlot;
   /** Ask the assistant about this meal (its preparation goes through the same flow). */
   onAsk?: () => void;
+  /** "Ate something else": log what was eaten instead of this planned meal. */
+  onAteElse?: () => void;
+  /** Search foods in a sheet, for a card without the inline ingredient editor. */
+  onSearch?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const targets = dayTotals?.targets;
   const kcalShare = targets && targets.kcal > 0 ? Math.max(0, Math.round((macros.kcal / targets.kcal) * 100)) : null;
-  // Opening, the tray grows on the card's own spring (MORPH) and its content fades in once it has room.
-  // Closing runs in order (2026-10-01, the client saw the photo shrink while the tray still hung
-  // below it): the tray folds on the same spring with its words in place, the card's edge
-  // covering them (fading them first left an empty box folding), and only then does the card take its
-  // compact shape (SlotCard, FOLD_SECONDS). Closing, it is already gone for assistive tech.
+  // Opening, the panel grows on the card's own spring (MORPH) and its content fades in once it has room;
+  // closing, it folds on the same spring with its words in place. The card's header never changes shape
+  // (cards v4), so nothing waits on it. Closing, it is already gone for assistive tech.
   const present = useIsPresent();
   return <motion.div id={id} role="region" aria-label={`${label} details`}
     inert={!present} aria-hidden={present ? undefined : true}
@@ -251,112 +254,85 @@ export function MealDetail({ id, label, components, macros, dayTotals, prepMinut
       : { opacity: 0, height: 0, transition: { ...MORPH.frame, opacity: { ...FADES.quick, delay: 0.25 } } }}
     transition={reduceMotion ? { duration: 0 } : { ...MORPH.frame, opacity: MORPH.contentIn }}
     className="relative z-10 flow-root w-full basis-full overflow-clip">
-    <div className="meal-detail-tray space-y-4 rounded-3xl px-4 py-4">
+    <div data-meal-detail="" className="space-y-3 px-3 pt-3 pb-1">
       <Ingredients id={id} components={components} editor={editor} marked={marked} />
-      <div>
-        <Disclosure variant="row" size="sm" divider bodyClassName="" spring="gentle" title="Preparation"
+      <div className="flex flex-col gap-1">
+        <Disclosure variant="row" size="sm" bodyClassName="" spring="gentle" title="Preparation" className={dark.disclosure}
           titleClassName={CARD_SECTION}
           aside={prepMinutes != null && prepMinutes > 0 ? `${prepMinutes} min` : undefined}>
           <div className="flex flex-col items-start gap-2 pb-3">
             <p className="m-0 text-tiny text-muted">Step-by-step guidance or a substitution, for this plate.</p>
-            {onAsk && <Button size="sm" variant="tertiary" onClick={onAsk}>{`Ask ${ASSISTANT_NAME} how to make it`}</Button>}
+            {onAsk && <button type="button" onClick={onAsk} className={dark.ghostLink}>{`Ask ${ASSISTANT_NAME} how to make it`}</button>}
           </div>
         </Disclosure>
-        {targets && <Disclosure variant="row" size="sm" divider bodyClassName="" spring="gentle" title="Daily share"
+        {targets && <Disclosure variant="row" size="sm" bodyClassName="" spring="gentle" title="Daily share" className={dark.disclosure}
           titleClassName={CARD_SECTION}
           aside={kcalShare != null ? <><span className="kcal font-semibold">{kcalShare}%</span> of calories</> : undefined}>
           <div className="pb-3"><MealTargetMeters meal={macros} targets={targets} showHeading={false} /></div>
         </Disclosure>}
       </div>
+      {/* The rare actions as plain text links, never pills (v4: "the buttons are way too big"). */}
+      <p data-meal-links="" className={dark.links}>
+        {onSearch && <><button type="button" onClick={onSearch} aria-label={`Search foods for ${label}`}
+          className={dark.ghostLink}>Search foods</button><span aria-hidden="true">·</span></>}
+        <button type="button" onClick={onAsk} aria-label={`Ask ${ASSISTANT_NAME} about ${label}`}
+          className={dark.ghostLink}>{`Ask ${ASSISTANT_NAME}`}</button>
+        {onAteElse && <><span aria-hidden="true">·</span><button type="button" onClick={onAteElse}
+          aria-label={`Ate something else for ${label}`} className={dark.ghostLink}>Ate something else</button></>}
+      </p>
     </div>
   </motion.div>;
 }
 
-/** The footer's actions while they fold away: already gone for assistive tech, the keyboard and taps. */
-function FoldingActions({ children, ...motionProps }: React.ComponentProps<typeof motion.div>) {
-  const present = useIsPresent();
-  return <motion.div inert={!present} aria-hidden={present ? undefined : true} {...motionProps}>{children}</motion.div>;
-}
-
 /**
- * The card's action strip, below the tray (meal cards v3): one thin row of three equal icon zones —
- * eaten | swap | details — told apart by tone, each zone its whole third as a 44 px tap target. The
- * swap zone stays (empty) when the meal cannot swap, so the thirds never shift. Open, a second row above it
- * folds in with Ask (the assistant) and Ate something else (and Search foods when the card has no inline
- * editor), pills sized to their words. The details control keeps its place whether the card is open
- * or closed, so focus stays on it; a flow closing hands focus back to it (`focusOnMount`), since the
- * control that opened the flow is gone.
+ * The card's action strip (cards v4): one 44 px row of three equal icon zones — eaten | swap |
+ * details — on the card's own charcoal, told apart by tone (no pills, no hairlines between them), each
+ * zone its whole third as the tap target. The same strip closes a card collapsed or open. An eaten or
+ * fixed meal cannot swap: its third shows a plain dash at full contrast, never a faded icon. The
+ * details control rotates open and shut; focus comes back to it, or to Swap when Swap opened a flow,
+ * when a flow closes (`focusOnMount`, `returnTo`), since the control that opened the flow is gone.
  */
-export function MealCardFooter({ label, expanded, controls, onToggle, onSearch, onAsk, inlineSearch, onAteElse,
-  onSwap, eatenControl, focusOnMount, returnTo = "toggle" }: {
+export function MealCardFooter({ label, expanded, controls, onToggle, onSwap, eatenControl, focusOnMount,
+  returnTo = "toggle" }: {
   label: string; expanded: boolean; controls: string;
-  onToggle: () => void; onSearch?: () => void; onAsk?: () => void; inlineSearch?: boolean;
-  /** "Ate something else": log what was eaten instead of this planned meal. */
-  onAteElse?: () => void;
+  onToggle: () => void;
   /** Open the swap flow; absent when the meal cannot be swapped. */
   onSwap?: () => void;
-  /** The eaten button (components/ui/MealNutritionDivider MealEatenButton), drawn first in the strip. */
+  /** The eaten zone (components/ui/MealNutritionDivider MealEatenButton). */
   eatenControl?: ReactNode;
   focusOnMount?: boolean;
-  /** Which strip control takes focus back when a flow closes: the one that opened it (Swap), or the
-   *  details control when that one is gone. */
   returnTo?: "swap" | "toggle";
 }) {
-  const reduceMotion = useReducedMotion();
   const toggleButton = useRef<HTMLButtonElement | null>(null);
   const swapButton = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
+    if (!focusOnMount) return;
     const target = (returnTo === "swap" && swapButton.current) || toggleButton.current;
-    // Only while focus is still lost (the page) or still in this card: a footer that comes back late,
+    // Only while focus is still lost (the page) or still in this card: a strip that comes back late,
     // after the user has moved on to another card's flow, never pulls focus away from it.
     const active = document.activeElement;
     const free = !active || active === document.body
       || (!!target && !!active.closest("[data-card-group]") && active.closest("[data-card-group]") === target.closest("[data-card-group]"));
-    if (focusOnMount && free) target?.focus({ preventScroll: true });
-    // Once, when the footer comes back after a flow.
+    if (free) target?.focus({ preventScroll: true });
+    // When a flow has just closed (the card turns `focusOnMount` on in the commit after it does).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [focusOnMount]);
   const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     onToggle();
   };
-  const fold = {
-    initial: reduceMotion ? false as const : { opacity: 0, height: 0 },
-    animate: { opacity: 1, height: "auto" },
-    exit: reduceMotion ? { opacity: 0, transition: { duration: 0 } }
-      : { opacity: 0, height: 0, transition: { ...MORPH.frame, opacity: MORPH.contentOut } },
-    transition: reduceMotion ? { duration: 0 } : { ...MORPH.frame, opacity: MORPH.contentIn },
-  };
-  return <div data-meal-actions="true" className="relative z-10 -mx-[18px] -mb-4 mt-0 border-t border-hairline">
-    <AnimatePresence initial={false}>
-    {expanded && <FoldingActions key="more" className="overflow-clip" {...fold}>
-      {/* Pills that size to their words and never wrap; on a very narrow phone the longest one
-          ellipsises first (2026-10-04). */}
-      <div className="flex min-w-0 items-center gap-1.5 px-3 pt-3">
-      {!inlineSearch && onSearch && <Button size="sm" onClick={onSearch} aria-label={`Search foods for ${label}`}
-        leading={<SearchIcon size={16} />} className={dark.footerButton}>
-        <span>Search foods</span></Button>}
-      <Button size="sm" onClick={onAsk} aria-label={`Ask ${ASSISTANT_NAME} about ${label}`}
-        className={`shrink-0 ${dark.footerButton}`}>
-        <span>Ask {ASSISTANT_NAME}</span></Button>
-      {onAteElse && <Button size="sm" onClick={onAteElse} aria-label={`Ate something else for ${label}`}
-        className={dark.footerButton}><span>Ate something else</span></Button>}
-      </div>
-    </FoldingActions>}
-    </AnimatePresence>
-    <div data-meal-strip="" className={`${dark.strip} ${expanded ? "mt-3 border-t border-hairline" : ""}`}>
-      <div data-strip-zone="eaten" className={`${dark.zone} ${dark.zoneEaten}`}>{eatenControl}</div>
-      <div data-strip-zone="swap" className={`${dark.zone} ${dark.zoneSwap}`}>
-        {onSwap ? <button ref={swapButton} type="button" onClick={onSwap} aria-label={`Swap ${label}`}
-          className={dark.zoneButton}><ArrowLeftRight aria-hidden="true" size={20} strokeWidth={1.8} /></button>
-          : <span aria-hidden="true" className={`${dark.zoneButton} ${dark.zoneIdle}`}><ArrowLeftRight size={20} strokeWidth={1.8} /></span>}
-      </div>
-      <div data-strip-zone="details" className={`${dark.zone} ${dark.zoneDetails}`}>
-        <button ref={toggleButton} type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
-          aria-expanded={expanded} aria-controls={controls} onClick={toggle} className={dark.zoneButton}>
-          <ChevronIcon direction={expanded ? "up" : "down"} size={20} />
-        </button>
-      </div>
+  return <div data-meal-actions="true" data-meal-strip="" className={dark.strip}>
+    <div data-strip-zone="eaten" className={`${dark.zone} ${dark.zoneEaten}`}>{eatenControl}</div>
+    <div data-strip-zone="swap" className={`${dark.zone} ${dark.zoneSwap}`}>
+      {onSwap ? <button ref={swapButton} type="button" onClick={onSwap} aria-label={`Swap ${label}`}
+        className={dark.zoneButton}><ArrowLeftRight aria-hidden="true" size={20} strokeWidth={1.8} /></button>
+        : <span aria-hidden="true" data-swap-unavailable="" className={`${dark.zoneButton} ${dark.zoneIdle}`}>—</span>}
+    </div>
+    <div data-strip-zone="details" className={`${dark.zone} ${dark.zoneDetails}`}>
+      <button ref={toggleButton} type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+        aria-expanded={expanded} aria-controls={controls} onClick={toggle} className={dark.zoneButton}>
+        <span className={dark.chevron} data-open={expanded ? "true" : undefined}><ChevronIcon size={20} /></span>
+      </button>
     </div>
   </div>;
 }
@@ -376,12 +352,12 @@ export function useMealDetail(slot: ResolvedSlot, onOpenEdit: (() => void) | und
     toggle,
     openEdit: () => onOpenEdit?.(),
     footer: <MealCardFooter label={slot.label} expanded={expanded} controls={id} onToggle={toggle}
-      onSearch={onOpenEdit} onAsk={onAsk} onAteElse={onAteElse}
-      inlineSearch={Boolean(editor)} focusOnMount={footerFocus}
-      eatenControl={strip?.eatenControl} onSwap={strip?.onSwap} returnTo={strip?.returnTo} />,
+      focusOnMount={footerFocus} eatenControl={strip?.eatenControl} onSwap={strip?.onSwap}
+      returnTo={strip?.returnTo} />,
     detail: expanded ? <MealDetail key="detail" id={id} label={slot.label} components={slot.components}
       macros={previewMacros ?? slot.macros} dayTotals={dayTotals} prepMinutes={slot.meal?.prepMinutes}
-      editor={editor} marked={slot} onAsk={onAsk} /> : null,
+      editor={editor} marked={slot} onAsk={onAsk} onAteElse={onAteElse}
+      onSearch={editor ? undefined : onOpenEdit} /> : null,
     /** The slot's worst mark for the tray's top line (components/SlotRuleMarks.tsx). */
     ruleMark: slotRuleMark(slot, expanded),
   };

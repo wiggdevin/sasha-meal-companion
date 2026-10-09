@@ -1,332 +1,337 @@
-/* The Harvest meal card (DESIGN.md Cards and Surfaces › Meal card), after the Premium Meal Card
-   reference: matte charcoal with a 3 % grain, true-colour food photography with a sweeping curve,
-   a cream Fraunces title, the olive spec panel (components/ui/MealNutritionDivider) and a beige tray.
-   The surface carries the global `matte` scope, so the text roles inside read cream; the tray carries
-   `matte-reset`, so they read ink again. */
+/* The Harvest meal card, cards v4 (DESIGN.md Cards and Surfaces › Meal card; brief
+   ~/Inbox/plans/2026-10-08-sasha-cards-redesign-brief.md §3). One matte charcoal surface on every
+   edge in every state: a fixed header — the Focus card's full-width photo banner over its text, or a
+   compact card's left photo rail beside it — an inset ivory panel only when there is something to
+   show, and the 44 px action strip on the charcoal. The surface carries the global `matte` scope, so
+   the text roles inside read cream; the inset panel carries `matte-reset`, so they read ink again. */
 
 .mealSurface.mealSurface {
-  /* How far a compact card's tray rises over the foot of its photo: its own corner radius. */
-  --tray-overlap: 20px;
   position: relative;
   z-index: 2;
-  /* The card-wide tap target (data-card-edit) sits under this surface, eaten or not; taps fall
-     through to it everywhere except the real controls re-enabled below. */
+  /* The card-wide tap target (data-card-edit) sits under this surface; taps fall through to it
+     everywhere except the real controls re-enabled below. */
   pointer-events: none;
-  border-radius: 32px;
+  border-radius: var(--radius-lg);
   overflow: clip; /* clip, not hidden: a hidden box can be scrolled by focus and shift the card */
   background: var(--grad-matte);
   border: 1px solid rgba(255, 255, 255, .05);
-  box-shadow: var(--bevel), var(--shadow-hero);
+  /* A drawn edge on the oat page (8 % charcoal) under the bevel and the hero's drop. */
+  box-shadow: 0 0 0 1px rgba(29, 29, 28, .08), var(--bevel), var(--shadow-hero);
 }
+
+.hero button,
+.details,
+.strip {
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------------- header */
 
 .hero {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  /* The photo fills the top 132 px; the title and calories sit under it on charcoal (v3: smaller). */
-  padding: 144px 16px 2px;
-  isolation: isolate;
+  flex-direction: column;
 }
 
-.hero button,
-.details {
-  pointer-events: auto;
-}
-
-/* The photo's clip (components/ui/MealPhoto.tsx): the top 168 px of a featured card. Its sweeping
-   corner is animated by the component so it stays round while the clip changes shape; an unknown
-   dish shows the app-owned olive art, never a stranger's photo. */
-.heroPhoto {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
-  width: 100%;
-  height: 132px;
-}
-
-.heroFooter {
+.photoBox {
   position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
+  display: block;
+  flex: none;
+}
+
+/* The photo's box (components/ui/MealPhoto.tsx): Focus, a 128 px full-width banner, square at its foot. */
+.heroPhoto {
+  position: relative;
+  display: block;
   width: 100%;
+  height: 128px;
+}
+
+.heroText {
+  display: flex;
+  min-width: 0;
+  min-height: 96px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px;
+}
+
+/* The eyebrow: a compact card's slot name and time, quiet. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: .02em;
+  color: var(--color-text-muted);
+}
+.eyebrowDot {
+  opacity: .7;
+}
+/* Focus: the status word first — NOW / NEXT / EATEN in tracked capitals, cream. */
+.eyebrowFocus {
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+}
+/* Eaten: a word change a step stronger, in the carbs gauge's light tone — not new chrome. */
+.eyebrowEaten {
+  font-weight: 600;
+  color: var(--color-gauge-carbs-end);
 }
 
 .heroTitle {
-  position: relative;
-  z-index: 2;
   min-width: 0;
-  flex: 1;
-  max-width: 100%;
   margin: 0;
   font-family: var(--font-display);
+  /* The meal title role (lib/design/meal-type.ts MEAL_TITLE.standard): Fraunces 500, 20 px. */
   font-size: 20px;
-  /* The meal title role (lib/design/meal-type.ts MEAL_TITLE.hero): Fraunces 500, the 20 px step in v3. */
   font-weight: 500;
-  line-height: 1.05;
-  letter-spacing: -.025em;
+  line-height: 24px;
+  letter-spacing: -.015em;
   color: #f3eee2;
+  overflow: hidden;
   overflow-wrap: anywhere;
-}
-
-/* The calorie count reads like the reference's price: a serif numeral, the unit in tracked capitals.
-   Its colour is the shared `.kcal` (persimmon on charcoal, owner 2026-10-03), a step bolder than the
-   title so it stands out. */
-.heroFooter :global(.kcal) {
-  font-size: 20px;
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -.02em;
-}
-
-.heroTime {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 2;
-}
-
-/* The reference's "Chef's Choice" chip: olive, bevelled, tracked capitals. */
-.slotPill {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 12px;
-  gap: 6px;
-  border-radius: 9999px;
-  background: rgba(77, 82, 64, .92);
-  box-shadow: var(--bevel), 0 6px 14px -8px rgba(0, 0, 0, .6);
-  backdrop-filter: blur(8px);
-  color: #ded9cc;
-  /* The eyebrow role: nothing on a card is under 12 px (KIT §14). */
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  line-height: 1;
-}
-
-/* Meal cards v2: the chip leads with a word (Now, Next, Eaten, or the slot's own name), then the time. */
-.slotPillStatus {
-  color: #f3eee2;
-  font-weight: 700;
-}
-
-.slotPillDot {
-  margin: 0 -2px;
-  color: #ded9cc;
-  opacity: .7;
-}
-
-.slotPillTime {
-  color: #ded9cc;
-}
-
-/* The focus card's chip is the one cream object on the photo, so "Next" reads before anything else. */
-.slotPillFocus {
-  background: rgba(243, 238, 226, .94);
-  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .6);
-}
-.slotPillFocus .slotPillStatus,
-.slotPillFocus .slotPillTime,
-.slotPillFocus .slotPillDot {
-  color: #1d1d1c;
-}
-
-/* Eaten: the chip goes charcoal with a cream rim; the photo and the words keep their full colour. */
-.slotPillEaten {
-  background: rgba(29, 29, 28, .86);
-  box-shadow: inset 0 0 0 1px rgba(243, 238, 226, .28);
-}
-
-/* The figures beside the title: calories, and on a compact card the protein under them. */
-.figures {
-  display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.protein {
-  display: inline-flex;
-  flex-wrap: wrap;
-  row-gap: 2px;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-  color: #e2dcd0;
-  font-variant-numeric: tabular-nums;
-}
-/* The macro dots in their gauge hues (dots, never text: DESIGN.md §Colors). */
-.dotProtein,
-.dotCarbs,
-.dotFat {
-  display: inline-block;
-  flex: none;
-  width: 6px;
-  height: 6px;
-  margin-right: 5px;
-  border-radius: 9999px;
-}
-.dotProtein { background: var(--color-gauge-protein-end); }
-.dotCarbs { background: var(--color-gauge-carbs-end); }
-.dotFat { background: var(--color-gauge-fat-end); }
-
-.macroItem {
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-}
-.macroItem + .macroItem {
-  margin-left: 6px;
-}
-
-/* The beige tray: the reference's bottom bar, its upper corners curved alike (2026-10-01: a curve on
-   the left and a square corner on the right read as a mistake). It holds one face at a time
-   (components/MealCardTray.tsx): the card's detail, or a flow the card started, which takes the
-   detail's place inside the card (2026-10-04, owner: "one card with what's currently selected at the
-   top"). The faces carry the padding, so the footer's full-width rule is never clipped. */
-.details {
-  position: relative;
-  z-index: 2;
-  margin-top: 12px;
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
-  background: var(--grad-recess);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, .15);
-  /* The strip's solid eaten zone follows the tray's curved corners (v3 review). */
-  overflow: clip;
-  /* The compact tray rises over the photo's foot; the gap and the corners change on the container
-     spring, never in a cut. */
-  transition: margin-top var(--dur-spring-smooth) var(--ease-spring-smooth),
-    border-radius var(--dur-spring-smooth) var(--ease-spring-smooth);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .details { transition: none; }
-}
-
-.detailFace {
-  padding: 0 18px 16px;
-}
-
-/* A flow inside the tray: a slim mode row on top, no card of its own, never an inner scroller. */
-.flowFace {
-  padding: 4px 16px 16px;
-}
-
-/* The opened ingredients sit 16 px clear of the tray's top and of the footer's rule below (U1,
-   2026-10-04, owner: "even space from the bottom border to the top border"). The folding region is a
-   flow root (SlotCardDetail MealDetail), so these margins stay inside it instead of collapsing up
-   through the tray, and a folded region is still truly 0 px tall. */
-.details [role="region"] > :global(.meal-detail-tray) {
-  margin-block: 16px;
-}
-
-/* Inside the beige tray the recessed meter tray lifts to ivory. */
-.details :global(.meal-detail-tray) {
-  background: var(--grad-card);
-}
-
-/* The open card's footer pills size to their words and share one row; on a very narrow phone they
-   shrink and the label ellipsises rather than wrapping (components/ui/Button labels never wrap). */
-.footerButton {
-  min-width: 0;
-}
-.footerButton :global(.btn-stack) {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 100%;
-}
-.footerButton :global(.btn-label) {
-  min-width: 0;
-  max-width: 100%;
-}
-.footerButton :global(.btn-label) > span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Compact (other collapsed meals, and every card with a flow open): the photo fills the card's whole
-   left side, its upper-right corner swept; the title, calories and the macro split sit beside it. The
-   tray rises 24 px over the photo's foot, so its curved corner closes over the food rather than over
-   a band of charcoal (U9, 2026-10-04, owner: the image "used to take up more space and fill the
-   bottom section"). */
-.compact .hero {
-  min-height: 116px;
-  align-items: flex-start;
-  padding: 40px 14px calc(var(--tray-overlap) + 10px) calc(34% + 14px);
-}
-
-.compact .heroPhoto {
-  width: 34%;
-  height: 100%;
-}
-
-.compact .heroFooter {
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 2px;
-}
-
-.compact .heroTitle {
-  flex: none;
-  font-size: 16px;
-  line-height: 1.2;
-  overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-/* Beside a compact title the calories run inline: numeral, then unit. */
-.compact .figures {
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.compact .heroFooter :global([data-meal-calories]) {
-  min-height: 0;
-  justify-content: flex-start;
-  text-align: left;
-}
-.compact .heroFooter :global([data-meal-calories] .flex-col) {
-  flex-direction: row;
+/* One merged line: the persimmon calorie numeral, its unit, then protein. */
+.meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 2px 6px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-secondary);
 }
-.compact .heroFooter :global([data-meal-calories] .flex-col > span) {
-  margin-top: 0;
-}
-.compact .heroFooter :global(.kcal) {
+.meta :global(.kcal) {
+  font-family: var(--font-display);
   font-size: 16px;
+  letter-spacing: -.01em;
+}
+.kcalUnit {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: var(--color-text-muted);
+}
+.metaDot {
+  color: var(--color-text-muted);
 }
 
-/* Compact (v3), the chip leaves the narrow photo for the top of the text column, so its words never
-   run onto the title and the status word shows at every width. */
-.compact .heroTime {
-  top: 10px;
-  left: calc(34% + 14px);
+/* Compact: the photo is a left rail, 30 % wide, the full height of the header, square at its foot. */
+.compact .hero {
+  flex-direction: row;
+  align-items: stretch;
+}
+.compact .photoBox {
+  width: 30%;
+}
+.compact .heroPhoto {
+  height: 100%;
+  min-height: 96px;
+}
+.compact .heroTitle {
+  font-size: 16px;
+  line-height: 20px;
+}
+.compact .heroText {
+  flex: 1;
 }
 
-.compact .slotPill {
+/* The favorite heart (components/MealFavoriteHeart.tsx): a bare glyph on the photo's upper right, a
+   soft shadow for legibility, its 44 px target around it. */
+.heart {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  display: flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  color: #f3eee2;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
+}
+.heart svg {
+  width: 26px;
+  height: 26px;
+}
+.heart::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+.heart[data-meal-favorite="on"] {
+  color: var(--color-gauge-calories-end);
+}
+.heart[aria-disabled="true"] {
+  opacity: .6;
+}
+.compact .heart,
+.compact .heart svg {
+  width: 24px;
   height: 24px;
-  padding: 0 9px;
-  gap: 5px;
-  letter-spacing: .06em;
+}
+.compact .heart::before {
+  inset: -10px;
 }
 
-.compact .details {
-  margin-top: calc(var(--tray-overlap) * -1);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
+/* ---------------------------------------------------------------- inset panel */
+
+/* Ivory, set 12 px inside the charcoal walls, so the card's edge stays charcoal even while open. */
+.details {
+  position: relative;
+  margin: 0 12px 12px;
+  border-radius: var(--radius-md);
+  background: var(--grad-card);
+  overflow: clip;
 }
+
+.detailFace {
+  padding: 0 12px 4px;
+}
+
+/* A flow inside the panel: a slim mode row on top, no card of its own, never an inner scroller. */
+.flowFace {
+  padding: 4px 12px 12px;
+}
+
+/* The ingredient stepper: a tonal rectangle, not a pill (v4 "tonal, not pill"). */
+.stepper {
+  border-radius: var(--radius-sm);
+  background: rgb(var(--ink-rgb) / .06);
+}
+
+/* Preparation and Daily share: open, a tonal wash rather than a hairline. */
+.disclosure {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  border-radius: 12px;
+  transition: background-color var(--dur-spring-smooth) var(--ease-spring-smooth);
+}
+.disclosure:has(> :global(.disclosure-summary)[aria-expanded="true"]) {
+  background: rgb(var(--ink-rgb) / .04);
+}
+
+/* The rare actions: plain text links, middot-separated, no pill. */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+.ghostLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+}
+.ghostLink:active {
+  opacity: .7;
+}
+.ghostLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------- strip */
+
+/* The action strip (cards v4): one 44 px row of three equal zones on the card's own charcoal —
+   eaten | swap | details — told apart by tone, with no pills and no hairlines between them. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  height: 44px;
+  box-shadow: inset 0 1px 0 rgb(var(--ink-rgb) / .06);
+}
+
+.zone {
+  display: flex;
+  min-width: 0;
+}
+
+/* The eaten zone's tone is painted by its button (MealNutritionDivider.module.css .eatenZone). */
+.zoneEaten {
+  color: var(--color-on-olive);
+}
+
+.zoneSwap {
+  color: var(--color-text-secondary);
+}
+
+.zoneDetails {
+  background: rgb(var(--ink-rgb) / .04);
+  color: var(--color-text-secondary);
+}
+
+.zoneButton {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  color: inherit;
+  background-color: transparent;
+  transition: background-color var(--dur-spring-snappy) var(--ease-spring-snappy);
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .zoneButton:hover:not([aria-disabled="true"]):not(.zoneIdle) {
+    background-color: rgb(var(--ink-rgb) / .06);
+  }
+}
+.zoneButton:active:not(.zoneIdle) {
+  background-color: rgb(var(--ink-rgb) / .1);
+}
+.zoneButton[aria-disabled="true"] {
+  opacity: .4;
+}
+.zoneButton:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: -4px;
+  border-radius: 12px;
+}
+/* An eaten or fixed meal cannot swap: a plain dash at full contrast, never a faded icon. */
+.zoneIdle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* The details chevron turns over as the card opens. */
+.chevron {
+  display: inline-flex;
+  transition: transform var(--dur-spring-snappy) var(--ease-spring-snappy);
+}
+.chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .zoneButton,
+  .disclosure { transition: none; }
+}
+
+/* ---------------------------------------------------------------- logged extras (LoggedExtras.tsx) */
 
 .snackTicket :global(.logged-card-in) {
   border-radius: 16px;
@@ -358,112 +363,8 @@
   min-height: 70px;
 }
 
-/* Meal cards v3: the strip is one thin row of three equal zones — eaten | swap | details — each its
-   whole third as the tap target (44 px tall), told apart by tone on the beige tray, never pills. */
-.strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  height: 44px;
-}
-
-.zone {
-  display: flex;
-  min-width: 0;
-}
-.zone + .zone {
-  box-shadow: inset 1px 0 0 var(--color-hairline);
-}
-
-/* The eaten zone's tone is painted by its button (MealNutritionDivider.module.css .eatenZone). */
-.zoneEaten {
-  color: var(--color-primary);
-}
-
-.zoneSwap {
-  color: var(--color-text-secondary);
-}
-
-.zoneDetails {
-  background: rgb(var(--ink-rgb) / .04);
-  color: var(--color-text-muted);
-}
-
-.zoneButton {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  height: 100%;
-  color: inherit;
-  background: transparent;
-  transition: background-color var(--dur-spring-snappy) var(--ease-spring-snappy);
-  -webkit-tap-highlight-color: transparent;
-}
-@media (hover: hover) {
-  .zoneButton:hover:not([aria-disabled="true"]):not(.zoneIdle) {
-    background-color: rgb(var(--ink-rgb) / .04);
-  }
-}
-.zoneButton:active:not(.zoneIdle) {
-  background-color: rgb(var(--ink-rgb) / .07);
-}
-.zoneButton[aria-disabled="true"] {
-  opacity: .4;
-}
-/* An eaten meal cannot swap: its third keeps a faint glyph so the strip stays balanced. */
-.zoneIdle {
-  opacity: .25;
-}
-.zoneButton:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -4px;
-  border-radius: 12px;
-}
-
-/* The favorite heart: a small charcoal disc on the photo's upper right, its 44 px target around it. */
-.heart {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-  display: flex;
-  width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  background: rgba(29, 29, 28, .72);
-  box-shadow: inset 0 0 0 1px rgba(243, 238, 226, .22);
-  color: #f3eee2;
-  backdrop-filter: blur(6px);
-}
-.heart::before {
-  content: "";
-  position: absolute;
-  inset: -6px;
-}
-.heart[data-meal-favorite="on"] {
-  color: var(--color-gauge-calories-end);
-}
-.heart[aria-disabled="true"] {
-  opacity: .6;
-}
-/* Compact, the heart sits at the photo's lower right, clear of the chip and above the tray's edge. */
-.compact .heart {
-  top: auto;
-  right: auto;
-  bottom: calc(var(--tray-overlap) + 6px);
-  left: calc(34% - 40px);
-  width: 30px;
-  height: 30px;
-}
-.compact .heart::before {
-  inset: -7px;
-}
 
 @media (max-width: 370px) {
-  .hero { padding-top: 128px; }
-  .heroPhoto { height: 116px; }
+  .heroPhoto { height: 112px; }
   .snackArt { width: 44px; }
 }

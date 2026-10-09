@@ -35,10 +35,6 @@ describe("no macro bar", () => {
     expect(document.querySelector("[data-compact-bar]")).toBeNull();
   });
 
-  it("keeps the gram counts on the featured card", () => {
-    render(<Card variant="focus" />);
-    expect(document.querySelector('[data-macro-legend="true"]')?.textContent).toContain("52g");
-  });
 });
 
 describe("the three-zone icon strip", () => {
@@ -93,27 +89,6 @@ describe("the three-zone icon strip", () => {
   it("leaves the spoken outcome to the page's named toast: no second live region on the card", () => {
     render(<Card slot={{ ...lunch, eaten: true }} eatenFeedback="success" />);
     expect(screen.queryByRole("status")).toBeNull();
-  });
-});
-
-describe("an opened card's compact header", () => {
-  it("folds the photo, title and figures into one compact header so the ingredients lead", async () => {
-    render(<Card variant="focus" />);
-    const card = document.querySelector("[data-meal-card]") as HTMLElement;
-    expect(card.dataset.cardDensity).toBe("featured");
-    fireEvent.click(screen.getByRole("button", { name: "Expand Meal 2" }));
-    expect(card.dataset.cardDensity).toBe("compact");
-    // P, C and F inline in the header; the big spec panel folds away.
-    const figures = document.querySelector("[data-compact-macros]") as HTMLElement;
-    expect(figures.textContent).toBe("P 52g C 56g F 13g");
-    await waitFor(() => expect(document.querySelector('[data-macro-legend="true"]')).toBeNull());
-    expect(screen.getByRole("region", { name: "Meal 2 details" })).toBeTruthy();
-  });
-
-  it("keeps protein alone on a collapsed compact card", () => {
-    render(<Card />);
-    expect(document.querySelector("[data-compact-protein]")?.textContent).toBe("52 g protein");
-    expect(document.querySelector("[data-compact-macros]")).toBeNull();
   });
 });
 

@@ -36,6 +36,9 @@ export default function MealCardActions({ label, revealed, settle, onClear, onDe
   const clearOut = travel >= CLEAR_AT;
   const deleteOut = travel >= DELETE_AT;
   const strength = trayStrength(travel);
+  // The word reaches full contrast by about a third of the way (v4): its colour no longer waits for
+  // the fill, so a half-dragged pill never shows olive-on-olive or red-on-red words.
+  const labelStrength = { clear: Math.min(1, strength.clear * 2.8), del: Math.min(1, strength.del * 2.8) };
   const armed = travel > DELETE_AT + 12;
   const clearWidth = Math.max(0, Math.min(travel, CLEAR_AT) - 6);
   const showDelete = travel > CLEAR_AT + 6;
@@ -59,14 +62,14 @@ export default function MealCardActions({ label, revealed, settle, onClear, onDe
       moreRef.current?.focus();
     }
   }, [clearOut, deleteOut]);
-  return <div className="relative min-w-0 overflow-clip rounded-[32px]">
+  return <div className="relative min-w-0 overflow-clip rounded-[24px]">
     <div ref={actionsRef} className="absolute inset-y-0 right-0 flex flex-row-reverse items-stretch overflow-hidden"
       style={{ width: travel, padding: travel > 0 ? "6px 6px 6px 0" : 0, transition: settle }} aria-hidden={!clearOut}>
       <button ref={clearRef} type="button" tabIndex={clearOut ? 0 : -1}
         aria-label={`Clear ${label}`} onClick={onClear}
         className={`tap flex shrink-0 items-center justify-center overflow-hidden whitespace-nowrap rounded-[24px] text-caption ${styles.pill}`}
         style={{ width: clearWidth, minWidth: 0, transition: settle, background: olive(18 + 82 * strength.clear),
-          color: `color-mix(in srgb, var(--color-on-primary) ${Math.round(strength.clear * 100)}%, rgb(var(--primary-rgb)))` }}>
+          color: `color-mix(in srgb, var(--color-on-primary) ${Math.round(labelStrength.clear * 100)}%, rgb(var(--primary-rgb)))` }}>
         <span aria-hidden="true" className={styles.labels}>
           <span className={`${styles.label} ${styles.clearLabel}`}>Clear</span>
         </span>
@@ -76,7 +79,7 @@ export default function MealCardActions({ label, revealed, settle, onClear, onDe
         className={`tap flex min-w-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-[24px] text-caption ${styles.pill}`}
         style={{ ...(showDelete ? { marginRight: 6 } : { flex: "0 0 0px", minWidth: 0, opacity: 0 }),
           background: red(18 + 82 * strength.del),
-          color: `color-mix(in srgb, var(--color-on-primary) ${Math.round(strength.del * 100)}%, var(--color-alert))` }}>
+          color: `color-mix(in srgb, var(--color-on-primary) ${Math.round(labelStrength.del * 100)}%, var(--color-alert))` }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" />

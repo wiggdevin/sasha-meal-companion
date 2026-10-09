@@ -7,15 +7,13 @@ import dark from "./AfterDarkCards.module.css";
 import { useMealReschedule } from "./useMealReschedule";
 import { isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import MealNutritionDivider, { MealCalories, MealEatenButton, macroLabel } from "@/components/ui/MealNutritionDivider";
+import { MealEatenButton, macroLabel } from "@/components/ui/MealNutritionDivider";
 import MealFavoriteHeart, { type MealFavorite } from "@/components/MealFavoriteHeart";
-import MealFigureLine from "@/components/MealFigureLine";
 import { ASSISTANT_NAME } from "@/lib/brand";
 import MealPhoto from "@/components/ui/MealPhoto";
 import AutoHeight from "@/components/ui/AutoHeight";
 import Fold from "@/components/ui/Fold";
 import { useCardAttachScroll } from "@/components/useCardAttachScroll";
-import { SPRINGS } from "@/lib/design/motion";
 import { EmptyCardFlow, TrayFace } from "@/components/MealCardTray";
 import type { Macros, ResolvedSlot, FoodComponent } from "@/lib/types";
 import type { Food } from "@/lib/foods";
@@ -61,11 +59,6 @@ export function SlotCardEnter({ index, children }: { index: number; children: Re
   );
 }
 
-/** How long a closing card waits for its tray to fold before it compacts. The tray is about 90 %
- *  folded by then, so the photo never shrinks over hanging ingredients, yet the two moves overlap
- *  into one continuous close instead of a stop between them (owner, 2026-10-04). */
-export const FOLD_SECONDS = 0.24;
-
 /** "08:00" -> "8:00 am". Display only; the stored shape stays 24h. */
 export function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
@@ -81,9 +74,11 @@ export function slotStatus(slot: Pick<ResolvedSlot, "label" | "eaten">, focusLab
   return focusLabel ?? slot.label;
 }
 
-/** One thin pill on the photo: the meal's status word, then its time. */
-function MealSlotPill({ slot, time, focusLabel }: {
-  slot: Pick<ResolvedSlot, "slot" | "label" | "eaten">; time: string; focusLabel?: "Now" | "Next";
+/** The eyebrow over the title (cards v4: no chip on the photo): the status word, then the time. Focus
+ *  reads NOW / NEXT / EATEN in tracked capitals; a compact card reads its slot name, quietly, and
+ *  "Eaten" a step stronger once ticked off — a word change, not new chrome. */
+function MealEyebrow({ slot, time, focusLabel, focus }: {
+  slot: Pick<ResolvedSlot, "slot" | "label" | "eaten">; time: string; focusLabel?: "Now" | "Next"; focus: boolean;
 }) {
   const formatted = formatTime(time);
   const [clock, meridiem = ""] = formatted.split(" ");
@@ -91,10 +86,10 @@ function MealSlotPill({ slot, time, focusLabel }: {
   const spoken = status === slot.label ? "" : `, ${status.toLowerCase()}`;
   return <span role="img" aria-label={`${slot.label}${spoken}, scheduled for ${formatted}`} data-meal-time="true"
     data-meal-status={slot.eaten ? "eaten" : focusLabel ? focusLabel.toLowerCase() : "later"}
-    className={`${dark.slotPill} ${slot.eaten ? dark.slotPillEaten : focusLabel ? dark.slotPillFocus : ""}`}>
-    <span className={dark.slotPillStatus} aria-hidden="true">{status}</span>
-    <span className={dark.slotPillDot} aria-hidden="true">·</span>
-    <span className={dark.slotPillTime} aria-hidden="true"><span className="tabular-nums">{clock}</span> {meridiem.toUpperCase()}</span>
+    className={`${dark.eyebrow} ${focus ? dark.eyebrowFocus : ""} ${slot.eaten ? dark.eyebrowEaten : ""}`}>
+    <span aria-hidden="true">{status}</span>
+    <span aria-hidden="true" className={dark.eyebrowDot}>·</span>
+    <span aria-hidden="true"><span className="tabular-nums">{clock}</span> {meridiem.toUpperCase()}</span>
   </span>;
 }
 
@@ -194,6 +189,8 @@ export default function SlotCard({
       // A planned card's footer gives focus back to Swap when Swap opened the flow, else to its details control.
       if (slot.meal !== null) { setReturnTo(openedBy.current === "swap" ? "swap" : "toggle"); openedBy.current = "other"; }
     }
+    // A flow opening clears the hand-off, so the next close turns it on again.
+    if (attached && !wasAttached.current) setFooterFocus(false);
     wasAttached.current = attached;
   }, [attached, slot.meal]);
   const planEmpty = () => { openedBy.current = "plan"; onPlanWithCoach?.(); };
@@ -204,24 +201,8 @@ export default function SlotCard({
     slot.eaten ? undefined : onAteSomethingElse, footerFocus,
     { eatenControl, onSwap: canSwap && !slot.eaten ? () => { openedBy.current = "swap"; onOpenSwap(); } : undefined,
       returnTo });
-  // While a flow is open the card takes its compact hero, so the meal it acts on stays at the top and
-  // the flow sits right under it on one screen (2026-10-04).
-  const expanded = meal.expanded && !attached;
   // One flow giving way to another (Swap → Edit this meal) crossfades like the detail does.
   const flowKey = isValidElement(attachment) && attachment.key != null ? String(attachment.key) : "flow";
-  // Closing runs in order: the tray folds first, then the card takes its compact shape, so the photo
-  // never shrinks while the ingredients still hang below it.
-  const [folding, setFolding] = useState(false);
-  const [wasExpanded, setWasExpanded] = useState(expanded);
-  if (wasExpanded !== expanded) {
-    setWasExpanded(expanded);
-    setFolding(!expanded && !reduceMotion);
-  }
-  useEffect(() => {
-    if (!folding) return;
-    const timer = setTimeout(() => setFolding(false), FOLD_SECONDS * 1000);
-    return () => clearTimeout(timer);
-  }, [folding]);
   useCardAttachScroll(groupRef, attached, !!reduceMotion);
   const gesture = useMealReschedule(slot.time, onTimeChange, canSwap ? onOpenSwap : undefined,
     slot.eaten ? undefined : onDelete);
@@ -262,7 +243,7 @@ export default function SlotCard({
   // The generator's miss, inside the card's tray under the rule mark: a "needs a look" line.
   const missLine = <AnimatePresence initial={false}>
     {showMiss && <Fold key="miss">
-      <div data-slot-plan-miss="true" className="pt-3"><Notice tone="attention" title={planMiss} /></div>
+      <div data-slot-plan-miss="true" className="pt-3 pb-1"><Notice tone="attention" title={planMiss} /></div>
     </Fold>}
   </AnimatePresence>;
   const withActions = (card: ReactNode) => <div ref={groupRef} data-card-group="true" data-slot-card={slot.slot}
@@ -335,61 +316,59 @@ export default function SlotCard({
     </span>}
   </>;
   const shellClass = slot.eaten ? "meal-card" : "shell";
-  // Eaten keeps full colour and contrast: the chip and the eaten button carry the state (meal cards v2).
+  // Eaten keeps full colour and contrast: the eyebrow and the eaten zone carry the state.
   const surfaceClass = slot.eaten ? "meal-card-in meal-card-complete" : "surface";
   const illustrativeImage = illustrativeMealImage(slot.meal.name, slot.components);
-  // v3: an open card takes the compact header too, so its ingredients sit near the top; a focus card
-  // grows back to its featured form once the tray has folded.
-  const compact = variant !== "focus" || meal.expanded || folding || attached;
-  // Opening a card is one shape becoming another (2026-10-01): the photo grows from the left into the
-  // top, the title, calories and time glide to their new places, and the card's height springs, so
-  // the cards below slide rather than jump. Reduced motion: MotionConfig drops the layout moves.
-  const morph = reduceMotion ? { duration: 0 } : SPRINGS.gentle;
-  const glide = { layout: "position" as const, layoutDependency: compact, transition: morph };
+  // Cards v4: two presets, fixed — the Focus card a full-width photo banner over its text, every other
+  // card a left photo rail beside it. Opening a card or a flow never changes the header's shape, so the
+  // ingredients or the flow simply grow in under it.
+  const focus = variant === "focus";
+  const hasPanel = attached || meal.expanded || !!meal.ruleMark || showMiss;
 
   return withActions(
-    <div className={`${shellClass} min-w-0 w-full max-w-full ${styles.card} ${mealProps.className} ${compact ? dark.compact : ""}`}
+    <div className={`${shellClass} min-w-0 w-full max-w-full ${styles.card} ${mealProps.className} ${focus ? "" : dark.compact}`}
       {...cardProps} data-after-dark-meal="true"
-      data-card-density={compact ? "compact" : "featured"}>
+      data-card-density={focus ? "featured" : "compact"}>
       {editSurface}
       <div className={`${surfaceClass} flex flex-col gap-0 matte matte-grain ${dark.mealSurface}`}>
-        {/* Every size change inside springs in its own box (the hero here, the macro panel and the
-            tray in theirs), so the card's own height is plain layout and follows them in the same
-            frame. A second spring around them all chased their moving total and lagged, then caught
-            up with a lurch (owner, 2026-10-04: the cards below shot up while the card still folded). */}
-        <AutoHeight spring="gentle">
-          <div data-meal-header="true" data-after-dark-hero="true" className={dark.hero}>
-            <MealPhoto src={illustrativeImage} className={dark.heroPhoto} compact={compact} transition={morph} />
-            <div className={dark.heroFooter}>
-              <motion.h3 className={dark.heroTitle} {...glide}>{slot.meal.name}</motion.h3>
-              <motion.div data-meal-figures="" className={dark.figures} {...glide}
-                role={compact ? "img" : undefined} aria-label={compact ? macroLabel(shownMacros) : undefined}>
-                <MealCalories kcal={shownMacros.kcal} />
-                {compact && <MealFigureLine macros={shownMacros} full={meal.expanded} />}
-              </motion.div>
-            </div>
-            <motion.div className={dark.heroTime} {...glide}><MealSlotPill slot={slot} time={shownTime} focusLabel={focusLabel} /></motion.div>
+        <div data-meal-header="true" data-after-dark-hero="true" className={dark.hero}>
+          <span className={dark.photoBox}>
+            <MealPhoto src={illustrativeImage} className={dark.heroPhoto} />
             {favorite && <MealFavoriteHeart label={slot.meal.name} favorite={favorite} />}
+          </span>
+          <div className={dark.heroText}>
+            <MealEyebrow slot={slot} time={shownTime} focusLabel={focusLabel} focus={focus} />
+            <h3 className={dark.heroTitle}>{slot.meal.name}</h3>
+            {/* One merged line on every card (no macro bar, no dot legend): calories, then protein. */}
+            <p data-meal-figures="" role="img" aria-label={macroLabel(shownMacros)} className={dark.meta}>
+              <span data-meal-calories="true"><strong className="kcal font-medium tabular-nums">{Math.round(shownMacros.kcal).toLocaleString("en-US")}</strong>
+                <span className={dark.kcalUnit}> KCAL</span></span>
+              <span aria-hidden="true" className={dark.metaDot}>·</span>
+              <span data-compact-protein="" className="tabular-nums">{Math.round(shownMacros.protein)}g protein</span>
+            </p>
           </div>
-        </AutoHeight>
-        <MealNutritionDivider macros={shownMacros} compact={compact} />
-        {/* One container (2026-10-04, owner: "Why isn't the card that's being edited just the top of
-            this card?"): a flow takes the place of the detail inside the beige tray. The tray's height
-            springs (frame first) while one face blurs out and the next blurs in (content after);
-            closing runs the same way back. */}
-        <div className={`matte-reset ${dark.details}`} data-card-tray={attached ? "flow" : "detail"}>
-          <AutoHeight spring="gentle">
-            <AnimatePresence mode="wait" initial={false}>
-              {attached ? flowFace(dark.flowFace) : <TrayFace key="detail" className={dark.detailFace}>
-                {/* Saved content against the current food rules: on the beige tray, never on the hero. */}
-                <SlotRuleMarkLine mark={meal.ruleMark} />
-                {missLine}
-                <AnimatePresence initial={false}>{meal.detail}</AnimatePresence>
-                {meal.footer}
-              </TrayFace>}
-            </AnimatePresence>
-          </AutoHeight>
         </div>
+        {/* The inset panel (cards v4): ivory, set 12 px inside the charcoal, so the card's edge stays
+            charcoal while it is open. It holds the rule mark and the generator's miss, the open
+            detail, or a flow the card started; a card with none of them has no panel at all. */}
+        <AutoHeight spring="gentle">
+          <AnimatePresence initial={false}>
+            {hasPanel && <Fold key="panel">
+              <div className={`matte-reset ${dark.details}`} data-card-tray={attached ? "flow" : "detail"}>
+                <AutoHeight spring="gentle">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {attached ? flowFace(dark.flowFace) : <TrayFace key="detail" className={dark.detailFace}>
+                      <SlotRuleMarkLine mark={meal.ruleMark} />
+                      {missLine}
+                      <AnimatePresence initial={false}>{meal.detail}</AnimatePresence>
+                    </TrayFace>}
+                  </AnimatePresence>
+                </AutoHeight>
+              </div>
+            </Fold>}
+          </AnimatePresence>
+        </AutoHeight>
+        {!attached && meal.footer}
       </div>
     </div>
   );

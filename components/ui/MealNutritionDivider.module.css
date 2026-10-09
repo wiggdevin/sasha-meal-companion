@@ -1,79 +1,17 @@
-/* The meal card's nutrition (DESIGN.md Cards and Surfaces › Meal card): on the charcoal card, between
-   the title and the beige tray. */
-.divider {
-  position: relative;
-  z-index: 2;
-  padding: 0 16px;
-}
-
-/* The reference's olive spec panel. */
-.panel {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 10px 6px;
-  border-radius: 16px;
-  background: #4f5343;
-  box-shadow: var(--bevel), 0 10px 20px -12px rgba(0, 0, 0, .6);
-}
-
-.specs {
-  align-items: start;
-}
-
-.spec {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-.spec + .spec {
-  border-left: 1px solid rgba(255, 255, 255, .1);
-}
-
-.specLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px; /* KIT §14: nothing on a card under 12 px */
-  letter-spacing: .06em;
-  /* ≥ 4.5:1 on the olive panel (#b1b2a9 was 3.7:1; meal cards v2 review). */
-  color: #d4d0c5;
-}
-
-.specValue {
-  font-size: 16px;
-  font-weight: 600;
-  color: #e2dcd0;
-}
-
-.calorie {
-  min-width: 72px;
-}
-
-/* The eaten zone paints its own state (no :has() needed): an olive wash at rest, solid olive once the
-   meal is ticked off, the tick cut into the cream disc in the olive under it. */
+/* The meal card's eaten zone (components/ui/MealNutritionDivider MealEatenButton). Cards v4: the strip
+   sits on the card's own charcoal, so the zone is an olive wash with a cream ring at rest and solid
+   olive once the meal is ticked off, the tick cut into the cream disc in the olive under it. The
+   zone paints its own state (no :has()). */
 .eatenZone {
-  background: rgb(var(--primary-rgb) / .1);
-  color: var(--color-primary);
+  background: rgb(var(--primary-rgb) / .42);
+  color: var(--color-on-olive);
 }
 .eatenZone[data-eaten="true"] {
   background: var(--grad-ink);
-  color: var(--color-on-primary);
+  box-shadow: var(--bevel);
+  color: var(--color-on-olive);
 }
+
 .tick {
   stroke: var(--color-primary);
-}
-
-.kcalUnit {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  letter-spacing: .08em;
-}
-
-@media (max-width: 370px) {
-  .calorie { min-width: 68px; }
-  .specLabel { letter-spacing: .1em; }
 }

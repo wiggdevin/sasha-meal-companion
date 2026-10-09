@@ -109,13 +109,13 @@ describe("meal card figures", () => {
     render(<Card />);
     const figures = document.querySelector("[data-meal-figures]") as HTMLElement;
     expect(figures.textContent).toContain("541");
-    expect(figures.textContent).toContain("52 g protein");
+    expect(figures.textContent).toContain("52g protein");
   });
 
-  it("drops the ornament from the featured card", () => {
+  it("drops the ornament and, since v4, the spec panel from the featured card", () => {
     render(<Card variant="focus" />);
     expect(document.querySelector("[data-meal-ornament]")).toBeNull();
-    expect(document.querySelector('[data-macro-legend="true"]')).not.toBeNull();
+    expect(document.querySelector('[data-macro-legend="true"]')).toBeNull();
   });
 });
 
