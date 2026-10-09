@@ -69,6 +69,7 @@ import { fetchProposals, visibleProposal, type Fresh } from "@/lib/estimator-cli
 import { fetchTargetState, settingsWithTargetRevision } from "@/lib/targets/client";
 import type { ProposalSummary } from "@/lib/api-types";
 import OnboardingInvite from "@/components/Onboarding/OnboardingInvite";
+import TodayTour from "@/components/tour/TodayTour";
 import ActivityMismatchPrompt from "@/components/ActivityMismatchPrompt";
 import { refreshStarterGate, type StarterGate } from "@/lib/foods/today-starter";
 import { loadEligibleLocalFoodIds, needsConnection } from "@/lib/foods/eligible-client";
@@ -958,6 +959,9 @@ export default function Today() {
             meal, else the second app open), never during onboarding or sign-in (neither route
             mounts this page). */}
         {isToday && <InstallPrompt store={store} />}
+
+        {/* The app overview: once after onboarding, and whenever the companion is tapped. */}
+        <TodayTour onboardedAt={store.settings.onboardedAt} />
 
         {elsewhere && (
           <div className="shell">

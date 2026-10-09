@@ -1,6 +1,9 @@
 # Edit a slot card item by item, and build a meal from anything
 
-Plan, 2026-09-14. Status: proposed, not started.
+Plan, 2026-09-14. Status: item-level slot editing (`add_slot_item`/`remove_slot_item`/`set_slot_item`,
+`lib/coach/actions/slot-items.ts`) and the `recipe:<uuid>` swap namespace (`lib/resolve.ts`,
+`lib/sync/plan-days-schema.ts`) are built. Phases C ("build a meal from anything") and D ("Make
+this my usual") below are separately unverified — confirm before relying on them.
 
 ## What she wants
 

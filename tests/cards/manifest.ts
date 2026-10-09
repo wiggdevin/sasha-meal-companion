@@ -164,6 +164,9 @@ export const CARD_MANIFEST: CardManifestEntry[] = [
   { path: "app/settings/page.tsx", card: "Settings targets",
     states: ["needs profile", "ready"],
     renderTest: "tests/cards/settings.test.tsx" },
+  { path: "components/tour/HowSashaWorksCard.tsx", card: "HowSashaWorksCard",
+    states: ["closed", "open"],
+    renderTest: "components/tour/HowSashaWorksCard.test.tsx" },
   { path: "components/ui/ConfirmSheet.tsx", card: "ConfirmSheet",
     states: ["destructive", "plain"],
     renderTest: "tests/ui/confirm-sheet.test.tsx" },
@@ -247,6 +250,9 @@ export const CARD_MANIFEST: CardManifestEntry[] = [
   { path: "components/Onboarding/OnboardingInvite.tsx", card: "OnboardingInvite",
     states: ["hidden", "offered", "dismissed"],
     renderTest: "tests/onboarding/invite.test.ts" },
+  { path: "components/Onboarding/TileGrid.tsx", card: "TileGrid",
+    states: ["unselected", "selected"],
+    renderTest: "components/Onboarding/FallingFoodPile.test.tsx" },
 
   // ---------------------------------------------------------------- Sheets
   { path: "components/CaptureSheet.tsx", card: "CaptureSheet",

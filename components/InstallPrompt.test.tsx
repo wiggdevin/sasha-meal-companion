@@ -18,7 +18,7 @@ const source = readFileSync(path.join(__dirname, "InstallPrompt.tsx"), "utf-8");
 
 // Finding #17 (audit 2026-09-13): the banner told Sasha that installing to
 // the Home Screen "also turns on the meal reminders." Reminders are wired up
-// entirely separately, via IcsSubscribe's explicit "Add to Calendar" button
+// entirely separately, via ScheduleSection's explicit "Add to Calendar" button
 // on the Settings page (a manual share-sheet "Add All" step) — nothing ties
 // Home Screen installation to reminders. The banner copy must not claim it
 // does.

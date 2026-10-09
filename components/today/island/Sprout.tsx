@@ -8,6 +8,7 @@ import type { PetState, PetWhen } from "@/lib/today/pet-mood";
 import { MASCOTS, type MascotKey } from "@/components/today/island/mascots";
 import { wellArt } from "@/components/today/island/well-pet";
 import styles from "@/components/today/island/Sprout.module.css";
+import TourOffer from "@/components/tour/TourOffer";
 
 /** Sprout alone at any size (onboarding v2's guide); see SproutFigure.tsx. */
 export { SPROUT_HERO_ART, SproutFigure, type SproutPose } from "@/components/today/island/SproutFigure";
@@ -72,6 +73,7 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
   const self = useRef<HTMLButtonElement | null>(null);
   const [look, setLook] = useState(0);
   const [hello, setHello] = useState(0);
+  const [taps, setTaps] = useState(0);
   const hop = useAnimationControls();
 
   useEffect(() => {
@@ -96,8 +98,9 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
   const name = MASCOTS[mascot].name;
   const art = wellArt(mascot, state.mood);
   return <div className={styles.stage} data-mood={state.mood}>
+    {/* A tap says hello and offers the app overview beside the pet (components/tour). */}
     <button ref={self} type="button" className={`tap ${styles.pet}`} aria-label={`${name}. Say hello`}
-      onClick={() => { setHello((count) => count + 1); if (!reduce) void hopOnce(hop); }}>
+      onClick={() => { setHello((count) => count + 1); setTaps((count) => count + 1); if (!reduce) void hopOnce(hop); }}>
       <span aria-hidden="true" className={styles.shadow} data-still={reduce || undefined} />
       <span aria-hidden="true" className={styles.reflection} data-still={reduce || undefined}>
         <Image src={art} alt="" fill sizes="104px" draggable={false} className={styles.img} />
@@ -116,9 +119,11 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
         </motion.span>
       </motion.span>
     </button>
+    {figureOnly && <TourOffer shown={taps} origin={() => self.current} floating />}
     <div className={figureOnly ? "sr-only" : styles.status}>
       <span className={styles.name}>{name}</span>
       <span className={styles.line} aria-live="polite">{hello ? `${name} says hello back.` : state.line}</span>
+      {!figureOnly && <TourOffer shown={taps} origin={() => self.current} />}
       {vitality !== null && <>
         <span aria-hidden="true" className={styles.meterRow}>
           <span>{when === "past" ? "Care that day" : "Care today"}</span><span>{vitality}%</span>

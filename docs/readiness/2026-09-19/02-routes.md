@@ -1,7 +1,11 @@
 # 02 — Unauthenticated API routes
 
-**Outcome:** proved  
-**Coverage:** every implemented method in all 38 `app/api/**/route.ts` files; 48 requests total
+**Outcome:** proved, as of 2026-09-19 — **superseded/partial.** The `app/api` tree has grown to 105
+`route.ts` files since this sweep (`app/api/care/*` now has 10, not 8; `app/api/shopping/*` now has
+11, not 10). Treat this doc as a historical sample, not current coverage, until a fresh sweep of
+the full tree runs.  
+**Coverage:** every implemented method in all 38 `app/api/**/route.ts` files at the time of this
+sweep; 48 requests total
 
 ## Results
 
