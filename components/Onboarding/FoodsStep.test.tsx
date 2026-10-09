@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FoodsStep, { FallingFoodsStep } from "./FoodsStep";
+import { PILE_TIMING } from "./FallingFoodPile";
 import { starterChoices } from "@/lib/foods/starter";
 import { resetTestAccount } from "@/tests/helpers/account";
 import { defaultSettings } from "@/lib/store";
@@ -78,7 +79,7 @@ describe("the re-skinned falling-foods step (NEXT_PUBLIC_CHAT_ONBOARDING=1 path)
       expect(screen.getByText("Tap the ones you love most.")).toBeTruthy();
       // The first disc's spawn is deferred one tick (GPT-6 Sol r4 WARN fix — see
       // FallingFoodPile.tsx's own doc on why a synchronous first spawn breaks under Strict Mode).
-      act(() => { vi.advanceTimersByTime(0); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs); });
       fireEvent.click(screen.getByRole("button", { name: /Love Chicken breast, roasted/i }));
       expect(onMark).toHaveBeenCalledWith("chicken-breast-roasted", "eats");
       fireEvent.click(screen.getByRole("button", { name: "Next: anything you never eat?" }));
@@ -107,7 +108,7 @@ describe("the re-skinned falling-foods step (NEXT_PUBLIC_CHAT_ONBOARDING=1 path)
         render(<FallingFoodsStep choices={starterChoices([], { ...profile, avoid_allergens: ["dairy"] })}
           marks={{}} onMark={vi.fn()} />);
         confirmNoAllergy();
-        act(() => { vi.advanceTimersByTime(0); });
+        act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs); });
         expect(screen.queryByRole("button", { name: /Whey protein/i })).toBeNull();
         expect(screen.queryByRole("button", { name: /Greek yogurt/i })).toBeNull();
         // A non-dairy starter is untouched.
@@ -136,13 +137,13 @@ describe("the re-skinned falling-foods step (NEXT_PUBLIC_CHAT_ONBOARDING=1 path)
       const choices = starterChoices([], profile);
       render(<FallingFoodsStep choices={choices} marks={{}} onMark={vi.fn()} />);
       confirmNoAllergy();
-      act(() => { vi.advanceTimersByTime(0); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs); });
       const pile = screen.getByTestId("food-pile");
       expect(pile.querySelectorAll("button").length).toBeGreaterThan(0);
       // Advance well past several spawn intervals: concurrency never exceeds 3, because nothing
       // here ever resolves (no tap, no animation-complete in this fake-timer environment) — the
       // scheduler must be holding every further spawn for a slot that never frees.
-      act(() => { vi.advanceTimersByTime(5000); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs + 15000); });
       expect(pile.querySelectorAll("button").length).toBeLessThanOrEqual(5);
     } finally {
       vi.useRealTimers();
@@ -156,7 +157,7 @@ describe("the re-skinned falling-foods step (NEXT_PUBLIC_CHAT_ONBOARDING=1 path)
       const choices = starterChoices([], profile);
       render(<FallingFoodsStep choices={choices} marks={{}} onMark={onMark} />);
       confirmNoAllergy();
-      act(() => { vi.advanceTimersByTime(0); });
+      act(() => { vi.advanceTimersByTime(PILE_TIMING.settleMs); });
       const pile = screen.getByTestId("food-pile");
       const firstDisc = pile.querySelector("button")!;
       fireEvent.click(firstDisc);

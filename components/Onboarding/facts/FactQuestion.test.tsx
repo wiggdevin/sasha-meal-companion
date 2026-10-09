@@ -18,21 +18,53 @@ describe("FactQuestion", () => {
     expect(onAnswer).toHaveBeenCalledWith({ key: "birthYear", value: 1992 });
   });
 
-  it("asks height in feet and inches, never cm, and stores cm", () => {
+  it("asks height in one typed box, read the way people say it, never cm, and stores cm", () => {
+    for (const typed of ["5 10", "5'10\"", "5ft 10in", "70 in"]) {
+      const onAnswer = vi.fn();
+      render(<FactQuestion field="heightCm" facts={emptyFacts()} onAnswer={onAnswer} />);
+      expect(screen.queryByText(/cm/)).toBeNull();
+      const box = screen.getByLabelText("Height") as HTMLInputElement;
+      expect(box.type).toBe("text");
+      fireEvent.change(box, { target: { value: typed } });
+      screen.getByText("5 ft 10 in");
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      expect(onAnswer).toHaveBeenCalledWith({ key: "heightCm", value: 177.8 });
+      cleanup();
+    }
+  });
+
+  it("refuses a height it cannot read, with a plain message", () => {
+    render(<FactQuestion field="heightCm" facts={emptyFacts()} onAnswer={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Height"), { target: { value: "10 foot" } });
+    screen.getByRole("alert");
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("age is a plain typed box with a numeric keypad, no stepper, empty to start", () => {
     const onAnswer = vi.fn();
-    render(<FactQuestion field="heightCm" facts={emptyFacts()} onAnswer={onAnswer} />);
-    expect(screen.queryByText(/cm/)).toBeNull();
-    fireEvent.change(screen.getByLabelText("Feet"), { target: { value: "5" } });
-    fireEvent.change(screen.getByLabelText("Inches"), { target: { value: "10" } });
+    render(<FactQuestion field="birthYear" facts={emptyFacts()} today={TODAY} onAnswer={onAnswer} />);
+    const box = screen.getByLabelText("Age") as HTMLInputElement;
+    expect(box.type).toBe("text");
+    expect(box.inputMode).toBe("numeric");
+    expect(box.value).toBe("");
+    fireEvent.change(box, { target: { value: "70" } });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(onAnswer).toHaveBeenCalledWith({ key: "heightCm", value: 177.8 });
+    expect(onAnswer).toHaveBeenCalledWith({ key: "birthYear", value: 1956 });
+  });
+
+  it("accepts an under-18 age so the shell can show its adult-only stop", () => {
+    const onAnswer = vi.fn();
+    render(<FactQuestion field="birthYear" facts={emptyFacts()} today={TODAY} onAnswer={onAnswer} />);
+    fireEvent.change(screen.getByLabelText("Age"), { target: { value: "16" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onAnswer).toHaveBeenCalledWith({ key: "birthYear", value: 2010 });
   });
 
   it("asks weight in pounds, never kg, and stores kg", () => {
     const onAnswer = vi.fn();
     render(<FactQuestion field="weightKg" facts={emptyFacts()} onAnswer={onAnswer} />);
     expect(screen.queryByText(/kg/)).toBeNull();
-    fireEvent.change(screen.getByLabelText("Weight"), { target: { value: "165" } });
+    fireEvent.change(screen.getByLabelText("Weight"), { target: { value: "165 lbs" } });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(onAnswer).toHaveBeenCalledWith({ key: "weightKg", value: 74.8 });
   });
@@ -40,7 +72,7 @@ describe("FactQuestion", () => {
   it("refuses an out-of-range answer with a plain message", () => {
     const onAnswer = vi.fn();
     render(<FactQuestion field="birthYear" facts={emptyFacts()} today={TODAY} onAnswer={onAnswer} />);
-    fireEvent.change(screen.getByLabelText("Age"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Age"), { target: { value: "111" } });
     screen.getByRole("alert");
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
   });

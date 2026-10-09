@@ -18,6 +18,14 @@
  *   each one still toggleable. Reduced motion shows that same grid from the start.
  * - Shown foods can be held by the caller (`shownIds` / `onShown`), so a remount of this
  *   component never replays foods the person already saw.
+ *
+ * Owner feedback 2026-10-08 ("it starts too fast; the foods fall far too fast"):
+ * - The page holds still for `PILE_TIMING.settleMs` before the first disc, so the instruction can
+ *   be read. Reduced motion never animates at all (the grid from the start, as before).
+ * - Discs spawn about three times further apart and fall about two and a half times slower.
+ * - "Just pick from the list" opens the same end grid (`FoodGrid`) at once. Every grid (the list,
+ *   the end of the fall, reduced motion) shows the whole eligible deck with the taps kept; only the
+ *   fall is capped at 14. A tap there writes the same `onMark` the falling discs do.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -25,11 +33,13 @@ import { dbFood } from "@/lib/food-db";
 import type { Starter, StarterMark } from "@/lib/foods/starter";
 import { starterVarietyOrder } from "@/lib/foods/starter-variety";
 import type { FoodRole } from "@/lib/foods";
-import { SPRINGS } from "@/lib/design/motion";
+import { FADES, SPRINGS } from "@/lib/design/motion";
+import Button from "@/components/ui/Button";
 import { CHIP_FILL } from "./facts/chip-fill";
 import { foodShortName } from "./food-display-names";
 import { useFoodDiscArtReady } from "./food-disc-art";
 import FoodDisc from "./FoodDisc";
+import TileGrid from "./TileGrid";
 import styles from "./FallingFoodPile.module.css";
 
 const ROLES: readonly FoodRole[] = ["protein", "carb", "fat"];
@@ -40,9 +50,18 @@ const LANES = 4;
 const MAX_CONCURRENT = 4;
 /** A lane is free again this many spawns after it was last used (about 150 px of fall). */
 const LANE_COOLDOWN = 3;
-const SPAWN_BASE_MS = 450;
-const SPAWN_JITTER_MS = 120;
-const FALL_SECONDS = 3.6;
+/** The game's clock (owner 2026-10-08: the old 450 ms spawn and 3.6 s fall read as a blur). A fall
+ *  is a constant-speed drop, not a spring, so it keeps its own linear duration here. */
+export const PILE_TIMING = {
+  /** Still time before the first disc, so the page settles and the instruction can be read. */
+  settleMs: 1800,
+  spawnBaseMs: 1500,
+  spawnJitterMs: 250,
+  fallSeconds: 9,
+} as const;
+const SPAWN_BASE_MS = PILE_TIMING.spawnBaseMs;
+const SPAWN_JITTER_MS = PILE_TIMING.spawnJitterMs;
+const FALL_SECONDS = PILE_TIMING.fallSeconds;
 const WOBBLE_DEG = 6;
 const WOBBLE_SECONDS = 1.8;
 const DISC_PX = 112;
@@ -55,15 +74,18 @@ const ROLE_SHARE: Record<FoodRole, number> = { protein: 5, carb: 6, fat: 3 };
 
 /** Round-robin the filtered catalog across roles so the session mixes protein/carb/fat; inside a
  *  role, plate-variety order (lib/foods/starter-variety.ts), so the capped deck offers vegetables,
- *  fruit, more than one kind of starch and distinct proteins, not five starches (onb3). */
-export function buildQueue(choices: readonly Starter[]): Starter[] {
+ *  fruit, more than one kind of starch and distinct proteins, not five starches (onb3).
+ *
+ *  `cap` is the fall's 14 by default, with the role shares. The food grids pass `Infinity`: the
+ *  whole eligible deck, in the same variety order, round-robin across roles, no shares. */
+export function buildQueue(choices: readonly Starter[], cap: number = QUEUE_CAP): Starter[] {
   const byRole = ROLES.map((role) => starterVarietyOrder(choices.filter((item) => item.role === role)));
-  const take = (shares: readonly number[]) => {
+  const take = (shares: readonly number[], limit: number) => {
     const interleaved: Starter[] = [];
-    for (let index = 0; interleaved.length < QUEUE_CAP; index += 1) {
+    for (let index = 0; interleaved.length < limit; index += 1) {
       let added = false;
       byRole.forEach((group, role) => {
-        if (index < Math.min(group.length, shares[role]) && interleaved.length < QUEUE_CAP) {
+        if (index < Math.min(group.length, shares[role]) && interleaved.length < limit) {
           interleaved.push(group[index]); added = true;
         }
       });
@@ -71,10 +93,11 @@ export function buildQueue(choices: readonly Starter[]): Starter[] {
     }
     return interleaved;
   };
-  const shared = take(ROLES.map((role) => ROLE_SHARE[role]));
-  if (shared.length >= Math.min(QUEUE_CAP, choices.length)) return shared;
+  if (cap > QUEUE_CAP) return take(ROLES.map(() => Infinity), cap);
+  const shared = take(ROLES.map((role) => ROLE_SHARE[role]), cap);
+  if (shared.length >= Math.min(cap, choices.length)) return shared;
   // A short role (a strict profile) gives its share away: refill without the shares, keeping order.
-  return take(ROLES.map(() => QUEUE_CAP));
+  return take(ROLES.map(() => cap), cap);
 }
 
 type FallItem = { item: Starter; fallKey: number; lane: number };
@@ -128,15 +151,13 @@ function Instruction({ choices, marks }: { choices: readonly Starter[]; marks: R
 function FoodGrid({ items, marks, onMark }: {
   items: readonly Starter[]; marks: Record<string, StarterMark>; onMark: (id: string, mark: StarterMark) => void;
 }) {
-  return <div className="grid w-full grid-cols-4 gap-x-1 gap-y-2" data-testid="food-grid">
-    {items.map((item) => {
-      const full = dbFood(item.id)?.name ?? item.id;
-      const pressed = marks[item.id] === "eats";
-      return <FoodDisc key={item.id} id={item.id} shortName={foodShortName(item.id, full)} size="sm"
-        label={`Love ${full}`} pressed={pressed} variant={pressed ? "primary" : "tertiary"}
-        onToggle={() => onMark(item.id, pressed ? "neutral" : "eats")} />;
-    })}
-  </div>;
+  const tiles = items.map((item) => {
+    const full = dbFood(item.id)?.name ?? item.id;
+    return { id: item.id, label: foodShortName(item.id, full), ariaLabel: `Love ${full}` };
+  });
+  const selected = new Set(items.filter((item) => marks[item.id] === "eats").map((item) => item.id));
+  return <TileGrid tiles={tiles} selected={selected} testId="food-grid"
+    onToggle={(id, next) => onMark(id, next ? "eats" : "neutral")} />;
 }
 
 export default function FallingFoodPile({ choices, marks, onMark, shownIds, onShown }: {
@@ -150,6 +171,8 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
   const reduceMotion = useReducedMotion();
   useFoodDiscArtReady();
   const queue = useMemo(() => buildQueue(choices), [choices]);
+  /** The whole eligible deck, role-interleaved, uncapped: what "Just pick from the list" shows. */
+  const deck = useMemo(() => buildQueue(choices, Infinity), [choices]);
   const [ownShown, setOwnShown] = useState<readonly string[]>([]);
   const shown = shownIds ?? ownShown;
   const markShown = (id: string) => { if (onShown) onShown(id); else setOwnShown((current) => current.includes(id) ? current : [...current, id]); };
@@ -192,8 +215,11 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
     return () => observer.disconnect();
   }, [reduceMotion]);
 
+  /** "Just pick from the list": the end grid now, the fall stopped. */
+  const [listMode, setListMode] = useState(false);
+
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || listMode) return;
     resolvedKeys.current = new Set();
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -202,12 +228,13 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
       setGame(spawnNext(remaining, Math.random()));
       timer = setTimeout(tick, SPAWN_BASE_MS + Math.round((Math.random() * 2 - 1) * SPAWN_JITTER_MS));
     }
-    // Deferred, not synchronous: Strict Mode's setup→cleanup→setup would otherwise spawn twice.
-    timer = setTimeout(tick, 0);
+    // Deferred, never synchronous (Strict Mode's setup→cleanup→setup would otherwise spawn twice),
+    // and held for the settle time so the page is still while the person reads it.
+    timer = setTimeout(tick, PILE_TIMING.settleMs);
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
     // Keyed on the session's content, not on array identity (GPT-6 Sol r5 WARN).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.key]);
+  }, [session.key, listMode]);
 
   // A disc counts as shown the moment it starts to fall.
   useEffect(() => {
@@ -228,13 +255,15 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
   const finished = !reduceMotion && game.issued >= remaining.length && game.falling.length === 0;
   // The end grid: everything shown this session plus anything marked loved, in deck order, current
   // deck only (an excluded food never comes back).
-  const gridItems = reduceMotion ? queue
-    : queue.filter((item) => shown.includes(item.id) || marks[item.id] === "eats");
+  // Every grid — "Just pick from the list", the end of the fall, and reduced motion — shows the
+  // whole eligible deck with the taps kept (Sol r2 BLOCK): only the animation is capped at 14, so
+  // a food that never fell is still one tap away.
+  const gridItems = deck;
 
-  if (reduceMotion || finished) {
+  if (reduceMotion || finished || listMode) {
     return <div className="flex w-full flex-col gap-3" data-testid="falling-food-pile" data-state="grid">
       <Instruction choices={choices} marks={marks} />
-      {finished && <p className="m-0 text-caption text-graphite">That&rsquo;s all of them. Tap any you missed.</p>}
+      {finished && <p className="m-0 text-caption text-graphite">Here&rsquo;s the full list. Tap any you&rsquo;d eat.</p>}
       <FoodGrid items={gridItems} marks={marks} onMark={onMark} />
       <FoodTray loved={loved} />
     </div>;
@@ -242,6 +271,9 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
 
   return <div className="flex w-full flex-col gap-3" data-testid="falling-food-pile" data-state="falling">
     <Instruction choices={choices} marks={marks} />
+    <Button variant="tertiary" size="md" block className="min-h-11" onClick={() => setListMode(true)}>
+      Just pick from the list
+    </Button>
     {/* Full-bleed: -mx-4 cancels the 16px gutter so the lanes use the whole phone width. */}
     <div ref={stage} className={`${styles.stage} -mx-4 w-[calc(100%+32px)]`} data-testid="food-pile">
       {/* Keyed by session: a new deck (a just-confirmed allergy) drops every disc of the old deck at
@@ -250,11 +282,11 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
         {game.falling.map(({ item, fallKey, lane }) => {
           const full = dbFood(item.id)?.name ?? item.id;
           // A small per-disc stagger on the fall time keeps a wave from landing all at once.
-          const fallSeconds = FALL_SECONDS + (((fallKey * 37) % 9) - 4) / 10;
+          const fallSeconds = FALL_SECONDS + (((fallKey * 37) % 9) - 4) / 4;
           return <motion.div key={fallKey} className={styles.lane} data-lane={lane}
             style={{ "--lane": lane / (LANES - 1) } as CSSProperties}
             initial={{ y: -DISC_PX }} animate={{ y: stageHeight }}
-            exit={{ scale: 0, opacity: 0, transition: { duration: 0.22 } }}
+            exit={{ scale: 0, opacity: 0, transition: FADES.quick }}
             transition={{ duration: fallSeconds, ease: "linear" }}
             onAnimationComplete={() => resolve(fallKey, item, false)}>
             <motion.div animate={{ rotate: [-WOBBLE_DEG, WOBBLE_DEG, -WOBBLE_DEG] }}

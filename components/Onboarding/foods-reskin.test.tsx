@@ -78,9 +78,12 @@ describe("FoodsStep reduced motion", () => {
     expect(grid.className).toContain("grid-cols-4");
     // No motion wrapper div sits between the grid and a disc under reduced motion.
     expect(grid.firstElementChild?.tagName).toBe("BUTTON");
-    // Capped at 14 (the same session cap the falling game uses), never the whole catalog.
-    expect(grid.querySelectorAll("button").length).toBeLessThanOrEqual(14);
-    expect(grid.querySelectorAll("button").length).toBeGreaterThan(0);
+    // The whole eligible deck, not the fall's 14-food cap (Sol r2 BLOCK, owner 2026-10-08): with
+    // no animation there is no reason to hide foods, and the grid is the only way to reach them.
+    // Still the safety-filtered deck, never the whole catalog.
+    const deck = starterChoices([], profile);
+    expect(deck.length).toBeGreaterThan(14);
+    expect(grid.querySelectorAll("button").length).toBe(deck.length);
   });
 });
 

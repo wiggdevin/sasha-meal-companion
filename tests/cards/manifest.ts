@@ -250,6 +250,9 @@ export const CARD_MANIFEST: CardManifestEntry[] = [
   { path: "components/Onboarding/OnboardingInvite.tsx", card: "OnboardingInvite",
     states: ["hidden", "offered", "dismissed"],
     renderTest: "tests/onboarding/invite.test.ts" },
+  { path: "components/Onboarding/TileGrid.tsx", card: "TileGrid",
+    states: ["unselected", "selected"],
+    renderTest: "components/Onboarding/FallingFoodPile.test.tsx" },
 
   // ---------------------------------------------------------------- Sheets
   { path: "components/CaptureSheet.tsx", card: "CaptureSheet",
