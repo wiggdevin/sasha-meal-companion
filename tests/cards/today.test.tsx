@@ -397,4 +397,12 @@ describe("Today, the page", () => {
     await renderToday();
     expect(screen.queryByText(/Quick meals on\./)).toBeNull();
   });
+
+  // Reconciliation audit 2026-10-08, finding `week-tab-unreachable`: the Week screen existed with
+  // nothing linking to it. The header now carries a "Week" link next to the profile avatar.
+  it("links to the Week screen from the header", async () => {
+    await renderToday();
+    const link = screen.getByRole("link", { name: "Open the Week screen" });
+    expect(link.getAttribute("href")).toBe("/week");
+  });
 });

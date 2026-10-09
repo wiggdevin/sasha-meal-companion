@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import WeekGrid from "@/components/week/WeekGrid";
 import ShareButton from "@/components/ShareButton";
 import { computeWeekStats } from "@/lib/summary";
@@ -89,6 +90,15 @@ function Chevron({ back }: { back?: boolean }) {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 // ------------------------------------------------------------------ page
 
 export default function WeekPage() {
@@ -147,6 +157,13 @@ export default function WeekPage() {
       style={{ paddingTop: "calc(var(--safe-top) + 20px)" }}
     >
       <header className="flex flex-col gap-2.5 px-1">
+        <div className="flex min-h-11 items-center justify-end">
+          <Link href="/" aria-label="Back to Today"
+            className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-graphite">
+            <CloseIcon />
+          </Link>
+        </div>
+
         <h1 className="ground m-0 text-display-md font-light leading-none tracking-display-md">
           Week
         </h1>
