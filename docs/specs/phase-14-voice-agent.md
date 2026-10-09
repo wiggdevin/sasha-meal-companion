@@ -1,5 +1,15 @@
 # Phase 14 — The voice coach: voice-to-voice and live voice-to-text
 
+**Retired (owner, 2026-10-08).** Only the "ears" migration (`voice_ears`) ever landed, and it was
+never wired to anything live — Gemini Live dictation (the only piece that briefly shipped) was
+itself retired before this phase's brain/mouth slices were built (`lib/voice/dictation-io.ts`).
+Slices 2–5 (brain, mouth, done-means-applied, barge-in) were never built. This spec is superseded
+by implementation: there is no voice-to-voice or voice-to-text coach today, and none of this
+architecture is live. The cleanup migration that drops the dead `voice_ears` table and its
+functions/policies/triggers is `supabase/migrations/<see AGENTS.md row for the current filename>`.
+Nothing below this note describes current or planned behavior; resuming voice work needs a fresh
+spec against the system as it exists now, not a rev of this one.
+
 Status: DRAFT rev 3 (2026-09-23). Owner direction: Devin, 2026-09-23 — "the in-app AI coach must be
 the best possible, with focus on voice-to-voice and voice-to-text". GPT Luna proposed LiveKit
 Agents. The run decides whether that fits this app. Run decisions are marked **DECIDED (run)**;

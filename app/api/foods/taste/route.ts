@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
 /**
  * Phase 18 W3: the caller's own eaten history as taste evidence (lib/server/taste-admission.ts),
  * up to 50 admitted identities, each with `favorable` from the shared Favor plan
- * (lib/server/taste-favor.ts). `?date=YYYY-MM-DD` is the phone's local day; without a plausible one
- * the account's stored zone dates the window (lib/server/account-day.ts).
+ * (lib/server/taste-favor.ts). The account's stored zone dates the window when one is on file;
+ * `?date=YYYY-MM-DD` (the phone's local day) is a fallback for an account with none
+ * (lib/server/account-day.ts, owner ruling 2026-10-08).
  */
 export async function GET(req: Request): Promise<Response> {
   try {

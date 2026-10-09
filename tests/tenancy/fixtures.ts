@@ -387,8 +387,6 @@ export const BUILDERS: Record<string, Builder> = {
       confirmed_at: "2040-01-01T00:00:00Z" },
     match: { user_id: owner, profile_id: "vegetarian_lacto_ovo" },
     touch: () => ({ notes: "touched" }) }),
-  voice_ears: async (owner) => withId("voice_ears", { user_id: owner, reserved_seconds: 40,
-    expires_at: new Date(Date.now() + 40_000).toISOString() }, { status: "closed" }),
   water_log: async (owner) => {
     const date = randomDate();
     return { table: "water_log", row: { user_id: owner, local_date: date, cups: 1 },

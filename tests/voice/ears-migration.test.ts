@@ -5,6 +5,12 @@
  * lock before the checks). The branch half runs the real functions: one open token per user, the
  * daily cap charging every non-refused token its whole reservation (a close frees the slot but
  * never lowers the charge), the refund on refuse, and that a signed-in user cannot call them.
+ *
+ * Phase 14 was retired 2026-10-08 (docs/specs/phase-14-voice-agent.md) and
+ * 20261229090000_voice_ears_cleanup.sql drops this table and its three functions once applied;
+ * see tests/migrations/voice-ears-cleanup-db.test.ts. This file stays as a historical record of
+ * the original migration's shape and is unaffected by the cleanup on a branch that has not had it
+ * applied.
  */
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

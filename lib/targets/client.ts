@@ -32,7 +32,8 @@ export type TargetsGetResponse =
 export async function fetchTargetState(
   fetchImpl: typeof fetch = fetch, h: AccountHandle = accountHandle(),
 ): Promise<TargetsGetResponse> {
-  // t24b: the server answers the revision in force on this phone's own day, not its zone's.
+  // t24b: the server answers the revision in force on the account's stored zone when one is on
+  // file; this phone's own day is a fallback hint for an account with none (owner ruling 2026-10-08).
   const response = await accountFetch(h, `/api/targets?date=${targetDayFor()}`, {}, { fetchImpl });
   if (!response.ok) throw new Error(`load targets failed: ${response.status}`);
   return accountJson<TargetsGetResponse>(h, response);
