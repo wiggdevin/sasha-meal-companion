@@ -81,6 +81,8 @@ export type ComposedMeal = {
   incomplete?: { reason: string };
   /** Why this option ranked where it did when it came from `suggest_options`. */
   rankNote?: string | null;
+  /** Plan-sheet chips (lib/plan/chips.ts): the idea's id for refills, its foods' source line, its prep minutes. */
+  ideaId?: string; sourceNote?: string; prepMinutes?: number;
   /** Said by the reply when fewer suggestions fit than the user requested. */
   shortfallNote?: string | null;
   /** The distinct Eats-list protein used to build a suggestion candidate. */

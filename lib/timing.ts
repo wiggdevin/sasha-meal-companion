@@ -13,7 +13,10 @@
  */
 
 export const TIMING_PATHS = ["barcode", "label", "photo", "voice", "text", "search-log",
-  "meal-log", "coach-turn", "coach-action"] as const;
+  "meal-log", "coach-turn", "coach-action",
+  // One path per Plan-sheet chip (lib/plan/chips.ts), so p50/p95 read per chip.
+  "plan-chip:choose", "plan-chip:protein", "plan-chip:quick15", "plan-chip:light",
+  "plan-chip:on_hand", "plan-chip:surprise"] as const;
 export type TimingPath = (typeof TIMING_PATHS)[number];
 
 /** The real hops, in the order a run walks them. `model` and `ground` are server-reported. */
@@ -23,7 +26,9 @@ export const TIMING_STEPS = ["decode", "lookup", "sign", "upload", "propose", "m
   // It sits before `sent` because that is the order a spoken turn walks them. `attach` is the
   // corresponding start mark for a barcode or photo turn, whose body intentionally has no text.
   "dictation", "attach", "sent", "first-text", "reply-done", "action-applied", "action-failed",
-  "action-undone"] as const;
+  "action-undone",
+  // `server` is a server-reported hop: POST /api/plan/ideas' own build time (`serverMs`).
+  "server"] as const;
 export type TimingStep = (typeof TIMING_STEPS)[number];
 
 import { accountFetch, currentAccountOrNull } from "@/lib/device/account";

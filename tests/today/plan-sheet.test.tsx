@@ -9,6 +9,10 @@ import { ACTION_TIMEOUT_REASON } from "@/lib/coach/apply-client";
 import { CoachError } from "@/lib/coach-client";
 
 const postTurn = vi.hoisted(() => vi.fn());
+const requestPlanIdeas = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/plan/ideas-client", async (original) => ({
+  ...(await original<typeof import("@/lib/plan/ideas-client")>()), requestPlanIdeas,
+}));
 const applyCoachAction = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/coach-client", async (original) => ({
   ...(await original<typeof import("@/lib/coach-client")>()), postTurn,
@@ -31,6 +35,7 @@ vi.mock("@/components/CatalogRecipeResults", () => ({
 }));
 
 import PlanSheet, { planLabel, planPrompt } from "@/components/PlanSheet";
+import { PlanIdeasError } from "@/lib/plan/ideas-client";
 
 const slot: ResolvedSlot = {
   slot: "meal-2", label: "Meal 2", time: "12:30", meal: null, components: [],
@@ -43,7 +48,14 @@ const meal: ComposedMeal = {
   items: [{ name: "Eggs", grams: 150, foodRefId: "food-1", catalogFoodRevisionId: 12,
     kcalPer100g: 140, proteinPer100g: 12, carbsPer100g: 1, fatPer100g: 9,
     macros: { kcal: 210, protein: 18, carbs: 1.5, fat: 13.5 }, verdict: "allowed" }],
+  ideaId: "eggs+rice",
 };
+
+/** A chip's answer (POST /api/plan/ideas). */
+function ideas(cards: ComposedMeal[] = [meal], extra: Record<string, unknown> = {}) {
+  return { cards, chip: "choose", provenance: { ai: false, source: "app" }, serverMs: 120, ...extra };
+}
+const ideaBody = (call: number) => requestPlanIdeas.mock.calls[call][1];
 
 function response(threadId = "thread-new") {
   return { threadId, messages: [{ id: "assistant-1", role: "assistant", content: "Here are some options." }],
@@ -53,6 +65,7 @@ function response(threadId = "thread-new") {
 beforeEach(async () => {
   await resetTestAccount();
   postTurn.mockReset().mockResolvedValue(response());
+  requestPlanIdeas.mockReset().mockResolvedValue(ideas());
   recipePilot.enabled = false;
   searchCatalogRecipes.mockReset().mockResolvedValue({ recipes: [], count: 0, limitations: [] });
   applyCoachAction.mockReset().mockResolvedValue({ status: "applied", token: {} });
@@ -66,6 +79,14 @@ function open() {
     target={{ kcal: 620, protein: 45, carbs: 70, fat: 18 }}
     onClose={onClose} onPlaced={onPlaced} />);
   return { onClose, onPlaced };
+}
+
+
+/** A typed wish: a coach turn (chips never reach the coach). */
+async function sendWish(text = "healthy tacos") {
+  await screen.findByRole("button", { name: "Put it in Meal 2" });
+  fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }), { target: { value: text } });
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
 }
 
 describe("Today plan sheet", () => {
@@ -87,18 +108,12 @@ describe("Today plan sheet", () => {
     expect(screen.getByRole("group", { name: "Quick picks" }).querySelector("button")?.textContent)
       .toBe("Choose for me");
     expect(screen.getByText("Ask for anything, paste a recipe link, or tap + for a photo or a meal plan.")).toBeTruthy();
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
-    // A card turn is scoped to its slot and viewed date (backend PR #355); it carries the real
-    // clock, and never the older Plan-sheet fields beside the scope (the server answers 400).
-    expect(postTurn.mock.calls[0][0]).toMatchObject({ threadId: null,
-      text: expect.stringContaining("meal-2"),
-      scope: { kind: "component", slotId: "meal-2", date: "2026-09-26" },
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" });
-    for (const legacy of ["surface", "planSlot", "planningSlot"]) {
-      expect(postTurn.mock.calls[0][0]).not.toHaveProperty(legacy);
-    }
-    expect(postTurn.mock.calls[0][0].now).not.toBe(new Date("2026-09-26T12:00:00").toISOString());
-    expect(screen.getByRole("button", { name: "Put it in Meal 2" })).toBeTruthy();
+    // The opening "Choose for me" is a chip: code-built ideas, never a coach turn.
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(1));
+    expect(ideaBody(0)).toEqual({ chip: "choose", slot: "meal-2", date: "2026-09-26",
+      zone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" });
+    expect(postTurn).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Put it in Meal 2" })).toBeTruthy();
     expect(window.location.pathname).not.toBe("/coach");
   });
 
@@ -133,25 +148,25 @@ describe("Today plan sheet", () => {
   });
 
   it("shows only safe meal options that fit the slot", async () => {
-    postTurn.mockResolvedValueOnce({ ...response(), composed: [
-      { ...meal, wish: "Too many calories", fitsTarget: false },
-      { ...meal, wish: "Flagged food", flagged: ["allergen"] },
+    requestPlanIdeas.mockResolvedValueOnce(ideas([
+      { ...meal, wish: "Too many calories", fitsTarget: false, ideaId: "a" },
+      { ...meal, wish: "Flagged food", flagged: ["allergen"], ideaId: "b" },
       meal,
-    ] });
+    ]));
     open();
     expect(await screen.findByRole("button", { name: "Put it in Meal 2" })).toBeTruthy();
     expect(screen.queryByText("Too many calories")).toBeNull();
     expect(screen.queryByText("Flagged food")).toBeNull();
   });
 
-  it("continues the new thread from a starter chip", async () => {
+  it("answers a chip from the ideas route, never a coach turn", async () => {
     open();
     await screen.findByRole("button", { name: "Put it in Meal 2" });
     fireEvent.click(screen.getByRole("button", { name: "High protein" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    expect(postTurn.mock.calls[1][0]).toMatchObject({ threadId: "thread-new",
-      text: expect.stringContaining("protein") });
-    expect(postTurn.mock.calls[1][0]).not.toHaveProperty("planningSlot");
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(2));
+    expect(ideaBody(1)).toMatchObject({ chip: "protein", slot: "meal-2", date: "2026-09-26" });
+    expect(postTurn).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "High protein" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("lets a typed follow-up retain its own requested action", async () => {
@@ -160,29 +175,65 @@ describe("Today plan sheet", () => {
     const input = screen.getByRole("textbox", { name: "Ask for a meal idea" });
     fireEvent.change(input, { target: { value: "Add eggs to my Eats list" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    expect(postTurn.mock.calls[1][0].text).toContain("Add eggs to my Eats list");
-    expect(postTurn.mock.calls[1][0]).not.toHaveProperty("planningSlot");
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    expect(postTurn.mock.calls[0][0].text).toContain("Add eggs to my Eats list");
+    expect(postTurn.mock.calls[0][0]).toMatchObject({ threadId: null,
+      scope: { kind: "component", slotId: "meal-2", date: "2026-09-26" } });
+    expect(postTurn.mock.calls[0][0]).not.toHaveProperty("planningSlot");
   });
 
-  it("uses account Eats only when asked to Use what I have", async () => {
-    expect(planPrompt("meal-2", "Meal 2", "2026-09-26", "Use what I have"))
-      .not.toBe(planPrompt("meal-2", "Meal 2", "2026-09-26"));
-    postTurn.mockResolvedValueOnce(response()).mockResolvedValueOnce({ ...response(), composed: [
-      { ...meal, wish: "Outside Eats", allItemsOnEats: false },
-      { ...meal, wish: "From Eats", allItemsOnEats: true },
-    ] });
+  it("Use what I have sends the foods named in the box and shows where each card came from", async () => {
+    requestPlanIdeas.mockResolvedValueOnce(ideas()).mockResolvedValueOnce(ideas([
+      { ...meal, wish: "Pantry eggs", ideaId: "p", sourceNote: "From your pantry photo" },
+    ], { chip: "on_hand" }));
+    open();
+    await screen.findByRole("button", { name: "Put it in Meal 2" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }),
+      { target: { value: "eggs, spinach " } });
+    fireEvent.click(screen.getByRole("button", { name: "Use what I have" }));
+    expect(await screen.findByText("Pantry eggs")).toBeTruthy();
+    expect(screen.getByText("From your pantry photo")).toBeTruthy();
+    expect(ideaBody(1)).toMatchObject({ chip: "on_hand", stated: ["eggs", "spinach"] });
+    expect(postTurn).not.toHaveBeenCalled();
+  });
+
+  it("offers to add items when nothing is known on hand", async () => {
+    recipePilot.enabled = true;
+    requestPlanIdeas.mockResolvedValueOnce(ideas()).mockResolvedValueOnce(ideas([], { chip: "on_hand",
+      message: "I don’t know what you have yet. Type what’s in your kitchen in the box, or add items to your pantry.",
+      offer: "add_items" }));
     open();
     await screen.findByRole("button", { name: "Put it in Meal 2" });
     fireEvent.click(screen.getByRole("button", { name: "Use what I have" }));
-    await screen.findByText("From Eats");
-    expect(screen.queryByText("Outside Eats")).toBeNull();
-    expect(postTurn.mock.calls[1][0].text).toContain("only foods already in my Favorites");
+    expect(await screen.findByText(/I don’t know what you have yet/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Add to pantry" }).getAttribute("href")).toBe("/foods#shopping");
   });
 
-  it("keeps the sheet usable after a failed request and retries with the same message id", async () => {
+  it("keeps the sheet usable after a failed request from a chip and retries it", async () => {
+    requestPlanIdeas.mockReset().mockRejectedValueOnce(new PlanIdeasError("That took too long. Try again.", true))
+      .mockResolvedValueOnce(ideas());
+    open();
+    expect((await screen.findByRole("alert")).textContent).toContain("That took too long.");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(2));
+    expect(ideaBody(1)).toEqual(ideaBody(0));
+    expect(await screen.findByRole("button", { name: "Put it in Meal 2" })).toBeTruthy();
+  });
+
+  it("a chip failure that cannot be retried offers no retry", async () => {
+    requestPlanIdeas.mockReset().mockRejectedValue(new PlanIdeasError("Bad request.", false));
+    open();
+    expect((await screen.findByRole("alert")).textContent).toContain("Bad request.");
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
+  it("keeps the sheet usable after a failed coach turn and retries with the same message id", async () => {
     postTurn.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(response());
     open();
+    await screen.findByRole("button", { name: "Put it in Meal 2" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }),
+      { target: { value: "healthy tacos" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await screen.findByRole("alert");
     const first = postTurn.mock.calls[0][0];
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -200,13 +251,13 @@ describe("Today plan sheet", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("closes when a late coach reply belongs to the previous account", async () => {
-    let settle!: (value: ReturnType<typeof response>) => void;
-    postTurn.mockImplementationOnce(() => new Promise((resolve) => { settle = resolve; }));
+  it("closes when a late chip answer belongs to the previous account", async () => {
+    let settle!: (value: ReturnType<typeof ideas>) => void;
+    requestPlanIdeas.mockImplementationOnce(() => new Promise((resolve) => { settle = resolve; }));
     const { onClose } = open();
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(1));
     bindAccount("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-    settle(response());
+    settle(ideas());
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("button", { name: "Put it in Meal 2" })).toBeNull();
   });
@@ -221,9 +272,9 @@ describe("Today plan sheet", () => {
   });
 
   it("recovers focus when auto-loading disables the initially focused chip", async () => {
-    postTurn.mockImplementationOnce(() => new Promise(() => {}));
+    requestPlanIdeas.mockImplementationOnce(() => new Promise(() => {}));
     open();
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("button", { name: "Choose for me" }).hasAttribute("disabled"))
       .toBe(true);
     fireEvent.keyDown(document, { key: "Tab" });
@@ -232,10 +283,10 @@ describe("Today plan sheet", () => {
   it("asks for the next three by itself when every card gets a no, steering away from them", async () => {
     open();
     fireEvent.click(await screen.findByRole("button", { name: "Not this: Egg and rice bowl" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    expect(postTurn.mock.calls[1][0].planSkipped).toEqual(["Egg and rice bowl"]);
-    expect(postTurn.mock.calls[1][0].text).not.toContain("Egg and rice bowl");
-    expect(postTurn.mock.calls[1][0]).not.toHaveProperty("planningSlot");
+    // The refill is the same chip, in code, with every idea said no to excluded.
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(2));
+    expect(ideaBody(1)).toMatchObject({ chip: "choose", excludeIds: ["eggs+rice"] });
+    expect(postTurn).not.toHaveBeenCalled();
   });
 
   it("reads a pasted recipe link instead of sending it as a wish", async () => {
@@ -247,23 +298,23 @@ describe("Today plan sheet", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }),
       { target: { value: "https://example.com/tacos" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
     expect(String(fetchSpy.mock.calls[0][0])).toBe("/api/plan/inspire");
     expect(JSON.parse(String(fetchSpy.mock.calls[0][1]?.body))).toMatchObject({ kind: "url",
       url: "https://example.com/tacos", localDate: "2026-09-26" });
     // The page's words ride as data (planSource), never inside the turn text.
-    expect(postTurn.mock.calls[1][0].text).not.toContain("Chicken tacos");
-    expect(postTurn.mock.calls[1][0].planSource).toEqual({ title: "Chicken tacos",
+    expect(postTurn.mock.calls[0][0].text).not.toContain("Chicken tacos");
+    expect(postTurn.mock.calls[0][0].planSource).toEqual({ title: "Chicken tacos",
       ingredients: ["chicken thigh", "corn tortillas"] });
     expect(await screen.findByText(/From “Chicken tacos”/)).toBeTruthy();
     // "Not this" on the last card replays the link's foods, not a generic "Surprise me".
     fireEvent.click(await screen.findByRole("button", { name: "Not this: Egg and rice bowl" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(3));
-    expect(postTurn.mock.calls[2][0].planSource).toEqual(postTurn.mock.calls[1][0].planSource);
-    expect(postTurn.mock.calls[2][0].text).toContain("PLAN SOURCE");
-    expect(postTurn.mock.calls[2][0].planSkipped).toEqual(["Egg and rice bowl"]);
-    expect(postTurn.mock.calls[2][0].text).not.toContain("Egg and rice bowl");
-    expect(postTurn.mock.calls[2][0].text).not.toContain("Try something I have not had recently");
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
+    expect(postTurn.mock.calls[1][0].planSource).toEqual(postTurn.mock.calls[0][0].planSource);
+    expect(postTurn.mock.calls[1][0].text).toContain("PLAN SOURCE");
+    expect(postTurn.mock.calls[1][0].planSkipped).toEqual(["Egg and rice bowl"]);
+    expect(postTurn.mock.calls[1][0].text).not.toContain("Egg and rice bowl");
+    expect(postTurn.mock.calls[1][0].text).not.toContain("Try something I have not had recently");
     fetchSpy.mockRestore();
   });
 
@@ -277,10 +328,10 @@ describe("Today plan sheet", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }),
       { target: { value: "https://example.com/bad" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    const turn = JSON.stringify(postTurn.mock.calls[1][0]);
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    const turn = JSON.stringify(postTurn.mock.calls[0][0]);
     expect(turn).not.toMatch(/ignore|9000|peanuts/i);
-    expect(postTurn.mock.calls[1][0].planSource).toEqual({ title: null, ingredients: ["rice"] });
+    expect(postTurn.mock.calls[0][0].planSource).toEqual({ title: null, ingredients: ["rice"] });
     fetchSpy.mockRestore();
   });
 
@@ -290,12 +341,12 @@ describe("Today plan sheet", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }),
       { target: { value: "healthy tacos" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole("button", { name: "Not this: Egg and rice bowl" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(3));
-    expect(postTurn.mock.calls[2][0].text).toMatch(/^healthy tacos — /);
-    expect(postTurn.mock.calls[2][0].planSkipped).toEqual(["Egg and rice bowl"]);
-    expect(postTurn.mock.calls[2][0].text).not.toContain("Egg and rice bowl");
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
+    expect(postTurn.mock.calls[1][0].text).toMatch(/^healthy tacos — /);
+    expect(postTurn.mock.calls[1][0].planSkipped).toEqual(["Egg and rice bowl"]);
+    expect(postTurn.mock.calls[1][0].text).not.toContain("Egg and rice bowl");
   });
 
   it("refreshes Full recipes that fit on a quick pick, clearing the old list first", async () => {
@@ -319,19 +370,19 @@ describe("Today plan sheet", () => {
     recipePilot.enabled = true;
     searchCatalogRecipes.mockResolvedValue({ recipes: [{ name: "Opening recipe" }], count: 1, limitations: [] });
     let answer: (value: unknown) => void = () => {};
-    postTurn.mockReset().mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }))
-      .mockResolvedValue(response());
+    requestPlanIdeas.mockReset().mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }))
+      .mockResolvedValue(ideas());
     open();
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Ready in 15 min" }));
-    expect(postTurn).toHaveBeenCalledTimes(1);
+    expect(requestPlanIdeas).toHaveBeenCalledTimes(1);
     expect(searchCatalogRecipes).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Choose for me" }).getAttribute("aria-pressed")).toBe("true");
-    answer(response());
+    answer(ideas());
     fireEvent.click(await screen.findByRole("button", { name: "Not this: Egg and rice bowl" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    expect(postTurn.mock.calls[1][0].text).toContain("Start with my Favorites");
-    expect(postTurn.mock.calls[1][0].text).not.toContain("15 minutes");
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(2));
+    expect(ideaBody(1).chip).toBe("choose");
+    expect(postTurn).not.toHaveBeenCalled();
     expect(searchCatalogRecipes).toHaveBeenCalledTimes(1);
   });
 
@@ -347,28 +398,29 @@ describe("Today plan sheet", () => {
     expect(input.value).toBe("https://example.com/tacos");
     fireEvent.click(screen.getByRole("button", { name: "High protein" }));
     fireEvent.click(screen.getByRole("button", { name: "Not this: Egg and rice bowl" }));
-    expect(postTurn).toHaveBeenCalledTimes(1);
+    expect(postTurn).toHaveBeenCalledTimes(0);
+    expect(requestPlanIdeas).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Choose for me" }).getAttribute("aria-pressed")).toBe("true");
     page(new Response(JSON.stringify({ kind: "recipe", title: "Chicken tacos", ingredients: ["chicken thigh"] }),
       { status: 200, headers: { "content-type": "application/json" } }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
-    expect(postTurn.mock.calls[1][0].planSource).toEqual({ title: "Chicken tacos", ingredients: ["chicken thigh"] });
-    expect(postTurn.mock.calls[1][0]).not.toHaveProperty("planSkipped");
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    expect(postTurn.mock.calls[0][0].planSource).toEqual({ title: "Chicken tacos", ingredients: ["chicken thigh"] });
+    expect(postTurn.mock.calls[0][0]).not.toHaveProperty("planSkipped");
     await waitFor(() => expect(input.value).toBe(""));
     fetchSpy.mockRestore();
   });
 
   it("keeps the composer's words when a send is refused because a turn is in flight", async () => {
-    postTurn.mockReset().mockReturnValueOnce(new Promise(() => {}));
+    requestPlanIdeas.mockReset().mockReturnValueOnce(new Promise(() => {}));
     open();
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(requestPlanIdeas).toHaveBeenCalledTimes(1));
     const input = screen.getByRole("textbox", { name: "Ask for a meal idea" }) as HTMLInputElement;
     for (const value of ["healthy tacos", "https://example.com/tacos"]) {
       fireEvent.change(input, { target: { value } });
       fireEvent.submit(input.closest("form") as HTMLFormElement);
       expect(input.value).toBe(value);
     }
-    expect(postTurn).toHaveBeenCalledTimes(1);
+    expect(postTurn).toHaveBeenCalledTimes(0);
   });
 
   it("searches no recipes when nothing a link named survives the screen", async () => {
@@ -383,7 +435,7 @@ describe("Today plan sheet", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Ask for a meal idea" }),
       { target: { value: "https://example.com/bad" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
     expect(searchCatalogRecipes).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Opening recipe")).toBeNull();
     fetchSpy.mockRestore();
@@ -394,6 +446,7 @@ describe("Today plan sheet", () => {
   it("says meal ideas are off when the coach route does not exist, without a retry", async () => {
     postTurn.mockReset().mockRejectedValue(new CoachError(404, "not_found", "No such route."));
     open();
+    await sendWish();
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Meal ideas aren’t available right now.");
     expect(alert.textContent).not.toContain("connection");
@@ -403,17 +456,20 @@ describe("Today plan sheet", () => {
   it("shows the server's own words for a timeout or a rate limit, with a retry", async () => {
     postTurn.mockReset().mockRejectedValue(new CoachError(503, "timeout", "Sasha did not answer in time. Try again."));
     open();
+    await sendWish();
     expect((await screen.findByRole("alert")).textContent).toContain("Sasha did not answer in time.");
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
     cleanup();
     postTurn.mockReset().mockRejectedValue(new CoachError(429, "rate_limited", "You have asked a lot today. Try again in a few minutes.", 120));
     open();
+    await sendWish();
     expect((await screen.findByRole("alert")).textContent).toContain("You have asked a lot today.");
   });
 
   it("keeps the connection copy for a request that never reached the server", async () => {
     postTurn.mockReset().mockRejectedValue(new TypeError("Failed to fetch"));
     open();
+    await sendWish();
     expect((await screen.findByRole("alert")).textContent)
       .toContain("Couldn’t get meal ideas. Check your connection and try again.");
   });

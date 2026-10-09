@@ -12,6 +12,7 @@ import {
   NO_TARGET_SUGGEST_MESSAGE, NOTHING_LEFT_MESSAGE, REQUIRES_PREPARATION_MESSAGE,
   RULE_REVIEW_SUGGEST_MESSAGE, SUGGEST_RETRY_MESSAGE, SUGGEST_TIMEOUT_MESSAGE,
 } from "@/lib/coach/suggest-messages";
+import { NO_QUICK_MESSAGE, ON_HAND_EMPTY_MESSAGE, ON_HAND_NO_FIT_MESSAGE } from "@/lib/plan/chips";
 
 const TONES: readonly [string, NoticeTone][] = [
   [LABELS_HIDDEN_MESSAGE, "attention"],
@@ -24,6 +25,9 @@ const TONES: readonly [string, NoticeTone][] = [
   [NO_SAVED_FOODS_MESSAGE, "neutral"],
   [NOTHING_LEFT_MESSAGE, "neutral"],
   [REQUIRES_PREPARATION_MESSAGE, "neutral"],
+  [ON_HAND_EMPTY_MESSAGE, "neutral"],
+  [ON_HAND_NO_FIT_MESSAGE, "neutral"],
+  [NO_QUICK_MESSAGE, "neutral"],
 ];
 
 /** The tone for a reply that carries one of the fixed notice lines; null for the coach's own words. */
