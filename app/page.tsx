@@ -9,6 +9,7 @@ import { getDay, loadStore, saveStore, upsertExtra, upsertFood } from "@/lib/sto
 import {
   saveEatenSlot, saveItemOverride, saveMealEdit, saveSwap,
 } from "@/lib/plan-day-client";
+import Link from "next/link";
 import DayTypeToggle from "@/components/DayTypeToggle";
 import { formatMacro } from "@/components/nutrition/spec";
 import HeaderAvatar from "@/components/HeaderAvatar";
@@ -925,6 +926,10 @@ export default function Today() {
             override={getDay(viewedDate)?.dayTypeOverride}
             onSaved={refresh}
           />
+          <Link href="/week" aria-label="Open the Week screen"
+            className="tap flex h-11 items-center rounded-full px-3 text-caption font-medium text-graphite">
+            Week
+          </Link>
           <HeaderAvatar />
         </header>
 

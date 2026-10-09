@@ -180,6 +180,7 @@ export default function CoachChat(props: Props) {
   const capabilities = useCapabilities();
   const consumedScanQuery = useRef(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanUnavailable, setScanUnavailable] = useState(false);
   const [tz] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
 
   useEffect(() => {
@@ -188,6 +189,7 @@ export default function CoachChat(props: Props) {
     const url = new URL(window.location.href);
     if (url.searchParams.get("open") !== "scan") return;
     if (capabilities.scan) queueMicrotask(() => setScanOpen(true));
+    else queueMicrotask(() => setScanUnavailable(true));
     url.searchParams.delete("open");
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   }, [capabilities.scan]);
@@ -195,6 +197,10 @@ export default function CoachChat(props: Props) {
   const toolbar = (controls: CoachShellControls) => <>
     {/* The dock's attach tray hands a picked image to this thread (dock-handoff), read for a
         barcode first when scanning is on; `?open=scan` above is the /scan shortcut's sheet. */}
+    {scanUnavailable && <Notice tone="attention" title="Scanning isn't available yet"
+      onDismiss={() => setScanUnavailable(false)}>
+      Search for the food by name instead.
+    </Notice>}
     <DockIntentReceiver ready={!controls.disabled} onAttachment={controls.sendAttachment}
       scanEnabled={capabilities.scan && !controls.scanDisabled} />
     {capabilities.scan && <DockScanReceiver open={scanOpen} onClose={() => setScanOpen(false)}

@@ -390,11 +390,11 @@ describe("Today, the page", () => {
     expect(screen.getByText(/still saving\. Tap to see them\./)).toBeTruthy();
   });
 
-  it("raises the floor-day banner only while quick meals are on", async () => {
+  it("raises the floor-day banner only while quick meals are on, and links to the Week screen", async () => {
     await renderToday({ day: { isFloorDay: true } });
     expect(screen.getByText(/Quick meals on\./)).toBeTruthy();
-    cleanup();
-    await renderToday();
+    cleanup(); await renderToday();
     expect(screen.queryByText(/Quick meals on\./)).toBeNull();
+    expect(screen.getByRole("link", { name: "Open the Week screen" }).getAttribute("href")).toBe("/week");
   });
 });
