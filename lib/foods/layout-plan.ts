@@ -13,6 +13,7 @@ import { planDay, type DayPlan } from "@/lib/meals/day";
 import type { OccasionOverrides } from "@/lib/meals/occasion";
 import type { FocusRanking } from "@/lib/meals/plate";
 import { evidenceKey, type MealEvidence } from "@/lib/meals/snapshot";
+import { cuisineKey, cuisineRanking, type CuisineRanking } from "@/lib/meals/cuisine";
 import { plateChips, type OpenWorldInputs } from "@/lib/meals/open-world";
 import type { Macros, Meal, SlotId } from "@/lib/types";
 
@@ -34,13 +35,14 @@ const memo = new Map<string, DayPlan>();
 
 function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
   overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
-  focus?: LayoutFocus): string {
+  focus?: LayoutFocus, cuisine?: CuisineRanking): string {
   const foodPart = Object.values(foods).map((food) => [food.id, food.name, food.role, food.status,
     food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat].join("|")).sort().join(";");
   // A closed account's key is exactly main's; an open one adds its snapshot's identity, and an
   // active shopping focus its own (end and the keys that count that day).
   return JSON.stringify([date, slots, overrides ?? null, foodPart, evidenceKey(evidence),
-    ...(open ? [open.key] : []), ...(focus ? [`focus:${focus.id}`] : [])]);
+    ...(open ? [open.key] : []), ...(focus ? [`focus:${focus.id}`] : []),
+    ...(cuisine ? [`cuisine:${cuisineKey(cuisine)}`] : [])]);
 }
 
 /**
@@ -53,18 +55,23 @@ function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<strin
  *
  * `focus` (Phase 18 W11, D7): the account's active shopping focus for `date`; every slot then
  * takes the highest list/pantry coverage that fits (lib/meals/day.ts). Absent: unchanged.
+ *
+ * `cuisines` (onb3): the account's stored `user_settings.cuisines`; a stated cuisine raises plates
+ * of its foods (lib/meals/cuisine.ts). None stated: unchanged.
  */
 export function planMealsForDay(
   date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
   overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
-  focus?: LayoutFocus,
+  focus?: LayoutFocus, cuisines?: readonly string[] | null,
 ): LayoutResult {
-  const key = memoKey(date, slots, foods, overrides, evidence, open, focus);
+  const cuisine = cuisineRanking(cuisines);
+  const key = memoKey(date, slots, foods, overrides, evidence, open, focus, cuisine);
   let plan = memo.get(key);
   if (!plan) {
-    plan = open ? planDay(date, slots, foods, overrides, evidence, open.taste, open.ranking, focus)
-      : focus ? planDay(date, slots, foods, overrides, evidence, undefined, undefined, focus)
-        : planDay(date, slots, foods, overrides, evidence);
+    plan = cuisine ? planDay(date, slots, foods, overrides, evidence, open?.taste, open?.ranking, focus, cuisine)
+      : open ? planDay(date, slots, foods, overrides, evidence, open.taste, open.ranking, focus)
+        : focus ? planDay(date, slots, foods, overrides, evidence, undefined, undefined, focus)
+          : planDay(date, slots, foods, overrides, evidence);
     if (memo.size >= MEMO_SIZE) memo.delete(memo.keys().next().value as string);
     memo.set(key, plan);
   }

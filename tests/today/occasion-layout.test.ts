@@ -55,9 +55,9 @@ describe("resolveDay with slot occasions", () => {
     const day = resolveDay(store, DATE, 0, eligible);
     expect(day.slots.every((slot) => slot.meal === null)).toBe(true);
     expect(generatedShortagesForDay(store, DATE, eligible)).toEqual({
-      "meal-1": { missing: ["starch", "fruit"], reason: "Add a breakfast starch or fruit to Eats" },
-      "meal-2": { missing: ["starch"], reason: "Add a lunch starch to Eats" },
-      "meal-3": { missing: ["starch"], reason: "Add a dinner starch to Eats" },
+      "meal-1": { missing: ["starch", "fruit"], reason: "No breakfast starch or fruit fits yet — try another food" },
+      "meal-2": { missing: ["starch"], reason: "No lunch starch fits yet — try another food" },
+      "meal-3": { missing: ["starch"], reason: "No dinner starch fits yet — try another food" },
     });
     // Two proteins serve three slots (A B A), so the protein notice stays quiet.
     expect(generatedProteinAvailabilityForDay(store, DATE, eligible)).toEqual({ available: 2, required: 2 });

@@ -23,7 +23,7 @@ const meal: Meal = {
   macros: { kcal: 140, protein: 12, carbs: 1, fat: 10 },
 };
 const planned: ResolvedSlot = { ...empty, meal, components: meal.components, macros: meal.macros };
-const REASON = "Add a breakfast starch or fruit to Eats";
+const REASON = "No breakfast starch or fruit fits yet — try another food";
 const MISS = "These foods can’t reach this meal’s protein in usual portions";
 
 function Card({ slot, variant = "standard", flow = false, emptyReason, planMiss }: {

@@ -307,7 +307,8 @@ export const CARD_MANIFEST: CardManifestEntry[] = [
     states: ["open", "overflowing"],
     renderTest: "tests/design/overflow.test.tsx" },
   { path: "components/InstallPrompt.tsx", card: "InstallPrompt",
-    states: ["hidden", "offered", "dismissed"],
+    states: ["hidden", "standalone", "android", "unavailable", "declined", "safari", "browsers",
+      "open safari", "dismissed"],
     renderTest: "components/InstallPrompt.test.tsx" },
   // ---------------------------------------------------------------- Onboarding v2
   { path: "components/Onboarding/reward/RewardPlateCard.tsx", card: "RewardPlateCard",

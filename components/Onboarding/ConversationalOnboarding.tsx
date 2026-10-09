@@ -48,6 +48,7 @@ import { foodShortName } from "@/components/Onboarding/food-display-names";
 import { starterSelectionValid } from "@/lib/foods/starter";
 import { starterProteinAvailability } from "@/lib/foods/starter-availability";
 import { starterFillShortRoles, starterFood } from "@/lib/foods/starter";
+import { starterFillOrder } from "@/lib/foods/starter-variety";
 import { onboardingPlanPreview, type PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
 import { RATE_NOT_ELIGIBLE_ERROR, saveOnboardingPlan } from "@/lib/onboarding/save-plan";
 import { energyProfileFrom, isProfileComplete } from "@/lib/profile/energy";
@@ -846,7 +847,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
     const choices = starter.choices;
     const need = foodAccess.status === "legacy" ? { protein: Math.max(2, plannedCount) } : {};
-    const added = starterFillShortRoles(choices, starter.marks, need, tappedOff);
+    const added = starterFillShortRoles(choices, starter.marks, need, tappedOff, starterFillOrder);
     for (const id of added) starter.mark(id, "eats");
     const filled: Record<string, StarterMark> = { ...starter.marks };
     for (const id of added) filled[id] = "eats";

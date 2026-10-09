@@ -10,6 +10,11 @@ const ALLOWED = [
   // device-level
   "smc:body_capability", "meal-companion:install-prompt-dismissed", "smc:device:",
   "smc:coach:return",
+  // device-level: whether/when THIS DEVICE has been opened, declined an Android install prompt,
+  // etc. — same precedent as install-prompt-dismissed above, never account data.
+  "meal-companion:install-prompt-opens", "meal-companion:install-prompt-last-open-at",
+  "meal-companion:install-prompt-android-declined-at",
+  "meal-companion:install-prompt-android-declined-meals",
   // account-scoped by construction
   "smc:u:", "smc:legacy:", "smc-u-",
   // already per account by user id in the key or the value
@@ -17,6 +22,8 @@ const ALLOWED = [
   // window event names, not storage
   "meal-companion:synced", "meal-companion:outbox-queued", "meal-companion:targets-changed",
   "meal-companion:log-queued", "meal-companion:body-profile-changed", "smc:session-check",
+  "meal-companion:android-install-ready", "meal-companion:android-installed",
+  "meal-companion:install-prompt-opens-changed",
   // a BroadcastChannel name and a Web Lock name (reload boundary), not storage
   "smc:device", "smc:writer:",
 ];

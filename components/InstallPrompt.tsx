@@ -1,8 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Button from "@/components/ui/Button";
+import Notice from "@/components/ui/Notice";
 import { APP_NAME } from "@/lib/brand";
+import type { Store } from "@/lib/types";
+import {
+  androidPromptOnCooldown,
+  hasLoggedAnyMeal,
+  loggedMealCount,
+  meaningfulMomentReached,
+  readOpenCount,
+  recordAndroidPromptDeclined,
+} from "@/lib/install-prompt/readiness";
+import {
+  ANDROID_INSTALLED_EVENT,
+  ANDROID_PROMPT_READY_EVENT,
+  readDeferredInstallPrompt,
+  triggerAndroidInstall,
+  wasInstalledThisSession,
+} from "@/lib/install-prompt/android-capture";
+import { OPEN_COUNT_CHANGED_EVENT } from "@/components/InstallPromptCapture";
 
 export const DISMISSED_KEY = "meal-companion:install-prompt-dismissed";
 
@@ -40,100 +58,326 @@ function writeDismissed(): void {
   }
 }
 
-/**
- * iOS Safari never fires `beforeinstallprompt` — there is no programmatic
- * install trigger on iOS, only the manual Share → Add to Home Screen flow.
- * This shows a one-time, dismissible hint pointing at that flow, and hides
- * itself once the app is already installed (standalone) or once dismissed.
- */
-function isIosSafari(): boolean {
-  const ua = window.navigator.userAgent;
-
-  const isIos =
-    /iPad|iPhone|iPod/.test(ua) ||
-    // iPadOS 13+ reports as "MacIntel" but has touch support Macs don't.
-    (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
-
-  if (!isIos) return false;
-
-  // Exclude other iOS browsers (Chrome/Firefox/Edge-on-iOS) — they run on
-  // WebKit but "Add to Home Screen" there makes a bookmark, not this PWA.
-  const isOtherIosBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-  return !isOtherIosBrowser;
-}
-
 function isStandalone(): boolean {
   const nav = window.navigator as Navigator & { standalone?: boolean };
+  if (nav.standalone === true) return true;
+  // `matchMedia` is a real browser API, but it does not exist in every test environment that
+  // renders this component as a side mount (e.g. tests/cards/today.test.tsx, which renders the
+  // whole Today page and never stubs it) — a missing or throwing implementation here must read as
+  // "not installed", never crash the mount.
+  try {
+    return typeof window.matchMedia === "function"
+      && window.matchMedia("(display-mode: standalone)").matches;
+  } catch {
+    return false;
+  }
+}
+
+function isIos(ua: string, platform: string, maxTouchPoints: number): boolean {
   return (
-    window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true
+    /iPad|iPhone|iPod/.test(ua) ||
+    // iPadOS 13+ reports as "MacIntel" but has touch support Macs don't.
+    (platform === "MacIntel" && maxTouchPoints > 1)
   );
 }
 
-export default function InstallPrompt() {
-  const [visible, setVisible] = useState(false);
-  const pathname = usePathname();
+/** iPad shows Share in the top-right toolbar; iPhone/iPod show it in the bottom toolbar. */
+function isIpad(ua: string, platform: string, maxTouchPoints: number): boolean {
+  return /iPad/.test(ua) || (platform === "MacIntel" && maxTouchPoints > 1);
+}
+
+/** Any other real iOS browser — Chrome, Firefox, Edge, Opera. These all run on WebKit, and on
+ *  iOS 16.4+ each one's own Share menu can "Add to Home Screen" too (Sol review, 2026-10-08,
+ *  BLOCK: the earlier copy falsely told Firefox/Edge/old-Chrome users this was impossible — the
+ *  UA cannot tell install CAPABILITY apart from which install API fires, so it never claims
+ *  inability for a real browser, only for an in-app webview, which has no Share menu at all). */
+function isOtherIosBrowser(ua: string): boolean {
+  return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+}
+
+/** An in-app webview (Instagram, Facebook, TikTok, WeChat, X) — none of these expose a real
+ *  Share sheet at all, on iOS or Android. */
+function isInAppWebview(ua: string): boolean {
+  return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|TikTok/i.test(ua);
+}
+
+type Variant =
+  | { kind: "android" }
+  | { kind: "ios-safari"; ipad: boolean }
+  | { kind: "ios-other-browser" }
+  | { kind: "ios-open-safari" };
+
+function detectVariant(hasAndroidPrompt: boolean): Variant | null {
+  if (hasAndroidPrompt) return { kind: "android" };
+
+  const ua = window.navigator.userAgent;
+  const platform = window.navigator.platform;
+  const maxTouchPoints = window.navigator.maxTouchPoints ?? 0;
+  if (!isIos(ua, platform, maxTouchPoints)) return null;
+
+  // An in-app webview has no Share menu at all — checked first, since some spoof a browser token.
+  if (isInAppWebview(ua)) return { kind: "ios-open-safari" };
+  if (isOtherIosBrowser(ua)) return { kind: "ios-other-browser" };
+  return { kind: "ios-safari", ipad: isIpad(ua, platform, maxTouchPoints) };
+}
+
+function ShareIcon({ className }: { className?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d="M12 3v12" />
+      <path d="m8 7 4-4 4 4" />
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+    </svg>
+  );
+}
+
+function AddToHomeIcon({ className }: { className?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/** The one-time visual guide for iOS Safari (no install API exists there): points at where Share
+ *  actually sits — the bottom toolbar on iPhone, the top-right toolbar on iPad — with the Share and
+ *  Add to Home Screen icons drawn in code, never a dead block of instructions alone. */
+function IosShareGuide({ ipad, onDismiss }: { ipad: boolean; onDismiss: () => void }) {
+  const location = ipad ? "top-right toolbar" : "bottom toolbar";
+  return (
+    <div className="shell">
+      <div className="surface flex flex-col gap-3 px-4 py-4" role="status">
+        <div className="flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-fog text-charcoal">
+            <ShareIcon />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-tiny font-semibold text-charcoal">Install {APP_NAME}</p>
+            <p className="m-0 mt-1 text-tiny font-normal leading-body-sm text-graphite">
+              Tap <span className="font-semibold text-charcoal">Share</span> in the {location},
+              then <span className="font-semibold text-charcoal">Add to Home Screen</span>.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 pl-14 text-muted" aria-hidden="true">
+          <ShareIcon />
+          <ArrowIcon />
+          <AddToHomeIcon />
+        </div>
+        <Button variant="tertiary" size="sm" onClick={onDismiss} className="self-end">
+          Got it
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The install hint. Android/Chrome/Edge gets a real "Install" button driven by a captured
+ * `beforeinstallprompt`; iOS Safari (no install API) gets a one-time visual guide pointing at its
+ * actual Share location; iOS browsers that cannot install at all are told plainly what to do
+ * instead. Never shown once installed (`display-mode: standalone` / `navigator.standalone`),
+ * never before a meaningful moment (a logged meal, else the second app open), and always inline —
+ * mounted on the Today page's own list, never a fixed overlay over a card's actions.
+ */
+export default function InstallPrompt({ store }: { store: Pick<Store, "days"> }) {
+  const [variant, setVariant] = useState<Variant | null>(null);
+  const [installing, setInstalling] = useState(false);
+  // True once a captured prompt has been used up and failed (rejected, or already consumed) — a
+  // BeforeInstallPromptEvent can only ever be prompted once, so "Try again" on the SAME event is
+  // not offered (Sol review round 2, 2026-10-08, BLOCK); only a fresh `beforeinstallprompt` clears
+  // this, via `onReady` below. Mirrored into a ref (Sol review round 3, 2026-10-08, BLOCK) because
+  // `recompute` must see its CURRENT value without being recreated or re-run just because it
+  // changed — a stale closure would either miss a fresh rejection or, worse, let a later recompute
+  // (triggered by something unrelated, like a new meal) silently clear it.
+  const [promptUnavailable, setPromptUnavailableState] = useState(false);
+  const promptUnavailableRef = useRef(false);
+  function setPromptUnavailable(value: boolean): void {
+    promptUnavailableRef.current = value;
+    setPromptUnavailableState(value);
+  }
+
+  // The durable open count. This component only ever READS it (`readOpenCount` and the change
+  // event below) — recording opens and watching `visibilitychange` both live in the
+  // always-mounted `InstallPromptCapture` now (Sol review round 3, 2026-10-08, BLOCK: this card
+  // only mounts on today's Today view, so tracking lived here meant a visibility change on any
+  // other route or date was silently missed).
+  const [opens, setOpens] = useState(0);
+
+  // Derived primitives, not the `store` object itself (Sol review round 3, 2026-10-08, BLOCK):
+  // `store` gets a new reference on every render (e.g. a clock tick elsewhere on the page), and an
+  // effect keyed on it reran needlessly — once that effect also re-ran `detectVariant`, a
+  // post-rejection "install isn't available" state was wiped the very next tick. These two values
+  // are referentially stable unless something actually logged changed.
+  const hasMeal = hasLoggedAnyMeal(store);
+  const mealCount = loggedMealCount(store);
+
+  const recompute = useCallback((hasLoggedMeal: boolean, currentOpens: number) => {
+    if (typeof window === "undefined") return;
+    if (isStandalone() || wasInstalledThisSession() || readDismissed()) {
+      setVariant(null);
+      return;
+    }
+    if (!meaningfulMomentReached(hasLoggedMeal, currentOpens)) {
+      setVariant(null);
+      return;
+    }
+    if (promptUnavailableRef.current) {
+      // Hold the post-rejection Android card exactly as it is: detectVariant has no idea the
+      // captured event was already used up and would otherwise read as "nothing to show" (a
+      // non-Android UA) or quietly swap back to the normal button — both wrong until a genuinely
+      // fresh `beforeinstallprompt` arrives and resets this (see `onReady`).
+      return;
+    }
+    const detected = detectVariant(!!readDeferredInstallPrompt());
+    if (detected?.kind === "android") {
+      try {
+        if (androidPromptOnCooldown(window.localStorage, mealCount)) {
+          setVariant(null);
+          return;
+        }
+      } catch {
+        // Treated as "not on cooldown" — safe to show.
+      }
+    }
+    setVariant(detected);
+  }, [mealCount]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isStandalone()) return;
-    if (readDismissed()) return;
-    if (!isIosSafari()) return;
-    // One-shot mount-time read of browser/storage state (UA, matchMedia,
-    // localStorage) — there is nothing to synchronize continuously, so this
-    // is the documented "read an external system once" exception, not a
-    // cascading-render risk.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVisible(true);
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpens(readOpenCount(window.localStorage));
+    } catch {
+      setOpens(0);
+    }
+    function onOpensChanged(): void {
+      try {
+        setOpens(readOpenCount(window.localStorage));
+      } catch {
+        // No change.
+      }
+    }
+    window.addEventListener(OPEN_COUNT_CHANGED_EVENT, onOpensChanged);
+    return () => window.removeEventListener(OPEN_COUNT_CHANGED_EVENT, onOpensChanged);
   }, []);
 
-  // Onboarding v2 (lane L2, 2026-10-07): the full-screen conversational shell covers its content
-  // with a card of its own at the same spot this floats over, including the food round — route-
-  // suppressed, not dismissed, so it is back the moment the account leaves /onboarding (finished or
-  // skipped) rather than staying hidden for the rest of the session.
-  if (pathname === "/onboarding") return null;
-  if (!visible) return null;
+  useEffect(() => {
+    // One-shot mount-time + event-triggered read of browser/storage state (UA, matchMedia,
+    // localStorage, the captured install event) — there is nothing to synchronize continuously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    recompute(hasMeal, opens);
+    const onReady = () => {
+      // A fresh captured prompt always means the old one (if any) is no longer the reason the
+      // card looks the way it does.
+      setPromptUnavailable(false);
+      recompute(hasMeal, opens);
+    };
+    const onInstalled = () => {
+      writeDismissed();
+      setVariant(null);
+    };
+    window.addEventListener(ANDROID_PROMPT_READY_EVENT, onReady);
+    window.addEventListener(ANDROID_INSTALLED_EVENT, onInstalled);
+    return () => {
+      window.removeEventListener(ANDROID_PROMPT_READY_EVENT, onReady);
+      window.removeEventListener(ANDROID_INSTALLED_EVENT, onInstalled);
+    };
+  }, [recompute, hasMeal, opens]);
 
-  const dismiss = () => {
+  if (!variant) return null;
+
+  function dismiss(): void {
     writeDismissed();
-    setVisible(false);
-  };
+    setVariant(null);
+  }
 
-  return (
-    <div
-      // Sits ABOVE the tab bar AND the quick-actions button (bottom: safe +
-      // 92px, 52px tall), not at the top. A top-anchored banner covered
-      // every page's title — the titles are the one thing that orients the user —
-      // and the old 92px offset covered the "+" button instead.
-      //
-      // A floating white card (DESIGN.md Cards and Surfaces): opaque, because content scrolls
-      // under it; the olive-panel class keeps the rounded panel shape and ink text.
-      className="olive-panel fixed inset-x-4 z-50 flex items-start gap-3 p-4"
-      style={{ bottom: "calc(var(--safe-bottom) + 156px)", background: "var(--grad-panel)",
-        boxShadow: "var(--shadow-float)" }}
-      role="status"
-    >
-      <div className="flex-1">
-        <p className="m-0 text-body font-medium text-on-charcoal">
-          Install {APP_NAME}
-        </p>
-        <p className="m-0 mt-1 text-caption font-normal leading-[1.6] text-graphite">
-          Tap <span className="font-normal text-on-charcoal">Share</span>, then{" "}
-          <span className="font-normal text-on-charcoal">Add to Home Screen</span> for
-          quick access. Turn on meal reminders anytime in Settings.
-        </p>
+  async function onInstall(): Promise<void> {
+    setInstalling(true);
+    try {
+      const outcome = await triggerAndroidInstall();
+      if (outcome === "unavailable" || outcome === "error") {
+        // Either way there is no usable captured event left to retry with — a
+        // BeforeInstallPromptEvent fires `prompt()` at most once. Wait for the browser to offer a
+        // fresh one (`onReady` above) instead of offering a button that can only fail again.
+        setPromptUnavailable(true);
+        return;
+      }
+      if (outcome === "accepted") {
+        writeDismissed();
+        setVariant(null);
+        return;
+      }
+      // "dismissed": the browser's own prompt was declined. This is not the same as the user
+      // explicitly closing the card (the X button), so it is not suppressed forever (Sol review,
+      // 2026-10-08, WARN) — it waits out a cooldown or the next meal logged, whichever is sooner.
+      try {
+        recordAndroidPromptDeclined(window.localStorage, mealCount);
+      } catch {
+        // Harmless: the prompt simply reappears sooner than intended.
+      }
+      setVariant(null);
+    } catch {
+      // A rejection `triggerAndroidInstall` itself did not catch (defense in depth) — restore the
+      // button's enabled state and tell the user, rather than leaving it stuck on "Installing…".
+      setPromptUnavailable(true);
+    } finally {
+      setInstalling(false);
+    }
+  }
+
+  if (variant.kind === "android") {
+    if (promptUnavailable) {
+      return (
+        <div className="shell">
+          <Notice tone="attention" title={`Install ${APP_NAME}`} onDismiss={dismiss}>
+            Install isn&rsquo;t available right now. Use your browser menu → Install app.
+          </Notice>
+        </div>
+      );
+    }
+    return (
+      <div className="shell">
+        <Notice tone="info" title={`Install ${APP_NAME}`} onDismiss={dismiss}
+          action={{ label: installing ? "Installing…" : "Install", onClick: () => void onInstall(), disabled: installing }}>
+          Add {APP_NAME} to your home screen for one-tap access.
+        </Notice>
       </div>
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Dismiss"
-        className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-charcoal bg-fog border border-hairline"
-      >
-        {/* Linear inline SVG, 1.5px stroke — DESIGN.md Shapes: never emoji. */}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m6 6 12 12M18 6 6 18" />
-        </svg>
-      </button>
-    </div>
-  );
+    );
+  }
+
+  if (variant.kind === "ios-other-browser") {
+    return (
+      <div className="shell">
+        <Notice tone="info" title={`Install ${APP_NAME}`} onDismiss={dismiss}>
+          Tap Share in your browser, then Add to Home Screen.
+        </Notice>
+      </div>
+    );
+  }
+
+  if (variant.kind === "ios-open-safari") {
+    return (
+      <div className="shell">
+        <Notice tone="attention" title={`Install ${APP_NAME}`} onDismiss={dismiss}>
+          This browser can&rsquo;t add {APP_NAME} to your home screen. Open this page in Safari to
+          install it.
+        </Notice>
+      </div>
+    );
+  }
+
+  return <IosShareGuide ipad={variant.ipad} onDismiss={dismiss} />;
 }

@@ -33,6 +33,7 @@ import { affinity, PAIR_FLOOR, pairScore, type Scored } from "@/lib/meals/affini
 import type { Occasion } from "@/lib/meals/occasion";
 import type { MealEvidence } from "@/lib/meals/snapshot";
 import { hasTasteValues, tasteMultiplier, tasteZ, type TasteValues } from "@/lib/meals/preference";
+import { cuisineFactor, type CuisineRanking } from "@/lib/meals/cuisine";
 import { byCode, carriesPart, displayName, foodKey, mealFamily, partsOf, unitBand, type Part } from "@/lib/meals/parts";
 import { generationPool, poolAnchors } from "@/lib/meals/pool";
 import { fitsTarget, macroFit, proteinFit, shapeFit, sizePlate, totalOf, type PlateRow, type SizedRow } from "@/lib/meals/size";
@@ -110,6 +111,9 @@ export type PlateInput = {
    * items (lib/shopping/focus.ts `coverageOf`). Absent: unchanged, Phase-17-and-after ranking.
    */
   focus?: FocusRanking;
+  /** The account's stated cuisines (lib/meals/cuisine.ts): a plate-score factor >= 1, ranking
+   *  only. Absent: no factor, every plate unchanged. */
+  cuisine?: CuisineRanking;
 };
 
 export type FocusRanking = {
@@ -297,7 +301,9 @@ function platesFor(anchor: Food | null, pool: PartPools, input: PlateInput, day:
     const taste = hasTasteValues(input.taste) ? tasteMultiplier(sized.map((row) => ({ key: foodKey(row.food),
       amount: row.qty * macroKcal(row.food.perUnit) })), input.taste, input.occasion) : undefined;
     const fits = fitsTarget(macros, input.target);
-    const ranked = taste === undefined ? base : base * taste;
+    const cuisine = input.cuisine ? cuisineFactor(sized.map((row) => ({ food: row.food, part: row.part,
+      kcal: row.component.macros.kcal })), key, input.cuisine) : 1;
+    const ranked = (taste === undefined ? base : base * taste) * cuisine;
     const coverage = input.focus?.coverageOf(sized.map((row) => ({ key: foodKey(row.food),
       kcal: row.component.macros.kcal })));
     plates.push({
@@ -352,7 +358,7 @@ function shortageFor(anchors: readonly Food[], pool: PartPools, input: PlateInpu
   // The parts are there but none goes together at breakfast (yogurt beside rice only): name the
   // base it needs rather than a portion problem (GPT-6 Sol O1 round 2, finding 13).
   if ((key === "breakfast" || key === "snack") && present.includes("starch")) {
-    return { missing: ["starch"], reason: "Add a bread, porridge or cereal to Eats for this meal" };
+    return { missing: ["starch"], reason: "No bread, porridge or cereal fits this meal yet — try another food" };
   }
   return { missing: [], reason: "No plate fits this meal inside usual portions" };
 }

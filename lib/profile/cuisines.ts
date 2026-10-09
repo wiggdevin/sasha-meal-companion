@@ -16,12 +16,14 @@
  *
  * Pure. No I/O.
  */
-import { CUISINE_LABELS, CUISINES, type CuisineKey } from "@/lib/foods/universe/vocabulary";
+import { CUISINE_LABELS, CUISINE_PAIRING_GROUP, CUISINES, type CuisineKey } from "@/lib/foods/universe/vocabulary";
 
 export type { CuisineKey };
 /** For the UI (Settings, onboarding) and the W5b taste chips: the vocabulary and its labels, so no other
  *  module reaches into the universe module. */
 export { CUISINES, CUISINE_LABELS };
+/** For the meal engine's cuisine ranking (lib/meals/cuisine.ts): each cuisine's pairing group. */
+export { CUISINE_PAIRING_GROUP };
 
 export const CUISINES_MAX = 6;
 const COUNTRY_CODE = /^[A-Z]{2}$/;

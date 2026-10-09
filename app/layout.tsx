@@ -4,7 +4,7 @@ import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import { CapabilitiesProvider } from "@/components/CapabilitiesProvider";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
-import InstallPrompt from "@/components/InstallPrompt";
+import InstallPromptCapture from "@/components/InstallPromptCapture";
 import SyncBootstrap from "@/components/SyncBootstrap";
 import AuthGate from "@/components/AuthGate";
 import DevFreshnessBanner from "@/components/DevFreshnessBanner";
@@ -39,6 +39,13 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: APP_NAME,
   },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   robots: { index: false, follow: false },
 };
 
@@ -66,7 +73,10 @@ export default function RootLayout({
           <SectionHue />
           <ServiceWorkerRegistrar />
           <SyncBootstrap />
-          <InstallPrompt />
+          {/* The visible install card is inline on the Today page (owner feedback, 2026-10-08: it
+              must never float over a meal card's actions). Only the silent capture — attaching
+              `beforeinstallprompt` before it can be missed — lives at the root. */}
+          <InstallPromptCapture />
           <AuthGate>
             {children}
             <AppChrome />

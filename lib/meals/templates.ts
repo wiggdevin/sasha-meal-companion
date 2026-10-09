@@ -86,12 +86,14 @@ const PART_WORD: Record<Part, string> = {
   anchor: "protein", protein: "protein", starch: "starch", veg: "vegetable", fruit: "fruit", fat: "fat",
 };
 
-/** "Add a breakfast starch or fruit to Eats"; no occasion word for an overnight or untimed slot. */
+/** "No breakfast starch or fruit fits yet — try another food"; no occasion word for an overnight or
+ *  untimed slot. Favorites boost a food and never gate one, so the copy never asks the person to
+ *  add a food to a list before it can be used (owner direction, onb3). */
 export function shortageReason(occasion: Occasion, missing: readonly Part[]): string {
   const words = [...new Set(missing.map((part) => PART_WORD[part]))];
   const what = words.length ? words.join(" or ") : "food";
   const when = occasion === "other" ? "" : `${occasion} `;
-  return `Add a ${when}${what} to Eats`;
+  return `No ${when}${what} fits yet — try another food`;
 }
 
 /** Proteins eaten with a soft base at breakfast: yogurt, cottage cheese, a shake. */

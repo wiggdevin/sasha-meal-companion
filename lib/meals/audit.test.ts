@@ -85,6 +85,6 @@ describe("O1 audit regressions", () => {
       slot: "meal-1", occasion: "breakfast", target: { kcal: 500, protein: 35, carbs: 55, fat: 14 }, foods });
     expect(breakfast(eats(F.yogurt, F.roti)).shortage).toBeNull();
     expect(breakfast(eats(F.yogurt, F.rice)).shortage)
-      .toEqual({ missing: ["starch"], reason: "Add a bread, porridge or cereal to Eats for this meal" });
+      .toEqual({ missing: ["starch"], reason: "No bread, porridge or cereal fits this meal yet — try another food" });
   });
 });
