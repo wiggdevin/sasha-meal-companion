@@ -9,8 +9,8 @@
  */
 import { accountHandle, assertCurrent, type AccountHandle } from "@/lib/device/account";
 import { nextSort, type FavoriteKind, type FavoriteRow } from "@/lib/favorites";
-import { allRows, getMeta, getRow, putMeta, putRow } from "@/lib/sync/idb";
-import { enqueue } from "@/lib/sync/outbox";
+import { favoritesTx } from "@/lib/favorites-tx";
+import { allRows, getMeta, getRow, putMeta } from "@/lib/sync/idb";
 import type { Entity } from "@/lib/sync/types";
 
 export type FavoriteMeta = { name?: string; catalogFoodId?: number | null; revisionId?: number | null };
@@ -61,32 +61,30 @@ async function toggleAs(
   h: AccountHandle, kind: FavoriteKind, id: string, sort?: number, meta?: FavoriteMeta,
 ): Promise<boolean> {
   const entity = ENTITY[kind];
-  const row = (await getRow(h, entity, id)) as Record<string, unknown> | undefined;
-  const rev = typeof row?.rev === "number" ? row.rev : null;
   const now = new Date().toISOString();
   if (meta) await writeIndex(h, `${kind}:${id}`, meta);
-
-  if (row && !row.deleted_at) {
-    await putRow(h, entity, id, { ...row, deleted_at: now });
-    await enqueue(h, { op_id: crypto.randomUUID(), entity, entity_id: id, kind: "delete",
-      base_rev: rev, payload: {}, client_ts: now });
-    return false;
-  }
-  if (row) {
-    await putRow(h, entity, id, { ...row, deleted_at: null });
-    await enqueue(h, { op_id: crypto.randomUUID(), entity, entity_id: id, kind: "restore",
-      base_rev: rev, payload: {}, client_ts: now });
+  // The mirror row and its op commit in ONE transaction (Sol r1 #1): a tombstone written before a
+  // failed enqueue would be a delete the server never hears of.
+  return favoritesTx(h, entity, async (tx) => {
+    const row = await tx.get(id);
+    const rev = typeof row?.rev === "number" ? row.rev : null;
+    if (row) {
+      const deleting = !row.deleted_at;
+      await tx.put(id, { ...row, deleted_at: deleting ? now : null });
+      await tx.enqueue({ op_id: crypto.randomUUID(), entity, entity_id: id,
+        kind: deleting ? "delete" : "restore", base_rev: rev, payload: {}, client_ts: now });
+      return !deleting;
+    }
+    if (kind === "meal") {
+      throw new Error("favorites_meals: a saved meal is starred, not created, by toggleFavorite");
+    }
+    const existing = (await tx.getAll()).map((r) => ({ sort: Number(r.sort ?? 0) }));
+    const payload = { [KEY_COLUMN[kind]]: id, sort: sort ?? nextSort(existing) };
+    await tx.put(id, { ...payload, rev: 1, deleted_at: null, updated_at: now });
+    await tx.enqueue({ op_id: crypto.randomUUID(), entity, entity_id: id, kind: "create",
+      base_rev: null, payload, client_ts: now });
     return true;
-  }
-  if (kind === "meal") {
-    throw new Error("favorites_meals: a saved meal is starred, not created, by toggleFavorite");
-  }
-  const existing = (await allRows(h, entity)) as { sort: number }[];
-  const payload = { [KEY_COLUMN[kind]]: id, sort: sort ?? nextSort(existing) };
-  await putRow(h, entity, id, { ...payload, rev: 1, deleted_at: null, updated_at: now });
-  await enqueue(h, { op_id: crypto.randomUUID(), entity, entity_id: id, kind: "create",
-    base_rev: null, payload, client_ts: now });
-  return true;
+  });
 }
 
 export async function listFavorites(): Promise<FavoriteRow[]> {
