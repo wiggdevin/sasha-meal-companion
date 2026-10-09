@@ -3,7 +3,7 @@
  * event, so the well needs no prop threaded through the Day card. With no host listening (the
  * design gallery), nothing happens. `origin` is the element the overview grows out of.
  */
-export const TOUR_OPEN_EVENT = "smc:tour-open";
+export const TOUR_OPEN_EVENT = "tour-open-requested";
 
 export type TourOpenDetail = { origin: Element | null };
 

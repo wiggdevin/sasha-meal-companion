@@ -960,7 +960,7 @@ export default function Today() {
             mounts this page). */}
         {isToday && <InstallPrompt store={store} />}
 
-        {/* "How Sasha works": once after onboarding, and whenever the companion is tapped. */}
+        {/* The app overview: once after onboarding, and whenever the companion is tapped. */}
         <TodayTour onboardedAt={store.settings.onboardedAt} />
 
         {elsewhere && (

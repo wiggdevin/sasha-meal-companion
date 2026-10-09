@@ -98,7 +98,7 @@ export default function SproutStage({ state, glance, bounce, when = "today", fig
   const name = MASCOTS[mascot].name;
   const art = wellArt(mascot, state.mood);
   return <div className={styles.stage} data-mood={state.mood}>
-    {/* A tap says hello and offers "How Sasha works?" beside the pet (components/tour). */}
+    {/* A tap says hello and offers the app overview beside the pet (components/tour). */}
     <button ref={self} type="button" className={`tap ${styles.pet}`} aria-label={`${name}. Say hello`}
       onClick={() => { setHello((count) => count + 1); setTaps((count) => count + 1); if (!reduce) void hopOnce(hop); }}>
       <span aria-hidden="true" className={styles.shadow} data-still={reduce || undefined} />

@@ -1,8 +1,9 @@
 import type { MascotPose } from "@/components/today/island/mascots";
+import { APP_NAME, ASSISTANT_NAME } from "@/lib/brand";
 import type { TourIconName } from "@/components/tour/TourIcons";
 
 /**
- * The first-run overview's content (owner, 2026-10-08: "nothing explains what Sasha is, how the cards
+ * The first-run overview's content (owner, 2026-10-08: "nothing explains what the app is, how the cards
  * work, how to change a card, or the gestures"). Five short steps; each names one animated demo
  * (TourDemos.tsx) drawn in code over a simplified meal card. The card behaviour taught here is the
  * meal-cards-v2 contract: keep the two in step when the card changes.
@@ -25,8 +26,8 @@ export type TourStep = {
 export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "meet",
-    title: "Meet Sasha",
-    lead: "Sasha tells you what to eat and when.",
+    title: `Meet ${APP_NAME}`,
+    lead: `${APP_NAME} tells you what to eat and when.`,
     points: [
       "Meals come from your own foods and targets.",
       "Tick each one off as you eat it.",
@@ -68,11 +69,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     id: "coach",
-    title: "Ask Sasha anything",
-    lead: "Type or talk to Sasha to change anything.",
+    title: `Ask ${ASSISTANT_NAME} anything`,
+    lead: `Type or talk to ${ASSISTANT_NAME} to change anything.`,
     points: [
       "“Move lunch to 1 PM.”",
-      "An empty slot offers Plan with Sasha and Log what you ate.",
+      `An empty slot offers Plan with ${ASSISTANT_NAME} and Log what you ate.`,
     ],
     pose: "listening",
   },

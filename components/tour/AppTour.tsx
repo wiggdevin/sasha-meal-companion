@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import Button from "@/components/ui/Button";
@@ -28,7 +29,7 @@ function originOffset(origin: DOMRect | null | undefined): { x: number; y: numbe
 }
 
 /**
- * "How Sasha works", the first-run overview (owner, 2026-10-08). A modal sheet that grows out of the
+ * "How <app> works", the first-run overview (owner, 2026-10-08). A modal sheet that grows out of the
  * companion that opened it (or rises from below when it opened by itself) on the gentle spring and
  * folds back into it on close. Five steps, each an animated demo over a drawn meal card and a few
  * short lines; Back and Next move between them (and the arrow keys), the dots show where you are,
@@ -168,7 +169,7 @@ export default function AppTour({ onClose, origin, mascot = "sprout", returnFocu
         <div className="flex items-center gap-2">
           {step > 0 && <Button variant="tertiary" onClick={() => go(-1)}>Back</Button>}
           <Button ref={nextRef} variant="primary" className="flex-1" onClick={() => go(1)}>
-            {last ? "Start using Sasha" : "Next"}
+            {last ? `Start using ${APP_NAME}` : "Next"}
           </Button>
         </div>
       </div>

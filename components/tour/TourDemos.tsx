@@ -1,5 +1,6 @@
 "use client";
 
+import { ASSISTANT_NAME } from "@/lib/brand";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -168,7 +169,7 @@ export function MiniMealCard({ state, reduce }: { state: MiniCardState; reduce: 
   </motion.div>;
 }
 
-/* ---- step 1: what Sasha is ------------------------------------------------------------------- */
+/* ---- step 1: what the app is ----------------------------------------------------------------- */
 
 const MEET_BEATS = [700, 700, 700, 1100, 500, 1600] as const;
 
@@ -377,7 +378,7 @@ function CoachDemo({ reduce }: { reduce: boolean }) {
     </AnimatePresence>
     <div className={styles.composer}>
       <span className={styles.composerText}>
-        {typed ? typed : <span className={styles.composerHint}>Ask Sasha</span>}
+        {typed ? typed : <span className={styles.composerHint}>{`Ask ${ASSISTANT_NAME}`}</span>}
       </span>
       <span className={styles.mic}>
         {!reduce && beat === 0 && <motion.span className={styles.micPulse} initial={{ opacity: 0.7, scale: 1 }}

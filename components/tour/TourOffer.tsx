@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { FADES, INSTANT, SPRINGS } from "@/lib/design/motion";
@@ -10,7 +11,7 @@ import styles from "@/components/tour/TourOffer.module.css";
 export const OFFER_MS = 6000;
 
 /**
- * "How Sasha works?" — the bubble a tap on the companion shows beside it (owner, 2026-10-08: keep the
+ * "How <app> works?" — the bubble a tap on the companion shows beside it (owner, 2026-10-08: keep the
  * hop and the hello, offer the overview instead of opening it). It pops out on the bouncy spring,
  * stays a few seconds (longer while it has focus) and opens the overview out of the companion.
  * `shown` is the tap count; each new tap shows it again.
@@ -49,7 +50,7 @@ export default function TourOffer({ shown, origin, floating = false }: {
       exit={reduce ? { opacity: 0, transition: INSTANT } : { opacity: 0, scale: 0.8, transition: FADES.quick }}
       transition={reduce ? INSTANT : SPRINGS.bouncy}
       onClick={() => { setOpen(false); requestTour(origin()); }}>
-      How Sasha works?
+      {`How ${APP_NAME} works?`}
     </motion.button>;
   // Reduced motion: it simply comes and goes.
   return reduce ? bubble || null : <AnimatePresence>{bubble}</AnimatePresence>;
