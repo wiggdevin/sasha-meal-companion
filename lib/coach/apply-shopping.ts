@@ -12,6 +12,7 @@
 
 import type { CoachAction } from "@/lib/coach/actions";
 import { dateInZone, type ApplyContext, type ApplyResult, type UndoToken } from "@/lib/coach/apply-shared";
+import { AccountChanged, accountHandle } from "@/lib/device/account";
 import { recipeAccessForCurrentAccount } from "@/lib/recipe-access-client";
 import { addToCurrentShoppingList, deleteShoppingLine } from "@/lib/shopping-client";
 import type { ShoppingLine } from "@/lib/shopping/types";
@@ -29,7 +30,11 @@ function today(ctx: Pick<ApplyContext, "tz" | "now">): string | null {
 export async function applyAddToShoppingList(
   action: ShoppingAction, ctx: ApplyContext,
 ): Promise<ApplyResult> {
-  const enabled = await recipeAccessForCurrentAccount();
+  // One account for the whole apply (audit 2026-10-08 §4): the gate, both tries and the rollback
+  // all run as the account bound when the apply started. A switch part-way throws AccountChanged
+  // (the apply path's existing contract) instead of writing to the new account's list.
+  const account = accountHandle();
+  const enabled = await recipeAccessForCurrentAccount(account);
   if (!enabled) return { status: "failed", reason: SHOPPING_UNAVAILABLE_REASON };
   const date = today(ctx);
   if (!date) return { status: "failed", reason: "Could not read today's date." };
@@ -39,19 +44,21 @@ export async function applyAddToShoppingList(
   const idsOf = (names: readonly string[]) => names.map((name) => ids.get(name) ?? crypto.randomUUID());
   const saved: ShoppingLine[] = [];
   try {
-    const first = await addToCurrentShoppingList(action.names, date, ctx.tz, idsOf(action.names));
+    const first = await addToCurrentShoppingList(action.names, date, ctx.tz, idsOf(action.names), account);
     saved.push(...first.lines);
     // One retry for what failed; if anything still did not save, the card says so and the saved
     // part is taken back, so the list never holds half of an add the card calls failed (DeepSeek
     // audit round 8: a partial-add notice reached no screen).
     if (first.failed.length > 0) {
-      const retry = await addToCurrentShoppingList(first.failed, date, ctx.tz, idsOf(first.failed));
+      const retry = await addToCurrentShoppingList(first.failed, date, ctx.tz, idsOf(first.failed), account);
       saved.push(...retry.lines);
       if (retry.failed.length > 0) throw new Error("partial add");
     }
-  } catch {
+  } catch (error) {
+    // No rollback under another account: the saved lines belong to the account that left.
+    if (error instanceof AccountChanged) throw error;
     // Also when the retry itself throws (round 9): what did save is taken back.
-    await Promise.allSettled(saved.map((line) => deleteShoppingLine(line)));
+    await Promise.allSettled(saved.map((line) => deleteShoppingLine(line, account)));
     return { status: "failed", reason: "Those items did not save. Try again." };
   }
   const lines = [...new Map(saved.map((line) => [line.id, line])).values()];

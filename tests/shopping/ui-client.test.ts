@@ -130,3 +130,30 @@ it("adds items to the list that covers today, starting this week's list when the
   await addToCurrentShoppingList(["bread"], "2026-10-04", "America/Denver");
   expect(calls.filter((call) => call.method === "POST" && call.url === "/api/shopping/periods")).toHaveLength(1);
 });
+
+it("never writes to a second account's list when the account switches part-way (audit 2026-10-08 §4)",
+  async () => {
+    const calls: { url: string; account: string | null }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
+      calls.push({ url, account: new Headers(init.headers).get("x-smc-account") });
+      // The other account signs in while the list read is in flight.
+      unbindAccount(); bindAccount("other-user");
+      return new Response(JSON.stringify({ periods: [] }), { status: 200 });
+    }));
+    await expect(addToCurrentShoppingList(["eggs"], "2026-10-02", "America/Denver"))
+      .rejects.toBeInstanceOf(AccountChanged);
+    expect(calls).toEqual([{ url: "/api/shopping/periods", account: TEST_USER }]);
+  });
+
+it("treats a line refused for an account change as an account change, not an item to retry", async () => {
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
+    if (url === "/api/shopping/periods" && !init.method)
+      return new Response(JSON.stringify({ periods: [{ id: "p1", startDate: "2026-10-01",
+        endDate: "2026-10-07", revision: 1 }] }), { status: 200 });
+    unbindAccount(); bindAccount("other-user");
+    return new Response(JSON.stringify({ line: { id: "l1", periodId: "p1", name: "eggs", revision: 1 } }),
+      { status: 201 });
+  }));
+  await expect(addToCurrentShoppingList(["eggs"], "2026-10-02", "America/Denver"))
+    .rejects.toBeInstanceOf(AccountChanged);
+});
