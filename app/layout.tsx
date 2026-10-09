@@ -4,6 +4,7 @@ import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import { CapabilitiesProvider } from "@/components/CapabilitiesProvider";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import ClientErrorHook from "@/components/ClientErrorHook";
 import InstallPrompt from "@/components/InstallPrompt";
 import SyncBootstrap from "@/components/SyncBootstrap";
 import AuthGate from "@/components/AuthGate";
@@ -59,6 +60,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body className="bg-paper text-charcoal antialiased">
+        <ClientErrorHook />
         <DevFreshnessBanner />
         <CapabilitiesProvider value={capabilities}>
           {/* The Harvest ground (DESIGN.md §Techniques): still, pure CSS, oat with a matte grain. */}
