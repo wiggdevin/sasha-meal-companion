@@ -43,6 +43,7 @@ import DayNutrients from "@/components/DayNutrients";
 import InstallPrompt from "@/components/InstallPrompt";
 import Notice from "@/components/ui/Notice";
 import SlotCard, { SlotCardEnter, type SlotVariant } from "@/components/SlotCard";
+import { useMealFavorites } from "@/components/today/useMealFavorites";
 import SwapSheet from "@/components/SwapSheet";
 import EditSlotSheet from "@/components/EditSlotSheet";
 import type { TimingRun } from "@/lib/timing";
@@ -326,6 +327,8 @@ export default function Today() {
    * started a write; every run queues behind the one in flight, so no write joins another.
    */
   const todayFeedback = useActionFeedback();
+  // The meal card heart: each plate's saved meal, saved and undone in the page's toast (meal cards v3).
+  const mealFavorites = useMealFavorites({ eligible: eligibleFoodIds, feedback: todayFeedback });
   const dismissToday = todayFeedback.dismiss;
 
   useEffect(() => onAccountGone(() => {
@@ -1085,6 +1088,7 @@ export default function Today() {
                   mealFeedback={todayFeedback.phaseFor(`meal:${slot.slot}`)}
                   emptyReason={note.emptyReason}
                   planMiss={note.planMiss}
+                  favorite={mealFavorites.favoriteFor(slot, viewedDate)}
                 />
               </SlotCardEnter>
             );
