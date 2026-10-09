@@ -36,6 +36,19 @@ describe("coach composer integration", () => {
     expect(screen.queryByRole("dialog", { name: "Scan" })).toBeNull();
   });
 
+  // Reconciliation audit 2026-10-08, finding `scan-route-orphaned`: the /scan shortcut silently
+  // did nothing when FEATURE_SCAN is off. It now shows a friendly Notice instead.
+  it("shows a friendly notice for ?open=scan when scanning isn't available", async () => {
+    window.history.replaceState(null, "", "/coach?open=scan");
+    render(<CapabilitiesProvider value={{ coach: true, scan: false, captureMethods: [] }}>
+      <CoachChat userId="user-1" threadId={null} onOpenDraft={vi.fn()} onThreadSaved={vi.fn()} />
+    </CapabilitiesProvider>);
+
+    expect(await screen.findByText("Scanning isn't available yet")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Scan" })).toBeNull();
+    expect(window.location.pathname + window.location.search).toBe("/coach");
+  });
+
   it("renders the Coach header inside the exact-height shell slot", () => {
     render(<CapabilitiesProvider value={{ coach: false, scan: false, captureMethods: [] }}>
       <CoachScreen />
