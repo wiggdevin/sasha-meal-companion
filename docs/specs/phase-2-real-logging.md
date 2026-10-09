@@ -17,6 +17,17 @@ estimates. Her whole log leaves the app as CSV that opens cleanly in a spreadshe
 macros, fiber and micro coverage; a per-entry nutrient breakdown; DRI rows for the tracked micro set;
 `GET /api/export` for `kind=meals|progress`; `POST /api/log/commit`; MCP `get_day` on real nutrients.
 
+**Built since (2026-10-08): the duplicate-entry card.** `components/today/DuplicateEntryCard.tsx`
+(mounted on Today between the Day card and the meal list) shows one "Logged twice?" card per open
+`duplicate_groups` row of the viewed day, with the two entries (time, foods, kcal), **Keep both**
+(→ `dismissed`, with Undo) and **Merge** (the newer entries go through the normal delete path; the
+group becomes `merged` into the oldest, whose items are untouched; no Undo, a delete is a tombstone).
+`lib/duplicates/read.ts` reads the group from the sync mirror and finds its members by recomputing
+the shared fingerprint over the mirrored entries; `lib/duplicates/actions.ts` writes each decision
+as a `duplicate_groups` update through the outbox. **Server gap:** `recordFingerprint`
+(`lib/server/log-duplicates.ts`) inserts the group directly and writes no `change_log` row, so a
+group never reaches the phone's change feed; until it does, the card stays hidden in production.
+
 **Out.** Barcode, recipes, favorites, water UI and the export kinds `recipes`, `favorites`, `water`
 (Phase 3+). No phase currently owns an `exercise` export kind or an exercise-logging table — see Open
 question 5. AI capture and the propose/confirm sheet (Phase 4) — `/api/log/commit` ships here,

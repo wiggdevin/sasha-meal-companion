@@ -106,6 +106,12 @@ vi.mock("@/lib/profile/onboarding-state", async (importOriginal) => {
 });
 
 vi.mock("@/lib/supabase/client", () => ({ browserClient: () => ({}) }));
+// The duplicate-entry card reads open groups from the account's mirror; pinned here, empty by default.
+const duplicates = vi.hoisted(() => ({ groups: [] as unknown[] }));
+vi.mock("@/lib/duplicates/read", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/duplicates/read")>()),
+  readOpenDuplicateGroups: async () => duplicates.groups,
+}));
 vi.mock("@/lib/health/capability-client", () => ({ useBodyCapability: () => "enabled" }));
 vi.mock("@/lib/coach-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/coach-client")>()),
@@ -388,6 +394,30 @@ describe("Today, the page", () => {
   it("raises the saving elsewhere banner for meals filed under another day", async () => {
     await renderToday({ elsewhere: { date: isoDaysAgo(1), count: 2 } });
     expect(screen.getByText(/still saving\. Tap to see them\./)).toBeTruthy();
+  });
+
+  it("mounts the duplicate-entry card below the Day card and above the plan, only while a group is open", async () => {
+    await renderToday();
+    expect(screen.queryByTestId("duplicate-entry-card")).toBeNull();
+    cleanup();
+    duplicates.groups = [{
+      group: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", localDate: isoDaysAgo(0), fingerprint: "ab".repeat(32),
+        slot: "meal-2", state: "open", rev: 1 },
+      members: [
+        { entryId: "e1", at: `${isoDaysAgo(0)}T12:31:00`, name: "Lunch", itemNames: ["Rice"], kcal: 200 },
+        { entryId: "e2", at: `${isoDaysAgo(0)}T12:35:00`, name: "Lunch", itemNames: ["Rice"], kcal: 200 },
+      ],
+    }];
+    try {
+      await renderToday();
+      const card = await screen.findByTestId("duplicate-entry-card");
+      const plan = screen.getByRole("region", { name: "Today's plan" });
+      expect(card.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const overview = screen.getByRole("tab", { name: "Calendar" });
+      expect(overview.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } finally {
+      duplicates.groups = [];
+    }
   });
 
   it("raises the floor-day banner only while quick meals are on", async () => {

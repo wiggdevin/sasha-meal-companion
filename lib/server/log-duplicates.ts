@@ -15,9 +15,10 @@ import { entryFingerprint } from "@/lib/sync/fingerprint";
  * idempotent `duplicate` replay of the SAME entry_id, which is not a second logging event.
  * Finds the open group for this fingerprint (one row per distinct fingerprint per user, via the
  * table's `unique (user_id, fingerprint)` constraint) or opens one, then adds this entry as a
- * member; a second member on the same group is what makes a duplicate detectable later. Reading
- * the group to surface a "Logged twice?" warning is a separate, not-yet-built UI piece (absent
- * from docs/specs/phase-2-real-logging.md) — out of scope here.
+ * member; a second member on the same group is what makes a duplicate detectable later. The phone's
+ * "Logged twice?" card (components/today/DuplicateEntryCard.tsx, lib/duplicates/*) reads the group
+ * from the change feed — which this direct insert does NOT write to (no change_log row), so the
+ * card cannot see a group opened here until that gap is closed.
  *
  * Best-effort like `deleteCommittedMedia` in `lib/server/log.ts`, which runs beside it: the entry
  * itself already committed, so a failure recording its fingerprint is logged, never thrown back.

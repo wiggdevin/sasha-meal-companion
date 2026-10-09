@@ -1,0 +1,88 @@
+/* Today's "Logged twice?" card (architecture §3.7), in the meal cards v4 family: an ivory shell at
+   --radius-lg with 12 px padding, a 12 px eyebrow, a Fraunces title, one primary and one text action. The two entries
+   sit in one inset panel split by a single ink hairline (cards brief §2.5); tokens only. */
+
+.frame {
+  overflow: hidden;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--color-charcoal);
+}
+
+.lede {
+  margin: -4px 0 4px;
+  color: var(--color-muted);
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: rgb(var(--ink-rgb) / .04);
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px;
+}
+
+.entry + .entry {
+  border-top: 1px solid rgb(var(--ink-rgb) / .08);
+}
+
+.time {
+  color: var(--color-graphite);
+  font-weight: 600;
+}
+
+.foods {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-charcoal);
+}
+
+.kcal {
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 4px;
+}
