@@ -12,6 +12,14 @@ import SafetyRound, { type SafetyRoundResult } from "@/components/Onboarding/bea
 import PaceBeat from "@/components/Onboarding/beats/PaceBeat";
 import YourDayBeat from "@/components/Onboarding/beats/YourDayBeat";
 import MinorStop from "@/components/Onboarding/beats/MinorStop";
+import PrefsBeat from "@/components/Onboarding/beats/PrefsBeat";
+import {
+  CUISINE_TILE_LABELS, DISLIKE_FAMILIES, dislikeLabel, parseCuisinesText, parseDislikes, parsePractices,
+  PRACTICE_IDS, PRACTICE_LABELS, settingsWithPrefsAnswers, type PracticeId,
+} from "@/lib/profile/onboarding-prefs-parse";
+import { CUISINES, CUISINES_MAX, type CuisineKey } from "@/lib/profile/cuisines";
+import type { TasteDislike } from "@/lib/profile/taste";
+import { normalizePreferenceFlags } from "@/lib/profile/onboarding-state";
 import {
   activityFor, eligibilityFor, emptyPlanAnswers, isMinor, paceBeatNeeded, planCardNotes,
   safetyAnswersFrom, takesInsulin, trainingWeekdaysFor, type PlanAnswers, type PlanNote,
@@ -123,7 +131,8 @@ const PROFILE_SHORT_NOTICE: PlanNotice = {
 };
 
 export type OnboardingBeat =
-  | "opener" | "facts" | "minor" | "week" | "safety" | "pace" | "day" | "foods" | "reward";
+  | "opener" | "facts" | "minor" | "week" | "safety" | "pace" | "day"
+  | "practices" | "dislikes" | "cuisines" | "foods" | "reward";
 
 /** VISUAL-SPEC.md §2's hero-Sprout table, mapped onto this shell's five beats. "facts" is the one
  *  row the table itself splits in two — "Facts sentence playback" (`thinking`) vs. "Gap-fill
@@ -136,12 +145,14 @@ export type OnboardingBeat =
  *  applied here; it only matters for a side-by-side layout this shell doesn't have. */
 const BEAT_POSE: Record<OnboardingBeat, OnboardingPose> = {
   opener: "wave", facts: "thinking", minor: "content", week: "pointing", safety: "content",
-  pace: "pointing", day: "pointing", foods: "content", reward: "joyful",
+  pace: "pointing", day: "pointing", practices: "pointing", dislikes: "pointing", cuisines: "pointing",
+  foods: "content", reward: "joyful",
 };
 /** VISUAL-SPEC.md §2's three large-Sprout sizes (96/120/140/168) — "Opener/greeting" and "Reward
  *  plate reveal" are the two rows that get a size other than the 96px baseline. */
 const BEAT_SIZE: Record<OnboardingBeat, number> = {
-  opener: 168, facts: 96, minor: 120, week: 96, safety: 96, pace: 96, day: 96, foods: 96, reward: 140,
+  opener: 168, facts: 96, minor: 120, week: 96, safety: 96, pace: 96, day: 96,
+  practices: 96, dislikes: 96, cuisines: 96, foods: 96, reward: 140,
 };
 const BEAT_LINE: Record<OnboardingBeat, string> = {
   opener: "Sprout is listening for your goal.",
@@ -151,6 +162,9 @@ const BEAT_LINE: Record<OnboardingBeat, string> = {
   safety: "Sprout is checking what your plan must respect.",
   pace: "Sprout is setting a pace your plan can keep.",
   day: "Sprout is lining up your meal times.",
+  practices: "Sprout is noting the food rules you keep.",
+  dislikes: "Sprout is noting what to show you less.",
+  cuisines: "Sprout is noting the flavors you like.",
   foods: "Sprout is watching for what you love.",
   reward: "Sprout is showing the foods your plan is built from.",
 };
@@ -162,11 +176,36 @@ const BEAT_LINE: Record<OnboardingBeat, string> = {
  *  planned goal follow-up) is one more row here. */
 const BEAT_DOCK: Record<OnboardingBeat, OnboardingDockMode | null> = {
   opener: "mic", facts: "mic", minor: null, week: null, safety: null, pace: null, day: null,
+  // The three preference questions type into their own box (PrefsBeat), so the dock steps aside.
+  practices: null, dislikes: null, cuisines: null,
   foods: "game", reward: "confirm",
 };
 
-/** The beats after the body facts, in order (QUESTION-SET-v2.md §6). */
-const PLAN_ORDER = ["week", "safety", "pace", "day", "foods", "reward"] as const;
+/** The beats after the body facts, in order (QUESTION-SET-v2.md §6). The three preference
+ *  questions (owner, 2026-10-08: always on) sit right before the food pick, so its deck and the
+ *  plan preview are built under them. */
+const PLAN_ORDER = ["week", "safety", "pace", "day", "practices", "dislikes", "cuisines", "foods", "reward"] as const;
+
+const PRACTICE_TILES = PRACTICE_IDS.map((id) => ({ id, label: PRACTICE_LABELS[id], ariaLabel: PRACTICE_LABELS[id] }));
+const DISLIKE_TILES = DISLIKE_FAMILIES.map((family) => {
+  const label = dislikeLabel(`f:${family}`);
+  return { id: `f:${family}`, label, ariaLabel: `Less ${label}` };
+});
+const CUISINE_TILES = CUISINES.map((key) => ({ id: key, label: CUISINE_TILE_LABELS[key], ariaLabel: CUISINE_TILE_LABELS[key] }));
+const practiceLabel = (id: string) => PRACTICE_LABELS[id as PracticeId] ?? id;
+const dislikeTileLabel = (id: string) => dislikeLabel(id as TasteDislike);
+const cuisineLabel = (id: string) => CUISINE_TILE_LABELS[id as CuisineKey] ?? id;
+const readPractices = (text: string) => { const r = parsePractices(text); return { ids: r.practices, none: r.none }; };
+const readDislikes = (text: string) => { const r = parseDislikes(text); return { ids: r.dislikes, none: r.none }; };
+const readCuisines = (text: string) => { const r = parseCuisinesText(text); return { ids: r.cuisines, none: r.none }; };
+
+/** The account's flags with the practice question's answer in place of any practice flag it held;
+ *  every other flag (an allergen flag, low FODMAP) is kept. */
+function flagsWithPractices(current: readonly string[], practices: readonly PracticeId[]): string[] {
+  const kept = current.filter((flag) => !(PRACTICE_IDS as readonly string[]).includes(flag));
+  return [...kept, ...practices.filter((id) => !kept.includes(id))];
+}
+
 type PlanBeat = (typeof PLAN_ORDER)[number];
 
 /** Noon UTC on a local YYYY-MM-DD, the derivation's own date convention. */
@@ -513,9 +552,17 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
 
   // Every account is in the US (owner, 2026-10-07): the editors show feet/inches and pounds, so the
   // saved display units say so too. Storage stays cm/kg.
+  // The practice answer replaces the practice flags the facts flow would carry (an allergen flag
+  // or another rule flag stays): the food deck, the preview and the save all read these facts.
+  const ruleFacts = useMemo<FactsLike>(() => {
+    if (!plan.practices) return facts;
+    const current = facts.dietFlags ?? normalizePreferenceFlags(base?.dietPrefs?.flags);
+    return { ...facts, dietFlags: flagsWithPractices(current, plan.practices) };
+  }, [facts, plan.practices, base]);
   const settings = useMemo(() => (base
-    ? { ...applyFactsToSettings(base, facts), heightUnit: "ft_in" as const, weightUnit: "lb" as const }
-    : null), [base, facts]);
+    ? settingsWithPrefsAnswers({ ...applyFactsToSettings(base, ruleFacts), heightUnit: "ft_in" as const, weightUnit: "lb" as const },
+      { cuisines: plan.cuisines ?? null, dislikes: plan.dislikes ?? null })
+    : null), [base, ruleFacts, plan]);
   const today = todayIso();
   // The round's taps AND the account's stored answers (final Sol review BLOCK): the server reads
   // both, so a stored hold the round did not repeat still holds the pace here.
@@ -541,8 +588,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     ...(plan.day ? { countryCode: plan.day.inUs ? ONBOARDING_COUNTRY_CHIP : null } : {}),
   }), [pace, plan]);
   const onboardingState = useMemo(
-    () => (settings ? buildOnboardingStateFromFacts(settings, facts, planState) : null),
-    [settings, facts, planState]);
+    () => (settings ? buildOnboardingStateFromFacts(settings, ruleFacts, planState) : null),
+    [settings, ruleFacts, planState]);
   const safetyAnswers = useMemo(() => safetyAnswersFrom(plan.safety), [plan.safety]);
 
   const foodAccess = useOnboardingFoodAccess(onboardingState);
@@ -701,6 +748,9 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       return !paceBeatNeeded(nextPace) || storedPace(nextPace, answers) !== null;
     }
     if (next === "day") return answers.day !== null;
+    if (next === "practices") return (answers.practices ?? null) !== null;
+    if (next === "dislikes") return (answers.dislikes ?? null) !== null;
+    if (next === "cuisines") return (answers.cuisines ?? null) !== null;
     if (next === "foods") return returnToReward && foodsReady;
     return false;
   }
@@ -1068,6 +1118,27 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     }
     if (beat === "day") return <YourDayBeat derivedCount={dayDefaults.derivedCount} initial={plan.day}
       onDone={(day) => answerPlan("day", { day })} />;
+    if (beat === "practices") return <PrefsBeat key="practices" question="Any food rules you keep?"
+      helper="Like halal, kosher, vegetarian, vegan, pescatarian, no pork or no beef. Your plan always follows them."
+      inputLabel="Food rules" placeholder="e.g. halal, no beef" tiles={PRACTICE_TILES} labelFor={practiceLabel}
+      parse={readPractices}
+      initial={plan.practices ?? (facts.dietFlags ?? normalizePreferenceFlags(base?.dietPrefs?.flags))
+        .filter((flag): flag is PracticeId => (PRACTICE_IDS as readonly string[]).includes(flag))}
+      unreadNote="Sprout didn’t catch that. Try words like vegetarian or no pork, or pick from the list."
+      onDone={(ids) => answerPlan("practices", { practices: ids as PracticeId[] })} />;
+    if (beat === "dislikes") return <PrefsBeat key="dislikes" question="Any foods you’d rather skip?"
+      helper="Sprout will show these less. They are not allergies, and they never rule a food out."
+      inputLabel="Foods to skip" placeholder="e.g. mushrooms, olives" tiles={DISLIKE_TILES} labelFor={dislikeTileLabel}
+      parse={readDislikes} initial={plan.dislikes ?? null}
+      unreadNote="Sprout didn’t catch a food there. Try a food name, like mushrooms, or pick from the list."
+      onDone={(ids) => answerPlan("dislikes", { dislikes: ids as TasteDislike[] })} />;
+    if (beat === "cuisines") return <PrefsBeat key="cuisines" question="Which cuisines do you love?"
+      helper={`Pick up to ${CUISINES_MAX}. Food ideas will lean toward them; they never rule a food out.`}
+      inputLabel="Cuisines" placeholder="e.g. Mexican, Thai, Italian" tiles={CUISINE_TILES} labelFor={cuisineLabel}
+      parse={readCuisines}
+      initial={plan.cuisines ?? (base?.cuisines ?? []).filter((key): key is CuisineKey => (CUISINES as readonly string[]).includes(key))} max={CUISINES_MAX}
+      unreadNote="Sprout didn’t catch a cuisine there. Try Mexican, Italian or Thai, or pick from the list."
+      onDone={(ids) => answerPlan("cuisines", { cuisines: ids as CuisineKey[] })} />;
     if (beat === "foods") return slots.foodGame ?? foodsContent;
     return slots.plateReward ?? <RewardPlateCard targets={targets} lovedFoods={lovedFoods} meals={previewMeals}
       notes={planNotes} onChangeNote={changeFromPlan}
