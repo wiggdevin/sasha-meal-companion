@@ -8,7 +8,7 @@ Live: https://sasha-meal-companion.vercel.app
 
 ## Stack
 
-- Next.js 16.3.4, React 19, TypeScript
+- Next.js 16.3.8, React 19, TypeScript
 - Tailwind 4
 - Supabase (project `fivatgdpuenszxxnijpc`) for sync and the MCP server
 - Vitest for tests
@@ -35,7 +35,8 @@ original recipes, account-aware discovery, portion previews, accepted meal selec
 shopping lists to enabled accounts after the remaining release checks in
 [`docs/recipes/pilot-release.md`](docs/recipes/pilot-release.md).
 The C4 online eaten write has focused local database proof; the C5 sync and history fix is in
-`main` with focused loopback two-client tests passed; final independent database verification is pending.
+`main` with focused loopback two-client tests passed, and the independent database verification
+PASSED on 2026-10-04 (`docs/audit/2026-10-04-c5-db-proof.md`).
 The migration ledger does not by itself prove production deployment, seed or pilot enablement.
 AI routes use `GEMINI_API_KEY`; optional Jev routing, ranking and verification uses the server-only
 `TYPESAFE_API_KEY` and falls through when unavailable. Set `RECIPE_PLANNING_USER_IDS` to a
