@@ -15,9 +15,10 @@
  *
  * This file is imported, unconditionally and unflagged, by today's live `OnboardingFlow.tsx` step
  * 4 — the form every current account goes through. The whole v2 rebuild ships dark behind
- * `NEXT_PUBLIC_CHAT_ONBOARDING` (GOAL.md, LANES.md) until Lane 5's QA pass, so the re-skin below
- * only renders when that flag is on; otherwise this exports the exact pre-v2 search-and-grid step
- * (`ClassicFoodsGrid`), byte-for-byte the same screen production sees today.
+ * `NEXT_PUBLIC_CHAT_ONBOARDING` (`docs/specs/phase-10-conversational-onboarding.md`) until its QA
+ * pass, so the re-skin below only renders when that flag is on; otherwise this exports the exact
+ * pre-v2 search-and-grid step (`ClassicFoodsGrid`), byte-for-byte the same screen production sees
+ * today.
  */
 import { useMemo, useState } from "react";
 import { dbFood } from "@/lib/food-db";

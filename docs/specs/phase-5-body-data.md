@@ -360,8 +360,7 @@ sample data in place. Ingested observations are never deleted on rollback — se
 4. **Oura membership and ring generation.** A Gen3-or-later ring with an active membership is required. Confirm before the OAuth app
    is registered, or the callback succeeds and every pull returns empty. **Closed 2026-09-12: ruling 2** — no app is registered in
    this wave; confirming the ring/membership and registering the app stay an owner step.
-5. **Fifth tab or not.** The dashboard currently hangs off Settings and a Today chip. If Devin wants a Body tab, the tab bar grows to
-   five and the icon set needs one more.
+5. **Fifth tab or not.** **Resolved:** Body shipped as its own dock tab (`components/dock/TabCapsule.tsx:18-22`).
 6. **Sleep granularity.** One `sleep_asleep` total per night is stored; Oura's stage breakdown is not. Decide now if Phase 7's coach
    will want it, because backfill is limited.
 7. **`HEALTH_TOKEN_KEY` rotation.** No procedure is specified. Either write the re-seal script before the key reaches production, or

@@ -1,5 +1,10 @@
 # Design restyle — complete change of visual style (logged 2026-09-22)
 
+**Superseded (2026-10-01).** A different restyle shipped instead: "Harvest", from the owner's
+Premium Meal Card reference (branch `feat/nutrition-look`), now the live contract in `DESIGN.md`
+at the repo root. The motion-portfolio/converse sources below were not used. This plan is kept for
+history only.
+
 Owner: Devin. Status: **logged, not started.** Supersedes the current look in `DESIGN.md`
 once work begins; `DESIGN.md` and `CONTEXT.md` are rewritten as part of the job, not before.
 

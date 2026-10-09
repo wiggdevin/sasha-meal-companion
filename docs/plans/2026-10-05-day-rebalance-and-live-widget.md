@@ -1,8 +1,8 @@
 # Day rebalance and the live widget (owner request, 2026-10-05)
 
-Status: **captured, not yet specified.** Owner: Devin. The next step is a spec with GPT-6 Sol review,
-then owner approval, the same path Phase 18 took. Working name for the action: **"Rebalance my day"**.
-The final name is still open.
+Status: **specified, gated off.** The spec is `docs/specs/phase-19-day-rebalance.md` (revision 10,
+reviewed). The panel is gated behind `REBALANCE_PANEL_USER_IDS` in `.env.example`, unreleased in
+production. Working name for the action: **"Rebalance my day"**. The final name is still open.
 
 ## The request, in the owner's words (condensed)
 

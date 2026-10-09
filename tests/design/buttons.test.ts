@@ -32,7 +32,6 @@ const ALLOWLIST: Record<string, { count: number; why: string }> = {
   "components/coach/editors/CaptureDraftEditor.tsx": { count: 2, why: "stream D" },
   "components/coach/editors/EditorPill.tsx": { count: 1, why: "stream D" },
   "components/FavoritesStrip.tsx": { count: 1, why: "stream S" },
-  "components/IcsSubscribe.tsx": { count: 2, why: "stream S" },
   "components/recipes-hub/PutInMeal.tsx": { count: 1, why: "stream T" },
   "components/Sheet.tsx": { count: 1, why: "stream T" },
   "components/ShoppingList.tsx": { count: 2, why: "stream S" },
