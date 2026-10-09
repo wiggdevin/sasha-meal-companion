@@ -390,19 +390,11 @@ describe("Today, the page", () => {
     expect(screen.getByText(/still saving\. Tap to see them\./)).toBeTruthy();
   });
 
-  it("raises the floor-day banner only while quick meals are on", async () => {
+  it("raises the floor-day banner only while quick meals are on, and links to the Week screen", async () => {
     await renderToday({ day: { isFloorDay: true } });
     expect(screen.getByText(/Quick meals on\./)).toBeTruthy();
-    cleanup();
-    await renderToday();
+    cleanup(); await renderToday();
     expect(screen.queryByText(/Quick meals on\./)).toBeNull();
-  });
-
-  // Reconciliation audit 2026-10-08, finding `week-tab-unreachable`: the Week screen existed with
-  // nothing linking to it. The header now carries a "Week" link next to the profile avatar.
-  it("links to the Week screen from the header", async () => {
-    await renderToday();
-    const link = screen.getByRole("link", { name: "Open the Week screen" });
-    expect(link.getAttribute("href")).toBe("/week");
+    expect(screen.getByRole("link", { name: "Open the Week screen" }).getAttribute("href")).toBe("/week");
   });
 });

@@ -189,7 +189,7 @@ export default function CoachChat(props: Props) {
     const url = new URL(window.location.href);
     if (url.searchParams.get("open") !== "scan") return;
     if (capabilities.scan) queueMicrotask(() => setScanOpen(true));
-    else setScanUnavailable(true);
+    else queueMicrotask(() => setScanUnavailable(true));
     url.searchParams.delete("open");
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   }, [capabilities.scan]);
