@@ -25,14 +25,30 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function mount({ water = { cups: 4, goal: 8 } as OrbitWater, reduced = false, date = TODAY } = {}) {
+type MountOptions = {
+  water?: OrbitWater; reduced?: boolean; date?: string; markEaten?: boolean;
+  onMarkEaten?: (slot: string) => void; onSwapNext?: (slot: string) => void; week?: WeekSummary;
+};
+
+function mount({ water = { cups: 4, goal: 8 } as OrbitWater, reduced = false, date = TODAY, markEaten = true,
+  onMarkEaten = () => {}, onSwapNext, week }: MountOptions = {}) {
   const board = <DayBoard date={date} today={TODAY} water={water} onAddCup={() => {}} active
     next={{ slot: "meal-2", label: "Meal 2", name: MEAL, time: "10:30", kcal: 940, protein: 42, image: null }}
-    planned={3} onMarkEaten={() => {}} tips={boardTips()} explainers={[DAY_CARD_EXPLAINER]} />;
+    planned={3} onMarkEaten={markEaten ? onMarkEaten : undefined} onSwapNext={onSwapNext} week={week}
+    tips={boardTips()} explainers={[DAY_CARD_EXPLAINER]} />;
   return render(reduced ? <MotionConfig reducedMotion="always">{board}</MotionConfig> : board);
 }
 
-const live = (scope: HTMLElement) => scope.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')!;
+/** A week fixture: `viewed` and `today` are indexes Monday-first. */
+function weekOf({ viewed = 0, today = 0 }: { viewed?: number; today?: number } = {}): WeekSummary {
+  const days: WeekDay[] = Array.from({ length: 7 }, (_, i): WeekDay => ({
+    date: `2026-10-${String(i + 5).padStart(2, "0")}`, letter: "MTWTFSS"[i],
+    kcal: i <= today ? 1800 : 0, target: 2000, status: i < today ? "all done" : "not due yet",
+    isToday: i === today, isViewed: i === viewed,
+  }));
+  return { days, onPlan: today, elapsed: today + 1, averageKcal: 1800, averagePartial: false };
+}
+
 const openButton = () => screen.getByRole("button", { name: /^Open tip: / });
 /** The open view, while it is still there for assistive tech; shrinking back, it is aria-hidden. */
 const view = () => document.querySelector("[data-tip-view]:not([aria-hidden])");
@@ -43,7 +59,7 @@ describe("DayBoard · the tip opens in place", () => {
   it("grows the tile into the full view inside the board, with no dialog and no portal", async () => {
     const { container } = mount();
     const bodyChildren = document.body.children.length;
-    const first = APP_TIPS.find((tip) => live(container).textContent?.includes(tip.title))!;
+    const first = APP_TIPS.find((tip) => openButton().getAttribute("aria-label") === `Open tip: ${tip.title}`)!;
     fireEvent.click(openButton());
     const region = await screen.findByRole("region", { name: first.title });
     expect(container.contains(region)).toBe(true);
@@ -106,41 +122,143 @@ describe("DayBoard · the tip opens in place", () => {
   });
 
   it("leads with the tip that matters now: no water yet today puts the water tip first", () => {
-    const { container } = mount({ water: { cups: 0, goal: 8 } });
+    mount({ water: { cups: 0, goal: 8 } });
     const water = APP_TIPS.find((tip) => tip.id === "water")!;
-    expect(live(container).textContent).toBe(`Tip 1 of ${APP_TIPS.length}. ${water.title}. ${water.text}`);
+    expect(openButton().getAttribute("aria-label")).toBe(`Open tip: ${water.title}`);
   });
 });
 
-describe("DayBoard · water and the tip share one row", () => {
-  it("puts both tiles in sibling cells of the same grid row, each handing its tile all of the row", () => {
-    mount();
-    const water = screen.getByRole("button", { name: /^Add .* of water/ }).closest<HTMLElement>("[data-pair]")!;
-    const tip = openButton().closest<HTMLElement>("[data-pair]")!;
-    expect(water.getAttribute("data-pair")).toBe("water");
-    expect(tip.getAttribute("data-pair")).toBe("tip");
-    expect(water.className).toBe(tip.className);
-    expect(water.parentElement).toBe(tip.parentElement);
-    expect(water.nextElementSibling).toBe(tip);
-  });
+const css = (file: string) => readFileSync(join(process.cwd(), "components/today", file), "utf8");
+/** The declarations of one top-level rule, by its exact selector. */
+const rule = (source: string, selector: string) =>
+  new RegExp(`(?:^|\\n)${selector.replace(/[.>*[\]()+]/g, (c) => `\\${c}`)}\\s*\\{([^}]*)\\}`).exec(source)?.[1] ?? "";
 
-  it("sets the shared height in the row's cells, and neither tile holds a height of its own", () => {
-    const css = (file: string) => readFileSync(join(process.cwd(), "components/today", file), "utf8");
-    const rule = (source: string, selector: string) =>
-      new RegExp(`${selector.replace(/[.>*]/g, (c) => `\\${c}`)}\\s*\\{([^}]*)\\}`).exec(source)?.[1] ?? "";
+describe("DayBoard · water and this week share one row", () => {
+  it("puts both tiles in sibling cells of the same grid row, with no forced floor", () => {
+    mount({ week: weekOf() });
+    const water = screen.getByRole("button", { name: /^Add .* of water/ }).closest<HTMLElement>("[data-pair]")!;
+    const week = screen.getByRole("group", { name: "Calories by day this week" }).closest<HTMLElement>("[data-pair]")!;
+    expect(water.getAttribute("data-pair")).toBe("water");
+    expect(week.getAttribute("data-pair")).toBe("week");
+    expect(water.className).toBe(week.className);
+    expect(water.parentElement).toBe(week.parentElement);
+    expect(water.nextElementSibling).toBe(week);
     const board = css("DayBoard.module.css");
     expect(rule(board, ".grid")).toMatch(/display:\s*grid/);
-    expect(rule(board, ".pairCell")).toMatch(/display:\s*flex/);
-    expect(rule(board, ".pairCell")).toMatch(/flex-direction:\s*column/);
-    expect(rule(board, ".pairCell")).toMatch(/min-height:\s*\d+px/);
-    expect(rule(board, ".pairCell > *")).toMatch(/flex:\s*1 1 auto/);
+    expect(rule(board, ".pairCell")).not.toMatch(/min-height/);
     expect(rule(css("WaterTile.module.css"), ".tile")).not.toMatch(/(^|[^-])(min-)?height:/);
-    expect(rule(css("TipTile.module.css"), ".tip")).not.toMatch(/(^|[^-])(min-)?height:/);
-    // The water fills the tile's whole height.
     expect(rule(css("WaterTile.module.css"), ".liquid")).toMatch(/inset:\s*0/);
+  });
+
+  it("draws the water count at the 28 px numeral, under the next meal's title", () => {
+    expect(rule(css("WaterTile.module.css"), ".count")).toMatch(/font-size:\s*28px/);
   });
 });
 
+/** Board redesign v4 (brief §5): the next meal's title wraps, and an action strip of equal zones. */
+describe("DayBoard · the next meal", () => {
+  it("wraps a long title onto two lines instead of cutting it with an ellipsis", () => {
+    mount();
+    const name = screen.getByText(MEAL, { selector: "span" });
+    expect(name.className).toMatch(/nextName/);
+    const declared = rule(css("DayBoard.module.css"), ".nextName");
+    expect(declared).not.toMatch(/white-space:\s*nowrap/);
+    expect(declared).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(declared).toMatch(/line-clamp:\s*2/);
+    expect(declared).toMatch(/font-size:\s*20px/);
+  });
+
+  it("offers three equal named zones: mark eaten, swap and open", () => {
+    mount();
+    const strip = screen.getByRole("group", { name: `Actions for ${MEAL}` });
+    const zones = within(strip).getAllByRole("button");
+    expect(zones.map((zone) => zone.getAttribute("aria-label"))).toEqual([
+      `Mark ${MEAL} eaten`, `Swap ${MEAL}`, `Open ${MEAL}`,
+    ]);
+    expect(strip.getAttribute("data-zones")).toBe("3");
+    const declared = rule(css("DayBoard.module.css"), ".strip");
+    expect(declared).toMatch(/grid-template-columns:\s*repeat\(var\(--zones\), minmax\(0, 1fr\)\)/);
+    expect(declared).toMatch(/height:\s*44px/);
+  });
+
+  it("drops the eaten zone without a writer, leaving two even zones", () => {
+    mount({ markEaten: false });
+    const strip = screen.getByRole("group", { name: `Actions for ${MEAL}` });
+    expect(within(strip).getAllByRole("button").map((zone) => zone.getAttribute("aria-label")))
+      .toEqual([`Swap ${MEAL}`, `Open ${MEAL}`]);
+    expect(strip.getAttribute("data-zones")).toBe("2");
+  });
+
+  it("swaps through onSwapNext when it is given, without scrolling", () => {
+    const onSwapNext = vi.fn();
+    mount({ onSwapNext });
+    fireEvent.click(screen.getByRole("button", { name: `Swap ${MEAL}` }));
+    expect(onSwapNext).toHaveBeenCalledExactlyOnceWith("meal-2");
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("falls back to showing the meal card when there is no swap writer, never a dead tap", () => {
+    const card = document.createElement("div");
+    card.setAttribute("data-slot-card", "meal-2");
+    document.body.append(card);
+    onTestFinished(() => card.remove());
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: `Swap ${MEAL}` }));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: `Open ${MEAL}` }));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(2);
+  });
+
+  it("marks the meal eaten from its zone, once", () => {
+    const onMarkEaten = vi.fn();
+    mount({ onMarkEaten });
+    fireEvent.click(screen.getByRole("button", { name: `Mark ${MEAL} eaten` }));
+    expect(onMarkEaten).toHaveBeenCalledExactlyOnceWith("meal-2");
+  });
+});
+
+describe("DayBoard · this week", () => {
+  it("caps the bars at 28 px and paints the viewed day in the chosen-chip olive, not the fat gauge", () => {
+    const board = css("DayBoard.module.css");
+    expect(rule(board, ".barTrack")).toMatch(/height:\s*28px/);
+    expect(rule(board, ".bar[data-viewed]")).toMatch(/background:\s*var\(--color-selected\)/);
+    expect(board).not.toMatch(/gauge-fat/);
+  });
+
+  it("keeps the viewed day and today as two separate signals", () => {
+    mount({ week: weekOf({ viewed: 1, today: 3 }) });
+    const cells = within(screen.getByRole("group", { name: "Calories by day this week" })).getAllByRole("button");
+    const bar = (i: number) => cells[i].querySelector("[data-empty], span > span:last-child")!;
+    const letter = (i: number) => cells[i].lastElementChild!;
+    expect(cells[1].getAttribute("aria-current")).toBe("date");
+    expect(bar(1).hasAttribute("data-viewed")).toBe(true);
+    expect(letter(1).hasAttribute("data-today")).toBe(false);
+    expect(letter(3).hasAttribute("data-today")).toBe(true);
+    expect(bar(3).hasAttribute("data-viewed")).toBe(false);
+    expect(cells[3].hasAttribute("aria-current")).toBe(false);
+  });
+});
+
+describe("DayBoard · the tip and the explainer are plain rows", () => {
+  it("draws both rows with no card chrome: no fill, border, shadow or poster", () => {
+    mount();
+    const tip = document.querySelector<HTMLElement>("[data-tip-tile]")!;
+    const pin = screen.getByRole("button", { name: /^Play How your Day card works/ });
+    for (const row of [tip, pin]) expect(row.className).not.toMatch(/surface|matte-grain/);
+    expect(pin.querySelector("img")).toBeNull();
+    const chrome = /(^|[^-])background:|border:|box-shadow:/;
+    expect(rule(css("TipTile.module.css"), ".tip")).not.toMatch(chrome);
+    expect(rule(css("DayBoard.module.css"), ".pin")).not.toMatch(chrome);
+    for (const declared of [rule(css("TipTile.module.css"), ".tip"), rule(css("DayBoard.module.css"), ".pin")]) {
+      expect(declared).toMatch(/min-height:\s*44px/);
+    }
+  });
+
+  it("sets one hairline between the rows", () => {
+    const declared = rule(css("DayBoard.module.css"), ".rows > * + *");
+    expect(declared).toMatch(/border-top:\s*1px solid/);
+  });
+});
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

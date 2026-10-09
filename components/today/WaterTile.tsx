@@ -12,7 +12,7 @@ import { guardSelection, MAX_CUPS } from "@/lib/today/water-gesture";
 import { fillFraction } from "@/lib/today/water-liquid";
 import { clampPending, createWaterScrub, scrubParts, scrubText } from "@/lib/today/water-scrub";
 import {
-  formatWater, formatWaterDelta, formatWaterOf, stepLabel, stepPhrase, unitWord, waterNumber, waterValue,
+  formatWater, formatWaterDelta, formatWaterOf, stepPhrase, unitWord, waterNumber, waterValue,
   type WaterUnit,
 } from "@/lib/water-units";
 import styles from "@/components/today/WaterTile.module.css";
@@ -188,24 +188,34 @@ export default function WaterTile({ water, onAddCup, onSetCups, active = true }:
       }}
       onBlur={() => setKeyed(0)}>
       <WaterLiquid level={level} tilt={tilt} animate={active && !reduce} />
-      <span className={styles.eyebrow}>Water</span>
-      <span className="relative flex items-baseline gap-1.5">
+      <span className={styles.head}>
+        <span className={styles.eyebrow}>Water</span>
+        {/* The add mark: a 32 px disc centred in a 44 px box. The whole tile is the control, so the
+            box is its visible target; the disc says what a tap does. */}
+        <span className={styles.add} aria-hidden="true">
+          <span className={styles.addDisc}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          </span>
+        </span>
+      </span>
+      <span className="relative flex items-baseline gap-2">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span key={waterValue(water.cups, unit)} className={styles.count}
-            initial={reduce ? false : { y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            exit={reduce ? { opacity: 0, transition: INSTANT } : { y: -16, opacity: 0, transition: FADES.quick }}
+            initial={reduce ? false : { y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            exit={reduce ? { opacity: 0, transition: INSTANT } : { y: -12, opacity: 0, transition: FADES.quick }}
             transition={reduce ? INSTANT : SPRINGS.bouncy}>{waterNumber(water.cups, unit)}</motion.span>
         </AnimatePresence>
-        <span className={styles.meta}>{water.goal > 0 ? `of ${formatWater(water.goal, unit)}`
-          : unitWord(unit, waterValue(water.cups, unit))}</span>
+        {/* A keyed amount waits beside the count as a signed delta until Enter logs it. */}
+        <AnimatePresence initial={false}>
+          {keyed !== 0 && <motion.span key="delta" className={styles.delta} aria-hidden="true"
+            initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: reduce ? INSTANT : FADES.quick }}
+            transition={reduce ? INSTANT : FADES.quick}>{formatWaterDelta(keyed, unit)}</motion.span>}
+        </AnimatePresence>
       </span>
-      <span className={`${styles.add} ${keyed !== 0 ? styles.pending : ""}`} aria-hidden="true">
-        {keyed !== 0 ? `${formatWaterDelta(keyed, unit)} · Enter` : <>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-          {stepLabel(unit)}
-        </>}
-      </span>
+      <span className={styles.meta}>{water.goal > 0 ? `of ${formatWater(water.goal, unit)}`
+        : unitWord(unit, waterValue(water.cups, unit))}</span>
       {canScrub && <span id={hintId} className="sr-only">
         Hold and slide right to add more at once. Arrow keys choose an amount; Enter logs it.
       </span>}

@@ -48,7 +48,6 @@ const panel = (name: "Calendar" | "Overview" | "Board") => document.getElementBy
 const facesBox = () => panel("Calendar").parentElement!;
 const eat = (scope: HTMLElement, hidden = false) =>
   within(scope).getByRole("button", { name: "Mark Eggs & Jasmine rice eaten", hidden });
-const live = (scope: HTMLElement) => scope.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')!;
 const PLAYER = "How your Day card works";
 
 describe("DayCard · faces stay mounted", () => {
@@ -87,9 +86,8 @@ describe("DayCard · explainer", () => {
     mount();
     fireEvent.click(tab("Board"));
     const board = panel("Board");
-    fireEvent.click(within(board).getByRole("button", { name: "Next tip" }));
     const button = eat(board);
-    const tip = live(board).textContent;
+    const tip = within(board).getByRole("button", { name: /^Open tip: / });
     fireEvent.click(within(board).getByRole("button", { name: "Play How your Day card works, 0:20" }));
     const player = await screen.findByRole("region", { name: PLAYER });
     // Under the player the tiles are still there, out of the flow and out of reach.
@@ -100,7 +98,7 @@ describe("DayCard · explainer", () => {
     fireEvent.click(within(player).getByRole("button", { name: `Close ${PLAYER}` }));
     await waitFor(() => expect(screen.queryByRole("region", { name: PLAYER })).toBeNull(), { timeout: 3000 });
     expect(eat(board)).toBe(button);
-    expect(live(board).textContent).toBe(tip);
+    expect(within(board).getByRole("button", { name: /^Open tip: / })).toBe(tip);
   });
 
   it("closes a playing explainer when the board leaves the screen", async () => {

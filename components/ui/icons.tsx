@@ -24,10 +24,13 @@ export function PaperclipIcon({ size = 22 }: { size?: number }) {
   </svg>;
 }
 
-export function ChevronIcon({ direction = "down", size = 14 }: { direction?: "up" | "down"; size?: number }) {
+const CHEVRON_PATHS = { up: "m6 15 6-6 6 6", down: "m6 9 6 6 6-6", right: "m9 6 6 6-6 6" } as const;
+
+/** Up and down open and close a disclosure; right goes into something (a board row, a tile). */
+export function ChevronIcon({ direction = "down", size = 14 }: { direction?: keyof typeof CHEVRON_PATHS; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d={direction === "up" ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6"} />
+    <path d={CHEVRON_PATHS[direction]} />
   </svg>;
 }
 

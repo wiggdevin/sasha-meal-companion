@@ -1,11 +1,19 @@
-/* The Day card's board (components/today/DayBoard.tsx, ExplainerPlayer.tsx; 2026-10-01). A bento of
-   tiles 16 px in from the card, 12 px apart; tile corners are 16 px, concentric with the card's 32.
-   The next meal is the meal card's matte charcoal; the rest sit on the ivory card's own tones.
+/* The Day card's board (components/today/DayBoard.tsx, ExplainerPlayer.tsx; redesign v4 2026-10-08,
+   brief §5). Three tiers, two surfaces: the next meal on the meal card's matte charcoal; water and
+   this week side by side on the ivory card's own tones; the tip and the explainer as plain rows.
+   Tile corners are --radius-md (16 px), concentric with the card's 32.
 
    Elevation (DESIGN.md §Elevation & Depth, 2026-10-04): every tile sits inside the Day card, so every
    tile is E0 — an edge and no drop, because a shadow never sits inside a shadow. Ivory tiles take the
    6 % ink hairline; the charcoal tiles (the next meal, the explainer player) take the inset bevel
    that every olive and charcoal surface carries, which is their edge on the ivory card. */
+
+/* The container's 12 / 16 / 20 padding: 8 px above and 4 px below here, around both stages, plus
+   each stage's own 4 / 16 / 16 (`.board` here, tips/TipStage.module.css), so an open tip or explainer
+   sits in exactly the box the tiles had. */
+.inset {
+  padding: 8px 0 4px;
+}
 
 .board {
   position: relative;
@@ -29,21 +37,24 @@
 
 .span2 {
   grid-column: span 2;
+  min-width: 0;
 }
 
-/* Water and the tip share one row (2026-10-03): the grid's row stretches both cells to whichever
-   tile needs more height, and each cell hands all of it to its tile, so the two are always the
-   same height and scale together. The shared floor lives here, not in either tile. */
+/* Tier gaps: 16 px after the next meal (the grid's 12 + 4), and the one deliberate break, 20 px,
+   before the plain rows (12 + 8). */
+.tierNext {
+  margin-bottom: 4px;
+}
+
+/* Water and this week share one row; the grid's own stretch gives them one height, no floor. */
 .pairCell {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 136px;
 }
 
 .pairCell > * {
   flex: 1 1 auto;
-  min-height: 0;
 }
 
 .eyebrow {
@@ -55,14 +66,13 @@
   color: var(--color-text-muted);
 }
 
-/* ---- Next meal ---- */
+/* ---- Tier 1: the next meal ---- */
 
 .next {
   position: relative;
-  min-height: 92px;
-  padding: 12px;
-  border-radius: 16px;
-  background: var(--grad-matte);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-charcoal-deep);
   box-shadow: var(--bevel);
 }
 
@@ -70,28 +80,27 @@
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
 }
 
 .nextOpen {
   display: flex;
-  flex: 1 1 auto;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-width: 0;
-  padding: 0;
+  padding: 16px;
   border: 0;
   background: none;
   color: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 .thumb {
   position: relative;
   flex: none;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   overflow: hidden;
   border-radius: 12px;
   background: var(--grad-produce);
@@ -106,14 +115,29 @@
   inset: 0;
 }
 
+.nextText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The fix for "Pork tenderloin wit…": the name wraps onto a second line and only past that clamps. */
 .nextName {
+  display: -webkit-box;
+  max-height: 52px;
   overflow: hidden;
   font-family: var(--font-display);
   font-size: 20px;
-  line-height: 24px;
+  font-weight: 500;
+  line-height: 26px;
   color: var(--color-text-primary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .nextMeta {
@@ -123,22 +147,100 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Mark eaten is the system's primary circle (components/ui/Button); on charcoal its focus ring turns
-   cream so it reads. */
-.eat:focus-visible {
-  outline: 2px solid var(--color-on-charcoal);
-  outline-offset: 2px;
-}
-
 .nextOpen:focus-visible {
   outline: 2px solid var(--color-on-charcoal);
-  outline-offset: 2px;
+  outline-offset: -4px;
+  border-radius: 16px;
+}
+
+/* The action strip: the meal card's v3 strip (AfterDarkCards.module.css `.strip`), copied so the two
+   can diverge. Full width under a hairline, 44 px tall, equal zones split by a hairline; tone, never
+   pills. `--zones` is 3, or 2 when nothing can mark the meal eaten. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(var(--zones), minmax(0, 1fr));
+  height: 44px;
+  box-shadow: inset 0 1px 0 var(--color-hairline);
+}
+
+.zone {
+  display: flex;
+  min-width: 0;
+}
+
+.zone + .zone {
+  box-shadow: inset 1px 0 0 var(--color-hairline);
+}
+
+.zoneButton {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--dur-spring-snappy) var(--ease-spring-snappy);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .zoneButton:hover:not([aria-disabled="true"]) {
+    background-color: rgb(var(--ink-rgb) / 0.05);
+  }
+}
+
+.zoneButton:active:not([aria-disabled="true"]) {
+  background-color: rgb(var(--ink-rgb) / 0.08);
+}
+
+.zoneButton[aria-disabled="true"] {
+  cursor: default;
+}
+
+.zoneButton:focus-visible {
+  outline: 2px solid var(--color-on-charcoal);
+  outline-offset: -4px;
   border-radius: 12px;
 }
 
+/* Open is the quiet zone: its tone sets it apart (the meal card's details zone). */
+.zoneOpen {
+  background: rgb(var(--ink-rgb) / 0.04);
+  color: var(--color-text-muted);
+}
+
+/* Mark eaten: the system's olive primary as a 32 px disc, its whole zone the target. Eaten, the
+   disc tints cream and the tick draws in (DayBoard.tsx `EatenZone`). */
+.eatDisc {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+  box-shadow: var(--bevel);
+  transition:
+    background-color var(--dur-spring-snappy) var(--ease-spring-snappy),
+    color var(--dur-spring-snappy) var(--ease-spring-snappy);
+}
+
+.eatDisc[data-eaten] {
+  background: var(--color-on-charcoal);
+  color: var(--color-charcoal-deep);
+}
+
 .nextDone {
-  min-height: 68px;
+  flex-direction: row;
+  align-items: center;
   gap: 12px;
+  min-height: 68px;
+  padding: 12px 16px;
 }
 
 .doneMark {
@@ -152,39 +254,41 @@
   color: var(--color-gauge-carbs);
 }
 
-/* ---- Water: components/today/WaterTile.module.css ---- */
-
-/* ---- This week ---- */
+/* ---- Tier 2: water (components/today/WaterTile.module.css) and this week ---- */
 
 .week {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
+  min-width: 0;
   padding: 14px 14px 10px;
   border: 1px solid rgb(var(--ink-rgb) / 0.06);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   background: var(--grad-recess);
 }
 
 .weekSummary {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 16px;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
 
+/* Seven cells across the tile, each a whole column of it (a 44 px tall target); the bar is a 4 px
+   stroke in its middle. */
 .bars {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  margin-top: 4px;
 }
 
 .barCell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
   min-height: 44px;
   padding: 0;
   border: 0;
@@ -198,39 +302,45 @@
 
 .barCell:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: 0;
   border-radius: 12px;
 }
 
 .barTrack {
   position: relative;
-  width: 100%;
-  max-width: 24px;
-  height: 72px;
-  border-radius: 9999px;
-  background: rgb(var(--ink-rgb) / 0.05);
+  width: 4px;
+  height: 28px;
 }
 
 .targetLine {
   position: absolute;
-  right: -2px;
-  left: -2px;
+  right: -4px;
+  left: -4px;
   height: 0;
   border-top: 1px dashed rgb(var(--ink-rgb) / 0.3);
   pointer-events: none;
 }
 
+/* A logged day in quiet ink (3:1 on the beige well), so the viewed day's olive stands apart: the
+   olive --grad-ink the brief names for the default would read as the same colour as the viewed day.
+   An empty day keeps a 3 px sliver on the baseline. */
 .bar {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
+  min-height: 3px;
   border-radius: 9999px;
-  background: var(--grad-ink);
+  background: rgb(var(--ink-rgb) / 0.5);
 }
 
+.bar[data-empty] {
+  background: rgb(var(--ink-rgb) / 0.2);
+}
+
+/* The viewed day: the chosen-chip olive (--color-selected), the same "chosen" every chip uses. */
 .bar[data-viewed] {
-  background: linear-gradient(180deg, var(--color-gauge-fat-end) 0%, var(--color-gauge-fat) 100%);
+  background: var(--color-selected);
 }
 
 .barLetter {
@@ -240,12 +350,13 @@
   color: var(--color-text-muted);
 }
 
-.barLetter[data-today] {
-  color: var(--color-alert);
-}
-
 .barLetter[data-viewed] {
   color: var(--color-text-primary);
+}
+
+/* Today's letter is red whatever its bar holds: today and the viewed day never share a signal. */
+.barLetter[data-today] {
+  color: var(--color-alert);
 }
 
 .weekMeta {
@@ -255,88 +366,67 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Explainer pin ---- */
+/* ---- Tier 3: the tip (components/today/TipTile.module.css) and the explainer, plain rows ---- */
 
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.rows > * + * {
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.08);
+}
+
+/* The explainer row: no fill, border, shadow or poster; a line play glyph, its length and title on
+   one line, and the chevron. */
 .pin {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-  padding: 10px 14px 10px 10px;
-  border: 1px solid rgb(var(--ink-rgb) / 0.06);
-  border-radius: 16px;
-  background: var(--grad-panel);
+  min-height: 44px;
+  padding: 0 4px;
   color: var(--color-text-primary);
+  text-align: left;
   cursor: pointer;
 }
 
 .pin:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.poster {
-  position: relative;
-  flex: none;
-  width: 112px;
-  height: 64px;
-  overflow: hidden;
-  border-radius: 12px;
-  background: var(--grad-matte);
-}
-
-.posterImage {
-  object-fit: cover;
-}
-
-.posterArt {
-  position: absolute;
-  inset: 0;
-}
-
-.posterTrack {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 52px;
-  height: 52px;
-  margin: -26px 0 0 -26px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 9999px;
-}
-
-.posterDot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 9999px;
-}
-
-.play {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+.rowGlyph {
   display: grid;
+  flex: none;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  margin: -16px 0 0 -16px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--color-on-primary);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary);
 }
 
-.pinTitle {
-  font-family: var(--font-display);
-  font-size: 16px;
-  line-height: 22px;
+.rowText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--color-text-primary);
+}
+
+.rowMeta {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowChevron {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--color-text-muted);
 }
 
 /* ---- Explainer player ---- */

@@ -9,16 +9,15 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 6px;
+  gap: 0;
   width: 100%;
-  /* No height of its own: the board's water-and-tip row sets it (DayBoard.module.css `.pairCell`),
+  /* No height of its own: the board's water-and-week row sets it (DayBoard.module.css `.pairCell`),
      and the liquid (WaterLiquid.tsx, absolutely inset) fills all of it. */
   overflow: hidden;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid rgb(var(--ink-rgb) / 0.06);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-gauge-water) 8%, var(--color-surface));
   color: var(--color-text-primary);
   text-align: left;
@@ -83,12 +82,13 @@
   color: var(--color-text-muted);
 }
 
+/* 28 px, light: big enough to read at a glance, never outweighing the next meal's title above. */
 .count {
   display: inline-block;
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 300;
-  line-height: 44px;
-  letter-spacing: -0.03em;
+  line-height: 32px;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -99,21 +99,47 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* "+ Cup" reads as the tile's button (the whole tile is the control), so it takes the system's small
-   size: 36 px (DESIGN.md §Buttons; no button height outside 36 / 44 / 52). */
-.add {
-  display: inline-flex;
+/* The eyebrow, and the add mark at its end. */
+.head {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  height: 36px;
-  padding: 0 12px 0 10px;
+  justify-content: space-between;
+  align-self: stretch;
+  gap: 8px;
+  margin: -6px -6px 0 0;
+}
+
+.add {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* The olive primary, small (no pill: the tile is the button). */
+.addDisc {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
   background: var(--grad-ink);
   color: var(--color-on-primary);
+  box-shadow: var(--bevel);
+}
+
+.tile:disabled .addDisc {
+  opacity: 0.4;
+}
+
+/* A keyed amount, signed, waiting for Enter. */
+.delta {
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
+  color: var(--water-deep);
   font-variant-numeric: tabular-nums;
-  box-shadow: var(--bevel);
 }
 
 .ripple {
@@ -215,11 +241,6 @@
   font-size: 12px;
   line-height: 16px;
   color: var(--color-text-muted);
-}
-
-/* The keyboard's pending amount, shown in place of the add pill until Enter or Escape. */
-.pending {
-  background: var(--water-deep);
 }
 
 @media (prefers-reduced-motion: reduce) {

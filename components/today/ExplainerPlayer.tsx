@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
-import Image from "next/image";
+import { Play } from "lucide-react";
 import {
   AnimatePresence, LayoutGroup, animate, motion, useIsPresent, useMotionValue, useReducedMotionConfig, useTransform,
   type MotionValue,
 } from "motion/react";
 import { FADES, INSTANT, SPRINGS } from "@/lib/design/motion";
+import { ChevronIcon } from "@/components/ui/icons";
 import {
   BOARD_MORPH, MORPH_SETTLE_MS, TILES_COVERED, TILES_SHOWN, boardMorph, boxWithin, unhide, type Box,
 } from "@/components/today/useDayCardMotion";
@@ -163,28 +164,23 @@ function ProgressFill({ t, state }: { t: MotionValue<number>; state: "full" | "l
 }
 
 /** The corner radius the pin and the player share. It is given to Motion as a style so the corners
- *  stay round while the shared box is scaled between the two. */
+ *  stay round while the shared box is scaled between the two. 16 px stays under half the 44 px row,
+ *  so the row's box keeps the same corner the player grows into. */
 const CORNER = { borderRadius: 16 } as const;
 
 /** A player on its way back: the pin's box on the board, and the size the player had when it began. */
 export type ExplainerClosing = { to: Box; from: { width: number; height: number } };
 
-/** The pin's poster, title and length: drawn by the pin, and carried by the player at the pin's own
- *  size while it grows out of the pin and as it lands back in it. */
+/** The pin's row: a line play glyph, its length and title on one line, and the chevron. Drawn by
+ *  the pin, and carried by the player at the pin's own size (a 44 px row across the board) while it
+ *  grows out of the pin and as it lands back in it. */
 function PinFace({ explainer }: { explainer: Explainer }) {
   return <>
-    <span className={styles.poster} aria-hidden="true">
-      {explainer.poster ? <Image src={explainer.poster} alt="" fill sizes="112px" className={styles.posterImage} /> : <span className={styles.posterArt}>
-        <span className={styles.posterTrack} />
-        {ORBIT.map((point, i) => <span key={i} className={styles.posterDot}
-          style={{ background: MARK[i], transform: `translate(${point.x * 0.42}px, ${point.y * 0.42}px)` }} />)}
-      </span>}
-      <span className={styles.play}><PlayGlyph playing={false} /></span>
+    <span className={styles.rowGlyph} aria-hidden="true"><Play size={18} strokeWidth={1.8} /></span>
+    <span className={styles.rowText}>
+      <span className={styles.rowMeta}>{explainer.length}</span> · {explainer.title}
     </span>
-    <span className="flex min-w-0 flex-col gap-1 text-left">
-      <span className={styles.eyebrow}>Explainer · {explainer.length}</span>
-      <span className={styles.pinTitle}>{explainer.title}</span>
-    </span>
+    <span className={styles.rowChevron} aria-hidden="true"><ChevronIcon direction="right" size={16} /></span>
   </>;
 }
 
@@ -352,7 +348,7 @@ export function ExplainerStage({ explainers, active, children }: {
   </LayoutGroup>;
 }
 
-/** The explainer's pin on the board: a poster with a play glyph, its title and length. */
+/** The explainer's row on the board: a play glyph, its length and title, and the chevron. */
 function Pin({ explainer, onPlay }: { explainer: Explainer; onPlay: (from: HTMLElement) => void }) {
   const reduce = useReducedMotionConfig() ?? false;
   return <motion.button type="button" className={`tap ${styles.pin}`} onClick={(event) => onPlay(event.currentTarget)} data-explainer-pin={explainer.id}

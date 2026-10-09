@@ -1,12 +1,9 @@
-/* The board's tip (components/today/TipTile.tsx, 2026-10-03). The ivory card's own panel with a
-   wheat wash in its upper corner, a hairline rim running from olive into wheat, the matte grain
-   (.matte-grain in app/globals.css) and a wheat quote mark. Inside: a topic glyph in the olive
-   primary's disc, a Fraunces headline and one line of body, the round Next button in the upper
-   corner and the dots along the foot. Colour comes from tokens only.
+/* The board's tip (components/today/TipTile.tsx; redesign v4 2026-10-08, brief §5 Tier 3): a plain
+   44 px row on the Day card — no fill, border, shadow or poster. A 16 px olive line glyph, the tip's
+   headline on one line (ellipsis), and a chevron. Colour comes from tokens only.
 
-   `.surface` is the look the tile and its full view share (components/today/tips/TipView.tsx), so
-   the tile grows into the view without changing material. The tile's height is not set here: the
-   board's water-and-tip row sets it (DayBoard.module.css `.pairCell`). */
+   `.surface`, `.glyph` and `.eyebrow` are the full view's (components/today/tips/TipView.tsx): the
+   ivory panel the row grows into, its olive glyph disc and its eyebrow. */
 
 .surface {
   position: relative;
@@ -37,53 +34,78 @@
   pointer-events: none;
 }
 
+/* The row. The full view carries this same box (TipView's face) at the row's size, so the open
+   control below reaches into its padding rather than having its own: both lay out identically. */
 .tip {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-}
-
-/* The content sits over the grain (.matte-grain::after) and the rim. Named, not `.tip > *`, so the
-   live region keeps the sr-only utility's own positioning and never takes a place in the column. */
-.stack,
-.dots,
-.count {
   position: relative;
-  z-index: 1;
-}
-
-.quote {
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  z-index: 0;
-  color: color-mix(in srgb, var(--color-gauge-fat) 40%, transparent);
-  pointer-events: none;
-}
-
-/* Every tip in one cell: the tallest sets the tile's height, so a change never moves the board. */
-.stack {
-  display: grid;
-  flex: 1 1 auto;
-}
-
-.slide {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-
-/* The glyph and its eyebrow share the first row with the Next button, which sits over its end. */
-.head {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 32px;
-  margin-bottom: 6px;
-  padding-right: 40px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--color-text-primary);
+}
+
+.open,
+.stillRow {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  align-self: stretch;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 -4px;
+  padding: 0 4px;
+  color: inherit;
+  text-align: left;
+}
+
+.open {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+.still {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.rowGlyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary);
+}
+
+.line {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.source {
+  color: var(--color-text-muted);
+}
+
+.chevron {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--color-text-muted);
 }
 
 /* A cream glyph on the olive primary, with its bevel (DESIGN.md §Shapes). */
@@ -111,103 +133,14 @@
   color: var(--color-text-muted);
 }
 
-.title {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 22px;
-  letter-spacing: -0.01em;
-  color: var(--color-text-primary);
-  text-wrap: balance;
-}
-
-/* One line of copy; in a narrow column it may wrap, never past three rows. The whole of it is in
-   the live region and the full view. */
-.body {
-  display: -webkit-box;
+.eyebrow {
   overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--color-text-secondary);
-  text-wrap: pretty;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-}
-
-.dots {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 6px;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: rgb(var(--ink-rgb) / 0.2);
-  transition:
-    width var(--dur-spring-snappy) var(--ease-spring-snappy),
-    background-color 150ms ease;
-}
-
-/* The tip on show stretches into a short olive capsule. */
-.dot[data-current] {
-  width: 16px;
-  background: var(--color-primary);
-}
-
-.count {
   font-size: 12px;
+  font-weight: 600;
   line-height: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The tile's open control covers it; its ring traces the tile's own corners. */
-.open {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  padding: 0;
-  border: 0;
-  border-radius: inherit;
-  background: transparent;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.open:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
-
-/* Next: the system's small secondary circle (components/ui/Button, sm: 36 px with a 44 px hit area) in
-   the upper corner, its centre on the glyph's (12 px padding + 16 px). Only its place lives here: the
-   button system owns its fill, size and focus ring. Above the open control. */
-.next {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-}
-
-/* The button's likeness in the tile's face (TipFace), which carries no control: the secondary
-   recipe (a faint ink tint inside an ink hairline). */
-.nextDisc {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9999px;
-  background: rgb(var(--ink-rgb) / 0.035);
-  color: var(--color-charcoal);
-  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.16), 0 1px 1px rgb(var(--ink-rgb) / 0.04);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dot {
-    transition: none;
-  }
 }

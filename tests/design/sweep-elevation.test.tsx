@@ -28,12 +28,15 @@ describe("board tiles", () => {
       expect(block(board, selector)).toMatch(/box-shadow: var\(--bevel\);/);
     }
     for (const selector of [".week", ".pin"]) expect(block(board, selector)).not.toMatch(/box-shadow/);
+    // The tip and explainer rows carry no chrome at all (board redesign v4, brief §5 Tier 3).
+    expect(block(tip, ".tip")).not.toMatch(/box-shadow|border:|(^|[^-])background:/);
+    expect(block(board, ".pin")).not.toMatch(/border:|(^|[^-])background:/);
     // The tip keeps its inner highlight only; its old 1 px contact drop is gone.
     expect(block(tip, ".surface")).toMatch(/box-shadow: inset 0 1px 0 var\(--highlight\);/);
   });
 
   it("draw their hairline at the one E0 strength", () => {
-    for (const selector of [".week", ".pin"]) {
+    for (const selector of [".week"]) {
       expect(block(board, selector)).toMatch(/border: 1px solid rgb\(var\(--ink-rgb\) \/ 0\.06\)/);
     }
   });

@@ -258,19 +258,16 @@ describe("DayCard · board", () => {
     await waitFor(() => expect(document.activeElement).toBe(pin), { timeout: 3000 });
   });
 
-  it("rotates tips and shows this week's days on plan", () => {
+  it("rotates tips by the day and shows this week's days on plan", () => {
     mount();
     fireEvent.click(screen.getByRole("tab", { name: "Board" }));
     const board = panel("Board");
     expect(board.textContent).toContain("3 of 4 days on plan");
-    const [, second, third] = boardTips();
-    const count = boardTips().length;
+    const [, second] = boardTips();
     // With nothing pressing, the 1st of the month starts the tips one in (lib/today/board.ts
-    // orderTips); each press moves one on, and the live region says so.
-    const live = board.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')!;
-    expect(live.textContent).toBe(`Tip 1 of ${count}. ${second.title}. ${second.text}`);
-    fireEvent.click(within(board).getByRole("button", { name: "Next tip" }));
-    expect(live.textContent).toBe(`Tip 2 of ${count}. ${third.title}. ${third.text}`);
+    // orderTips); the board's tip row shows that one (redesign v4: one row, no paging).
+    expect(within(board).getByRole("button", { name: `Open tip: ${second.title}` })).toBeTruthy();
+    expect(within(board).queryByRole("button", { name: "Next tip" })).toBeNull();
   });
 
   it("selects a day from this week's bars", () => {
