@@ -15,7 +15,7 @@
 /** The kinds of call spec §2 gives a deadline to. One name per hop the user waits on. */
 export type Budget =
   "sign" | "upload" | "propose" | "barcode" | "commit" | "coach" | "search" | "timings"
-  | "transcribe" | "prefs" | "undo";
+  | "transcribe" | "prefs" | "undo" | "ideas";
 
 /**
  * Spec §2's table, in milliseconds: how long one call of each kind may take before the client
@@ -50,6 +50,12 @@ export const DEADLINES: Record<Budget, number> = {
    * for good (review t4r7 #3); past this, the outcome counts as unknown.
    */
   undo: 10_000,
+  /**
+   * A Plan-sheet chip (POST /api/plan/ideas): code-built cards, ~1 s on the server. The server's
+   * own suggestion budget is 8 s, so this sits just above it and the server's honest "ran out of
+   * time" line is the one the person reads.
+   */
+  ideas: 9_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */

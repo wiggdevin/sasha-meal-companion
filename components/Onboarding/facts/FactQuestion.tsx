@@ -8,9 +8,11 @@
  *
  * Every number is entered in US units (owner, 2026-10-07: every account is in the US) — an age in
  * years, height in feet and inches, weight in pounds — and stored metric underneath, exactly as the
- * facts were stored before (`birthYear`, `heightCm`, `weightKg`). The ranges are the completion
- * gate's own (`lib/profile/onboarding-state.ts`: 50–260 cm, 20–400 kg), so a saved value is never
- * one the gate later reads back as missing.
+ * facts were stored before (`birthYear`, `heightCm`, `weightKg`). Each answer is ONE plain text box
+ * the person types into the way they say it ("70", "5 10", "5'10\"", "170 lb"; owner 2026-10-08:
+ * no steppers), read by `lib/profile/height-parse.ts` — the same parsers the chat dock uses. The
+ * ranges are the completion gate's own (50–260 cm, 20–400 kg), so a saved value is never one the
+ * gate later reads back as missing.
  *
  * A new question (for example a goal follow-up) is one more `case` here and one more key in the
  * shell's question order — nothing else moves.
@@ -23,16 +25,12 @@ import { SexChipRow } from "@/components/Onboarding/facts/SexChipRow";
 import { factValue, type OnboardingFactKey, type OnboardingFacts, type Goal, type SexAnswer }
   from "@/components/Onboarding/facts/types";
 import { ageFromBirthYear, birthYearFromAge } from "@/components/Onboarding/facts/unit-echo";
-import { cmToFtIn, ftInToCm } from "@/lib/units/height";
-import { kgToLb, lbToKg } from "@/lib/health/units";
+import { cmToFtIn } from "@/lib/units/height";
+import { kgToLb } from "@/lib/health/units";
+import { AGE_RANGE, parseAge, parseHeight, parseWeight } from "@/lib/profile/height-parse";
 
 /** A dark, matte-safe field: the shared chip tint, a hairline, cream text in the shell. */
 export const FIELD_CLASS = `${CHIP_FILL} min-h-12 w-full min-w-0 rounded-[16px] px-3 text-body text-charcoal outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-[rgb(var(--ink-rgb)/0.55)]`;
-
-const AGE_MIN = 13;
-const AGE_MAX = 100;
-const HEIGHT_CM = { min: 50, max: 260 };
-const WEIGHT_KG = { min: 20, max: 400 };
 
 export type FactAnswer =
   | { key: "birthYear"; value: number }
@@ -54,20 +52,26 @@ function Question({ id, children }: { id?: string; children: ReactNode }) {
   return <p id={id} className="m-0 font-serif text-heading-sm text-charcoal">{children}</p>;
 }
 
-function NumberInput({ label, value, onChange, suffix, min, max, decimal = false }: {
-  label: string; value: string; onChange: (value: string) => void; suffix?: string; min: number; max: number;
-  /** Accepts a tenth (a weight): the decimal keypad, and no whole-number step for the form to refuse. */
-  decimal?: boolean;
+function TextAnswer({ label, value, onChange, suffix, placeholder, inputMode, hint }: {
+  label: string; value: string; onChange: (value: string) => void; suffix?: string; placeholder: string;
+  /** The phone keypad to open; the box itself is plain text, so "5'10" or "170 lb" types freely. */
+  inputMode: "numeric" | "decimal" | "text";
+  /** What the box currently reads as ("5 ft 10 in"), so the person sees their answer understood. */
+  hint?: string | null;
 }) {
   const id = useId();
+  const hintId = useId();
+  // The unit sits beside the number only while the box holds a bare number.
+  const showSuffix = suffix && /^\s*\d+(?:\.\d*)?\s*$/.test(value);
   return <div className="flex min-w-0 flex-1 flex-col gap-1">
     <label htmlFor={id} className="text-caption text-graphite">{label}</label>
     <span className="relative flex items-center">
-      <input id={id} type="number" inputMode={decimal ? "decimal" : "numeric"} step={decimal ? "any" : undefined}
-        enterKeyHint="done" min={min} max={max} value={value}
-        onChange={(event) => onChange(event.target.value)} className={`${FIELD_CLASS} ${suffix ? "pr-10" : ""}`} />
-      {suffix && <span aria-hidden="true" className="pointer-events-none absolute right-3 text-body text-muted">{suffix}</span>}
+      <input id={id} type="text" inputMode={inputMode} autoComplete="off" autoCorrect="off" spellCheck={false}
+        enterKeyHint="done" placeholder={placeholder} value={value} aria-describedby={hint ? hintId : undefined}
+        onChange={(event) => onChange(event.target.value)} className={`${FIELD_CLASS} ${showSuffix ? "pr-12" : ""}`} />
+      {showSuffix && <span aria-hidden="true" className="pointer-events-none absolute right-3 text-body text-muted">{suffix}</span>}
     </span>
+    {hint && <p id={hintId} className="m-0 text-caption text-graphite" aria-live="polite">{hint}</p>}
   </div>;
 }
 
@@ -91,35 +95,35 @@ function AgeQuestion({ facts, today, onAnswer }: { facts: OnboardingFacts; today
   const known = factValue(facts, "birthYear");
   const seeded = known !== undefined ? String(ageFromBirthYear(known, today)) : "";
   const [text, setText] = useState(seeded);
-  const age = Number(text);
-  const valid = text.trim() !== "" && Number.isInteger(age) && age >= AGE_MIN && age <= AGE_MAX;
-  const error = text.trim() !== "" && !valid ? `Enter an age from ${AGE_MIN} to ${AGE_MAX}.` : null;
+  const age = parseAge(text);
+  const valid = age !== null;
+  const error = text.trim() !== "" && !valid ? `Type your age in years, from ${AGE_RANGE.min} to ${AGE_RANGE.max}.` : null;
   return <NumberForm question={QUESTION.birthYear!} valid={valid} error={error}
     // An age left as shown keeps the stored birth year: converting back could move it by one.
     onSave={() => onAnswer({ key: "birthYear",
-      value: known !== undefined && text === seeded ? known : birthYearFromAge(age, today) })}>
-    <NumberInput label="Age" suffix="yrs" value={text} onChange={setText} min={AGE_MIN} max={AGE_MAX} />
+      value: known !== undefined && text === seeded ? known : birthYearFromAge(age!, today) })}>
+    <TextAnswer label="Age" suffix="yrs" placeholder="e.g. 34" inputMode="numeric" value={text} onChange={setText} />
   </NumberForm>;
+}
+
+/** 177.8 → `5'10"`, the way the box reopens a stored height. */
+function heightText(cm: number): string {
+  const { ft, in: inches } = cmToFtIn(cm);
+  return `${ft}'${inches}"`;
 }
 
 function HeightQuestion({ facts, onAnswer }: { facts: OnboardingFacts; onAnswer: (a: FactAnswer) => void }) {
   const known = factValue(facts, "heightCm");
-  const start = known !== undefined ? cmToFtIn(known) : null;
-  const seeded = { feet: start ? String(start.ft) : "", inches: start ? String(start.in) : "" };
-  const [feet, setFeet] = useState(seeded.feet);
-  const [inches, setInches] = useState(seeded.inches);
-  const untouched = known !== undefined && feet === seeded.feet && inches === seeded.inches;
-  const ft = Number(feet);
-  const inch = inches.trim() === "" ? 0 : Number(inches);
-  const shapeOk = feet.trim() !== "" && Number.isInteger(ft) && Number.isFinite(inch) && inch >= 0 && inch < 12;
-  const cm = shapeOk ? ftInToCm(ft, inch) : NaN;
-  const valid = shapeOk && cm >= HEIGHT_CM.min && cm <= HEIGHT_CM.max;
-  const error = feet.trim() !== "" && !valid ? "Enter feet, and inches from 0 to 11." : null;
-  return <NumberForm question={QUESTION.heightCm!} valid={valid} error={error}
+  const seeded = known !== undefined ? heightText(known) : "";
+  const [text, setText] = useState(seeded);
+  const parsed = parseHeight(text);
+  const untouched = known !== undefined && text === seeded;
+  const error = text.trim() !== "" && !parsed ? "Type your height in feet and inches, like 5 10 or 5'10\"." : null;
+  const hint = parsed && !untouched ? `${parsed.ft} ft ${parsed.inches} in` : null;
+  return <NumberForm question={QUESTION.heightCm!} valid={parsed !== null} error={error}
     // A height left as shown keeps the stored centimetres: the inch display rounds them.
-    onSave={() => onAnswer({ key: "heightCm", value: untouched ? known : Math.round(cm * 10) / 10 })}>
-    <NumberInput label="Feet" suffix="ft" value={feet} onChange={setFeet} min={3} max={8} />
-    <NumberInput label="Inches" suffix="in" value={inches} onChange={setInches} min={0} max={11} />
+    onSave={() => onAnswer({ key: "heightCm", value: untouched ? known : parsed!.cm })}>
+    <TextAnswer label="Height" placeholder="e.g. 5 10" inputMode="text" value={text} onChange={setText} hint={hint} />
   </NumberForm>;
 }
 
@@ -128,16 +132,14 @@ function WeightQuestion({ facts, onAnswer }: { facts: OnboardingFacts; onAnswer:
   // Shown to the tenth of a pound, so a stored weight reopens close to what was measured.
   const seeded = known !== undefined ? String(Math.round(kgToLb(known) * 10) / 10) : "";
   const [text, setText] = useState(seeded);
-  const lb = Number(text);
-  const kg = Number.isFinite(lb) ? lbToKg(lb) : NaN;
-  const valid = text.trim() !== "" && kg >= WEIGHT_KG.min && kg <= WEIGHT_KG.max;
-  const error = text.trim() !== "" && !valid ? "Enter your weight in pounds." : null;
-  return <NumberForm question={QUESTION.weightKg!} valid={valid} error={error}
+  const parsed = parseWeight(text);
+  const error = text.trim() !== "" && !parsed ? "Type your weight in pounds, like 170." : null;
+  return <NumberForm question={QUESTION.weightKg!} valid={parsed !== null} error={error}
     // A weight left as shown keeps the stored kilograms exactly (Sol p0 WARN): no new measurement,
     // so no rounding through pounds.
     onSave={() => onAnswer({ key: "weightKg",
-      value: known !== undefined && text === seeded ? known : Math.round(kg * 10) / 10 })}>
-    <NumberInput label="Weight" suffix="lb" value={text} onChange={setText} min={45} max={880} decimal />
+      value: known !== undefined && text === seeded ? known : parsed!.kg })}>
+    <TextAnswer label="Weight" suffix="lb" placeholder="e.g. 170" inputMode="decimal" value={text} onChange={setText} />
   </NumberForm>;
 }
 

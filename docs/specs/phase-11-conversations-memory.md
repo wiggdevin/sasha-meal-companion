@@ -170,14 +170,14 @@ found structural problems specifically in those two features, cut rather than sh
   or a question containing a weight/target/calorie word (`lib/server/coach-context.ts:97-103,
   187-198`). On an ordinary turn, `profile` is `null`. §2's `goal_context` handling below accounts
   for this (round 2 finding 4).
-- **Gap found — Phase 10's `kind = 'onboarding'` does not exist yet.** The `kind` check constraint
-  today only allows `'chat'` or `'weekly_review'` (`20261001000000_phase7_coach.sql:9`). If Phase
-  10's implementation widens the constraint, this spec needs no schema change for it; if not,
-  slice 1 must add it.
-- **Confirmed — Phase 10 keeps a live reference to a thread.** `onboarding_drafts.thread_id
-  references coach_threads`, one row per account, no delete action specified
-  (`docs/specs/phase-10-conversational-onboarding.md:349-353`). §1's purge below is scoped to avoid
-  ever touching that row (round 2 finding 9).
+- **Superseded — `kind = 'onboarding'` was never added, and onboarding never shipped on coach
+  threads.** The `coach_threads` kind check constraint only ever grew to `'chat'`, `'plan'` and
+  `'weekly_review'` (`supabase/migrations/20261126090000_coach_conversations.sql:5`); the
+  onboarding system that actually shipped (`components/Onboarding/ConversationalOnboarding.tsx`)
+  uses its own scope (`{ kind: "page", page: "onboarding" }`) and has no `onboarding_drafts` table
+  or `coach_threads` reference anywhere in the codebase. The passages below describing a pinned
+  `kind = 'onboarding'` thread, its RLS and its purge exclusion describe the Phase 10 draft design,
+  not what shipped — read them as historical only.
 - `app/api/export/route.ts` exists today for meals, weight, progress, recipes, favorites, water,
   body-profile and body-data. It does not export threads, messages, or memories.
 - `scripts/backup.sh` runs `scripts/lib/database_backup.py`, a whole-database `pg_dump` that keeps

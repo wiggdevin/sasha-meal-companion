@@ -1,5 +1,11 @@
 # AI-first companion — profile-driven targets, the coach runs every card, Jev in the loop (2026-09-19)
 
+**Superseded in part (2026-10-05..08).** Item 3 below ("the same food can never be on both" an
+allow-list Eats/Avoid pair) describes the closed-world model. The open-world-by-default direction
+(`docs/specs/phase-18-open-world-foods.md`, `docs/decisions/2026-10-05-phase-18-open-questions.md`
+Q5) replaces the allow list with the universe plus Favorites: Eats is renamed "Favored" in the UI
+(the wire name `eats` is unchanged) and favors without ever limiting what a plate can use.
+
 Status: **approved by Devin's instruction of 2026-09-19** ("run until everything's figured out,
 tested, everything's green, and then deploy"). Devin is away; every decision below is his to
 reverse afterwards. Driven by `/goal`, slug `sasha-ai-first`, state in `~/.claude/goal-state/sasha-ai-first/`.

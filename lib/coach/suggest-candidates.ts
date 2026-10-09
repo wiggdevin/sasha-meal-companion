@@ -67,6 +67,10 @@ export type CandidateBuild = {
    * id is not one of.
    */
   openWorld?: boolean;
+  /** A chip build's line for the sheet (lib/coach/suggest-shape.ts), with or without cards. */
+  notice?: string;
+  /** "Use what I have" knew nothing on hand: the sheet offers to add items. */
+  offer?: "add_items";
 };
 /**
  * A card anchors on a name from the Eats list, so an account with none has nothing to build from,
@@ -102,6 +106,12 @@ export async function buildCandidates(
   // full rule/evidence recheck (`filterSuggestionCandidates`), so a real open account whose fresh
   // read failed gets fewer cards, never an unchecked one — and the overwhelmingly common closed
   // account (`OPEN_WORLD_ENABLED` unset in prod) must never depend on this read succeeding at all.
+  // A Plan-sheet chip (POST /api/plan/ideas) hands the build its admitted pool directly, closed or
+  // open; it never falls back to the Eats search (no catalog round trips on a chip).
+  if (ports.ideasPool) {
+    const pool = await abortable(ports.ideasPool(ports.userId), signal);
+    return buildPoolCandidates(input, ports, pool, requested, cap, signal, abortable);
+  }
   let open: Awaited<ReturnType<NonNullable<SuggestPorts["openWorld"]>>> | null = null;
   try {
     open = await abortable(ports.openWorld?.(ports.userId) ?? Promise.resolve(null), signal);

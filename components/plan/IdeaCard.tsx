@@ -25,6 +25,10 @@ export default function IdeaCard({ meal, label, busy, placing, onPlace, onSkip, 
       <AiLabel provenance={mealProvenance(meal, provenance)} className="mt-0.5" />
     </div>
     <p className="m-0 text-caption text-graphite"><MacroLine values={meal.totals} /></p>
+    {(meal.sourceNote || meal.prepMinutes !== undefined) && <p className="m-0 text-caption text-graphite">
+      {[meal.sourceNote, meal.prepMinutes !== undefined ? `About ${meal.prepMinutes} min` : null]
+        .filter(Boolean).join(" · ")}
+    </p>}
     <p className={`m-0 ${CARD_SUMMARY}`}>
       {meal.items.map((item) => `${item.name} ${Math.round(item.grams)} g`).join(" · ")}
     </p>
