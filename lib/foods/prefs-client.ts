@@ -32,9 +32,11 @@ import {
 import { withAccount } from "@/lib/device/account-supabase";
 import { loadStore, saveStoreFor } from "@/lib/store";
 import { browserClient } from "@/lib/supabase/client";
-import { getRow, putRow } from "@/lib/sync/idb";
-import { enqueue } from "@/lib/sync/outbox";
-import type { OpResult } from "@/lib/sync/types";
+import {
+  META_STORE, OUTBOX_SEQ_KEY, OUTBOX_STORE, forgetMealSnapshot, getRow, openAccountDb, outboxRow, putRow,
+} from "@/lib/sync/idb";
+import { announceQueued, enqueue } from "@/lib/sync/outbox";
+import type { Entity, OpResult, SyncOp } from "@/lib/sync/types";
 import { perUnitTo100g } from "@/lib/units";
 import { accountUnitGrams } from "@/lib/foods/unit-grams";
 
@@ -379,6 +381,154 @@ async function commitFoodMembership(
     || typeof result.updated !== "number" || !Number.isSafeInteger(result.updated)
     || result.updated < 0 || typeof result.truncated !== "boolean") return null;
   return { updated: result.updated, truncated: result.truncated };
+}
+
+/**
+ * The local membership a guarded write must still find (`setFoodMembershipGuarded`): the cached
+ * mark's revision for this name, or null when this device holds none. Read it when the verdict is
+ * made.
+ */
+export function membershipSeen(h: AccountHandle, name: string): number | null {
+  return readFoodMembership(h.userId, normalizeFoodName(name))?.rev ?? null;
+}
+
+/** What a guarded membership write reads in its transaction, and what it adds when it passes. */
+export type MembershipGuard = {
+  /** `membershipSeen` at verdict time. A different revision now means a newer choice: refuse. */
+  seenRev: number | null;
+  /** The entity store the guard reads rows from, and the keys. */
+  entity: Entity;
+  rowKeys: readonly string[];
+  /** META keys the guard reads. */
+  metaKeys: readonly string[];
+  /**
+   * SYNCHRONOUS, over the rows read inside the transaction. Null refuses (nothing is written);
+   * otherwise the META values to write beside the membership op, given the op's revision.
+   */
+  check: (read: { rows: (Record<string, unknown> | undefined)[]; meta: unknown[] }, rev: number) =>
+    { meta: readonly { key: string; value: unknown }[] } | null;
+};
+
+export type GuardedMembershipResult = { written: true; rev: number } | { written: false };
+
+/**
+ * `setFoodMembership` for a write that must not land once its reason is gone (the meal card heart,
+ * lib/favorite-meals-client.ts). The op id, the membership id and the next revision are made
+ * BEFORE the transaction opens; inside ONE readwrite transaction over the guard's entity, the
+ * outbox and META, the guard's rows are read and then, with no other await, the write is checked:
+ * this device's mark for the name is not Avoid and is still the one seen at verdict time, no other
+ * mark of that name is reserved or in flight here, and the caller's `check` passes. Only then are
+ * the membership op and the caller's META values written, together. Otherwise nothing is.
+ *
+ * Name-only (no ref minting) and no acknowledgement: the queued op is the durable record, as for
+ * any membership mark. The device's mark cache (localStorage) and the in-memory revision clock are
+ * updated as the write commits, so a later tap orders after it. Every other caller keeps
+ * `setFoodMembership` unchanged.
+ */
+export async function setFoodMembershipGuarded(
+  name: string, status: "eats", guard: MembershipGuard,
+  opts: { account: AccountHandle; now?: () => number },
+): Promise<GuardedMembershipResult> {
+  const h = opts.account;
+  assertCurrent(h);
+  const nameNorm = normalizeFoodName(name);
+  if (!nameNorm) throw new TypeError("Food membership needs a name");
+  const userId = h.userId;
+  const clockKey = `${userId}:${nameNorm}`;
+  const intentKey = `${h.epoch}:${clockKey}`;
+  const at = Math.max(0, Math.floor((opts.now ?? Date.now)()));
+  // Everything that awaits or derives happens here, before the transaction.
+  const id = await uuidV5(LEGACY_FOOD_NAMESPACE, `food-membership:${userId}:${nameNorm}`);
+  const opId = crypto.randomUUID();
+  const db = await openAccountDb(h);
+  const tx = db.transaction([guard.entity, OUTBOX_STORE, META_STORE], "readwrite");
+  const done = tx.done;
+  let restoreClock: (() => void) | null = null;
+  try {
+    const rows = await Promise.all(guard.rowKeys.map((key) =>
+      tx.objectStore(guard.entity).get(key) as Promise<Record<string, unknown> | undefined>));
+    const meta = await Promise.all(guard.metaKeys.map((key) => tx.objectStore(META_STORE).get(key)));
+    const seq = (((await tx.objectStore(META_STORE).get(OUTBOX_SEQ_KEY)) as number | undefined) ?? 0) + 1;
+    // ---- synchronous from here to the writes ----
+    assertCurrent(h);
+    const current = readFoodMembership(userId, nameNorm);
+    const currentRev = current?.rev ?? null;
+    const clock = membershipRevisions.get(clockKey);
+    const busy = (activeMembershipCalls.get(intentKey) ?? 0) > 0
+      || (clock ?? -1) > (currentRev ?? -1);
+    if (current?.status === "avoid" || currentRev !== guard.seenRev || busy) {
+      await abortQuietly(tx, done);
+      return { written: false };
+    }
+    // Known limit, deferred (Sol r4 #2, logged as a follow-up): the revision clock is per tab, so
+    // two tabs writing the same name in the same millisecond can mint equal revisions. That is a
+    // property of the shared membership clock (`reserveFoodMembershipIntent`) and affects every
+    // `setFoodMembership` caller, not only this one.
+    const rev = Math.max(at, (currentRev ?? -1) + 1, (clock ?? -1) + 1);
+    const extra = guard.check({ rows, meta }, rev);
+    if (!extra) {
+      await abortQuietly(tx, done);
+      return { written: false };
+    }
+    restoreClock = () => {
+      if (membershipRevisions.get(clockKey) !== rev) return;
+      if (clock === undefined) membershipRevisions.delete(clockKey);
+      else membershipRevisions.set(clockKey, clock);
+    };
+    membershipRevisions.set(clockKey, rev);
+    membershipIntents.set(intentKey, (membershipIntents.get(intentKey) ?? 0) + 1);
+    const op: SyncOp = {
+      op_id: opId, entity: "food_membership", entity_id: id, kind: "update", base_rev: null,
+      payload: { id, name_norm: nameNorm, status, note: null, rev }, client_ts: new Date(at).toISOString(),
+    };
+    const queued = outboxRow(h, op, seq, at);
+    const writes: Promise<unknown>[] = [
+      tx.objectStore(META_STORE).put(seq, OUTBOX_SEQ_KEY),
+      tx.objectStore(OUTBOX_STORE).put(queued),
+      ...extra.meta.map((m) => tx.objectStore(META_STORE).put(m.value, m.key)),
+    ];
+    // An aborted transaction rejects every request; the abort is reported once, through `done`.
+    for (const w of writes) w.catch(() => undefined);
+    await Promise.all(writes);
+    await done;
+    rememberMembership(userId, nameNorm, { status, note: null, rev });
+    announceQueued();
+    // A food_membership write is a meal snapshot input (lib/sync/idb.ts SNAPSHOT_INPUTS).
+    void forgetMealSnapshot(h).catch(() => undefined);
+    scheduleEatsFacetWarm(h);
+    return { written: true, rev };
+  } catch (error) {
+    await abortQuietly(tx, done);
+    // Nothing committed: the revision this write took is released for the next one.
+    restoreClock?.();
+    throw error;
+  }
+}
+
+async function abortQuietly(tx: { abort(): void }, done: Promise<void>): Promise<void> {
+  try { tx.abort(); } catch { /* already finished */ }
+  await done.catch(() => undefined);
+}
+
+/**
+ * Repair this device's mark cache from a durable record of a mark it queued (the meal card heart's
+ * `done` list, lib/favorite-meals-client.ts): the IndexedDB commit that queued the op lands before
+ * the localStorage cache write, so a crash between them leaves the cache behind. Writes only when
+ * the cache has no entry for the name or an OLDER revision; a newer choice is never overwritten.
+ * Returns true when the cache now holds exactly this mark.
+ */
+export function repairFoodMembershipCache(
+  h: AccountHandle, name: string, mark: { status: "eats"; rev: number },
+): boolean {
+  assertCurrent(h);
+  const nameNorm = normalizeFoodName(name);
+  const current = readFoodMembership(h.userId, nameNorm);
+  if (current && current.rev > mark.rev) return false;
+  if (!current || current.rev < mark.rev) {
+    rememberMembership(h.userId, nameNorm, { status: mark.status, note: null, rev: mark.rev });
+  }
+  const now = readFoodMembership(h.userId, nameNorm);
+  return now?.rev === mark.rev && now.status === mark.status;
 }
 
 /** A stale device lost to a newer server revision. Revert only if no newer local tap superseded it. */
