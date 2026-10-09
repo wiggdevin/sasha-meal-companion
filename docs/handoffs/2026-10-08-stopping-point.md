@@ -26,6 +26,8 @@ The Sasha orchestrator's handoff at the owner-requested stop. It records what la
 | #40 | Plan-sheet idea chips answered in code (`POST /api/plan/ideas`), no Gemini; Jev ranking with formula fallback |
 | #43 | docs reconciliation: audit §3 doc fixes, dead GroundVideo/IcsSubscribe removed, `NEXT_PUBLIC_CHAT_ONBOARDING` documented, onboarding-as-built, rollout tracker |
 | #44 | meal-card heart wired on Today (`useMealFavorites`) |
+| #45 | Week link in Today's header, close control on Week, "Scanning isn't available yet" notice (dock updates, audit §2) |
+| #46 | this handoff |
 
 ## Prod state
 
@@ -54,7 +56,6 @@ The Sasha orchestrator's handoff at the owner-requested stop. It records what la
 | `wip/2026-10-08-voice-retire-account-zone` | Phase-14 retirement note, `voice_ears` cleanup migration, account-zone precedence and the two `it.todo` tests. Stopped in tests, unreviewed. | Finish, review, renumber the migration. |
 | `wip/2026-10-08-app-hardening` | Security headers, `app/error.tsx` + `global-error.tsx`, vendor-free `/api/client-errors`, ExportCard copy, shopping-apply account-switch fix. **Sol BLOCK.** | **BLOCK:** crash reports can still carry free-text PII. Move to an allowlist of error codes and route patterns. **WARN:** the 4 KB cap is checked after the body is read. **WARN:** a partial shopping add has no Undo. |
 | `wip/2026-10-08-down-migrations` | Down files for `20261023092000`, `20261126090000`, `20261210090100`. **Sol BLOCK.** | All three destroy data (they delete plan threads with their transcripts, delete `attach` timings, and break role-only writes). Redesign them to preserve data. |
-| `wip/2026-10-08-week-entry-scan-notice` | Week link in Today's header, close control on Week, "Scanning isn't available yet" notice. Sol READY. **CI failed:** `react-hooks` lint at `components/CoachChat.tsx:192` (setState in an effect; defer it like `setScanOpen`), and `tests/cards/today.test.tsx` is over its 400-line cap (move the header-link test). | Fix both, queue. Known gap: coach and scan both disabled shows no notice. |
 | `feat/cards-redesign-v4` | Meal Cards lane: pass 1 of 4, unreviewed. **Do not merge.** | See `~/Inbox/notes/handoffs/2026-10-08-sasha-meal-cards.md`. |
 | `wip/2026-10-08-onb2-p0-{chat,save,ui}`, `wip/2026-10-08-onb2-voice` | Older local onboarding-v2 branches, backed up only; most of their work has since landed. | Compare with main before reusing; delete if empty. |
 
@@ -78,7 +79,7 @@ Deferred:
 - the widget-save failure notice (#7, OPEN);
 - Lighthouse / bundle-size CI;
 - a full `script-src` CSP;
-- the scan notice for accounts with coach disabled.
+- the scan notice for accounts with coach disabled (#45 covers coach-enabled accounts).
 
 ## Resume
 
