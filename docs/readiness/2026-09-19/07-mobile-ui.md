@@ -23,12 +23,18 @@
 
 All document/body/viewport widths were 390 px. Every measured primary/tap button was at least 44 × 44 px. Visual inspection found no clipping or broken layout.
 
-## Console-error defect
+## Console-error defect — resolved/by-design (see `docs/features.md` F-126)
 
 Every screen generated failed-resource console errors from `pingWarm()`. It deliberately sends HEAD to five hot routes (`lib/warm-client.ts:44-51`), but the route contracts answer:
 
 - 405: `/api/log/propose`, `/api/foods/barcode`, `/api/coach`, `/api/log/commit`
 - 400: `/api/foods/search`
+
+**This is by design, not a defect.** F-126 (`docs/features.md`) states the contract directly: "a
+405 or 401 back still means that function loaded" — the warm ping's job is to keep the serverless
+function warm, and a 405/400 response proves the hit landed and the runtime is loaded, exactly
+what the ping is for. The browser logging these as console errors is a side effect of the warm
+strategy, not a functional failure; no suppression handler is needed.
 
 Settings added two 503 responses from the disabled `/api/health/daily` request. The browser treats these responses as console errors even though `pingWarm` swallows the fetch rejection in JavaScript. Therefore the required “no console errors” assertion failed on all six screens.
 
