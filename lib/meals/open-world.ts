@@ -22,7 +22,7 @@
  * Taste: each pool food carries the snapshot's quantized `z` (never recomputed here). Meal-level
  * rules: under `kosher_meat_dairy` every assembled plate runs `checkPlateRules` on the snapshot's
  * deterministic meat and dairy evidence; a food without evidence reads unknown and its plates are
- * not generated. Reason chips: "You eat this often" (`eaten`) and "On your list" (`on_list`).
+ * not generated. Reason chips: "You eat this often" (`eaten`) and "Favorite" (`on_list`; the wire name stays).
  *
  * Pure. No I/O.
  */
@@ -48,7 +48,7 @@ export type MealReasonChip = NonNullable<Meal["reasons"]>[number];
 export const REASON_CHIPS: readonly MealReasonChip[] = ["eaten_often", "on_list"];
 export const REASON_CHIP_COPY: Readonly<Record<MealReasonChip, string>> = {
   eaten_often: "You eat this often",
-  on_list: "On your list",
+  on_list: "Favorite",
 };
 
 export type OpenWorldInputs = {

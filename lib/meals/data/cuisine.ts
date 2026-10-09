@@ -84,3 +84,87 @@ export const CUISINE_SIDES: readonly CuisineSides[] = [
     sides: { starch: ["roti", "paratha", "rice", "pita", "arepa"], veg: ["cucumber", "tomato"],
       fat: ["ghee", "feta", "olive oil"] } },
 ];
+
+/**
+ * The foods each stated cuisine (`user_settings.cuisines`, the 12-word list) leans on, as name
+ * words matched at a word start (lib/meals/cuisine.ts ranks with them, onb3). `core` is a defining
+ * staple, `common` an everyday food. Written from the reviewed cuisine packs' food lists, as words
+ * so the meal engine can read them for any account; a ranking signal only, never a rule.
+ */
+export const CUISINE_STAPLES: Readonly<Record<string, { core: readonly string[]; common: readonly string[] }>> = {
+  american: {
+    core: ["chicken breast", "ground beef", "turkey", "egg", "potato", "white rice", "whole wheat bread", "bread",
+      "broccoli", "green beans", "banana", "apple", "peanut butter", "oatmeal", "corn on the cob", "cheddar"],
+    common: ["steak", "pork chop", "salmon", "tuna", "greek yogurt", "cottage cheese", "sweet potato", "carrot",
+      "lettuce", "tomato", "strawberries", "blueberries", "orange", "grapes", "almonds", "butter", "pasta",
+      "spaghetti", "black beans", "pinto beans"],
+  },
+  latin_american: {
+    core: ["black beans", "pinto beans", "tortilla", "white rice", "avocado", "tomato", "onion", "chicken thigh",
+      "egg", "lime", "cilantro", "queso"],
+    common: ["ground beef", "pork shoulder", "steak", "tilapia", "shrimp", "pepper", "corn on the cob", "plantain", "mango",
+      "papaya", "refried beans", "cabbage", "zucchini", "sweet potato"],
+  },
+  italian: {
+    core: ["spaghetti", "pasta", "tomato", "olive oil", "garlic", "parmesan", "mozzarella", "basil", "zucchini",
+      "chicken breast", "white bread", "ricotta"],
+    common: ["sourdough", "white beans", "chickpeas", "eggplant", "pepper", "spinach", "arugula", "mushroom",
+      "cod", "shrimp", "steak", "olives", "lemon", "lentils"],
+  },
+  mediterranean: {
+    core: ["chickpeas", "lentils", "pita", "olive oil", "tomato", "cucumber", "feta", "greek yogurt", "hummus",
+      "tahini", "bulgur", "lemon", "eggplant"],
+    common: ["couscous", "lamb", "chicken thigh", "fava", "olives", "zucchini", "pepper", "spinach", "dates",
+      "figs", "pomegranate", "pistachios", "almonds", "walnuts", "sea bass", "yogurt", "white rice"],
+  },
+  south_asian: {
+    core: ["basmati", "lentils", "dal", "chickpeas", "roti", "chapati", "naan", "ghee", "yogurt", "spinach",
+      "cauliflower", "potato", "chicken thigh"],
+    common: ["kidney beans", "peas", "okra", "eggplant", "green beans", "cabbage", "carrot", "egg", "lamb", "goat",
+      "white rice", "mango", "banana", "cashews", "almonds", "sweet potato"],
+  },
+  chinese: {
+    core: ["white rice", "jasmine", "tofu", "bok choy", "egg", "pork shoulder", "chicken thigh", "napa cabbage",
+      "green onion", "noodles", "sesame oil", "shiitake"],
+    common: ["gai lan", "snow peas", "bean sprouts", "broccoli", "eggplant", "pepper", "carrot", "shrimp",
+      "steak", "duck", "sea bass", "peanuts", "cashews", "edamame", "cucumber", "spinach", "mushroom"],
+  },
+  japanese: {
+    core: ["sushi rice", "white rice", "salmon", "tuna", "tofu", "edamame", "nori", "seaweed", "egg", "soba",
+      "green onion", "daikon", "natto", "shiitake"],
+    common: ["mackerel", "cod", "shrimp", "chicken thigh", "steak", "spinach", "cabbage", "cucumber", "carrot",
+      "sweet potato", "sesame", "mushroom"],
+  },
+  korean: {
+    core: ["white rice", "kimchi", "tofu", "egg", "sesame oil", "green onion", "garlic", "napa cabbage",
+      "bean sprouts", "steak", "pork shoulder", "seaweed", "spinach"],
+    common: ["chicken thigh", "short ribs", "mackerel", "daikon", "zucchini", "cucumber", "carrot", "shiitake",
+      "sweet potato", "sesame", "brown rice"],
+  },
+  southeast_asian: {
+    core: ["jasmine", "rice noodles", "tofu", "shrimp", "chicken thigh", "coconut milk", "lime", "lemongrass",
+      "cilantro", "bean sprouts", "egg", "peanuts", "cucumber", "bok choy"],
+    common: ["pork shoulder", "steak", "tilapia", "tempeh", "eggplant", "pepper", "cabbage", "spinach", "mango",
+      "papaya", "pineapple", "banana", "sweet potato", "white rice", "cashews"],
+  },
+  caribbean: {
+    core: ["white rice", "kidney beans", "black beans", "pigeon peas", "chicken thigh", "plantain", "yam",
+      "callaloo", "coconut milk", "lime", "pepper"],
+    common: ["goat", "pork shoulder", "ground beef", "cod", "shrimp", "mackerel", "black-eyed peas", "sweet potato",
+      "pumpkin", "okra", "cabbage", "carrot", "tomato", "mango", "papaya", "pineapple", "banana", "avocado", "egg"],
+  },
+  african: {
+    core: ["millet", "teff", "yam", "plantain", "black-eyed peas", "peanuts", "peanut butter", "okra", "tomato",
+      "chicken thigh", "goat", "white rice", "collard"],
+    common: ["lentils", "chickpeas", "fava", "kidney beans", "spinach", "cabbage", "carrot", "sweet potato",
+      "pumpkin", "eggplant", "ground beef", "lamb", "tilapia", "mackerel", "sardines", "egg", "mango", "banana",
+      "papaya", "avocado", "couscous"],
+  },
+  european_other: {
+    core: ["potato", "rye bread", "cabbage", "sauerkraut", "pork shoulder", "chicken breast", "egg", "butter",
+      "carrot", "beets", "apple", "buckwheat"],
+    common: ["leeks", "turnips", "parsnips", "brussels sprouts", "cauliflower", "green beans", "peas", "mushroom",
+      "cucumber", "sour cream", "cottage cheese", "herring", "cod", "trout", "salmon", "pork tenderloin",
+      "egg noodles", "barley", "sourdough", "pear", "plum", "cherries", "raspberries"],
+  },
+};

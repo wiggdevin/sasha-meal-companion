@@ -100,15 +100,15 @@ describe("acceptance (d)–(g)", () => {
     const breakfast = rankPlates({ date: DATE, slot: "meal-1", occasion: "breakfast", target: BREAKFAST,
       foods: eats(F.eggs, F.oliveOil) });
     expect(breakfast.plates).toEqual([]);
-    expect(breakfast.shortage).toEqual({ missing: ["starch", "fruit"], reason: "Add a breakfast starch or fruit to Eats" });
+    expect(breakfast.shortage).toEqual({ missing: ["starch", "fruit"], reason: "No breakfast starch or fruit fits yet — try another food" });
     // Banana is in Eats, but tuna does not pair with it: still short of a starch or fruit.
     const tuna = rankPlates({ date: DATE, slot: "meal-1", occasion: "breakfast", target: BREAKFAST,
       foods: eats(F.tuna, F.banana) });
-    expect(tuna.shortage?.reason).toBe("Add a breakfast starch or fruit to Eats");
+    expect(tuna.shortage?.reason).toBe("No breakfast starch or fruit fits yet — try another food");
     expect(rankPlates({ date: DATE, slot: "meal-2", occasion: "lunch", target: MAIN,
-      foods: eats(F.tuna, F.oliveOil) }).shortage?.reason).toBe("Add a lunch starch to Eats");
+      foods: eats(F.tuna, F.oliveOil) }).shortage?.reason).toBe("No lunch starch fits yet — try another food");
     expect(rankPlates({ date: DATE, slot: "meal-3", occasion: "dinner", target: MAIN,
-      foods: eats(F.rice, F.oliveOil) }).shortage).toEqual({ missing: ["anchor"], reason: "Add a dinner protein to Eats" });
+      foods: eats(F.rice, F.oliveOil) }).shortage).toEqual({ missing: ["anchor"], reason: "No dinner protein fits yet — try another food" });
   });
 });
 

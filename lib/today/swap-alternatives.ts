@@ -18,7 +18,7 @@ export type SwapAlternative = {
   foodIds: string[];
   /**
    * Phase 18 W8: why an open food-world plate is offered ("eaten_often": "You eat this often",
-   * "on_list": "On your list"). Absent on saved rows and on every closed account's row.
+   * "on_list": "Favorite"). Absent on saved rows and on every closed account's row.
    */
   reasons?: MealReasonChip[];
 };

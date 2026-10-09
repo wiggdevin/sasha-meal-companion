@@ -163,7 +163,8 @@ function generatedPlan(store: Store, date: string, eligibleFoodIds?: ReadonlySet
   if (!pool.view) return null;
   const slots = pool.generated.map((slot) => ({ ...slot, clock: times.get(slot.id) ?? null }));
   return { plan: planMealsForDay(date, slots, pool.eligibleFoods, undefined,
-    mealEvidenceOf(eligibleFoodIds), pool.open, focusOf(eligibleFoodIds, date)), required: slots.length,
+    mealEvidenceOf(eligibleFoodIds), pool.open, focusOf(eligibleFoodIds, date), store.settings.cuisines),
+    required: slots.length,
     pool: pool.eligibleFoods };
 }
 
@@ -177,7 +178,7 @@ export function generatedProteinAvailabilityForDay(store: Store, date: string,
   return generatedNotesForDay(store, date, eligibleFoodIds)?.proteins ?? null;
 }
 
-/** Why each generated slot that stayed empty is empty ("Add a breakfast starch or fruit to Eats"). */
+/** Why each generated slot that stayed empty is empty ("No breakfast starch or fruit fits yet — try another food"). */
 export function generatedShortagesForDay(store: Store, date: string,
   eligibleFoodIds?: ReadonlySet<string>): Partial<Record<SlotId, Shortage>> | null {
   return generatedNotesForDay(store, date, eligibleFoodIds)?.shortages ?? null;
@@ -241,7 +242,7 @@ export function resolveDay(store: Store, date: string, waterCups = 0,
     targets, layoutIds, eligibleFoodIds);
   const rotated = planMealsForDay(date, generated.map((slot) => ({
     ...slot, clock: layoutTimes.get(slot.id) ?? null })), eligibleFoods, undefined,
-    mealEvidenceOf(eligibleFoodIds), open, focusOf(eligibleFoodIds, date)).meals;
+    mealEvidenceOf(eligibleFoodIds), open, focusOf(eligibleFoodIds, date), store.settings.cuisines).meals;
   const rotationBySlot = new Map(rotated.map((entry) => [entry.slot, entry.meal]));
   // W8: an open account's saved lines may name admitted universe foods (a swapped-in plate).
   const admittedFoods = open ? Object.values(livePool(open, store.foods)) : undefined;
