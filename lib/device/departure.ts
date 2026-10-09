@@ -55,6 +55,8 @@ type Departing = {
   frozen: boolean;
   store: Store | null;
   signOut: (() => Promise<void>) | null;
+  /** Where the page goes once it has left (account deletion: the sign-in page). */
+  reloadTo: string | null;
 };
 
 export type DepartureDeps = {
@@ -162,7 +164,8 @@ async function settle(): Promise<DeparturePhase> {
     setPhase("blocked");
     return "blocked";
   }
-  (deps.reload ?? defaultReload)();
+  const target = d.reloadTo;
+  (deps.reload ?? (target === null ? defaultReload : () => window.location.replace(target)))();
   return "leaving";
 }
 
@@ -173,15 +176,17 @@ async function settle(): Promise<DeparturePhase> {
  * `signOut` runs only after the account's state is durable, and only when the departure was
  * started for it: a sign-out asked for while a departure for another reason runs is dropped, so
  * it can never remove the next account's session (reload review r1 #9). `announce` tells the
- * account's other tabs to leave too.
+ * account's other tabs to leave too. `reloadTo` replaces the page with that path instead of the
+ * same page (account deletion lands on the sign-in page).
  */
 export function beginDeparture(opts: {
-  signOut?: () => Promise<void>; announce?: boolean;
+  signOut?: () => Promise<void>; announce?: boolean; reloadTo?: string;
 } = {}): Promise<DeparturePhase> {
   if (departing === null) {
     const bound = currentAccountOrNull();
     departing = {
       userId: bound?.userId ?? null, frozen: false, store: null, signOut: opts.signOut ?? null,
+      reloadTo: opts.reloadTo ?? null,
     };
     closeAccount();
     setPhase("leaving");

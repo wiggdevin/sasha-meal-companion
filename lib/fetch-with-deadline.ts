@@ -15,7 +15,7 @@
 /** The kinds of call spec §2 gives a deadline to. One name per hop the user waits on. */
 export type Budget =
   "sign" | "upload" | "propose" | "barcode" | "commit" | "coach" | "search" | "timings"
-  | "transcribe" | "prefs" | "undo";
+  | "transcribe" | "prefs" | "undo" | "accountDelete";
 
 /**
  * Spec §2's table, in milliseconds: how long one call of each kind may take before the client
@@ -50,6 +50,12 @@ export const DEADLINES: Record<Budget, number> = {
    * for good (review t4r7 #3); past this, the outcome counts as unknown.
    */
   undo: 10_000,
+  /**
+   * Self-serve account deletion (lib/account-delete-client.ts): the server removes the account's
+   * files, then its rows in one transaction. Rare and deliberate; a timeout reads as "not
+   * confirmed", and a retry is safe (the route is idempotent).
+   */
+  accountDelete: 30_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */
