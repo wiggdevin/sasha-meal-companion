@@ -20,6 +20,7 @@ import TargetsSection from "@/components/settings/TargetsSection";
 import CuisinesSection from "@/components/settings/CuisinesSection";
 import CompanionSection from "@/components/settings/CompanionSection";
 import WaterSection from "@/components/settings/WaterSection";
+import HowSashaWorksCard from "@/components/tour/HowSashaWorksCard";
 import { useSettingsController } from "@/components/settings/use-settings-controller";
 import { isExistingAccount } from "@/lib/profile/onboarding-state";
 import Button from "@/components/ui/Button";
@@ -128,6 +129,8 @@ export default function SettingsPage() {
       <CuisinesSection settings={settings} />
 
       <CompanionSection />
+
+      <HowSashaWorksCard />
 
       <ScheduleSection shiftMinutes={settings.shiftMinutes} slotTimes={settings.slotTimes}
         mealsPerDay={settings.mealsPerDay} activeTargetProfile={settings.activeTargetProfile}
