@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 export const COACH_DOCK_SUBMIT_EVENT = "coach:dock-submit";
 
@@ -37,18 +37,24 @@ export function deliverDockText(text: string): boolean {
  * use-composer-input's send() instead of always reporting success.
  */
 export function useCoachDockSubmit(send: (text: string) => boolean | void, ready = true): void {
+  // The listener reads the `send` of the last COMMITTED render. Re-registering it in a passive
+  // effect left a gap after each commit (the DOM already showed the thread restored) in which a
+  // dispatch reached the previous `send`, still restoring, and was dropped (CI on PRs #65 and #70).
+  // A layout effect updates the ref inside the commit, so there is no such gap.
+  const latestSend = useRef(send);
+  useLayoutEffect(() => { latestSend.current = send; }, [send]);
   useEffect(() => {
     const receive = (event: Event) => {
       const detail = (event as CustomEvent<{ text?: unknown; accepted?: boolean; received?: boolean }>).detail;
       if (detail) detail.received = true;
       const text = detail?.text;
-      if (typeof text === "string" && text.trim() && send(text.trim()) === false && detail) {
+      if (typeof text === "string" && text.trim() && latestSend.current(text.trim()) === false && detail) {
         detail.accepted = false;
       }
     };
     window.addEventListener(COACH_DOCK_SUBMIT_EVENT, receive);
     return () => window.removeEventListener(COACH_DOCK_SUBMIT_EVENT, receive);
-  }, [send]);
+  }, []);
 
   useEffect(() => {
     if (!ready || pendingDockText === null) return;
