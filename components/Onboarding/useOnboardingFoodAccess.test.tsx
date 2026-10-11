@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { createOnboardingState } from "@/lib/profile/onboarding-state";
@@ -23,7 +23,8 @@ beforeEach(() => {
     candidateCategories: [], rev: 0 });
   reads.constraints.mockResolvedValue({ profile: {}, rev: 0 });
 });
-afterEach(() => unbindAccount());
+// Unmount before the next file: a mounted hook lets React run after jsdom is torn down.
+afterEach(() => { cleanup(); unbindAccount(); });
 
 describe("onboarding food access", () => {
   it("opens optional Foods only after explicit pilot access and verified rules", async () => {

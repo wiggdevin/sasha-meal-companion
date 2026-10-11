@@ -889,7 +889,7 @@ export default function Today() {
         foods={store.foods}
         note={getDay(viewedDate)?.notes?.[editSlot]}
         time={edited?.time}
-        onSwap={!resolved.isFloorDay && (isMealSlot(editSlot) || getMealOptions(resolved.dayType, editSlot).length > 1)
+        onSwap={(isMealSlot(editSlot) || getMealOptions(resolved.dayType, editSlot).length > 1)
           ? () => { setSwapSlot(editSlot); setEditSlot(null); } : undefined}
         onSave={(components, note, time) => saveSlotEdit(editSlot, components, note, time)}
         onClose={() => setEditSlot(null)} />;
@@ -992,8 +992,8 @@ export default function Today() {
         {resolved.isFloorDay && (
           <div className="shell" role="status">
             <p className="surface px-5 py-4 text-tiny font-normal leading-body-sm text-graphite">
-              <span className=" font-normal text-charcoal">Quick meals on.</span> Three simple backup meals.
-              Change this in Day type to return to your usual meals.
+              <span className=" font-normal text-charcoal">Quick meals day marked.</span> Your planned
+              meals stay the same. Change this in Day type.
             </p>
           </div>
         )}
@@ -1061,9 +1061,8 @@ export default function Today() {
               );
             }
             const slot = item.slot;
-            const canSwap =
-              !resolved.isFloorDay &&
-              (isMealSlot(slot.slot) || getMealOptions(resolved.dayType, slot.slot).length > 1);
+            // Quick meals no longer replaces the plan (A061), so it never locks Swap.
+            const canSwap = isMealSlot(slot.slot) || getMealOptions(resolved.dayType, slot.slot).length > 1;
             const note = slotNote(slot, planStore.days[viewedDate], generatedNotes);
             const variant: SlotVariant =
               slot.slot === focusSlotId
