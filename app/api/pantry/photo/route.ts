@@ -9,6 +9,7 @@
  * and only for the items the user confirms.
  */
 import { z } from "zod";
+import { MEDIA_PATH } from "@/lib/capture/types";
 import { adminClient } from "@/lib/server/admin";
 import { jsonError, readJson } from "@/lib/server/http";
 import { draftPantryPhoto } from "@/lib/server/pantry-photo";
@@ -21,7 +22,9 @@ export const preferredRegion = ["sfo1"];
 export const maxDuration = 15;
 
 const MAX_BYTES = 2 * 1024;
-const Body = z.object({ mediaPath: z.string().min(1).max(200) });
+// The same media/<uid>/<uuid>.<ext> shape every other media route takes (W019, A099): a traversal
+// key never reaches the service-role read.
+const Body = z.object({ mediaPath: z.string().max(200).regex(MEDIA_PATH) });
 
 export async function POST(req: Request): Promise<Response> {
   try {

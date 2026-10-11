@@ -36,7 +36,7 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const objectOf = (bytes: Uint8Array, mimeType: string) =>
   vi.fn(async () => ({ bytes, mimeType }));
 
-const REQ = { path: "media/u1/3f1b1a2c-0000-4000-8000-000000000030.m4a" };
+const REQ = { path: "media/11111111-1111-4111-8111-111111111111/3f1b1a2c-0000-4000-8000-000000000030.m4a" };
 
 describe("the request body", () => {
   it("takes a path and nothing else", () => {
