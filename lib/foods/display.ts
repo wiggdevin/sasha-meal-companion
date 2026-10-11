@@ -13,8 +13,7 @@
  *
  * Pure. No I/O.
  */
-import { UNIT_LABELS, type Food } from "@/lib/foods";
-import { macroKcal } from "@/lib/scaling";
+import { foodKcalPerUnit, UNIT_LABELS, type Food } from "@/lib/foods";
 import { accountUnitGrams } from "@/lib/foods/unit-grams";
 
 /**
@@ -42,8 +41,11 @@ export const NO_NUTRITION_LABEL = "No nutrition yet";
 
 /** "165 kcal / 100 g", "0 kcal / 100 ml" for water, or "No nutrition yet" for a food with no
  *  macros recorded (lib/store.ts sets `nutritionUnknown`). */
-export function kcalPer100Label(food: Pick<Food, "name" | "unit" | "perUnit" | "nutritionUnknown">): string {
-  const perUnit = macroKcal(food.perUnit);
+export function kcalPer100Label(
+  food: Pick<Food, "name" | "unit" | "perUnit" | "kcalPerUnit" | "nutritionUnknown">,
+): string {
+  // The energy the logger stores (`foodKcalPerUnit`, W004): a drink's alcohol is in no macro.
+  const perUnit = foodKcalPerUnit(food);
   // The flag only explains a zero: macros entered since the last sync still print.
   if (!Number.isFinite(perUnit) || perUnit < 0 || (perUnit === 0 && food.nutritionUnknown)) return NO_NUTRITION_LABEL;
   const { factor, label } = per100Base(food);

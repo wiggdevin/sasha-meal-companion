@@ -36,7 +36,7 @@ import {
 } from "@/lib/device/account";
 import type { CachedRevision } from "@/lib/db/catalog-cache";
 import { dbFood } from "@/lib/food-db";
-import type { Food } from "@/lib/foods";
+import { foodKcalPerUnit, omitUnmeasured, type Food } from "@/lib/foods";
 import {
   adoptUserFood, bundledFoodUserId, numbersKey, per100gFromBundled, type AdoptableFood,
 } from "@/lib/foods/adopt-client";
@@ -50,7 +50,6 @@ import { localDateFor, type LogCommitRequest } from "@/lib/log/contract";
 import { mealCard } from "@/lib/log/meal-card";
 import { MACRO_CODES, NUTRIENT_UNITS, type NutrientCode } from "@/lib/nutrients/codes";
 import { computeSnapshot, computeUnitSnapshot } from "@/lib/nutrients/snapshot";
-import { macroKcal } from "@/lib/scaling";
 import type { TimingPath, TimingRun } from "@/lib/timing";
 import type { LoggedFood, LoggedItem, Macros, SlotId } from "@/lib/types";
 
@@ -142,7 +141,9 @@ export function unitGramsOf(food: Food): number | null {
 
 /**
  * An account food's numbers per 100 g, from its per-unit numbers and its unit weight. Null when
- * the unit weight is unknown. A food whose nutrition is unknown stores nothing measured.
+ * the unit weight is unknown. A food whose nutrition is unknown stores nothing measured. Energy is
+ * the food's measured energy when it has one (reported, else calculated), else 4/4/9 from its
+ * macros (`foodKcalPerUnit`, W004 audit A156): a drink's alcohol energy is in no macro.
  */
 export function accountPer100g(food: Food): { per100g: Per100g; unitGrams: number } | null {
   const unitGrams = unitGramsOf(food);
@@ -151,12 +152,13 @@ export function accountPer100g(food: Food): { per100g: Per100g; unitGrams: numbe
   const k = 100 / unitGrams;
   return {
     unitGrams,
-    per100g: {
-      energy_kcal: round4(macroKcal(food.perUnit) * k),
+    // An unmeasured macro stays absent, never a stored 0 (`omitUnmeasured`, W004 review).
+    per100g: omitUnmeasured(food, {
+      energy_kcal: round4(foodKcalPerUnit(food) * k),
       protein: round4(food.perUnit.protein * k),
       carbohydrate: round4(food.perUnit.carbs * k),
       fat_total: round4(food.perUnit.fat * k),
-    },
+    }),
   };
 }
 
@@ -246,8 +248,8 @@ export function accountPerUnit(food: Food): Per100g | undefined {
   if (food.nutritionUnknown) return undefined;
   const { protein, carbs, fat } = food.perUnit;
   if (![protein, carbs, fat].every((n) => Number.isFinite(n) && n >= 0)) return undefined;
-  return { energy_kcal: round4(macroKcal(food.perUnit)), protein: round4(protein),
-    carbohydrate: round4(carbs), fat_total: round4(fat) };
+  return omitUnmeasured(food, { energy_kcal: round4(foodKcalPerUnit(food)), protein: round4(protein),
+    carbohydrate: round4(carbs), fat_total: round4(fat) });
 }
 
 /**
