@@ -393,7 +393,10 @@ describe("savePlanDay", () => {
     expect((await getRow(h, "plan_days", CREATE_DATE))?.day_type_override).toBe("rest");
   });
 
-  it("carries a floor day, swaps, notes and edits that only the mirror knows about", async () => {
+  // Audit 2026-10-10 A141: an update names only what it changed. The server keeps every field a
+  // payload omits (migration 20261026090000), so the mirror's floor day, swaps, notes and edits stay
+  // without riding along — and a conflict can tell this edit from the other device's.
+  it("sends only the day type, and the mirror keeps the floor day, swaps, notes and edits", async () => {
     const edited = {
       coffee: {
         baseMealId: "coffee-latte",
@@ -415,13 +418,11 @@ describe("savePlanDay", () => {
     await savePlanDay(MIRROR_DATE, { dayTypeOverride: "rest" });
     const [op] = await allOps(h);
     expect(op).toMatchObject({ kind: "update", base_rev: 4 });
-    expect(op.payload).toEqual({
-      local_date: MIRROR_DATE,
-      day_type_override: "rest",
-      floor_day: true,
-      swaps: { lunch: "meal-9" },
-      slot_notes: { breakfast: "half portion" },
-      item_overrides: edited,
+    expect(op.payload).toEqual({ local_date: MIRROR_DATE, day_type_override: "rest" });
+    expect(op.base_fields).toEqual({ day_type_override: null });
+    expect(await getRow(h, "plan_days", MIRROR_DATE)).toMatchObject({
+      day_type_override: "rest", floor_day: true, swaps: { lunch: "meal-9" },
+      slot_notes: { breakfast: "half portion" }, item_overrides: edited,
     });
   });
 
@@ -438,11 +439,14 @@ describe("savePlanDay", () => {
       slot_notes: { "meal-1": "big one" },
     };
 
+    // The server has no row for the day yet: the create carries the whole plan.
     await savePlanDay(KEEP_DATE, { dayTypeOverride: "rest" });
     expect((await allOps(h)).at(-1)?.payload).toMatchObject({ day_type_override: "rest", ...kept });
 
+    // The update names only the lock; the server keeps the rest.
     await savePlanDay(KEEP_DATE, { dayTypeOverride: null });
-    expect((await allOps(h)).at(-1)?.payload).toMatchObject({ day_type_override: null, ...kept });
+    expect((await allOps(h)).at(-1)?.payload).toEqual({ local_date: KEEP_DATE, day_type_override: null });
+    expect(await getRow(h, "plan_days", KEEP_DATE)).toMatchObject({ day_type_override: null, ...kept });
     expect(getDay(KEEP_DATE)?.dayTypeOverride).toBeUndefined();
   });
 
@@ -477,10 +481,11 @@ describe("savePlanDay", () => {
     await savePlanDay(NO_LOCK_DATE, { floorDay: true });
     expect(getDay(NO_LOCK_DATE)?.dayTypeOverride).toBe("rest");
     expect(getDay(NO_LOCK_DATE)?.floorDay).toBe(true);
-    expect((await allOps(h)).at(-1)?.payload).toMatchObject({
+    // The Floor Day update leaves the lock out, and the server keeps what a payload omits.
+    expect((await allOps(h)).at(-1)?.payload).toEqual({ local_date: NO_LOCK_DATE, floor_day: true });
+    expect(await getRow(h, "plan_days", NO_LOCK_DATE)).toMatchObject({
       day_type_override: "rest", floor_day: true,
     });
-    expect((await getRow(h, "plan_days", NO_LOCK_DATE))?.day_type_override).toBe("rest");
   });
 
   it("leaves the legacy day — and its save — alone when the enqueue rejects", async () => {

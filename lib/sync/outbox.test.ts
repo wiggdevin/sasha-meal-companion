@@ -30,6 +30,10 @@ beforeEach(async () => {
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+function dayAfter(start: string, days: number): string {
+  return new Date(Date.parse(`${start}T00:00:00.000Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 describe("backoffMs", () => {
   it("doubles from one second and stops at a minute at the top of the jitter band", () => {
     const top = () => 1;
@@ -372,9 +376,11 @@ describe("drainOutbox", () => {
   });
 
   it("pushes at most 200 ops in one request, in queue order", async () => {
+    // 205 different days: a push carries one op per row (lib/sync/row-queue.ts).
     for (let i = 0; i < 205; i += 1) {
-      await enqueue(h, { ...OP, op_id: crypto.randomUUID(),
-        payload: { local_date: "2026-09-11", cups: i } }, 1_000);
+      const day = dayAfter("2026-01-01", i);
+      await enqueue(h, { ...OP, op_id: crypto.randomUUID(), entity_id: day,
+        payload: { local_date: day, cups: i } }, 1_000);
     }
     let seen: SyncOp[] = [];
     await drainOutbox(h, async (ops) => {
@@ -495,11 +501,22 @@ describe("retryParked", () => {
 describe("ops carry their owner (Phase 9 §0.5)", () => {
   it("hands every op to the push with user_id equal to the handle's account", async () => {
     await enqueue(h, OP, 1_000);
-    await enqueue(h, { ...OP, op_id: crypto.randomUUID() }, 1_000);
+    await enqueue(h, { ...OP, op_id: crypto.randomUUID(), entity_id: "2026-09-12",
+      payload: { local_date: "2026-09-12", cups: 4 } }, 1_000);
     let sent: { user_id?: string }[] = [];
     await drainOutbox(h, async (ops) => { sent = ops; return response([]); }, () => 2_000);
     expect(sent).toHaveLength(2);
     expect(sent.every((o) => o.user_id === h.userId)).toBe(true);
+  });
+
+  it("keeps a note edit's base on this device: it never goes on the wire", async () => {
+    const row = { local_date: "2026-09-11", cups: 4 };
+    await enqueueWithRow(h, row, { ...OP, note_base: "felt fine" }, 1_000);
+    let sent: Record<string, unknown>[] = [];
+    await drainOutbox(h, async (ops) => { sent = ops; return response([]); }, () => 2_000);
+    expect(sent).toHaveLength(1);
+    expect("note_base" in sent[0]).toBe(false);
+    expect((await allOps(h))[0].note_base).toBe("felt fine");
   });
 
   it("an account_unbound error parks the op and never deletes it (what an old build does)", async () => {

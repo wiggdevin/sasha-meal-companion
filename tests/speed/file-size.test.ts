@@ -20,17 +20,6 @@ const MODULE_MAX = 400;
 const BASELINES: Record<string, number> = {
   "components/LogFoodSheet.tsx": 770,
   /**
-   * `lib/sync/outbox.ts` was 405 on main — already past the 400 aim before T0 touched it, and a
-   * file T0 has no business rewriting. T0's share is the in-flight guard and the two log-entry
-   * branches, four lines with the rest moved to lib/sync/log-entry-ops.ts. The guard holds it
-   * where it is so it cannot grow further on T0's account. Step C adds two: the import of
-   * `withSettingsProvenance` and the one-line delegation to it. The provenance rewrite itself
-   * lives in `lib/sync/user-settings.ts`, beside the rule it enforces, so the outbox stays a
-   * file that only delegates. 406 in scale S1: the backoff and its jitter moved to
-   * lib/sync/backoff.ts, and the baseline follows it down.
-   */
-  "lib/sync/outbox.ts": 406,
-  /**
    * `tests/coach/context.test.ts` crossed the 400-line aim by one line in the new-user run, when
    * the coach context grew the `needs_profile` cases (design §5). It is pinned here rather than
    * held under the aim: the cases are the point of the file, and a baseline stops it growing
@@ -209,6 +198,10 @@ const MODULES = [
   "lib/log/retry-unsaved.ts",
   "lib/log/queue-commit.ts",
   "lib/sync/log-entry-ops.ts",
+  // W011 (2026-10-10): the conflict rebase moved to lib/sync/outbox-conflict.ts, which took the
+  // outbox under the house rule; it leaves its 406-line baseline for the rule itself.
+  "lib/sync/outbox.ts",
+  "lib/sync/outbox-conflict.ts",
   "components/LogFoodSheet.styles.ts",
   "lib/server/barcode-policy.ts",
   "lib/warm-client.ts",

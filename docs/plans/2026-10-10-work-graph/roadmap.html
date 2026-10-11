@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Roadmap</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--paper:#E0DCD1;--paper2:#D3CDC0;--ink:#1D1D1C;--muted:#4F5343;--soft:#5E5C55;--rule:#A9A394;--accent:#9E431B;--link:#3F6482;
+--p0:#9E431B;--p1:#CFA038;--p2:#5B7F99;--p3:#7E9A62;--serif:'Fraunces',Georgia,serif;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'Geist Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1D1D1C;--paper2:#2A2A27;--ink:#E2DCD0;--muted:#B1B2A9;--soft:#A8A59A;--rule:#5a5850;--accent:#E59A73;--link:#A2C4D2;--p0:#E59A73;--p1:#E3C477;--p2:#A2C4D2;--p3:#B5C79E}}
+:root[data-theme="dark"]{--paper:#1D1D1C;--paper2:#2A2A27;--ink:#E2DCD0;--muted:#B1B2A9;--soft:#A8A59A;--rule:#5a5850;--accent:#E59A73;--link:#A2C4D2;--p0:#E59A73;--p1:#E3C477;--p2:#A2C4D2;--p3:#B5C79E}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);padding:2rem 1rem 3rem}
+.frame{max-width:none;margin:0 auto}
+.eyebrow{font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+h1{font-family:var(--serif);font-size:1.75rem;font-weight:400;letter-spacing:-.02em;line-height:1.15;margin-bottom:.6rem}
+p.lede{max-width:70ch;color:var(--soft);font-size:.9rem;line-height:1.5;margin-bottom:1.2rem}
+.scroll{overflow-x:auto;padding-bottom:.5rem}
+svg{display:block}
+svg text{font-family:var(--sans);fill:var(--ink)}
+.mono{font-family:var(--mono)!important}
+.eb{font-family:var(--mono)!important;font-size:7.5px;letter-spacing:.14em;fill:var(--muted)}
+.lane{font-family:var(--mono)!important;font-size:8.5px;font-weight:500;letter-spacing:.14em;fill:var(--ink);text-transform:uppercase}
+.nm{font-size:9.5px;font-weight:600}
+.id{font-family:var(--mono)!important;font-size:7.5px;fill:var(--muted)}
+.n rect.bg{stroke-width:1;fill-opacity:.2}
+.n.p0 rect.bg{fill:var(--p0);stroke:var(--p0)} .n.p1 rect.bg{fill:var(--p1);stroke:var(--p1)}
+.n.p2 rect.bg{fill:var(--p2);stroke:var(--p2)} .n.p3 rect.bg{fill:var(--p3);stroke:var(--p3)}
+.n.p0 rect.bar{fill:var(--p0)} .n.p1 rect.bar{fill:var(--p1)} .n.p2 rect.bar{fill:var(--p2)} .n.p3 rect.bar{fill:var(--p3)}
+.n.own rect.bg{stroke-dasharray:3 2}
+.tag{font-family:var(--mono)!important;font-size:6.5px;letter-spacing:.12em;fill:var(--ink)}
+.gate rect{fill:var(--paper);stroke:var(--ink);stroke-width:1}
+.gate path.dm{fill:var(--link);stroke:none}
+.edge{fill:none;stroke:var(--muted);stroke-width:.9;opacity:.65}
+.gedge{fill:none;stroke:var(--link);stroke-width:.9;stroke-dasharray:4 3;opacity:.85}
+.band{fill:var(--paper2);opacity:.45}
+.rule{stroke:var(--rule);stroke-width:.8;fill:none}
+.legend text{font-size:9px}
+.cnt{font-family:var(--mono)!important;font-size:9px}
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Roadmap · Meal Companion audit 2026-10-10</p>
+<h1>Lanes by waves, owner gates marked</h1>
+<p class="lede">Rows are lanes, columns are waves. A wave number is the longest dependency chain above the item, raised to a floor by priority (P0 from wave 1, P1 from 2, P2 from 3, P3 from 4), so no item runs before what it depends on. Diamonds mark items behind an owner decision. Gates: OD01: AI spend cap  OD02: Error tracker vendor  OD03: Hosted backup choice  OD04: Undo receipts: restart?  OD05: Voice coach fate  OD06: Build streaming?  OD07: Capture auto-resolve  OD11: Clinical sign-off  OD13: Open-world scope  OD16: Duplicate card: finish?  OD17: Cards v4 rulings  OD19: Sprout sulking  OD23: Native iOS wrapper  OD25: Close onboarding specs  OD26: compose_meal cap.</p>
+<div class="scroll">
+<svg viewBox="0 0 1362 2470" width="1362" height="2470" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rm-title rm-desc">
+<title id="rm-title">Meal Companion roadmap, lanes by waves</title>
+<desc id="rm-desc">Roadmap grid of 157 work items. Rows are lanes, columns are five waves. Wave 1 is P0 items with no unmet dependencies; later waves follow dependency order and priority. Colour shows priority, dashed borders mark owner-only steps and diamonds mark owner-decision gates.</desc>
+<defs></defs>
+<rect width="1362" height="2470" style="fill:var(--paper)"/>
+<rect x="146" y="8" width="232" height="2410" rx="6" class="band"/>
+<text class="lane" x="154" y="26">Wave 1</text><text class="nm" x="154" y="42" style="font-weight:500">P0, no unmet deps</text><text class="eb" x="154" y="58">16 ITEMS · 16 P0 · 2 OWNER</text>
+<text class="lane" x="394" y="26">Wave 2</text><text class="nm" x="394" y="42" style="font-weight:500">P0 unblocked + P1 ready</text><text class="eb" x="394" y="58">31 ITEMS · 6 P0 · 7 OWNER</text>
+<rect x="626" y="8" width="232" height="2410" rx="6" class="band"/>
+<text class="lane" x="634" y="26">Wave 3</text><text class="nm" x="634" y="42" style="font-weight:500">P1 chains + P2 ready</text><text class="eb" x="634" y="58">67 ITEMS · 0 P0 · 11 OWNER</text>
+<text class="lane" x="874" y="26">Wave 4</text><text class="nm" x="874" y="42" style="font-weight:500">P2 chains + P3</text><text class="eb" x="874" y="58">42 ITEMS · 0 P0 · 4 OWNER</text>
+<rect x="1106" y="8" width="232" height="2410" rx="6" class="band"/>
+<text class="lane" x="1114" y="26">Wave 5</text><text class="nm" x="1114" y="42" style="font-weight:500">After wave 4</text><text class="eb" x="1114" y="58">1 ITEMS · 0 P0 · 0 OWNER</text>
+<line class="rule" x1="16" y1="84" x2="1346" y2="84"/>
+<text class="lane" x="16" y="100">owner</text>
+<g class="n p0 own"><rect class="bg" x="146" y="89" width="232" height="24" rx="4"/><rect class="bar" x="146" y="89" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="104">W001</text><text class="nm" x="186" y="104">Rotate leaked secrets</text><text class="tag" x="372" y="104" text-anchor="end">OWNER</text></g>
+<g class="n p0 own"><rect class="bg" x="146" y="116" width="232" height="24" rx="4"/><rect class="bar" x="146" y="116" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="131">W002</text><text class="nm" x="186" y="131">Confirm repo stays private</text><text class="tag" x="372" y="131" text-anchor="end">OWNER</text></g>
+<g class="n p0 own"><rect class="bg" x="386" y="89" width="232" height="24" rx="4"/><rect class="bar" x="386" y="89" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="104">W005</text><text class="nm" x="426" y="104">Re-import Foundation data</text><text class="tag" x="612" y="104" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="386" y="116" width="232" height="24" rx="4"/><rect class="bar" x="386" y="116" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="131">W050</text><text class="nm" x="426" y="131">Team-scoped Vercel token</text><text class="tag" x="612" y="131" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="386" y="143" width="232" height="24" rx="4"/><rect class="bar" x="386" y="143" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="158">W051</text><text class="nm" x="426" y="158">Auth SMTP and DMARC</text><text class="tag" x="612" y="158" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="386" y="170" width="232" height="24" rx="4"/><rect class="bar" x="386" y="170" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="185">W061</text><text class="nm" x="426" y="185">Real-device journeys</text><text class="tag" x="612" y="185" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="386" y="197" width="232" height="24" rx="4"/><rect class="bar" x="386" y="197" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="212">W062</text><text class="nm" x="426" y="212">Re-test onb3, flip flag</text><text class="tag" x="612" y="212" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="386" y="224" width="232" height="24" rx="4"/><rect class="bar" x="386" y="224" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="239">W064</text><text class="nm" x="426" y="239">Delete smoke account</text><text class="tag" x="612" y="239" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="386" y="251" width="232" height="24" rx="4"/><rect class="bar" x="386" y="251" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="266">W066</text><text class="nm" x="426" y="266">Resolve Gemini 403</text><text class="tag" x="612" y="266" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="626" y="89" width="232" height="24" rx="4"/><rect class="bar" x="626" y="89" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="104">W063</text><text class="nm" x="666" y="104">Data-repair script runs</text><text class="tag" x="852" y="104" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="116" width="232" height="24" rx="4"/><rect class="bar" x="626" y="116" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="131">W082</text><text class="nm" x="666" y="131">Health prod rollout</text><text class="tag" x="852" y="131" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="143" width="232" height="24" rx="4"/><rect class="bar" x="626" y="143" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="158">W083</text><text class="nm" x="666" y="158">Widen CAPTURE_METHODS</text><text class="tag" x="852" y="158" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="170" width="232" height="24" rx="4"/><rect class="bar" x="626" y="170" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="185">W093</text><text class="nm" x="666" y="185">19b drift study</text><text class="tag" x="852" y="185" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="197" width="232" height="24" rx="4"/><rect class="bar" x="626" y="197" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="212">W109</text><text class="nm" x="666" y="212">Label universe plates</text><text class="tag" x="852" y="212" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="224" width="232" height="24" rx="4"/><rect class="bar" x="626" y="224" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="239">W110</text><text class="nm" x="666" y="239">Universe human review</text><text class="tag" x="852" y="239" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="251" width="232" height="24" rx="4"/><rect class="bar" x="626" y="251" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="266">W111</text><text class="nm" x="666" y="266">Run star-to-favored</text><text class="tag" x="852" y="266" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="278" width="232" height="24" rx="4"/><rect class="bar" x="626" y="278" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="293">W113</text><text class="nm" x="666" y="293">Occasion calibration</text><text class="tag" x="852" y="293" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="305" width="232" height="24" rx="4"/><rect class="bar" x="626" y="305" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="320">W114</text><text class="nm" x="666" y="320">FNDDS inputs import</text><text class="tag" x="852" y="320" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="332" width="232" height="24" rx="4"/><rect class="bar" x="626" y="332" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="347">W122</text><text class="nm" x="666" y="347">Readiness steps</text><text class="tag" x="852" y="347" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="626" y="359" width="232" height="24" rx="4"/><rect class="bar" x="626" y="359" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="374">W128</text><text class="nm" x="666" y="374">Delete p1-catalog branch</text><text class="tag" x="852" y="374" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="866" y="89" width="232" height="24" rx="4"/><rect class="bar" x="866" y="89" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="104">W084</text><text class="nm" x="906" y="104">Recipe pilot rollout</text><text class="tag" x="1092" y="104" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="866" y="116" width="232" height="24" rx="4"/><rect class="bar" x="866" y="116" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="131">W112</text><text class="nm" x="906" y="131">Release open world</text><text class="tag" x="1092" y="131" text-anchor="end">OWNER</text><path d="M1040,120 L1046,128 L1040,136 L1034,128Z" style="fill:var(--link)"><title>OD11</title></path></g>
+<g class="n p3 own"><rect class="bg" x="866" y="143" width="232" height="24" rx="4"/><rect class="bar" x="866" y="143" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="158">W130</text><text class="nm" x="906" y="158">Pairing holdout labels</text><text class="tag" x="1092" y="158" text-anchor="end">OWNER</text></g>
+<g class="n p3 own"><rect class="bg" x="866" y="170" width="232" height="24" rx="4"/><rect class="bar" x="866" y="170" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="185">W154</text><text class="nm" x="906" y="185">Owner housekeeping</text><text class="tag" x="1092" y="185" text-anchor="end">OWNER</text></g>
+<line class="rule" x1="16" y1="391" x2="1346" y2="391"/>
+<text class="lane" x="16" y="407">server-ops</text>
+<g class="n p0"><rect class="bg" x="146" y="396" width="232" height="24" rx="4"/><rect class="bar" x="146" y="396" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="411">W003</text><text class="nm" x="186" y="411">Reconcile migration ledger</text></g>
+<g class="n p0"><rect class="bg" x="146" y="423" width="232" height="24" rx="4"/><rect class="bar" x="146" y="423" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="438">W016</text><text class="nm" x="186" y="438">Nightly backup coverage</text></g>
+<g class="n p1"><rect class="bg" x="386" y="396" width="232" height="24" rx="4"/><rect class="bar" x="386" y="396" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="411">W023</text><text class="nm" x="426" y="411">Renumber parked migrations</text></g>
+<g class="n p1"><rect class="bg" x="866" y="396" width="232" height="24" rx="4"/><rect class="bar" x="866" y="396" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="411">W046</text><text class="nm" x="906" y="411">Scale 6: Hosted backup</text><path d="M1084,400 L1090,408 L1084,416 L1078,408Z" style="fill:var(--link)"><title>OD03</title></path></g>
+<g class="n p3"><rect class="bg" x="866" y="423" width="232" height="24" rx="4"/><rect class="bar" x="866" y="423" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="438">W146</text><text class="nm" x="906" y="438">Catalog refresh job</text></g>
+<line class="rule" x1="16" y1="455" x2="1346" y2="455"/>
+<text class="lane" x="16" y="471">nutrition-engine</text>
+<g class="n p0"><rect class="bg" x="146" y="460" width="232" height="24" rx="4"/><rect class="bar" x="146" y="460" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="475">W004</text><text class="nm" x="186" y="475">Energy rule: no fake zeros</text></g>
+<g class="n p0"><rect class="bg" x="386" y="460" width="232" height="24" rx="4"/><rect class="bar" x="386" y="460" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="475">W006</text><text class="nm" x="426" y="475">Proposal and TDEE intake</text></g>
+<g class="n p0"><rect class="bg" x="386" y="487" width="232" height="24" rx="4"/><rect class="bar" x="386" y="487" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="502">W015</text><text class="nm" x="426" y="502">Bundled food data bands</text></g>
+<g class="n p2"><rect class="bg" x="626" y="460" width="232" height="24" rx="4"/><rect class="bar" x="626" y="460" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="475">W094</text><text class="nm" x="666" y="475">TDEE test-suite audit</text></g>
+<g class="n p2"><rect class="bg" x="866" y="460" width="232" height="24" rx="4"/><rect class="bar" x="866" y="460" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="475">W092</text><text class="nm" x="906" y="475">Phase 19b rebalance</text><path d="M1084,464 L1090,472 L1084,480 L1078,472Z" style="fill:var(--link)"><title>OD11</title></path></g>
+<line class="rule" x1="16" y1="519" x2="1346" y2="519"/>
+<text class="lane" x="16" y="535">targets-safety</text>
+<g class="n p0"><rect class="bg" x="146" y="524" width="232" height="24" rx="4"/><rect class="bar" x="146" y="524" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="539">W007</text><text class="nm" x="186" y="539">Target safety on all writes</text></g>
+<g class="n p0"><rect class="bg" x="386" y="524" width="232" height="24" rx="4"/><rect class="bar" x="386" y="524" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="539">W008</text><text class="nm" x="426" y="539">Drop 1650 kcal floor</text></g>
+<g class="n p1"><rect class="bg" x="626" y="524" width="232" height="24" rx="4"/><rect class="bar" x="626" y="524" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="539">W060</text><text class="nm" x="666" y="539">Checked target writer</text></g>
+<g class="n p2"><rect class="bg" x="626" y="551" width="232" height="24" rx="4"/><rect class="bar" x="626" y="551" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="566">W074</text><text class="nm" x="666" y="566">Rate preset CHECK</text></g>
+<g class="n p2"><rect class="bg" x="866" y="524" width="232" height="24" rx="4"/><rect class="bar" x="866" y="524" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="539">W073</text><text class="nm" x="906" y="539">Phase 12 Later writers</text></g>
+<line class="rule" x1="16" y1="583" x2="1346" y2="583"/>
+<text class="lane" x="16" y="599">security</text>
+<g class="n p0"><rect class="bg" x="146" y="588" width="232" height="24" rx="4"/><rect class="bar" x="146" y="588" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="603">W019</text><text class="nm" x="186" y="603">Media storage paths</text></g>
+<g class="n p0"><rect class="bg" x="386" y="588" width="232" height="24" rx="4"/><rect class="bar" x="386" y="588" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="603">W018</text><text class="nm" x="426" y="603">Lock server-owned tables</text></g>
+<g class="n p1"><rect class="bg" x="386" y="615" width="232" height="24" rx="4"/><rect class="bar" x="386" y="615" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="630">W037</text><text class="nm" x="426" y="630">MCP route hardening</text></g>
+<g class="n p1"><rect class="bg" x="386" y="642" width="232" height="24" rx="4"/><rect class="bar" x="386" y="642" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="657">W052</text><text class="nm" x="426" y="657">Server IP limits on sign-in</text></g>
+<g class="n p1"><rect class="bg" x="386" y="669" width="232" height="24" rx="4"/><rect class="bar" x="386" y="669" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="684">W053</text><text class="nm" x="426" y="684">App-hardening headers</text></g>
+<g class="n p1"><rect class="bg" x="386" y="696" width="232" height="24" rx="4"/><rect class="bar" x="386" y="696" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="711">W055</text><text class="nm" x="426" y="711">Require x-smc-account</text></g>
+<g class="n p1"><rect class="bg" x="386" y="723" width="232" height="24" rx="4"/><rect class="bar" x="386" y="723" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="738">W056</text><text class="nm" x="426" y="738">Unscoped device keys</text></g>
+<g class="n p1"><rect class="bg" x="626" y="588" width="232" height="24" rx="4"/><rect class="bar" x="626" y="588" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="603">W054</text><text class="nm" x="666" y="603">Supabase advisor backlog</text></g>
+<g class="n p1"><rect class="bg" x="626" y="615" width="232" height="24" rx="4"/><rect class="bar" x="626" y="615" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="630">W057</text><text class="nm" x="666" y="630">Self-serve account deletion</text></g>
+<g class="n p2"><rect class="bg" x="626" y="642" width="232" height="24" rx="4"/><rect class="bar" x="626" y="642" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="657">W078</text><text class="nm" x="666" y="657">CI secret hygiene</text></g>
+<g class="n p2"><rect class="bg" x="626" y="669" width="232" height="24" rx="4"/><rect class="bar" x="626" y="669" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="684">W079</text><text class="nm" x="666" y="684">CSP and perf gates</text></g>
+<g class="n p2"><rect class="bg" x="626" y="696" width="232" height="24" rx="4"/><rect class="bar" x="626" y="696" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="711">W080</text><text class="nm" x="666" y="711">Token key re-seal</text></g>
+<line class="rule" x1="16" y1="755" x2="1346" y2="755"/>
+<text class="lane" x="16" y="771">sync</text>
+<g class="n p0"><rect class="bg" x="146" y="760" width="232" height="24" rx="4"/><rect class="bar" x="146" y="760" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="775">W011</text><text class="nm" x="186" y="775">Sync merge conflicts</text></g>
+<g class="n p1"><rect class="bg" x="386" y="760" width="232" height="24" rx="4"/><rect class="bar" x="386" y="760" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="775">W026</text><text class="nm" x="426" y="775">Sync outbox ordering</text></g>
+<g class="n p1"><rect class="bg" x="626" y="760" width="232" height="24" rx="4"/><rect class="bar" x="626" y="760" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="775">W027</text><text class="nm" x="666" y="775">Log mirror races</text></g>
+<g class="n p2"><rect class="bg" x="626" y="787" width="232" height="24" rx="4"/><rect class="bar" x="626" y="787" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="802">W096</text><text class="nm" x="666" y="802">Replay plan_days rows</text></g>
+<g class="n p1"><rect class="bg" x="866" y="760" width="232" height="24" rx="4"/><rect class="bar" x="866" y="760" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="775">W047</text><text class="nm" x="906" y="775">Scale 7: Cut fan-out</text></g>
+<line class="rule" x1="16" y1="819" x2="1346" y2="819"/>
+<text class="lane" x="16" y="835">food-policy</text>
+<g class="n p0"><rect class="bg" x="146" y="824" width="232" height="24" rx="4"/><rect class="bar" x="146" y="824" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="839">W014</text><text class="nm" x="186" y="839">Food rules parity</text></g>
+<g class="n p0"><rect class="bg" x="146" y="851" width="232" height="24" rx="4"/><rect class="bar" x="146" y="851" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="866">W021</text><text class="nm" x="186" y="866">Verify Avoid on Floor Day</text></g>
+<g class="n p0"><rect class="bg" x="146" y="878" width="232" height="24" rx="4"/><rect class="bar" x="146" y="878" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="893">W022</text><text class="nm" x="186" y="893">Allergen evidence fixes</text></g>
+<g class="n p2"><rect class="bg" x="626" y="824" width="232" height="24" rx="4"/><rect class="bar" x="626" y="824" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="839">W104</text><text class="nm" x="666" y="839">Diet-label parser</text></g>
+<g class="n p2"><rect class="bg" x="626" y="851" width="232" height="24" rx="4"/><rect class="bar" x="626" y="851" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="866">W105</text><text class="nm" x="666" y="866">contains_ingredient facet</text></g>
+<g class="n p2"><rect class="bg" x="626" y="878" width="232" height="24" rx="4"/><rect class="bar" x="626" y="878" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="893">W106</text><text class="nm" x="666" y="893">Dietary profile map</text></g>
+<line class="rule" x1="16" y1="910" x2="1346" y2="910"/>
+<text class="lane" x="16" y="926">onboarding</text>
+<g class="n p0"><rect class="bg" x="146" y="915" width="232" height="24" rx="4"/><rect class="bar" x="146" y="915" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="930">W009</text><text class="nm" x="186" y="930">Legacy onboarding safety</text></g>
+<g class="n p2"><rect class="bg" x="626" y="915" width="232" height="24" rx="4"/><rect class="bar" x="626" y="915" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="930">W097</text><text class="nm" x="666" y="930">W15 onboarding ablation</text><path d="M844,919 L850,927 L844,935 L838,927Z" style="fill:var(--link)"><title>OD13</title></path></g>
+<g class="n p3"><rect class="bg" x="866" y="915" width="232" height="24" rx="4"/><rect class="bar" x="866" y="915" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="930">W150</text><text class="nm" x="906" y="930">Onboarding Later gaps</text><path d="M1084,919 L1090,927 L1084,935 L1078,927Z" style="fill:var(--link)"><title>OD25</title></path></g>
+<line class="rule" x1="16" y1="947" x2="1346" y2="947"/>
+<text class="lane" x="16" y="963">health</text>
+<g class="n p0"><rect class="bg" x="146" y="952" width="232" height="24" rx="4"/><rect class="bar" x="146" y="952" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="967">W010</text><text class="nm" x="186" y="967">Health ingest transaction</text></g>
+<g class="n p1"><rect class="bg" x="386" y="952" width="232" height="24" rx="4"/><rect class="bar" x="386" y="952" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="967">W025</text><text class="nm" x="426" y="967">Oura sources and refresh</text></g>
+<g class="n p3"><rect class="bg" x="866" y="952" width="232" height="24" rx="4"/><rect class="bar" x="866" y="952" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="967">W144</text><text class="nm" x="906" y="967">Deferred integrations</text><path d="M1084,956 L1090,964 L1084,972 L1078,964Z" style="fill:var(--link)"><title>OD23</title></path></g>
+<line class="rule" x1="16" y1="984" x2="1346" y2="984"/>
+<text class="lane" x="16" y="1000">server-api</text>
+<g class="n p0"><rect class="bg" x="146" y="989" width="232" height="24" rx="4"/><rect class="bar" x="146" y="989" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="1004">W012</text><text class="nm" x="186" y="1004">Exports past 1,000 rows</text></g>
+<g class="n p1"><rect class="bg" x="386" y="989" width="232" height="24" rx="4"/><rect class="bar" x="386" y="989" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1004">W038</text><text class="nm" x="426" y="1004">Unbounded hot-path reads</text></g>
+<g class="n p2"><rect class="bg" x="626" y="989" width="232" height="24" rx="4"/><rect class="bar" x="626" y="989" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1004">W069</text><text class="nm" x="666" y="1004">API input validation</text></g>
+<line class="rule" x1="16" y1="1021" x2="1346" y2="1021"/>
+<text class="lane" x="16" y="1037">server-db</text>
+<g class="n p1"><rect class="bg" x="386" y="1026" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1026" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1041">W034</text><text class="nm" x="426" y="1041">Database lock order</text></g>
+<g class="n p1"><rect class="bg" x="866" y="1026" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1026" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1041">W044</text><text class="nm" x="906" y="1041">Scale 4: Indexes, retention</text></g>
+<g class="n p1"><rect class="bg" x="866" y="1053" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1053" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1068">W048</text><text class="nm" x="906" y="1068">Scale 8: change_log compaction</text></g>
+<g class="n p2"><rect class="bg" x="866" y="1080" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1080" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1095">W071</text><text class="nm" x="906" y="1095">Scale 9: One-trip RPCs</text></g>
+<g class="n p2"><rect class="bg" x="866" y="1107" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1107" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1122">W072</text><text class="nm" x="906" y="1122">Scale 10: O(users) work</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1134" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1134" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1149">W134</text><text class="nm" x="906" y="1149">Down migrations</text></g>
+<g class="n p2"><rect class="bg" x="1106" y="1026" width="232" height="24" rx="4"/><rect class="bar" x="1106" y="1026" width="3.5" height="24" rx="1.5"/><text class="id" x="1115" y="1041">W070</text><text class="nm" x="1146" y="1041">Telemetry table inserts</text></g>
+<line class="rule" x1="16" y1="1166" x2="1346" y2="1166"/>
+<text class="lane" x="16" y="1182">scale</text>
+<g class="n p1"><rect class="bg" x="626" y="1171" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1171" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1186">W041</text><text class="nm" x="666" y="1186">Scale 1: Measure</text></g>
+<g class="n p1"><rect class="bg" x="626" y="1198" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1198" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1213">W042</text><text class="nm" x="666" y="1213">Scale 2: Alerts</text><path d="M844,1202 L850,1210 L844,1218 L838,1210Z" style="fill:var(--link)"><title>OD02</title></path></g>
+<g class="n p1"><rect class="bg" x="626" y="1225" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1225" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1240">W043</text><text class="nm" x="666" y="1240">Scale 3: AI budget policy</text><path d="M844,1229 L850,1237 L844,1245 L838,1237Z" style="fill:var(--link)"><title>OD01</title></path></g>
+<g class="n p1"><rect class="bg" x="626" y="1252" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1252" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1267">W045</text><text class="nm" x="666" y="1267">Scale 5: Quick safety fixes</text></g>
+<g class="n p1"><rect class="bg" x="866" y="1171" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1171" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1186">W049</text><text class="nm" x="906" y="1186">Sign-up load test, soak</text></g>
+<line class="rule" x1="16" y1="1284" x2="1346" y2="1284"/>
+<text class="lane" x="16" y="1300">server-dates</text>
+<g class="n p1"><rect class="bg" x="626" y="1289" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1289" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1304">W031</text><text class="nm" x="666" y="1304">Voice retirement, zones</text><path d="M844,1293 L850,1301 L844,1309 L838,1301Z" style="fill:var(--link)"><title>OD05</title></path></g>
+<g class="n p1"><rect class="bg" x="866" y="1289" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1289" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1304">W032</text><text class="nm" x="906" y="1304">Server account-day dates</text></g>
+<line class="rule" x1="16" y1="1321" x2="1346" y2="1321"/>
+<text class="lane" x="16" y="1337">capture-catalog</text>
+<g class="n p0"><rect class="bg" x="146" y="1326" width="232" height="24" rx="4"/><rect class="bar" x="146" y="1326" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="1341">W013</text><text class="nm" x="186" y="1341">Portion maths fixes</text></g>
+<g class="n p0"><rect class="bg" x="386" y="1326" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1326" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1341">W017</text><text class="nm" x="426" y="1341">Capture and log flow</text></g>
+<g class="n p1"><rect class="bg" x="386" y="1353" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1353" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1368">W059</text><text class="nm" x="426" y="1368">Scanned foods in search</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1326" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1326" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1341">W124</text><text class="nm" x="666" y="1341">Label scan T3</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1353" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1353" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1368">W125</text><text class="nm" x="666" y="1368">Plate photo T2</text><path d="M844,1357 L850,1365 L844,1373 L838,1365Z" style="fill:var(--link)"><title>OD07</title></path></g>
+<g class="n p3"><rect class="bg" x="866" y="1326" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1326" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1341">W139</text><text class="nm" x="906" y="1341">Capture and UI minors</text></g>
+<line class="rule" x1="16" y1="1385" x2="1346" y2="1385"/>
+<text class="lane" x="16" y="1401">coach-ai</text>
+<g class="n p0"><rect class="bg" x="146" y="1390" width="232" height="24" rx="4"/><rect class="bar" x="146" y="1390" width="3.5" height="24" rx="1.5"/><text class="id" x="155" y="1405">W020</text><text class="nm" x="186" y="1405">Shopping-apply account switch</text></g>
+<g class="n p1"><rect class="bg" x="386" y="1390" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1390" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1405">W028</text><text class="nm" x="426" y="1405">Coach action fast paths</text></g>
+<g class="n p1"><rect class="bg" x="386" y="1417" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1417" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1432">W035</text><text class="nm" x="426" y="1432">Coach turn budget</text></g>
+<g class="n p1"><rect class="bg" x="386" y="1444" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1444" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1459">W065</text><text class="nm" x="426" y="1459">Measure coach speed</text></g>
+<g class="n p1"><rect class="bg" x="626" y="1390" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1390" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1405">W036</text><text class="nm" x="666" y="1405">Plan-sheet imports</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1417" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1417" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1432">W086</text><text class="nm" x="666" y="1432">Undo receipts PR B</text><path d="M844,1421 L850,1429 L844,1437 L838,1429Z" style="fill:var(--link)"><title>OD04</title></path></g>
+<g class="n p2"><rect class="bg" x="626" y="1444" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1444" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1459">W087</text><text class="nm" x="666" y="1459">Coach quality pass</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1471" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1471" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1486">W088</text><text class="nm" x="666" y="1486">Transactional coach saves</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1498" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1498" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1513">W089</text><text class="nm" x="666" y="1513">Raise Jev call cap</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1525" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1525" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1540">W091</text><text class="nm" x="666" y="1540">Stream coach replies</text><path d="M844,1529 L850,1537 L844,1545 L838,1537Z" style="fill:var(--link)"><title>OD06</title></path></g>
+<g class="n p2"><rect class="bg" x="626" y="1552" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1552" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1567">W126</text><text class="nm" x="666" y="1567">Phase 11 re-audit</text></g>
+<g class="n p2"><rect class="bg" x="866" y="1390" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1390" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1405">W068</text><text class="nm" x="906" y="1405">AI call layer fixes</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1417" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1417" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1432">W129</text><text class="nm" x="906" y="1432">Undo receipts, other kinds</text><path d="M1084,1421 L1090,1429 L1084,1437 L1078,1429Z" style="fill:var(--link)"><title>OD04</title></path></g>
+<g class="n p3"><rect class="bg" x="866" y="1444" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1444" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1459">W140</text><text class="nm" x="906" y="1459">Coach small items</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1471" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1471" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1486">W142</text><text class="nm" x="906" y="1486">Day-complete nudge</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1498" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1498" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1513">W143</text><text class="nm" x="906" y="1513">Deferred coach ideas</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1525" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1525" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1540">W147</text><text class="nm" x="906" y="1540">Model-freshness issue</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1552" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1552" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1567">W156</text><text class="nm" x="906" y="1567">compose_meal engine</text><path d="M1084,1556 L1090,1564 L1084,1572 L1078,1564Z" style="fill:var(--link)"><title>OD26</title></path></g>
+<line class="rule" x1="16" y1="1584" x2="1346" y2="1584"/>
+<text class="lane" x="16" y="1600">recipes-shopping</text>
+<g class="n p1"><rect class="bg" x="386" y="1589" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1589" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1604">W024</text><text class="nm" x="426" y="1604">Shopping preview crashes</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1589" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1589" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1604">W085</text><text class="nm" x="666" y="1604">Recipe pilot acceptance</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1616" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1616" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1631">W100</text><text class="nm" x="666" y="1631">Shopping Use my list</text></g>
+<line class="rule" x1="16" y1="1648" x2="1346" y2="1648"/>
+<text class="lane" x="16" y="1664">food-world</text>
+<g class="n p1"><rect class="bg" x="386" y="1653" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1653" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1668">W029</text><text class="nm" x="426" y="1668">Membership and Favor sync</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1653" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1653" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1668">W102</text><text class="nm" x="666" y="1668">food_world in suggestions</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1680" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1680" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1695">W103</text><text class="nm" x="666" y="1695">Taste chips fixes</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1707" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1707" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1722">W107</text><text class="nm" x="666" y="1722">planDay phone benchmark</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1734" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1734" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1749">W108</text><text class="nm" x="666" y="1749">pref-2 ranking inputs</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1653" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1653" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1668">W135</text><text class="nm" x="906" y="1668">W14 Taste T2</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1680" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1680" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1695">W136</text><text class="nm" x="906" y="1695">Jev veto adjudication</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1707" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1707" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1722">W137</text><text class="nm" x="906" y="1722">Stale v3 set window</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1734" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1734" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1749">W138</text><text class="nm" x="906" y="1749">Meal-planning follow-ups</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1761" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1761" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1776">W155</text><text class="nm" x="906" y="1776">Regional priors</text><path d="M1084,1765 L1090,1773 L1084,1781 L1078,1773Z" style="fill:var(--link)"><title>OD26</title></path></g>
+<line class="rule" x1="16" y1="1793" x2="1346" y2="1793"/>
+<text class="lane" x="16" y="1809">ui-today</text>
+<g class="n p1"><rect class="bg" x="386" y="1798" width="232" height="24" rx="4"/><rect class="bar" x="386" y="1798" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="1813">W030</text><text class="nm" x="426" y="1813">Today meal cards by date</text></g>
+<g class="n p1"><rect class="bg" x="626" y="1798" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1798" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1813">W033</text><text class="nm" x="666" y="1813">Phone account-day dates</text></g>
+<g class="n p1"><rect class="bg" x="626" y="1825" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1825" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1840">W058</text><text class="nm" x="666" y="1840">Honest-nutrition UI</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1852" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1852" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1867">W067</text><text class="nm" x="666" y="1867">Care points ledger</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1879" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1879" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1894">W115</text><text class="nm" x="666" y="1894">Meal Cards v4</text><path d="M844,1883 L850,1891 L844,1899 L838,1891Z" style="fill:var(--link)"><title>OD17</title></path></g>
+<g class="n p2"><rect class="bg" x="626" y="1906" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1906" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1921">W116</text><text class="nm" x="666" y="1921">Island views leftovers</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1933" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1933" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1948">W117</text><text class="nm" x="666" y="1948">Widget-save notice</text></g>
+<g class="n p2"><rect class="bg" x="626" y="1960" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1960" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="1975">W119</text><text class="nm" x="666" y="1975">Idle-loop CPU</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1798" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1798" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1813">W141</text><text class="nm" x="906" y="1813">Slot editing C and D</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1825" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1825" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1840">W145</text><text class="nm" x="906" y="1840">Sprout and companions</text><path d="M1084,1829 L1090,1837 L1084,1845 L1078,1837Z" style="fill:var(--link)"><title>OD19</title></path></g>
+<g class="n p3"><rect class="bg" x="866" y="1852" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1852" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1867">W153</text><text class="nm" x="906" y="1867">Background themes</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1879" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1879" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="1894">W157</text><text class="nm" x="906" y="1894">Day-strip targets</text></g>
+<line class="rule" x1="16" y1="1992" x2="1346" y2="1992"/>
+<text class="lane" x="16" y="2008">ui-foods</text>
+<g class="n p2"><rect class="bg" x="626" y="1997" width="232" height="24" rx="4"/><rect class="bar" x="626" y="1997" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2012">W098</text><text class="nm" x="666" y="2012">W13 Favored UI</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2024" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2024" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2039">W099</text><text class="nm" x="666" y="2039">Reason chips</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2051" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2051" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2066">W101</text><text class="nm" x="666" y="2066">Held-allergen copy</text></g>
+<g class="n p3"><rect class="bg" x="866" y="1997" width="232" height="24" rx="4"/><rect class="bar" x="866" y="1997" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2012">W148</text><text class="nm" x="906" y="2012">Remove Other-foods row</text></g>
+<line class="rule" x1="16" y1="2083" x2="1346" y2="2083"/>
+<text class="lane" x="16" y="2099">ui-settings</text>
+<g class="n p2"><rect class="bg" x="626" y="2088" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2088" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2103">W090</text><text class="nm" x="666" y="2103">ExportCard claim</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2115" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2115" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2130">W120</text><text class="nm" x="666" y="2130">Small UI fixes</text></g>
+<line class="rule" x1="16" y1="2147" x2="1346" y2="2147"/>
+<text class="lane" x="16" y="2163">ui-pwa</text>
+<g class="n p2"><rect class="bg" x="626" y="2152" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2152" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2167">W118</text><text class="nm" x="666" y="2167">Service-worker race</text></g>
+<line class="rule" x1="16" y1="2184" x2="1346" y2="2184"/>
+<text class="lane" x="16" y="2200">logging</text>
+<g class="n p2"><rect class="bg" x="626" y="2189" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2189" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2204">W095</text><text class="nm" x="666" y="2204">Duplicate-meal card</text><path d="M844,2193 L850,2201 L844,2209 L838,2201Z" style="fill:var(--link)"><title>OD16</title></path></g>
+<g class="n p2"><rect class="bg" x="626" y="2216" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2216" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2231">W123</text><text class="nm" x="666" y="2231">Save, re-use, swap</text></g>
+<line class="rule" x1="16" y1="2248" x2="1346" y2="2248"/>
+<text class="lane" x="16" y="2264">docs-tests</text>
+<g class="n p1"><rect class="bg" x="386" y="2253" width="232" height="24" rx="4"/><rect class="bar" x="386" y="2253" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="2268">W039</text><text class="nm" x="426" y="2268">Guards that cannot fail</text></g>
+<g class="n p1"><rect class="bg" x="386" y="2280" width="232" height="24" rx="4"/><rect class="bar" x="386" y="2280" width="3.5" height="24" rx="1.5"/><text class="id" x="395" y="2295">W040</text><text class="nm" x="426" y="2295">DB suites run in CI</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2253" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2253" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2268">W075</text><text class="nm" x="666" y="2268">Extend test_reset_user</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2280" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2280" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2295">W076</text><text class="nm" x="666" y="2295">Endpoint security matrix</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2307" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2307" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2322">W077</text><text class="nm" x="666" y="2322">Flaky test trio</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2334" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2334" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2349">W081</text><text class="nm" x="666" y="2349">Env-name drift</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2361" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2361" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2376">W121</text><text class="nm" x="666" y="2376">Browser re-baseline</text></g>
+<g class="n p2"><rect class="bg" x="626" y="2388" width="232" height="24" rx="4"/><rect class="bar" x="626" y="2388" width="3.5" height="24" rx="1.5"/><text class="id" x="635" y="2403">W127</text><text class="nm" x="666" y="2403">Docs reconciliation</text></g>
+<g class="n p3"><rect class="bg" x="866" y="2253" width="232" height="24" rx="4"/><rect class="bar" x="866" y="2253" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2268">W131</text><text class="nm" x="906" y="2268">Architecture refresh</text></g>
+<g class="n p3"><rect class="bg" x="866" y="2280" width="232" height="24" rx="4"/><rect class="bar" x="866" y="2280" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2295">W132</text><text class="nm" x="906" y="2295">Stale branch cleanup</text><path d="M1084,2284 L1090,2292 L1084,2300 L1078,2292Z" style="fill:var(--link)"><title>OD25</title></path></g>
+<g class="n p3"><rect class="bg" x="866" y="2307" width="232" height="24" rx="4"/><rect class="bar" x="866" y="2307" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2322">W133</text><text class="nm" x="906" y="2322">Dependency majors</text></g>
+<g class="n p3"><rect class="bg" x="866" y="2334" width="232" height="24" rx="4"/><rect class="bar" x="866" y="2334" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2349">W149</text><text class="nm" x="906" y="2349">Split recall test</text></g>
+<g class="n p3"><rect class="bg" x="866" y="2361" width="232" height="24" rx="4"/><rect class="bar" x="866" y="2361" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2376">W151</text><text class="nm" x="906" y="2376">Day templates (spec only)</text></g>
+<g class="n p3"><rect class="bg" x="866" y="2388" width="232" height="24" rx="4"/><rect class="bar" x="866" y="2388" width="3.5" height="24" rx="1.5"/><text class="id" x="875" y="2403">W152</text><text class="nm" x="906" y="2403">FluidVoice ledger</text></g>
+<line class="rule" x1="16" y1="2420" x2="1346" y2="2420"/>
+<g class="legend" transform="translate(16,2440)"><g class="n p0"><rect class="bg" x="0" y="0" width="16" height="12" rx="3"/></g><text x="22" y="10">P0 now</text><g class="n p1"><rect class="bg" x="92" y="0" width="16" height="12" rx="3"/></g><text x="114" y="10">P1 next</text><g class="n p2"><rect class="bg" x="184" y="0" width="16" height="12" rx="3"/></g><text x="206" y="10">P2 later</text><g class="n p3"><rect class="bg" x="276" y="0" width="16" height="12" rx="3"/></g><text x="298" y="10">P3 parked</text><g class="n p2 own"><rect class="bg" x="368" y="0" width="16" height="12" rx="3" style="fill:none;stroke:var(--ink)"/></g><text x="390" y="10">dashed = owner-only step</text><g class="gate"><path class="dm" d="M546,0 L554,6 L546,12 L538,6Z"/></g><text x="560" y="10">owner decision gate</text></g>
+</svg>
+</div>
+</div>
+</body>
+</html>

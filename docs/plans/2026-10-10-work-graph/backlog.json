@@ -1,0 +1,4813 @@
+{
+ "items": [
+  {
+   "title": "Plate-photo grounding quality (T2) and 512 px kept thumbnail",
+   "description": "Candidate-aware grounding (model picks among top-K catalog candidates), per-method measured auto-resolve gate replacing 0.95 (F-070), and the D2 512 px plate thumbnail linked to the entry (Today card, entry sheet, deleted with entry/export-delete). No thumbnail path in lib/app/components (only tour/tip demos); media_ref still null.",
+   "kind": "feature",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-17-fab-coach-program.md (T2, D2)"
+   ],
+   "mergedIdx": [
+    0,
+    2
+   ],
+   "ownerOnly": true,
+   "notes": "Grounding-quality scope needs Devin's call; thumbnail alone is not owner-only.",
+   "id": "B001"
+  },
+  {
+   "title": "Label-scan T3 remaining acceptance",
+   "description": "label_food commit wiring exists. Still open: barcode row on production FAB (NEXT_PUBLIC_FEATURE_SCAN was off 2026-09-19), 10-real-label eval, p95 <= 5 s, cached rescan <= 1.5 s, scanned food's star.",
+   "kind": "feature",
+   "theme": "logging-capture-catalog",
+   "status": "partial",
+   "sources": [
+    "docs/plans/2026-09-17-fab-coach-program.md (T3)",
+    "docs/readiness/2026-09-19/03-env.md"
+   ],
+   "mergedIdx": [
+    3
+   ],
+   "ownerOnly": false,
+   "id": "B002"
+  },
+  {
+   "title": "Dedupe repeat label scans of same brand/name/per-100 g",
+   "description": "lib/server/log-label-food.ts line 76 still inserts a new user_foods row on every scan; no brand+name+per100g match. Needed for T3 cached-rescan acceptance.",
+   "kind": "feature",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-11-phase-3-4/lane-M-capture-server.md (OQ7)",
+    "docs/plans/2026-09-11-phase-3-4/README.md (decision 5)"
+   ],
+   "mergedIdx": [
+    15
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Label-scan T3 remaining acceptance"
+   ],
+   "id": "B003"
+  },
+  {
+   "title": "Save, re-use, swap (T5): Log again, Recent meals, logged:<id> swap kind",
+   "description": "recipe: swap namespace, coach Save as recipe and meal heart exist. Missing: Log again on past entries, 'You logged this before' from duplicate fingerprints, Recent meals swap row, logged:<id> meal id kind. Grep for 'Log again'/'Recent meals' in components/lib found nothing.",
+   "kind": "feature",
+   "theme": "logging-capture-catalog",
+   "status": "partial",
+   "sources": [
+    "docs/plans/2026-09-17-fab-coach-program.md (T5)",
+    "docs/plans/2026-09-18-t6-coach-v2.md"
+   ],
+   "mergedIdx": [
+    4
+   ],
+   "ownerOnly": false,
+   "id": "B004"
+  },
+  {
+   "title": "Catalog search: FNDDS dish-vs-ingredient ranking and generic typo fold",
+   "description": "Dish variants outrank plain ingredient rows on 1-2 word queries (dish-marker penalty or dedupe proposed); generic word_similarity >= 0.6 typo fold not in lib/search/query.ts. Both are contract changes needing Devin's call.",
+   "kind": "decision-needed",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-11-phase-3-4/lane-O-search-recall.md (OQ1, OQ2)"
+   ],
+   "mergedIdx": [
+    12,
+    13
+   ],
+   "ownerOnly": true,
+   "id": "B005"
+  },
+  {
+   "title": "Phase 1 catalog open questions (eval set, category normalization, FNDDS sizing)",
+   "description": "Relevance gate passed 2026-09-12; category vocabulary normalization deliberately deferred; FNDDS bulk-vs-on-demand sizing recorded in docs/catalog/sizing.md. Remaining are rulings only.",
+   "kind": "decision-needed",
+   "theme": "logging-capture-catalog",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-1-catalog.md OQ2,3,5",
+    "AGENTS.md W4 row"
+   ],
+   "mergedIdx": [
+    82
+   ],
+   "ownerOnly": true,
+   "id": "B006"
+  },
+  {
+   "title": "Barcode-scanned foods invisible to name search (F-055)",
+   "description": "catalog_search still joins catalog_versions.is_active (20261018090200 line 106) while barcode imports write an inactive version, so scanned items return zero hits and rescans may duplicate catalog rows. Proposed fix: exempt off/fdc_branded versions in the join; needs catalog design call (activeVersionLabel picks newest active).",
+   "kind": "bug",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-14-loop010/findings.md F-055",
+    "docs/audit/2026-09-14-loop010/README.md"
+   ],
+   "mergedIdx": [
+    120,
+    313
+   ],
+   "ownerOnly": true,
+   "id": "B007"
+  },
+  {
+   "title": "Duplicate-meal detection: sync feed, members publish, and 'Logged twice?' card",
+   "description": "recordFingerprint (lib/server/log-duplicates.ts) inserts duplicate_groups/members with no change_log event; sync RPC omits duplicate_group_members; no component reads groups. Needs a reviewed production migration plus the Keep both / Merge card. Branch feat/duplicate-entry-card (local) and origin/wip/2026-10-08-duplicate-card exist, stopped mid guard-run, unreviewed; needs guard suite, one Sol review, v4 card styling (ivory shell, --radius-lg, text links) and a phase-2-real-logging.md spec update.",
+   "kind": "feature",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-14-loop010/findings.md",
+    "docs/readiness/2026-09-15/README.md blocker 3",
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    121,
+    162,
+    227,
+    261,
+    311,
+    328,
+    359,
+    374,
+    456
+   ],
+   "ownerOnly": false,
+   "notes": "The production migration apply is owner-run per AGENTS.md rules once reviewed.",
+   "id": "B008"
+  },
+  {
+   "title": "Membership revision clock can tie across tabs",
+   "description": "lib/foods/prefs-client.ts: rev = max(Date.now(), prev+1) is a per-tab in-memory clock, so two tabs in the same millisecond can tie; server accepts only strictly greater rev and may reject a concurrent Avoid. In-tab case handled; owner deferred cross-tab.",
+   "kind": "bug",
+   "theme": "logging-capture-catalog",
+   "status": "partial",
+   "sources": [
+    "followups-decisions.md (fav-meals Sol r4)",
+    "[2026-10-08 codex:5-36a7ce14678d]"
+   ],
+   "mergedIdx": [
+    187,
+    440
+   ],
+   "ownerOnly": false,
+   "id": "B009"
+  },
+  {
+   "title": "FNDDS inputs and other owner-run production imports frozen",
+   "description": "catalog_food_inputs production import (import-fndds-inputs.ts --production) frozen pending owner; mixed-dish taste falls back to the dish. Related owner-run steps: star-to-favored --production, role audit --fix --production, T1 annotate-policy-categories re-run. Receipts not in tree.",
+   "kind": "ops-migration",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "AGENTS.md W4 row",
+    "docs/catalog/import.md",
+    "scripts/star-to-favored.ts"
+   ],
+   "mergedIdx": [
+    276,
+    421
+   ],
+   "ownerOnly": true,
+   "id": "B010"
+  },
+  {
+   "title": "Stale 'dark contract' wording in phase-4-ai-capture spec AC12",
+   "description": "docs/specs/phase-4-ai-capture.md:273 still says the sheet follows the dark contract in AGENTS.md; components follow DESIGN.md. One-line doc edit.",
+   "kind": "docs",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "[2026-09-12 claude:83ff6ec4] ruling 9"
+   ],
+   "mergedIdx": [
+    321
+   ],
+   "ownerOnly": false,
+   "id": "B011"
+  },
+  {
+   "title": "Capture draft catalog lookups N+1 performance pass",
+   "description": "capture.ts now grounds items concurrently (Promise.all, T0 s4) and batches per-item lookups, so this may be mostly done; confirm the two per-item catalog lookups are still sequential, else drop.",
+   "kind": "tech-debt",
+   "theme": "logging-capture-catalog",
+   "status": "unclear",
+   "sources": [
+    "[2026-09-12 claude:bba551a9]"
+   ],
+   "mergedIdx": [
+    324
+   ],
+   "ownerOnly": false,
+   "id": "B012"
+  },
+  {
+   "title": "Split tests/search/recall.test.ts (473 lines, soft limit 400)",
+   "description": "Single file mandated by plan; now 473 lines, over the 400 soft limit (hard 800).",
+   "kind": "tech-debt",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "[2026-09-12 claude:2de3b9f0] ruling 7"
+   ],
+   "mergedIdx": [
+    325
+   ],
+   "ownerOnly": false,
+   "id": "B013"
+  },
+  {
+   "title": "Cross-device logged-extra note sync untested",
+   "description": "Commit 8adb667 fixed note sync; authenticated two-device behavior never proven. No later proof found.",
+   "kind": "test-gap",
+   "theme": "logging-capture-catalog",
+   "status": "unclear",
+   "sources": [
+    "[2026-09-15 codex:a-d02e4473e059]"
+   ],
+   "mergedIdx": [
+    347
+   ],
+   "ownerOnly": false,
+   "id": "B014"
+  },
+  {
+   "title": "Log mirror reconcile ordering and delete-during-commit races",
+   "description": "reconcileMirror puts the reconciled row without a revision-order check; forgetLoggedEntry during an in-flight retrying commit can re-queue delete as create and leak deletedWhileLive (lib/log/live-commits.ts:94); concurrent forget/settle can send a delete with base_rev null. Unverified whether later settle work closed them.",
+   "kind": "bug",
+   "theme": "logging-capture-catalog",
+   "status": "unclear",
+   "sources": [
+    "[2026-09-18 claude:d385e001]",
+    "[2026-09-18 claude:31bff206]"
+   ],
+   "mergedIdx": [
+    402
+   ],
+   "ownerOnly": false,
+   "id": "B015"
+  },
+  {
+   "title": "Truly removing an 'Other foods' row",
+   "description": "Full swipe runs clear-membership but the food is already neutral so the row stays; real removal needs new stored state, ruled out of scope.",
+   "kind": "feature",
+   "theme": "logging-capture-catalog",
+   "status": "open",
+   "sources": [
+    "[2026-09-28 claude:fe8a3ed6]"
+   ],
+   "mergedIdx": [
+    409
+   ],
+   "ownerOnly": false,
+   "id": "B016"
+  },
+  {
+   "title": "Delete leftover wip/2026-10-08-week-entry-scan-notice branch",
+   "description": "Work landed as #45 (Week link and scan-unavailable Notice); origin/wip/2026-10-08-week-entry-scan-notice and origin/fix/week-entry-scan-notice branches remain to clean up.",
+   "kind": "tech-debt",
+   "theme": "logging-capture-catalog",
+   "status": "partial",
+   "sources": [
+    "[2026-10-09 claude:e3d937eb]"
+   ],
+   "mergedIdx": [
+    473
+   ],
+   "ownerOnly": false,
+   "id": "B017"
+  },
+  {
+   "title": "Plate photo: read EXIF DateTimeOriginal as eaten time, editable meal name, Save-as-recipe",
+   "description": "T2 specified reading DateTimeOriginal client-side before resize strips EXIF so a photo logs at its shot time. No DateTimeOriginal read exists in lib/components/app/tests (only lib/media/strip-metadata.ts, which strips). Editable meal name and Save-as-recipe toggle on the confirm sheet also unbuilt.",
+   "kind": "feature",
+   "theme": "recipes-shopping",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-17-fab-coach-program.md (T2 confirm sheet)"
+   ],
+   "mergedIdx": [
+    1
+   ],
+   "ownerOnly": false,
+   "id": "B018"
+  },
+  {
+   "title": "Phase 3 open questions: barcode negative-cache window, recipe yield capture, FDC Branded key",
+   "description": "Owner rulings pending: 7-day OFF negative cache (still NEGATIVE_CACHE_DAYS = 7 in lib/server/barcode.ts, spec calls it a guess), cooked-weight capture on recipe save, which vault key the FDC Branded runtime path uses. OFF read rate limit (~10/min/IP shared) is a recorded scale risk.",
+   "kind": "decision-needed",
+   "theme": "recipes-shopping",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-3-fast-capture.md OQ1,2,4,6"
+   ],
+   "mergedIdx": [
+    80
+   ],
+   "ownerOnly": true,
+   "id": "B019"
+  },
+  {
+   "title": "Recipe/Shopping pilot: enablement, real-price provider, live multi-device check",
+   "description": "RECIPE_PLANNING_USER_IDS defaults off in production; enablement and production deployment need separate receipts (docs/recipes/pilot-release.md). No approved store/live-price provider (A12), so package size and price stay unknown. A live multi-device production mutation check is unperformed. Pilot source-rights owner items remain in docs/recipes/pilot-source-rights.md.",
+   "kind": "ops-migration",
+   "theme": "recipes-shopping",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-27-foods-annotations/pilot-rollout.md",
+    "docs/audit/2026-09-27-foods-annotations/PAUSED-HANDOFF.md",
+    "AGENTS.md recipe rows",
+    "docs/recipes/pilot-release.md"
+   ],
+   "mergedIdx": [
+    149,
+    277
+   ],
+   "ownerOnly": true,
+   "id": "B020"
+  },
+  {
+   "title": "Recipe UI/test gaps: R6 off-plan rejection, logged-version immutability, dairy and 3-food examples",
+   "description": "The 2026-09-15 readiness UI pass never exercised recipe rejection of an off-plan ingredient (R6), the dairy off-plan example, a three-food meal, or whether a logged recipe keeps its old version after an edit. README claims automated coverage but cites no test; grep finds no recipe-version test. Add an exact test reference or a test for each, then record it.",
+   "kind": "test-gap",
+   "theme": "recipes-shopping",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-15/remaining-ui.md",
+    "docs/readiness/2026-09-15/README.md",
+    "codex a-d02e4473e059",
+    "codex 8-a8818329a5af"
+   ],
+   "mergedIdx": [
+    339,
+    357,
+    362,
+    363,
+    371
+   ],
+   "ownerOnly": false,
+   "id": "B021"
+  },
+  {
+   "title": "Recipe search: honest 'no match' for foods with no recipe",
+   "description": "A query for a food with no recipe (e.g. 'pork') shows other recipes instead of 'no match'. A true 'none' needs a general food word list. Deferred pending Devin's call.",
+   "kind": "decision-needed",
+   "theme": "recipes-shopping",
+   "status": "open",
+   "sources": [
+    "claude:1c07ea59 chunk-12 (O4a)"
+   ],
+   "mergedIdx": [
+    406
+   ],
+   "ownerOnly": true,
+   "id": "B022"
+  },
+  {
+   "title": "Decide fate of voice-to-voice coach (Phase 14 spec; TTS, barge-in, hands-free)",
+   "description": "No speechSynthesis/TTS, runVoiceTurn, voice route or Talk sheet in code; Gemini Live dictation retired. Owner to build, formally retire the spec, or defer to a native iOS app. Pick a Gemini voice only if built.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-18-t7-coach-voice.md",
+    "docs/plans/2026-09-17-fab-coach-program.md",
+    "docs/specs/phase-14-voice-agent.md"
+   ],
+   "mergedIdx": [
+    5,
+    95
+   ],
+   "ownerOnly": true,
+   "notes": "grep speechSynthesis in lib/components/app: no hits.",
+   "id": "B023"
+  },
+  {
+   "title": "Stream coach replies (first visible text 3 s or less)",
+   "description": "Coach client is non-streaming; no event stream in app/api/coach. T0's 3 s p95 first-text budget depends on it.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-18-t6-coach-v2.md",
+    "docs/plans/2026-09-17-fab-coach-program.md"
+   ],
+   "mergedIdx": [
+    6
+   ],
+   "ownerOnly": false,
+   "notes": "grep for ReadableStream/event-stream in app/api/coach: none.",
+   "id": "B024"
+  },
+  {
+   "title": "Measure speed acceptance: T0 AC7-AC10 and coach p95 (10-21 s vs 3 s/15 s targets)",
+   "description": "No p95 results in readiness folder; slice 0 saw coach first-text p95 of 10-21 s. Re-measure with pnpm timings and pnpm timings:ai on the OpenRouter coach lane; record label/plate/coach p95 and cold vs warm. Numbers may sit in Devin's proof folder.",
+   "kind": "test-gap",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-09-17-t0-speed-foundations.md",
+    "docs/specs/phase-13-model-lanes-food-safety.md 7.1"
+   ],
+   "mergedIdx": [
+    7,
+    100
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Stream coach replies (first visible text 3 s or less)"
+   ],
+   "id": "B025"
+  },
+  {
+   "title": "Phase 19b: computed rebalance options, apply/Undo and coach rebalance_day",
+   "description": "v1 is a read-only panel. Missing: resize generated plates, multi-slot clear/move, side foods, projected ranking, batch apply with one Undo, rebalance_day with editsHash. Spec section 10 lists design fixes first. No rebalance_day in lib.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-19-day-rebalance.md section 10",
+    "owner request"
+   ],
+   "mergedIdx": [
+    21,
+    93
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Phase 19 clinical review sign-off and release of the read-only panel"
+   ],
+   "notes": "grep rebalance_day in lib: none.",
+   "id": "B026"
+  },
+  {
+   "title": "Jev day_completeness nudge before 'Day fully logged'",
+   "description": "Add a day_completeness purpose in lib/ai/call-registry.ts with typed payload builder, 0.80 threshold, shown by the day mark. Also unbuilt: far_from_seed explanation ranking and coach 'why did my TDEE change?' intent.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-10-04-jev-opportunities.md section 2"
+   ],
+   "mergedIdx": [
+    24
+   ],
+   "ownerOnly": false,
+   "notes": "grep day_completeness in lib: none.",
+   "id": "B027"
+  },
+  {
+   "title": "Drop coach KCAL_MIN_FLOOR = 1650 first-client constant",
+   "description": "lib/coach/floors.ts still floors coach suggestions at 1650 kcal, a first-client number. Replace with account-level minimum per the ruling; violatesFloors has no runtime caller.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-22-tdee-engine-plan.md D follow-up 4",
+    "docs/specs/phase-12-coach-tools.md"
+   ],
+   "mergedIdx": [
+    28
+   ],
+   "ownerOnly": false,
+   "notes": "Confirmed: lib/coach/floors.ts:19.",
+   "id": "B028"
+  },
+  {
+   "title": "Phase 12 core: checked target writer, floor minima and units from chat",
+   "description": "Build write_target_revision_checked (below_floor), migration 20261108090000 phase12 floor, /api/targets switch, PHASE12_MIN_CLIENT_BUILD, weightUnit/heightUnit from chat. Service-role-only writers (20261228090000) unblock it. Owner confirms minima (protein 1.8/2.0 g/kg, macroMinimumKcal) and applies migration. Spec needs a Sol audit first.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-12-coach-tools.md",
+    "docs/plans/2026-09-22-multi-user-overnight-run.md"
+   ],
+   "mergedIdx": [
+    33,
+    53
+   ],
+   "ownerOnly": false,
+   "notes": "Owner steps: confirm minima, production migration apply. No such migration file or function in repo.",
+   "id": "B029"
+  },
+  {
+   "title": "Phase 12 Later: close other write paths and floor at approval time",
+   "description": "Floor check at proposal approval; single transaction for profile+target; weigh-in retarget RPC with idempotency; server-held Undo; Today below-minimum warning and dropped-target notice; carb floors; protein lock for coach writes. Target writers already service-role only.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-12-coach-tools.md Later"
+   ],
+   "mergedIdx": [
+    54
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Phase 12 core: checked target writer, floor minima and units from chat"
+   ],
+   "id": "B030"
+  },
+  {
+   "title": "Phase 12 Later coach capabilities: web research, calendar tools, edit_entry/edit_recipe, insights, plateau, carb timing, re-engagement, files/push, exports",
+   "description": "None built (no get_calendar, plan_range, edit_entry, edit_recipe, web research, push). Includes 4-week plan, 7% plateau adjustment, sleep-driven carb timing, stored files/PDF, exports from chat (chunked reads), meal times and display name from chat. Spec holds constraints per item.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-12-coach-tools.md Later 3-12",
+    "docs/plans/2026-09-22-multi-user-overnight-run.md"
+   ],
+   "mergedIdx": [
+    34,
+    56,
+    57,
+    58,
+    59,
+    60
+   ],
+   "ownerOnly": false,
+   "notes": "grep get_calendar|plan_range|edit_entry|edit_recipe|coach_memories in lib/app/supabase: no hits.",
+   "id": "B031"
+  },
+  {
+   "title": "Decide whether to retire or confirm coach target, weight and planned-meal writes",
+   "description": "Phase 12 Later 2 was dropped after revisions 5-11. Constraints: cached actions/Retry/Undo, older builds, fail-closed reply check, Jev fast path as second source, server-owned confirm flag.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-12-coach-tools.md Later 2"
+   ],
+   "mergedIdx": [
+    55
+   ],
+   "ownerOnly": true,
+   "id": "B032"
+  },
+  {
+   "title": "Phase 12 pre-existing gaps: closed-gate health context and ExportCard partial CSV",
+   "description": "Coach route/coach-turn health context when gate is closed; Settings ExportCard partial CSV (components/ExportCard.tsx). ExportCard copy work is parked on wip/2026-10-08-app-hardening with a Sol BLOCK.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-12-coach-tools.md Open for Devin 6"
+   ],
+   "mergedIdx": [
+    61
+   ],
+   "ownerOnly": false,
+   "id": "B033"
+  },
+  {
+   "title": "Phase 11 Later: account memory (coach_memories, propose_memory, Settings, export)",
+   "description": "Cut after audit rounds; to be re-specified fresh as one unit. No coach_memories or propose_memory in code. Includes thread summary suppression of forgotten facts.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-11-conversations-memory.md Later"
+   ],
+   "mergedIdx": [
+    62
+   ],
+   "ownerOnly": false,
+   "id": "B034"
+  },
+  {
+   "title": "Jev swap/bridge candidates and learned likes from logs",
+   "description": "Dietary map section 6 uses 3, 5, 6, 7, 10: nearest-neighbour swap sets, code-side reply checks against cached facets, label warnings, weekly-review cuisine/texture learning, grounded-lookup attribution check. Built status unclear; facet cache partial.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/research/2026-09-23-dietary-profile-map.md section 6"
+   ],
+   "mergedIdx": [
+    42
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Dietary profile map: remaining facets, rubrics and calibration"
+   ],
+   "id": "B035"
+  },
+  {
+   "title": "Chat-first deferred scope: gut-log correlation, cooked-recipe yield, serving history, Jev for capture vision",
+   "description": "Out of scope in chat-first plan: gut-log correlation, replacing Gemini vision in capture with Jev, cooked-recipe yield maths, personal serving history; also catalog-hit reranking for 'add X to avoid' and gluten/dairy check over label text.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-09-19-chat-first.md",
+    "docs/plans/2026-09-19-ai-first-companion.md section 7"
+   ],
+   "mergedIdx": [
+    43
+   ],
+   "ownerOnly": false,
+   "id": "B036"
+  },
+  {
+   "title": "AI-first out-of-scope list: multi-day meal plans and native apps still unbuilt",
+   "description": "Label scan built; Gemini Live voice retired. Multi-day meal plans and native apps remain unbuilt; 4-week plan sits in Phase 12 Later.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "partial",
+   "sources": [
+    "docs/plans/2026-09-19-ai-first-companion.md section 4"
+   ],
+   "mergedIdx": [
+    44
+   ],
+   "ownerOnly": false,
+   "id": "B037"
+  },
+  {
+   "title": "Coach Undo receipts PR B: apply_coach_op writer and server-minted write identity",
+   "description": "PR A (migrations 20261216090000-090400) landed, but step 6 (20261216090500_apply_coach_op.sql) and step 7 (phone stamp, startRecording, routes) are not built, so no receipt_v1 record exists. Cases R1-1, R1-2, R1-3, R1-7, R2-2..4, R3-1, P1, T2 uncovered. Also the Phase 12 checked-writer cutover is named as deferred.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/coach-undo-receipt.md section 7",
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "docs/audit/2026-10-06-coach-undo-receipt-db-proof.md"
+   ],
+   "mergedIdx": [
+    48,
+    115,
+    124
+   ],
+   "ownerOnly": false,
+   "notes": "No apply_coach_op migration found in supabase/migrations.",
+   "id": "B038"
+  },
+  {
+   "title": "Clean up parked feat/undo-followups: keep CoachActionSource plumbing, fix food_ideas/CoachShell block+source",
+   "description": "Never apply 20261211090200_coach_undo_block_source.sql, drop coach-undo-display.ts, keep CoachActionSource plumbing, make food_ideas.tsx and CoachShell.tsx pass block and source into applyAction, rewrite undo-list harness cases for receipts.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/coach-undo-receipt.md section 7"
+   ],
+   "mergedIdx": [
+    52
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Coach Undo receipts PR B: apply_coach_op writer and server-minted write identity"
+   ],
+   "id": "B039"
+  },
+  {
+   "title": "Flip NEXT_PUBLIC_CHAT_ONBOARDING=1 after owner phone re-test of onb3 rework",
+   "description": "Production serves the old 6-step onboarding (flag 0, rolled back 2026-10-07). Owner re-tests onb3 (#36, #37, #39) on a phone and says go; then set flag and redeploy. Also gates the U.S. country chip and followup #16 live QA. onboarding-as-built still lists the PRs as open.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/onboarding-as-built.md",
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "docs/readiness/2026-09-19/03-env.md"
+   ],
+   "mergedIdx": [
+    70,
+    130,
+    157
+   ],
+   "ownerOnly": true,
+   "notes": ".env.example:204 leaves flag empty.",
+   "id": "B040"
+  },
+  {
+   "title": "Phase 10 Later onboarding gaps (offline turns, draft expiry, thread delete, Add-from-onboarding, export restore)",
+   "description": "Offline onboarding turns, expiry of abandoned drafts, user delete of onboarding thread, Avoid-aware Add-from-onboarding route into Foods, health_ingest as one transaction, restore tool and consistent-snapshot nightly export.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-10-conversational-onboarding.md Later"
+   ],
+   "mergedIdx": [
+    72
+   ],
+   "ownerOnly": false,
+   "id": "B041"
+  },
+  {
+   "title": "Phase 4 capture open questions: iOS audio canary, caps, photo-grams default, label duplicate matching",
+   "description": "Safari audio/mp4 vs Gemini accepted types has no canary result; decide soft cap warning, grams stepper focus for photo items, and matching a second label scan to the existing user_foods row (brand+name+per-100g).",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-4-ai-capture.md section 12 OQ1-4"
+   ],
+   "mergedIdx": [
+    79
+   ],
+   "ownerOnly": false,
+   "id": "B042"
+  },
+  {
+   "title": "FluidVoice UI recovery acceptance ledger and production proof",
+   "description": "Needs rendered evidence at 320/390/430/1024, signed-in pilot-account production walkthrough, an acceptance ledger separating production from source-only proof, then stale branch/worktree cleanup. Code exists; no ledger found.",
+   "kind": "test-gap",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/2026-09-28-fluidvoice-ui-recovery.md"
+   ],
+   "mergedIdx": [
+    86
+   ],
+   "ownerOnly": false,
+   "id": "B043"
+  },
+  {
+   "title": "Parked wip branches: account deletion, voice_ears cleanup, app hardening, migration timestamp collision",
+   "description": "Unmerged: delete_account migration (ACCOUNT_DELETION_ENABLED), duplicate-entry card, voice_ears cleanup with two it.todo tests, app hardening (headers, error pages, /api/client-errors with Sol BLOCK on PII, 4 KB post-read cap, no Undo for partial shopping add). Three files reuse migration timestamp 20261229090000; renumber.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md Unfinished lanes"
+   ],
+   "mergedIdx": [
+    87,
+    148
+   ],
+   "ownerOnly": false,
+   "id": "B044"
+  },
+  {
+   "title": "Email TypeSafe about health-text terms",
+   "description": "Ask privacy@typesafe.ai whether dietary and health text is allowed under standard terms or the zero-data-retention DPA is needed. Closes the accepted incidental-D2 residual.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-13-model-lanes-food-safety.md section 8 item 1"
+   ],
+   "mergedIdx": [
+    97
+   ],
+   "ownerOnly": true,
+   "id": "B045"
+  },
+  {
+   "title": "Data-use opt-in/opt-out notice naming training models",
+   "description": "Owner ruling to add a notice after user testing. The DeepSeek lane that prompted it was removed 2026-10-01; confirm whether any remaining vendor needs the notice.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-13-model-lanes-food-safety.md section 0, 8 item 2"
+   ],
+   "mergedIdx": [
+    98
+   ],
+   "ownerOnly": true,
+   "id": "B046"
+  },
+  {
+   "title": "Watch search grounding cost past 5,000 queries a month",
+   "description": "Lookup grounding costs 14 dollars per 1,000 queries after 5,000/month and counts toward the spend cap. Confirm monitoring exists.",
+   "kind": "ops-migration",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-13-model-lanes-food-safety.md section 8 item 3"
+   ],
+   "mergedIdx": [
+    99
+   ],
+   "ownerOnly": true,
+   "id": "B047"
+  },
+  {
+   "title": "AI-capture auto-resolve effectively off (0.95/0.30); capture eval not re-run",
+   "description": "AUTO_RESOLVE in lib/search/thresholds.ts is 0.95 score / 0.30 margin, unreachable, so /api/log/propose never auto-grounds. Ruling W3-7 holds it off until top-1 reaches 85%. Rerun the capture eval with a real key on the OpenRouter lane; owner decides confidence vs safety.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-14-loop010/findings.md"
+   ],
+   "mergedIdx": [
+    122
+   ],
+   "ownerOnly": true,
+   "notes": "Confirmed: lib/search/thresholds.ts:11-14.",
+   "id": "B048"
+  },
+  {
+   "title": "Condition-pack wording review and CONDITION_PACKS_ENABLED (Q4)",
+   "description": "Condition accounts open only after clinical reviewer and owner approve wording and the user confirms each condition. Flag stays off; lib/policy/condition-rules.ts is empty; no sign-off on record; production override unverified.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/decisions/2026-10-05-phase-18-open-questions.md Q4",
+    "docs/readiness/2026-09-19/03-env.md"
+   ],
+   "mergedIdx": [
+    128
+   ],
+   "ownerOnly": true,
+   "id": "B049"
+  },
+  {
+   "title": "Physical-device verification of PWA, scanner, voice, share and calendar flows",
+   "description": "Installed iPhone offline start, three barcode scans under 5 s, voice composer with real IME and provider transcription, share/calendar delivery and device ingest never exercised; evidence is desktop Chromium only.",
+   "kind": "test-gap",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md blocker 5",
+    "docs/audit/2026-09-27-composer/acceptance.md"
+   ],
+   "mergedIdx": [
+    138
+   ],
+   "ownerOnly": true,
+   "id": "B050"
+  },
+  {
+   "title": "Run full coach quality streak (10 consecutive) on current coach lane",
+   "description": "All-category streak ended 3/10 on 2026-10-03 (Gemini capacity/timeouts); coach is now on OpenRouter. Per-category streaks passed. Rerun on coach-eval branch and do the F9 telemetry threshold review after 100 eligible turns.",
+   "kind": "test-gap",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "docs/evals/2026-09-19-coach-streak.md",
+    "docs/decisions/2026-09-19-sol-rulings.md"
+   ],
+   "mergedIdx": [
+    142
+   ],
+   "ownerOnly": false,
+   "id": "B051"
+  },
+  {
+   "title": "Calculation-engine UI-lane follow-ups and honest-nutrition cleanup (t1h)",
+   "description": "Render ruleMark on slots, recipe selections and shopping lines; move LogFoodSheet/logFromLabel to logPortionsFor/loggedFoodFor and EditSlotSheet to completeComponentFromCatalog; fix partial recipe nutrition shown as full serving, vegan badge trusting tags, recipe fit ignoring protein, small-portion rounding.",
+   "kind": "ui",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/audit/2026-10-05-calculation-engine/report.md"
+   ],
+   "mergedIdx": [
+    150
+   ],
+   "ownerOnly": false,
+   "id": "B052"
+  },
+  {
+   "title": "Ruling follow-ups: fast-path reply pair, canonical food identity, serving yield, flaky test trio",
+   "description": "Deferred: pending-then-success reply pair for fast-path actions (D5), canonical food identity beyond name-keyed membership (D7), serving-identity yield math and history, flaky test trio (F7). Halal/kosher facets stay unverified without certification.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "docs/decisions/2026-09-19-sol-rulings.md",
+    "docs/decisions/2026-09-19-jev-everywhere-rulings.md Q10"
+   ],
+   "mergedIdx": [
+    155
+   ],
+   "ownerOnly": false,
+   "id": "B053"
+  },
+  {
+   "title": "Scan-unavailable notice missing when coach is disabled",
+   "description": "#45 shows 'Scanning isn't available yet' only in CoachChat (components/CoachChat.tsx:200). With coach and scan both off, /coach?open=scan renders no notice because CoachScreen skips CoachChat. Move the notice to CoachScreen.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx178",
+    "idx226",
+    "idx271",
+    "idx297",
+    "idx443"
+   ],
+   "mergedIdx": [
+    178,
+    226,
+    271,
+    297,
+    443
+   ],
+   "ownerOnly": false,
+   "id": "B054"
+  },
+  {
+   "title": "Coach Undo receipts PR B: apply_coach_op writer (restart with server-minted write identity, or drop)",
+   "description": "PR A (migrations 20261216090000-0400) is live; no apply_coach_op migration or lib caller exists, so every record stays legacy. Parked after about 9 review rounds. Owner chooses restart (reduced scope: stamp coach-issued actions in saved threads, server-only Undo for stamped actions) or drop. Spec should state the pause. Stale-device overwrite and E1/E2 Undo bugs stay live.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx172",
+    "idx220",
+    "idx258",
+    "idx290",
+    "idx415"
+   ],
+   "mergedIdx": [
+    172,
+    220,
+    258,
+    290,
+    415
+   ],
+   "ownerOnly": true,
+   "id": "B055"
+  },
+  {
+   "title": "Coach Undo receipts for remaining action kinds",
+   "description": "Spec section 9 follow-ups: multi-date slot changes, food note/role writes, skip/restore, slot items, moves, deletes, water, weight, profile, targets, shopping stay phone-only (serverUndoable false). Depends on PR B.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx259"
+   ],
+   "mergedIdx": [
+    259
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Coach Undo receipts PR B: apply_coach_op writer (restart with server-minted write identity, or drop)"
+   ],
+   "id": "B056"
+  },
+  {
+   "title": "Phase 19b day rebalance: resize, batch apply/Undo, marks, coach action, R0 drift study",
+   "description": "v1 is read-only. Resizing, batch writes with one Undo, marks, coach action, learned ordering and the R0 cause-mix study move to 19b; nothing built. R0 on the first client's data needs her recorded consent (D7); use synthetic or consented accounts until then.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx207",
+    "idx417",
+    "idx448"
+   ],
+   "mergedIdx": [
+    207,
+    417,
+    448
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Rebalance panel v1 release"
+   ],
+   "id": "B057"
+  },
+  {
+   "title": "Finish voice retirement and account-zone precedence (wip/2026-10-08-voice-retire-account-zone)",
+   "description": "Unmerged branch: Phase-14 retirement note (phase-14-voice-agent.md still says DRAFT), voice_ears cleanup migration (renumber, unapplied; voice_ears still created in 20261117090000), account-zone precedence, and two it.todo in tests/coach/apply-profile.test.ts:661-662.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx229",
+    "idx286",
+    "idx470"
+   ],
+   "mergedIdx": [
+    229,
+    286,
+    470
+   ],
+   "ownerOnly": false,
+   "id": "B058"
+  },
+  {
+   "title": "Flip NEXT_PUBLIC_CHAT_ONBOARDING to 1 after owner phone re-test",
+   "description": "Production serves the old onboarding (flag 0). Set the flag and redeploy only after the owner re-tests onb3 (#36, #37, #39) on a phone and says go.",
+   "kind": "ops-migration",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx200",
+    "idx249"
+   ],
+   "mergedIdx": [
+    200,
+    249
+   ],
+   "ownerOnly": true,
+   "id": "B059"
+  },
+  {
+   "title": "Narrow ExportCard claim; decide on wider export",
+   "description": "components/ExportCard.tsx:64 still says 'Everything you have logged'. Backend has 8 export kinds, UI exposes 2, coach transcripts have no export. Fix copy; decide whether to add coach/profile export.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx167"
+   ],
+   "mergedIdx": [
+    167
+   ],
+   "ownerOnly": false,
+   "id": "B060"
+  },
+  {
+   "title": "Shopping-apply account-switch race",
+   "description": "applyAddToShoppingList (lib/coach/apply-shopping.ts) re-resolves the account on two sequential calls. Capture the handle once and reject on a mid-apply switch. Partial add has no Undo. Fix sits on the blocked hardening branch.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx168"
+   ],
+   "mergedIdx": [
+    168
+   ],
+   "ownerOnly": false,
+   "id": "B061"
+  },
+  {
+   "title": "In-flight transcribe not aborted on page hide (lib/coach/hold.ts)",
+   "description": "No pagehide/visibilitychange handling in HoldController; abort the in-flight transcription when the page hides.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx237"
+   ],
+   "mergedIdx": [
+    237
+   ],
+   "ownerOnly": false,
+   "id": "B062"
+  },
+  {
+   "title": "Deferred integrations (native shell, Garmin, Health Connect, Withings, web push, creatine tick, ChatGPT connector)",
+   "description": "F-109 to F-116 parked with stated revisit conditions; no work planned.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx242"
+   ],
+   "mergedIdx": [
+    242
+   ],
+   "ownerOnly": true,
+   "id": "B063"
+  },
+  {
+   "title": "Loop010 rulings: barcode foods hidden from search; 0.95/0.3 AI-capture auto-resolve unreachable",
+   "description": "Barcode foods write inactive versions and catalog_search filters is_active. lib/search/thresholds.ts still holds minScore 0.95, margin 0.3, so /api/log/propose may never auto-ground. Owner ruling on confidence vs safety needed.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx244",
+    "idx312"
+   ],
+   "mergedIdx": [
+    244,
+    312
+   ],
+   "ownerOnly": true,
+   "id": "B064"
+  },
+  {
+   "title": "Finish duplicate-card lane (Logged twice? Keep both / Merge)",
+   "description": "origin/wip/2026-10-08-duplicate-card stopped mid guard-run, unreviewed, do not merge. Needs guard suite, one Sol review, v4 card family match.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx284"
+   ],
+   "mergedIdx": [
+    284
+   ],
+   "ownerOnly": false,
+   "id": "B065"
+  },
+  {
+   "title": "Phase 12 checked-writer RPC cutover",
+   "description": "Unblocked by migration 20261228090000_target_writes_service_role_only; not done.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx291"
+   ],
+   "mergedIdx": [
+    291
+   ],
+   "ownerOnly": false,
+   "id": "B066"
+  },
+  {
+   "title": "CaptureSheet minor follow-ups from lane L review",
+   "description": "Five items: empty draft '0 of 0 today' subtitle, propose() parsing 200 body outside try, ignored saveDraft return, no state reset when open flips, CaptureGlyph pulling capture graph into Today bundle. Not re-checked against current code.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "idx322"
+   ],
+   "mergedIdx": [
+    322
+   ],
+   "ownerOnly": false,
+   "id": "B067"
+  },
+  {
+   "title": "Coach tool-schema leftovers: .positive() keyword and stale NOUS_* env names",
+   "description": "lib/coach/registry.ts:167 still uses .positive() in a prompt-side tool schema with no keyword allowlist against the SDK Schema type. Stale NOUS_*_MODEL_ID names in the dated 2026-09-12 readiness snapshot (docs only).",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx323"
+   ],
+   "mergedIdx": [
+    323
+   ],
+   "ownerOnly": false,
+   "id": "B068"
+  },
+  {
+   "title": "Coach prompt-fragment leaks and 3-minute hang on off-plan requests",
+   "description": "Loop 010 found short prompt/schema leaks the degeneration guard misses and a ~3 min hang. Pipeline changed a lot since; needs a fresh production check.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "idx326"
+   ],
+   "mergedIdx": [
+    326
+   ],
+   "ownerOnly": false,
+   "id": "B069"
+  },
+  {
+   "title": "Coach thread/message saves are not transactional",
+   "description": "lib/server/coach-threads.ts persists insert-by-insert; a DB failure or concurrent duplicate can leave an empty/partial thread, and older empty threads remain. Concurrent-seq collision partly retried for review threads; spend reservation covers the budget part. No transactional append function found.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "partial",
+   "sources": [
+    "idx329",
+    "idx346",
+    "idx369"
+   ],
+   "mergedIdx": [
+    329,
+    346,
+    369
+   ],
+   "ownerOnly": false,
+   "id": "B070"
+  },
+  {
+   "title": "Verify full AI chat exchange in production (synthetic Gemini test)",
+   "description": "A complete production-UI coach exchange with persistence was left pending (approval for up to two synthetic messages, $0.10 cap). No recorded outcome; likely superseded. Confirm with one production check.",
+   "kind": "test-gap",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "idx385",
+    "idx390"
+   ],
+   "mergedIdx": [
+    385,
+    390
+   ],
+   "ownerOnly": true,
+   "id": "B071"
+  },
+  {
+   "title": "Review coach fast-path thresholds after 100 eligible production turns",
+   "description": "Thresholds deliberately unchanged; review due once 100 eligible turns have telemetry (note in lib/coach/intent.ts).",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx395"
+   ],
+   "mergedIdx": [
+    395
+   ],
+   "ownerOnly": true,
+   "id": "B072"
+  },
+  {
+   "title": "Coach verifier: reply claiming a chart/breakdown must carry a block",
+   "description": "Gemini said 'Here is your calorie breakdown' without calling show_chart. No such rule in lib/coach/verify*.ts (grep for chart/breakdown found nothing).",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx398"
+   ],
+   "mergedIdx": [
+    398
+   ],
+   "ownerOnly": false,
+   "id": "B073"
+  },
+  {
+   "title": "Coach streaming responses and json-render/A2UI adoption (deferred)",
+   "description": "Chat-first ruling kept one non-streaming POST. Revisit only if measured latency is unacceptable; never render half-hydrated blocks.",
+   "kind": "decision-needed",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx399"
+   ],
+   "mergedIdx": [
+    399
+   ],
+   "ownerOnly": true,
+   "id": "B074"
+  },
+  {
+   "title": "Weekday-series meal planning telemetry follow-up and per-date title persistence",
+   "description": "Range expansion (31-day cap) is built and the meals streak passed. Remaining: non-blocking telemetry follow-up and per-date title persistence, unconfirmed.",
+   "kind": "feature",
+   "theme": "coach-ai",
+   "status": "partial",
+   "sources": [
+    "idx403"
+   ],
+   "mergedIdx": [
+    403
+   ],
+   "ownerOnly": false,
+   "id": "B075"
+  },
+  {
+   "title": "Deferred UI minors: Undo hidden behind a standing error; free text caps at 12 meals",
+   "description": "A success queued behind a standing error never shows its Undo; free text silently caps at 12 meals. Not re-checked.",
+   "kind": "bug",
+   "theme": "coach-ai",
+   "status": "unclear",
+   "sources": [
+    "idx410"
+   ],
+   "mergedIdx": [
+    410
+   ],
+   "ownerOnly": false,
+   "id": "B076"
+  },
+  {
+   "title": "Lookup lane has no fallback while Gemini is denied",
+   "description": "googleSearch grounding soft-fails with 'no fact today' while Gemini access is denied. Parked on purpose; revisit when the owner restores Google access.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx439"
+   ],
+   "mergedIdx": [
+    439
+   ],
+   "ownerOnly": true,
+   "id": "B077"
+  },
+  {
+   "title": "Raise Jev cap and 'at most one Jev call' rule for plan-sheet chips",
+   "description": "Owner said Jev calls are unlimited. lib/ai/request-budget.ts still has MAX_LOGICAL_CALLS = 3; adjust it and the 'at most one Jev call' test, and note in the Phase 18 decisions log. Keep formula-order fallback and ~1 s chip target.",
+   "kind": "tech-debt",
+   "theme": "coach-ai",
+   "status": "open",
+   "sources": [
+    "idx452"
+   ],
+   "mergedIdx": [
+    452
+   ],
+   "ownerOnly": false,
+   "id": "B078"
+  },
+  {
+   "title": "Occasion-facet calibration (O3 Acceptance 9) is null; owner holdout review and live freeze",
+   "description": "OCCASION_CALIBRATION is still null in lib/foods/occasion-calibration.data.ts, so v2 occasion facets never reach ranking. Needs an owner-reviewed holdout, then `facets-occasion-eval.ts --live --freeze` (billed). Owner deprioritized it on 2026-10-08.",
+   "kind": "research",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 102",
+    "harvest idx 133",
+    "harvest idx 190",
+    "harvest idx 211",
+    "harvest idx 419"
+   ],
+   "mergedIdx": [
+    102,
+    133,
+    190,
+    211,
+    419
+   ],
+   "ownerOnly": true,
+   "notes": "Verified: lib/foods/occasion-calibration.data.ts:8 is `= null`.",
+   "id": "B079"
+  },
+  {
+   "title": "Widget-save failure notice (followup #7)",
+   "description": "saveWidgetPrefs returns a boolean but LiveWidget.tsx (line 162) ignores it, and writeAccountItem swallows failures. Add a backend result plus a \"couldn't save layout\" notice.",
+   "kind": "bug",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 176",
+    "harvest idx 224",
+    "harvest idx 294",
+    "harvest idx 436"
+   ],
+   "mergedIdx": [
+    176,
+    224,
+    294,
+    436
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: the LiveWidget call site does not use the return value.",
+   "id": "B080"
+  },
+  {
+   "title": "Meal Cards v4 redesign: passes 2-4, review, and wiring",
+   "description": "feat/cards-redesign-v4 is at pass 1 of 4 and unreviewed (do not merge). Remaining: 375x812 shots of every state, Gemini and ui-ux-buddy critiques, fixes, one Sol review, wire onSwapNext in app/page.tsx, update DESIGN.md card prose, merge fix/onb3-plan-today (touches SlotCard). Also delete the stale wip/2026-10-08-onb2-* backup branches after comparing with main. The owner dropped the plate line on every card.",
+   "kind": "ui",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 170",
+    "harvest idx 232",
+    "harvest idx 266",
+    "harvest idx 289",
+    "harvest idx 459",
+    "harvest idx 464"
+   ],
+   "mergedIdx": [
+    170,
+    232,
+    266,
+    289,
+    459,
+    464
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: branch feat/cards-redesign-v4 still exists locally and on origin, unmerged.",
+   "id": "B081"
+  },
+  {
+   "title": "Board and Overview design rulings for cards v4",
+   "description": "Owner must decide: whether tip paging moves into the full tip view (paging was removed on the Board), and whether the 49% grey Overview ring track is too heavy. Other open calls from the cards brief: default week bar colour, 17x48 px week targets, no pending state on Add-a-cup, Next-tile gesture scope.",
+   "kind": "decision-needed",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 465",
+    "harvest idx 466"
+   ],
+   "mergedIdx": [
+    465,
+    466
+   ],
+   "ownerOnly": true,
+   "dependsOn": [
+    "Meal Cards v4 redesign: passes 2-4, review, and wiring"
+   ],
+   "id": "B082"
+  },
+  {
+   "title": "Parked branch: duplicate-meal card",
+   "description": "origin/wip/2026-10-08-duplicate-card holds a duplicate-meal card feature that was never merged. Decide to finish or drop it.",
+   "kind": "feature",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 471"
+   ],
+   "mergedIdx": [
+    471
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: the remote branch exists.",
+   "id": "B083"
+  },
+  {
+   "title": "Slot editing Phase C: build a meal from any number of items",
+   "description": "The 2026-09-14 slot-item-editing plan lists Phase C (build from anything with a running total) as unverified. BuildMealSheet is gone; item edits and the Log a meal flow exist. Confirm whether a build sheet is still wanted, or close the phase.",
+   "kind": "feature",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 8"
+   ],
+   "mergedIdx": [
+    8
+   ],
+   "ownerOnly": false,
+   "notes": "Grep found no BuildMealSheet in components or lib.",
+   "id": "B084"
+  },
+  {
+   "title": "Slot editing Phase D: 'Make this my usual'",
+   "description": "Plan asked for a control that saves an edited meal as a recipe and registers it as a swap option for that slot. No such control found in components or lib.",
+   "kind": "feature",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 9"
+   ],
+   "mergedIdx": [
+    9
+   ],
+   "ownerOnly": false,
+   "notes": "Grep for 'my usual' returned nothing.",
+   "id": "B085"
+  },
+  {
+   "title": "Phase 15 c11 end-to-end walk-through proof",
+   "description": "Criterion c11 needs a captured local-stack walk-through (sign-up, onboard, c1-c9) with screenshots. No record found. Capture or confirm.",
+   "kind": "test-gap",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 117"
+   ],
+   "mergedIdx": [
+    117
+   ],
+   "ownerOnly": false,
+   "id": "B086"
+  },
+  {
+   "title": "Apply migration 20261229090000_client_timings_plan_chips to production",
+   "description": "Plan-chip timing rows are rejected until it is applied. Safe on either side of the deploy. Two parked wip migrations reuse the same timestamp and need renumbering before they land.",
+   "kind": "ops-migration",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 126"
+   ],
+   "mergedIdx": [
+    126
+   ],
+   "ownerOnly": true,
+   "notes": "File is on main. Production state not checkable from the repo.",
+   "id": "B087"
+  },
+  {
+   "title": "Island views PR #470 leftovers and glass-well reconcile",
+   "description": "Sol FAIL items from #470: rebalance nudge should not expand the widget (lib/today/rebalance-widget.ts line 65 still sets expanded: true on justNudged), blocked storage resets prefs, pager dots overlap under 44 px, edit tray loses focus. Delete throwaway branches proto/wet-island and fix/well-open-glare. Glass-well redesign awaited the owner's yes; confirm landed state.",
+   "kind": "bug",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 195",
+    "harvest idx 430"
+   ],
+   "mergedIdx": [
+    195,
+    430
+   ],
+   "ownerOnly": true,
+   "notes": "Nudge expanded path still present in code.",
+   "id": "B088"
+  },
+  {
+   "title": "Per-slot time editor persistence needs a manual retest",
+   "description": "F-009 (long-press a slot to set its time) was inconclusive in the 2026-09-15 inventory; the retest was never recorded. Loop 010 also noted the Settings substitute changes a slot's time on every date.",
+   "kind": "test-gap",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 314"
+   ],
+   "mergedIdx": [
+    314
+   ],
+   "ownerOnly": false,
+   "notes": "inventory.md F-009 still reads Inconclusive.",
+   "id": "B089"
+  },
+  {
+   "title": "Supplement tick (creatine) waits on the owner's supplement question",
+   "description": "F-115 is deferred until Devin answers the open supplement question. No shipped acceptance.",
+   "kind": "decision-needed",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 345"
+   ],
+   "mergedIdx": [
+    345
+   ],
+   "ownerOnly": true,
+   "notes": "inventory.md F-115 still marked Deferred.",
+   "id": "B090"
+  },
+  {
+   "title": "Per-slot merge of plan_days.item_overrides",
+   "description": "Sync conflict merge treats the whole item_overrides map as one field, so concurrent different-slot edits on two devices can overwrite each other. Only per-device serialization was added. Add a per-slot merge or confirm it is accepted.",
+   "kind": "bug",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 382",
+    "harvest idx 387"
+   ],
+   "mergedIdx": [
+    382,
+    387
+   ],
+   "ownerOnly": false,
+   "notes": "No per-slot merge found in lib/sync/merge.ts or plan-days.ts.",
+   "id": "B091"
+  },
+  {
+   "title": "Replay of already-consumed plan_days feed rows, and legacy backfill of item_overrides",
+   "description": "Projection into Today's store runs only when a plan_days change is pulled; feed rows pulled before the fix are not replayed, so older cross-device edits may be missing. The historical backfill part (lib/migrate/legacy.ts) is moot because lib/migrate no longer exists.",
+   "kind": "tech-debt",
+   "theme": "today-plan",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 378",
+    "harvest idx 383",
+    "harvest idx 388"
+   ],
+   "mergedIdx": [
+    378,
+    383,
+    388
+   ],
+   "ownerOnly": false,
+   "notes": "lib/migrate is gone. The replay gap is unverified.",
+   "id": "B092"
+  },
+  {
+   "title": "Real-device touch QA for meal-card gestures, FAB and day strip",
+   "description": "Emulated checks passed; real-phone verification of long-press drag-to-reschedule, FAB single and double tap, and the day strip under 360 px was never recorded.",
+   "kind": "test-gap",
+   "theme": "today-plan",
+   "status": "partial",
+   "sources": [
+    "harvest idx 386"
+   ],
+   "mergedIdx": [
+    386
+   ],
+   "ownerOnly": false,
+   "id": "B093"
+  },
+  {
+   "title": "Owner question: were the Oct 4 meal changes his own?",
+   "description": "Meals 1-2 removed and 5-6 added on Oct 4 in Devin's data. The UI lane asked; no answer recorded.",
+   "kind": "decision-needed",
+   "theme": "today-plan",
+   "status": "open",
+   "sources": [
+    "harvest idx 429"
+   ],
+   "mergedIdx": [
+    429
+   ],
+   "ownerOnly": true,
+   "id": "B094"
+  },
+  {
+   "title": "Rotate secrets an onboarding subagent printed",
+   "description": "A subagent printed a Supabase access token and other projects' DB URLs into its own session output (no file, commit or log). No rotation receipt found. Owner rotates and records it.",
+   "kind": "ops-migration",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md (Owner items 4)"
+   ],
+   "mergedIdx": [
+    156,
+    160,
+    233,
+    252,
+    282,
+    434
+   ],
+   "ownerOnly": true,
+   "id": "B095"
+  },
+  {
+   "title": "Fix app-hardening branch (Sol BLOCK) and land headers, error pages, client-errors",
+   "description": "On main there is no headers block in next.config.ts, no app/error.tsx, app/global-error.tsx or app/api/client-errors. Branch wip/2026-10-08-app-hardening has them. Fix BLOCK: crash reports can carry free-text PII (use an allowlist of error codes and route patterns). WARN: 4 KB cap checked after body read. WARN: partial shopping add has no Undo. Re-review, then PR.",
+   "kind": "bug",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md (Unfinished lanes)",
+    "origin/wip/2026-10-08-app-hardening"
+   ],
+   "mergedIdx": [
+    166,
+    230,
+    264,
+    287,
+    457,
+    468
+   ],
+   "id": "B096"
+  },
+  {
+   "title": "Add a full script-src Content-Security-Policy",
+   "description": "No script-src or CSP in next.config.ts or middleware.ts. Deferred; do after or with the app-hardening branch.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md (Deferred)"
+   ],
+   "mergedIdx": [
+    296
+   ],
+   "dependsOn": [
+    "Fix app-hardening branch (Sol BLOCK) and land headers, error pages, client-errors"
+   ],
+   "id": "B097"
+  },
+  {
+   "title": "Finish self-serve account deletion",
+   "description": "No app/api/account on main. Branch wip/2026-10-08-account-deletion has Settings flow, /api/account/delete and a delete_account() migration behind ACCOUNT_DELETION_ENABLED (default off). Unreviewed. Renumber migration 20261229090000 (collides with chips migration), apply to prod before the flag goes on. Bundles with the ExportCard copy fix.",
+   "kind": "feature",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md (Unfinished lanes)",
+    "origin/wip/2026-10-08-account-deletion"
+   ],
+   "mergedIdx": [
+    163,
+    262,
+    285
+   ],
+   "id": "B098"
+  },
+  {
+   "title": "Concurrent sign-up load test (audit #22)",
+   "description": "Deferred, still open. Run against a branch/local stack, not production.",
+   "kind": "test-gap",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md (Deferred)"
+   ],
+   "mergedIdx": [
+    223,
+    293
+   ],
+   "id": "B099"
+  },
+  {
+   "title": "Close remaining target and input write paths (Phase 12 checked-writer cutover)",
+   "description": "Target writers went service-role only (20261228090000). Remaining: user_settings and health_samples still writable by authenticated under RLS; proposal approval not floor-checked at approval time; a profile change can be checked against the old profile. Cutover is unblocked.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-12-coach-tools.md Later 1; Open for Devin 4",
+    "docs/handoffs/2026-10-08-stopping-point.md (Deferred)"
+   ],
+   "mergedIdx": [
+    35,
+    221,
+    260
+   ],
+   "id": "B100"
+  },
+  {
+   "title": "Owner infra: auth email (custom SMTP, rate 150 to 900/h), DMARC, AI spend cap, Gemini 403",
+   "description": "Built-in Supabase SMTP is rate-limited; no custom SMTP record found (Resend/Postmark undecided or unconfirmed). Add DMARC p=none with rua for zerosumsolutions.com (Cloudflare account owner unknown, sign-up email landed in Spam). Raise AI spend cap $50 to $150-200. Resolve Gemini project 403 (OpenRouter fallback works). Also real-phone planDay benchmark, one test sign-up on phone, W13 production star script.",
+   "kind": "ops-migration",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "~/Inbox/notes/handoffs/2026-10-08-sasha-orchestrator-shutdown.md",
+    "followups-decisions #11, #24",
+    "docs/plans/2026-09-10-phase-0/README.md"
+   ],
+   "mergedIdx": [
+    17,
+    179,
+    309,
+    438
+   ],
+   "ownerOnly": true,
+   "id": "B101"
+  },
+  {
+   "title": "Self-serve sign-up production state and Phase 9 rollout confirmation",
+   "description": "Ruling 2026-09-25 needs Supabase disable_signup=false and {{ .Token }} in the Confirm signup template; no receipt. Confirm sign-up abuse protection, hosted auth hook, production migrations, Sasha's account check. The public /signup endpoint accepts password sign-up outside the app.",
+   "kind": "ops-migration",
+   "theme": "security-tenancy-auth",
+   "status": "unclear",
+   "sources": [
+    "docs/decisions/2026-09-25-self-serve-signup.md",
+    "docs/plans/2026-09-22-multi-user-overnight-run.md",
+    "docs/specs/phase-9-tenancy-blank-slate.md"
+   ],
+   "mergedIdx": [
+    136,
+    69,
+    46
+   ],
+   "ownerOnly": true,
+   "id": "B102"
+  },
+  {
+   "title": "Server-side limits for OTP and password sign-in",
+   "description": "Only a client-side floor exists. Add IP-keyed server limiting and review Supabase dashboard auth rate limits.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-13/wf2-results.md (Finding 3)",
+    "docs/decisions/2026-09-11-wave-3-4-rulings.md O-1"
+   ],
+   "mergedIdx": [
+    137
+   ],
+   "id": "B103"
+  },
+  {
+   "title": "Phase 9 per-user day templates (not built)",
+   "description": "day_templates, template_slots, replace_day_template and template editing do not exist in supabase or lib. Spec marks them Later; Phase 10 must not assume them. Needs a product decision.",
+   "kind": "decision-needed",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-9-tenancy-blank-slate.md header + Later",
+    "docs/plans/2026-09-22-phase-9-tenancy/README.md"
+   ],
+   "mergedIdx": [
+    31,
+    67
+   ],
+   "id": "B104"
+  },
+  {
+   "title": "Floor Day Avoid-safety verdict",
+   "description": "Floor Day slot-keyed meals bypass the Avoid check. lib/rotation.ts and lib/meals.ts still mention floor day; confirm it still renders after open-world work, else close.",
+   "kind": "bug",
+   "theme": "security-tenancy-auth",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-09-22-phase-9-tenancy/README.md 'Later: Floor Day safety verdict'"
+   ],
+   "mergedIdx": [
+    32
+   ],
+   "id": "B105"
+  },
+  {
+   "title": "Make x-smc-account required on every route; held legacy ops recovery",
+   "description": "ACCOUNT_HEADER exists in lib/server/auth.ts; 'required everywhere' unconfirmed. No recovery tool for held ownerless ops. Shared limiter (S2) and invite admin screen are done or moot.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-9-tenancy-blank-slate.md Later bullets"
+   ],
+   "mergedIdx": [
+    68
+   ],
+   "id": "B106"
+  },
+  {
+   "title": "Show generic 'Coach change' card on devices without the Undo token",
+   "description": "Server returns the card; components/coach/server-card.ts and use-coach-undo.ts exist. Verify the UI path and test U1 (component test fed by real listUndos output) are complete.",
+   "kind": "ui",
+   "theme": "security-tenancy-auth",
+   "status": "partial",
+   "sources": [
+    "docs/specs/coach-undo-receipt.md \u00a72, \u00a76.5, \u00a78.3"
+   ],
+   "mergedIdx": [
+    50
+   ],
+   "id": "B107"
+  },
+  {
+   "title": "Production ops: health ingest, Oura OAuth app, estimator flags",
+   "description": "HEALTH_INGEST_ENABLED, Oura credentials and scan flag were absent in prod on 2026-09-19. Staged rollout and registering the Oura OAuth app under Sasha's account need an owner step. Current state unconfirmed.",
+   "kind": "ops-migration",
+   "theme": "security-tenancy-auth",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-09-12-bug-b..."
+   ],
+   "mergedIdx": [
+    10
+   ],
+   "ownerOnly": true,
+   "id": "B108"
+  },
+  {
+   "title": "Decide JEV_HEALTH_ATTESTED (TypeSafe may receive onboarding health text)",
+   "description": "Owner ruling not recorded. The variable appears only in the Phase 10 spec and the dietary map, not in code or .env.example; behavior stays fail-closed (W5b local gate).",
+   "kind": "decision-needed",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-10-conversational-onboarding.md Open for Devin 10"
+   ],
+   "mergedIdx": [
+    74
+   ],
+   "ownerOnly": true,
+   "id": "B109"
+  },
+  {
+   "title": "HEALTH_TOKEN_KEY rotation / re-seal procedure",
+   "description": "No script in scripts/ or docs. Write a re-seal script or accept a one-time reconnect.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-5-body-data.md OQ7"
+   ],
+   "mergedIdx": [
+    77
+   ],
+   "id": "B110"
+  },
+  {
+   "title": "Document or remove HEALTH_INGEST_TOKEN in .env.example",
+   "description": "grep finds no HEALTH_INGEST_TOKEN in .env.example (only HEALTH_INGEST_ENABLED). Document without a value or remove from Vercel, then rerun the env-name comparison.",
+   "kind": "docs",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-19/03-env.md"
+   ],
+   "mergedIdx": [
+    140
+   ],
+   "id": "B111"
+  },
+  {
+   "title": "F10 live health-context prompt-log spot check",
+   "description": "Needs a non-production provider credential and a branch test identity; coach now runs on OpenRouter, so test that provider.",
+   "kind": "test-gap",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-19/12-health-context.md"
+   ],
+   "mergedIdx": [
+    141
+   ],
+   "ownerOnly": true,
+   "id": "B112"
+  },
+  {
+   "title": "Triage Supabase advisor backlog (15 security WARN, 37 perf INFO)",
+   "description": "Mutable search_path on _sync_assert_key, catalog_search_doc, compute_item_snapshot; extensions in public; authenticated-executable SECURITY DEFINER RPCs; unindexed FKs (20261218090200 covers some). Re-run advisors, triage each.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "partial",
+   "sources": [
+    "docs/readiness/2026-09-19 (Supabase advisors)"
+   ],
+   "mergedIdx": [
+    143
+   ],
+   "id": "B113"
+  },
+  {
+   "title": "Board explainer videos and nutritionist-authored coach tips",
+   "description": "Owner-supplied content; code paths exist, presence of real content unverified.",
+   "kind": "feature",
+   "theme": "security-tenancy-auth",
+   "status": "unclear",
+   "sources": [
+    "docs/decisions/2026-10-01-liquid-day-card-rulings.md"
+   ],
+   "mergedIdx": [
+    154
+   ],
+   "ownerOnly": true,
+   "id": "B114"
+  },
+  {
+   "title": "Endpoint security matrix test (F-099)",
+   "description": "Each route should define identity, body limit, rate limit and idempotency key; only log/commit, jobs/weekly-proposal and sync/ops have idempotency keys; no test asserts all four.",
+   "kind": "test-gap",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/features.md F-099"
+   ],
+   "mergedIdx": [
+    239
+   ],
+   "id": "B115"
+  },
+  {
+   "title": "Strip metadata server-side on Plan-sheet photo path",
+   "description": "PhotoPrivacyNotice exists; no exif/metadata stripping found in lib or app. photoToIdeas still sends the full image as a data URL.",
+   "kind": "bug",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md \u00a7W12"
+   ],
+   "mergedIdx": [
+    302
+   ],
+   "id": "B116"
+  },
+  {
+   "title": "Verify repo stays private",
+   "description": "Repo was found public on 2026-10-10 (cause unknown) and set back to private; history holds client medical data. Check visibility and find the cause.",
+   "kind": "ops-migration",
+   "theme": "security-tenancy-auth",
+   "status": "partial",
+   "sources": [
+    "zs-memory 3eb258b9 (2026-10-10)"
+   ],
+   "mergedIdx": [
+    310
+   ],
+   "ownerOnly": true,
+   "id": "B117"
+  },
+  {
+   "title": "Issue team-scoped Vercel token for the MCP",
+   "description": "Vercel MCP returns 401 (AUTH_HEADER_REJECTED) this session and earlier 403 on /v2/teams; project sits under devin-wiggins-projects. Agents cannot read prod env or logs.",
+   "kind": "ops-migration",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-14-loop010/README.md Step 1"
+   ],
+   "mergedIdx": [
+    316
+   ],
+   "ownerOnly": true,
+   "id": "B118"
+  },
+  {
+   "title": "Keep DB credentials out of argv in tests/catalog/helpers.ts",
+   "description": "psql() still passes BRANCH_DB_URL as an argv element to execFileSync. Move to PGPASSWORD/env or service file.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "open",
+   "sources": [
+    "[2026-09-12 codex:1-8b1a7c29f4cc]"
+   ],
+   "mergedIdx": [
+    327
+   ],
+   "id": "B119"
+  },
+  {
+   "title": "Re-run zizmor on CI workflows",
+   "description": "Six medium findings reported 2026-09-15; no fix or suppression visible. Re-run and fix or suppress.",
+   "kind": "tech-debt",
+   "theme": "security-tenancy-auth",
+   "status": "unclear",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md"
+   ],
+   "mergedIdx": [
+    335
+   ],
+   "id": "B120"
+  },
+  {
+   "title": "Live check of coach reply usefulness under the 1,200-token cap",
+   "description": "Two synthetic successes exist; no quality or truncation-rate check. Run a live check on the OpenRouter coach lane.",
+   "kind": "test-gap",
+   "theme": "security-tenancy-auth",
+   "status": "partial",
+   "sources": [
+    "[2026-09-15 codex:8-a8818329a5af]",
+    "coach-follow-up.md"
+   ],
+   "mergedIdx": [
+    340,
+    373
+   ],
+   "id": "B121"
+  },
+  {
+   "title": "Capture method rollout on production (text, voice, label, photo)",
+   "description": "Widen CAPTURE_METHODS one method per deploy after each 10-item eval and phone gate (voice needs a real-phone audio canary). Record the production value and per-method gate results.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-09-11-phase-3-4/README.md",
+    "docs/plans/2026-09-12-bug-batch-spec.md"
+   ],
+   "mergedIdx": [
+    11
+   ],
+   "ownerOnly": true,
+   "id": "B122"
+  },
+  {
+   "title": "Owner ruling: tracked micronutrient set and coverage semantics",
+   "description": "Devin confirms the twelve tracked micro codes, fiber band display, item-counted vs gram-weighted coverage, who owns exercise logging (or drop it from architecture export kinds), and log_items.unit CHECK. No ruling in docs/decisions.",
+   "kind": "decision-needed",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-11-phase-1-2/lane-I-client.md",
+    "docs/specs/phase-2-real-logging.md OQ1-5"
+   ],
+   "mergedIdx": [
+    16,
+    81
+   ],
+   "ownerOnly": true,
+   "notes": "grep of docs/decisions found no matching ruling.",
+   "id": "B123"
+  },
+  {
+   "title": "Add preset CHECK to target_profiles.goal_rate_bp_week",
+   "description": "Only user_settings has the preset check (migration 20261029090000). Add a NOT VALID then VALIDATE check on target_profiles.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-22-tdee-engine-plan.md"
+   ],
+   "mergedIdx": [
+    26
+   ],
+   "ownerOnly": false,
+   "notes": "Migration grep shows the check only on user_settings.",
+   "id": "B124"
+  },
+  {
+   "title": "Apple Health Shortcut link and health production flags",
+   "description": "NEXT_PUBLIC_APPLE_HEALTH_SHORTCUT_URL is empty in .env.example; owner supplies the iCloud link. Confirm HEALTH_INGEST_ENABLED, HEALTH_TOKEN_KEY, HEALTH_TZ and activity gates in Vercel prod and preview.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-09-20-health-polish.md"
+   ],
+   "mergedIdx": [
+    36
+   ],
+   "ownerOnly": true,
+   "id": "B125"
+  },
+  {
+   "title": "Coach Undo receipts: confirm/apply migrations 20261216090000..090400 to production",
+   "description": "Files are on main. Production state is unconfirmed. Run read-only drift check, then dry-run, backup, apply in order, verify, record a receipt. Writer-side acceptance cases wait on apply_coach_op.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/coach-undo-receipt.md",
+    "docs/audit/2026-10-06-coach-undo-receipt-db-proof.md"
+   ],
+   "mergedIdx": [
+    49,
+    125
+   ],
+   "ownerOnly": true,
+   "dependsOn": [
+    "Coach Undo receipts: PR B writer (apply_coach_op, phone stamp, routes)"
+   ],
+   "id": "B126"
+  },
+  {
+   "title": "Coach Undo receipts: follow-up kinds beyond v1",
+   "description": "v1 covers log_meal create, save_recipe create, one-date set_slot_meal. Add receipts for slot items, moves, deletes, water, weight, profile, targets, shopping, skip/restore, list marks.",
+   "kind": "feature",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/specs/coach-undo-receipt.md section 9"
+   ],
+   "mergedIdx": [
+    51
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Coach Undo receipts: PR B writer (apply_coach_op, phone stamp, routes)"
+   ],
+   "id": "B127"
+  },
+  {
+   "title": "Phase 11 coach-driven recall (recall_conversations)",
+   "description": "Cut from phase 11. Needs independent retrieval verification and deterministic 'historical not current'. Narrower read-only 'Ask from history' shipped via saved conversations.",
+   "kind": "feature",
+   "theme": "ops-infra-scale",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-11-conversations-memory.md"
+   ],
+   "mergedIdx": [
+    63
+   ],
+   "ownerOnly": false,
+   "id": "B128"
+  },
+  {
+   "title": "Phase 11: confirm shipped conversation triggers/RPCs match round-13 spec",
+   "description": "Round-13 fixes were never independently re-audited. Conversations shipped in migration 20261126090000; check the shipped trigger and RPC set against the spec.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-11-conversations-memory.md"
+   ],
+   "mergedIdx": [
+    64
+   ],
+   "ownerOnly": false,
+   "id": "B129"
+  },
+  {
+   "title": "Saved Coach conversations: production receipt for 20261126090000",
+   "description": "Migration is in repo (20261126090000_coach_conversations.sql). No production receipt found. Verify with drift check and record one.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/coach-saved-conversations.md",
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    65
+   ],
+   "ownerOnly": true,
+   "id": "B130"
+  },
+  {
+   "title": "Redesign down migrations so they preserve data",
+   "description": "wip/2026-10-08-down-migrations drafts downs for 20261023092000, 20261126090000, 20261210090100. Sol BLOCK: they delete plan threads/transcripts and attach timings and break role-only writes. None exists in supabase/migrations/down.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "docs/audit/2026-09-13/unreproduced.json #93"
+   ],
+   "mergedIdx": [
+    66,
+    147,
+    169,
+    231,
+    265,
+    288
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: no matching files in supabase/migrations/down on main.",
+   "id": "B131"
+  },
+  {
+   "title": "Phase 0 legacy unit gram weights and .ics/share summary check",
+   "description": "Legacy store retired, so likely historical. Confirm docs/migration-unresolved.csv is moot and that .ics and share summary read the current store.",
+   "kind": "docs",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-0-foundations.md"
+   ],
+   "mergedIdx": [
+    83
+   ],
+   "ownerOnly": false,
+   "id": "B132"
+  },
+  {
+   "title": "Phase 7 weekly review placement and deflection review",
+   "description": "Mostly resolved (weekly-review cron, ruling 9). Confirm the open questions are closed in the spec and update its status.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-7-coach.md"
+   ],
+   "mergedIdx": [
+    85
+   ],
+   "ownerOnly": false,
+   "id": "B133"
+  },
+  {
+   "title": "Finish voice retirement branch and account-zone tests",
+   "description": "wip/2026-10-08-voice-retire-account-zone: Phase-14 retirement note, voice_ears cleanup migration, account-zone precedence, unreviewed. Two it.todo remain at tests/coach/apply-profile.test.ts:661-662. Phase 14 spec still DRAFT. Needs migration renumber and review.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "tests/coach/apply-profile.test.ts"
+   ],
+   "mergedIdx": [
+    96,
+    164,
+    263
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Renumber parked migrations that share timestamp 20261229090000"
+   ],
+   "notes": "Verified: both it.todo still present.",
+   "id": "B134"
+  },
+  {
+   "title": "Renumber parked migrations that share timestamp 20261229090000",
+   "description": "On main only client_timings_plan_chips uses it. The parked delete_account and voice_ears_cleanup branches reuse it and must be renumbered before landing.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    165
+   ],
+   "ownerOnly": false,
+   "id": "B135"
+  },
+  {
+   "title": "Apply 20261229090000_client_timings_plan_chips to production",
+   "description": "On main, not recorded as applied. Safe either side of deploy; plan-chip timing rows are rejected until applied. Dry-run, backup, apply, verify, receipt.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "supabase/migrations/20261229090000_client_timings_plan_chips.sql"
+   ],
+   "mergedIdx": [
+    119,
+    161,
+    248,
+    283
+   ],
+   "ownerOnly": false,
+   "notes": "AGENTS.md says agents apply committed migrations themselves. Repo cannot show prod state.",
+   "id": "B136"
+  },
+  {
+   "title": "W15 onboarding ablation: arm assignment and report job",
+   "description": "profilePilotEnabled() still returns false for all. Build stable randomized arm assignment, open the cuisine question for pilot arm, and the report job that reads onboarding_events.",
+   "kind": "feature",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/decisions/2026-10-08-onboarding-events.md",
+    "lib/server/profile-pilot.ts"
+   ],
+   "mergedIdx": [
+    131
+   ],
+   "ownerOnly": false,
+   "notes": "Verified lib/server/profile-pilot.ts:11-12 returns false.",
+   "id": "B137"
+  },
+  {
+   "title": "Lighthouse mobile and bundle-size CI; full script-src CSP",
+   "description": "No Lighthouse or bundle-size gate in .github. Only the PERF=1 inventory budget test exists. Add Lighthouse on Today, Foods, Settings, Coach plus a bundle budget. Full script-src CSP lives in parked wip/2026-10-08-app-hardening.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-12-production-readiness.md",
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "tests/cards/inventory.test.ts"
+   ],
+   "mergedIdx": [
+    145,
+    177,
+    225,
+    270,
+    295
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: grep of .github and package.json finds no lighthouse or bundle tooling.",
+   "id": "B138"
+  },
+  {
+   "title": "Backup is Mac-based and unmonitored; hosted restore untested",
+   "description": "Nightly backup depends on a launchd job on a Mac. Wire the 36 h staleness helper to a notifier, rehearse restore on a fresh unmigrated hosted branch, and run app acceptance on a restored copy.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/operations/backup-recovery.md",
+    "docs/readiness/2026-09-19/11-backup-restore.md"
+   ],
+   "mergedIdx": [
+    146
+   ],
+   "ownerOnly": false,
+   "id": "B139"
+  },
+  {
+   "title": "Reopen TypeScript 6, @types/node 26, motion 14 majors; prune p1-catalog branch",
+   "description": "Dependabot majors parked. package.json still has typescript ^5, @types/node ^20, motion ^13.5.0. Reopen as separate PRs. Delete or keep Supabase branch p1-catalog.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/decisions/2026-09-12-wave4-rulings.md",
+    "docs/decisions/2026-09-19-sol-rulings.md",
+    "followups-decisions.md item 12"
+   ],
+   "mergedIdx": [
+    153,
+    196
+   ],
+   "ownerOnly": false,
+   "notes": "Verified package.json:31,43,54.",
+   "id": "B140"
+  },
+  {
+   "title": "Concurrent sign-up load test",
+   "description": "Aborted run had no p50/p95. Re-run on an isolated local stack at machine load under 20, then a staging load test before about 1,000 users. Supabase compute bump at about 500 users is approved.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "followups-decisions.md #22"
+   ],
+   "mergedIdx": [
+    175
+   ],
+   "ownerOnly": false,
+   "id": "B141"
+  },
+  {
+   "title": "Scale ops: re-measure spend-reservation latency on hosted infra; watch errors",
+   "description": "S2 ai_spend_reserve latency (local p95 17 ms idle, 178-300 ms under load) needs a hosted re-measure. Watch errors in Vercel monitoring.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "~/Inbox/notes/handoffs/2026-10-06-sasha-orchestrator.md"
+   ],
+   "mergedIdx": [
+    198
+   ],
+   "ownerOnly": false,
+   "id": "B142"
+  },
+  {
+   "title": "Doc cleanups: slot-editing plan status, readiness counts, phase 7/11 supersession notes, F7 flaky-trio note",
+   "description": "Most audit doc fixes landed in #43. Re-check phase-7 and phase-11 notes, readiness 02-routes and 04-crons counts, slot-editing plan status, and name the F7 recurrence mechanism in vitest.config.ts.",
+   "kind": "docs",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "~/Inbox/notes/2026-10-08-sasha-reconciliation-audit.md"
+   ],
+   "mergedIdx": [
+    199
+   ],
+   "ownerOnly": false,
+   "id": "B143"
+  },
+  {
+   "title": "Extend test_reset_user for about 19 newer tables",
+   "description": "supabase/seed/test_helpers.sql test_reset_user predates the newer tables, so test cleanup is incomplete. List tables with user_id and add them.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "supabase/seed/test_helpers.sql"
+   ],
+   "mergedIdx": [
+    222,
+    268,
+    292
+   ],
+   "ownerOnly": false,
+   "id": "B144"
+  },
+  {
+   "title": "F-107 Quarterly catalog refresh job",
+   "description": "No scheduled job re-imports Foundation, SR Legacy or FNDDS; refresh is a manual script.",
+   "kind": "feature",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/features.md F-107"
+   ],
+   "mergedIdx": [
+    240
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: no catalog refresh cron in vercel.json.",
+   "id": "B145"
+  },
+  {
+   "title": "F-120 Build-time unpaid Gemini-key gate",
+   "description": "pnpm ai:canary exists but neither pnpm build nor CI runs it. Add a gate that fails when the Gemini key has no billing.",
+   "kind": "feature",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/features.md F-120",
+    "package.json"
+   ],
+   "mergedIdx": [
+    241
+   ],
+   "ownerOnly": false,
+   "notes": "Verified: ai:canary appears only in package.json.",
+   "id": "B146"
+  },
+  {
+   "title": "Production-readiness owner steps (2026-09-19) and Supabase advisor triage",
+   "description": "Capture next Vercel cron 2xx runs, zero console errors on six 390 px screens, one live F10 health-context turn on a non-prod key, resolve env-name drift, triage 15 security WARNs and 37 performance INFOs.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/readiness/2026-09-19/README.md"
+   ],
+   "mergedIdx": [
+    245
+   ],
+   "ownerOnly": true,
+   "id": "B147"
+  },
+  {
+   "title": "Dependabot PRs #1, #3, #4 and branches still open",
+   "description": "Open PRs: npm-minor-patch group, motion 13.5 to 14.0, typescript 5.9 to 6.0.3; also dependabot branches for MCP sdk, sharp, source-map-js. Parked on purpose after the security-only fix; land each as its own PR.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "gh pr list --state open",
+    "followups-decisions #12"
+   ],
+   "mergedIdx": [
+    299,
+    461
+   ],
+   "ownerOnly": false,
+   "notes": "gh pr list shows #1, #3, #4 open since 2026-10-07; package.json still motion ^13.5.0.",
+   "id": "B148"
+  },
+  {
+   "title": "Recipe pilot production deployment and enablement",
+   "description": "Recipe pilot code is merged; RECIPE_PLANNING_USER_IDS defaults off. Production deploy and pilot enablement each need a separate receipt (docs/recipes/pilot-release.md).",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "AGENTS.md recipe rows",
+    "docs/recipes/pilot-release.md"
+   ],
+   "mergedIdx": [
+    308
+   ],
+   "ownerOnly": true,
+   "id": "B149"
+  },
+  {
+   "title": "Decide: legacy foods/days/settings tables (47 migration tables vs 50 in production)",
+   "description": "Three empty legacy tables exist in production but no migration creates them, so a rebuilt environment or restore differs. Decide: drop in production, add a baseline migration, or leave. check-migration-drift.ts compares ledgers only. docs/migration-unresolved.csv exists.",
+   "kind": "decision-needed",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md blocker 3",
+    "docs/migration-unresolved.csv"
+   ],
+   "mergedIdx": [
+    315,
+    352,
+    361,
+    368
+   ],
+   "ownerOnly": true,
+   "notes": "Four duplicate harvests. Dropping is a production change, so owner-only.",
+   "id": "B150"
+  },
+  {
+   "title": "Delete persistent Supabase branch p1-catalog",
+   "description": "Leftover persistent preview branch (~$0.31/day). Check it still exists, then run supabase branches update p1-catalog --persistent=false and scripts/db-branch.sh destroy p1-catalog. Sol ruling left deletion to Devin.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/decisions/2026-09-19-sol-rulings.md F6",
+    "2026-09-12 ruling 5"
+   ],
+   "mergedIdx": [
+    319,
+    393
+   ],
+   "ownerOnly": true,
+   "id": "B151"
+  },
+  {
+   "title": "Owner steps from wave-4 checklist and readiness sweeps",
+   "description": "Signed-in phone checks (needs Sasha's magic link), wave-4 setup checklist (ingest token, phone install, Oura, seven-day gate, coach flags, stale Vercel env), next 2xx cron runs, 390px console cleanup, F10 live turn, 3 production-only env names, 15 security WARNs and 37 perf INFOs to triage, Lighthouse run. Some may be closed by later readiness passes.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md",
+    "docs/readiness/2026-09-19/",
+    "~/Inbox/notes/sasha-wave4-setup-checklist.md"
+   ],
+   "mergedIdx": [
+    320,
+    396
+   ],
+   "ownerOnly": true,
+   "id": "B152"
+  },
+  {
+   "title": "JSON backup has no validated importer and omits media bytes",
+   "description": "Nightly /api/jobs/backup JSON carries media metadata only; no JSON restore path is validated (runbook says so). Build and drill an importer, or document JSON as export-only.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-15/backup-restore.md",
+    "docs/operations/backup-recovery.md"
+   ],
+   "mergedIdx": [
+    330
+   ],
+   "ownerOnly": false,
+   "id": "B153"
+  },
+  {
+   "title": "Physical-device and installed-PWA journeys never exercised",
+   "description": "Installed iPhone/PWA, offline startup, camera and barcode speed, voice, share, calendar delivery, device ingest, second-device equality, close/reopen. No blanket device-readiness verdict until a person runs them on a real device.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md blocker 5"
+   ],
+   "mergedIdx": [
+    331,
+    350,
+    356,
+    375
+   ],
+   "ownerOnly": true,
+   "id": "B154"
+  },
+  {
+   "title": "Vercel billing payment method",
+   "description": "Devin may need to change the card after the Pro reactivation; reactivation worked without a change. Confirm whether it was ever updated. Only the owner can change billing.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "2026-09-15 codex:6-e8de746699c4",
+    "docs/readiness/2026-09-15/README.md"
+   ],
+   "mergedIdx": [
+    336
+   ],
+   "ownerOnly": true,
+   "id": "B155"
+  },
+  {
+   "title": "Readiness inventory rows still unverified in an authenticated browser",
+   "description": "69 of 118 rows in docs/readiness/2026-09-15/inventory.md read 'Pending authenticated browser verification': F-006, F-040, F-009, F-037, F-078, F-017, F-027, F-031/F-032, recipe off-plan rejection and old-log immutability in UI, and the 4 Loop 010 findings needing a ruling. Run an interactive pass or cover with tests; rulings on Loop 010 are owner-only.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "partial",
+   "sources": [
+    "docs/readiness/2026-09-15/inventory.md",
+    "docs/readiness/2026-09-15/remaining-ui.md",
+    "docs/audit/2026-09-14-loop010"
+   ],
+   "mergedIdx": [
+    338,
+    344,
+    353,
+    358,
+    376
+   ],
+   "ownerOnly": false,
+   "notes": "Later phases added tests, but no re-verification of the inventory is recorded.",
+   "id": "B156"
+  },
+  {
+   "title": "Production restore proof: Storage drill and hosted-branch recovery",
+   "description": "SQL and Storage restore drills ran on disposable local databases. Still unproven: production Storage recovery, hosted Supabase branch recovery, role permissions on hosted SQL restore, and app acceptance against a restored production copy.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "partial",
+   "sources": [
+    "docs/readiness/2026-09-15/storage-restore-drill.json",
+    "docs/readiness/2026-09-15/README.md item 4"
+   ],
+   "mergedIdx": [
+    341,
+    351
+   ],
+   "ownerOnly": true,
+   "id": "B157"
+  },
+  {
+   "title": "Fix six existing zizmor workflow warnings",
+   "description": "zizmor reported six medium findings on the GitHub Actions workflows (ci.yml, migration-drift.yml, model-freshness.yml). No zizmor step exists in .github, so nothing gates them. Fix the findings and consider adding a zizmor check.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "2026-09-15 codex:8-a8818329a5af",
+    "2026-09-15 codex:a-d02e4473e059"
+   ],
+   "mergedIdx": [
+    342,
+    354,
+    365
+   ],
+   "ownerOnly": false,
+   "notes": "grep zizmor .github returns nothing.",
+   "id": "B158"
+  },
+  {
+   "title": "Confirm legacy localStorage/IndexedDB storage is account-scoped",
+   "description": "2026-09-15 plan kept release single-account until legacy client storage was retired or scoped per account. Code now has an account-scoped phone projection; verify no unscoped legacy keys remain before relying on multi-user.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/readiness/2026-09-15/plan-cache-follow-up.md"
+   ],
+   "mergedIdx": [
+    364
+   ],
+   "ownerOnly": false,
+   "id": "B159"
+  },
+  {
+   "title": "Node 22 pinned; Node 26 types major deferred",
+   "description": "PR #168 closed the Node 26 types major under a runtime deferral ruling. Revisit when moving the runtime off Node 22.",
+   "kind": "decision-needed",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "2026-09-15 codex:a-d02e4473e059 #168"
+   ],
+   "mergedIdx": [
+    366
+   ],
+   "ownerOnly": true,
+   "id": "B160"
+  },
+  {
+   "title": "Readiness README lacks an exact test reference for old-log immutability",
+   "description": "Add the specific test file or name that backs the README claim, or soften the claim.",
+   "kind": "docs",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md"
+   ],
+   "mergedIdx": [
+    377
+   ],
+   "ownerOnly": false,
+   "id": "B161"
+  },
+  {
+   "title": "Production apply receipts for late Phase 18 and scale migrations",
+   "description": "Verify against the production ledger and record receipts for 20261217*, 20261218*, 20261219, 20261220*, 20261226*, 20261227*, 20261228 (apply after deploy) and 20261229090000 client_timings_plan_chips (chip timing rows are rejected until applied).",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "AGENTS.md S2, S3, W5, W5b-2, W6, W11, target-writes, plan-ideas rows",
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    423,
+    454
+   ],
+   "ownerOnly": true,
+   "notes": "Production apply by agent is allowed per policy but needs dry run, backup and receipt; marked owner-only per task rule.",
+   "id": "B162"
+  },
+  {
+   "title": "Concurrent sign-up load test (#22)",
+   "description": "Aborted mid-run with no p50/p95. Re-run on an isolated stack (scripts/test-stack.sh) at low machine load; record latency and errors; note the auth email rate limit as the real ceiling.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "followups-decisions.md #22",
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    437
+   ],
+   "ownerOnly": false,
+   "id": "B163"
+  },
+  {
+   "title": "Finish and renumber parked wip branches with colliding migration 20261229090000",
+   "description": "wip/2026-10-08-account-deletion (delete_account, behind ACCOUNT_DELETION_ENABLED) and wip/2026-10-08-voice-retire-account-zone both reuse timestamp 20261229090000, already used by the chips migration. Finish, review, renumber; apply the deletion migration to prod before enabling its flag.",
+   "kind": "feature",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    455
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "Production apply receipts for late Phase 18 and scale migrations"
+   ],
+   "id": "B164"
+  },
+  {
+   "title": "Rewrite data-destroying down migrations (parked wip branch)",
+   "description": "origin/wip/2026-10-08-down-migrations holds down files for 20261023092000, 20261126090000, 20261210090100; Sol blocked them for deleting data. Not present in supabase/migrations/down on main. Needs a safe rewrite and re-review.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "2026-10-09 claude:e3d937eb"
+   ],
+   "mergedIdx": [
+    458,
+    469
+   ],
+   "ownerOnly": false,
+   "notes": "Confirmed: none of the three exist in supabase/migrations/down.",
+   "id": "B165"
+  },
+  {
+   "title": "Deferred hardening list from reconciliation audit",
+   "description": "Coach Undo receipt restart with server-minted write identity, Phase 12 checked-writer RPC cutover (unblocked by 20261228090000), extend test_reset_user to ~19 newer tables, Lighthouse and bundle-size CI, full script-src CSP.",
+   "kind": "tech-debt",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md (Deferred)"
+   ],
+   "mergedIdx": [
+    460
+   ],
+   "ownerOnly": false,
+   "id": "B166"
+  },
+  {
+   "title": "Decide: retire or revive four parked onboarding v2 backup branches",
+   "description": "wip branches onb2-p0-chat, onb2-p0-save, onb2-p0-ui, onb2-voice back up older onboarding v2 work; the flow is behind NEXT_PUBLIC_CHAT_ONBOARDING, off in production.",
+   "kind": "decision-needed",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "2026-10-09 claude:e3d937eb",
+    "2026-10-08 codex:c-488dc9b7c935"
+   ],
+   "mergedIdx": [
+    472
+   ],
+   "ownerOnly": true,
+   "id": "B167"
+  },
+  {
+   "title": "Re-run annotate-policy-categories --commit after T1 deploy",
+   "description": "Confirm migrations 20261018090000/090100/090200 are in production and run the annotate script a second time to cover barcode rows written by the old writer. No receipt is tracked.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    "AGENTS.md T1 deploy order",
+    "scripts/annotate-policy-categories.ts"
+   ],
+   "mergedIdx": [
+    479
+   ],
+   "ownerOnly": true,
+   "id": "B168"
+  },
+  {
+   "title": "Confirm DB-backed test suites actually run in CI",
+   "description": "About 22 skipIf guards in tests/ skip without a branch or local Postgres. ci.yml starts a local Supabase stack (scripts/ci-local-supabase.py), so most should run; count skipped tests per run, especially suites needing Postgres binaries (coach-undo SQL).",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "partial",
+   "sources": [
+    "tests/migrations/*.test.ts",
+    "tests/rls/*.test.ts",
+    ".github/workflows/ci.yml"
+   ],
+   "mergedIdx": [
+    482
+   ],
+   "ownerOnly": false,
+   "id": "B169"
+  },
+  {
+   "title": "Act on weekly model-freshness tracking issue",
+   "description": "Monday workflow only opens or updates one issue; check its current state and, if a pin should change, open a lane-bench report PR for lib/ai/lanes.ts.",
+   "kind": "ops-migration",
+   "theme": "ops-infra-scale",
+   "status": "unclear",
+   "sources": [
+    ".github/workflows/model-freshness.yml",
+    "AGENTS.md lanes.ts row"
+   ],
+   "mergedIdx": [
+    483
+   ],
+   "ownerOnly": false,
+   "id": "B170"
+  },
+  {
+   "title": "AGENTS.md Phase status table stops at Phase 8",
+   "description": "Table has blank descriptions for phases 2-7 and no rows for phases 9-19. Add rows with landed/dark/unbuilt status from docs/specs/phase-*.md.",
+   "kind": "docs",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "AGENTS.md Phase status",
+    "docs/specs/phase-*.md"
+   ],
+   "mergedIdx": [
+    485
+   ],
+   "ownerOnly": false,
+   "id": "B171"
+  },
+  {
+   "title": "S3 job sweep untested at 1,000+ accounts",
+   "description": "job-sweep, cursors and the 3x-daily crons have unit and DB tests only. No load or soak run, and no monitoring of pass completion or retry-phase depth.",
+   "kind": "test-gap",
+   "theme": "ops-infra-scale",
+   "status": "open",
+   "sources": [
+    "AGENTS.md job-sweep row",
+    "tests/jobs/job-sweep.test.ts",
+    "vercel.json"
+   ],
+   "mergedIdx": [
+    487
+   ],
+   "ownerOnly": false,
+   "id": "B172"
+  },
+  {
+   "title": "Release open world (OPEN_WORLD_ENABLED + OPEN_WORLD_USER_IDS)",
+   "description": "Open world is dark in production. Release needs both flags set and the first client stays held. Blocked by plate labels, universe human review and the phone benchmark.",
+   "kind": "ops-migration",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "88",
+    "201"
+   ],
+   "mergedIdx": [
+    88,
+    201
+   ],
+   "ownerOnly": true,
+   "dependsOn": [
+    "Label plate sheet 1.1.0",
+    "Universe human review (Q3)",
+    "Phone planDay benchmark"
+   ],
+   "id": "B173"
+  },
+  {
+   "title": "Owner labels universe plate sheet 1.1.0 (acceptance 7) and reviews CUISINE_STAPLES",
+   "description": "Regenerate docs/eval/universe-plates/sheet-1.1.0.csv with scripts/eval/universe-plates-sheet.ts, mark y/n, and score at least 85 percent per cuisine. Also review the hand-written CUISINE_STAPLES in lib/meals/data/cuisine.ts. docs/eval does not exist yet.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "89",
+    "158",
+    "202",
+    "159"
+   ],
+   "mergedIdx": [
+    89,
+    158,
+    202,
+    159
+   ],
+   "ownerOnly": true,
+   "notes": "Checked: docs/eval absent, scripts/eval/universe-plates-sheet.ts present.",
+   "id": "B174"
+  },
+  {
+   "title": "Universe and cuisine-tier human review (W1 acceptance 4, Q3); annotate-universe production run",
+   "description": "A named human reviewer must record review of universe 1.0.0 evidence and cuisine tiers in docs/decisions/. The owner-run annotate-universe --commit --production has not run. The open-world gate must not open before this.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "90",
+    "127",
+    "203"
+   ],
+   "mergedIdx": [
+    90,
+    127,
+    203
+   ],
+   "ownerOnly": true,
+   "id": "B175"
+  },
+  {
+   "title": "Condition-pack wording and clinical sign-off (CONDITION_PACKS_ENABLED stays off)",
+   "description": "A qualified clinical reviewer plus the owner (ideally Sasha's nutritionist) must approve condition-pack wording before the flag is turned on. Also gates the rebalance panel (REBALANCE_PANEL_USER_IDS) and the first client's consent for the Phase 19b drift study. Accounts with a stated condition stay closed meanwhile.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "41",
+    "91",
+    "205",
+    "184"
+   ],
+   "mergedIdx": [
+    41,
+    91,
+    205,
+    184
+   ],
+   "ownerOnly": true,
+   "id": "B176"
+  },
+  {
+   "title": "Pairing holdout: owner labels 432 pairs; co/Jev weights stay 0",
+   "description": "docs/pairing/holdout-pairs.csv has 0 human labels (need at least 400, 25 per cuisine). Then run jev-labels.ts --items holdout and calibrate.ts, plus a W8 replay-lift record, before any non-curated pairing weight goes above 0.",
+   "kind": "research",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "101",
+    "132",
+    "183",
+    "210"
+   ],
+   "mergedIdx": [
+    101,
+    132,
+    183,
+    210
+   ],
+   "ownerOnly": true,
+   "id": "B177"
+  },
+  {
+   "title": "FNDDS inputs production import (W4) is frozen pending owner",
+   "description": "Apply the three catalog_food_inputs migrations if not yet applied, confirm FNDDS public-domain status, dry-run, then run import-fndds-inputs.ts --commit --production --project-ref. Mixed-dish taste expansion reads nothing in production until then.",
+   "kind": "ops-migration",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "103",
+    "182",
+    "212"
+   ],
+   "mergedIdx": [
+    103,
+    182,
+    212
+   ],
+   "ownerOnly": true,
+   "notes": "Migration state in production not confirmed here.",
+   "id": "B178"
+  },
+  {
+   "title": "Real-phone planDay benchmark (20 ms target) and snapshot telemetry",
+   "description": "p95 12.8 ms (4 slots) and 18.4 ms (6 slots) were measured on an M4 Max only. Need a real-phone benchmark, plus online tracking of snapshot build p95 (500 ms) and byte size.",
+   "kind": "test-gap",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "104",
+    "180",
+    "204"
+   ],
+   "mergedIdx": [
+    104,
+    180,
+    204
+   ],
+   "ownerOnly": false,
+   "id": "B179"
+  },
+  {
+   "title": "W8 / pref-2 ranking inputs not yet supplied",
+   "description": "Snapshot v3 lacks R_f soft rules, N and Q from W6 signals, shopping and pantry signals, eaten foods outside the universe and Favored, universe-ID prior and graph mapping, sensory edges, account-level M, and pairing table weights. Decide a soft cap for Favored list size.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "105",
+    "186",
+    "213"
+   ],
+   "mergedIdx": [
+    105,
+    186,
+    213
+   ],
+   "ownerOnly": false,
+   "id": "B180"
+  },
+  {
+   "title": "Jev short-list veto stays in shadow mode",
+   "description": "suggest-rank.ts records vetoes in shadow. Going live needs at least 60 human-adjudicated vetoes at 95 percent precision (90 percent lower bound), timeouts at most 5 percent, p95 added latency at most 1.5 s, and a report.",
+   "kind": "research",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "106"
+   ],
+   "mergedIdx": [
+    106
+   ],
+   "ownerOnly": false,
+   "id": "B181"
+  },
+  {
+   "title": "W14 Taste T2 per-account learned weights",
+   "description": "Not built: taste_models migration, trainer, leakage-free replay and docs/evals report. Waits on about 60 days of W6 food_signal_events and the per-account gate.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "107",
+    "209"
+   ],
+   "mergedIdx": [
+    107,
+    209
+   ],
+   "ownerOnly": false,
+   "dependsOn": [
+    "60 days of food_signal_events"
+   ],
+   "id": "B182"
+  },
+  {
+   "title": "W15 onboarding ablation: pilot arms, UI hook and report",
+   "description": "Only onboarding_events capture, purge cron and a closed profile-pilot exist. Still needed: randomized arm assignment, onboarding shell hook, NDCG@5/completion/abandonment report. The owner's 2026-10-08 override of the D2 ablation needs a ruling on scope. GOAL.md still lists W15 as required.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "108",
+    "208",
+    "185"
+   ],
+   "mergedIdx": [
+    108,
+    208,
+    185
+   ],
+   "ownerOnly": true,
+   "id": "B183"
+  },
+  {
+   "title": "Evaluation gates unmeasured: pref-2 replay, prior, fairness audit",
+   "description": "Section 5 gates have no measured ranking lift. Confirm a replay report exists in docs/evals before any open release.",
+   "kind": "test-gap",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "109"
+   ],
+   "mergedIdx": [
+    109
+   ],
+   "ownerOnly": false,
+   "id": "B184"
+  },
+  {
+   "title": "UK Biobank liking aggregates and other deferred priors",
+   "description": "The like term stays absent until UK Biobank reuse terms are confirmed. State/region priors, CCHS, BLS/BRFSS lifts are deferred. Optional: NCHS written confirmation of the NHANES aggregate reading.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "110",
+    "134"
+   ],
+   "mergedIdx": [
+    110,
+    134
+   ],
+   "ownerOnly": true,
+   "id": "B185"
+  },
+  {
+   "title": "Cross-user taste learning (T3) not planned",
+   "description": "Out of scope. Needs an owner decision plus a separate consent and privacy design after the personal model is proven.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "111"
+   ],
+   "mergedIdx": [
+    111
+   ],
+   "ownerOnly": true,
+   "id": "B186"
+  },
+  {
+   "title": "Shopping focus, pantry photo and existing-account invitation gates (Q5, Q8)",
+   "description": "W11/W12 stay pilot-only and existing accounts are not invited until release checks and safety/plausibility gates pass. Neither has a recorded go/no-go.",
+   "kind": "decision-needed",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "112",
+    "135"
+   ],
+   "mergedIdx": [
+    112,
+    135
+   ],
+   "ownerOnly": true,
+   "id": "B187"
+  },
+  {
+   "title": "W13 UI lane: Favored copy, star toggle, Settings switch, invitation screen",
+   "description": "Backend landed. Check the UI parts: Eats-to-Favored copy test, star as Favored toggle, Settings world switch and invitation screen.",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "114"
+   ],
+   "mergedIdx": [
+    114
+   ],
+   "ownerOnly": false,
+   "notes": "Cheap grep found PantryPhotoCapture/CaptureSheet only; no invitation component confirmed.",
+   "id": "B188"
+  },
+  {
+   "title": "Run W13 production star-to-favored script",
+   "description": "Owner runs scripts/star-to-favored.ts --production to merge favorites_foods stars into Favored marks. Not confirmed run.",
+   "kind": "ops-migration",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "181"
+   ],
+   "mergedIdx": [
+    181
+   ],
+   "ownerOnly": true,
+   "id": "B189"
+  },
+  {
+   "title": "Recover 36 Eats foods now Not verified; diet-label parser (Option B)",
+   "description": "Whole-food classifier coverage gap for prepared, canned, branded, beverage and game-meat rows. Option B is an ingredient parser lib/policy/diet-label.ts with its own review.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "151"
+   ],
+   "mergedIdx": [
+    151
+   ],
+   "ownerOnly": false,
+   "id": "B190"
+  },
+  {
+   "title": "Dietary profile map: remaining facets, rubrics and calibration",
+   "description": "Remaining new facets with Jev rubrics, a RUBRIC_VERSION bump with labelled calibration sets, and nine rubric fixes to existing facets.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "39"
+   ],
+   "mergedIdx": [
+    39
+   ],
+   "ownerOnly": false,
+   "id": "B191"
+  },
+  {
+   "title": "Dietary map: third GPT-6 Sol review round",
+   "description": "Round 2 BLOCKs were fixed but round 3 was not run. Re-check R1-01, R1-08, R1-16, R1-17, R1-19, R2-20, R2-21, R2-22 first. Only r1 and r2 audit files exist.",
+   "kind": "research",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "40"
+   ],
+   "mergedIdx": [
+    40
+   ],
+   "ownerOnly": false,
+   "notes": "Confirmed docs/audit/research has only r1 and r2.",
+   "id": "B192"
+  },
+  {
+   "title": "Allergen 'assessed' evidence before 'allowed' (barcode/catalog coverage)",
+   "description": "W2a/W2b admission covers most of it. Confirm barcode and catalog paths require assessed allergen evidence before allowed.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "73"
+   ],
+   "mergedIdx": [
+    73
+   ],
+   "ownerOnly": false,
+   "id": "B193"
+  },
+  {
+   "title": "Swapped capture alternative loses policy verdict (needs route lookup by food_ref_id)",
+   "description": "On the capture confirm sheet a swapped alternative shows unverified because it has no catalog id. Commit-time policy still blocks, so UX only. One route parameter was proposed.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "14"
+   ],
+   "mergedIdx": [
+    14
+   ],
+   "ownerOnly": false,
+   "id": "B194"
+  },
+  {
+   "title": "TasteChipsCard stale applied state after another device's change",
+   "description": "The SYNCED_EVENT listener only rereads local state; a change from another device may leave the card outdated. Followup #8 partly confirmed.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "188"
+   ],
+   "mergedIdx": [
+    188
+   ],
+   "ownerOnly": false,
+   "id": "B195"
+  },
+  {
+   "title": "Open-world date change uses stale v3 set for about 300 ms",
+   "description": "app/page.tsx regenerates from the in-memory v3 set before the rules-version recheck. Window is small and open world is dark.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "189"
+   ],
+   "mergedIdx": [
+    189
+   ],
+   "ownerOnly": false,
+   "id": "B196"
+  },
+  {
+   "title": "Meal-planning follow-ups t20, t22 and universe WARNs",
+   "description": "t20 (O4 pre-existing gaps) and t22 (O3 gate prerequisites) are open. Universe WARNs: tahini mapped to dairy, coconut milk tree-nut false positive, whole-food class gaps. The W12-F notice part is done.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "191"
+   ],
+   "mergedIdx": [
+    191
+   ],
+   "ownerOnly": false,
+   "id": "B197"
+  },
+  {
+   "title": "Open-world shortage copy must know open vs closed world (D13)",
+   "description": "D13 shortage copy needs food_world passed into the suggestion input. A grep of lib/meals and lib/coach/suggest.ts found no food_world use.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "194"
+   ],
+   "mergedIdx": [
+    194
+   ],
+   "ownerOnly": false,
+   "id": "B198"
+  },
+  {
+   "title": "Snapshot v3 250 KB telemetry and soft cap on Favored list size",
+   "description": "Bodies over 250 KB are sent and logged by section; decide from telemetry whether a Favored soft cap is needed. No cap exists.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md D11 acc.5"
+   ],
+   "mergedIdx": [
+    214
+   ],
+   "id": "B199"
+  },
+  {
+   "title": "W10 Jev veto stays in shadow; spec still states old Jev call cap",
+   "description": "Veto changes no output until the section 5 gate passes. Owner dropped the one-Jev-call cap on 2026-10-08, but D9/W10 acc.2 still says it. Update spec or confirm.",
+   "kind": "docs",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md W10"
+   ],
+   "mergedIdx": [
+    215
+   ],
+   "id": "B200"
+  },
+  {
+   "title": "UI: reason chips on generated meals and swap rows",
+   "description": "Engine emits Meal.reasons / SwapAlternative.reasons (eaten_often, on_list); grep finds no component rendering them ('You eat this often' / 'On your list').",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md 7.2 W8"
+   ],
+   "mergedIdx": [
+    216
+   ],
+   "id": "B201"
+  },
+  {
+   "title": "UI: Shopping 'Use my list' toggle, end date and Undo (W11)",
+   "description": "Focus routes, coach action and ranking exist; no component under components/ calls /api/shopping/focus. Shopping is pilot-only.",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md 7.2 W11"
+   ],
+   "mergedIdx": [
+    217
+   ],
+   "id": "B202"
+  },
+  {
+   "title": "UI: open-world invitation and Settings switch (W13)",
+   "description": "GET /api/foods/world/invitation and POST /api/foods/world exist; no component references the invitation. Copy for Eats to Favored and star-toggle copy test also owed.",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md 7.2 W13"
+   ],
+   "mergedIdx": [
+    218
+   ],
+   "id": "B203"
+  },
+  {
+   "title": "Star-to-favored merge not recorded as run in production",
+   "description": "scripts/star-to-favored.ts production run (with backup) is an owner step; the invitation for existing accounts depends on it.",
+   "kind": "ops",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "AGENTS.md Favored rename row"
+   ],
+   "mergedIdx": [
+    422
+   ],
+   "ownerOnly": true,
+   "id": "B204"
+  },
+  {
+   "title": "UK Biobank 'like' term rights unconfirmed",
+   "description": "Substitute-graph 'like' term stays absent until UK Biobank liking aggregates have confirmed reuse terms. No confirmation recorded.",
+   "kind": "ruling",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/decisions/2026-10-05-phase-18-open-questions.md Q2"
+   ],
+   "mergedIdx": [
+    246
+   ],
+   "ownerOnly": true,
+   "id": "B205"
+  },
+  {
+   "title": "Owner labels plates for open-world release gate (sheet 1.1.0)",
+   "description": "Regenerate docs/eval/universe-plates/sheet-1.1.0.csv (1.0.0 withdrawn, identical plates per cuisine); owner marks y/n; scorer needs >=85% per cuisine (Acceptance 7).",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "docs/specs/phase-18-open-world-foods.md"
+   ],
+   "mergedIdx": [
+    250,
+    280,
+    432
+   ],
+   "ownerOnly": true,
+   "id": "B206"
+  },
+  {
+   "title": "Owner review of curated CUISINE_STAPLES table",
+   "description": "Hand-written table in lib/meals/data/cuisine.ts (added in #39) needs owner review; cuisine tiers and universe need Q3 sign-off.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md Owner items 3"
+   ],
+   "mergedIdx": [
+    251,
+    281,
+    433
+   ],
+   "ownerOnly": true,
+   "id": "B207"
+  },
+  {
+   "title": "Release open world (flags, staged rollout, condition-pack sign-off)",
+   "description": "Dark: needs OPEN_WORLD_ENABLED=1 and OPEN_WORLD_USER_IDS, plus TASTE_CHIPS_ENABLED, W15 pilot, clinical sign-off on condition-pack wording, existing-account invitation, first-client hold.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md s12",
+    "lib/foods/world/access.ts"
+   ],
+   "mergedIdx": [
+    253,
+    418
+   ],
+   "ownerOnly": true,
+   "id": "B208"
+  },
+  {
+   "title": "Phone benchmark for open-world planDay 20 ms target",
+   "description": "p95 measured only on M4 Max (12.8 ms/4 slots, 18.4 ms/6). Real-phone or throttled-browser run owed before target is accepted.",
+   "kind": "perf",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md W8 As built"
+   ],
+   "mergedIdx": [
+    254,
+    435
+   ],
+   "id": "B209"
+  },
+  {
+   "title": "Open-world taste inputs not yet fed to pref-2",
+   "description": "Not supplied: soft-rule R_f (packs off), N and swap/Plan Q from W6 signals, shopping/pantry signals, eaten non-universe foods, W1c pairing table.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md W8 As built"
+   ],
+   "mergedIdx": [
+    255
+   ],
+   "id": "B210"
+  },
+  {
+   "title": "W14 Taste T2 trainer, taste_models table, replay report",
+   "description": "Migration 8 (taste_models), trainer, leakage-free replay and report are specified behind a data gate (W6 signals + 60 days). No taste_models in lib or supabase.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md W14"
+   ],
+   "mergedIdx": [
+    256,
+    301
+   ],
+   "id": "B211"
+  },
+  {
+   "title": "W15 onboarding question ablation (report, UI hook, arm assignment)",
+   "description": "Events hook (onboarding_events) exists; pilot gate stays closed until W15 assigns randomized arms. Report job and shell UI hook not built; no usage data yet.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md W15",
+    "AGENTS.md profile-pilot"
+   ],
+   "mergedIdx": [
+    257,
+    300,
+    462
+   ],
+   "id": "B212"
+  },
+  {
+   "title": "contains_ingredient template facet not wired in profile hard rules",
+   "description": "hard-rules.ts line 73 still returns unknown for isTemplateFacet facets ('declared, not wired').",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "lib/policy/profiles/hard-rules.ts:73"
+   ],
+   "mergedIdx": [
+    275
+   ],
+   "id": "B213"
+  },
+  {
+   "title": "Dark env flags: record production state and decide enablement",
+   "description": "HEALTH_INGEST_ENABLED, ESTIMATOR_ENABLED, COACH_ACTIVITY_CONTEXT_ENABLED, CONDITION_PACKS_ENABLED default off; production state not recorded in docs.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "grep of process.env flags"
+   ],
+   "mergedIdx": [
+    278
+   ],
+   "ownerOnly": true,
+   "id": "B214"
+  },
+  {
+   "title": "Production FNDDS inputs import (frozen)",
+   "description": "W4 migrations and catalog_food_inputs import with --production --project-ref are owner steps, frozen pending owner.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "AGENTS.md W4 row",
+    "docs/catalog/import.md"
+   ],
+   "mergedIdx": [
+    304
+   ],
+   "ownerOnly": true,
+   "id": "B215"
+  },
+  {
+   "title": "Occasion calibration constant null (Acceptance 9)",
+   "description": "v2 occasion scores reach ranking only after the calibration passes against an owner-reviewed holdout; eval bills TypeSafe, run by hand.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "lib/foods/occasion-calibration.data.ts"
+   ],
+   "mergedIdx": [
+    305
+   ],
+   "ownerOnly": true,
+   "id": "B216"
+  },
+  {
+   "title": "Pairing table non-curated weights need human holdout and W8 replay",
+   "description": "co/jev/comp weights ship at 0; activation needs owner-labelled >=400 pairs in docs/pairing/holdout-pairs.csv, passed calibration and replay-lift record.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "AGENTS.md scripts/pairing row"
+   ],
+   "mergedIdx": [
+    306,
+    420
+   ],
+   "ownerOnly": true,
+   "id": "B217"
+  },
+  {
+   "title": "Tree-nut allergen key and policy coverage",
+   "description": "no_nuts renamed to no_peanuts; no tree-nut protection claimed. Full tree-nut tags and policy are a later catalog project; onboarding copy check owed.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "docs/decisions/2026-09-19-sol-rulings.md F4"
+   ],
+   "mergedIdx": [
+    392
+   ],
+   "id": "B218"
+  },
+  {
+   "title": "Facet warming not wired into coach logging / log commit; no persisted policy flags",
+   "description": "Cached facets were not read in coach grounding or /api/log/commit; log rows persist no policy flags. Role-advice caller since wired; rest unverified.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "codex:b-e7b5133f5d2e"
+   ],
+   "mergedIdx": [
+    401
+   ],
+   "id": "B219"
+  },
+  {
+   "title": "Regional priors: state-level, Canada (CCHS) build, photo-notice scope",
+   "description": "State-adjusted NHANES weights deferred (needs NCHS review); Canada build needs CCHS licence/mapping check; Plan-sheet photoToIdeas byte-size telemetry follow-up.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "chunk-12 line ~3064",
+    "codex:6-4810009d3c70"
+   ],
+   "mergedIdx": [
+    408,
+    427
+   ],
+   "ownerOnly": true,
+   "id": "B220"
+  },
+  {
+   "title": "Low-FODMAP on uncategorised foods should read unknown (F1); Plan sheet display-title regression (F2)",
+   "description": "Oct 2 food-safety audit follow-ups; fixes not confirmed.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "codex:d-d7f81bb49597"
+   ],
+   "mergedIdx": [
+    411
+   ],
+   "id": "B221"
+  },
+  {
+   "title": "Unpaged downstream reads past ~1,000 Eats foods",
+   "description": "Some suggestion/eligibility reads may truncate past ~1,000 Eats; can drop a suggestion, never mark a food allowed. Avoid/allergen reads already paged (t18).",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "claude:1c07ea59"
+   ],
+   "mergedIdx": [
+    413
+   ],
+   "id": "B222"
+  },
+  {
+   "title": "Service-worker waiting-worker race (Reload button)",
+   "description": "A superseding waiting worker should stay reloadable; fix with focused test or document deferral. Not confirmed.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "claude:80e43e9d"
+   ],
+   "mergedIdx": [
+    414
+   ],
+   "id": "B223"
+  },
+  {
+   "title": "compose_meal: named combos that cannot form a plate; four-food-term cap",
+   "description": "Rebuild on lib/meals engine with pinned foods and 'incomplete named draft' result; decide whether four-term cap stays.",
+   "kind": "feature",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "codex:6-b481c7d8b29d"
+   ],
+   "mergedIdx": [
+    426
+   ],
+   "ownerOnly": true,
+   "id": "B224"
+  },
+  {
+   "title": "Onboarding taste-chip confirm 409 settings_not_synced for first-time account",
+   "description": "No settings row exists until final plan save, so chip confirm fails and final save can drop chips. Verify the draft-then-reconcile fix landed in CuisineSection.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "codex:2-88569061dea0"
+   ],
+   "mergedIdx": [
+    428
+   ],
+   "id": "B225"
+  },
+  {
+   "title": "TasteChipsCard stale after another device's change",
+   "description": "Sync event re-reads local storage only; another device's confirm/Undo leaves outdated state. No realtime channel.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "components/coach/TasteChipsCard.tsx"
+   ],
+   "mergedIdx": [
+    441
+   ],
+   "id": "B226"
+  },
+  {
+   "title": "Open-world meals linger up to 300 ms+RTT after removal from OPEN_WORLD_USER_IDS",
+   "description": "Date change regenerates from in-memory v3 set before rules-version recheck (app/page.tsx:229). Known operator window; dark in prod.",
+   "kind": "tech-debt",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "followups-decisions.md open-world Sol r3"
+   ],
+   "mergedIdx": [
+    442
+   ],
+   "id": "B227"
+  },
+  {
+   "title": "W9b: plateChips on coach composed cards and incomplete-card display",
+   "description": "Reasons ride layout-plan and swap rows; chips on CoachComposedCard and the incomplete card not confirmed.",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "codex:0-2ddf0ee8cbae"
+   ],
+   "mergedIdx": [
+    449
+   ],
+   "id": "B228"
+  },
+  {
+   "title": "W13 shortage copy ignores open vs closed food world",
+   "description": "Suggestion shortage copy says 'Favored' without knowing the world; pass food_world into suggestion input. No matching fix found.",
+   "kind": "bug",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "followups-decisions #25"
+   ],
+   "mergedIdx": [
+    450
+   ],
+   "id": "B229"
+  },
+  {
+   "title": "UI: 'Not verified / Evidence under review' copy for held allergens (W2a)",
+   "description": "Only OnboardingSteps matches 'Not verified'; held-allergen mark wording elsewhere not confirmed.",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md 7.2 W2a"
+   ],
+   "mergedIdx": [
+    474
+   ],
+   "id": "B230"
+  },
+  {
+   "title": "UI lane: cuisines/country/taste screen, Settings fields, taste-chip surfaces",
+   "description": "CuisinesSection, TasteChipsField and TasteChipsCard exist; confirm optional onboarding screen, country field and rule-editor hand-off are complete.",
+   "kind": "ui",
+   "theme": "food-world",
+   "status": "partial",
+   "sources": [
+    "docs/specs/phase-18-open-world-foods.md 7.2"
+   ],
+   "mergedIdx": [
+    476
+   ],
+   "id": "B231"
+  },
+  {
+   "title": "Owner production runs of data-repair scripts",
+   "description": "food-role-audit, food-membership-audit, recompute-target and allergen-jev-holds --review each need read-only prod run then deliberate --fix --production owner step.",
+   "kind": "owner-step",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "AGENTS.md"
+   ],
+   "mergedIdx": [
+    481
+   ],
+   "ownerOnly": true,
+   "id": "B232"
+  },
+  {
+   "title": "Universe 1.0.0 review findings: owner rename decisions",
+   "description": "docs/catalog/universe.md 'Findings for the owner's review' (lines 109-121) needs owner rename calls.",
+   "kind": "ruling",
+   "theme": "food-world",
+   "status": "open",
+   "sources": [
+    "docs/catalog/universe.md"
+   ],
+   "mergedIdx": [
+    484
+   ],
+   "ownerOnly": true,
+   "id": "B233"
+  },
+  {
+   "title": "Conflict result has no server timestamp ('at')",
+   "description": "apply_sync_op conflict JSON carries the row but no 'at'; serverTimestampOf (lib/sync/outbox.ts) still falls back to now for water_log, gut_log and log_items. Add 'at timestamptz' to the conflict payload in a new migration and read it on the phone.",
+   "kind": "tech-debt",
+   "theme": "sync-offline-account",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-10-phase-0/lane-C-sync.md (Open questions 1)"
+   ],
+   "mergedIdx": [
+    18
+   ],
+   "notes": "Evidence: serverTimestampOf comment and fallback still present; no 'at' key in the latest conflict builders (phase3_sync_entities lines 452, 473). A production migration is needed, so apply is owner-run.",
+   "ownerOnly": false,
+   "id": "B234"
+  },
+  {
+   "title": "Duplicate-detection: sync duplicate_group_members and build the UI",
+   "description": "_sync_current/sync entity set publish duplicate_groups but not duplicate_group_members, so membership never reaches other devices. Logging writes groups and members directly with no feed event, and no component consumes them. Fix: schema migration plus sync entity for members, then the UI. The 2026-09-15 readiness README defers it as feature scope.",
+   "kind": "feature",
+   "theme": "sync-offline-account",
+   "status": "open",
+   "sources": [
+    "[2026-09-15 codex:8-a8818329a5af assistant:85]",
+    "[2026-09-15 codex:a-d02e4473e059] fix_review final answer on 0562456",
+    "[2026-09-15 codex:a-d02e4473e059] fix_review message; docs/readiness/2026-09-15/README.md item 3",
+    "[2026-09-15 codex:a-d02e4473e059] coach_failure_fix agent message; docs/readiness/2026-09-15/README.md blocker 3",
+    "[2026-09-15 codex:a-d02e4473e059] docs/readiness/2026-09-15/README.md blocker 3"
+   ],
+   "mergedIdx": [
+    337,
+    343,
+    348,
+    355,
+    367
+   ],
+   "notes": "Evidence: duplicate_group_members appears only in migrations 20260911000300, 20260911000500, 20261103090100, lib/server/log-duplicates.ts, backup route; the phase3 sync entities migration handles duplicate_groups only. Production apply of the migration is owner-run.",
+   "ownerOnly": false,
+   "id": "B235"
+  },
+  {
+   "title": "Physical-device acceptance journeys never run",
+   "description": "Installed iPhone PWA offline start, camera/barcode speed, voice, share, calendar delivery and device-ingest were not exercised. The 2026-09-15 readiness README withholds a blanket device-readiness verdict until they pass on a physical device. No later device receipt found.",
+   "kind": "test-gap",
+   "theme": "sync-offline-account",
+   "status": "open",
+   "sources": [
+    "[2026-09-15 codex:a-d02e4473e059] docs/readiness/2026-09-15/README.md blocker 5"
+   ],
+   "mergedIdx": [
+    360,
+    370
+   ],
+   "notes": "Needs Devin's physical iPhone.",
+   "ownerOnly": true,
+   "id": "B236"
+  },
+  {
+   "title": "Rebalance panel (Phase 19 v1): D6 clinical copy sign-off before enabling REBALANCE_PANEL_USER_IDS",
+   "description": "Panel and widget code is built but REBALANCE_PANEL_USER_IDS is empty in .env.example:228. No rebalance or clinical record exists in docs/decisions/. A qualified reviewer must sign off the under/over/spent copy and highlighted cards, and the sign-off must be recorded. Spec header still says 'spec only' (stale: fix to 'v1 built'). Final action name is still open.",
+   "kind": "decision-needed",
+   "theme": "nutrition-tdee",
+   "status": "open",
+   "sources": [
+    "harvest idx 20",
+    "harvest idx 92",
+    "harvest idx 129",
+    "harvest idx 192",
+    "harvest idx 206",
+    "harvest idx 416"
+   ],
+   "mergedIdx": [
+    20,
+    92,
+    129,
+    192,
+    206,
+    416
+   ],
+   "ownerOnly": true,
+   "notes": "Evidence: grep found no rebalance/clinical file in docs/decisions; flag empty. Idx 129 also asks whether RECIPE_PLANNING_USER_IDS is widened beyond the QA account; that is a separate rollout check, unverified.",
+   "id": "B237"
+  },
+  {
+   "title": "Phase 19b R0 drift study and first-client consent",
+   "description": "Run the R0 cause-mix drift study (branch-only, read-only, aggregate-only) after the five query fixes (consent filter before the common CTE, revision rule, training weekday fallback, Q2 cohort, Q4 clamp). Record the first client's consent (D7) in docs/decisions/ first. Output retunes the 90-minute missed-meal grace, the max(100, 5% of T) tolerance and learned ordering (reorder only after 14 marked-complete days).",
+   "kind": "research",
+   "theme": "nutrition-tdee",
+   "status": "open",
+   "sources": [
+    "harvest idx 22",
+    "harvest idx 94"
+   ],
+   "mergedIdx": [
+    22,
+    94
+   ],
+   "ownerOnly": true,
+   "notes": "Consent is a client/owner step. No consent record in docs/decisions.",
+   "id": "B238"
+  },
+  {
+   "title": "Phase 19b day rebalance actions",
+   "description": "Build trim and ranked skip options, multi-slot clear or move, enlarge portions, in-panel actions, a dense side food and the coach action. v1 is read-only with View meal links.",
+   "kind": "feature",
+   "theme": "nutrition-tdee",
+   "status": "open",
+   "sources": [
+    "harvest idx 274"
+   ],
+   "mergedIdx": [
+    274
+   ],
+   "dependsOn": [
+    "Rebalance panel D6 sign-off",
+    "Phase 19b R0 drift study"
+   ],
+   "id": "B239"
+  },
+  {
+   "title": "Confirm widget memory behaviour matches spec D3",
+   "description": "Spec D3: widget opens on rebalance when tone is nudge, otherwise on the user's last panel. LiveWidget and lib/today/rebalance-widget exist and gate on data.rebalance.show; verify the last-panel memory matches D3 and the open questions in the plan are closed.",
+   "kind": "decision-needed",
+   "theme": "nutrition-tdee",
+   "status": "partial",
+   "sources": [
+    "harvest idx 23"
+   ],
+   "mergedIdx": [
+    23
+   ],
+   "notes": "Other three open questions were delegated by the spec; only D3 needs a UI check.",
+   "id": "B240"
+  },
+  {
+   "title": "TDEE audit follow-ups: confirm-your-rate invitation, goal_rate CHECK, account_minimum writer, KCAL_MIN_FLOOR, export columns",
+   "description": "Still open: (1) one-time 'confirm your rate' invitation for pre-rate-goals loss/gain accounts with null goal_rate_bp_week (no UI found; production had 0 such accounts on 2026-09-22, recheck first); (2) target_profiles.goal_rate_bp_week has no preset CHECK (only user_settings has one, migration 20261029090000); (3) 'account_minimum' is in KCAL_MIN_SOURCES (lib/types.ts:52) but has no writer; (4) KCAL_MIN_FLOOR = 1650 in lib/coach/floors.ts:19 is unreconciled with the targets floors; (5) body-fat provenance columns are missing from the data export. Optional Jev day_completeness nudge is explicitly out of scope.",
+   "kind": "tech-debt",
+   "theme": "nutrition-tdee",
+   "status": "open",
+   "sources": [
+    "harvest idx 25",
+    "harvest idx 118",
+    "harvest idx 243",
+    "harvest idx 273"
+   ],
+   "mergedIdx": [
+    25,
+    118,
+    243,
+    273
+   ],
+   "notes": "Production account count recheck is a read-only query; any migration needs the standard production apply step (owner-run per policy).",
+   "id": "B241"
+  },
+  {
+   "title": "TDEE step F: reference-persona and adaptive test suite audit",
+   "description": "Audit named step F cases (reference personas, derivation properties, adaptive convergence, noise-and-trust, cycle simulations) against tests/. tests/expenditure has backtest, handoff, slope, fixtures; persona and property coverage not confirmed. Update the plan status row for E ('built, in review') at the same time.",
+   "kind": "test-gap",
+   "theme": "nutrition-tdee",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 30"
+   ],
+   "mergedIdx": [
+    30
+   ],
+   "id": "B242"
+  },
+  {
+   "title": "Phase 6 OQ4: who may change goal_rate_bp_week",
+   "description": "Original assumption was Devin-only in Settings. Rate goals migration 20261029090000 and onboarding pace chips now exist, so this is likely superseded by onboarding v2. Confirm and close the open question in the spec.",
+   "kind": "decision-needed",
+   "theme": "nutrition-tdee",
+   "status": "unclear",
+   "sources": [
+    "harvest idx 84"
+   ],
+   "mergedIdx": [
+    84
+   ],
+   "ownerOnly": true,
+   "notes": "Ruling-type question; owner confirms.",
+   "id": "B243"
+  },
+  {
+   "title": "Adaptive TDEE: revisit never-marked carve-out (R3) and cycle-aware point-error bound (R9)",
+   "description": "Revisit R3 once the day-complete control has been live 30 days (Review 3 asked for 21 marked days). R9 defers a point-error bound for the fluid-cycle acceptance until a validated cycle-aware method exists. No decision recorded since the control shipped.",
+   "kind": "decision-needed",
+   "theme": "nutrition-tdee",
+   "status": "open",
+   "sources": [
+    "harvest idx 152"
+   ],
+   "mergedIdx": [
+    152
+   ],
+   "ownerOnly": true,
+   "id": "B244"
+  },
+  {
+   "title": "Reserved kcal_min_source 'account_minimum' has no writer",
+   "description": "Enum value lives in lib/types.ts (KCAL_MIN_SOURCES) and migration 20261029090000_rate_goals.sql; nothing writes it. Add an explicit account-minimum writer or drop the label.",
+   "kind": "tech-debt",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-22-tdee-engine-plan.md D Open follow-ups (3)"
+   ],
+   "mergedIdx": [
+    27
+   ],
+   "notes": "Grep confirms only types.ts and the migration mention it.",
+   "id": "B245"
+  },
+  {
+   "title": "Onboarding Phase 10/11 unbuilt remainder",
+   "description": "Phase 10 superseded by onb3 (no onboarding_drafts, no kind='onboarding' thread). Phase 11 shipped the conversations list only; automatic memory writes and propose_memory were cut. Decide whether to formally close the specs as superseded.",
+   "kind": "ops-migration",
+   "theme": "onboarding-profile-targets",
+   "status": "partial",
+   "sources": [
+    "docs/plans/2026-09-22-multi-user-overnight-run.md tasks 2-3",
+    "docs/specs/phase-10-conversational-onboarding.md",
+    "docs/specs/phase-11-conversations-memory.md"
+   ],
+   "mergedIdx": [
+    45
+   ],
+   "ownerOnly": true,
+   "id": "B246"
+  },
+  {
+   "title": "Flip onboarding v2 flag after owner phone re-test (incl. followup #16 375x812 QA)",
+   "description": "Prod serves the old 6-step onboarding (NEXT_PUBLIC_CHAT_ONBOARDING=0). Owner re-tests onb3 (#36, #37, #39) on a phone and says go; then set the flag to 1 and redeploy. Live 375x812 visual QA (followup #16) is still unconfirmed.",
+   "kind": "decision-needed",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md Owner items 1",
+    "~/Inbox/notes/handoffs/2026-10-08-sasha-orchestrator-shutdown.md",
+    "~/.claude/goal-state/sasha-phase18/decisions.log 2026-10-08T01:43Z"
+   ],
+   "mergedIdx": [
+    279,
+    431,
+    238
+   ],
+   "ownerOnly": true,
+   "notes": "Flag still referenced in app/onboarding/page.tsx and ConversationalOnboarding.tsx; no evidence it was flipped.",
+   "id": "B247"
+  },
+  {
+   "title": "onboarding-as-built.md says onb3 PRs #36/#37/#39 are unmerged",
+   "description": "docs/specs/onboarding-as-built.md line ~61 still says 'None is merged'. The 2026-10-08 handoff lists all three as landed. Update the doc.",
+   "kind": "docs",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "docs/specs/onboarding-as-built.md The onb3 rework"
+   ],
+   "mergedIdx": [
+    71
+   ],
+   "id": "B248"
+  },
+  {
+   "title": "Catalog search edge cases",
+   "description": "GET /api/foods/search q is z.string().min(1).max(120) with no trim, so whitespace-only returns 200 empty while empty returns 400. getFoodDetail checks only revision is_active while search requires version is_active, so detail-by-id and search disagree. Low severity.",
+   "kind": "bug",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "docs/audit/2026-09-14-loop010/findings.md",
+    "app/api/foods/search/route.ts:21",
+    "lib/server/catalog.ts:625-636"
+   ],
+   "mergedIdx": [
+    123
+   ],
+   "id": "B249"
+  },
+  {
+   "title": "Phase 12 checked-writer RPC cutover (write_target_revision_checked)",
+   "description": "Create write_target_revision_checked and move lib/server/targets.ts and proposals.ts to it. No SQL or lib code has it; only specs mention it. Unblocked since 20261228090000 is applied.",
+   "kind": "feature",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md Deferred"
+   ],
+   "mergedIdx": [
+    173
+   ],
+   "ownerOnly": false,
+   "id": "B250"
+  },
+  {
+   "title": "Recipe/Shopping pilot: enablement, seed proof and acceptance gaps",
+   "description": "RECIPE_PLANNING_USER_IDS covers one QA account. Broader enablement needs separate receipts. Production receipts show only the first 12 of 24 seed recipes. Still open: browser and two-account proof, exact impact counts across aliases and subingredients, concurrent consumed-history safety for inline removal.",
+   "kind": "ops-migration",
+   "theme": "onboarding-profile-targets",
+   "status": "partial",
+   "sources": [
+    "docs/recipes/pilot-release.md",
+    "docs/audit/2026-09-27-foods-annotations/pilot-rollout.md",
+    "AGENTS.md recipe pilot rows",
+    "codex:d-3ce1a3a64c62 2026-09-28"
+   ],
+   "mergedIdx": [
+    219,
+    412
+   ],
+   "ownerOnly": true,
+   "id": "B251"
+  },
+  {
+   "title": "Finish account deletion (wip/2026-10-08-account-deletion)",
+   "description": "Settings delete flow, /api/account/delete and delete_account() migration behind ACCOUNT_DELETION_ENABLED, parked on the wip branch, unreviewed. Migration reuses timestamp 20261229090000 and must be renumbered. Apply to prod before flipping the flag.",
+   "kind": "feature",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "claude:e3d937eb 2026-10-09"
+   ],
+   "mergedIdx": [
+    228,
+    467
+   ],
+   "ownerOnly": false,
+   "notes": "Confirmed absent on main: no app/api/account, no delete_account in supabase.",
+   "id": "B252"
+  },
+  {
+   "title": "Accounts that saved 29 unchosen starter foods under onboarding v2",
+   "description": "Four v2-onboarded accounts probably hold 29 unchosen starter foods. Owner chose to leave them unchanged; the count/list for the run log is unconfirmed. Revisit whether to offer cleanup.",
+   "kind": "decision-needed",
+   "theme": "onboarding-profile-targets",
+   "status": "unclear",
+   "sources": [
+    "~/.claude/goal-state/sasha-orchestrator/run.log.md 2026-10-08 05:17Z",
+    "claude:e3d937eb four open decisions"
+   ],
+   "mergedIdx": [
+    235,
+    453
+   ],
+   "ownerOnly": true,
+   "notes": "Production data touch, owner call. W13 moved the seed decision to the server but no repair is recorded.",
+   "id": "B253"
+  },
+  {
+   "title": "Onboarding qs-backend gaps G10/G11 (clinician numbers) and G12 (rounding)",
+   "description": "Orchestrator log lists G10/G11 clinician numbers and G12 rounding as not done. Docs grep finds G10-G12 only as unrelated gate labels in the UI-pass plan. Confirm whether done or dropped; G9 is covered by onboarding-events.",
+   "kind": "feature",
+   "theme": "onboarding-profile-targets",
+   "status": "unclear",
+   "sources": [
+    "~/.claude/goal-state/sasha-orchestrator/run.log.md 2026-10-08 06:00Z"
+   ],
+   "mergedIdx": [
+    236
+   ],
+   "ownerOnly": false,
+   "id": "B254"
+  },
+  {
+   "title": "Delete production smoke-test account mc-smoke-2026-09-13",
+   "description": "Account 5a68b049-736c-4dc4-939c-9a257a1f2116 was created in production by an agent (rule violation, now R11a). The cleanup script ~/Inbox/misc/delete-smoke-account.mjs is gone and no deletion is recorded. Owner must delete it.",
+   "kind": "ops-migration",
+   "theme": "onboarding-profile-targets",
+   "status": "unclear",
+   "sources": [
+    "claude:406a0f96 2026-09-14",
+    "docs/decisions/2026-09-13-audit-rulings.md R11a"
+   ],
+   "mergedIdx": [
+    317
+   ],
+   "ownerOnly": true,
+   "id": "B255"
+  },
+  {
+   "title": "TodayDayStrip below 360px: verify seven 44px targets",
+   "description": "components/TodayDayStrip.tsx uses a snap scroller with basis max(44px,100%/7). No recorded browser check at under 360px width. Verify and fix edge-to-edge placement.",
+   "kind": "ui",
+   "theme": "onboarding-profile-targets",
+   "status": "unclear",
+   "sources": [
+    "codex:e-9bf130bc7f0b 2026-09-15 compact_nutrition_days"
+   ],
+   "mergedIdx": [
+    372,
+    380
+   ],
+   "ownerOnly": false,
+   "id": "B256"
+  },
+  {
+   "title": "Day-plan open questions: over-target flag, water dial snap, recipe catalog growth",
+   "description": "Oct 4 handoff left three owner questions: flag days whose saved meals exceed the calorie target, snap the water dial number and bubble to the design scale, grow the 24-recipe catalog. No ruling found.",
+   "kind": "decision-needed",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "claude:9dab350b 2026-10-04"
+   ],
+   "mergedIdx": [
+    407
+   ],
+   "ownerOnly": true,
+   "id": "B257"
+  },
+  {
+   "title": "BodyProfileFields sex picker lacks 'unspecified'",
+   "description": "components/BodyProfileFields.tsx has no 'unspecified' option, so a saved 'Prefer not to say' shows 'Choose'. UI-lane follow-up.",
+   "kind": "ui",
+   "theme": "onboarding-profile-targets",
+   "status": "open",
+   "sources": [
+    "codex:a-3f9e56b0258a 2026-10-07",
+    "codex:0-4149a85a9631 2026-10-07"
+   ],
+   "mergedIdx": [
+    451
+   ],
+   "id": "B258"
+  },
+  {
+   "title": "Add body_fat_source and body_fat_measured_on to the data export",
+   "description": "Columns exist (migration 20261028090000_body_fat_provenance) but lib/server/export-body.ts and export.ts select only body_fat_pct. Add the two provenance fields to the export.",
+   "kind": "tech-debt",
+   "theme": "health-body-water",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-22-tdee-engine-plan.md C1"
+   ],
+   "mergedIdx": [
+    29
+   ],
+   "id": "B259"
+  },
+  {
+   "title": "Native iOS wrapper / HealthKit direct",
+   "description": "Needs an Apple Developer account (owner money decision). Shortcut / Health Auto Export serves the PWA meanwhile; HealthConnector interface planned.",
+   "kind": "decision-needed",
+   "theme": "health-body-water",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-20-health-polish.md section 5",
+    "docs/plans/2026-09-22-multi-user-overnight-run.md"
+   ],
+   "mergedIdx": [
+    37
+   ],
+   "ownerOnly": true,
+   "id": "B260"
+  },
+  {
+   "title": "Publish Apple Health iCloud shortcuts and set shortcut env vars",
+   "description": "Owner publishes the production, Preview and probe shortcuts and sets NEXT_PUBLIC_APPLE_HEALTH_SHORTCUT_URL/NAME on Production. iOS 26 feasibility (Group by Day) not proved.",
+   "kind": "ops-migration",
+   "theme": "health-body-water",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-10-conversational-onboarding.md Open for Devin 1-3",
+    "docs/specs/phase-5-body-data.md OQ2"
+   ],
+   "mergedIdx": [
+    75
+   ],
+   "ownerOnly": true,
+   "id": "B261"
+  },
+  {
+   "title": "Register Oura app and enable health ingest in production",
+   "description": "Owner confirms Gen3+ ring with membership, registers the Oura developer app, sets OURA_CLIENT_ID/SECRET/REDIRECT_URI, HEALTH_INGEST_ENABLED, HEALTH_TOKEN_KEY, HEALTH_TZ in Production, installs Health Auto Export with a minted token. Code (lib/server/oura.ts) exists but is dark. Document HEALTH_INGEST_TOKEN in .env.example (OURA_CLIENT_ID is there already).",
+   "kind": "ops-migration",
+   "theme": "health-body-water",
+   "status": "open",
+   "sources": [
+    "docs/specs/phase-5-body-data.md OQ4",
+    "docs/decisions/2026-09-12-wave4-rulings.md ruling 2",
+    "docs/specs/phase-15-new-user-plan-and-today.md section 5",
+    "docs/readiness/2026-09-19/03-env.md"
+   ],
+   "mergedIdx": [
+    76,
+    116,
+    139
+   ],
+   "ownerOnly": true,
+   "id": "B262"
+  },
+  {
+   "title": "Phase 5 sleep stage granularity and weight display unit decisions",
+   "description": "Only sleep_asleep and sleep_in_bed totals are stored; owner decides whether to keep stages (backfill is limited). Weight display unit probably settled by the user_settings_units migration; confirm.",
+   "kind": "decision-needed",
+   "theme": "health-body-water",
+   "status": "unclear",
+   "sources": [
+    "docs/specs/phase-5-body-data.md OQ6, OQ8"
+   ],
+   "mergedIdx": [
+    78
+   ],
+   "ownerOnly": true,
+   "id": "B263"
+  },
+  {
+   "title": "Oura pull samples use UTC, so bedtime lands on the next day for US accounts",
+   "description": "lib/server/oura.ts has no zone, local_date or timezone handling (grep finds none), so samples likely bucket in default UTC. Bucket by the account's day zone (lib/server/account-day.ts) and add a test.",
+   "kind": "bug",
+   "theme": "health-body-water",
+   "status": "open",
+   "sources": [
+    "[2026-09-21 codex:1-050d6f186046]"
+   ],
+   "mergedIdx": [
+    397
+   ],
+   "ownerOnly": false,
+   "id": "B264"
+  },
+  {
+   "title": "Sprout pet has no stored state (streaks, growth, upgrades)",
+   "description": "Sprout is presentational; mood is computed from the viewed day. Streaks or upgrades need a backend contract and a ruling on non-shaming copy. Care points/shop migrations (20261225*) exist, so check how much overlaps before scoping.",
+   "kind": "feature",
+   "theme": "health-body-water",
+   "status": "partial",
+   "sources": [
+    "[2026-10-06 claude:aaf2b285]",
+    "AGENTS.md LiveWidget row"
+   ],
+   "mergedIdx": [
+    424
+   ],
+   "ownerOnly": false,
+   "id": "B265"
+  },
+  {
+   "title": "Wearables and shop items for the other companions",
+   "description": "care_items.mascots defaults to array['sprout'] (20261225090200_care_shop.sql). Blu, Button and Pod need per-shape placement and a migration widening mascots. No widening migration found.",
+   "kind": "feature",
+   "theme": "health-body-water",
+   "status": "open",
+   "sources": [
+    "[2026-10-08 claude:67b87f31]",
+    "supabase/migrations/20261225090200_care_shop.sql:111-116"
+   ],
+   "mergedIdx": [
+    444
+   ],
+   "id": "B266"
+  },
+  {
+   "title": "Per-companion pond, water and shop art",
+   "description": "Each companion needs its own pond, water and outfit art; Sprout still shows in those scenes. No Higgsfield credits until about Oct 29.",
+   "kind": "feature",
+   "theme": "health-body-water",
+   "status": "open",
+   "sources": [
+    "[2026-10-07 claude:67b87f31]"
+   ],
+   "mergedIdx": [
+    445
+   ],
+   "id": "B267"
+  },
+  {
+   "title": "Owner calls on Sprout sulking and the hidden Edit button",
+   "description": "Decide: should Sprout sulk when the day falls behind or only when poked (avoid food/water guilt)? Is Edit hidden in the open widget card (long-press opens tray) acceptable?",
+   "kind": "decision-needed",
+   "theme": "health-body-water",
+   "status": "unclear",
+   "sources": [
+    "[2026-10-07 claude:67b87f31]"
+   ],
+   "mergedIdx": [
+    446
+   ],
+   "ownerOnly": true,
+   "id": "B268"
+  },
+  {
+   "title": "Idle-loop CPU profiling for pond and water scenes",
+   "description": "WellWater now draws every other frame when calm (WellWater.tsx), but it still runs requestAnimationFrame forever with a constant stir, and pond CSS loops were never profiled on low-end devices. Profile and consider stopping when settled.",
+   "kind": "test-gap",
+   "theme": "health-body-water",
+   "status": "partial",
+   "sources": [
+    "[2026-10-07 codex:4-ba807e86e0c3]",
+    "[2026-10-07 codex:0-5dd8d07eb9b9]"
+   ],
+   "mergedIdx": [
+    463
+   ],
+   "id": "B269"
+  },
+  {
+   "title": "Four selectable background themes",
+   "description": "Owner asked for four user-selectable backgrounds/themes later. Only the single Harvest theme ships; no theme switch exists in app/components/lib.",
+   "kind": "feature",
+   "theme": "ui-design-pwa",
+   "status": "open",
+   "sources": [
+    "docs/plans/2026-09-20-health-polish.md s0.1, s5",
+    "docs/plans/2026-09-22-design-restyle.md"
+   ],
+   "mergedIdx": [
+    38
+   ],
+   "ownerOnly": true,
+   "notes": "Needs an owner design ruling before work.",
+   "id": "B270"
+  },
+  {
+   "title": "UI pass evidence directory not verified",
+   "description": "The 2026-10-04 UI pass checklist is fully ticked, but docs/audit/2026-10-04-ui-pass does not exist, so the ticks have no stored evidence. Either record the evidence or note it lives elsewhere.",
+   "kind": "docs",
+   "theme": "ui-design-pwa",
+   "status": "unclear",
+   "sources": [
+    "docs/plans/2026-10-04-ui-pass.md Verification checklist"
+   ],
+   "mergedIdx": [
+    47
+   ],
+   "ownerOnly": false,
+   "id": "B271"
+  },
+  {
+   "title": "Re-run 390 px sweep from clean storage with zero console errors",
+   "description": "Warm-ping 405/400 is ruled by design (F-126). Still open: /api/health/daily 503 is still probed on Settings (lib/health/capability.ts) and the clean-storage re-run after migration 20261205090000 was never recorded.",
+   "kind": "test-gap",
+   "theme": "ui-design-pwa",
+   "status": "partial",
+   "sources": [
+    "docs/readiness/2026-09-19/07-mobile-ui.md",
+    "lib/health/capability.ts:77"
+   ],
+   "mergedIdx": [
+    144
+   ],
+   "ownerOnly": false,
+   "id": "B272"
+  },
+  {
+   "title": "Duplicate-detection UI and backend contract",
+   "description": "No component consumes duplicate groups. Sync RPC omits duplicate_group_members and logging writes groups without a feed event. Full fix needs a reviewed production schema migration.",
+   "kind": "feature",
+   "theme": "ui-design-pwa",
+   "status": "open",
+   "sources": [
+    "docs/readiness/2026-09-15/README.md follow-up 3"
+   ],
+   "mergedIdx": [
+    349
+   ],
+   "ownerOnly": true,
+   "notes": "Production migration is an owner step; feature is deferred scope.",
+   "id": "B273"
+  },
+  {
+   "title": "Delete old onb2 wip branches after comparing with main",
+   "description": "origin/wip/2026-10-08-onb2-p0-{chat,save,ui} and onb2-voice still exist as backup-only branches. Diff each against main, delete if empty. Also review the many unmerged archive/* and feat/* remote branches (likely squash-merged).",
+   "kind": "tech-debt",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "git branch -r --no-merged origin/main"
+   ],
+   "mergedIdx": [
+    171,
+    267,
+    298
+   ],
+   "notes": "Branches confirmed present on origin.",
+   "id": "B274"
+  },
+  {
+   "title": "Extend test_reset_user for newer user-owned tables",
+   "description": "supabase/seed/test_helpers.sql has only 3 to_regclass-guarded deletes (e.g. coach_action_receipts, food_signal_events). About 19 newer user-owned tables are not covered; add guarded deletes.",
+   "kind": "test-gap",
+   "theme": "tests-docs-repo",
+   "status": "partial",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "supabase/seed/test_helpers.sql"
+   ],
+   "mergedIdx": [
+    174
+   ],
+   "notes": "Some tables already covered; remainder unverified.",
+   "id": "B275"
+  },
+  {
+   "title": "Track dark rollout flags on the owner rollout list",
+   "description": "Add CONDITION_PACKS_ENABLED, RECIPE_PLANNING_USER_IDS, REBALANCE_PANEL_USER_IDS, ACCOUNT_DELETION_ENABLED (parked), the Shopping pilot gate, NEXT_PUBLIC_CHAT_ONBOARDING, OPEN_WORLD_*, TASTE_CHIPS_ENABLED to the tracker. Recipe pilot enablement and deployment receipts still needed.",
+   "kind": "docs",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "reconciliation audit dark-flags-beyond-named-three",
+    "AGENTS.md"
+   ],
+   "mergedIdx": [
+    193
+   ],
+   "ownerOnly": true,
+   "id": "B276"
+  },
+  {
+   "title": "Local-preview open questions and data items",
+   "description": "Decide: flag days whose saved meals exceed target, snap water-dial numeral to design scale, expand the 24-recipe catalog. Data: stale target for user 40707946 (2104 vs 1960 kcal), rotate SASHA_SYNC_TOKEN, rice/tuna gluten rows from Jev warm, a Supabase test branch for coach-streak.",
+   "kind": "decision-needed",
+   "theme": "tests-docs-repo",
+   "status": "unclear",
+   "sources": [
+    "~/Inbox/notes/handoffs/sasha-batch-shipped-2026-10-04.md",
+    "2026-10-03-sasha-six-loops.md"
+   ],
+   "mergedIdx": [
+    197
+   ],
+   "ownerOnly": true,
+   "id": "B277"
+  },
+  {
+   "title": "DMARC for zerosumsolutions.com parked",
+   "description": "No _dmarc TXT. DNS on Cloudflare, registrar Squarespace; no Cloudflare token in vault. Owner must log in or recover account; DMARC p=none with rua approved.",
+   "kind": "ops-migration",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "~/.claude/goal-state/sasha-orchestrator/run.log.md"
+   ],
+   "mergedIdx": [
+    234
+   ],
+   "ownerOnly": true,
+   "notes": "No DMARC mention in repo docs.",
+   "id": "B278"
+  },
+  {
+   "title": "Reconcile stale statements in AGENTS.md and docs",
+   "description": "universeRefs is wired in lib/server/compose-pool-ports.ts but AGENTS plan/ideas row says not wired. Pet row says nothing stored but care_* migrations exist. onboarding-as-built lists merged PRs as open. Stopping-point handoff lists 20261229090000_client_timings_plan_chips as pending though applied 2026-10-09. Phase 19 header says nothing built, but lib/rebalance exists.",
+   "kind": "docs",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "AGENTS.md",
+    "docs/specs/onboarding-as-built.md",
+    "docs/handoffs/2026-10-08-stopping-point.md",
+    "docs/specs/phase-19-day-rebalance.md"
+   ],
+   "mergedIdx": [
+    247
+   ],
+   "notes": "Verified: universeRefs wired, care_ migrations exist, lib/rebalance exists, phase-19 header still says nothing built, handoff still lists pending migration.",
+   "id": "B279"
+  },
+  {
+   "title": "Concurrent sign-up load test (#22) and widget-save failure notice (#7)",
+   "description": "Two open audit items: a load test for concurrent sign-ups, and a user-visible notice when the widget save fails.",
+   "kind": "test-gap",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "docs/handoffs/2026-10-08-stopping-point.md"
+   ],
+   "mergedIdx": [
+    269
+   ],
+   "id": "B280"
+  },
+  {
+   "title": "Rename provisional ZS Vault entry for unidentified 60-char credential",
+   "description": "A 60-character credential was saved under a provisional id pending Devin confirming its service. Confirm service and rename.",
+   "kind": "ops-migration",
+   "theme": "tests-docs-repo",
+   "status": "unclear",
+   "sources": [
+    "[2026-09-14 claude:406a0f96]"
+   ],
+   "mergedIdx": [
+    318
+   ],
+   "ownerOnly": true,
+   "id": "B281"
+  },
+  {
+   "title": "Re-baseline QA inventory (about 69 rows pending verification)",
+   "description": "The 118-feature inventory has many rows pending authenticated browser verification; ramp-related rows are likely obsolete now that targets come from server revisions. Re-baseline, then verify.",
+   "kind": "test-gap",
+   "theme": "tests-docs-repo",
+   "status": "partial",
+   "sources": [
+    "docs/readiness/2026-09-15/inventory.md",
+    "docs/readiness/2026-09-15/remaining-ui.md"
+   ],
+   "mergedIdx": [
+    332
+   ],
+   "id": "B282"
+  },
+  {
+   "title": "Deferred Phase 8 native and hardware integrations",
+   "description": "Expo/HealthKit shell (F-109), Garmin, Fitbit, Health Connect, Withings, web push (F-114), ChatGPT MCP connector (F-116) remain deferred in features.md; no code.",
+   "kind": "feature",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "docs/features.md F-109..F-116"
+   ],
+   "mergedIdx": [
+    333
+   ],
+   "id": "B283"
+  },
+  {
+   "title": "Creatine tick (F-115) awaits owner answer",
+   "description": "Daily 5 g creatine tick deferred until owner says whether they already take creatine.",
+   "kind": "decision-needed",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "docs/features.md F-115"
+   ],
+   "mergedIdx": [
+    334
+   ],
+   "ownerOnly": true,
+   "id": "B284"
+  },
+  {
+   "title": "Fix the flaky test trio (F7)",
+   "description": "Sol ruling F7 set the flaky trio to LATER; no record of the three tests or a fix. Identify them from CI history and fix.",
+   "kind": "test-gap",
+   "theme": "tests-docs-repo",
+   "status": "unclear",
+   "sources": [
+    "docs/decisions/2026-09-19-sol-rulings.md F7"
+   ],
+   "mergedIdx": [
+    394
+   ],
+   "id": "B285"
+  },
+  {
+   "title": "No push or out-of-app notifications",
+   "description": "public/sw.js has no push handlers; no email beyond sign-in or SMS. Weekly review and proposals wait until the app is opened. Only an ICS export exists.",
+   "kind": "feature",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "[2026-10-05 claude:1c07ea59]"
+   ],
+   "mergedIdx": [
+    425
+   ],
+   "notes": "No push string found in public/sw.js.",
+   "id": "B286"
+  },
+  {
+   "title": "Empty docs/architecture/2026-10-10 directory; architecture.md stale",
+   "description": "The dated directory exists but is empty (stray or unfinished refresh). docs/architecture.md is v2.1 and does not cover phases 9-19. Write the refresh or remove the directory.",
+   "kind": "docs",
+   "theme": "tests-docs-repo",
+   "status": "open",
+   "sources": [
+    "docs/architecture/2026-10-10",
+    "docs/architecture.md"
+   ],
+   "mergedIdx": [
+    486
+   ],
+   "notes": "Directory confirmed present; it is empty in this worktree.",
+   "id": "B287"
+  }
+ ],
+ "dropped": [
+  {
+   "idx": 405,
+   "reason": "Done: components/recipes-hub/useHubAsk.ts now carries the photo read's provenance (readBy, answerProvenance(response?.provenance, readBy), header comment lines 17 and 44-45)."
+  },
+  {
+   "idx": 400,
+   "reason": "Done: the account weight unit now flows into block charts via accountWeightUnit(ctx) in lib/coach/blocks/index.ts, backed by user_settings units migration 20261025090100; no TODO remains in hydrate-chart.ts."
+  },
+  {
+   "idx": 404,
+   "reason": "Superseded: server-recorded coach Undo (perform_coach_undo, coach-undo.ts) inverts log_meal through the sync RPC, which deletes the normalized log_entries row (AGENTS.md coach undo row)."
+  },
+  {
+   "idx": 379,
+   "reason": "Current componentsForSlot (lib/plan/slot-override.ts:27) returns the planned components when an override has no components, so a time-only override cannot reach .reduce on undefined. Only already-cached old builds were exposed and cannot be patched from the repo."
+  },
+  {
+   "idx": 384,
+   "reason": "Same as idx 379: the current guard in lib/plan/slot-override.ts componentsForSlot (`override?.components ?? planned`) prevents the crash; old client builds cannot be fixed server-side."
+  },
+  {
+   "idx": 480,
+   "reason": "Handoff docs record 20261228090000_target_writes_service_role_only as applied to production on 2026-10-08, and AGENTS.md describes the code as deployed. The ordering rule was followed, so the item is done. A receipt file was not checked."
+  },
+  {
+   "idx": 19,
+   "reason": "Done. lib/server/jobs.ts and lib/server/expenditure.ts now resolve the zone from user_settings.time_zone first, then HEALTH_TZ, with UTC as the default (jobs.ts:6,151,167,176-184; expenditure.ts:51-54). The fixed America/New_York default is gone."
+  },
+  {
+   "idx": 381,
+   "reason": "Done or obsolete: SASHA_USER_ID no longer appears in app/, lib/, scripts/ or .env.example (only in old plan docs), so the singleton MCP read is gone."
+  },
+  {
+   "idx": 391,
+   "reason": "Done or obsolete: same evidence as 381; no code reads SASHA_USER_ID, and the variable was confirmed set on 2026-09-15."
+  },
+  {
+   "idx": 389,
+   "reason": "Done or obsolete: lib/migrate/ no longer exists in the checkout, so the legacy backfill that omitted item overrides is gone."
+  },
+  {
+   "idx": 113,
+   "reason": "Done: lib/server/plan-inspire.ts imports stripImageMetadata and strips before any provider call, tests/plan/plan-inspire.test.ts documents W12-F, tests/media/strip-metadata.test.ts exists, and components/PlanSheet.tsx uses PhotoPrivacyNotice."
+  },
+  {
+   "idx": 303,
+   "reason": "Done: lib/server/plan-ideas.ts wires universeRefs from composePoolPorts (compose-pool-ports.ts:36)."
+  },
+  {
+   "idx": 475,
+   "reason": "Done: components/EatenOften.tsx exists and references the taste/favor routes."
+  },
+  {
+   "idx": 477,
+   "reason": "Done: foodSignal wired in PlanSheet, MealSwapSheet, CoachComposedCard (components/signals/*)."
+  },
+  {
+   "idx": 478,
+   "reason": "Done: components/PantryPhotoCapture.tsx (with test) is used from PlanSheet."
+  },
+  {
+   "idx": 272,
+   "reason": "E9 UI is built: components/TdeeLines.tsx has range (rangeAround), cycle line and the held-status branch (line 81). Remaining pieces (confirm-rate invitation, export columns) are in the follow-ups item."
+  },
+  {
+   "idx": 307,
+   "reason": "Day mark and range UI exist: components/today/DayCompleteControl.tsx and TdeeLines range. Body-fat export columns and step F are covered by other items; only the plan status row is stale."
+  },
+  {
+   "idx": 447,
+   "reason": "Done: _care_water_goal in 20261225090100_care_points_ledger.sql now ports lib/water-goal.ts (mode detection, auto goal 0.6 oz/lb, 64-160 oz clamp, +16 oz on training days), so the ledger no longer compares cups with a stale manual 8."
+  }
+ ]
+}

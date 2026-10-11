@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coach Request Path</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --paper:#E0DCD1; --paper-2:#D3CDC0; --ink:#1D1D1C; --muted:#4F5343; --soft:#5E5C55;
+  --rule:rgba(29,29,28,.14); --rule-solid:#A9A394; --accent:#9E431B; --accent-tint:rgba(212,107,56,.12);
+  --link:#3F6482; --node:#F6F2E9; --muted-10:rgba(79,83,67,.10); --ink-05:rgba(29,29,28,.05);
+  --font-title:'Fraunces','Noto Serif',serif; --font-sans:'Plus Jakarta Sans',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+    --rule:rgba(226,220,208,.14); --rule-solid:rgba(226,220,208,.28); --accent:#E59A73; --accent-tint:rgba(229,154,115,.12);
+    --link:#A2C4D2; --node:#2A2A27; --muted-10:rgba(177,178,169,.10); --ink-05:rgba(226,220,208,.05);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+  --rule:rgba(226,220,208,.14); --rule-solid:rgba(226,220,208,.28); --accent:#E59A73; --accent-tint:rgba(229,154,115,.12);
+  --link:#A2C4D2; --node:#2A2A27; --muted-10:rgba(177,178,169,.10); --ink-05:rgba(226,220,208,.05);
+}
+body { font-family:var(--font-sans); background:var(--paper); color:var(--ink); padding:3rem 2rem; line-height:1.5; }
+.frame { max-width:1400px; margin:0 auto; }
+.eyebrow { font-family:var(--font-mono); font-size:.66rem; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:.5rem; }
+h1 { font-family:var(--font-title); font-weight:400; font-size:clamp(1.5rem,2.4vw + .75rem,2rem); letter-spacing:-.02em; line-height:1.15; margin-bottom:.75rem; }
+h2 { font-family:var(--font-title); font-weight:400; font-size:1.25rem; letter-spacing:-.01em; margin:2.5rem 0 .25rem; }
+.sub { color:var(--muted); max-width:72ch; font-size:.95rem; }
+.cap { color:var(--soft); max-width:80ch; font-size:.85rem; margin:0 0 .75rem; }
+.diagram-container { width:100%; overflow-x:auto; }
+svg { width:100%; display:block; }
+.cards { display:grid; grid-template-columns:1.1fr 1fr .9fr; gap:1rem; margin-top:2.5rem; }
+.card { background:var(--node); border:1px solid var(--rule); border-radius:6px; padding:1rem 1.1rem; }
+.card .eyebrow { margin-bottom:.35rem; }
+.card p, .card li { font-size:.85rem; color:var(--ink); }
+.card ul { padding-left:1.1rem; }
+code, .mono { font-family:var(--font-mono); font-size:.8em; color:var(--muted); }
+footer { margin-top:2.5rem; border-top:1px solid var(--rule); padding-top:.75rem; font-family:var(--font-mono); font-size:.65rem; color:var(--muted); }
+@media (max-width:820px) { .cards { grid-template-columns:1fr; } body { padding:2rem 16px; } }
+@media print { .diagram-container { overflow-x:visible; } svg { min-width:0 !important; } }
+/* svg roles */
+.bg { fill:var(--paper); }
+.mask { fill:var(--paper); }
+.node { fill:var(--node); stroke:var(--ink); stroke-width:1; }
+.node-phone { fill:var(--muted-10); stroke:var(--soft); stroke-width:1; }
+.node-focal { fill:var(--accent-tint); stroke:var(--accent); stroke-width:1.2; }
+.t-name { font:600 12px var(--font-sans); fill:var(--ink); }
+.t-sub { font:400 9px var(--font-mono); fill:var(--soft); }
+.t-eye { font:500 8px var(--font-mono); letter-spacing:.14em; fill:var(--muted); }
+.t-arrow { font:400 8px var(--font-mono); letter-spacing:.06em; fill:var(--muted); }
+.t-leg { font:400 9px var(--font-mono); fill:var(--muted); }
+.t-chip { font:500 7px var(--font-mono); letter-spacing:.08em; }
+.chip-rls { fill:var(--node); stroke:var(--link); stroke-width:.8; }
+.chip-rls-t { fill:var(--link); stroke:none; }
+.chip-admin { fill:var(--ink); stroke:var(--ink); stroke-width:.8; }
+.chip-admin-t { fill:var(--paper); stroke:none; }
+.chip-phone { fill:none; stroke:var(--soft); stroke-width:.8; }
+.chip-phone-t { fill:var(--soft); stroke:none; }
+.chip-sql { fill:none; stroke:var(--muted); stroke-width:.8; stroke-dasharray:3,2; }
+.chip-sql-t { fill:var(--muted); stroke:none; }
+.arrow { fill:none; stroke:var(--muted); stroke-width:1.2; }
+.arrow-ac { fill:none; stroke:var(--accent); stroke-width:1.2; }
+.mk { fill:var(--muted); }
+.mk-ac { fill:var(--accent); }
+.rule { stroke:var(--rule); stroke-width:.8; }
+.life { stroke:var(--rule-solid); stroke-width:1; stroke-dasharray:3,3; }
+.act { fill:var(--ink-05); stroke:var(--muted); stroke-width:.8; }
+svg .altframe { fill:var(--ink-05); stroke:var(--rule-solid); stroke-width:1; }
+.tab { fill:var(--paper); stroke:var(--rule-solid); stroke-width:1; }
+.divider { stroke:var(--rule-solid); stroke-width:1; stroke-dasharray:4,3; }
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Flow, callModel gates, sequence · Diagram Design</p>
+<h1>Coach request path</h1>
+<p class="sub">One coach turn, from the ask box to server Undo. Each step shows which database client it uses: RLS (the user's session) or ADMIN (service role). Audit 2026-10-10, repo at 7405f41f. File and line references are in coach-path.md.</p>
+
+<h2>1. The turn</h2>
+<p class="cap">The server returns grounded actions and never writes them. The phone applies them, then records an Undo token. Detail level: faithful, 12 nodes.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1320 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coach-turn-title coach-turn-desc" style="min-width:1320px">
+<title id="coach-turn-title">Coach turn from ask box to Undo</title>
+<desc id="coach-turn-desc">Flow of one coach turn: the ask box posts to the route, setup and Jev intent run, a fast path or the model loop answers, the reply is saved and returned, and the phone applies actions and records Undo.</desc>
+<defs>
+<marker id="t-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+<marker id="t-ac" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-ac" points="0 0, 8 3, 0 6"/></marker>
+</defs>
+<rect class="bg" width="100%" height="100%"/>
+<path class="arrow" d="M220 104 H300" marker-end="url(#t-a)"/>
+<rect class="mask" x="232.0" y="86" width="56" height="12" rx="2"/><text class="t-arrow" x="260.0" y="95" text-anchor="middle">POST TURN</text>
+<path class="arrow" d="M480 104 H560" marker-end="url(#t-a)"/>
+<rect class="mask" x="494.0" y="86" width="52" height="12" rx="2"/><text class="t-arrow" x="520.0" y="95" text-anchor="middle">RUN TURN</text>
+<path class="arrow" d="M740 104 H820" marker-end="url(#t-a)"/>
+<rect class="mask" x="752.0" y="86" width="56" height="12" rx="2"/><text class="t-arrow" x="780.0" y="95" text-anchor="middle">NO REPLAY</text>
+<path class="arrow" d="M1000 104 H1080" marker-end="url(#t-a)"/>
+<rect class="mask" x="1016.0" y="86" width="48" height="12" rx="2"/><text class="t-arrow" x="1040.0" y="95" text-anchor="middle">GATE OK</text>
+<path class="arrow" d="M1170.0 152 V216" marker-end="url(#t-a)"/>
+<rect class="mask" x="1178.0" y="178.0" width="40" height="12" rx="2"/><text class="t-arrow" x="1198.0" y="187.0" text-anchor="middle">INTENT</text>
+<path class="arrow" d="M1080 264 H1000" marker-end="url(#t-a)"/>
+<rect class="mask" x="1024.0" y="246" width="32" height="12" rx="2"/><text class="t-arrow" x="1040.0" y="255" text-anchor="middle">MISS</text>
+<path class="arrow" d="M820 264 H740" marker-end="url(#t-a)"/>
+<rect class="mask" x="762.0" y="246" width="36" height="12" rx="2"/><text class="t-arrow" x="780.0" y="255" text-anchor="middle">FINAL</text>
+<path class="arrow" d="M910.0 312 V376" marker-start="url(#t-a)" marker-end="url(#t-a)"/>
+<rect class="mask" x="918.0" y="338.0" width="36" height="12" rx="2"/><text class="t-arrow" x="936.0" y="347.0" text-anchor="middle">TOOLS</text>
+<path class="arrow" d="M650.0 312 V376" marker-end="url(#t-a)"/>
+<rect class="mask" x="658.0" y="338.0" width="36" height="12" rx="2"/><text class="t-arrow" x="676.0" y="347.0" text-anchor="middle">REPLY</text>
+<path class="arrow" d="M1170.0 312 V496 A8 8 0 0 1 1162.0 504 H658.0 A8 8 0 0 1 650.0 496 V472" marker-end="url(#t-a)"/>
+<rect class="mask" x="898.0" y="486" width="24" height="12" rx="2"/><text class="t-arrow" x="910.0" y="495" text-anchor="middle">HIT</text>
+<path class="arrow" d="M560 424 H480" marker-end="url(#t-a)"/>
+<rect class="mask" x="494.0" y="406" width="52" height="12" rx="2"/><text class="t-arrow" x="520.0" y="415" text-anchor="middle">RESPONSE</text>
+<path class="arrow" d="M300 424 H220" marker-end="url(#t-a)"/>
+<rect class="mask" x="242.0" y="406" width="36" height="12" rx="2"/><text class="t-arrow" x="260.0" y="415" text-anchor="middle">TOKEN</text>
+<rect class="mask" x="40" y="56" width="180" height="96" rx="6"/>
+<rect class="node-phone" x="40" y="56" width="180" height="96" rx="6"/>
+<rect class="chip-phone" x="50" y="64" width="36" height="14" rx="2"/><text class="t-chip chip-phone-t" x="68.0" y="74" text-anchor="middle">PHONE</text>
+<text class="t-name" x="50" y="96">Ask box</text>
+<text class="t-sub" x="50" y="112">scope: component|page|global</text>
+<text class="t-sub" x="50" y="126">POST /api/coach + messageId</text>
+<text class="t-sub" x="50" y="140">no write on the phone yet</text>
+<rect class="mask" x="300" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="300" y="56" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="310" y="64" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="324.0" y="74" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="342" y="64" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="360.0" y="74" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="310" y="96">POST /api/coach</text>
+<text class="t-sub" x="310" y="112">flag · IP limit 120/min</text>
+<text class="t-sub" x="310" y="126">requireUser · 16 KB body</text>
+<text class="t-sub" x="310" y="140">runTurn(client, admin)</text>
+<rect class="mask" x="560" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="560" y="56" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="570" y="64" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="584.0" y="74" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="602" y="64" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="620.0" y="74" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="570" y="96">Setup reads</text>
+<text class="t-sub" x="570" y="112">ADMIN budget 10/h · 60/d</text>
+<text class="t-sub" x="570" y="126">RLS replay · thread · seq</text>
+<text class="t-sub" x="570" y="140">RLS policy profile</text>
+<rect class="mask" x="820" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="820" y="56" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="830" y="64" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="844.0" y="74" text-anchor="middle">RLS</text>
+<text class="t-name" x="830" y="96">Deflect · recall · gate</text>
+<text class="t-sub" x="830" y="112">medical text: no model</text>
+<text class="t-sub" x="830" y="126">RLS saved-chat recall</text>
+<text class="t-sub" x="830" y="140">503 if terms unrecorded</text>
+<rect class="mask" x="1080" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="1080" y="56" width="180" height="96" rx="6"/>
+<rect class="chip-admin" x="1090" y="64" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="1108.0" y="74" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="1090" y="96">Jev intent</text>
+<text class="t-sub" x="1090" y="112">systemOne · 3 s deadline</text>
+<text class="t-sub" x="1090" y="126">fast if conf ≥ .95 / .90</text>
+<text class="t-sub" x="1090" y="140">ledger + telemetry ADMIN</text>
+<rect class="mask" x="1080" y="216" width="180" height="96" rx="6"/>
+<rect class="node" x="1080" y="216" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="1090" y="224" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="1104.0" y="234" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="1122" y="224" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="1140.0" y="234" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="1090" y="256">Fast path</text>
+<text class="t-sub" x="1090" y="272">chart · suggest · 1 action</text>
+<text class="t-sub" x="1090" y="286">no generative model call</text>
+<text class="t-sub" x="1090" y="300">scope filter, then ground</text>
+<rect class="mask" x="820" y="216" width="180" height="96" rx="6"/>
+<rect class="node-focal" x="820" y="216" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="830" y="224" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="844.0" y="234" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="862" y="224" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="880.0" y="234" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="830" y="256">Model loop</text>
+<text class="t-sub" x="830" y="272">callModel gates: view 2</text>
+<text class="t-sub" x="830" y="286">≤ 10 tool calls · 30 s</text>
+<text class="t-sub" x="830" y="300">context RLS + ADMIN</text>
+<rect class="mask" x="560" y="216" width="180" height="96" rx="6"/>
+<rect class="node" x="560" y="216" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="570" y="224" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="584.0" y="234" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="602" y="224" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="620.0" y="234" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="570" y="256">Final step</text>
+<text class="t-sub" x="570" y="272">scope filter → ground</text>
+<text class="t-sub" x="570" y="286">ADMIN policy · Jev verify</text>
+<text class="t-sub" x="570" y="300">one correction round</text>
+<rect class="mask" x="820" y="376" width="180" height="96" rx="6"/>
+<rect class="node" x="820" y="376" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="830" y="384" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="844.0" y="394" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="862" y="384" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="880.0" y="394" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="830" y="416">Tools (read-only)</text>
+<text class="t-sub" x="830" y="432">compose_meal ≤ 1 per turn</text>
+<text class="t-sub" x="830" y="446">suggest_options ≤ 1 per turn</text>
+<text class="t-sub" x="830" y="460">ports take userId, not model</text>
+<rect class="mask" x="560" y="376" width="180" height="96" rx="6"/>
+<rect class="node-focal" x="560" y="376" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="570" y="384" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="584.0" y="394" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="602" y="384" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="620.0" y="394" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="570" y="416">Save + respond</text>
+<text class="t-sub" x="570" y="432">RLS persist user + reply</text>
+<text class="t-sub" x="570" y="446">ADMIN plan thread, ai link</text>
+<text class="t-sub" x="570" y="460">actions returned, not run</text>
+<rect class="mask" x="300" y="376" width="180" height="96" rx="6"/>
+<rect class="node-phone" x="300" y="376" width="180" height="96" rx="6"/>
+<rect class="chip-phone" x="310" y="384" width="36" height="14" rx="2"/><text class="t-chip chip-phone-t" x="328.0" y="394" text-anchor="middle">PHONE</text>
+<rect class="chip-rls" x="350" y="384" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="364.0" y="394" text-anchor="middle">RLS</text>
+<text class="t-name" x="310" y="416">Apply on phone</text>
+<text class="t-sub" x="310" y="432">local store + outbox</text>
+<text class="t-sub" x="310" y="446">POST /api/sync/ops (RLS)</text>
+<text class="t-sub" x="310" y="460">apply_sync_op RPC</text>
+<rect class="mask" x="40" y="376" width="180" height="96" rx="6"/>
+<rect class="node" x="40" y="376" width="180" height="96" rx="6"/>
+<rect class="chip-rls" x="50" y="384" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="64.0" y="394" text-anchor="middle">RLS</text>
+<text class="t-name" x="50" y="416">Server Undo</text>
+<text class="t-sub" x="50" y="432">record_coach_undo RPC</text>
+<text class="t-sub" x="50" y="446">perform_coach_undo RPC</text>
+<text class="t-sub" x="50" y="460">SECURITY DEFINER, RLS call</text>
+<line class="rule" x1="30" y1="540" x2="1290" y2="540"/>
+<text class="t-eye" x="30" y="560">LEGEND</text>
+<rect class="chip-rls" x="110" y="550" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="124.0" y="560" text-anchor="middle">RLS</text>
+<text class="t-leg" x="146" y="560">session client (RLS)</text>
+<rect class="chip-admin" x="282" y="550" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="300.0" y="560" text-anchor="middle">ADMIN</text>
+<text class="t-leg" x="326" y="560">service-role client</text>
+<rect class="chip-phone" x="458" y="550" width="36" height="14" rx="2"/><text class="t-chip chip-phone-t" x="476.0" y="560" text-anchor="middle">PHONE</text>
+<text class="t-leg" x="502" y="560">runs on the phone</text>
+<path class="arrow" d="M622 556 H650" marker-end="url(#t-a)"/>
+<text class="t-leg" x="658" y="560">control passes</text>
+<rect class="node-focal" x="762" y="549" width="20" height="14" rx="3"/>
+<text class="t-leg" x="790" y="560">focal step</text>
+</svg>
+</div>
+
+<h2>2. callModel, the one governed model path</h2>
+<p class="cap">Jev, Gemini and OpenRouter calls all pass these gates in this order. Gates 1 to 6 refuse with no ledger row and no provider I/O.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1320 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coach-call-model-title coach-call-model-desc" style="min-width:1320px">
+<title id="coach-call-model-title">callModel gate chain</title>
+<desc id="coach-call-model-desc">Eight gates every model call passes in order: provenance, registry, attestation, lane admission, circuit, spend reservation, transport and ledger.</desc>
+<defs>
+<marker id="g-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+<marker id="g-ac" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-ac" points="0 0, 8 3, 0 6"/></marker>
+</defs>
+<rect class="bg" width="100%" height="100%"/>
+<path class="arrow" d="M220 104 H300" marker-end="url(#g-a)"/>
+<path class="arrow" d="M480 104 H560" marker-end="url(#g-a)"/>
+<path class="arrow" d="M740 104 H820" marker-end="url(#g-a)"/>
+<path class="arrow" d="M1000 104 H1080" marker-end="url(#g-a)"/>
+<path class="arrow" d="M1170.0 152 V216" marker-end="url(#g-a)"/>
+<rect class="mask" x="1178.0" y="178.0" width="32" height="12" rx="2"/><text class="t-arrow" x="1194.0" y="187.0" text-anchor="middle">THEN</text>
+<path class="arrow" d="M1080 264 H1000" marker-end="url(#g-a)"/>
+<path class="arrow" d="M820 264 H740" marker-end="url(#g-a)"/>
+<path class="arrow" d="M560 264 H480" marker-end="url(#g-a)"/>
+<path class="arrow" d="M300 264 H220" marker-end="url(#g-a)"/>
+<rect class="mask" x="40" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="40" y="56" width="180" height="96" rx="6"/>
+<text class="t-name" x="50" y="96">Lane call</text>
+<text class="t-sub" x="50" y="112">Jev: systemOne</text>
+<text class="t-sub" x="50" y="126">Gemini: generateStructured</text>
+<text class="t-sub" x="50" y="140">OpenRouter: openrouter.ts</text>
+<rect class="mask" x="300" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="300" y="56" width="180" height="96" rx="6"/>
+<text class="t-name" x="310" y="96">1 Provenance</text>
+<text class="t-sub" x="310" y="112">payload from its builder</text>
+<text class="t-sub" x="310" y="126">else CallRefused</text>
+<text class="t-sub" x="310" y="140">no row, no provider I/O</text>
+<rect class="mask" x="560" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="560" y="56" width="180" height="96" rx="6"/>
+<text class="t-name" x="570" y="96">2 Registry</text>
+<text class="t-sub" x="570" y="112">purpose · provider · class</text>
+<text class="t-sub" x="570" y="126">else CallRefused</text>
+<text class="t-sub" x="570" y="140">no row, no provider I/O</text>
+<rect class="mask" x="820" y="56" width="180" height="96" rx="6"/>
+<rect class="node-focal" x="820" y="56" width="180" height="96" rx="6"/>
+<text class="t-name" x="830" y="96">3 Attestation</text>
+<text class="t-sub" x="830" y="112">Google, OpenRouter above D0</text>
+<text class="t-sub" x="830" y="126">else 503 nous_unconfirmed</text>
+<text class="t-sub" x="830" y="140">Jev has none (D1)</text>
+<rect class="mask" x="1080" y="56" width="180" height="96" rx="6"/>
+<rect class="node" x="1080" y="56" width="180" height="96" rx="6"/>
+<text class="t-name" x="1090" y="96">4 Lane admit</text>
+<text class="t-sub" x="1090" y="112">Jev: 3 calls per request</text>
+<text class="t-sub" x="1090" y="126">else skipped, null answer</text>
+<text class="t-sub" x="1090" y="140">no row</text>
+<rect class="mask" x="1080" y="216" width="180" height="96" rx="6"/>
+<rect class="node" x="1080" y="216" width="180" height="96" rx="6"/>
+<rect class="chip-admin" x="1090" y="224" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="1108.0" y="234" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="1090" y="256">5 Circuit</text>
+<text class="t-sub" x="1090" y="272">5 fails / 10 min, any user</text>
+<text class="t-sub" x="1090" y="286">or 1 permission_denied</text>
+<text class="t-sub" x="1090" y="300">reads ai_calls · fails open</text>
+<rect class="mask" x="820" y="216" width="180" height="96" rx="6"/>
+<rect class="node-focal" x="820" y="216" width="180" height="96" rx="6"/>
+<rect class="chip-admin" x="830" y="224" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="848.0" y="234" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="830" y="256">6 Spend reserve</text>
+<text class="t-sub" x="830" y="272">ai_spend_reserve RPC</text>
+<text class="t-sub" x="830" y="286">user $2 · global $50 a day</text>
+<text class="t-sub" x="830" y="300">429 cap · 503 fails closed</text>
+<rect class="mask" x="560" y="216" width="180" height="96" rx="6"/>
+<rect class="node" x="560" y="216" width="180" height="96" rx="6"/>
+<text class="t-name" x="570" y="256">7 Transport</text>
+<text class="t-sub" x="570" y="272">Gemini 3 tries, 15 s each</text>
+<text class="t-sub" x="570" y="286">Jev 2 tries, 3 s</text>
+<text class="t-sub" x="570" y="300">caller abort: AbortError</text>
+<rect class="mask" x="300" y="216" width="180" height="96" rx="6"/>
+<rect class="node" x="300" y="216" width="180" height="96" rx="6"/>
+<rect class="chip-admin" x="310" y="224" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="328.0" y="234" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="310" y="256">8 Ledger + settle</text>
+<text class="t-sub" x="310" y="272">one ai_calls row per call</text>
+<text class="t-sub" x="310" y="286">ok or classified failure</text>
+<text class="t-sub" x="310" y="300">settle to actual cost</text>
+<rect class="mask" x="40" y="216" width="180" height="96" rx="6"/>
+<rect class="node" x="40" y="216" width="180" height="96" rx="6"/>
+<text class="t-name" x="50" y="256">Result or throw</text>
+<text class="t-sub" x="50" y="272">parsed answer, or error</text>
+<text class="t-sub" x="50" y="286">Jev: error becomes null</text>
+<text class="t-sub" x="50" y="300">coach: 503 coach_unavailable</text>
+<line class="rule" x1="30" y1="360" x2="1290" y2="360"/>
+<text class="t-eye" x="30" y="380">LEGEND</text>
+<rect class="chip-admin" x="110" y="370" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="128.0" y="380" text-anchor="middle">ADMIN</text>
+<text class="t-leg" x="154" y="380">reads or writes with the service-role client</text>
+<path class="arrow" d="M422 376 H450" marker-end="url(#g-a)"/>
+<text class="t-leg" x="458" y="380">gate passed</text>
+<rect class="node-focal" x="546" y="369" width="20" height="14" rx="3"/>
+<text class="t-leg" x="574" y="380">focal gate</text>
+</svg>
+</div>
+
+<h2>3. Apply and Undo</h2>
+<p class="cap">Returns for messages 5, 7 and 9 are left out. The database functions are SECURITY DEFINER and read <span class="mono">auth.uid()</span> from the caller's JWT.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1320 940" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coach-apply-undo-title coach-apply-undo-desc" style="min-width:1320px">
+<title id="coach-apply-undo-title">Coach apply and server Undo sequence</title>
+<desc id="coach-apply-undo-desc">Sequence of a coach turn returning actions to the phone, the phone applying them through sync, and the phone recording and performing a server-side Undo.</desc>
+<defs>
+<marker id="s-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+<marker id="s-ac" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-ac" points="0 0, 8 3, 0 6"/></marker>
+</defs>
+<rect class="bg" width="100%" height="100%"/>
+<line class="life" x1="130" y1="104" x2="130" y2="828"/>
+<line class="life" x1="395" y1="104" x2="395" y2="828"/>
+<line class="life" x1="660" y1="104" x2="660" y2="828"/>
+<line class="life" x1="925" y1="104" x2="925" y2="828"/>
+<line class="life" x1="1190" y1="104" x2="1190" y2="828"/>
+<rect class="act" x="391" y="160" width="8" height="64"/>
+<rect class="act" x="656" y="312" width="8" height="64"/>
+<rect class="act" x="921" y="416" width="8" height="64"/>
+<rect class="act" x="921" y="520" width="8" height="292"/>
+<rect class="act" x="1186" y="360" width="8" height="16"/>
+<rect class="act" x="1186" y="464" width="8" height="16"/>
+<rect class="act" x="1186" y="568" width="8" height="208"/>
+<path class="arrow" d="M134 168 H391" marker-end="url(#s-a)"/>
+<rect class="mask" x="228.5" y="150" width="68" height="12" rx="2"/><text class="t-arrow" x="262.5" y="159" text-anchor="middle">1 POST TURN</text>
+<path class="arrow-ac" d="M391 216 H134" stroke-dasharray="5,4" marker-end="url(#s-ac)"/>
+<rect class="mask" x="234.5" y="198" width="56" height="12" rx="2"/><text class="t-arrow" x="262.5" y="207" text-anchor="middle">2 ACTIONS</text>
+<path class="arrow" d="M134 264 H166 A6 6 0 0 1 172 270 V274 A6 6 0 0 1 166 280 H138" marker-end="url(#s-a)"/>
+<text class="t-arrow" x="182" y="276">3 APPLY LOCAL</text>
+<path class="arrow" d="M134 320 H656" marker-end="url(#s-a)"/>
+<rect class="mask" x="535.5" y="302" width="64" height="12" rx="2"/><text class="t-arrow" x="567.5" y="311" text-anchor="middle">4 SYNC OPS</text>
+<path class="arrow" d="M664 368 H1186" marker-end="url(#s-a)"/>
+<rect class="mask" x="1023.5" y="350" width="68" height="12" rx="2"/><text class="t-arrow" x="1057.5" y="359" text-anchor="middle">5 RPC APPLY</text>
+<path class="arrow" d="M134 424 H921" marker-end="url(#s-a)"/>
+<rect class="mask" x="766.5" y="406" width="52" height="12" rx="2"/><text class="t-arrow" x="792.5" y="415" text-anchor="middle">6 RECORD</text>
+<path class="arrow" d="M929 472 H1186" marker-end="url(#s-a)"/>
+<rect class="mask" x="1021.5" y="454" width="72" height="12" rx="2"/><text class="t-arrow" x="1057.5" y="463" text-anchor="middle">7 RPC RECORD</text>
+<path class="arrow" d="M134 528 H921" marker-end="url(#s-a)"/>
+<rect class="mask" x="772.5" y="510" width="40" height="12" rx="2"/><text class="t-arrow" x="792.5" y="519" text-anchor="middle">8 UNDO</text>
+<path class="arrow" d="M929 576 H1186" marker-end="url(#s-a)"/>
+<rect class="mask" x="1017.5" y="558" width="80" height="12" rx="2"/><text class="t-arrow" x="1057.5" y="567" text-anchor="middle">9 RPC PERFORM</text>
+<rect class="altframe" x="885" y="616" width="365" height="164" rx="4"/>
+<rect class="tab" x="885" y="616" width="40" height="16" rx="2"/>
+<text class="t-eye" x="905" y="628" text-anchor="middle">ALT</text>
+<text class="t-arrow" x="949" y="648">[record_mode = legacy]</text>
+<path class="arrow" d="M1186 660 H1154 A6 6 0 0 0 1148 666 V670 A6 6 0 0 0 1154 676 H1182" marker-end="url(#s-a)"/>
+<text class="t-arrow" x="1138" y="672" text-anchor="end">10 FROM TOKEN</text>
+<line class="divider" x1="893" y1="700" x2="1242" y2="700"/>
+<text class="t-arrow" x="949" y="720">[receipt_v1 or taste_v1]</text>
+<path class="arrow" d="M1186 732 H1154 A6 6 0 0 0 1148 738 V742 A6 6 0 0 0 1154 748 H1182" marker-end="url(#s-a)"/>
+<text class="t-arrow" x="1138" y="744" text-anchor="end">11 FROM RECEIPT</text>
+<path class="arrow" d="M921 812 H134" stroke-dasharray="5,4" marker-end="url(#s-a)"/>
+<rect class="mask" x="499.5" y="794" width="56" height="12" rx="2"/><text class="t-arrow" x="527.5" y="803" text-anchor="middle">12 UNDONE</text>
+<rect class="mask" x="30.0" y="32" width="200" height="72" rx="6"/>
+<rect class="node" x="30.0" y="32" width="200" height="72" rx="6"/>
+<rect class="chip-phone" x="40.0" y="40" width="36" height="14" rx="2"/><text class="t-chip chip-phone-t" x="58.0" y="50" text-anchor="middle">PHONE</text>
+<text class="t-name" x="40.0" y="74">Phone</text>
+<text class="t-sub" x="40.0" y="90">ask box · local store</text>
+<rect class="mask" x="295.0" y="32" width="200" height="72" rx="6"/>
+<rect class="node" x="295.0" y="32" width="200" height="72" rx="6"/>
+<rect class="chip-rls" x="305.0" y="40" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="319.0" y="50" text-anchor="middle">RLS</text>
+<rect class="chip-admin" x="337.0" y="40" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="355.0" y="50" text-anchor="middle">ADMIN</text>
+<text class="t-name" x="305.0" y="74">/api/coach</text>
+<text class="t-sub" x="305.0" y="90">runTurn</text>
+<rect class="mask" x="560.0" y="32" width="200" height="72" rx="6"/>
+<rect class="node" x="560.0" y="32" width="200" height="72" rx="6"/>
+<rect class="chip-rls" x="570.0" y="40" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="584.0" y="50" text-anchor="middle">RLS</text>
+<text class="t-name" x="570.0" y="74">/api/sync/ops</text>
+<text class="t-sub" x="570.0" y="90">apply_sync_op</text>
+<rect class="mask" x="825.0" y="32" width="200" height="72" rx="6"/>
+<rect class="node" x="825.0" y="32" width="200" height="72" rx="6"/>
+<rect class="chip-rls" x="835.0" y="40" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="849.0" y="50" text-anchor="middle">RLS</text>
+<text class="t-name" x="835.0" y="74">/api/coach/undo</text>
+<text class="t-sub" x="835.0" y="90">record · perform</text>
+<rect class="mask" x="1090.0" y="32" width="200" height="72" rx="6"/>
+<rect class="node" x="1090.0" y="32" width="200" height="72" rx="6"/>
+<rect class="chip-sql" x="1100.0" y="40" width="28" height="14" rx="2"/><text class="t-chip chip-sql-t" x="1114.0" y="50" text-anchor="middle">SQL</text>
+<text class="t-name" x="1100.0" y="74">Postgres</text>
+<text class="t-sub" x="1100.0" y="90">RPCs · RLS tables</text>
+<line class="rule" x1="30" y1="880" x2="1290" y2="880"/>
+<text class="t-eye" x="30" y="900">LEGEND</text>
+<path class="arrow" d="M110 896 H138" marker-end="url(#s-a)"/>
+<text class="t-leg" x="146" y="900">call</text>
+<path class="arrow" d="M198 896 H226" stroke-dasharray="5,4" marker-end="url(#s-a)"/>
+<text class="t-leg" x="234" y="900">return</text>
+<rect class="chip-rls" x="298" y="890" width="28" height="14" rx="2"/><text class="t-chip chip-rls-t" x="312.0" y="900" text-anchor="middle">RLS</text>
+<text class="t-leg" x="334" y="900">session client</text>
+<rect class="chip-admin" x="438" y="890" width="36" height="14" rx="2"/><text class="t-chip chip-admin-t" x="456.0" y="900" text-anchor="middle">ADMIN</text>
+<text class="t-leg" x="482" y="900">service-role client</text>
+<rect class="chip-sql" x="614" y="890" width="28" height="14" rx="2"/><text class="t-chip chip-sql-t" x="628.0" y="900" text-anchor="middle">SQL</text>
+<text class="t-leg" x="650" y="900">database function</text>
+</svg>
+</div>
+
+<div class="cards">
+<div class="card"><p class="eyebrow">Session (RLS)</p><ul>
+<li>Thread, seq, replay and history reads and writes</li>
+<li>Catalog search, targets, constraints, rule review</li>
+<li>Every undo route and the sync op-log</li></ul></div>
+<div class="card"><p class="eyebrow">Admin (service role)</p><ul>
+<li>Turn budget, circuit, spend reservation and the ai_calls ledger</li>
+<li>Day context, totals, ref minting, grounding policies</li>
+<li>Plan-thread insert and the transcribe route</li></ul></div>
+<div class="card"><p class="eyebrow">Where it bends</p><p>Scope narrows actions but does not authorize. The budget counts only Gemini rows. See the findings list in coach-path.md.</p></div>
+</div>
+<footer>Sources: lib/coach/scope.ts, app/api/coach/route.ts, lib/server/coach-turn.ts and coach-turn/*, lib/coach/intent.ts, lib/ai/call.ts, lib/coach/actions/*, lib/coach/verify.ts, lib/coach/apply-client.ts, lib/server/coach-undo.ts.</footer>
+</div>
+</body>
+</html>
