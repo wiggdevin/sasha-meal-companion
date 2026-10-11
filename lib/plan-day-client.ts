@@ -4,10 +4,10 @@
  * Release A keeps the legacy localStorage store beside the normalized op-log
  * entities, so a write lands in both: Today reads the local store, while MCP
  * overlays normalized plan rows onto its legacy snapshot. The op is what syncs. The SQL `plan_days`
- * branch replaces the whole row from the payload, so a partial op would
- * erase `floor_day`, `swaps`, `slot_notes` and `item_overrides` — every op carries all five
- * fields, based on the mirror row, and clearing sends `day_type_override:
- * null` rather than dropping the key.
+ * branch keeps every field a payload omits (migration 20261026090000), so an update carries only
+ * the fields its patch names, each with the mirror value it replaced (`base_fields`) for the
+ * conflict merge; a create carries all five. Clearing sends `day_type_override: null` rather than
+ * dropping the key.
  */
 import { accountFetch, accountHandle, accountJson, type AccountHandle } from "@/lib/device/account";
 import { serializePlanDay } from "@/lib/sync/plan-day-queue";
@@ -15,6 +15,7 @@ import { withPlanAuthority } from "@/lib/sync/plan-authority";
 import { getDay, loadStore, saveStoreFor } from "@/lib/store";
 import { getRow } from "@/lib/sync/idb";
 import { enqueueWithRow } from "@/lib/sync/outbox";
+import { PLAN_DAY_EMPTY } from "@/lib/sync/merge";
 import { legacyPatch, projectOnlineEatenRow, type PlanDayPatch } from "@/lib/plan-day-projection";
 
 export type { PlanDayPatch };
@@ -80,24 +81,31 @@ async function writePlanDay(h: AccountHandle, date: string, patch: PlanDayPatch)
   const prospective: StoredDay = { ...legacyDay, ...legacyPatch(patch) };
   const mirror = (await getRow(h, "plan_days", date)) as PlanDayRow | undefined;
   const rev = typeof mirror?.rev === "number" ? mirror.rev : null;
-  const payload = {
-    local_date: date,
+  const whole = {
     day_type_override: patch.dayTypeOverride !== undefined
       ? patch.dayTypeOverride
       : (prospective.dayTypeOverride ?? mirror?.day_type_override ?? null),
     floor_day: prospective.floorDay ?? mirror?.floor_day ?? false,
     swaps: prospective.swaps ?? mirror?.swaps ?? {},
     slot_notes: prospective.notes ?? mirror?.slot_notes ?? {},
-    // The fifth field this op must carry. The SQL branch replaces the whole row, so leaving it out
-    // would delete every slot edited that day the next time Floor Day or
-    // picked a swap — see this file's header.
     item_overrides: prospective.itemOverrides ?? mirror?.item_overrides ?? {},
-    // Omit = keep on the server (migration `_sync_upsert`). Only a patch that
-    // names `eatenSlots` may replace the stored ticks; defaulting a missing
+  };
+  // Omit = keep on the server (migration 20261026090000, `_sync_upsert`): an update carries only
+  // the fields this patch names, so a conflict can merge them slot by slot against the mirror they
+  // started from (audit 2026-10-10 A141, B091). A day the server has no row for yet gets every one.
+  const named = rev === null ? whole : pickNamed(whole, patch);
+  const payload = {
+    local_date: date,
+    ...named,
+    // Only a patch that names `eatenSlots` may replace the stored ticks; defaulting a missing
     // mirror field to `{}` here would clear them instead.
     ...(patch.eatenSlots !== undefined ? { eaten_slots: patch.eatenSlots } : {}),
     ...(patch.dayCompleteAt !== undefined ? { day_complete_at: patch.dayCompleteAt } : {}),
   };
+  const baseFields = Object.fromEntries(Object.keys(payload)
+    .filter((field) => field !== "local_date" && field !== "eaten_slots")
+    .map((field) => [field, rev === null ? PLAN_DAY_EMPTY[field] ?? null
+      : (mirror as Record<string, unknown> | undefined)?.[field] ?? PLAN_DAY_EMPTY[field] ?? null]));
 
   await enqueueWithRow(h, { ...mirror, ...payload, rev: (rev ?? 0) + 1 }, {
     op_id: crypto.randomUUID(),
@@ -107,6 +115,7 @@ async function writePlanDay(h: AccountHandle, date: string, patch: PlanDayPatch)
     base_rev: rev,
     payload,
     client_ts: new Date().toISOString(),
+    base_fields: baseFields,
   });
 
   // Normalized plan changes have their own revision. Advancing the legacy whole-day timestamp
@@ -115,6 +124,17 @@ async function writePlanDay(h: AccountHandle, date: string, patch: PlanDayPatch)
   const day = withPlanAuthority({ ...store.days[date], date, ...legacyPatch(patch) });
   saveStoreFor(h, { ...store, days: { ...store.days, [date]: day } });
   return day;
+}
+
+/** The plan columns a patch names, by their wire names. */
+function pickNamed(whole: Record<string, unknown>, patch: PlanDayPatch): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (patch.dayTypeOverride !== undefined) out.day_type_override = whole.day_type_override;
+  if (patch.floorDay !== undefined) out.floor_day = whole.floor_day;
+  if (patch.swaps !== undefined) out.swaps = whole.swaps;
+  if (patch.notes !== undefined) out.slot_notes = whole.slot_notes;
+  if (patch.itemOverrides !== undefined) out.item_overrides = whole.item_overrides;
+  return out;
 }
 
 /**

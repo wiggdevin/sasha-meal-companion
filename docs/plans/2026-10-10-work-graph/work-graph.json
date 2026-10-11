@@ -1,0 +1,2802 @@
+{
+ "items": [
+  {
+   "id": "W001",
+   "title": "Rotate leaked secrets (Supabase token, other DB URLs, SASHA_SYNC_TOKEN) and record receipts",
+   "priority": "P0",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Credentials were printed into agent output and the repo was briefly public; unrotated secrets are a live security exposure.",
+   "sources": [
+    "B095",
+    "B277"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W002",
+   "title": "Confirm repo stays private and find why it went public on 2026-10-10",
+   "priority": "P0",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "History holds client medical data; an unexplained visibility flip can recur.",
+   "sources": [
+    "B117"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W003",
+   "title": "Reconcile production migration ledger and record apply receipts (PR A undo receipts, conversations, 20261217-20261229 incl. client_timings_plan_chips) (verify)",
+   "priority": "P0",
+   "lane": "server-ops",
+   "kind": "ops",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Merged code reads columns from these migrations; an unapplied one breaks production paths, and receipts are missing.",
+   "sources": [
+    "B162",
+    "B126",
+    "B130",
+    "B087",
+    "B136"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W004",
+   "title": "Energy rule: stop storing unmeasured nutrients as 0, carry measured energy on account foods, fix Foundation import mapping",
+   "priority": "P0",
+   "lane": "nutrition-engine",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Unmeasured nutrients stored as 0 and 4/4/9 energy produce wrong calorie numbers on every log that uses those foods.",
+   "sources": [
+    "F01"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W005",
+   "title": "Owner: re-import Foundation and run the energy backfill on production",
+   "priority": "P0",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "The F01 code fix does not repair rows already stored with 0 energy until the production import and backfill run.",
+   "sources": [
+    "F01"
+   ],
+   "dependsOn": [
+    "W004"
+   ]
+  },
+  {
+   "id": "W006",
+   "title": "Weekly proposal and TDEE intake correctness (carb factor, ticked meals and recipes in intake, revision dating)",
+   "priority": "P0",
+   "lane": "nutrition-engine",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Proposals that cannot move downward and intake that misses ticked meals give users wrong calorie targets.",
+   "sources": [
+    "F02"
+   ],
+   "dependsOn": [
+    "W004"
+   ]
+  },
+  {
+   "id": "W007",
+   "title": "Target safety on every server write path: pace holds on proposals, kidney protein, minors, MCP set_constraints recompute",
+   "priority": "P0",
+   "lane": "targets-safety",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Pace holds and the adult floor are safety rules; the audit found write paths that bypass them.",
+   "sources": [
+    "F03"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W008",
+   "title": "Remove first-client KCAL_MIN_FLOOR=1650 from coach floors; give account_minimum a writer or drop the label",
+   "priority": "P0",
+   "lane": "targets-safety",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "A first-client constant floors every account's coach suggestions, violating the every-number-is-the-account's-own rule.",
+   "sources": [
+    "B028",
+    "B245",
+    "B241"
+   ],
+   "dependsOn": [
+    "W007"
+   ]
+  },
+  {
+   "id": "W009",
+   "title": "Legacy onboarding and Edit profile: catch AdultOnlyError, add safety round or 0 pace, stop fabricated weigh-ins",
+   "priority": "P0",
+   "lane": "onboarding",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Production still serves the legacy onboarding, so the crash and the missing safety round hit real sign-ups.",
+   "sources": [
+    "F13"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W010",
+   "title": "Health ingest: record dedupe event and samples in one transaction; correction upsert updates start_time and tz",
+   "priority": "P0",
+   "lane": "health",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "A failed apply after the dedupe event permanently loses the payload.",
+   "sources": [
+    "F04"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W011",
+   "title": "Sync merge conflicts: tombstone restore, per-entity op rebase, field-wise plan_days with per-slot item_overrides merge, idempotent note joins",
+   "priority": "P0",
+   "lane": "sync",
+   "kind": "bug",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Concurrent edits across devices silently lose or duplicate user data.",
+   "sources": [
+    "F05",
+    "B091",
+    "B014"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W012",
+   "title": "Exports: page past the 1,000-row cap, validate cursors, per-date water goals, add body-fat provenance columns",
+   "priority": "P0",
+   "lane": "server-api",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Exports silently truncate at 1,000 rows, so a user's export of their own data is incomplete.",
+   "sources": [
+    "F06",
+    "B259"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W013",
+   "title": "Capture and log sheet portion maths: parse portion amounts, no invented 100 g per piece, stepper moves grams",
+   "priority": "P0",
+   "lane": "capture-catalog",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Invented 100 g portions log wrong calories.",
+   "sources": [
+    "F07"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W014",
+   "title": "Food rules parity on coach plan writes, menu and document imports, offline barcode verdicts and starters",
+   "priority": "P0",
+   "lane": "food-policy",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Coach and import paths skip diet flags and profile hard rules, a safety-rule break.",
+   "sources": [
+    "F08"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W015",
+   "title": "Bundled food data and portion bands: oil-packed fish, cheese band, default portions, Ramen/Overnight oats SR rows",
+   "priority": "P0",
+   "lane": "nutrition-engine",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Wrong SR rows and portion bands produce wrong nutrition numbers in generated meals.",
+   "sources": [
+    "F09"
+   ],
+   "dependsOn": [
+    "W004"
+   ]
+  },
+  {
+   "id": "W016",
+   "title": "Nightly backup: derive table list from schema, keyset paging, time-budgeted resumable passes",
+   "priority": "P0",
+   "lane": "server-ops",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "The backup omits dietary-rule, allergen, shopping and recipe-plan tables, so a restore would lose user data.",
+   "sources": [
+    "F10"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W017",
+   "title": "Capture and log flow: fix \"Save as my food\" label save, save blocked items with a mark, consistent scan units, duplicate 409 draft",
+   "priority": "P0",
+   "lane": "capture-catalog",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Label save is broken and blocked items are refused against the logging-marks ruling, breaking a core flow.",
+   "sources": [
+    "F11"
+   ],
+   "dependsOn": [
+    "W013"
+   ]
+  },
+  {
+   "id": "W018",
+   "title": "Lock down server-owned tables and columns from direct PostgREST writes (target_profiles, change_log, health_sources, user_settings, coach_messages)",
+   "priority": "P0",
+   "lane": "security",
+   "kind": "security",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Authenticated users can write server-owned rows directly, bypassing safety and tenancy checks.",
+   "sources": [
+    "F19",
+    "B100"
+   ],
+   "dependsOn": [
+    "W003"
+   ]
+  },
+  {
+   "id": "W019",
+   "title": "Media storage: remove authenticated bucket writes, owner-prefix paths, path traversal checks, strip EXIF on plan and document photos",
+   "priority": "P0",
+   "lane": "security",
+   "kind": "security",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Path traversal and foreign-path sweeps are tenancy breaks; EXIF location leaks to the model.",
+   "sources": [
+    "F20",
+    "B116"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W020",
+   "title": "Coach shopping-apply: capture the account once and reject on a mid-apply account switch",
+   "priority": "P0",
+   "lane": "coach-ai",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "A mid-apply account switch writes shopping items into the wrong account, a tenancy break.",
+   "sources": [
+    "B061"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W021",
+   "title": "Verify Floor Day slot meals and low-FODMAP uncategorised foods honour Avoid and read unknown; fix Plan sheet title regression (verify)",
+   "priority": "P0",
+   "lane": "food-policy",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "If either path still bypasses Avoid or marks unknown foods safe, it is a safety-rule break.",
+   "sources": [
+    "B105",
+    "B221"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W022",
+   "title": "Allergen evidence fixes: assessed evidence before allowed on barcode/catalog, tahini-to-dairy and coconut tree-nut mappings, rice/tuna gluten rows from Jev warm (verify)",
+   "priority": "P0",
+   "lane": "food-policy",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Wrong allergen mappings either hide a real allergen or block safe food, both safety-rule issues.",
+   "sources": [
+    "B193",
+    "B197",
+    "B277"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W023",
+   "title": "Renumber parked migrations that collide on 20261229090000 (account deletion, voice_ears cleanup)",
+   "priority": "P1",
+   "lane": "server-ops",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Two parked branches cannot land until their migration timestamps stop colliding with an applied one.",
+   "sources": [
+    "B135",
+    "B164"
+   ],
+   "dependsOn": [
+    "W003"
+   ]
+  },
+  {
+   "id": "W024",
+   "title": "Shopping planner preview: null-ref pantry photos, batch reuse, per-slot withdrawn recipes, LEAST-with-NULL stock, 0 g pantry",
+   "priority": "P1",
+   "lane": "recipes-shopping",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Preview crashes break the pilot's core flow; shopping is pilot-gated so production exposure is small.",
+   "sources": [
+    "F12"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W025",
+   "title": "Oura: one source per day for steps and energy, bucket by account day, real 401 token refresh, allowlist callback redirect",
+   "priority": "P1",
+   "lane": "health",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Double-counted steps and UTC bucketing corrupt health data and the open redirect is a security hole; must land before Oura is enabled.",
+   "sources": [
+    "F14",
+    "B264"
+   ],
+   "dependsOn": [
+    "W010"
+   ]
+  },
+  {
+   "id": "W026",
+   "title": "Sync outbox: per-entity order, whole-batch 4xx handling, atomic conflict rebase, parked-op release, conflict \"at\" timestamp",
+   "priority": "P1",
+   "lane": "sync",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "A delete can run before its backed-off create and parked ops never release, so edits stall or vanish.",
+   "sources": [
+    "F15",
+    "B234"
+   ],
+   "dependsOn": [
+    "W011"
+   ]
+  },
+  {
+   "id": "W027",
+   "title": "Log mirror reconcile ordering and delete-during-commit races (verify)",
+   "priority": "P1",
+   "lane": "sync",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "A concurrent forget and settle can send a delete with base_rev null and lose a log entry.",
+   "sources": [
+    "B015"
+   ],
+   "dependsOn": [
+    "W026"
+   ]
+  },
+  {
+   "id": "W028",
+   "title": "Coach actions: fast-path dates and compound quantities, split compound phrases, slot edits keep own food, list removals, delete_entry Undo titles",
+   "priority": "P1",
+   "lane": "coach-ai",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Fast-path actions log the wrong date or amount; the user sees a card with Undo, so it is P1 not P0.",
+   "sources": [
+    "F16"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W029",
+   "title": "Food membership and Favor consistency: refresh cache after server Favor, server-assigned membership revisions, role field deltas, re-Favor new refs",
+   "priority": "P1",
+   "lane": "food-world",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Device-clock revisions tie across tabs and a role save can revert an Avoid.",
+   "sources": [
+    "F17",
+    "B009"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W030",
+   "title": "Today meal cards: key by date, implement or remove Quick meals, ticked snapshot read, swap excludes current meal, non-negative modulo",
+   "priority": "P1",
+   "lane": "ui-today",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Stale drafts across dates show the wrong meal on Today, the app's main screen.",
+   "sources": [
+    "F18"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W031",
+   "title": "Finish voice retirement and account-zone precedence branch (Phase-14 retirement note, voice_ears cleanup migration, two it.todo tests)",
+   "priority": "P1",
+   "lane": "server-dates",
+   "kind": "tech-debt",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Account-zone precedence is a prerequisite for the server date fixes and the branch is already mostly built.",
+   "sources": [
+    "B058",
+    "B134"
+   ],
+   "dependsOn": [
+    "W023"
+   ]
+  },
+  {
+   "id": "W032",
+   "title": "Account-day dates on the server: cached targets, job days, coach recall, suggestion rotation, capture cap by account zone",
+   "priority": "P1",
+   "lane": "server-dates",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "UTC or HEALTH_TZ fallbacks put targets and jobs on the wrong day for US accounts.",
+   "sources": [
+    "F21"
+   ],
+   "dependsOn": [
+    "W031"
+   ]
+  },
+  {
+   "id": "W033",
+   "title": "Account-day dates and slot clocks on the phone and .ics export: local-day revisions, viewed-date meal count, midnight refresh",
+   "priority": "P1",
+   "lane": "ui-today",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Revisions dated by UTC and stale week pages show the wrong targets around midnight.",
+   "sources": [
+    "F22"
+   ],
+   "dependsOn": [
+    "W030"
+   ]
+  },
+  {
+   "id": "W034",
+   "title": "Database lock order: one global order across Favor, set_food_membership, get_or_create_food_ref and barcode, with a concurrent DB test",
+   "priority": "P1",
+   "lane": "server-db",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Inconsistent lock order deadlocks concurrent Favor and barcode writes, which grows with users.",
+   "sources": [
+    "F23"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W035",
+   "title": "Coach turn budget and limits: count turns, atomic fail-closed budget, per-user limiter on /api/coach and transcribe, seq-conflict retry, skip idle weekly reviews",
+   "priority": "P1",
+   "lane": "coach-ai",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Unbounded coach turns are a spend and abuse risk at 1,000 users.",
+   "sources": [
+    "F24",
+    "SCALE-5"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W036",
+   "title": "Plan-sheet imports: refuse unreadable document amounts, Unicode fractions and can sizes, cap Not-this list, typed redirect error",
+   "priority": "P1",
+   "lane": "coach-ai",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Defaulting unreadable amounts to one portion logs wrong nutrition from imported plans.",
+   "sources": [
+    "F25"
+   ],
+   "dependsOn": [
+    "W028"
+   ]
+  },
+  {
+   "id": "W037",
+   "title": "MCP route hardening: newest-N coach messages, read scope on batch calls, body size and shape after auth, IP limiter first, calendar dates",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "security",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Batch calls bypass the token's read scope.",
+   "sources": [
+    "F28"
+   ],
+   "dependsOn": [
+    "W019"
+   ]
+  },
+  {
+   "id": "W038",
+   "title": "Scale: unbounded reads on hot paths (soft-deleted user_foods, foodsFor and eligible .in() paging, recipe cap, chat search per thread)",
+   "priority": "P1",
+   "lane": "server-api",
+   "kind": "perf",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Reads past 1,000 rows truncate suggestions and slow hot paths as accounts grow.",
+   "sources": [
+    "F29",
+    "B222",
+    "SCALE-5"
+   ],
+   "dependsOn": [
+    "W012"
+   ]
+  },
+  {
+   "id": "W039",
+   "title": "Test guards that cannot fail: kosher meat-dairy, open-world safety oracle, NHANES microdata scan, each with a mutation check",
+   "priority": "P1",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Safety guards that cannot go red give false confidence on allergy and privacy rules.",
+   "sources": [
+    "F32"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W040",
+   "title": "Confirm DB-backed test suites actually run in CI and count skipped tests per run",
+   "priority": "P1",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "About 22 skipIf guards may silently skip the SQL proofs the safety rules rely on.",
+   "sources": [
+    "B169"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W041",
+   "title": "Scale step 1 - Measure: row counts, table sizes, pg_stat_statements, tier and plan, 200-op sync batch benchmark, branch backup run, hosted spend-reserve latency",
+   "priority": "P1",
+   "lane": "scale",
+   "kind": "research",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Every later scale fix needs measured numbers, and hosted latency of the spend reservation is unknown.",
+   "sources": [
+    "SCALE-1",
+    "B142"
+   ],
+   "dependsOn": [
+    "W050"
+   ]
+  },
+  {
+   "id": "W042",
+   "title": "Scale step 2 - Alerts: error tracker, uptime on /api/health, stale job_cursors and backup_runs alerts, spend over 60%, grounding cost watch",
+   "priority": "P1",
+   "lane": "scale",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Failures in crons, backups and spend are invisible today.",
+   "sources": [
+    "SCALE-2",
+    "B047",
+    "B172"
+   ],
+   "dependsOn": [
+    "W050"
+   ]
+  },
+  {
+   "id": "W043",
+   "title": "Scale step 3 - AI budget policy: raise global cap, reserve an interactive share, cap background jobs separately",
+   "priority": "P1",
+   "lane": "scale",
+   "kind": "feature",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "At the current $50 global cap, background jobs can starve interactive coach turns.",
+   "sources": [
+    "SCALE-3",
+    "B101"
+   ],
+   "dependsOn": [
+    "W035"
+   ]
+  },
+  {
+   "id": "W044",
+   "title": "Scale step 4 - Indexes and retention: ai_calls circuit indexes, log_items(food_ref_id) concurrently; purge client_timings, ai_calls, job_runs, recipe_plan_previews",
+   "priority": "P1",
+   "lane": "server-db",
+   "kind": "perf",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Unindexed circuit reads and unbounded telemetry tables degrade with time, not just users.",
+   "sources": [
+    "SCALE-4"
+   ],
+   "dependsOn": [
+    "W041"
+   ]
+  },
+  {
+   "id": "W045",
+   "title": "Scale step 5 - Safety quick fixes: maxDuration on sync/ops, sync_changes page byte cap, memoize loadAccountPrior",
+   "priority": "P1",
+   "lane": "scale",
+   "kind": "perf",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Cheap guards against timeouts and oversize pages before the user count grows.",
+   "sources": [
+    "SCALE-5"
+   ],
+   "dependsOn": [
+    "W038",
+    "W035"
+   ]
+  },
+  {
+   "id": "W046",
+   "title": "Scale step 6 - Hosted backup independent of the Mac: PITR or scheduled pg_dump, staleness alert, hosted restore and Storage drill, JSON importer or export-only",
+   "priority": "P1",
+   "lane": "server-ops",
+   "kind": "ops",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "The only full backup runs from a laptop launchd job and hosted restore is unproven.",
+   "sources": [
+    "SCALE-6",
+    "B139",
+    "B157",
+    "B153"
+   ],
+   "dependsOn": [
+    "W016",
+    "W041"
+   ]
+  },
+  {
+   "id": "W047",
+   "title": "Scale step 7 - Cut fan-out: SYNCED_EVENT only on change, one warm call, limiter thinning on cheap GETs, eligible cache keyed on all inputs",
+   "priority": "P1",
+   "lane": "sync",
+   "kind": "perf",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Each device fans out redundant requests on every sync pass.",
+   "sources": [
+    "SCALE-7"
+   ],
+   "dependsOn": [
+    "W041",
+    "W026"
+   ]
+  },
+  {
+   "id": "W048",
+   "title": "Scale step 8 - Replay receipts table, then change_log compaction with snapshots",
+   "priority": "P1",
+   "lane": "server-db",
+   "kind": "perf",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "change_log grows with time and is the largest structural scale risk.",
+   "sources": [
+    "SCALE-8"
+   ],
+   "dependsOn": [
+    "W041",
+    "W026"
+   ]
+  },
+  {
+   "id": "W049",
+   "title": "Concurrent sign-up load test and S3 job-sweep soak on an isolated stack (p50/p95, errors, auth email limit)",
+   "priority": "P1",
+   "lane": "scale",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Sign-up concurrency and 1,000-account job sweeps have never been measured.",
+   "sources": [
+    "B099",
+    "B141",
+    "B163",
+    "B280"
+   ],
+   "dependsOn": [
+    "W041"
+   ]
+  },
+  {
+   "id": "W050",
+   "title": "Issue a team-scoped Vercel token for the MCP so agents can read prod env and logs",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Agents cannot read production env or logs, which blocks measurement, alerts and env drift checks.",
+   "sources": [
+    "B118"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W051",
+   "title": "Auth production config: custom SMTP (150 to 900/h), sign-up toggle and {{ .Token }} template, DMARC p=none for zerosumsolutions.com",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Built-in SMTP rate limits and Spam-folder sign-up mail block self-serve growth.",
+   "sources": [
+    "B101",
+    "B102",
+    "B278"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W052",
+   "title": "Server-side IP limits for OTP and password sign-in; review Supabase auth rate limits",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "security",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Only a client-side floor exists, so sign-in is open to abuse.",
+   "sources": [
+    "B103"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W053",
+   "title": "Fix app-hardening branch Sol BLOCK (PII allowlist in client-errors, pre-read 4 KB cap) and land headers, error pages, /api/client-errors",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "security",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Production has no security headers or error pages.",
+   "sources": [
+    "B096"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W054",
+   "title": "Triage Supabase advisor backlog: mutable search_path, extensions in public, authenticated SECURITY DEFINER RPCs, unindexed FKs",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "security",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "15 security warnings include definer RPCs callable by authenticated users.",
+   "sources": [
+    "B113",
+    "B147",
+    "B152"
+   ],
+   "dependsOn": [
+    "W018"
+   ]
+  },
+  {
+   "id": "W055",
+   "title": "Make x-smc-account required on every route and add recovery for held ownerless ops (verify)",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "security",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Multi-user tenancy depends on every route checking the account header.",
+   "sources": [
+    "B106"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W056",
+   "title": "Confirm no unscoped legacy localStorage/IndexedDB keys remain before multi-user use (verify)",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "security",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Unscoped device storage would leak one account's data into another on a shared phone.",
+   "sources": [
+    "B159"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W057",
+   "title": "Finish self-serve account deletion (Settings flow, /api/account/delete, delete_account migration behind ACCOUNT_DELETION_ENABLED)",
+   "priority": "P1",
+   "lane": "security",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Mostly built on a wip branch; self-serve deletion is expected before opening sign-up wider.",
+   "sources": [
+    "B098",
+    "B252",
+    "B044"
+   ],
+   "dependsOn": [
+    "W023"
+   ]
+  },
+  {
+   "id": "W058",
+   "title": "Honest-nutrition UI cleanup (t1h): ruleMark on slots/recipes/shopping lines, partial recipe nutrition, vegan badge on tags, recipe fit protein, small-portion rounding (verify)",
+   "priority": "P1",
+   "lane": "ui-today",
+   "kind": "bug",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Partial recipe nutrition shown as a full serving and a tag-trusting vegan badge are wrong numbers and unsafe claims.",
+   "sources": [
+    "B052"
+   ],
+   "dependsOn": [
+    "W030"
+   ]
+  },
+  {
+   "id": "W059",
+   "title": "Make barcode-scanned foods findable in name search (catalog_search is_active join)",
+   "priority": "P1",
+   "lane": "capture-catalog",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Scanned foods return zero hits in search, breaking re-logging of scanned items.",
+   "sources": [
+    "B007",
+    "B064"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W060",
+   "title": "Phase 12 checked-writer cutover: write_target_revision_checked (below_floor), floor migration, /api/targets and proposals on it, units from chat",
+   "priority": "P1",
+   "lane": "targets-safety",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Unblocked by the service-role-only migration; it closes the remaining floor gaps on target writes.",
+   "sources": [
+    "B029",
+    "B066",
+    "B250",
+    "B166"
+   ],
+   "dependsOn": [
+    "W007",
+    "W008"
+   ]
+  },
+  {
+   "id": "W061",
+   "title": "Owner: physical-device acceptance journeys (installed PWA offline start, barcode speed, voice, share, calendar, device ingest, gestures, slot time editor)",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "test-gap",
+   "size": "M",
+   "ownerOnly": true,
+   "why": "No real-device journey has ever been recorded and release claims depend on it.",
+   "sources": [
+    "B050",
+    "B154",
+    "B236",
+    "B093",
+    "B089"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W062",
+   "title": "Owner: re-test onb3 on a phone (incl. 375x812 QA) and flip NEXT_PUBLIC_CHAT_ONBOARDING=1",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "The new onboarding is built and merged but production still serves the old 6-step flow.",
+   "sources": [
+    "B040",
+    "B059",
+    "B247"
+   ],
+   "dependsOn": [
+    "W009"
+   ]
+  },
+  {
+   "id": "W063",
+   "title": "Owner: production runs of data-repair scripts (food-role-audit, food-membership-audit, recompute-target incl. user 40707946, allergen-jev-holds --review, annotate-policy-categories re-run)",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Known stale targets and contradictory memberships stay in production until these owner steps run.",
+   "sources": [
+    "B232",
+    "B168",
+    "B010",
+    "B277"
+   ],
+   "dependsOn": [
+    "W029"
+   ]
+  },
+  {
+   "id": "W064",
+   "title": "Owner: delete production smoke-test account mc-smoke-2026-09-13",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "An agent-created account sits in production data; deleting it is an owner-only destructive step.",
+   "sources": [
+    "B255"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W065",
+   "title": "Measure coach and capture speed acceptance (T0 AC7-AC10, coach first-text p95 on the OpenRouter lane) (verify)",
+   "priority": "P1",
+   "lane": "coach-ai",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "First-text p95 was 10-21 s against a 3 s target; the streaming decision needs current numbers.",
+   "sources": [
+    "B025"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W066",
+   "title": "Owner: resolve Gemini project 403 so the lookup lane and Gemini twins work again",
+   "priority": "P1",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Lookup grounding soft-fails and Gemini fallbacks are dead while access is denied.",
+   "sources": [
+    "B101",
+    "B077"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W067",
+   "title": "Care points ledger: server-side balance sum, full-week accolade on any sync, no raise on zone-day mismatch",
+   "priority": "P2",
+   "lane": "ui-today",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Balance truncates past 1,000 rows but care points carry no nutrition or safety weight.",
+   "sources": [
+    "F26"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W068",
+   "title": "AI call layer: abort before retry, caller aborts not counted toward circuit, status-only provider errors, spend seed",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Low-severity governance fixes; aborts poisoning the shared circuit can cause false outages.",
+   "sources": [
+    "F27"
+   ],
+   "dependsOn": [
+    "W043"
+   ]
+  },
+  {
+   "id": "W069",
+   "title": "API input validation: shared calendar-date, UUID and limit parsers; catalog search trim and detail checks",
+   "priority": "P2",
+   "lane": "server-api",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Malformed input answers 500 instead of 400; no data risk.",
+   "sources": [
+    "F30",
+    "B249"
+   ],
+   "dependsOn": [
+    "W038"
+   ]
+  },
+  {
+   "id": "W070",
+   "title": "Telemetry and event tables: revoke direct INSERT, rate-checked writers, client_timings checks NOT VALID then VALIDATE",
+   "priority": "P2",
+   "lane": "server-db",
+   "kind": "security",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Direct inserts bypass the route quotas; low impact but grows storage.",
+   "sources": [
+    "F31"
+   ],
+   "dependsOn": [
+    "W044"
+   ]
+  },
+  {
+   "id": "W071",
+   "title": "Scale step 9 - Single-round-trip RPCs: apply_sync_ops batch with stamping, consolidated log commit, queued per-account jobs",
+   "priority": "P2",
+   "lane": "server-db",
+   "kind": "perf",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Worth doing once measurement shows round trips dominate sync latency.",
+   "sources": [
+    "SCALE-9"
+   ],
+   "dependsOn": [
+    "W041",
+    "W026"
+   ]
+  },
+  {
+   "id": "W072",
+   "title": "Scale step 10 - Remove O(users) work: global catalog-ref revision, compute-tier triggers, partition big tables before Tier C",
+   "priority": "P2",
+   "lane": "server-db",
+   "kind": "perf",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "O(users) bumps on recipe_plan_state matter at Tier C, not the next 1,000 users.",
+   "sources": [
+    "SCALE-10"
+   ],
+   "dependsOn": [
+    "W034",
+    "W041"
+   ]
+  },
+  {
+   "id": "W073",
+   "title": "Phase 12 Later: floor check at proposal approval, one transaction for profile+target, weigh-in retarget RPC, below-minimum warning",
+   "priority": "P2",
+   "lane": "targets-safety",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Closes the remaining target write paths after the checked-writer cutover.",
+   "sources": [
+    "B030"
+   ],
+   "dependsOn": [
+    "W060"
+   ]
+  },
+  {
+   "id": "W074",
+   "title": "goal_rate_bp_week preset CHECK on target_profiles; recheck confirm-your-rate invitation need",
+   "priority": "P2",
+   "lane": "targets-safety",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Only user_settings validates the rate preset; a DB check closes it cheaply.",
+   "sources": [
+    "B124",
+    "B241"
+   ],
+   "dependsOn": [
+    "W007"
+   ]
+  },
+  {
+   "id": "W075",
+   "title": "Extend test_reset_user for about 19 newer user-owned tables",
+   "priority": "P2",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Incomplete test cleanup leaks state between DB tests.",
+   "sources": [
+    "B144",
+    "B275",
+    "B166"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W076",
+   "title": "Endpoint security matrix test: identity, body limit, rate limit, idempotency per route",
+   "priority": "P2",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "No test asserts each route's security contract; regressions slip in.",
+   "sources": [
+    "B115"
+   ],
+   "dependsOn": [
+    "W037"
+   ]
+  },
+  {
+   "id": "W077",
+   "title": "Identify and fix the flaky test trio (F7) and close ruling follow-ups (fast-path reply pair, canonical identity, serving yield)",
+   "priority": "P2",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Flaky tests waste paid CI minutes and mask real failures.",
+   "sources": [
+    "B285",
+    "B053"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W078",
+   "title": "CI and test secret hygiene: fix six zizmor workflow warnings, add a zizmor step, move DB URL out of argv in tests/catalog/helpers.ts",
+   "priority": "P2",
+   "lane": "security",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Medium workflow warnings and credentials in argv are latent leaks.",
+   "sources": [
+    "B119",
+    "B120",
+    "B158"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W079",
+   "title": "Full script-src Content-Security-Policy plus Lighthouse mobile and bundle-size CI gates",
+   "priority": "P2",
+   "lane": "security",
+   "kind": "security",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "CSP needs the headers block from app-hardening first; perf gates prevent regressions.",
+   "sources": [
+    "B097",
+    "B138",
+    "B166"
+   ],
+   "dependsOn": [
+    "W053"
+   ]
+  },
+  {
+   "id": "W080",
+   "title": "HEALTH_TOKEN_KEY rotation / re-seal script",
+   "priority": "P2",
+   "lane": "security",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Without a re-seal path a key rotation forces every Oura user to reconnect.",
+   "sources": [
+    "B110"
+   ],
+   "dependsOn": [
+    "W025"
+   ]
+  },
+  {
+   "id": "W081",
+   "title": "Env-name drift: document or remove HEALTH_INGEST_TOKEN, resolve production-only env names, track dark rollout flags and their production state",
+   "priority": "P2",
+   "lane": "docs-tests",
+   "kind": "docs",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Production flag state is unrecorded, so nobody knows what is on.",
+   "sources": [
+    "B111",
+    "B214",
+    "B276"
+   ],
+   "dependsOn": [
+    "W050"
+   ]
+  },
+  {
+   "id": "W082",
+   "title": "Owner: health production rollout (register Oura app, ingest flags, HEALTH_TZ, publish Apple Health shortcuts and env URL)",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "M",
+   "ownerOnly": true,
+   "why": "Health features stay dark until the owner registers the Oura app and sets the flags; fixes must land first.",
+   "sources": [
+    "B108",
+    "B125",
+    "B261",
+    "B262"
+   ],
+   "dependsOn": [
+    "W010",
+    "W025"
+   ]
+  },
+  {
+   "id": "W083",
+   "title": "Owner: widen CAPTURE_METHODS one method per deploy after each 10-item eval and phone gate",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Capture methods should open only after the portion and label fixes ship.",
+   "sources": [
+    "B122"
+   ],
+   "dependsOn": [
+    "W013",
+    "W017"
+   ]
+  },
+  {
+   "id": "W084",
+   "title": "Owner: recipe/shopping pilot production deployment and wider enablement (seed proof for all 24 recipes)",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Pilot code is merged but enabling more accounts needs the preview crash fixes and receipts.",
+   "sources": [
+    "B020",
+    "B149",
+    "B251"
+   ],
+   "dependsOn": [
+    "W024",
+    "W085"
+   ]
+  },
+  {
+   "id": "W085",
+   "title": "Recipe pilot acceptance gaps: R6 off-plan rejection, logged-version immutability, dairy and 3-food examples, two-account proof, concurrent consumed-history safety",
+   "priority": "P2",
+   "lane": "recipes-shopping",
+   "kind": "test-gap",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "The pilot was never exercised on its rejection and immutability rules.",
+   "sources": [
+    "B021",
+    "B251"
+   ],
+   "dependsOn": [
+    "W024"
+   ]
+  },
+  {
+   "id": "W086",
+   "title": "Coach Undo receipts PR B: apply_coach_op writer with server-minted write identity, phone stamp, routes",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Every Undo record stays legacy until a writer exists; needs the owner's restart-or-drop call.",
+   "sources": [
+    "B038",
+    "B055"
+   ],
+   "dependsOn": [
+    "W003"
+   ]
+  },
+  {
+   "id": "W087",
+   "title": "Coach live quality and privacy pass: 10-consecutive streak on OpenRouter lane, 1,200-token truncation rate, prompt-leak and hang recheck, F10 health-context spot check (verify)",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "test-gap",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "The all-category streak last ended 3/10 on an older lane; current quality is unproven.",
+   "sources": [
+    "B051",
+    "B121",
+    "B069",
+    "B071",
+    "B112"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W088",
+   "title": "Transactional coach thread and message saves",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Partial threads appear on DB failure; a cosmetic but growing data-quality issue.",
+   "sources": [
+    "B070"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W089",
+   "title": "Raise Jev MAX_LOGICAL_CALLS for plan-sheet chips and update the one-Jev-call test and W10 spec text",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Owner dropped the one-call cap; code and spec still enforce it.",
+   "sources": [
+    "B078",
+    "B200"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W090",
+   "title": "ExportCard: narrow the \"Everything you have logged\" claim, check closed-gate health context in coach (verify)",
+   "priority": "P2",
+   "lane": "ui-settings",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "The copy overclaims what the export holds.",
+   "sources": [
+    "B060",
+    "B033"
+   ],
+   "dependsOn": [
+    "W012"
+   ]
+  },
+  {
+   "id": "W091",
+   "title": "Stream coach replies (first visible text 3 s or less)",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Only worth building if measured first-text latency stays far above target.",
+   "sources": [
+    "B024"
+   ],
+   "dependsOn": [
+    "W065"
+   ]
+  },
+  {
+   "id": "W092",
+   "title": "Phase 19b day rebalance: resize plates, batch apply with one Undo, side foods, coach rebalance_day",
+   "priority": "P2",
+   "lane": "nutrition-engine",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "v1 panel is read-only; 19b waits on clinical sign-off and the R0 study.",
+   "sources": [
+    "B026",
+    "B057",
+    "B239"
+   ],
+   "dependsOn": [
+    "W093"
+   ]
+  },
+  {
+   "id": "W093",
+   "title": "Owner: Phase 19b R0 drift study (branch-only, aggregate) and first-client consent",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "research",
+   "size": "M",
+   "ownerOnly": true,
+   "why": "The study needs the first client's consent before any read.",
+   "sources": [
+    "B238"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W094",
+   "title": "TDEE step F test-suite audit: reference personas, derivation properties, adaptive convergence, noise, cycle simulations (verify)",
+   "priority": "P2",
+   "lane": "nutrition-engine",
+   "kind": "test-gap",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "The adaptive engine sets targets; missing named cases weaken the main numbers guard.",
+   "sources": [
+    "B242"
+   ],
+   "dependsOn": [
+    "W006"
+   ]
+  },
+  {
+   "id": "W095",
+   "title": "Duplicate-meal detection end to end: change_log event, sync duplicate_group_members, \"Logged twice?\" Keep both/Merge card",
+   "priority": "P2",
+   "lane": "logging",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Partly built on a wip branch; needs a reviewed schema change and the owner's finish-or-drop call.",
+   "sources": [
+    "B008",
+    "B065",
+    "B083",
+    "B235",
+    "B273"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W096",
+   "title": "Replay already-consumed plan_days feed rows so older cross-device edits reach Today",
+   "priority": "P2",
+   "lane": "sync",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Old cross-device plan edits may be missing until a replay runs.",
+   "sources": [
+    "B092"
+   ],
+   "dependsOn": [
+    "W011"
+   ]
+  },
+  {
+   "id": "W097",
+   "title": "W15 onboarding ablation: stable randomized arm assignment, onboarding shell hook, report job",
+   "priority": "P2",
+   "lane": "onboarding",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Events capture exists; the cuisine question stays closed until arms are assigned.",
+   "sources": [
+    "B137",
+    "B212"
+   ],
+   "dependsOn": [
+    "W062"
+   ]
+  },
+  {
+   "id": "W098",
+   "title": "W13 UI: Favored copy test, star as Favored toggle, Settings world switch, open-world invitation screen",
+   "priority": "P2",
+   "lane": "ui-foods",
+   "kind": "ui",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Backend landed; open-world release needs these screens.",
+   "sources": [
+    "B188",
+    "B203"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W099",
+   "title": "Reason chips on generated meals, swap rows and coach composed cards (eaten_often, on_list) and incomplete-card display",
+   "priority": "P2",
+   "lane": "ui-foods",
+   "kind": "ui",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "The engine emits reasons that no component renders.",
+   "sources": [
+    "B201",
+    "B228"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W100",
+   "title": "Shopping \"Use my list\" toggle, end date and Undo (W11)",
+   "priority": "P2",
+   "lane": "recipes-shopping",
+   "kind": "ui",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Routes and ranking exist but no UI calls them; pilot-only.",
+   "sources": [
+    "B202"
+   ],
+   "dependsOn": [
+    "W024"
+   ]
+  },
+  {
+   "id": "W101",
+   "title": "\"Not verified / Evidence under review\" copy for held allergens across surfaces; cuisines/country/taste screen completeness (verify)",
+   "priority": "P2",
+   "lane": "ui-foods",
+   "kind": "ui",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Held-allergen wording must be consistent so users understand why a food is unverified.",
+   "sources": [
+    "B230",
+    "B231"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W102",
+   "title": "Pass food_world into suggestion input so shortage copy knows open vs closed world (D13)",
+   "priority": "P2",
+   "lane": "food-world",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Closed-world users see \"Favored\" copy that does not apply to them.",
+   "sources": [
+    "B198",
+    "B229"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W103",
+   "title": "Taste chips: first-time account 409 settings_not_synced fix (verify) and stale TasteChipsCard after another device's change",
+   "priority": "P2",
+   "lane": "food-world",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Chips can drop on first onboarding and show stale state across devices.",
+   "sources": [
+    "B225",
+    "B195",
+    "B226"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W104",
+   "title": "Recover 36 Not-verified Eats foods: diet-label ingredient parser (Option B) with its own review",
+   "priority": "P2",
+   "lane": "food-policy",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Users lost 36 foods to Not verified; a reviewed parser restores them safely.",
+   "sources": [
+    "B190"
+   ],
+   "dependsOn": [
+    "W014"
+   ]
+  },
+  {
+   "id": "W105",
+   "title": "Wire contains_ingredient template facet in profile hard rules; tree-nut allergen key and policy coverage",
+   "priority": "P2",
+   "lane": "food-policy",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Both currently fail closed (unknown) but leave declared rules unenforced.",
+   "sources": [
+    "B213",
+    "B218"
+   ],
+   "dependsOn": [
+    "W014"
+   ]
+  },
+  {
+   "id": "W106",
+   "title": "Dietary profile map: remaining facets and rubrics with calibration, plus third Sol review round",
+   "priority": "P2",
+   "lane": "food-policy",
+   "kind": "research",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Round 3 review never ran on facets that feed policy evidence.",
+   "sources": [
+    "B191",
+    "B192"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W107",
+   "title": "Real-phone or throttled-browser planDay benchmark (20 ms target) and snapshot build p95/size telemetry",
+   "priority": "P2",
+   "lane": "food-world",
+   "kind": "perf",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "An open-world release gate measured only on an M4 Max.",
+   "sources": [
+    "B179",
+    "B209",
+    "B199"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W108",
+   "title": "Feed pref-2 ranking inputs: R_f soft rules, W6 N/Q signals, shopping/pantry, eaten non-universe foods, pairing weights; replay report",
+   "priority": "P2",
+   "lane": "food-world",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Ranking quality gates for the open-world release are unmeasured without these inputs.",
+   "sources": [
+    "B180",
+    "B210",
+    "B184"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W109",
+   "title": "Owner: label universe plate sheet 1.1.0 (>=85% per cuisine) and review CUISINE_STAPLES",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "research",
+   "size": "M",
+   "ownerOnly": true,
+   "why": "Acceptance 7 for the open-world release needs owner labels.",
+   "sources": [
+    "B174",
+    "B206",
+    "B207"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W110",
+   "title": "Owner: universe and cuisine-tier human review (Q3), rename decisions, annotate-universe production run",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "research",
+   "size": "M",
+   "ownerOnly": true,
+   "why": "A named human review is a release gate for the open world.",
+   "sources": [
+    "B175",
+    "B233"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W111",
+   "title": "Owner: run star-to-favored --production (with backup) and record it",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Existing-account invitations depend on stars becoming Favored marks.",
+   "sources": [
+    "B189",
+    "B204"
+   ],
+   "dependsOn": [
+    "W029"
+   ]
+  },
+  {
+   "id": "W112",
+   "title": "Owner: release open world (OPEN_WORLD_ENABLED + OPEN_WORLD_USER_IDS, TASTE_CHIPS_ENABLED, staged rollout, first client held)",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Large built feature, dark until every gate passes.",
+   "sources": [
+    "B173",
+    "B208"
+   ],
+   "dependsOn": [
+    "W109",
+    "W110",
+    "W107",
+    "W098",
+    "W111",
+    "W014",
+    "W029"
+   ]
+  },
+  {
+   "id": "W113",
+   "title": "Owner: occasion-facet calibration holdout review, then facets-occasion-eval --live --freeze",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "research",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "v2 occasion facets never reach ranking while the constant is null.",
+   "sources": [
+    "B079",
+    "B216"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W114",
+   "title": "Owner: FNDDS inputs production import (confirm public-domain status, dry-run, --production --project-ref)",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Mixed-dish taste falls back to the dish until the frozen import runs.",
+   "sources": [
+    "B010",
+    "B178",
+    "B215"
+   ],
+   "dependsOn": [
+    "W003"
+   ]
+  },
+  {
+   "id": "W115",
+   "title": "Meal Cards v4 redesign passes 2-4, critiques, Sol review and wiring",
+   "priority": "P2",
+   "lane": "ui-today",
+   "kind": "ui",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Unreviewed pass-1 branch; design work after the Today correctness fixes.",
+   "sources": [
+    "B081"
+   ],
+   "dependsOn": [
+    "W030"
+   ]
+  },
+  {
+   "id": "W116",
+   "title": "Island views #470 leftovers: nudge must not expand widget, blocked-storage prefs reset, pager dots, tray focus; widget memory per D3 (verify)",
+   "priority": "P2",
+   "lane": "ui-today",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Sol FAIL items left on the Day card.",
+   "sources": [
+    "B088",
+    "B240"
+   ],
+   "dependsOn": [
+    "W030"
+   ]
+  },
+  {
+   "id": "W117",
+   "title": "Widget-save failure notice (\"couldn't save layout\")",
+   "priority": "P2",
+   "lane": "ui-today",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Layout saves fail silently.",
+   "sources": [
+    "B080",
+    "B280"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W118",
+   "title": "Service-worker waiting-worker race: keep superseding worker reloadable",
+   "priority": "P2",
+   "lane": "ui-pwa",
+   "kind": "bug",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "A stuck waiting worker leaves users on stale code after a deploy.",
+   "sources": [
+    "B223"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W119",
+   "title": "Idle-loop CPU profiling for pond and water scenes; stop rAF when settled",
+   "priority": "P2",
+   "lane": "ui-today",
+   "kind": "perf",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "A forever-running animation drains phone batteries.",
+   "sources": [
+    "B269"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W120",
+   "title": "Small UI fixes: scan-unavailable notice when coach is off, sex picker \"unspecified\", Coach change card on token-less devices (verify)",
+   "priority": "P2",
+   "lane": "ui-settings",
+   "kind": "ui",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Visible gaps with small fixes.",
+   "sources": [
+    "B054",
+    "B258",
+    "B107"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W121",
+   "title": "Authenticated-browser verification re-baseline: 69 pending inventory rows, c11 walk-through, 390 px clean-storage sweep, /api/health/daily 503 on Settings, UI-pass evidence",
+   "priority": "P2",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Release claims rest on unverified rows; many are obsolete and need pruning.",
+   "sources": [
+    "B156",
+    "B282",
+    "B086",
+    "B272",
+    "B271"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W122",
+   "title": "Owner: production-readiness steps (cron 2xx captures, signed-in phone checks with Sasha's magic link, Lighthouse run)",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Readiness evidence requires owner sign-in and production access.",
+   "sources": [
+    "B147",
+    "B152"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W123",
+   "title": "Save, re-use, swap (T5): Log again, \"You logged this before\", Recent meals swap row, logged:<id> kind",
+   "priority": "P2",
+   "lane": "logging",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "High-value re-logging flow, partly in place.",
+   "sources": [
+    "B004"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W124",
+   "title": "Label scan T3: dedupe repeat scans by brand/name/per-100 g, 10-label eval, latency targets, scanned food star",
+   "priority": "P2",
+   "lane": "capture-catalog",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Every rescan creates a new user_foods row; T3 acceptance is open.",
+   "sources": [
+    "B002",
+    "B003"
+   ],
+   "dependsOn": [
+    "W017"
+   ]
+  },
+  {
+   "id": "W125",
+   "title": "Plate photo T2: candidate-aware grounding, per-method auto-resolve gate, 512 px kept thumbnail, EXIF shot time, editable name, Save-as-recipe",
+   "priority": "P2",
+   "lane": "capture-catalog",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Photo capture quality; gate change needs the owner's auto-resolve ruling.",
+   "sources": [
+    "B001",
+    "B018"
+   ],
+   "dependsOn": [
+    "W019",
+    "W013"
+   ]
+  },
+  {
+   "id": "W126",
+   "title": "Phase 11: re-audit shipped conversation triggers and RPCs against round-13 spec (verify)",
+   "priority": "P2",
+   "lane": "coach-ai",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Round-13 fixes were never independently re-audited.",
+   "sources": [
+    "B129"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W127",
+   "title": "Docs reconciliation: AGENTS.md phase table 9-19, stale rows (universeRefs, pet, Phase 19), onboarding-as-built, phase 4/7/11 notes, readiness counts and test refs",
+   "priority": "P2",
+   "lane": "docs-tests",
+   "kind": "docs",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Agents act on AGENTS.md; stale rows mislead every session.",
+   "sources": [
+    "B171",
+    "B279",
+    "B248",
+    "B011",
+    "B143",
+    "B132",
+    "B133",
+    "B161"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W128",
+   "title": "Owner: delete persistent Supabase branch p1-catalog (~$0.31/day)",
+   "priority": "P2",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Small recurring cost with no use.",
+   "sources": [
+    "B151",
+    "B140"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W129",
+   "title": "Coach Undo receipts for remaining action kinds and parked feat/undo-followups cleanup",
+   "priority": "P3",
+   "lane": "coach-ai",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Extends receipts once PR B proves the pattern.",
+   "sources": [
+    "B056",
+    "B127",
+    "B039"
+   ],
+   "dependsOn": [
+    "W086"
+   ]
+  },
+  {
+   "id": "W130",
+   "title": "Owner: label 432 pairing holdout pairs, then jev-labels and calibrate with W8 replay-lift record",
+   "priority": "P3",
+   "lane": "owner",
+   "kind": "research",
+   "size": "M",
+   "ownerOnly": true,
+   "why": "Non-curated pairing weights stay 0 until a human holdout exists; curated scores already work.",
+   "sources": [
+    "B177",
+    "B217"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W131",
+   "title": "Architecture refresh for phases 9-19 in docs/architecture.md (fill or remove empty 2026-10-10 directory)",
+   "priority": "P3",
+   "lane": "docs-tests",
+   "kind": "docs",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "architecture.md is v2.1 and misses ten phases.",
+   "sources": [
+    "B287"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W132",
+   "title": "Repo hygiene: delete landed and backup wip branches (week-entry-scan, onb2-*, proto/wet-island, fix/well-open-glare) after diffing",
+   "priority": "P3",
+   "lane": "docs-tests",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Stale branches confuse landers; low risk.",
+   "sources": [
+    "B017",
+    "B274",
+    "B167"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W133",
+   "title": "Reopen dependency majors as separate PRs: TypeScript 6, motion 14, npm minor group; keep Node 22 types",
+   "priority": "P3",
+   "lane": "docs-tests",
+   "kind": "tech-debt",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Parked majors drift further each week; Node 26 stays deferred per ruling.",
+   "sources": [
+    "B140",
+    "B148",
+    "B160"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W134",
+   "title": "Redesign down migrations so they preserve data",
+   "priority": "P3",
+   "lane": "server-db",
+   "kind": "tech-debt",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Sol blocked the drafts for deleting data; down migrations are rarely used.",
+   "sources": [
+    "B131",
+    "B165"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W135",
+   "title": "W14 Taste T2: taste_models migration, trainer, leakage-free replay and report (data-gated: 60 days of W6 signals)",
+   "priority": "P3",
+   "lane": "food-world",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Cannot start until 60 days of signal data exist.",
+   "sources": [
+    "B182",
+    "B211"
+   ],
+   "dependsOn": [
+    "W108"
+   ]
+  },
+  {
+   "id": "W136",
+   "title": "Jev short-list veto: adjudicate 60 vetoes for the live gate (stays shadow until then)",
+   "priority": "P3",
+   "lane": "food-world",
+   "kind": "research",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Shadow mode already protects users; going live is an optimisation.",
+   "sources": [
+    "B181"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W137",
+   "title": "Open-world date change uses stale v3 set for ~300 ms before rules-version recheck",
+   "priority": "P3",
+   "lane": "food-world",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Small window and open world is dark.",
+   "sources": [
+    "B196",
+    "B227"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W138",
+   "title": "Meal-planning follow-ups t20 (O4 gaps) and t22 (O3 gate prerequisites); facet warming in coach grounding and log commit (verify)",
+   "priority": "P3",
+   "lane": "food-world",
+   "kind": "tech-debt",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Ranking polish; safety-relevant WARNs moved to the allergen item.",
+   "sources": [
+    "B197",
+    "B219"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W139",
+   "title": "Capture and UI minors: CaptureSheet lane-L items, Undo behind standing error, 12-meal text cap, swapped alternative verdict lookup, N+1 lookups (verify)",
+   "priority": "P3",
+   "lane": "capture-catalog",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Small UX defects; commit-time policy still blocks unsafe items.",
+   "sources": [
+    "B067",
+    "B076",
+    "B194",
+    "B012"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W140",
+   "title": "Coach small items: tool-schema .positive() and NOUS_* names, chart-claim verifier rule, abort transcribe on page hide, weekday-series per-date titles (verify)",
+   "priority": "P3",
+   "lane": "coach-ai",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Low-impact coach polish.",
+   "sources": [
+    "B068",
+    "B073",
+    "B062",
+    "B075"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W141",
+   "title": "Slot editing Phase C (build from any items, verify) and Phase D \"Make this my usual\"",
+   "priority": "P3",
+   "lane": "ui-today",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Nice-to-have editing flows.",
+   "sources": [
+    "B084",
+    "B085"
+   ],
+   "dependsOn": [
+    "W123"
+   ]
+  },
+  {
+   "id": "W142",
+   "title": "Jev day_completeness nudge before \"Day fully logged\"",
+   "priority": "P3",
+   "lane": "coach-ai",
+   "kind": "feature",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Optional nudge, explicitly out of scope in the TDEE audit.",
+   "sources": [
+    "B027"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W143",
+   "title": "Deferred coach ideas: Phase 12 Later capabilities, account memory, Jev swap/bridge, gut-log correlation, multi-day plans, recall_conversations (verify)",
+   "priority": "P3",
+   "lane": "coach-ai",
+   "kind": "feature",
+   "size": "XL",
+   "ownerOnly": false,
+   "why": "Idea backlog with no near-term plan; re-spec before any build.",
+   "sources": [
+    "B031",
+    "B034",
+    "B035",
+    "B036",
+    "B037",
+    "B128"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W144",
+   "title": "Deferred integrations: native shell, Garmin, Health Connect, Withings, web push and out-of-app notifications, ChatGPT connector",
+   "priority": "P3",
+   "lane": "health",
+   "kind": "feature",
+   "size": "XL",
+   "ownerOnly": false,
+   "why": "Parked with stated revisit conditions.",
+   "sources": [
+    "B063",
+    "B283",
+    "B286"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W145",
+   "title": "Sprout and companions: stored state (streaks, growth), shop wearables and per-companion art",
+   "priority": "P3",
+   "lane": "ui-today",
+   "kind": "feature",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Engagement polish; art waits on credits after Oct 29.",
+   "sources": [
+    "B265",
+    "B266",
+    "B267"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W146",
+   "title": "Quarterly catalog refresh job (F-107) and build-time unpaid Gemini-key gate (F-120)",
+   "priority": "P3",
+   "lane": "server-ops",
+   "kind": "feature",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Manual refresh works today.",
+   "sources": [
+    "B145",
+    "B146"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W147",
+   "title": "Act on the weekly model-freshness issue (lane-bench PR if a pin should change)",
+   "priority": "P3",
+   "lane": "coach-ai",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Routine upkeep.",
+   "sources": [
+    "B170"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W148",
+   "title": "Truly remove an \"Other foods\" row (new stored state)",
+   "priority": "P3",
+   "lane": "ui-foods",
+   "kind": "feature",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Ruled out of scope earlier; small UX gain.",
+   "sources": [
+    "B016"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W149",
+   "title": "Split tests/search/recall.test.ts under the 400-line soft limit",
+   "priority": "P3",
+   "lane": "docs-tests",
+   "kind": "tech-debt",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "File size hygiene only.",
+   "sources": [
+    "B013"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W150",
+   "title": "Onboarding Phase 10 Later gaps: offline turns, draft expiry, thread delete, Add-from-onboarding; G10-G12 clinician numbers and rounding (verify against onb3)",
+   "priority": "P3",
+   "lane": "onboarding",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Likely superseded by onb3; verify then close.",
+   "sources": [
+    "B041",
+    "B254"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W151",
+   "title": "Phase 9 per-user day templates: keep as spec-only Later (no build)",
+   "priority": "P3",
+   "lane": "docs-tests",
+   "kind": "docs",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Not built and nothing depends on it.",
+   "sources": [
+    "B104"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W152",
+   "title": "FluidVoice UI recovery acceptance ledger at 320/390/430/1024 (verify)",
+   "priority": "P3",
+   "lane": "docs-tests",
+   "kind": "test-gap",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Evidence gap only; voice is retired.",
+   "sources": [
+    "B043"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W153",
+   "title": "Four selectable background themes",
+   "priority": "P3",
+   "lane": "ui-today",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Owner asked for this later; token-only theme change keeps it cheap.",
+   "sources": [
+    "B270"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W154",
+   "title": "Owner housekeeping: confirm Vercel billing card, rename provisional ZS Vault entry, supply board videos and nutritionist tips",
+   "priority": "P3",
+   "lane": "owner",
+   "kind": "ops",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Small owner-only items with no code dependency.",
+   "sources": [
+    "B155",
+    "B281",
+    "B114"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W155",
+   "title": "Regional priors (state-level NHANES, Canada CCHS) and photoToIdeas byte-size telemetry",
+   "priority": "P3",
+   "lane": "food-world",
+   "kind": "research",
+   "size": "L",
+   "ownerOnly": false,
+   "why": "Deferred pending NCHS review and licence checks.",
+   "sources": [
+    "B220"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W156",
+   "title": "compose_meal on the lib/meals engine: pinned foods, incomplete named draft result",
+   "priority": "P3",
+   "lane": "coach-ai",
+   "kind": "feature",
+   "size": "M",
+   "ownerOnly": false,
+   "why": "Better named-combo handling; four-term cap needs the owner's call.",
+   "sources": [
+    "B224"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W157",
+   "title": "Day-strip seven 44 px targets below 360 px (verify)",
+   "priority": "P3",
+   "lane": "ui-today",
+   "kind": "ui",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Edge case on very narrow phones.",
+   "sources": [
+    "B256"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W158",
+   "title": "Restaurant and chain-menu nutrition source (Nutritionix vs alternatives)",
+   "priority": "P3",
+   "lane": "research",
+   "kind": "research",
+   "size": "S",
+   "ownerOnly": true,
+   "why": "Devin asked 2026-10-10; external data sources to evaluate.",
+   "sources": [
+    "DEVIN-2026-10-10"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W159",
+   "title": "Food recall alerts from Daily Food Recalls (free API)",
+   "priority": "P3",
+   "lane": "research",
+   "kind": "research",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Devin asked 2026-10-10; external data sources to evaluate.",
+   "sources": [
+    "DEVIN-2026-10-10"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "W160",
+   "title": "Household-unit densities from ExactCup (free API)",
+   "priority": "P3",
+   "lane": "research",
+   "kind": "research",
+   "size": "S",
+   "ownerOnly": false,
+   "why": "Devin asked 2026-10-10; external data sources to evaluate.",
+   "sources": [
+    "DEVIN-2026-10-10"
+   ],
+   "dependsOn": []
+  }
+ ],
+ "ownerDecisions": [
+  {
+   "id": "OD01",
+   "question": "AI spend: raise the global daily cap from $50 to $150-200 and split it into an interactive share and a background cap?",
+   "blocks": [
+    "W043",
+    "B101"
+   ],
+   "recommendation": "Yes: global $150, 70% reserved for interactive turns, background jobs capped at $30/day; revisit after a month of spend alerts."
+  },
+  {
+   "id": "OD02",
+   "question": "Error tracker and uptime monitor: approve a vendor (new spend) or use Vercel built-ins only?",
+   "blocks": [
+    "W042"
+   ],
+   "recommendation": "Use Sentry free tier plus Vercel monitoring; uptime via a free checker on /api/health. No paid tier until 1,000 users."
+  },
+  {
+   "id": "OD03",
+   "question": "Hosted backup: buy Supabase PITR or run a scheduled pg_dump off the laptop?",
+   "blocks": [
+    "W046"
+   ],
+   "recommendation": "Scheduled pg_dump from GitHub Actions to private storage now (no new vendor); buy PITR when the paid tier is next upgraded."
+  },
+  {
+   "id": "OD04",
+   "question": "Coach Undo receipts PR B: restart with a server-minted write identity, or drop the receipts lane? Also: keep or retire coach target, weight and planned-meal writes?",
+   "blocks": [
+    "W086",
+    "W129",
+    "B032"
+   ],
+   "recommendation": "Restart PR B scoped to the three v1 kinds with server-minted identity; keep coach target writes but route them through the Phase 12 checked writer."
+  },
+  {
+   "id": "OD05",
+   "question": "Voice-to-voice coach (Phase 14): build, retire the spec, or defer to a native app?",
+   "blocks": [
+    "B023",
+    "W031"
+   ],
+   "recommendation": "Formally retire the Phase 14 spec in the voice-retirement branch; revisit only with a native app."
+  },
+  {
+   "id": "OD06",
+   "question": "Coach streaming and json-render/A2UI: build streaming now?",
+   "blocks": [
+    "W091",
+    "B074"
+   ],
+   "recommendation": "Measure first; build streaming only if first-text p95 stays above 6 s after the measurement item."
+  },
+  {
+   "id": "OD07",
+   "question": "AI-capture auto-resolve: keep the unreachable 0.95/0.30 gate, or move to a per-method measured gate? Plus Phase 4 open questions (iOS audio canary, caps, photo-grams default).",
+   "blocks": [
+    "W125",
+    "B048",
+    "B064",
+    "B042"
+   ],
+   "recommendation": "Keep auto-resolve off until the capture eval reaches 85% top-1; then a per-method gate. Photo items default to the model grams."
+  },
+  {
+   "id": "OD08",
+   "question": "Catalog search contract: dish-vs-ingredient penalty and generic typo fold; Phase 1 category normalization and FNDDS sizing questions.",
+   "blocks": [
+    "B005",
+    "B006"
+   ],
+   "recommendation": "Add a dish-marker penalty for 1-2 word queries and a 0.6 typo fold, both behind the R1 relevance gate; close the Phase 1 questions as recorded."
+  },
+  {
+   "id": "OD09",
+   "question": "Phase 3 questions: OFF negative-cache window, recipe cooked-weight capture, FDC Branded vault key.",
+   "blocks": [
+    "B019"
+   ],
+   "recommendation": "Keep 7 days, defer cooked weight to the recipe-yield work, name the vault key in docs."
+  },
+  {
+   "id": "OD10",
+   "question": "Recipe search honest \"no match\", recipe catalog growth, over-target day flag and water-dial snap.",
+   "blocks": [
+    "B022",
+    "B257",
+    "B277"
+   ],
+   "recommendation": "Show honest no-match using the catalog food words; flag over-target days; snap the dial; grow to 48 recipes after the pilot widens."
+  },
+  {
+   "id": "OD11",
+   "question": "Clinical sign-off: who reviews condition-pack wording and the rebalance panel copy before CONDITION_PACKS_ENABLED and REBALANCE_PANEL_USER_IDS?",
+   "blocks": [
+    "B049",
+    "B176",
+    "B237",
+    "W092",
+    "W112"
+   ],
+   "recommendation": "Ask Sasha's nutritionist to review both in one session; keep both flags off until the signed record is in docs/decisions."
+  },
+  {
+   "id": "OD12",
+   "question": "TypeSafe health text: email privacy@typesafe.ai about terms vs ZDR DPA, set JEV_HEALTH_ATTESTED, and decide the data-use notice.",
+   "blocks": [
+    "B045",
+    "B109",
+    "B046"
+   ],
+   "recommendation": "Send the email; keep JEV_HEALTH_ATTESTED unset and the local gate fail-closed until a DPA is signed; add the notice only if a vendor trains on data."
+  },
+  {
+   "id": "OD13",
+   "question": "Open-world priors and learning scope: UK Biobank like term, cross-user taste learning T3, shopping-focus and pantry-photo gates, W15 go.",
+   "blocks": [
+    "B185",
+    "B205",
+    "B186",
+    "B187",
+    "B183",
+    "W097"
+   ],
+   "recommendation": "Keep the like term absent, no T3, shopping focus and pantry photo pilot-only until open-world release; run W15 once onb3 is live."
+  },
+  {
+   "id": "OD14",
+   "question": "Tracked micronutrient set, fiber band display, coverage semantics and exercise logging ownership.",
+   "blocks": [
+    "B123"
+   ],
+   "recommendation": "Confirm the twelve codes, gram-weighted coverage, and drop exercise logging from the export until it has an owner."
+  },
+  {
+   "id": "OD15",
+   "question": "Legacy foods/days/settings tables exist in production but in no migration: drop, or add a baseline migration?",
+   "blocks": [
+    "B150"
+   ],
+   "recommendation": "Back up, then drop the three empty tables in production so a rebuilt environment matches."
+  },
+  {
+   "id": "OD16",
+   "question": "Duplicate-meal card: finish or drop?",
+   "blocks": [
+    "W095",
+    "B083",
+    "B273"
+   ],
+   "recommendation": "Finish it; the schema change goes through the normal migration review."
+  },
+  {
+   "id": "OD17",
+   "question": "Cards v4 Board/Overview rulings: tip paging location and the 49% grey ring track.",
+   "blocks": [
+    "W115",
+    "B082"
+   ],
+   "recommendation": "Move paging into the full tip view; lighten the ring track to the hairline token."
+  },
+  {
+   "id": "OD18",
+   "question": "Creatine/supplement tick (F-115).",
+   "blocks": [
+    "B090",
+    "B284"
+   ],
+   "recommendation": "Defer until a second account asks for supplements."
+  },
+  {
+   "id": "OD19",
+   "question": "Sprout sulking and the hidden Edit button.",
+   "blocks": [
+    "B268",
+    "W145"
+   ],
+   "recommendation": "Sprout sulks only when poked, never on food or water shortfall; keep Edit in the long-press tray."
+  },
+  {
+   "id": "OD20",
+   "question": "Health: keep sleep stages or totals only; weight display unit.",
+   "blocks": [
+    "B263"
+   ],
+   "recommendation": "Totals only; unit is already in user_settings."
+  },
+  {
+   "id": "OD21",
+   "question": "Who may change goal_rate_bp_week (Phase 6 OQ4) and the adaptive TDEE R3/R9 revisit timing.",
+   "blocks": [
+    "B243",
+    "B244"
+   ],
+   "recommendation": "Close OQ4 as superseded by onboarding pace chips; revisit R3/R9 after 30 days of the day-complete control."
+  },
+  {
+   "id": "OD22",
+   "question": "Four v2-onboarded accounts with 29 unchosen starter foods; the Oct 4 meal changes in Devin's data.",
+   "blocks": [
+    "B253",
+    "B094"
+   ],
+   "recommendation": "Leave the starter foods; Devin confirms whether the Oct 4 changes were his own."
+  },
+  {
+   "id": "OD23",
+   "question": "Native iOS wrapper / HealthKit direct (Apple Developer account cost).",
+   "blocks": [
+    "B260",
+    "W144"
+   ],
+   "recommendation": "Defer; the Shortcut path serves the PWA."
+  },
+  {
+   "id": "OD24",
+   "question": "Review coach fast-path thresholds after 100 eligible production turns.",
+   "blocks": [
+    "B072"
+   ],
+   "recommendation": "Hold thresholds; review when telemetry shows 100 eligible turns."
+  },
+  {
+   "id": "OD25",
+   "question": "Close the Phase 10/11 onboarding specs as superseded and retire the onb2 backup branches.",
+   "blocks": [
+    "B246",
+    "B167",
+    "W150",
+    "W132"
+   ],
+   "recommendation": "Yes: mark both specs superseded by onb3 and delete the backup branches after a diff."
+  },
+  {
+   "id": "OD26",
+   "question": "compose_meal four-food-term cap and regional priors scope.",
+   "blocks": [
+    "W156",
+    "B224",
+    "B220",
+    "W155"
+   ],
+   "recommendation": "Keep the four-term cap; defer regional priors."
+  }
+ ],
+ "themes": [
+  "Wrong numbers first: energy rule, TDEE intake, portion maths and first-client constants",
+  "Safety rules on every write path: pace holds, allergens, diet rules, coach and import parity",
+  "Tenancy and data loss: RLS lockdown, media paths, sync merge and outbox, exports and backup",
+  "Production ledger and owner steps gate merged code (migrations, secrets, repo visibility)",
+  "Scale for the next 1,000 users: measure, alert, budget, indexes, fan-out, change_log compaction",
+  "Open-world release is built but gated on owner labels, human reviews and clinical sign-off",
+  "Verification debt: device journeys, authenticated browser rows, CI guards that cannot fail"
+ ]
+}

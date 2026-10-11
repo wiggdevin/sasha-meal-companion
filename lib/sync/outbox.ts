@@ -5,14 +5,18 @@
  * so the tests drive it with a fake.
  */
 import {
-  allOps, appendOp, appendOpWithRow, countOps, deleteOp, deleteRow, getCursor, getRow,
-  putOp, putRow, setCursor, type AccountHandle, type OutboxOp, type OwnedOp,
+  allOps, appendOp, appendOpWithRow, countOps, deleteOp, deleteRow, getCursor,
+  putOp, setCursor, wireOp, type AccountHandle, type OutboxOp, type OwnedOp, type QueuePrecondition,
+  type QueuedSyncOp,
 } from "./idb";
 import { drainable, handleLogEntryResult } from "./log-entry-ops";
 import { applyFoodMembershipResult, type SyncResult } from "./outbox-membership";
 import { SyncHttpError } from "./client";
 import { encodeKey } from "./keys";
-import { mergeEntity, NEVER_MERGED, rebaseOp, type Row } from "./merge";
+import { type Row } from "./merge";
+import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
+import { headOfLine, requeueInPlace, retryStaleRead, settleAppliedRow } from "./row-queue";
+import { projectMirroredPlanDay } from "./plan-days";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
 import { withSettingsProvenance } from "./user-settings";
@@ -27,7 +31,7 @@ const PARKED_FROM_MS = 24 * 60 * 60 * 1000;
 export const MAX_OPS_PER_PUSH = 200;
 /** The routes accept a 1 MB body; leave headroom for the JSON envelope and headers. */
 export const MAX_PUSH_BYTES = 900_000;
-export const TARGETS_CHANGED_EVENT = "meal-companion:targets-changed";
+export { serverTimestampOf, TARGETS_CHANGED_EVENT };
 /**
  * Announced right after an op is queued, so a sync can be scheduled for it. Nothing here pushes —
  * this file never talks to the network — SyncBootstrap listens and runs the pass.
@@ -76,10 +80,11 @@ export async function enqueue(h: AccountHandle, op: SyncOp, now: number = Date.n
  * key come from the op, so the row cannot be filed under a key of its own choosing.
  */
 export async function enqueueWithRow(
-  h: AccountHandle, row: Record<string, unknown>, op: SyncOp, now: number = Date.now(),
+  h: AccountHandle, row: Record<string, unknown>, op: QueuedSyncOp, now: number = Date.now(),
+  precondition?: QueuePrecondition,
 ): Promise<OutboxOp> {
   assertKeyMatchesPayload(op);
-  const queued = await appendOpWithRow(h, row, op, now);
+  const queued = await appendOpWithRow(h, row, op, now, precondition);
   announceQueued();
   return queued;
 }
@@ -108,26 +113,6 @@ export function pendingCount(h: AccountHandle): Promise<number> {
   return countOps(h);
 }
 
-/** A conflict carries the row but no stamp of its own, and the synced tables use three different
- *  names for "when". Falling back to now lets the server win a tie, which is right: its row was
- *  written after our `base_rev`. See Open question 1. */
-export function serverTimestampOf(row: unknown, fallback: string): string {
-  const r = (row ?? {}) as Record<string, unknown>;
-  for (const column of ["updated_at", "changed_at", "eaten_at", "created_at"]) {
-    const value = r[column];
-    if (typeof value === "string" && !Number.isNaN(Date.parse(value))) return value;
-  }
-  return fallback;
-}
-
-/** Strip this device's queue bookkeeping; the op and its owner go on the wire (spec §0.5). */
-function wireOp(op: OutboxOp): OwnedOp {
-  const { seq, attempts, error_attempts, queued_at, next_attempt_at, intents, generation, ...rest } = op;
-  void seq; void attempts; void error_attempts; void queued_at; void next_attempt_at;
-  void intents; void generation;
-  return rest;
-}
-
 /** The routes' cap is a real HTTP body byte count, so it must be measured in UTF-8 bytes, not JS
  *  string .length (UTF-16 code units) — a note in Hiragana, Chinese or emoji is several bytes on
  *  the wire per unit of .length, and undercounting it here would push a request past the server's
@@ -148,44 +133,22 @@ function capByBytes(ops: OutboxOp[]): OutboxOp[] {
   return out;
 }
 
-/** Columns the server owns: sending them back to apply_sync_op would ask it to overwrite its own
- *  bookkeeping. `base_rev` carries the rev the rebased op is aimed at. */
-const SERVER_OWNED = ["user_id", "rev", "seq", "created_at", "updated_at"] as const;
-
-function stripServerOwned(row: Row): Row {
-  const out: Row = { ...row };
-  for (const column of SERVER_OWNED) delete out[column];
-  return out;
-}
-
 async function onConflict(
   h: AccountHandle, result: Extract<OpResult, { status: "conflict" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
-  const server = (result.current ?? {}) as Row;
-  if (NEVER_MERGED.has(op.entity)) {
-    await putRow(h, op.entity, op.entity_id, server);
-    await deleteOp(h, op.op_id);
-    globalThis.dispatchEvent?.(new Event(TARGETS_CHANGED_EVENT));
-    return;
-  }
-  if (op.entity === SETTINGS) {
-    // A settings conflict is not a field merge: the server's row becomes the baseline, the intents
-    // recorded since are replayed onto it and the SAME op is rewritten at the server's rev, all in
-    // one transaction (lib/sync/settings.ts). A successor op would be aimed at a speculative rev.
-    await settleUserSettings(h, op, { status: "conflict", row: server, rev: result.current_rev },
-      now());
-    return;
-  }
-  // syncOnce pulls before it pushes, so the mirror already holds the server's row by now. The op's
-  // payload is the only surviving record of what the user meant, so it wins over the mirror.
-  const mirror = ((await getRow(h, op.entity, op.entity_id)) ?? {}) as Row;
-  const local = { ...mirror, ...op.payload } as Row;
-  const merged = mergeEntity(op.entity, local, server, op.client_ts,
-    serverTimestampOf(server, new Date(now()).toISOString()));
-  const rebased = rebaseOp(wireOp(op), stripServerOwned(merged), result.current_rev);
-  await putRow(h, op.entity, op.entity_id, { ...merged, rev: result.current_rev });
-  await deleteOp(h, op.op_id);
-  await enqueue(h, rebased, now());
+  // An edit queued behind `op` while the rebase is worked out makes the requeue refuse, and the
+  // rebase is worked out again with it (lib/sync/row-queue.ts).
+  const requeued = await retryStaleRead(async () => {
+    const rebase = await settleConflict(h, result, op, now);
+    if (!rebase) return false;
+    assertKeyMatchesPayload(rebase.op);
+    await requeueInPlace(h, op, rebase.op, rebase.retire, rebase.mirror, now(), rebase.seen);
+    return true;
+  });
+  if (!requeued) return;
+  // Today reads the legacy day, so a day merged with another device's edits is shown there (A141).
+  if (op.entity === "plan_days") await projectMirroredPlanDay(h, op.entity_id);
+  announceQueued();
 }
 
 /** Server errored on this op specifically (not a network failure). Retried with backoff, like a
@@ -241,39 +204,27 @@ function isClientFault(e: unknown): e is SyncHttpError {
 async function applyApplied(
   h: AccountHandle, result: Extract<OpResult, { status: "applied" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
-  if (op.kind === "delete") {
-    // Tombstone, don't merge: the server accepted an empty-payload delete, and merging {}
-    // would leave the row looking untouched except for its rev.
-    const local = (await getRow(h, op.entity, op.entity_id)) ?? op.payload;
-    await putRow(h, op.entity, op.entity_id, {
-      ...local, deleted_at: new Date(now()).toISOString(), rev: result.rev,
-    });
-    await deleteOp(h, op.op_id);
-    return;
-  }
-  if (op.kind === "restore") {
-    const local = await getRow(h, op.entity, op.entity_id);
-    if (!local) {
-      // Nothing here to un-tombstone (this device may have GC'd it already) and 'applied'
-      // carries no row — only rev/seq. Roll the cursor back to just before this change so the
-      // next pullChanges() re-fetches its full `current` snapshot from sync_changes.
-      const cursor = await getCursor(h);
-      if (result.seq - 1 < cursor) await setCursor(h, result.seq - 1);
-      await deleteOp(h, op.op_id);
-      return;
-    }
-    await putRow(h, op.entity, op.entity_id, { ...local, deleted_at: null, rev: result.rev });
-    await deleteOp(h, op.op_id);
-    return;
-  }
-  // create / update
-  if (op.entity === SETTINGS) {
+  if (op.entity === SETTINGS && op.kind !== "delete" && op.kind !== "restore") {
     // A whole-row write the server accepted IS the new baseline; the mirror is then the baseline
     // plus whatever is still queued, so a later op's payload is never replayed twice.
     return settleUserSettings(h, op, { status: "applied", rev: result.rev }, now());
   }
-  const local = (await getRow(h, op.entity, op.entity_id)) ?? {};
-  await putRow(h, op.entity, op.entity_id, { ...local, ...op.payload, rev: result.rev });
+  // One transaction decides and writes (lib/sync/row-queue.ts): a newer op for this row queued
+  // before the write keeps the mirror, which already holds its state (audit 2026-10-10 A138).
+  const at = new Date(now()).toISOString();
+  const outcome = await settleAppliedRow(h, op, (local) => {
+    // Tombstone, don't merge: the server accepted an empty-payload delete, and merging {}
+    // would leave the row looking untouched except for its rev.
+    if (op.kind === "delete") return { ...(local ?? op.payload), deleted_at: at, rev: result.rev };
+    if (op.kind === "restore") return local ? { ...local, deleted_at: null, rev: result.rev } : null;
+    return { ...(local ?? {}), ...op.payload, rev: result.rev };
+  });
+  if (outcome !== "missing") return;
+  // A restore with nothing here to un-tombstone (this device may have GC'd it already), and
+  // 'applied' carries no row — only rev/seq. Roll the cursor back to just before this change so
+  // the next pullChanges() re-fetches its full `current` snapshot from sync_changes.
+  const cursor = await getCursor(h);
+  if (result.seq - 1 < cursor) await setCursor(h, result.seq - 1);
   await deleteOp(h, op.op_id);
 }
 
@@ -357,7 +308,9 @@ export async function drainOutbox(h: AccountHandle, push: PushFn, now: () => num
   // generation it puts on the wire is selected and frozen by ONE transaction inside
   // `selectAndFreezeSettings`, because an edit landing between a snapshot and a freeze would replace
   // the op the snapshot named (T11b ninth-round P1).
-  const ready = await drainable(all.filter((o) => o.next_attempt_at <= at && o.entity !== SETTINGS));
+  // One op per row per push, the row's oldest (lib/sync/row-queue.ts, audit 2026-10-10 A165).
+  const ready = await drainable(headOfLine(all,
+    all.filter((o) => o.next_attempt_at <= at && o.entity !== SETTINGS)));
   const { op: settingsOp, parked } = await selectAndFreezeSettings(h, at);
   const send = [...ready, ...(settingsOp === null ? [] : [settingsOp])]
     .sort((a, b) => a.seq - b.seq);
