@@ -82,7 +82,7 @@ A wave is the item's dependency depth, raised to a floor by priority: P0 from wa
 ### Wave 1 (16 items)
 
 - W001 Rotate leaked secrets and record receipts (P0, owner)
-- W002 Confirm repo stays private; find why it went public (P0, owner)
+- W002 Keep repo public; find which session made it private (P0, owner)
 - W003 Reconcile production migration ledger; record apply receipts (P0, server-ops)
 - W004 Energy rule: no unmeasured nutrient as 0; measured energy on account foods (P0, nutrition-engine)
 - W007 Target safety on every server write path (P0, targets-safety)
@@ -259,7 +259,7 @@ A wave is the item's dependency depth, raised to a floor by priority: P0 from wa
 | ID | Title | Priority | Lane | Size | Owner-only |
 |---|---|---|---|---|---|
 | W001 | Rotate leaked secrets and record receipts | P0 | owner | S | yes |
-| W002 | Confirm repo stays private; find why it went public | P0 | owner | S | yes |
+| W002 | Keep repo public; find which session made it private | P0 | owner | S | yes |
 | W003 | Reconcile production migration ledger; record apply receipts | P0 | server-ops | M | no |
 | W004 | Energy rule: no unmeasured nutrient as 0; measured energy on account foods | P0 | nutrition-engine | M | no |
 | W005 | Owner: re-import Foundation and run the energy backfill on production | P0 | owner | S | yes |
@@ -433,17 +433,17 @@ A wave is the item's dependency depth, raised to a floor by priority: P0 from wa
 - Depends on: none
 - Sources: B095, B277
 
-### W002 Confirm repo stays private; find why it went public
-- Priority P0 / lane owner / size S / owner-only: yes
-- Goal: Prove the repo is private now. Find which action or setting made it public on 2026-10-10.
+### W002 Keep repo public; find which session made it private
+Priority P0 / lane owner / size S / owner-only: yes
+- Goal: The repo is public by Devin's decision (2026-10-10; free Actions minutes). Find which session or agent switched it to private earlier that day, and stop it from happening again.
 - Done when:
-  - `gh repo view --json visibility` reports PRIVATE, recorded with a date.
-  - The cause is named from the audit log (actor, event, time).
-  - A guard exists: an org rule or a scheduled check that alerts on a visibility change.
-- Files: none in the repo. Note goes in `docs/audit/` (new file).
-- Risks and guards: History holds client medical data. If the repo was indexed while public, treat the history as exposed and tell Devin. Do not rewrite history without his call.
-- Depends on: none
-- Sources: B117
+  - `gh repo view --json visibility` reports PUBLIC.
+  - The actor and time are named from the GitHub audit log.
+  - The instruction or memory that told that agent to go private is corrected (zs-memory note 37d5f84c records the decision).
+- Files: none in the repo.
+- Risks and guards: History is public. Never commit secrets or client data; rotate the secrets in W001.
+- Depends on: none.
+- Sources: B117, Devin 2026-10-10.
 
 ### W003 Reconcile production migration ledger; record apply receipts
 - Priority P0 / lane server-ops / size M / owner-only: no
