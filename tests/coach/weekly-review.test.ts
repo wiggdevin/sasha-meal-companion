@@ -68,7 +68,7 @@ function routeAdmin(opts: { lockConflict: boolean }) {
 }
 
 /** An in-memory admin for the write path: inserts are recorded and read back by later selects. */
-function memoryAdmin(initial?: { threads?: Row[]; loggedDays?: number }) {
+function memoryAdmin(initial?: { threads?: Row[]; loggedDays?: number; unknownEnergy?: boolean }) {
   const writes: Write[] = [];
   const tables: Record<string, Row[]> = {
     coach_threads: initial?.threads ?? [],
@@ -117,12 +117,16 @@ function memoryAdmin(initial?: { threads?: Row[]; loggedDays?: number }) {
     if (name !== "get_daily_totals") return { data: [], error: null };
     dayReads += 1;
     const dayOfWeek = (dayReads - 1) % 7;
-    return { data: dayOfWeek < (initial?.loggedDays ?? 7) ? [LOGGED_DAY] : [], error: null };
+    const day = initial?.unknownEnergy ? PROTEIN_ONLY_DAY : LOGGED_DAY;
+    return { data: dayOfWeek < (initial?.loggedDays ?? 7) ? [day] : [], error: null };
   };
   return { db: { from, rpc }, writes, tables, dayReads: () => dayReads };
 }
 
 const LOGGED_DAY = { nutrient_code: "energy_kcal", amount: 2000, items_with_value: 1,
+  items_total: 1, coverage: 1 };
+/** A logged day whose items carry no usable energy (unknown is valid, never 0). */
+const PROTEIN_ONLY_DAY = { nutrient_code: "protein", amount: 40, items_with_value: 1,
   items_total: 1, coverage: 1 };
 
 /**
@@ -345,6 +349,15 @@ describe("writeWeeklyReview: weeks with little or nothing logged (W035, audit A1
     expect(message).toMatchObject({ model_id: "", ai_call_id: null, review_week: "2026-10-05" });
     expect(message.content).toBe("Based on your logged week, there was not enough logged data to "
       + "identify a strongest pattern. Next week, focus on logging consistently.");
+  });
+
+  it("still reviews a logged week whose energy is unknown, without a model call", async () => {
+    const { db, writes } = memoryAdmin({ loggedDays: 7, unknownEnergy: true });
+    const generate = review("logging", "none");
+    const result = delivered(await writeWeeklyReview(db as never, "u1", "2026-10-05", deps(generate)));
+    expect(result.duplicate).toBe(false);
+    expect(generate).not.toHaveBeenCalled();
+    expect(writes.filter((w) => w.table === "coach_messages")).toHaveLength(1);
   });
 
   it("asks the model once three days are logged", async () => {

@@ -71,6 +71,14 @@ export function loggedDayCount(days: readonly DayTotals[]): number {
 }
 
 /**
+ * Whether any day of the week has a logged item at all, energy known or not (W035): a day whose
+ * items carry no usable energy is still a logged day, never an empty week.
+ */
+export function anyLoggedItem(days: readonly DayTotals[]): boolean {
+  return days.some((day) => day.nutrients.some((nutrient) => Number(nutrient.itemsTotal) > 0));
+}
+
+/**
  * The deterministic review when the model is unavailable, not attested, or fails (AI-integration
  * audit, 2026-10-04: the weekly review had no fallback). It says only what the log proves — how
  * consistently the week was logged — and never claims a macro pattern it did not compute.
@@ -110,17 +118,17 @@ async function reviewParts(
 export type WeeklyReviewResult = TurnStep & { kind: "final"; modelUsed: boolean };
 
 /**
- * The week's review, or null when the week has no logged day: there is nothing to review, so
- * the account gets no message and no model call (W035, audit A153). Under three logged days the
- * model could only answer "not enough data", which the logged-days review says without one.
+ * The week's review, or null when nothing was logged all week: there is nothing to review, so
+ * the account gets no message and no model call (W035, audit A153). Under three days with logged
+ * energy the model could only answer "not enough data", which the logged-days review says
+ * without one.
  */
 export async function runWeeklyReview(
   admin: SupabaseClient, userId: string, weekStart: string, deps: ReviewDeps
 ): Promise<WeeklyReviewResult | null> {
   const days = await weekTotals(admin, userId, weekStart);
-  const logged = loggedDayCount(days);
-  if (logged === 0) return null;
-  if (logged < MODEL_MIN_LOGGED_DAYS) {
+  if (!anyLoggedItem(days)) return null;
+  if (loggedDayCount(days) < MODEL_MIN_LOGGED_DAYS) {
     return { kind: "final", text: renderWeeklyReview(fallbackReview(days)), modelUsed: false };
   }
   try {

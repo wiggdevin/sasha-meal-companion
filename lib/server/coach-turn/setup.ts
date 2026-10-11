@@ -91,13 +91,13 @@ export async function openTurn(turn: Turn): Promise<
     const checked = await beforeDeadline(() => assertChatCapacity(client, userId), replyDeadlineAt);
     if (checked === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
   }
-  // W035: a new turn reserves its budget slot only now, so neither a replay of a saved turn nor a
-  // turn refused for chat capacity spends one.
-  const reserved = await beforeDeadline(() => reserveTurn(userId), replyDeadlineAt);
-  if (reserved === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
 
   const threadId = unwrap(threadRead);
   const seq = unwrap(seqRead);
+  // W035: a new turn reserves its budget slot only now, so neither a replay of a saved turn nor a
+  // turn refused for chat capacity or an unknown thread spends one.
+  const reserved = await beforeDeadline(() => reserveTurn(userId), replyDeadlineAt);
+  if (reserved === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
   const base = { thread_id: threadId, user_id: userId };
   const userRow: MessageRow = {
     ...base, id: req.messageId, role: "user", content: req.text, seq,

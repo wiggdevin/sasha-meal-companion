@@ -177,6 +177,16 @@ describe("a coach turn spends exactly one slot (W035)", () => {
     expect(writes.filter((w) => w.table === "coach_messages")).toEqual([]);
   });
 
+  it("spends no slot on a request for a thread that is not the caller's", async () => {
+    const generate = vi.fn();
+    const error = await runTurn(db({}, []), db({}, []), "u1",
+      { ...REQ, threadId: "3f1b1a2c-0000-4000-8000-0000000003ff" },
+      { generate: generate as never, ports, classifyIntent: noClassify(), newId: () => "id-1" })
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ status: 404 });
+    expect(store.keys).toEqual([]);
+  });
+
   it("replays a saved turn without spending a slot, even with the hour used up", async () => {
     for (let i = 0; i < TURNS_PER_HOUR; i += 1) await reserveTurn("u1");
     const spent = store.keys.length;
