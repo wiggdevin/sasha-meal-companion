@@ -23,12 +23,7 @@ describe("refusePlanBlocked", () => {
     expect(refusePlanBlocked([log]).actions).toEqual([log]);
   });
 
-  it("never refuses a resize: set_slot_item keeps the line's own food (audit A158)", () => {
-    const resize = action("set_slot_item", ["Milk"]);
-    expect(refusePlanBlocked([resize])).toEqual({ actions: [resize], refusals: [] });
-  });
-
   it("covers every action that writes a plan slot's food", () => {
-    expect([...PLAN_WRITE_KINDS].sort()).toEqual(["add_slot_item", "set_slot_meal"]);
+    expect([...PLAN_WRITE_KINDS].sort()).toEqual(["add_slot_item", "set_slot_item", "set_slot_meal"]);
   });
 });
