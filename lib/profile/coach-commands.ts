@@ -17,7 +17,10 @@ import { FOOD_WORDS } from "@/lib/profile/taste-words";
 const words = (list: string) => new Set(list.split(" "));
 
 const NUMBER_WORDS = words("a an one two three four five six seven eight nine ten half some few couple");
-const isNumber = (token: string) => /^\d+(\.\d+)?$/.test(token) || NUMBER_WORDS.has(token);
+const isNumber = (token: string) => /^\d+(\.\d+)?$/.test(token) || /^\d+\/\d+$/.test(token)
+  || NUMBER_WORDS.has(token);
+/** A plain day word on a water, weight or schedule command (W028): the reader dates it or defers. */
+const DAY = words("today yesterday tomorrow tonight last night this morning");
 const VOLUME = words("ml milliliter milliliters millilitre millilitres l liter liters litre litres oz ounce ounces cup cups glass glasses bottle bottles can cans");
 const MASS = words("kg kgs kilo kilos lb lbs pound pounds");
 const TIME = words("min mins minute minutes hour hours hr hrs h");
@@ -58,13 +61,14 @@ const FORMS: readonly Form[] = [
   (m) => {
     const rest = m.replace(/^(?:i )?(?:drank|had|log|logged) /, "");
     const tokens = rest.split(" ").filter(Boolean);
-    return only(rest, (t) => isNumber(t) || VOLUME.has(t) || ["of", "water", "then", "and"].includes(t))
+    return only(rest, (t) => isNumber(t) || VOLUME.has(t) || DAY.has(t)
+      || ["of", "water", "then", "and"].includes(t))
       && (tokens.includes("water") || tokens.some((t) => VOLUME.has(t)));
   },
   // Weight: "I weigh 128 lb", "58 kg today", "weighed in".
   (m) => /^(?:i )?weighed in(?: today)?$/.test(m)
-    || /^(?:i weigh|i weighed|weighed|my weight is|log my weight(?: as)?) (\d+(?:\.\d+)?) ?(?:kg|kgs|kilos?|lbs?|pounds?)?(?: today| this morning)?$/.test(m)
-    || /^\d+(?:\.\d+)? ?(?:kg|kgs|kilos?|lbs?|pounds?)(?: today| this morning)?$/.test(m),
+    || /^(?:i weigh|i weighed|weighed|my weight is|log my weight(?: as)?) (\d+(?:\.\d+)?) ?(?:kg|kgs|kilos?|lbs?|pounds?)?(?: today| this morning| yesterday| last night)?$/.test(m)
+    || /^\d+(?:\.\d+)? ?(?:kg|kgs|kilos?|lbs?|pounds?)(?: today| this morning| yesterday| last night)?$/.test(m),
   // Lists: "add cheese to my avoid list", "remove salmon from my eats".
   (m) => {
     const found = new RegExp(`^(?:please )?(?:add|put|remove|take|drop) (.+?) (?:to|on|onto|from|off) (?:my|the) ${LISTS}(?: list)?$`).exec(m);
@@ -76,7 +80,7 @@ const FORMS: readonly Form[] = [
   (m) => {
     const found = /^(?:can you |please )?(?:move|shift|push|bump|delay|pull) (.+)$/.exec(m);
     return found !== null && only(found[1], (t) => SLOTS.has(t) || TIME.has(t) || isNumber(t) || /^meal-\d$/.test(t)
-      || words("by later earlier back forward to until").has(t));
+      || DAY.has(t) || words("by later earlier back forward to until and").has(t));
   },
   // Suggestions: "make me 5 suggestions from my eats list", "suggest a snack that fits my remaining macros".
   (m) => {

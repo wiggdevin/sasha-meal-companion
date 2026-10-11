@@ -894,8 +894,13 @@ The run makes no production change. Every production step is Devin's. The invite
   (`docs/specs/phase-10-conversational-onboarding.md`, which today requires an `_sync_upsert`
   template branch and a template change row) must be reconciled to this contract; this run edits
   only the Phase 9 file.
-- Making `x-smc-account` required on every route (0.5a) after one release.
-- An owner-proved recovery tool for held legacy ops (0.6).
+- ~~Making `x-smc-account` required on every route (0.5a) after one release.~~ Done (verified
+  2026-10-11, W055): `tests/tenancy/route-account-header.test.ts` runs every `app/api` handler with
+  no header and with another account's header; each refuses before any query, or is a listed
+  non-cookie route with its reason.
+- ~~An owner-proved recovery tool for held legacy ops (0.6).~~ Done (W055):
+  `lib/device/legacy-recovery.ts`, owner-run from the console (`smcHeldChanges.list()`, then
+  `recover([op_id])`, a dry run until the owner types the confirmation); `smc` is never written.
 - The shared rate limiter for routes other than the invite route.
 - An invite admin screen.
 

@@ -1,3 +1,4 @@
+import { labelFoodIdFor } from "@/lib/log/op-id";
 import { describe, expect, it, vi } from "vitest";
 import { NUTRIENT_CODES } from "@/lib/nutrients/codes";
 import { LABEL_FOOD_PLACEHOLDER_REF } from "@/lib/server/log-label-food";
@@ -60,9 +61,11 @@ describe("applyLogEntry with a label capture", () => {
     const db = fakeDb();
     const out = await applyLogEntry(db.client, "u1", REQ, { admin: db.client, labelFood: LABEL });
     expect(out.status).toBe("ok");
-    expect(out.status === "ok" && out.user_food_id).toBe("uf-1");
+    // W017 A036: the food's id is named by the account and the entry, so a retry meets it.
+    const id = labelFoodIdFor("u1", REQ.entry_id);
+    expect(out.status === "ok" && out.user_food_id).toBe(id);
     expect(db.rpc).toHaveBeenCalledWith("get_or_create_food_ref",
-      { p_user_id: "u1", p_kind: "user", p_catalog_food_id: null, p_user_food_id: "uf-1" });
+      { p_user_id: "u1", p_kind: "user", p_catalog_food_id: null, p_user_food_id: id });
   });
 
   it("refuses save_label_as_food with no label_food rather than writing an empty food", async () => {

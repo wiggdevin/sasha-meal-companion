@@ -64,8 +64,8 @@ describe("Basis ignores names (round-8 BLOCK)", () => {
     expect(slotOf(build(store).slots, "meal-1").eatenEnergyBasis).toBe("components");
     store.days[DATE].extras = [entry("breakfast", [item({ reported: 300 })], "meal-1")];
     const logged = slotOf(build(store).slots, "meal-1");
-    // resolveDay suppresses the snapshot (eaten: false, meal: null): the log is the record.
-    expect(logged.eaten).toBe(false);
+    // resolveDay suppresses the snapshot: the log is the record, and the slot stays ticked (A064).
+    expect(logged.eaten).toBe(true);
     expect(logged.eatenEnergyBasis).toBe("log");
   });
 

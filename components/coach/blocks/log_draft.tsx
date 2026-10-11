@@ -16,7 +16,7 @@ import type { ProposeResponse } from "@/lib/capture/types";
 import { offPlanFor } from "@/lib/catalog-client";
 import { commitLogEntry } from "@/lib/log-commit-client";
 import { buildCommitRequest } from "@/lib/log-client";
-import { catalogCard } from "@/lib/log/catalog-card";
+import { catalogCard, scanItemAmount } from "@/lib/log/catalog-card";
 import { forgetLoggedEntry } from "@/lib/log/delete-entry";
 import { opIdFor } from "@/lib/log/op-id";
 import { savedFrom } from "@/lib/log/outcome";
@@ -74,9 +74,7 @@ async function commitBarcode(
   const revision = toCachedRevision(edits.match, block.draft.gtin14);
   const request = buildCommitRequest({
     entryId, eatenAt: at, tz, slot: edits.slot, method: "barcode",
-    items: [{ id: itemId, foodRefId: edits.match.foodRefId, revision, grams: edits.grams,
-      qty: edits.qty, unit: edits.portionId === null ? "g" : "portion",
-      portionId: edits.portionId }],
+    items: [{ id: itemId, foodRefId: edits.match.foodRefId, revision, ...scanItemAmount(edits) }],
   });
   const entry = catalogCard({
     revision, entryId, itemId, foodRefId: edits.match.foodRefId, grams: edits.grams,

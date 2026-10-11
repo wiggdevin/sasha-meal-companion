@@ -20,7 +20,8 @@ export function draftPrefix(): string | null {
 }
 
 export type DraftStore = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">;
-export type StoredDraft = { draft: ProposeResponse; savedAt: string };
+/** `inputKey`: what the capture sent (`captureInputKey`), so a 409 finds THIS capture's draft. */
+export type StoredDraft = { draft: ProposeResponse; savedAt: string; inputKey?: string };
 
 function defaultStore(): DraftStore | null {
   try {
@@ -34,10 +35,12 @@ export function saveDraft(
   draft: ProposeResponse,
   store: DraftStore | null = defaultStore(),
   now: Date = new Date(),
+  inputKey?: string,
 ): "ok" | "too_large" | "unavailable" {
   const prefix = draftPrefix();
   if (store === null || prefix === null) return "unavailable";
-  const body = JSON.stringify({ draft, savedAt: now.toISOString() } satisfies StoredDraft);
+  const body = JSON.stringify({ draft, savedAt: now.toISOString(),
+    ...(inputKey ? { inputKey } : {}) } satisfies StoredDraft);
   if (new TextEncoder().encode(body).length > DRAFT_MAX_BYTES) return "too_large";
   try {
     store.setItem(prefix + draft.draftId, body);
@@ -83,16 +86,44 @@ export function clearDraft(draftId: string, store: DraftStore | null = defaultSt
   }
 }
 
-/** The draft a 409 `duplicate_request` is telling us we already hold. */
-export function latestDraft(store: DraftStore | null = defaultStore()): ProposeResponse | null {
+/**
+ * The draft a 409 `duplicate_request` is telling us we already hold: the one saved for this same
+ * input (audit 2026-10-10 A032). Never another capture's draft — the newest of any capture used
+ * to come back, so an abandoned draft could be saved as the wrong food. A committed draft is
+ * cleared, so the same input logged twice finds none, and the sheet says so instead.
+ */
+export function draftForInput(
+  inputKey: string | null, store: DraftStore | null = defaultStore(),
+): ProposeResponse | null {
   const prefix = draftPrefix();
-  if (store === null || prefix === null) return null;
+  if (inputKey === null || store === null || prefix === null) return null;
   let best: StoredDraft | null = null;
   for (let i = 0; i < store.length; i += 1) {
     const key = store.key(i);
     if (key === null || !key.startsWith(prefix)) continue;
     const row = read(store, key);
-    if (row !== null && (best === null || row.savedAt > best.savedAt)) best = row;
+    if (row === null || row.inputKey !== inputKey) continue;
+    if (best === null || row.savedAt > best.savedAt) best = row;
   }
   return best?.draft ?? null;
+}
+
+/** The copy for a duplicate with no held draft: it was most likely saved a moment ago. */
+export const DUPLICATE_NO_DRAFT = "You just sent this. If you saved it, it is on Today.";
+
+/**
+ * What a capture sent, as a key: the text itself, or a digest of the clip or photo. Two captures
+ * of the same input get the same key, which is what the server's duplicate guard compares too.
+ */
+export async function captureInputKey(
+  input: { method: "text"; text: string } | { method: string; blob: Blob },
+): Promise<string | null> {
+  if ("text" in input) return `text:${input.text.trim().toLowerCase()}`;
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", await input.blob.arrayBuffer());
+    const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    return `${input.method}:${hex}`;
+  } catch {
+    return null; // no digest, no key: a duplicate then shows no draft rather than a wrong one
+  }
 }

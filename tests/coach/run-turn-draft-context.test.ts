@@ -29,6 +29,7 @@ function db(tables: Record<string, Record<string, unknown>[]>) {
       select: () => chain,
       eq: (field: string, value: unknown) => { filters[field] = value; return chain; },
       is: (field: string, value: unknown) => { filters[field] = value; return chain; },
+      in: () => chain,
       gte: (_field: string, value: number) => { minSeq = value; return chain; },
       lte: (_field: string, value: number) => { maxSeq = value; return chain; },
       order: (_field: string, opts: { ascending: boolean }) => {

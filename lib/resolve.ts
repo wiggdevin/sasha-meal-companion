@@ -284,9 +284,12 @@ export function resolveDay(store: Store, date: string, waterCups = 0,
       // its library display.
       const loggedRitual = historical && slotHasOwnLog(stored, slotId)
         && undescribedEatenSlots(stored, [slotId]).has(slotId);
+      // A ticked slot whose followPlan snapshot a log suppressed is the same logged shell: the
+      // log is the record and the card stays ticked, not an unticked empty slot (audit A064).
+      const loggedSnapshot = !consumed && !!planSnapshot && slotHasOwnLog(stored, slotId);
       const estimate = undescribedEaten.has(slotId)
         ? eatenEstimateMeal(date, slotId, frozenEatenShare(store, date, dayType, slotId), stored)
-        : loggedRitual ? eatenEstimateMeal(date, slotId, undefined, stored) : null;
+        : loggedRitual || loggedSnapshot ? eatenEstimateMeal(date, slotId, undefined, stored) : null;
       const shown = estimate ?? meal;
       const eatenAt = shown ? stored?.eaten?.[slotId] : undefined;
       const historicalBase = BASE_SLOT_TIMES[dayType][slotId]

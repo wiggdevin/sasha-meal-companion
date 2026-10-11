@@ -35,4 +35,10 @@ describe("Oura callback return", () => {
     const res = await GET(new Request(`https://app.test/api/health/oura/callback?state=${unsafe}&error=access_denied`));
     expect(res.headers.get("location")).toBe("https://app.test/settings?oura=error&reason=denied");
   });
+
+  it("does not follow a dot-segment path to another host (A053)", async () => {
+    const unsafe = `x.${Buffer.from("/.//evil.example/p").toString("base64url")}`;
+    const res = await GET(new Request(`https://app.test/api/health/oura/callback?error=1&state=${unsafe}`));
+    expect(res.headers.get("location")).toBe("https://app.test/settings?oura=error&reason=denied");
+  });
 });

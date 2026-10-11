@@ -80,6 +80,28 @@ const PAGE_LABEL: Record<CoachPage, string> = {
   settings: "Settings (profile, targets and schedule)",
 };
 
+const PAGE_NAME: Record<CoachPage, string> = {
+  today: "Today", body: "Body", foods: "Foods", settings: "Settings",
+};
+
+/**
+ * What the reply says when the scope dropped an action (audit 2026-10-10 P18). Dropped silently,
+ * the reply still claimed the write, the claim check asked for it again, the same filter dropped it
+ * again, and the user read "Tell me the amounts once more" — which can never work from here.
+ */
+export function scopeDropNotice(scope: CoachScope | undefined, dropped: readonly ActionKind[]): string {
+  if (scope?.kind === "component") {
+    return "I did not change anything: from this meal card I can only change this meal on this day."
+      + " Ask in the main coach for anything else.";
+  }
+  const here = scope?.kind === "page" ? `the ${PAGE_NAME[scope.page]} page` : "here";
+  const homes = (Object.keys(PAGE_KINDS) as CoachPage[])
+    .filter((page) => dropped.some((kind) => PAGE_KINDS[page].includes(kind)))
+    .map((page) => PAGE_NAME[page]);
+  const where = homes.length > 0 ? `${homes.join(" or ")} or the main coach` : "the main coach";
+  return `I did not do that: it cannot be done from ${here}. Ask on ${where}.`;
+}
+
 /** Transcript-tail guidance, the same mechanism the recipes surface uses. Empty for global. */
 export function scopeGuidance(scope: CoachScope | undefined): string[] {
   const allowed = allowedKinds(scope);
