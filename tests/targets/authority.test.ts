@@ -259,6 +259,11 @@ describe("the target authority revision", () => {
     });
   });
 
+  it("reads a stray account_minimum row as the legacy label (W008 dropped it)", () => {
+    const stray = { ...REVISION_ROW, kcal_min_source: "account_minimum" } as never;
+    expect(targetRevisionFromProfile(stray)?.floors?.kcalMinSource).toBe("legacy_default");
+  });
+
   it("maps a frozen seed only when all five columns are present (step E1)", () => {
     const seeded = { ...REVISION_ROW, initial_tdee_kcal: 1873, bmr_kcal: 1338,
       bmr_method: "mifflin" as const, activity_model_version: "activity-2026-09-22",
