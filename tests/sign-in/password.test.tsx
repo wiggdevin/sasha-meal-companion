@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({ replace: vi.fn() })),
 }));
 
-function auth(result: { message: string } | null): PasswordAuth & { calls: unknown[] } {
+function auth(result: { code: string } | null): PasswordAuth & { calls: unknown[] } {
   const calls: unknown[] = [];
   return {
     calls,
@@ -32,7 +32,7 @@ describe("signInWithPassword", () => {
   });
 
   it("returns one plain message when Supabase rejects the pair, without echoing the reason", async () => {
-    const a = auth({ message: "Invalid login credentials" });
+    const a = auth({ code: "invalid_credentials" });
     const message = await signInWithPassword(a, "devs@example.com", "wrong");
     expect(message).toBe("That email and password did not match.");
     expect(message).not.toContain("Invalid");
@@ -62,7 +62,7 @@ describe("signInWithPassword", () => {
   });
 
   it("locks out repeated wrong-password guesses for one email instead of asking Supabase forever", async () => {
-    const a = auth({ message: "Invalid login credentials" });
+    const a = auth({ code: "invalid_credentials" });
     for (let i = 0; i < 5; i += 1) {
       await signInWithPassword(a, "devs@example.com", "wrong");
     }
@@ -70,6 +70,31 @@ describe("signInWithPassword", () => {
     expect(message).toMatch(/too many attempts/i);
     // The 6th guess never reached Supabase.
     expect(a.calls).toHaveLength(5);
+  });
+});
+
+describe("signInWithPassword limits (W052)", () => {
+  beforeEach(() => {
+    resetAttemptLimits();
+  });
+
+  it.each(["rate_limited", "auth_rate_limited"])("tells the person to wait on %s, not that the password was wrong", async (code) => {
+    expect(await signInWithPassword(auth({ code }), "devs@example.com", "secret")).toBe(
+      "Too many tries. Wait a few minutes, then try again.",
+    );
+  });
+
+  // Sol review: a limiter or Auth outage never judged the input, so it is never "did not match".
+  it.each(["rate_limit_unavailable", "auth_unavailable", "failed", "internal"])("says the service could not be reached on %s", async (code) => {
+    expect(await signInWithPassword(auth({ code }), "devs@example.com", "secret")).toBe(
+      "Could not reach the sign-in service. Check your connection and try again.",
+    );
+  });
+
+  it("says the service could not be reached when the route answers offline", async () => {
+    expect(await signInWithPassword(auth({ code: "offline" }), "devs@example.com", "secret")).toBe(
+      "Could not reach the sign-in service. Check your connection and try again.",
+    );
   });
 });
 
