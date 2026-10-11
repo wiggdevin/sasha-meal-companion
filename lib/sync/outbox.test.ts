@@ -502,6 +502,16 @@ describe("ops carry their owner (Phase 9 §0.5)", () => {
     expect(sent.every((o) => o.user_id === h.userId)).toBe(true);
   });
 
+  it("keeps a note edit's base on this device: it never goes on the wire", async () => {
+    const row = { local_date: "2026-09-11", cups: 4 };
+    await enqueueWithRow(h, row, { ...OP, note_base: "felt fine" }, 1_000);
+    let sent: Record<string, unknown>[] = [];
+    await drainOutbox(h, async (ops) => { sent = ops; return response([]); }, () => 2_000);
+    expect(sent).toHaveLength(1);
+    expect("note_base" in sent[0]).toBe(false);
+    expect((await allOps(h))[0].note_base).toBe("felt fine");
+  });
+
   it("an account_unbound error parks the op and never deletes it (what an old build does)", async () => {
     await enqueue(h, OP, 1_000);
     for (let i = 0; i < 5; i += 1) {

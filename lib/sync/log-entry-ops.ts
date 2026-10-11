@@ -9,7 +9,7 @@ import type { AccountHandle } from "@/lib/device/account";
 import { deleteOp, deleteRow, putOp, putRow, type OutboxOp } from "./idb";
 import { backoffMs } from "./backoff";
 import { PARK_MS } from "./settings";
-import { joinNotes } from "./merge";
+import { joinNotes, mergeNoteFromBase } from "./merge";
 import { isCompleteEntryRow, serverFields } from "@/lib/log/entry-row";
 import type { OpResult } from "./types";
 import { confirmEntry, isDeleted } from "@/lib/log/pending";
@@ -112,8 +112,16 @@ export async function rebaseLogNote(
 ): Promise<void> {
   const server = (result.current ?? {}) as Record<string, unknown>;
   const mine = op.payload as Record<string, unknown>;
-  // Theirs second: it is the newer of the two, and a note is evidence — neither side's is dropped.
-  const note = joinNotes(server.note, mine.note, String(server.updated_at ?? ""), op.client_ts);
+  const serverTs = String(server.updated_at ?? "");
+  // With the note her edit started from, only a note BOTH sides changed is joined: one the other
+  // device left alone takes hers, a clear included (audit 2026-10-10 A077). An op queued before
+  // that base was recorded keeps the old rule. Theirs second: it is the newer of the two, and a
+  // note is evidence — neither side's is dropped.
+  const note = op.note_base === undefined
+    ? joinNotes(server.note, mine.note, serverTs, op.client_ts)
+    : mergeNoteFromBase(op.note_base, mine.note, server.note, op.client_ts, serverTs);
+  // The re-aimed payload is built on the server's row, so the server's note is its base now.
+  const serverNote = typeof server.note === "string" ? server.note.trim() : "";
   if (isCompleteEntryRow(server)) {
     await putRow(h, "log_entries", op.entity_id, server).catch(() => undefined);
   }
@@ -124,6 +132,7 @@ export async function rebaseLogNote(
     ...op,
     base_rev: typeof result.current_rev === "number" ? result.current_rev : op.base_rev,
     payload: { ...serverFields(server), id: op.entity_id, note: note ?? null },
+    note_base: serverNote || null,
     error_attempts: attempts,
     next_attempt_at: now() + (parked ? PARK_MS : backoffMs(attempts)),
   });

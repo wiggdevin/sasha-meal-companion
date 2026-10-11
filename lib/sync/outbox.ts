@@ -6,13 +6,14 @@
  */
 import {
   allOps, appendOp, appendOpWithRow, countOps, deleteOp, deleteRow, getCursor, getRow,
-  putOp, putRow, setCursor, type AccountHandle, type OutboxOp, type OwnedOp,
+  putOp, putRow, setCursor, wireOp, type AccountHandle, type OutboxOp, type OwnedOp, type QueuedSyncOp,
 } from "./idb";
 import { drainable, handleLogEntryResult } from "./log-entry-ops";
 import { applyFoodMembershipResult, type SyncResult } from "./outbox-membership";
 import { SyncHttpError } from "./client";
 import { encodeKey } from "./keys";
-import { mergeEntity, NEVER_MERGED, rebaseOp, type Row } from "./merge";
+import { type Row } from "./merge";
+import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
 import { withSettingsProvenance } from "./user-settings";
@@ -27,7 +28,7 @@ const PARKED_FROM_MS = 24 * 60 * 60 * 1000;
 export const MAX_OPS_PER_PUSH = 200;
 /** The routes accept a 1 MB body; leave headroom for the JSON envelope and headers. */
 export const MAX_PUSH_BYTES = 900_000;
-export const TARGETS_CHANGED_EVENT = "meal-companion:targets-changed";
+export { serverTimestampOf, TARGETS_CHANGED_EVENT };
 /**
  * Announced right after an op is queued, so a sync can be scheduled for it. Nothing here pushes —
  * this file never talks to the network — SyncBootstrap listens and runs the pass.
@@ -76,7 +77,7 @@ export async function enqueue(h: AccountHandle, op: SyncOp, now: number = Date.n
  * key come from the op, so the row cannot be filed under a key of its own choosing.
  */
 export async function enqueueWithRow(
-  h: AccountHandle, row: Record<string, unknown>, op: SyncOp, now: number = Date.now(),
+  h: AccountHandle, row: Record<string, unknown>, op: QueuedSyncOp, now: number = Date.now(),
 ): Promise<OutboxOp> {
   assertKeyMatchesPayload(op);
   const queued = await appendOpWithRow(h, row, op, now);
@@ -108,26 +109,6 @@ export function pendingCount(h: AccountHandle): Promise<number> {
   return countOps(h);
 }
 
-/** A conflict carries the row but no stamp of its own, and the synced tables use three different
- *  names for "when". Falling back to now lets the server win a tie, which is right: its row was
- *  written after our `base_rev`. See Open question 1. */
-export function serverTimestampOf(row: unknown, fallback: string): string {
-  const r = (row ?? {}) as Record<string, unknown>;
-  for (const column of ["updated_at", "changed_at", "eaten_at", "created_at"]) {
-    const value = r[column];
-    if (typeof value === "string" && !Number.isNaN(Date.parse(value))) return value;
-  }
-  return fallback;
-}
-
-/** Strip this device's queue bookkeeping; the op and its owner go on the wire (spec §0.5). */
-function wireOp(op: OutboxOp): OwnedOp {
-  const { seq, attempts, error_attempts, queued_at, next_attempt_at, intents, generation, ...rest } = op;
-  void seq; void attempts; void error_attempts; void queued_at; void next_attempt_at;
-  void intents; void generation;
-  return rest;
-}
-
 /** The routes' cap is a real HTTP body byte count, so it must be measured in UTF-8 bytes, not JS
  *  string .length (UTF-16 code units) — a note in Hiragana, Chinese or emoji is several bytes on
  *  the wire per unit of .length, and undercounting it here would push a request past the server's
@@ -148,44 +129,11 @@ function capByBytes(ops: OutboxOp[]): OutboxOp[] {
   return out;
 }
 
-/** Columns the server owns: sending them back to apply_sync_op would ask it to overwrite its own
- *  bookkeeping. `base_rev` carries the rev the rebased op is aimed at. */
-const SERVER_OWNED = ["user_id", "rev", "seq", "created_at", "updated_at"] as const;
-
-function stripServerOwned(row: Row): Row {
-  const out: Row = { ...row };
-  for (const column of SERVER_OWNED) delete out[column];
-  return out;
-}
-
 async function onConflict(
   h: AccountHandle, result: Extract<OpResult, { status: "conflict" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
-  const server = (result.current ?? {}) as Row;
-  if (NEVER_MERGED.has(op.entity)) {
-    await putRow(h, op.entity, op.entity_id, server);
-    await deleteOp(h, op.op_id);
-    globalThis.dispatchEvent?.(new Event(TARGETS_CHANGED_EVENT));
-    return;
-  }
-  if (op.entity === SETTINGS) {
-    // A settings conflict is not a field merge: the server's row becomes the baseline, the intents
-    // recorded since are replayed onto it and the SAME op is rewritten at the server's rev, all in
-    // one transaction (lib/sync/settings.ts). A successor op would be aimed at a speculative rev.
-    await settleUserSettings(h, op, { status: "conflict", row: server, rev: result.current_rev },
-      now());
-    return;
-  }
-  // syncOnce pulls before it pushes, so the mirror already holds the server's row by now. The op's
-  // payload is the only surviving record of what the user meant, so it wins over the mirror.
-  const mirror = ((await getRow(h, op.entity, op.entity_id)) ?? {}) as Row;
-  const local = { ...mirror, ...op.payload } as Row;
-  const merged = mergeEntity(op.entity, local, server, op.client_ts,
-    serverTimestampOf(server, new Date(now()).toISOString()));
-  const rebased = rebaseOp(wireOp(op), stripServerOwned(merged), result.current_rev);
-  await putRow(h, op.entity, op.entity_id, { ...merged, rev: result.current_rev });
-  await deleteOp(h, op.op_id);
-  await enqueue(h, rebased, now());
+  const rebased = await settleConflict(h, result, op, now);
+  if (rebased) await enqueue(h, rebased, now());
 }
 
 /** Server errored on this op specifically (not a network failure). Retried with backoff, like a

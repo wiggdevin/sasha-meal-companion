@@ -95,3 +95,53 @@ describe("a note the server refused", () => {
     expect(left[0].next_attempt_at).toBeGreaterThanOrEqual(Date.now() + PARK_MS - 1_000);
   });
 });
+
+/**
+ * Audit 2026-10-10 A077: her note op carries the WHOLE note, and the rebase joined it to the
+ * server's note on any conflict, even one another device caused without touching the note. Her
+ * rewrite came back with the old text in front of it, and a cleared note came back.
+ */
+describe("a note refused because another device changed something else", () => {
+  const server = (note: string | null) => ({
+    ...conflict, current: { ...SERVER, note },
+  }) as OpResult;
+
+  it("keeps her rewrite instead of joining it to the text she rewrote", async () => {
+    const op = noteOp({ note_base: "felt fine",
+      payload: { ...noteOp().payload, note: "felt fine, then good" } });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("felt fine"), op);
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.note).toBe("felt fine, then good");
+  });
+
+  it("keeps her clear instead of bringing the old note back", async () => {
+    const op = noteOp({ note_base: "felt fine", payload: { ...noteOp().payload, note: null } });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("felt fine"), op);
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.note).toBeNull();
+  });
+
+  it("still keeps both when the other device changed the note too", async () => {
+    const op = noteOp({ note_base: null });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("a bit heavy"), op);
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.note).toBe("a bit heavy\nfelt fine");
+  });
+
+  it("re-aims on the server's note, so a second refusal adds nothing", async () => {
+    const op = noteOp({ note_base: null });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("a bit heavy"), op);
+    const [once] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(once.note_base).toBe("a bit heavy");
+    // Another device moves the entry; the note stays theirs-plus-hers.
+    await handleLogEntryResult(h, { ...conflict, current_rev: 3,
+      current: { ...SERVER, rev: 3, note: "a bit heavy" } } as OpResult, once);
+    const [twice] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(twice.payload.note).toBe("a bit heavy\nfelt fine");
+    expect(twice.base_rev).toBe(3);
+  });
+});

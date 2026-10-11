@@ -46,7 +46,14 @@ export type OutboxOp = OwnedOp & {
    *  number. Device bookkeeping only — `wireOp` strips both before an op goes on the wire. */
   intents?: { key: string; value: unknown; sub?: string[]; delta?: { add: string[]; remove: string[] } }[];
   generation?: number;
+  /** A whole-note edit (a log entry's note): the note the edit started from, so a conflict can
+   *  tell the user's change from the server's (lib/sync/log-entry-ops.ts). Device bookkeeping only:
+   *  `wireOp` strips it. `null` is "no note"; absent is an op queued before this field existed. */
+  note_base?: string | null;
 };
+
+/** A queued op with the bookkeeping its writer may attach at queue time. */
+export type QueuedSyncOp = SyncOp & Pick<OutboxOp, "note_base">;
 
 /** The store layout, shared by the per-account database and the legacy database. */
 export function upgradeStores(db: IDBPDatabase): void {
@@ -293,11 +300,20 @@ export async function deleteMeta(h: AccountHandle, key: string): Promise<void> {
 }
 
 /** The queue number, this device's retry state, the owner and the op — one outbox row. */
-export function outboxRow(h: AccountHandle, op: SyncOp, seq: number, now: number): OutboxOp {
+export function outboxRow(h: AccountHandle, op: QueuedSyncOp, seq: number, now: number): OutboxOp {
   return {
     ...op, user_id: h.userId, seq, attempts: 0, error_attempts: 0,
     queued_at: new Date(now).toISOString(), next_attempt_at: now,
   };
+}
+
+/** Strip this device's queue bookkeeping; the op and its owner go on the wire (spec §0.5). */
+export function wireOp(op: OutboxOp): OwnedOp {
+  const { seq, attempts, error_attempts, queued_at, next_attempt_at, intents, generation,
+    note_base, ...rest } = op;
+  void seq; void attempts; void error_attempts; void queued_at; void next_attempt_at;
+  void intents; void generation; void note_base;
+  return rest;
 }
 
 /** Allocates this device's next queue number and stores the op in the same transaction. */
@@ -318,7 +334,7 @@ export async function appendOp(
  * a row under a key that does not describe it.
  */
 export async function appendOpWithRow(
-  h: AccountHandle, row: Record<string, unknown>, op: SyncOp, now: number = Date.now(),
+  h: AccountHandle, row: Record<string, unknown>, op: QueuedSyncOp, now: number = Date.now(),
 ): Promise<OutboxOp> {
   const rowKey = encodeKey(op.entity, row);
   if (rowKey !== op.entity_id) {
@@ -368,7 +384,7 @@ async function abortQuietly(tx: { abort(): void }, done: Promise<void>): Promise
  * fresh seq each time would let a failing op jump ahead of everything queued behind it and reset
  * its own retry delay. Only the payload is new.
  */
-async function writeOp(h: AccountHandle, op: SyncOp, mirror: Mirror, now: number): Promise<OutboxOp> {
+async function writeOp(h: AccountHandle, op: QueuedSyncOp, mirror: Mirror, now: number): Promise<OutboxOp> {
   const db = await openAccountDb(h);
   const stores = mirror ? [mirror.entity, OUTBOX_STORE, META_STORE] : [OUTBOX_STORE, META_STORE];
   const tx = db.transaction(stores, "readwrite");
