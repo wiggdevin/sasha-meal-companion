@@ -125,7 +125,8 @@ export function suggestionPolicyEvidence(
   };
 }
 
-function plainWholeFood(facts: SuggestionFoodEvidence | undefined): boolean {
+/** A plain whole food is human food by its own name; anything else needs a human-food judgment. */
+export function plainWholeFood(facts: SuggestionFoodEvidence | undefined): boolean {
   return facts !== undefined && classifyWholeFood({
     foodName: facts.foodName ?? null, brand: facts.foodBrand ?? null,
     ingredientsText: facts.ingredientsText ?? null, packaged: facts.packaged,

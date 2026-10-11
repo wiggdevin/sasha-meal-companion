@@ -5,7 +5,7 @@
  */
 import { AccountChanged, isCurrent, type AccountHandle } from "@/lib/device/account";
 import {
-  BarcodeRejected, ScanUnavailable, offlineMatch, scanGtin, toCachedRevision,
+  BarcodeRejected, ScanUnavailable, offlineMatch, scanGtin, scanRulesStamp, toCachedRevision,
   type BarcodeResponse,
 } from "@/lib/barcode/client";
 import { addPendingScan, rememberScan, resolveOffline } from "@/lib/barcode/scan-cache";
@@ -22,11 +22,14 @@ export async function resolveScan(
   h: AccountHandle, gtin: string, hint: { brand?: string; name?: string } | undefined,
   run: TimingRun | undefined, opts: { fetchImpl?: typeof fetch } = {},
 ): Promise<ScanOutcome> {
+  // Taken before the lookup: a verdict is stored under the rules it may have been computed under.
+  const stamp = scanRulesStamp();
   try {
     const response = await scanGtin({ gtin, hint }, { run, account: h, fetchImpl: opts.fetchImpl });
     if (response.status === "resolved") {
       try {
-        await rememberScan(response.gtin14, toCachedRevision(response.match, response.gtin14), h);
+        await rememberScan(response.gtin14,
+          toCachedRevision(response.match, response.gtin14, Date.now(), stamp), h);
       } catch (e) {
         if (e instanceof AccountChanged) return { kind: "gone" };
         /* the cache is a convenience, never the log itself */
