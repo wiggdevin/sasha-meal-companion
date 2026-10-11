@@ -120,3 +120,66 @@ describe("recomputeDerivedTarget with kidney disease on a 0-pace adaptive revisi
     expect(fake.writes).toHaveLength(count);
   });
 });
+
+// W007 review: a manual protein pin is not a way around kidney disease's standard protein.
+describe("recomputeDerivedTarget with kidney disease and a protein pin", () => {
+  const ckd = { user_dietary_profiles: [{ user_id: USER, profile_id: "ckd", source: "user_stated" }] };
+  const pinned = (over: Parameters<typeof staleTarget>[0] = {}) => staleTarget({
+    target_source: "manual", pin_protein_g: 145, ...over });
+
+  for (const [label, target] of [
+    ["a derived manual revision", pinned()],
+    ["an adaptive revision", pinned({ formula_name: "adaptive-expenditure-v1",
+      target_source: "proposal" })],
+  ] as const) {
+    it(`caps ${label} pinned at 145 g to 0.8 g/kg and keeps the pin`, async () => {
+      const fake = fakeClient(settingsRow({ protein_g: 145 }), [target], [], ckd);
+      const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+      expect(outcome.status).toBe("written");
+      const write = fake.writes.at(-1) as Row & { training_macros: Row; rest_macros: Row };
+      expect(write.training_macros.protein).toBe(58);
+      expect(write.rest_macros.protein).toBe(58);
+      expect(write.protein_g_min).toBe(58);
+      // The pin is the user's own and comes back when the hold is removed.
+      expect(write.pin_protein_g).toBe(145);
+      const count = fake.writes.length;
+      await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+      expect(fake.writes).toHaveLength(count);
+    });
+  }
+
+  it("applies the 145 g pin again without the hold", async () => {
+    const fake = fakeClient(settingsRow({ protein_g: 145 }), [pinned()]);
+    await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+    const write = fake.writes.at(-1) as Row & { training_macros: Row };
+    expect(write.training_macros.protein).toBe(145);
+  });
+});
+
+// W007 review: a held or under-18 account whose profile can no longer derive still loses its pace.
+describe("recomputeDerivedTarget supersede with an incomplete profile", () => {
+  const paced = (over: Parameters<typeof staleTarget>[0] = {}) =>
+    staleTarget({ goal_rate_bp_week: -50, input_goal: "lose_fat", ...over });
+
+  for (const [label, over, tables] of [
+    ["under 18", { birth_year: 2010 }, {}],
+    ["breastfeeding", {}, conditions(SAFETY_CONDITION_TEXT.breastfeeding)],
+  ] as const) {
+    it(`copies the paced revision at a 0 pace (${label}) and then settles`, async () => {
+      const target = paced();
+      const fake = fakeClient(settingsRow({ ...LOSING, ...over, height_cm: null }),
+        [target, paced({ id: "f1", rev: 6, effective_from: "2026-10-12",
+          formula_name: "proposal-v1", target_source: "proposal" })], [], { ...tables });
+      const outcome = await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+      expect(outcome.status).toBe("written");
+      expect(fake.writes.map((w) => [w.effective_from, w.goal_rate_bp_week]))
+        .toEqual([[TODAY, 0], ["2026-10-12", 0]]);
+      // The macros are the revision's own: only the pace ends.
+      expect(fake.writes[0]).toMatchObject({ training_macros: target.training_macros,
+        rest_macros: target.rest_macros, input_goal: "lose_fat" });
+      const count = fake.writes.length;
+      await recomputeDerivedTarget(fake.client, USER, { today: TODAY });
+      expect(fake.writes).toHaveLength(count);
+    });
+  }
+});

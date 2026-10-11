@@ -44,3 +44,23 @@ describe("pinned days and the revision's own floors", () => {
     expectWithinFloors(revision.rest, revision.floors);
   });
 });
+
+// W007 review: under kidney disease a protein pin applies at most at standard protein (0.8 g/kg).
+describe("a protein pin under the kidney hold", () => {
+  const kidney = (over: Partial<Settings>) => deriveTargetRevision({ settings: settings(over),
+    latestWeighInKg: null, today: "2026-10-10", trainingWeekdays: [1, 3, 4, 5],
+    eligibility: { holds: ["kidney"], minor: false } });
+
+  it("caps a pin above standard protein and keeps the pin the user typed", () => {
+    const revision = kidney({ proteinG: 145 });
+    expect(revision.training.protein).toBe(58);
+    expect(revision.rest.protein).toBe(58);
+    expect(revision.floors.proteinGMin).toBe(58);
+    expect(revision.pins.proteinG).toBe(145);
+    expectWithinFloors(revision.rest, revision.floors);
+  });
+
+  it("applies a pin at or under standard protein as typed", () => {
+    expect(kidney({ proteinG: 50 }).training.protein).toBe(50);
+  });
+});

@@ -107,12 +107,26 @@ describe("manual target authoring", () => {
 
   it("keeps the active revision's rate and minimum source on a manual row (step D)", async () => {
     const { client, rpc } = clientWith({ ...PROFILE, goal_rate_bp_week: -50,
-      kcal_min_source: "macro_minimum" });
+      kcal_min_source: "macro_minimum" }, { goal: "lose_fat" });
     await authorTargets(client, "u1", { mode: "grams", effectiveFrom: "2026-09-14",
       kcalTrain: 2200, kcalRest: 1750, grams: { proteinG: 135, fatG: 85, carbG: 200 } });
     expect(rpc).toHaveBeenCalledWith("write_target_revision", expect.objectContaining({
       p_row: expect.objectContaining({ goal_rate_bp_week: -50, kcal_min_source: "macro_minimum" }),
     }));
+  });
+
+  // W007 review: an inherited rate is checked against the stored goal like a sent one.
+  it("stores 0 when the inherited rate is not a preset for the stored goal", async () => {
+    const inherited = { ...PROFILE, goal_rate_bp_week: -50 };
+    const body = { mode: "grams" as const, effectiveFrom: "2026-09-14", kcalTrain: 2200,
+      kcalRest: 1750, grams: { proteinG: 135, fatG: 85, carbG: 200 } };
+    for (const answers of [{ goal: "maintain" }, { goal: "gain_muscle" }, {}]) {
+      const { client, rpc } = clientWith(inherited, answers);
+      await authorTargets(client, "u1", body);
+      expect(rpc).toHaveBeenCalledWith("write_target_revision", expect.objectContaining({
+        p_row: expect.objectContaining({ goal_rate_bp_week: 0 }),
+      }));
+    }
   });
 
   it("labels a manual row built on a pre-D revision as legacy_default", async () => {

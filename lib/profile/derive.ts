@@ -97,6 +97,19 @@ function macrosWithPins(
   return atRevisionFloors(adjustCalories(baseline, kcalPin ?? base.kcal, category).macros);
 }
 
+/**
+ * Kidney disease takes standard protein (0.8 g/kg), and a protein pin above it is applied at the
+ * standard amount, never above it (W007 review): a 145 g pin is not a way around the hold. A pin
+ * at or under it, and every pin without the hold, applies as typed.
+ */
+function withProteinCap(
+  settings: Settings, eligibility: TargetEligibility | undefined, base: TargetSet,
+): Settings {
+  const standard = Math.min(base.training.protein, base.rest.protein);
+  return standardProtein(eligibility) && settings.proteinG !== null && settings.proteinG > standard
+    ? { ...settings, proteinG: standard } : settings;
+}
+
 export function applyTargetPins(base: TargetSet, pins: TargetPins): TargetSet {
   return {
     training: macrosWithPins(base.training, "training", pins.trainingKcal, pins.proteinG),
@@ -176,12 +189,15 @@ export function deriveTargetRevision(
     activityModelVersion: ACTIVITY_MODEL_VERSION,
     derivationVersion: TARGET_DERIVATION_VERSION,
   };
-  const revision = deriveTargetRevisionFromBase(
-    { ...input, settings, trainingWeekdays },
+  const fromBase = deriveTargetRevisionFromBase(
+    { ...input, settings: withProteinCap(settings, input.eligibility, derived), trainingWeekdays },
     derived,
     TARGET_FORMULA_NAME,
     derived.floorsBound,
   );
+  // The pin stays the user's own: the cap applies while the hold does, and the pin returns
+  // when it is removed.
+  const revision = { ...fromBase, pins: { ...fromBase.pins, proteinG: settings.proteinG } };
   // The account's own minimum (step D): 4·protein + 9·50 + 4·100, never a sex floor. The protein
   // is the revision's own (a protein pin included), so a pinned day is never recorded under its
   // own minimum (audit 2026-10-10 A002); without a pin this is the derivation's kcalMin.

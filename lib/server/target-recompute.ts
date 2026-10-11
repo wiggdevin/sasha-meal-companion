@@ -29,7 +29,8 @@
  *   or under 18, the revision in force today and every scheduled later revision that carries a
  *   pace (adaptive and proposal revisions too) are superseded on their own dates by 0-pace
  *   derivations, so no date after the hold has a pace; under kidney disease so is every one
- *   above standard protein (audit 2026-10-10 A003, A094).
+ *   above standard protein, a protein pin included (audit 2026-10-10 A003, A094). A profile that
+ *   can no longer derive gets a 0-pace copy of the paced revision, its macros kept.
  * - The run's date is the phone's own day when the batch carries one (t24b, owner ruling "phone's
  *   local day everywhere"), else the account's stored zone, the request's zone, and UTC as
  *   the logged last resort (lib/server/account-day.ts).
@@ -43,7 +44,10 @@ import { isProfileComplete } from "@/lib/profile/energy";
 import type { TargetProfile } from "@/lib/api-types";
 import type { Macros, Settings, TargetRevision } from "@/lib/types";
 import { settingsProfileFromRow, type UserSettingsProfileRow } from "@/lib/sync/user-settings";
-import { activeProfile, writeDerivedTargets, writeDerivedTargetsIfActive } from "@/lib/server/targets";
+import {
+  activeProfile, writeDerivedTargets, writeDerivedTargetsIfActive, writeRevisionCopy,
+} from "@/lib/server/targets";
+import { targetRevisionFromProfile } from "@/lib/targets/revision";
 import { resolveAccountDay } from "@/lib/server/account-day";
 import { fetchAllRows } from "@/lib/server/paged-read";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
@@ -75,7 +79,7 @@ type Derived = ReturnType<typeof deriveTargetRevision>;
 export type RecomputeOutcome =
   | { status: "skipped"; reason: RecomputeSkip; active: TargetProfile | null }
   | { status: "unchanged"; active: TargetProfile; expected: Derived }
-  | { status: "would_write"; active: TargetProfile | null; expected: Derived }
+  | { status: "would_write"; active: TargetProfile | null; expected: TargetRevision }
   /** `active` is the revision active after the write. */
   | { status: "written"; active: TargetProfile | null; revision: TargetRevision; rounds: number }
   /** Settings or the active revision kept moving for every round; the next settings op retries. */
@@ -237,12 +241,15 @@ type Plan =
       input: DeriveTargetRevisionInput; expected: Derived }
   /** A held account with a pace in force today or scheduled for a later date: one 0-pace
    *  revision per such date, each dated as the revision it supersedes. */
-  | { kind: "neutralise"; active: TargetProfile | null; today: string;
-      writes: { input: DeriveTargetRevisionInput; expected: Derived }[] };
+  | { kind: "neutralise"; active: TargetProfile | null; today: string; writes: Supersede[] };
 
 type DayHints = Pick<RecomputeOptions, "clientDay" | "requestZone">;
 
-type Supersede = { input: DeriveTargetRevisionInput; expected: Derived };
+/** A 0-pace derivation, or, when the profile cannot derive, the revision itself copied at a 0
+ *  pace (`copy`): its macros stay, and no later step or proposal builds on its pace. */
+type Supersede =
+  | { input: DeriveTargetRevisionInput; expected: Derived }
+  | { copy: TargetRevision };
 
 /** The highest protein a revision sets on either day; a legacy row falls back to `protein_g`. */
 function proteinOf(profile: TargetProfile): number {
@@ -256,8 +263,10 @@ function proteinOf(profile: TargetProfile): number {
  * revision on its own date: one carrying a pace while the account is held or under 18, and one
  * above standard protein under kidney disease, whatever formula wrote it. Each keeps that
  * revision's weigh-in weight and pins. A date on which the account is neither held nor under 18
- * (a birthday before a scheduled revision) keeps its revision. `incomplete_profile` when a pace
- * must go but the profile cannot derive.
+ * (a birthday before a scheduled revision) keeps its revision. When a pace must go but the
+ * profile cannot derive (a field cleared since onboarding), the revision is copied on its date at
+ * a 0 pace with its macros kept (W007 review): the pace still ends now, and the next complete
+ * profile derives the rest. `incomplete_profile` only for a row the copy cannot read (legacy).
  */
 async function supersedeWrites(
   client: SupabaseClient, userId: string, row: SettingsRow, today: string,
@@ -271,7 +280,10 @@ async function supersedeWrites(
     if (!minorOn && paceAllowed(dated)) continue;
     const settings = settingsFromRow(row, pinsOf(profile));
     if (!isProfileComplete(settings)) {
-      if (hasPace(profile)) return "incomplete_profile";
+      if (!hasPace(profile)) continue;
+      const copy = paceClearedCopy(profile, date);
+      if (!copy) return "incomplete_profile";
+      writes.push({ copy });
       continue;
     }
     const input: DeriveTargetRevisionInput = {
@@ -285,6 +297,15 @@ async function supersedeWrites(
     if (hasPace(profile) || proteinAbove) writes.push({ input, expected });
   }
   return writes;
+}
+
+/** `profile` on `date` at a 0 pace, everything else as stored; null for a row that does not
+ *  parse as a revision (lib/targets/revision.ts) or carries no floors. */
+function paceClearedCopy(profile: TargetProfile, date: string): TargetRevision | null {
+  const parsed = targetRevisionFromProfile(profile);
+  if (!parsed?.floors) return null;
+  return { ...parsed, effectiveFrom: date,
+    inputs: { ...parsed.inputs, effectiveDate: date, goalRateBpWeek: 0 } };
 }
 
 async function plan(
@@ -354,7 +375,8 @@ async function plan(
 export async function recomputeDerivedTarget(
   client: SupabaseClient, userId: string, options: RecomputeOptions = {},
 ): Promise<RecomputeOutcome> {
-  let written: { revision: TargetRevision; rounds: number } | null = null;
+  /** `byHold`: written by a hold's or a minor's supersede (unconditional, on its own date). */
+  let written: { revision: TargetRevision; rounds: number; byHold: boolean } | null = null;
   // The date every read in this run uses: the caller's, else the account zone's from the first plan.
   let today = options.today;
   const finish = async (next: Plan): Promise<RecomputeOutcome | null> => {
@@ -362,8 +384,10 @@ export async function recomputeDerivedTarget(
     // reported as the skip: the derived row written earlier is not the one left in force.
     if (next.kind === "skip") {
       // The 0-pace revisions a hold wrote stay in force on their own dates under a later one.
-      // So do the ones a minor's supersede wrote: nothing more is derived for that account.
-      if (written && (next.reason === "future_revision" || next.reason === "adult_only")) {
+      // So do the ones a minor's supersede wrote: nothing more is derived for that account. A
+      // supersede is unconditional, so whatever skip follows it, it is the row left in force.
+      if (written && (written.byHold || next.reason === "future_revision"
+        || next.reason === "adult_only")) {
         return settled();
       }
       return { status: "skipped", reason: next.reason, active: next.active };
@@ -384,13 +408,18 @@ export async function recomputeDerivedTarget(
     if (done) return done;
     if (next.kind === "neutralise") {
       if (options.dryRun) {
-        return { status: "would_write", active: next.active, expected: next.writes[0].expected };
+        const first = next.writes[0];
+        return { status: "would_write", active: next.active,
+          expected: "copy" in first ? first.copy : first.expected };
       }
       // Unconditional writes (`write_target_revision`): the conditional RPC refuses any date with
       // a later revision, and a 0 pace is the safe side of any race. The next round verifies.
       let last: TargetRevision | null = null;
-      for (const write of next.writes) last = await writeDerivedTargets(client, userId, write.input);
-      if (last) written = { revision: last, rounds: round };
+      for (const write of next.writes) {
+        last = "copy" in write ? await writeRevisionCopy(userId, write.copy)
+          : await writeDerivedTargets(client, userId, write.input);
+      }
+      if (last) written = { revision: last, rounds: round, byHold: true };
       continue;
     }
     if (next.kind !== "derive") throw new Error("unreachable");
@@ -398,7 +427,7 @@ export async function recomputeDerivedTarget(
     const revision = await writeDerivedTargetsIfActive(client, userId, next.input,
       next.active?.id ?? null, next.rev);
     // null: another revision became active after this plan read it. Re-plan from the new state.
-    if (revision) written = { revision, rounds: round };
+    if (revision) written = { revision, rounds: round, byHold: false };
     // The next round re-reads settings and the active revision; a match ends the run, and a newer
     // settings row (another save landed meanwhile) is derived again.
   }

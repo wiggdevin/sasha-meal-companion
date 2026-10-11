@@ -160,6 +160,17 @@ export async function writeDerivedTargets(
 }
 
 /**
+ * Write a revision exactly as given (`write_target_revision`, unconditional). Only the server
+ * recompute calls it, to supersede a paced revision at a 0 pace when the profile cannot derive
+ * (lib/server/target-recompute.ts); nothing taken from a request body reaches it.
+ */
+export async function writeRevisionCopy(
+  userId: string, revision: TargetRevision,
+): Promise<TargetRevision> {
+  return persistRevision(userId, revision, revision.effectiveFrom, revision.floors);
+}
+
+/**
  * Like writeDerivedTargets, but only while `expectedActiveId` (null: no active revision) is still
  * the revision active on the new row's date and, when given, `expectedSettingsRev` is still the
  * `user_settings` rev the caller derived from. Returns null and writes nothing otherwise
@@ -314,18 +325,27 @@ export function targetsFromProfile(profile: TargetProfile): TargetsResponse {
  * The pace an authored (pinned) revision stores. A held account keeps 0 whatever the body sends.
  * Otherwise a rate in the body must be 0 or a preset for the account's STORED goal, exactly as
  * the derive path requires (audit 2026-10-10 A004); an unknown goal admits only 0. Without one,
- * the revision it pins over keeps its rate.
+ * the revision it pins over keeps its rate when that rate is valid for the stored goal, and 0
+ * otherwise: an adaptive revision's rate never carries onto a goal it is not a preset for.
  */
 function authoredRate(
   requested: number | undefined, goal: unknown, eligibility: TargetEligibility,
-  inherited: number | null | undefined,
+  inherited: number | string | null | undefined,
 ): number {
   if (!paceAllowed(eligibility)) return 0;
-  if (requested === undefined) return inherited ?? 0;
-  if (requested !== 0 && !(isGoal(goal) && validateRate(goal, requested))) {
+  if (requested === undefined) {
+    const rate = Number(inherited ?? 0);
+    return rateFitsGoal(goal, rate) ? rate : 0;
+  }
+  if (!rateFitsGoal(goal, requested)) {
     throw new HttpError(400, "rate_not_valid", "That pace is not one of the choices for your goal.");
   }
   return requested;
+}
+
+/** 0, or a preset for the stored goal; an unknown goal admits only 0. */
+function rateFitsGoal(goal: unknown, rate: number): boolean {
+  return rate === 0 || (Number.isFinite(rate) && isGoal(goal) && validateRate(goal, rate));
 }
 
 function isGoal(value: unknown): value is Goal {
