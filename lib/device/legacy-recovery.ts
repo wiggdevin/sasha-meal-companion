@@ -6,12 +6,12 @@
  *  - `listHeldLegacyOps()` is read-only: what is held, as a summary (entity, kind, key, time),
  *    never the payload, and which ops were already recovered and into which account.
  *  - `recoverHeldLegacyOps(h, opIds)` is a DRY RUN by default: it reports what it would queue and
- *    writes nothing. Only with `confirm: RECOVER_CONFIRM` does it queue each chosen op into the
- *    bound account's own outbox under the same `op_id` (the server's op idempotency makes a repeat
- *    of an op it already applied a no-op), and mark it recovered on this device.
+ *    writes nothing. Only with `confirm: RECOVER_CONFIRM` does it mark each chosen op as this
+ *    account's on this device, then queue it into the bound account's own outbox under the same
+ *    `op_id` (the server answers `duplicate` for an op it already applied), in the old queue order.
  *  - `smc` itself is never written or deleted: an old tab can still write into it (review r5 #2).
  *  - An op already recovered into ANY account is never queued again, so one op cannot reach two
- *    accounts. A malformed op (unknown entity or kind, missing ids) is skipped, never repaired.
+ *    accounts. An op the wire schema would refuse is skipped, never repaired.
  *
  * The server still decides: a queued op goes out under the bound account's session and header,
  * and `/api/sync/ops` applies its own checks. Owner-run from the browser console
@@ -19,37 +19,40 @@
  */
 import { assertCurrent, currentAccountOrNull, type AccountHandle } from "./account";
 import { legacyOpRecoveredBy, openLegacy, RECOVERED_PREFIX } from "./legacy-adoption";
-import { appendOp, OUTBOX_STORE } from "@/lib/sync/idb";
-import { OP_ENTITIES, type Entity, type SyncOp } from "@/lib/sync/types";
+import { OUTBOX_STORE } from "@/lib/sync/idb";
+import { encodeKey } from "@/lib/sync/keys";
+import { enqueue } from "@/lib/sync/outbox";
+import { SyncOpSchema, type SyncOp } from "@/lib/sync/types";
 
 /** The words the owner types to prove the chosen ops are theirs. */
 export const RECOVER_CONFIRM = "these held changes are mine";
-
-const KINDS: readonly SyncOp["kind"][] = ["create", "update", "delete", "restore"];
 
 export type HeldOpSummary = {
   op_id: string; entity: string; entity_id: string; kind: string; client_ts: string | null;
   /** The account this op was recovered into on this device, or null while it is held. */
   recoveredInto: string | null;
-  /** False when the op cannot be recovered as it is (unknown entity or kind, missing ids). */
+  /** False when the op cannot be recovered as it is (the wire schema or its key refuses it). */
   valid: boolean;
 };
 
 type Raw = Record<string, unknown>;
 
+/**
+ * The op exactly as the wire schema takes it (Sol review: anything looser would make the server
+ * refuse the whole sync batch with 400 and park unrelated ops), and whose key agrees with its
+ * payload (what `enqueue` asserts). Anything else stays held.
+ */
 function toSyncOp(raw: Raw): SyncOp | null {
   const { op_id, entity, entity_id, kind, base_rev, payload, client_ts } = raw;
-  if (typeof op_id !== "string" || op_id === "" || typeof entity_id !== "string" || entity_id === "") return null;
-  if (!(OP_ENTITIES as readonly string[]).includes(entity as string)) return null;
-  if (!KINDS.includes(kind as SyncOp["kind"])) return null;
-  if (base_rev !== null && base_rev !== undefined && typeof base_rev !== "number") return null;
-  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return null;
-  return {
-    op_id, entity: entity as Entity, entity_id, kind: kind as SyncOp["kind"],
-    base_rev: typeof base_rev === "number" ? base_rev : null,
-    payload: payload as Record<string, unknown>,
-    client_ts: typeof client_ts === "string" ? client_ts : new Date().toISOString(),
-  };
+  const parsed = SyncOpSchema.safeParse({ op_id, entity, entity_id, kind, base_rev: base_rev ?? null,
+    payload, client_ts });
+  if (!parsed.success) return null;
+  const { user_id: _owner, ...op } = parsed.data;
+  void _owner;
+  if (op.kind === "create" || op.kind === "update") {
+    try { if (encodeKey(op.entity, op.payload) !== op.entity_id) return null; } catch { return null; }
+  }
+  return op;
 }
 
 async function readHeldOps(): Promise<Raw[] | "unknown"> {
@@ -98,21 +101,32 @@ export async function recoverHeldLegacyOps(
   if (held === "unknown") throw new Error("This browser cannot list the held changes.");
   const byId = new Map(held.map((r) => [r.op_id, r] as const));
   const result: RecoveryResult = { dryRun, recovered: [], skipped: [] };
+  const chosen: { opId: string; seq: number; op: SyncOp }[] = [];
   for (const opId of new Set(opIds)) {
     const raw = byId.get(opId);
     if (!raw) { result.skipped.push({ op_id: opId, reason: "not_held" }); continue; }
-    if (legacyOpRecoveredBy(opId) !== null) {
+    // An op marked for another account never moves; one marked for this account may resume (a
+    // crash after the mark and before the queue), and the outbox keeps one row per op_id.
+    const owner = legacyOpRecoveredBy(opId);
+    if (owner !== null && owner !== h.userId) {
       result.skipped.push({ op_id: opId, reason: "already_recovered" });
       continue;
     }
     const op = toSyncOp(raw);
     if (!op) { result.skipped.push({ op_id: opId, reason: "malformed" }); continue; }
+    chosen.push({ opId, seq: typeof raw.seq === "number" ? raw.seq : Number.MAX_SAFE_INTEGER, op });
+  }
+  // The old queue's order, whatever order the owner named them in: two edits of one row must
+  // reach the server as they were made (Sol review).
+  chosen.sort((x, y) => x.seq - y.seq);
+  for (const { opId, op } of chosen) {
     if (!dryRun) {
       assertCurrent(h);
-      await appendOp(h, op);
-      // The mark comes after the op is queued: a crash between them leaves the op held AND queued,
-      // and a second recovery re-offers the same op_id, which the outbox keeps as one row.
+      // The owner mark is written FIRST (Sol review P1): if storage refuses it, nothing is queued,
+      // so an op can never sit in one account's outbox while it still looks held to another.
       localStorage.setItem(`${RECOVERED_PREFIX}${opId}`, h.userId);
+      // `enqueue` also announces the op, so the sync scheduler sends it now.
+      await enqueue(h, op);
     }
     result.recovered.push(opId);
   }
