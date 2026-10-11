@@ -25,8 +25,8 @@ vi.mock("@/lib/shopping-client", () => ({
   deleteShoppingLine: (line: unknown, account?: unknown) => client.del(line, account),
 }));
 
-import { applyAddToShoppingList, SHOPPING_UNAVAILABLE_REASON, undoAddToShoppingList }
-  from "@/lib/coach/apply-shopping";
+import { applyAddToShoppingList, SHOPPING_SWITCH_PARTIAL_REASON, SHOPPING_UNAVAILABLE_REASON,
+  undoAddToShoppingList } from "@/lib/coach/apply-shopping";
 
 const action = { kind: "add_to_shopping_list" as const, names: ["eggs", "oat milk"],
   actionId: "a1", flagged: [] as string[] };
@@ -131,6 +131,73 @@ describe("applyAddToShoppingList: an account switch part-way (audit 2026-10-08 Â
     await expect(applyAddToShoppingList(action, { tz: "America/Denver" }))
       .rejects.toBeInstanceOf(AccountChanged);
     expect(client.del).not.toHaveBeenCalled();
+  });
+
+  it("says when lines saved before the switch stay behind, with no Undo (W020)", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+      .mockRejectedValueOnce(new AccountChanged());
+    const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountChanged);
+    expect((error as Error).message).toBe(SHOPPING_SWITCH_PARTIAL_REASON);
+    // No item names: the card may already be in front of the account that took over.
+    expect((error as Error).message).not.toMatch(/eggs/);
+  });
+
+  it("reports a possible partial add when the switch lands inside the first try", async () => {
+    // The try may have saved a line before it threw: its answer is lost, so the card says "may".
+    client.add.mockRejectedValueOnce(new AccountChanged());
+    const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountChanged);
+    expect((error as Error).message).toBe(SHOPPING_SWITCH_PARTIAL_REASON);
+    expect(client.del).not.toHaveBeenCalled();
+  });
+
+  it("keeps the plain AccountChanged when the switch lands during the access check", async () => {
+    access.enabled.mockRejectedValueOnce(new AccountChanged());
+    const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountChanged);
+    expect((error as Error).message).toBe(new AccountChanged().message);
+    expect(client.add).not.toHaveBeenCalled();
+  });
+
+  it("names nothing when the switch lands during the rollback", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.del.mockRejectedValueOnce(new AccountChanged());
+    const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountChanged);
+    expect((error as Error).message).toBe(SHOPPING_SWITCH_PARTIAL_REASON);
+  });
+});
+
+describe("applyAddToShoppingList: a rollback that cannot take every line back (W020)", () => {
+  it("names the lines still on the list and says the card cannot undo them", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.del.mockRejectedValueOnce(new Error("offline"));
+    const result = await applyAddToShoppingList(action, { tz: "America/Denver" });
+    expect(result).toEqual({ status: "failed",
+      reason: "Not every item saved. eggs is still on your list, and this card can't undo it. "
+        + "Remove it in Shopping." });
+  });
+
+  it("names every line left behind", async () => {
+    const three = { ...action, names: ["eggs", "oat milk", "rice"] };
+    const rice = { ...LINES[1], id: "l3", name: "rice" };
+    client.add.mockResolvedValueOnce({ lines: [LINES[0], rice], failed: ["oat milk"] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.del.mockRejectedValue(new Error("offline"));
+    const result = await applyAddToShoppingList(three, { tz: "America/Denver" });
+    expect(result).toEqual({ status: "failed",
+      reason: "Not every item saved. eggs and rice are still on your list, and this card can't undo them. "
+        + "Remove them in Shopping." });
+  });
+
+  it("keeps the plain retry line when every saved line was taken back", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    expect(await applyAddToShoppingList(action, { tz: "America/Denver" }))
+      .toEqual({ status: "failed", reason: "Those items did not save. Try again." });
   });
 });
 

@@ -18,6 +18,36 @@ import { addToCurrentShoppingList, deleteShoppingLine } from "@/lib/shopping-cli
 import type { ShoppingLine } from "@/lib/shopping/types";
 
 export const SHOPPING_UNAVAILABLE_REASON = "Shopping isn't available for this account yet.";
+const SHOPPING_RETRY_REASON = "Those items did not save. Try again.";
+/** W020: lines that saved before an account switch stay on that account's list and the card has
+ *  no Undo for them. "May": a switch inside one try loses that try's answer, so the apply cannot
+ *  tell which lines landed. No item names: the card may already show for the account that took over. */
+export const SHOPPING_SWITCH_PARTIAL_REASON = "The account changed while adding. Some items may "
+  + "have been added before the change, and this card can't undo them. Remove them in Shopping.";
+
+/** The apply's AccountChanged once an add was sent: still an account change to every caller
+ *  (`instanceof`), but its message, which the card shows, reports the possible partial add. */
+class ShoppingAddInterrupted extends AccountChanged {
+  constructor() { super(); this.message = SHOPPING_SWITCH_PARTIAL_REASON; }
+}
+
+function uniqueLines(lines: readonly ShoppingLine[]): ShoppingLine[] {
+  return [...new Map(lines.map((line) => [line.id, line])).values()];
+}
+
+function namesOf(lines: readonly ShoppingLine[]): string {
+  const names = lines.map((line) => line.name);
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** W020: a rollback that could not take every line back leaves a partial add the card cannot
+ *  undo (the result carries no token), so it says which lines stayed and where to remove them. */
+function leftBehindReason(kept: readonly ShoppingLine[]): string {
+  if (kept.length === 0) return SHOPPING_RETRY_REASON;
+  const one = kept.length === 1;
+  return `Not every item saved. ${namesOf(kept)} ${one ? "is" : "are"} still on your list, `
+    + `and this card can't undo ${one ? "it" : "them"}. Remove ${one ? "it" : "them"} in Shopping.`;
+}
 
 type ShoppingAction = Extract<CoachAction, { kind: "add_to_shopping_list" }>;
 type ShoppingToken = Extract<UndoToken, { kind: "add_to_shopping_list" }>;
@@ -44,6 +74,7 @@ export async function applyAddToShoppingList(
   const idsOf = (names: readonly string[]) => names.map((name) => ids.get(name) ?? crypto.randomUUID());
   const saved: ShoppingLine[] = [];
   try {
+    // From here on a switch can leave lines behind; before here (the gate) it wrote nothing.
     const first = await addToCurrentShoppingList(action.names, date, ctx.tz, idsOf(action.names), account);
     saved.push(...first.lines);
     // One retry for what failed; if anything still did not save, the card says so and the saved
@@ -55,14 +86,21 @@ export async function applyAddToShoppingList(
       if (retry.failed.length > 0) throw new Error("partial add");
     }
   } catch (error) {
-    // No rollback under another account: the saved lines belong to the account that left.
-    if (error instanceof AccountChanged) throw error;
-    // Also when the retry itself throws (round 9): what did save is taken back.
-    await Promise.allSettled(saved.map((line) => deleteShoppingLine(line, account)));
-    return { status: "failed", reason: "Those items did not save. Try again." };
+    // No rollback under another account: the saved lines belong to the account that left, and
+    // the card says part of the add may have stayed (W020).
+    if (error instanceof AccountChanged) throw new ShoppingAddInterrupted();
+    // Also when the retry itself throws (round 9): what did save is taken back, and any line that
+    // could not be taken back is named, since nothing can undo it from this card (W020).
+    const taken = uniqueLines(saved);
+    const rollback = await Promise.allSettled(taken.map((line) => deleteShoppingLine(line, account)));
+    // A switch during the rollback: never name this account's items to the one that took over.
+    if (rollback.some((result) => result.status === "rejected" && result.reason instanceof AccountChanged)) {
+      throw new ShoppingAddInterrupted();
+    }
+    const kept = taken.filter((_, index) => rollback[index].status === "rejected");
+    return { status: "failed", reason: leftBehindReason(kept) };
   }
-  const lines = [...new Map(saved.map((line) => [line.id, line])).values()];
-  return { status: "applied", token: { kind: "add_to_shopping_list", lines } };
+  return { status: "applied", token: { kind: "add_to_shopping_list", lines: uniqueLines(saved) } };
 }
 
 /** Deletes every line the action created; a line the user already removed is simply gone. */
