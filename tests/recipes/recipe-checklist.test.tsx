@@ -8,6 +8,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import RecipeDetails from "@/components/RecipeDetails";
+import { bindAccount, unbindAccount } from "@/lib/device/account";
 import type { RecipeCandidate } from "@/lib/recipe-catalog/types";
 
 const known = (value: number) => ({ value, status: "known" as const, sourceRevisionId: 1 });
@@ -27,7 +28,8 @@ const recipe = (revisionId: string) => ({
   eligibility: { status: "eligible", reasons: [] },
 }) as unknown as RecipeCandidate;
 
-beforeEach(() => sessionStorage.clear());
+// The ticks are kept under the bound account (W056), as they always are in the app.
+beforeEach(() => { sessionStorage.clear(); unbindAccount(); bindAccount("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"); });
 afterEach(cleanup);
 
 const boxes = () => within(screen.getByRole("region", { name: "Ingredients" })).getAllByRole("checkbox") as HTMLInputElement[];
