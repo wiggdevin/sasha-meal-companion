@@ -20,21 +20,34 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
-/** Answers like the routes do; `switchOn` signs another account in while that request is in flight. */
-function stubRoutes(switchOn: (call: Call, index: number) => boolean): Call[] {
+/** Answers like the routes do; `switchOn` signs another account in while that request is in flight.
+ *  `lose` commits the request, then loses its answer (the fetch rejects); `live` is the list as
+ *  the server holds it, keyed by line id. */
+function stubRoutes(switchOn: (call: Call, index: number) => boolean,
+  lose: (call: Call & { name?: string }) => boolean = () => false,
+  live = new Map<string, string>()): Call[] {
   const calls: Call[] = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
     const call = { url, method: init.method ?? "GET",
       account: new Headers(init.headers).get(ACCOUNT_HEADER) };
     calls.push(call);
     if (switchOn(call, calls.length - 1)) { unbindAccount(); bindAccount("other-user"); }
-    if (url === "/api/recipes/access") return json({ enabled: true });
-    if (url === "/api/shopping/periods") return json({ periods: [PERIOD] });
-    if (url.endsWith("/lines") && call.method === "POST") {
-      const sent = JSON.parse(String(init.body)) as { requestId: string; line: { name: string } };
-      return json({ line: { id: sent.requestId, periodId: PERIOD.id, name: sent.line.name, revision: 1 } }, 201);
-    }
-    return json({ deleted: true });
+    const answer = (name?: string): Response => {
+      if (url === "/api/recipes/access") return json({ enabled: true });
+      if (url === "/api/shopping/periods") return json({ periods: [PERIOD] });
+      if (url.endsWith("/lines") && call.method === "POST") {
+        const sent = JSON.parse(String(init.body)) as { requestId: string; line: { name: string } };
+        live.set(sent.requestId, sent.line.name);
+        return json({ line: { id: sent.requestId, periodId: PERIOD.id, name: sent.line.name, revision: 1 } }, 201);
+      }
+      live.delete(decodeURIComponent(url.split("/").pop() ?? ""));
+      return json({ deleted: true, name });
+    };
+    const name = init.body
+      ? (JSON.parse(String(init.body)) as { line?: { name: string } }).line?.name : undefined;
+    const response = answer(name);
+    if (lose({ ...call, name })) throw new TypeError("Failed to fetch");
+    return response;
   }));
   return calls;
 }
@@ -66,4 +79,37 @@ it("writes nothing more, and rolls nothing back, once the account switches durin
   expect(calls.every((call) => call.account === TEST_USER)).toBe(true);
   expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
   expect(calls.filter((call) => call.method === "DELETE")).toEqual([]);
+});
+
+it("rejects, with no rollback, when the list read fails after the account switched", async () => {
+  // The read rejects, so accountFetch never runs its post-answer check: the apply still must.
+  const calls = stubRoutes((call) => call.url === "/api/shopping/periods",
+    (call) => call.url === "/api/shopping/periods");
+  await expect(applyAddToShoppingList(action, ctx)).rejects.toBeInstanceOf(AccountChanged);
+  expect(calls.filter((call) => call.method !== "GET")).toEqual([]);
+  expect(calls.every((call) => call.account === TEST_USER)).toBe(true);
+});
+
+it("says an add may still be on the list when it committed but both answers were lost", async () => {
+  const live = new Map<string, string>();
+  const calls = stubRoutes(() => false, (call) => call.method === "POST" && call.name === "oat milk", live);
+  const result = await applyAddToShoppingList(action, ctx);
+  // eggs is taken back; oat milk saved (one row, both tries under one request id) and may stay.
+  expect([...live.values()]).toEqual(["oat milk"]);
+  expect(calls.filter((call) => call.method === "POST")).toHaveLength(3);
+  expect(result).toEqual({ status: "failed",
+    reason: "Not every item saved. oat milk may still be on your list, and this card can't undo it. "
+      + "Check Shopping and remove it there." });
+});
+
+it("never says a line is still on the list when its rollback delete committed but lost its answer", async () => {
+  const live = new Map<string, string>();
+  stubRoutes(() => false, (call) => (call.method === "POST" && call.name === "oat milk")
+    || call.method === "DELETE", live);
+  const result = await applyAddToShoppingList(action, ctx);
+  expect([...live.values()]).toEqual(["oat milk"]);
+  expect(result).toEqual({ status: "failed",
+    reason: "Not every item saved. eggs and oat milk may still be on your list, and this card can't "
+      + "undo them. Check Shopping and remove them there." });
+  expect((result as { reason: string }).reason).not.toMatch(/is still|are still/);
 });

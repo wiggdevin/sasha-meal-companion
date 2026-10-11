@@ -14,6 +14,23 @@ export type ShoppingSnapshot = { period: ShoppingPeriod | null; lines: ShoppingL
 export class ShoppingStaleRevision extends Error {
   constructor() { super("Shopping changed elsewhere."); this.name = "ShoppingStaleRevision"; }
 }
+/** A shopping route answered the request with `status`: unlike a transport failure, a deadline or
+ *  an unreadable body, the caller knows how the server decided (W020). */
+export class ShoppingRequestFailed extends Error {
+  constructor(message: string, readonly status: number) { super(message); this.name = "ShoppingRequestFailed"; }
+}
+/** The status a shopping route answered a failed request with, or null when no answer was read:
+ *  such a write may still have landed. */
+export function shoppingAnswerStatus(error: unknown): number | null {
+  if (error instanceof ShoppingStaleRevision) return 409;
+  if (error instanceof ShoppingRequestFailed) return error.status;
+  return null;
+}
+/** True when the route refused the request (4xx), so it changed nothing. */
+export function shoppingRefused(error: unknown): boolean {
+  const status = shoppingAnswerStatus(error);
+  return status !== null && status >= 400 && status < 500;
+}
 /** `account`: the handle a multi-step caller captured once, so every step runs as that account
  *  and a mid-flow switch throws `AccountChanged` instead of carrying on as the new one. */
 async function shoppingRequest<T>(path: string, init: RequestInit = {},
@@ -31,16 +48,17 @@ async function shoppingRequest<T>(path: string, init: RequestInit = {},
     const message = typeof body?.message === "string" ? body.message : "";
     if (code === "stale_revision" || code === "stale_preview")
       throw new ShoppingStaleRevision();
+    const fail = (text: string) => new ShoppingRequestFailed(text, res.status);
     if (code === "rule_review_required")
-      throw new Error("Confirm your food rules at the top of the planner, then preview again.");
+      throw fail("Confirm your food rules at the top of the planner, then preview again.");
     if (["needs_profile", "target_changes_in_period", "bad_period", "bad_coverage",
       "slot_unavailable", "recipe_policy_requires_review", "infeasible_plan",
       "recipe_plan_unavailable", "shopping_unavailable", "preview_unavailable"].includes(code) && message)
-      throw new Error(message);
+      throw fail(message);
     if (code === "recipe_pilot_unavailable")
-      throw new Error("Shopping is not available for this account yet.");
-    if (res.status === 409) throw new Error("Shopping changed elsewhere. Refresh and preview again.");
-    throw new Error(`Shopping request failed (${res.status}). Try again.`);
+      throw fail("Shopping is not available for this account yet.");
+    if (res.status === 409) throw fail("Shopping changed elsewhere. Refresh and preview again.");
+    throw fail(`Shopping request failed (${res.status}). Try again.`);
   }
   return accountJson<T>(h, res);
 }
@@ -151,7 +169,7 @@ export async function confirmPantryForLine(line: ShoppingLine, grams: number): P
 export async function addToCurrentShoppingList(names: readonly string[], today: string,
   timezone: string, requestIds: readonly string[] = names.map(() => crypto.randomUUID()),
   account: AccountHandle = accountHandle(),
-): Promise<{ lines: ShoppingLine[]; failed: string[] }> {
+): Promise<{ lines: ShoppingLine[]; failed: string[]; uncertain: string[] }> {
   const periods = await listShoppingPeriods(undefined, undefined, account);
   const covering = periods.find((row) => row.startDate <= today && row.endDate >= today);
   const period = covering
@@ -169,5 +187,10 @@ export async function addToCurrentShoppingList(names: readonly string[], today: 
   return {
     lines: results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []),
     failed: names.filter((_, index) => results[index].status === "rejected"),
+    // W020: a failed add the route never refused (lost answer, deadline, 5xx) may still have saved.
+    uncertain: names.filter((_, index) => {
+      const result = results[index];
+      return result.status === "rejected" && !shoppingRefused(result.reason);
+    }),
   };
 }

@@ -157,3 +157,19 @@ it("treats a line refused for an account change as an account change, not an ite
   await expect(addToCurrentShoppingList(["eggs"], "2026-10-02", "America/Denver"))
     .rejects.toBeInstanceOf(AccountChanged);
 });
+
+it("marks a failed add as uncertain only when the route gave no answer (W020)", async () => {
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
+    if (url === "/api/shopping/periods" && !init.method)
+      return new Response(JSON.stringify({ periods: [{ id: "p1", startDate: "2026-10-01",
+        endDate: "2026-10-07", revision: 1 }] }), { status: 200 });
+    const name = (JSON.parse(String(init.body)) as { line: { name: string } }).line.name;
+    if (name === "eggs") return new Response(JSON.stringify({ error: "bad_request" }), { status: 400 });
+    if (name === "rice") return new Response(JSON.stringify({ error: "shopping_unavailable" }), { status: 503 });
+    // The add saved, but its answer was lost on the way back.
+    throw new TypeError("Failed to fetch");
+  }));
+  const result = await addToCurrentShoppingList(["eggs", "rice", "oat milk"], "2026-10-02", "America/Denver");
+  expect(result.failed).toEqual(["eggs", "rice", "oat milk"]);
+  expect(result.uncertain).toEqual(["rice", "oat milk"]);
+});

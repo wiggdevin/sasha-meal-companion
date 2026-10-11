@@ -12,9 +12,10 @@
 
 import type { CoachAction } from "@/lib/coach/actions";
 import { dateInZone, type ApplyContext, type ApplyResult, type UndoToken } from "@/lib/coach/apply-shared";
-import { AccountChanged, accountHandle } from "@/lib/device/account";
+import { AccountChanged, accountHandle, isCurrent } from "@/lib/device/account";
 import { recipeAccessForCurrentAccount } from "@/lib/recipe-access-client";
-import { addToCurrentShoppingList, deleteShoppingLine } from "@/lib/shopping-client";
+import { addToCurrentShoppingList, deleteShoppingLine, shoppingAnswerStatus, shoppingRefused }
+  from "@/lib/shopping-client";
 import type { ShoppingLine } from "@/lib/shopping/types";
 
 export const SHOPPING_UNAVAILABLE_REASON = "Shopping isn't available for this account yet.";
@@ -35,18 +36,40 @@ function uniqueLines(lines: readonly ShoppingLine[]): ShoppingLine[] {
   return [...new Map(lines.map((line) => [line.id, line])).values()];
 }
 
-function namesOf(lines: readonly ShoppingLine[]): string {
-  const names = lines.map((line) => line.name);
+function namesOf(names: readonly string[]): string {
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 /** W020: a rollback that could not take every line back leaves a partial add the card cannot
- *  undo (the result carries no token), so it says which lines stayed and where to remove them. */
-function leftBehindReason(kept: readonly ShoppingLine[]): string {
-  if (kept.length === 0) return SHOPPING_RETRY_REASON;
-  const one = kept.length === 1;
-  return `Not every item saved. ${namesOf(kept)} ${one ? "is" : "are"} still on your list, `
-    + `and this card can't undo ${one ? "it" : "them"}. Remove ${one ? "it" : "them"} in Shopping.`;
+ *  undo (the result carries no token), so it says which lines stayed and where to remove them.
+ *  `kept`: the route refused to remove them, so they are on the list. `maybe`: no answer was read
+ *  (an add or a delete that may have landed), so the card cannot say either way. */
+function leftBehindReason(kept: readonly string[], maybe: readonly string[]): string {
+  if (kept.length === 0 && maybe.length === 0) return SHOPPING_RETRY_REASON;
+  const it = kept.length + maybe.length === 1 ? "it" : "them";
+  if (maybe.length === 0) {
+    return `Not every item saved. ${namesOf(kept)} ${kept.length === 1 ? "is" : "are"} still on your list, `
+      + `and this card can't undo ${it}. Remove ${it} in Shopping.`;
+  }
+  if (kept.length === 0) {
+    return `Not every item saved. ${namesOf(maybe)} may still be on your list, `
+      + `and this card can't undo ${it}. Check Shopping and remove ${it} there.`;
+  }
+  return `Not every item saved. ${namesOf(kept)} ${kept.length === 1 ? "is" : "are"} still on your list, `
+    + `and ${namesOf(maybe)} may be too. This card can't undo them. Check Shopping and remove them there.`;
+}
+
+/** Sorts the rollback's outcome per line: removed (or already gone, 404), refused (4xx: still on
+ *  the list), or unknown (no answer read, or 409: changed or removed elsewhere). */
+function rollbackOutcome(result: PromiseSettledResult<void>): "gone" | "kept" | "maybe" {
+  if (result.status === "fulfilled") return "gone";
+  const status = shoppingAnswerStatus(result.reason);
+  if (status === 404) return "gone";
+  return status !== 409 && shoppingRefused(result.reason) ? "kept" : "maybe";
+}
+
+function unique(names: readonly string[]): string[] {
+  return [...new Set(names)];
 }
 
 type ShoppingAction = Extract<CoachAction, { kind: "add_to_shopping_list" }>;
@@ -73,32 +96,42 @@ export async function applyAddToShoppingList(
   const ids = new Map(action.names.map((name) => [name, crypto.randomUUID()]));
   const idsOf = (names: readonly string[]) => names.map((name) => ids.get(name) ?? crypto.randomUUID());
   const saved: ShoppingLine[] = [];
+  // Names whose latest try failed without the route refusing it: that add may still have saved.
+  let uncertain: string[] = [];
   try {
     // From here on a switch can leave lines behind; before here (the gate) it wrote nothing.
     const first = await addToCurrentShoppingList(action.names, date, ctx.tz, idsOf(action.names), account);
     saved.push(...first.lines);
+    uncertain = first.uncertain;
     // One retry for what failed; if anything still did not save, the card says so and the saved
     // part is taken back, so the list never holds half of an add the card calls failed (DeepSeek
     // audit round 8: a partial-add notice reached no screen).
     if (first.failed.length > 0) {
       const retry = await addToCurrentShoppingList(first.failed, date, ctx.tz, idsOf(first.failed), account);
       saved.push(...retry.lines);
+      uncertain = retry.uncertain;
       if (retry.failed.length > 0) throw new Error("partial add");
     }
   } catch (error) {
     // No rollback under another account: the saved lines belong to the account that left, and
-    // the card says part of the add may have stayed (W020).
-    if (error instanceof AccountChanged) throw new ShoppingAddInterrupted();
+    // the card says part of the add may have stayed (W020). The handle is checked too: a fetch
+    // that rejects after a switch skips its own post-answer check.
+    if (error instanceof AccountChanged || !isCurrent(account)) throw new ShoppingAddInterrupted();
     // Also when the retry itself throws (round 9): what did save is taken back, and any line that
     // could not be taken back is named, since nothing can undo it from this card (W020).
     const taken = uniqueLines(saved);
     const rollback = await Promise.allSettled(taken.map((line) => deleteShoppingLine(line, account)));
     // A switch during the rollback: never name this account's items to the one that took over.
-    if (rollback.some((result) => result.status === "rejected" && result.reason instanceof AccountChanged)) {
+    if (!isCurrent(account)
+      || rollback.some((result) => result.status === "rejected" && result.reason instanceof AccountChanged)) {
       throw new ShoppingAddInterrupted();
     }
-    const kept = taken.filter((_, index) => rollback[index].status === "rejected");
-    return { status: "failed", reason: leftBehindReason(kept) };
+    const outcomes = rollback.map(rollbackOutcome);
+    const namesWhere = (outcome: "kept" | "maybe") =>
+      taken.filter((_, index) => outcomes[index] === outcome).map((line) => line.name);
+    const kept = unique(namesWhere("kept"));
+    const maybe = unique([...namesWhere("maybe"), ...uncertain]).filter((name) => !kept.includes(name));
+    return { status: "failed", reason: leftBehindReason(kept, maybe) };
   }
   return { status: "applied", token: { kind: "add_to_shopping_list", lines: uniqueLines(saved) } };
 }

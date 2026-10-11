@@ -16,15 +16,20 @@ vi.mock("@/lib/recipe-access-client", () => ({
 
 const client = vi.hoisted(() => ({
   add: vi.fn(async (_names: string[], _today: string, _tz: string, _ids?: string[], _account?: unknown) =>
-    ({ lines: [] as unknown[], failed: [] as string[] })),
+    ({ lines: [] as unknown[], failed: [] as string[], uncertain: [] as string[] })),
   del: vi.fn(async (_line: unknown, _account?: unknown) => undefined),
 }));
-vi.mock("@/lib/shopping-client", () => ({
+vi.mock("@/lib/shopping-client", async () => {
+  const real = await vi.importActual<typeof import("@/lib/shopping-client")>("@/lib/shopping-client");
+  return { shoppingAnswerStatus: real.shoppingAnswerStatus, shoppingRefused: real.shoppingRefused,
+    ShoppingRequestFailed: real.ShoppingRequestFailed,
   addToCurrentShoppingList: (names: string[], today: string, tz: string, ids?: string[], account?: unknown) =>
     client.add(names, today, tz, ids, account),
   deleteShoppingLine: (line: unknown, account?: unknown) => client.del(line, account),
-}));
+  };
+});
 
+import { ShoppingRequestFailed } from "@/lib/shopping-client";
 import { applyAddToShoppingList, SHOPPING_SWITCH_PARTIAL_REASON, SHOPPING_UNAVAILABLE_REASON,
   undoAddToShoppingList } from "@/lib/coach/apply-shopping";
 
@@ -47,7 +52,7 @@ beforeEach(() => {
   unbindAccount();
   bound = bindAccount(TEST_USER);
   access.enabled.mockReset().mockResolvedValue(true);
-  client.add.mockReset().mockResolvedValue({ lines: LINES, failed: [] });
+  client.add.mockReset().mockResolvedValue({ lines: LINES, failed: [], uncertain: [] });
   client.del.mockReset().mockResolvedValue(undefined);
 });
 afterEach(() => { unbindAccount(); });
@@ -72,8 +77,8 @@ describe("applyAddToShoppingList", () => {
 
 describe("applyAddToShoppingList: a partial add", () => {
   it("retries what failed once and keeps one Undo for everything", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [LINES[1]], failed: [] });
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [LINES[1]], failed: [], uncertain: [] });
     const result = await applyAddToShoppingList(action, { tz: "America/Denver" });
     expect(client.add).toHaveBeenLastCalledWith(["oat milk"], expect.any(String), "America/Denver",
       [expect.any(String)], bound);
@@ -81,8 +86,8 @@ describe("applyAddToShoppingList: a partial add", () => {
   });
 
   it("takes the saved part back and fails when an item still does not save", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
     expect(await applyAddToShoppingList(action, { tz: "America/Denver" }))
       .toEqual({ status: "failed", reason: "Those items did not save. Try again." });
     expect(client.del).toHaveBeenCalledWith(LINES[0], bound);
@@ -90,15 +95,15 @@ describe("applyAddToShoppingList: a partial add", () => {
 
   it("retries an item under its first request id, so a lost answer cannot add it twice (DeepSeek round 9)",
     async () => {
-      client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-        .mockResolvedValueOnce({ lines: [LINES[1]], failed: [] });
+      client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+        .mockResolvedValueOnce({ lines: [LINES[1]], failed: [], uncertain: [] });
       await applyAddToShoppingList(action, { tz: "America/Denver" });
       const [first, retry] = client.add.mock.calls;
       expect(retry[3]).toEqual([first[3]![1]]);
     });
 
   it("takes the saved part back when the retry itself throws (DeepSeek round 9)", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
       .mockRejectedValueOnce(new Error("offline"));
     expect(await applyAddToShoppingList(action, { tz: "America/Denver" }))
       .toEqual({ status: "failed", reason: "Those items did not save. Try again." });
@@ -108,8 +113,8 @@ describe("applyAddToShoppingList: a partial add", () => {
 
 describe("applyAddToShoppingList: an account switch part-way (audit 2026-10-08 ยง4)", () => {
   it("runs the gate, both tries and the rollback as the one account captured at the start", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
     await applyAddToShoppingList(action, { tz: "America/Denver" });
     expect(access.enabled).toHaveBeenCalledWith(bound);
     expect(client.add.mock.calls.map((call) => call[4])).toEqual([bound, bound]);
@@ -119,14 +124,14 @@ describe("applyAddToShoppingList: an account switch part-way (audit 2026-10-08 ย
   it("does not retry under the new account: the retry still carries the first account's handle", async () => {
     client.add.mockImplementationOnce(async () => {
       unbindAccount(); bindAccount("other-user");
-      return { lines: [LINES[0]], failed: ["oat milk"] };
+      return { lines: [LINES[0]], failed: ["oat milk"], uncertain: [] };
     });
     await applyAddToShoppingList(action, { tz: "America/Denver" });
     expect(client.add.mock.calls[1]?.[4]).toEqual(bound);
   });
 
   it("rethrows AccountChanged and rolls nothing back under another account", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
       .mockRejectedValueOnce(new AccountChanged());
     await expect(applyAddToShoppingList(action, { tz: "America/Denver" }))
       .rejects.toBeInstanceOf(AccountChanged);
@@ -134,7 +139,7 @@ describe("applyAddToShoppingList: an account switch part-way (audit 2026-10-08 ย
   });
 
   it("says when lines saved before the switch stay behind, with no Undo (W020)", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
       .mockRejectedValueOnce(new AccountChanged());
     const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AccountChanged);
@@ -160,9 +165,23 @@ describe("applyAddToShoppingList: an account switch part-way (audit 2026-10-08 ย
     expect(client.add).not.toHaveBeenCalled();
   });
 
+  it("rejects when a request fails for another reason after the account switched", async () => {
+    // A fetch that rejects after the switch skips accountFetch's own post-answer check: the saved
+    // line belongs to the account that left, so nothing is rolled back under the new one.
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockImplementationOnce(async () => {
+        unbindAccount(); bindAccount("other-user");
+        throw new TypeError("Failed to fetch");
+      });
+    const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountChanged);
+    expect((error as Error).message).toBe(SHOPPING_SWITCH_PARTIAL_REASON);
+    expect(client.del).not.toHaveBeenCalled();
+  });
+
   it("names nothing when the switch lands during the rollback", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
     client.del.mockRejectedValueOnce(new AccountChanged());
     const error = await applyAddToShoppingList(action, { tz: "America/Denver" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AccountChanged);
@@ -172,9 +191,9 @@ describe("applyAddToShoppingList: an account switch part-way (audit 2026-10-08 ย
 
 describe("applyAddToShoppingList: a rollback that cannot take every line back (W020)", () => {
   it("names the lines still on the list and says the card cannot undo them", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
-    client.del.mockRejectedValueOnce(new Error("offline"));
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
+    client.del.mockRejectedValueOnce(new ShoppingRequestFailed("Too many requests", 429));
     const result = await applyAddToShoppingList(action, { tz: "America/Denver" });
     expect(result).toEqual({ status: "failed",
       reason: "Not every item saved. eggs is still on your list, and this card can't undo it. "
@@ -184,18 +203,62 @@ describe("applyAddToShoppingList: a rollback that cannot take every line back (W
   it("names every line left behind", async () => {
     const three = { ...action, names: ["eggs", "oat milk", "rice"] };
     const rice = { ...LINES[1], id: "l3", name: "rice" };
-    client.add.mockResolvedValueOnce({ lines: [LINES[0], rice], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
-    client.del.mockRejectedValue(new Error("offline"));
+    client.add.mockResolvedValueOnce({ lines: [LINES[0], rice], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
+    client.del.mockRejectedValue(new ShoppingRequestFailed("Too many requests", 429));
     const result = await applyAddToShoppingList(three, { tz: "America/Denver" });
     expect(result).toEqual({ status: "failed",
       reason: "Not every item saved. eggs and rice are still on your list, and this card can't undo them. "
         + "Remove them in Shopping." });
   });
 
+  it("says an item may still be on the list when neither try read an answer for it", async () => {
+    // The add committed both times but each answer was lost: it may be on the list, with no Undo.
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: ["oat milk"] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: ["oat milk"] });
+    expect(await applyAddToShoppingList(action, { tz: "America/Denver" })).toEqual({ status: "failed",
+      reason: "Not every item saved. oat milk may still be on your list, and this card can't undo it. "
+        + "Check Shopping and remove it there." });
+    expect(client.del).toHaveBeenCalledWith(LINES[0], bound);
+  });
+
+  it("keeps an unanswered first try as uncertain when the retry cannot run", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: ["oat milk"] })
+      .mockRejectedValueOnce(new Error("offline"));
+    expect(await applyAddToShoppingList(action, { tz: "America/Denver" })).toEqual({ status: "failed",
+      reason: "Not every item saved. oat milk may still be on your list, and this card can't undo it. "
+        + "Check Shopping and remove it there." });
+  });
+
+  it("says a line may still be on the list when its rollback delete read no answer", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
+    client.del.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    expect(await applyAddToShoppingList(action, { tz: "America/Denver" })).toEqual({ status: "failed",
+      reason: "Not every item saved. eggs may still be on your list, and this card can't undo it. "
+        + "Check Shopping and remove it there." });
+  });
+
+  it("names kept and uncertain lines apart", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: ["oat milk"] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: ["oat milk"] });
+    client.del.mockRejectedValueOnce(new ShoppingRequestFailed("Too many requests", 429));
+    expect(await applyAddToShoppingList(action, { tz: "America/Denver" })).toEqual({ status: "failed",
+      reason: "Not every item saved. eggs is still on your list, and oat milk may be too. "
+        + "This card can't undo them. Check Shopping and remove them there." });
+  });
+
+  it("counts a line the route no longer finds (404) as taken back", async () => {
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
+    client.del.mockRejectedValueOnce(new ShoppingRequestFailed("Shopping item not found.", 404));
+    expect(await applyAddToShoppingList(action, { tz: "America/Denver" }))
+      .toEqual({ status: "failed", reason: "Those items did not save. Try again." });
+  });
+
   it("keeps the plain retry line when every saved line was taken back", async () => {
-    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"] })
-      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"] });
+    client.add.mockResolvedValueOnce({ lines: [LINES[0]], failed: ["oat milk"], uncertain: [] })
+      .mockResolvedValueOnce({ lines: [], failed: ["oat milk"], uncertain: [] });
     expect(await applyAddToShoppingList(action, { tz: "America/Denver" }))
       .toEqual({ status: "failed", reason: "Those items did not save. Try again." });
   });
