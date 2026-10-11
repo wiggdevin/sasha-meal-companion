@@ -10,7 +10,7 @@ Construction on a 512 grid (rebuild from these numbers, never by eye):
 | --- | --- |
 | Bowl | Half-disc, flat rim at y 316, x 84 → 428, radius 172, centre (256, 316) |
 | S | Two stacked circular arcs sharing a horizontal tangent: top r 72 at (260, 176), bottom r 80 at (260, 328); stroke 78; butt ends cut on the 45° diagonal; scaled 0.56 about (260, 240) and centred at (256, 186) |
-| Gap | 18 units between the lowest point of the S and the rim |
+| Gap | about 14 units between the lowest point of the S and the rim (as drawn) |
 | Diamond | Square of half-diagonal 22, rotated 45°, centred (350, 106) |
 
 ## The system
@@ -19,7 +19,7 @@ Construction on a 512 grid (rebuild from these numbers, never by eye):
 | --- | --- | --- |
 | Primary mark | Website, splash, print | `public/brand/steam-mark.svg` (olive + persimmon) |
 | One-ink mark | Single-colour print, stamps, embossing | `steam-mark-mono.svg` |
-| App icon, olive | iOS, Android, PWA (`any` and `maskable`) | `public/brand/app-icon-olive.svg`; PNGs `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png` |
+| App icon, olive | iOS, PWA `any`; `app-icon-maskable.svg` for Android and PWA `maskable` | `app-icon-olive.svg`, `app-icon-1024.png` |
 | App icon, charcoal | Alternate icon, dark marketing | `app-icon-charcoal.svg` |
 | Assistant avatar | Sasha in the coach chat (circle) | `avatar.svg` |
 | Horizontal lockup | Website header, documents | `lockup-horizontal.svg` |
@@ -32,7 +32,17 @@ Construction on a 512 grid (rebuild from these numbers, never by eye):
 
 **Clear space.** The S's stroke width (as drawn at that size) on every side, at least.
 
-**Minimum sizes.** Mark with diamond 24 px. App icon artwork fills about 62 % of the canvas, so it survives the Android maskable circle. Below 20 px use the favicon: bowl and S only, no diamond. Horizontal lockup 112 px wide; wordmark alone 72 px wide.
+**Sizes by role** (heights are the visible artwork):
+
+| Size | Use | File |
+| --- | --- | --- |
+| 48 px and up | Full mark with diamond | `steam-mark.svg` |
+| 20–47 px | Small master: bowl and S, heavier stroke, wider gap, no diamond | `favicon.svg` |
+| 16 px | Favicon | `favicon.svg` (exported 16/32/48 in `favicon.ico`) |
+| App icon, `any` | Artwork fills about 79 % of the canvas | `app-icon-olive.svg` |
+| App icon, `maskable` | Artwork inside the 40 %-radius safe circle (scaled 0.8, centred) | `app-icon-maskable.svg` |
+
+Horizontal lockup 112 px wide or more; wordmark alone 72 px wide or more.
 
 ## Colour
 
@@ -65,6 +75,6 @@ No glow, no bounce on the bowl, no idle loop inside the app. Reduced motion: the
 - Do not place the mark straight on food photography.
 - Do not use Sprout (the pet) as the logo. Sprout is a character, the bowl is the brand.
 
-## How it was chosen
+## How it was chosen (internal review, not user testing)
 
-Grok proposed five directions (Linen, Wonk, Hearth, Cover, Setting); Kimi K3 critiqued the shortlist and proposed two more (Two Seats, Setting). Rendered side by side, Linen read as a road sign and Hearth as a Wi-Fi or location pin, and an S alone inside a disc read as a coin. Steam won for the app icon, the lockup and the avatar, and still reads at 32 px. Kimi's risk note (a floating S can read as a tilde) is answered by the short, fixed gap and the heavy stroke.
+Grok proposed five directions (Linen, Wonk, Hearth, Cover, Setting); Kimi K3 critiqued the shortlist and proposed two more (Two Seats, Setting). Rendered side by side, Linen read as a road sign and Hearth as a Wi-Fi or location pin, and an S alone inside a disc read as a coin. Steam won our internal review for the app icon, the lockup and the avatar. It has not been tested with people: before launch, run an unlabelled 32 px test for letter reading (S, not 5), category (meals, not coffee) and recall. Kimi's risk note (a floating S can read as a tilde) is answered by the short, fixed gap and the heavy stroke.
