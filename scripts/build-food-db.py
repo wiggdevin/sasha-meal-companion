@@ -585,7 +585,7 @@ EXTRA = [
 
 # Off-plan flags for Sasha (colitis plan): gluten, dairy, apple. Name-based.
 DAIRY = re.compile(r"\b(milk|cheese|yogurt|butter|cream|whey|ghee|ice cream|cheesecake|latte|cappuccino|alfredo|ricotta|feta|brie|mozzarella|parmesan|cheddar|provolone|swiss|pudding|frozen yogurt|hot chocolate|chocolate milk)\b", re.I)
-DAIRY_OK = re.compile(r"\b(almond milk|oat milk|soy milk|coconut milk|coconut water|peanut butter|almond butter|cashew butter|sunflower seed butter|cocoa butter|butternut|buttercup)\b", re.I)
+DAIRY_OK = re.compile(r"\b(almond milk|oat milk|soy milk|coconut milk|coconut water|peanut butter|almond butter|cashew butter|sesame butter|sunflower seed butter|cocoa butter|butternut|buttercup)\b", re.I)
 GLUTEN = re.compile(r"\b(bread|bagel|muffin|croissant|bun|roll|pita|naan|flour tortilla|pancake|waffle|french toast|spaghetti|pasta|noodle|couscous|barley|farro|spelt|wheat|rye|semolina|malt|bulgur|cracker|pretzel|cookie|brownie|cake|donut|pie|cinnamon|pop-tart|ramen|lo mein|dumpling|pierogi|sandwich|burger|pizza|burrito|quesadilla|enchilada|egg roll|spring roll|corn dog|mac|macaroni|lasagna|ziti|gnocchi|biscuit|cornbread|granola|cheerios|corn flakes|cream of wheat|beer|soy sauce|teriyaki|fish sticks|breaded|fried chicken|chicken nuggets|chicken tenders|onion rings|mozzarella sticks|crab cake|meatball|meatloaf|pot pie|gyro|sub |toast|graham|goldfish|rice krispies|oatmeal cookie|oreo|kit kat|falafel|shepherd)\b", re.I)
 GLUTEN_OK = re.compile(r"\b(rice noodles|corn tortilla|rice cake|buckwheat|quinoa|gluten-free)\b", re.I)
 APPLE = re.compile(r"\bapple", re.I)

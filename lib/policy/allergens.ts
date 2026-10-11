@@ -62,7 +62,8 @@ export const ALLERGEN_RULES: Readonly<Record<string, AllergenRule>> = {
     "curd", "curds", "lactalbumin", "lactoglobulin", "paneer", "ricotta", "mozzarella",
     "parmesan", "cheddar"], exclusions: [
     "cocoa butter", "cacao butter", "shea butter", "peanut butter", "nut butter",
-    "almond butter", "cashew butter", "seed butter", "apple butter", "cream of tartar",
+    "almond butter", "cashew butter", "seed butter", "sesame butter", "apple butter",
+    "cream of tartar",
     "coconut milk", "coconut cream", "almond milk", "oat milk", "soy milk", "soya milk",
     "rice milk", "cashew milk", "milk thistle", "butternut", "cream of wheat", "cream of rice"] },
   egg: { label: "egg", major: true, facets: ["contains_egg"], keywords: [
@@ -172,6 +173,19 @@ export function allergenRule(name: string): AllergenRule {
   return { label: key, major: false, keywords: [key, plural], facets: [] };
 }
 
+/**
+ * W022 (B197): USDA SR descriptions open with a food-group head, and coconut's is "Nuts,"
+ * ("Nuts, coconut milk, canned"). That head names the survey's group, not an ingredient, and
+ * "coconut" itself is excluded from tree nut above, so a food NAME that starts this way is read
+ * without the head. Names only: ingredient text keeps every "nuts" it says. A coconut food left
+ * with no other evidence reads `unknown` for tree nut ("Check the label"), never `allowed`.
+ */
+const USDA_COCONUT_HEAD = /^\s*nuts,\s*(?=coconut\b)/i;
+
+function nameForScan(name: string | null | undefined): string | null | undefined {
+  return typeof name === "string" ? name.replace(USDA_COCONUT_HEAD, "") : name;
+}
+
 /** The allergen keys every revision's evidence is computed and stored for. */
 export const EVIDENCE_KEYS = Object.keys(ALLERGEN_RULES);
 
@@ -228,7 +242,7 @@ export function deriveEvidence(name: string, input: {
   const tagged = (input.tags ?? []).some((tag) => allergenKey(tag) === key);
   const hasText = typeof input.ingredientsText === "string" && input.ingredientsText.trim() !== "";
   const labelComplete = hasText && input.labelComplete;
-  if (tagged || textNames(key, input.ingredientsText) || textNames(key, input.foodName)) {
+  if (tagged || textNames(key, input.ingredientsText) || textNames(key, nameForScan(input.foodName))) {
     return { level: "listed", labelComplete };
   }
   return { level: labelComplete ? "not_listed" : "no_evidence", labelComplete };
