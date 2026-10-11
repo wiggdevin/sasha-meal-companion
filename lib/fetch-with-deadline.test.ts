@@ -21,6 +21,8 @@ describe("the deadline table", () => {
       undo: 10_000,
       // A Plan-sheet chip, POST /api/plan/ideas (lib/plan/ideas-client.ts), 2026-10-08.
       ideas: 9_000,
+      // Sign-in through the app's IP-limited routes (lib/sign-in-client.ts), W052.
+      signIn: 10_000,
     });
   });
 });
