@@ -18,7 +18,17 @@ export class FakeSyncServer {
   private readonly rows = new Map<string, Row>();
   private readonly log: ChangeRow[] = [];
   private readonly seen = new Set<string>();
-  private clock = Date.parse("2026-10-10T12:00:00.000Z");
+  private clock = 0;
+
+  /** Runs while a push is on the wire, before the server applies it: a tap mid round trip. */
+  duringPush: (() => Promise<void>) | null = null;
+  /** The next push: `down` answers 503 and applies nothing; `lost` applies, then answers 503
+   *  (the commit landed and its answer never arrived). */
+  nextPush: "down" | "lost" | null = null;
+  /** The next pull: `down` answers 503 and reads nothing. */
+  nextPull: "down" | null = null;
+  /** Every op the server was sent, in order. */
+  readonly received: SyncOp[] = [];
 
   /** The row the server holds now, or undefined. */
   row(entity: string, key: string): Row | undefined {
@@ -75,15 +85,25 @@ export class FakeSyncServer {
   readonly fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input), "http://localhost");
     if (url.pathname === "/api/sync/changes") {
+      const fault = this.nextPull;
+      this.nextPull = null;
+      if (fault === "down") return new Response("down", { status: 503 });
       return json(this.changes(Number(url.searchParams.get("since") ?? 0),
         Number(url.searchParams.get("limit") ?? 500)));
     }
     if (url.pathname === "/api/sync/ops") {
       const body = JSON.parse(String(init?.body ?? "{}")) as { ops: SyncOp[] };
+      const hook = this.duringPush;
+      this.duringPush = null;
+      if (hook) await hook();
+      const fault = this.nextPush;
+      this.nextPush = null;
+      if (fault === "down") return new Response("down", { status: 503 });
+      this.received.push(...body.ops);
       const response: OpsResponse = {
         results: body.ops.map((op) => this.apply(op)), server_time: this.tick(),
       };
-      return json(response);
+      return fault === "lost" ? new Response("lost", { status: 503 }) : json(response);
     }
     return new Response("not found", { status: 404 });
   }) as typeof fetch;
@@ -100,8 +120,9 @@ export class FakeSyncServer {
     return this.log.length > 0 ? this.log[this.log.length - 1].seq : 0;
   }
 
+  /** The server's own clock: never behind the test's (faked) Date, and strictly increasing. */
   private tick(): string {
-    this.clock += 1_000;
+    this.clock = Math.max(this.clock + 1_000, Date.now());
     return new Date(this.clock).toISOString();
   }
 }

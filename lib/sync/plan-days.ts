@@ -3,7 +3,8 @@ import { serializePlanDay } from "./plan-day-queue";
 import { withPlanAuthority } from "./plan-authority";
 import { assertCurrent, type AccountHandle } from "@/lib/device/account";
 import { loadStore, saveStoreFor } from "@/lib/store";
-import { openAccountDb, OUTBOX_STORE, type OutboxOp } from "./idb";
+import { META_STORE, openAccountDb, OUTBOX_STORE, type OutboxOp } from "./idb";
+import { recordPullHold } from "./row-queue";
 import { planDayFields, planDayProjectionSchema } from "./plan-days-schema";
 import type { ChangeRow } from "./types";
 
@@ -24,15 +25,21 @@ async function applyPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolea
     return false;
   }
   const db = await openAccountDb(h);
-  const tx = db.transaction(["plan_days", OUTBOX_STORE], "readwrite");
+  const tx = db.transaction(["plan_days", OUTBOX_STORE, META_STORE], "readwrite");
   const rows = tx.objectStore("plan_days");
   const [pending, mirror] = await Promise.all([
     tx.objectStore(OUTBOX_STORE).getAll() as Promise<OutboxOp[]>,
     rows.get(change.entity_key),
   ]);
   assertCurrent(h);
-  if (pending.some((op) => op.entity === "plan_days" && op.entity_id === change.entity_key)
-    || (typeof mirror?.rev === "number" && mirror.rev > change.rev)) {
+  if (pending.some((op) => op.entity === "plan_days" && op.entity_id === change.entity_key)) {
+    // Held, and remembered: the pull reads it again once the day's queue is empty, so an op that
+    // settles without reading the row back cannot lose this change (audit 2026-10-10 A168).
+    await recordPullHold(tx.objectStore(META_STORE), change);
+    await tx.done;
+    return true;
+  }
+  if (typeof mirror?.rev === "number" && mirror.rev > change.rev) {
     await tx.done;
     return true;
   }

@@ -119,19 +119,19 @@ describe("a logged extra's note on two devices", () => {
     expect(serverNote()).toBe("a bit heavy");
 
     await on(phone);
-    await pass(); // refused: the tablet got there first; re-aimed with both notes
+    await pass(); // refused: the tablet got there first; re-aimed with both notes, hers typed first
     movedElsewhere("2026-10-09T18:30:00.000Z"); // and refused again, with the note unchanged
     await pass(); // re-aimed once more, adding nothing
     await pass(); // lands
     await pass(); // and nothing is left to send or to append
     expect(await allOps(h)).toEqual([]);
-    expect(serverNote()).toBe("a bit heavy\nfelt fine");
-    expect(await mirrorNote()).toBe("a bit heavy\nfelt fine");
-    expect(cardNote()).toBe("a bit heavy\nfelt fine");
+    expect(serverNote()).toBe("felt fine\na bit heavy");
+    expect(await mirrorNote()).toBe("felt fine\na bit heavy");
+    expect(cardNote()).toBe("felt fine\na bit heavy");
 
     await on(tablet);
     await pass();
-    expect(await mirrorNote()).toBe("a bit heavy\nfelt fine");
+    expect(await mirrorNote()).toBe("felt fine\na bit heavy");
   });
 
   it("keeps a rewrite whole when another device moved the entry meanwhile", async () => {

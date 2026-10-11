@@ -1,10 +1,13 @@
 /**
  * What the drain does about a `conflict` answer — architecture §3.7's rebase. Split out of
  * lib/sync/outbox.ts (held at its size by tests/speed/file-size.test.ts); the drain still owns
- * the queue, so this settles the mirror and the refused op and hands back the op to queue next.
+ * the queue, so this works out the rebase and hands it back for the drain to commit.
  */
-import { deleteOp, getRow, putRow, wireOp, type AccountHandle, type OutboxOp } from "./idb";
+import {
+  allOps, deleteOp, getRow, putRow, wireOp, type AccountHandle, type OutboxOp,
+} from "./idb";
 import { mergeEntity, NEVER_MERGED, rebaseOp, type Row } from "./merge";
+import { queuedAfter } from "./row-queue";
 import { settleUserSettings } from "./settings";
 import type { OpResult, SyncOp } from "./types";
 
@@ -52,13 +55,33 @@ function restarAsRestore(op: OutboxOp, currentRev: number, now: number): SyncOp 
   };
 }
 
+/** A refused op's replacement: the rebase, the queued ops folded into it, and the mirror row. */
+export type Rebase = { op: SyncOp; retire: string[]; mirror: Row; seen: OutboxOp[] };
+
 /**
- * Settle a refused op: the mirror takes the merged row and the op leaves the queue. Returns the
- * rebased op the caller queues in its place, or null when nothing is left to send.
+ * The run of create/update ops at the head of `behind`, the ops queued right behind `op` for its
+ * row. They were aimed at revisions only `op` could produce; folded into its rebase, the latest of
+ * them is what the rebase carries (audit 2026-10-10 A165, A141), instead of a rebased older edit
+ * landing after them.
+ */
+function foldable(behind: readonly OutboxOp[], op: OutboxOp): OutboxOp[] {
+  if (op.kind !== "create" && op.kind !== "update") return [];
+  const out: OutboxOp[] = [];
+  for (const next of behind) {
+    if (next.kind !== "create" && next.kind !== "update") break;
+    out.push(next);
+  }
+  return out;
+}
+
+/**
+ * Settle a refused op. The never-merged and settings answers are written here; every other one is
+ * returned as a `Rebase` for the caller to commit in one transaction (lib/sync/row-queue.ts), or
+ * null when nothing is left to send.
  */
 export async function settleConflict(
   h: AccountHandle, result: Extract<OpResult, { status: "conflict" }>, op: OutboxOp, now: () => number,
-): Promise<SyncOp | null> {
+): Promise<Rebase | null> {
   const server = (result.current ?? {}) as Row;
   if (NEVER_MERGED.has(op.entity)) {
     await putRow(h, op.entity, op.entity_id, server);
@@ -74,20 +97,26 @@ export async function settleConflict(
       now());
     return null;
   }
+  // What is queued behind the refused op now; the requeue refuses if that changes before it lands.
+  const seen = queuedAfter(await allOps(h), op);
   if (op.kind === "create" && FAVORITES.has(op.entity) && server.deleted_at) {
     // A restore keeps the server row's own columns (its sort), so that is what the mirror shows.
-    await putRow(h, op.entity, op.entity_id, { ...server, deleted_at: null, rev: result.current_rev });
-    await deleteOp(h, op.op_id);
-    return restarAsRestore(op, result.current_rev, now());
+    return { op: restarAsRestore(op, result.current_rev, now()), retire: [], seen,
+      mirror: { ...server, deleted_at: null, rev: result.current_rev } };
   }
-  // syncOnce pulls before it pushes, so the mirror already holds the server's row by now. The op's
-  // payload is the only surviving record of what the user meant, so it wins over the mirror.
+  // syncOnce pulls before it pushes, but a pulled row is held while an op for it is queued, so the
+  // mirror holds the newest optimistic state. The ops' payloads are the only surviving record of
+  // what the user meant, oldest first, so they win over the mirror.
+  const folded = foldable(seen, op);
   const mirror = ((await getRow(h, op.entity, op.entity_id)) ?? {}) as Row;
-  const local = { ...mirror, ...op.payload } as Row;
-  const merged = mergeEntity(op.entity, local, server, op.client_ts,
+  const local = Object.assign({ ...mirror }, op.payload, ...folded.map((o) => o.payload)) as Row;
+  const localTs = folded.length > 0 ? folded[folded.length - 1].client_ts : op.client_ts;
+  const merged = mergeEntity(op.entity, local, server, localTs,
     serverTimestampOf(server, new Date(now()).toISOString()));
-  const rebased = rebaseOp(wireOp(op), stripServerOwned(merged), result.current_rev);
-  await putRow(h, op.entity, op.entity_id, { ...merged, rev: result.current_rev });
-  await deleteOp(h, op.op_id);
-  return rebased;
+  return {
+    op: rebaseOp(wireOp(op), stripServerOwned(merged), result.current_rev),
+    retire: folded.map((o) => o.op_id),
+    mirror: { ...merged, rev: result.current_rev },
+    seen,
+  };
 }
