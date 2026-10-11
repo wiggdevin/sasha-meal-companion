@@ -78,13 +78,21 @@ function limitParam(url: URL): number {
 // finding 45: a streamed CSV export otherwise looks byte-identical whether it carries the user's whole
 // history or silently stopped partway through it. `csvDocument` already appends a trailing `#`
 // comment line for the ODbL notice, so a truncated page reuses that same mechanism.
-const TRUNCATION_NOTICE = "Export truncated: more rows exist. Re-request with the returned " +
-  "cursor to get the rest.";
+// W012 (A086): the cursor used to live only in the JSON body, so a CSV page could say it was cut
+// short but never be continued. The notice now names the cursor, and two headers carry it for the
+// phone: `x-export-next-cursor` (absent on the last page) and `x-export-notice-lines`, the count of
+// trailing `#` lines, so a client joining pages strips exactly those and never a data line.
+const NEXT_CURSOR_HEADER = "x-export-next-cursor";
+const NOTICE_LINES_HEADER = "x-export-notice-lines";
+
+function truncationNotice(cursor: string): string {
+  return `Export truncated: more rows exist. Re-request with cursor=${cursor} to get the rest.`;
+}
 
 function csvResponse(kind: string, opts: ExportOpts, header: string[],
   rows: readonly (string | number | null)[][], notices: string[],
   nextCursor: string | null): Response {
-  const allNotices = nextCursor ? [...notices, TRUNCATION_NOTICE] : notices;
+  const allNotices = nextCursor ? [...notices, truncationNotice(nextCursor)] : notices;
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder();
@@ -94,9 +102,12 @@ function csvResponse(kind: string, opts: ExportOpts, header: string[],
   });
   const from = opts.from ?? "all";
   const to = opts.to ?? "all";
-  return new Response(body, { headers: {
+  const headers = new Headers({
     "content-type": "text/csv; charset=utf-8",
-    "content-disposition": `attachment; filename="meal-companion-${kind}-${from}-${to}.csv"` } });
+    "content-disposition": `attachment; filename="meal-companion-${kind}-${from}-${to}.csv"`,
+    [NOTICE_LINES_HEADER]: String(allNotices.length) });
+  if (nextCursor) headers.set(NEXT_CURSOR_HEADER, nextCursor);
+  return new Response(body, { headers });
 }
 
 async function streamed(kind: StreamKind, client: SupabaseClient, userId: string,
@@ -150,15 +161,32 @@ async function streamed(kind: StreamKind, client: SupabaseClient, userId: string
     page.next_cursor);
 }
 
+// W012 review (Sol WARN): the phone downloads a long log as one first request plus up to seven
+// cursor continuations (`MAX_EXPORT_PAGES` in lib/export-client.ts). Counted against the 10/hour
+// export budget, one download spent 8 of the 10, so a second download or a retry got 429 partway
+// and saved nothing. A continuation of a streamed kind counts against its own buckets instead,
+// sized for ten full downloads an hour; the first request of each download keeps the old limits.
+const CONTINUATIONS_PER_HOUR = 70;
+
+function isContinuation(url: URL): boolean {
+  return STREAMED.has(url.searchParams.get("kind") ?? "") && Boolean(url.searchParams.get("cursor"));
+}
+
 export async function GET(req: Request): Promise<Response> {
   try {
-    const ip = requestIp(req);
-    await enforceRateLimit(`export:ip:${ip}`, 60, 3600);
-    const { userId, client } = await requireUser(req);
-    await enforceRateLimit(`export:user:day:${userId}`, 60, 86400);
-    await enforceRateLimit(`export:user:hour:${userId}`, 10, 3600);
-
     const url = new URL(req.url);
+    const continued = isContinuation(url);
+    const ip = requestIp(req);
+    if (continued) await enforceRateLimit(`export:ip:cursor:${ip}`, CONTINUATIONS_PER_HOUR, 3600);
+    else await enforceRateLimit(`export:ip:${ip}`, 60, 3600);
+    const { userId, client } = await requireUser(req);
+    if (continued) {
+      await enforceRateLimit(`export:user:cursor:${userId}`, CONTINUATIONS_PER_HOUR, 3600);
+    } else {
+      await enforceRateLimit(`export:user:day:${userId}`, 60, 86400);
+      await enforceRateLimit(`export:user:hour:${userId}`, 10, 3600);
+    }
+
     const kind = url.searchParams.get("kind") ?? "";
     if (STREAMED.has(kind)) {
       return await streamed(kind as StreamKind, client, userId, url);

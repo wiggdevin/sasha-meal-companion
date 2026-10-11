@@ -108,6 +108,33 @@ export function noteDietFlagsChanged(account: string | null): void {
   queueMicrotask(() => noteFoodRulesChanged(undefined, account ?? undefined));
 }
 
+/*
+ * Avoid/Eats marks do not move the epoch above (the eligible view reads the Food row at once), but a
+ * verdict that was computed and stored, such as an offline barcode match (lib/barcode/client.ts,
+ * W014 review round 1), must not outlive one. A second watermark moves whenever any food's status
+ * changes in the store, whoever wrote it: a tap here, the coach, or a pull from another device.
+ */
+let membershipEpoch = Date.now();
+
+/** The Avoid/Eats watermark: a verdict stored under an older one may miss a mark. */
+export function foodMembershipEpoch(): number {
+  return membershipEpoch;
+}
+
+type StatusRows = Readonly<Record<string, { status?: unknown } | undefined>>;
+
+/** Called by lib/store.ts on every save: moves the watermark when any food's status changed. */
+export function noteFoodStatuses(before: StatusRows, after: StatusRows): void {
+  if (before === after) return;
+  const ids = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const id of ids) {
+    if (before[id]?.status !== after[id]?.status) {
+      membershipEpoch += 1;
+      return;
+    }
+  }
+}
+
 /** Tests only: forget every remembered revision, signature and account. */
 export function resetFoodRulesMemoryForTests(): void {
   knownRevisions.clear();
