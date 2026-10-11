@@ -48,6 +48,11 @@ export type CachedRevision = {
    * before this field existed. */
   allergen_tags?: string[];
   policy?: PolicyVerdict;
+  /** The food-rules epoch `policy` was computed under (lib/foods/rules-epoch.ts). Absent on a row
+   *  cached before W014: its verdict is replayed only when it still warns (blocked). */
+  rules_epoch?: number;
+  /** The Avoid/Eats watermark it was computed under (foodMembershipEpoch); absent reads as stale. */
+  membership_epoch?: number;
   cached_at: string;
 };
 

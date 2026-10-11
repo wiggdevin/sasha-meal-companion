@@ -5,7 +5,7 @@
  * the clock is frozen to a synthetic day in 2001, the test refuses to run if that day already has
  * a lease or a dump, and it removes only the lease and the object it created (review r6 finding 2).
  * B holds a canary row; the dump must contain it (control), and signed-in A must not be able to
- * download or list it. A caller without the cron secret gets nothing.
+ * download or list the manifest or any part. A caller without the cron secret gets nothing.
  */
 // Refuses any non-local database before anything else runs (review r8).
 import "./local-only";
@@ -25,6 +25,7 @@ const SECRET = `tenancy-${crypto.randomUUID()}`;
 const DAY = new Date(Date.UTC(2001, 0, 1) + Math.floor(Math.random() * 365) * 86_400_000)
   .toISOString().slice(0, 10);
 const OBJECT = `meal-companion/${DAY}.json`;
+let parts: string[] = [];
 const cron = (secret = SECRET) => new Request("https://app.test/api/jobs/backup",
   { method: "POST", headers: { authorization: `Bearer ${secret}` } });
 
@@ -47,7 +48,11 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB || !localTargets())(
       const listed = await adminClient().storage.from("backups").list("meal-companion",
         { search: `${DAY}.json` });
       if (listed.error) throw new Error(listed.error.message);
-      if ((lease.data ?? []).length > 0 || (listed.data ?? []).length > 0) {
+      const pass = await adminClient().from("job_cursors").select("job").eq("job", "backup")
+        .eq("period", DAY);
+      if (pass.error) throw new Error(pass.error.message);
+      if ((lease.data ?? []).length > 0 || (listed.data ?? []).length > 0
+        || (pass.data ?? []).length > 0) {
         throw new Error(`a backup lease or dump already exists for ${DAY}; refusing to run`);
       }
     });
@@ -61,8 +66,9 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB || !localTargets())(
       vi.useRealTimers();
       vi.unstubAllEnvs();
       if (created) {
-        await adminClient().storage.from("backups").remove([OBJECT]);
+        await adminClient().storage.from("backups").remove([OBJECT, ...parts]);
         await adminClient().from("backup_runs").delete().eq("local_date", DAY);
+        await adminClient().from("job_cursors").delete().eq("job", "backup").eq("period", DAY);
       }
       await purge([a.id, b.id]);
     });
@@ -83,12 +89,21 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB || !localTargets())(
         created = true;
         expect(res.status).toBe(200);
 
-        const asAdmin = await adminClient().storage.from("backups").download(OBJECT);
-        expect(asAdmin.error).toBeNull();
-        expect(await asAdmin.data!.text()).toContain(CANARY);   // control
+        // The manifest names the parts; the parts hold the rows (audit 2026-10-10 F10).
+        const manifest = await adminClient().storage.from("backups").download(OBJECT);
+        expect(manifest.error).toBeNull();
+        parts = JSON.parse(await manifest.data!.text()).parts as string[];
+        const texts = await Promise.all(parts.map(async (path) => {
+          const part = await adminClient().storage.from("backups").download(path);
+          expect(part.error).toBeNull();
+          return part.data!.text();
+        }));
+        expect(texts.some((text) => text.includes(CANARY))).toBe(true);   // control
 
         const bucket = (await userClient(a)).storage.from("backups");
         expect((await bucket.download(OBJECT)).data).toBeNull();
+        for (const path of parts) expect((await bucket.download(path)).data).toBeNull();
         expect((await bucket.list("meal-companion")).data ?? []).toEqual([]);
+        expect((await bucket.list(`meal-companion/${DAY}`)).data ?? []).toEqual([]);
       });
   });

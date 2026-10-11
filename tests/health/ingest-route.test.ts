@@ -89,11 +89,42 @@ describe("applyIngest", async () => {
 
   function stubAdmin(eventId: string, status: string,
       counts = { accepted: 1, updated: 0, skipped: 0 }) {
-    const rpc = vi.fn(async (name: string) =>
-      name === "health_ingest_event"
-        ? { data: [{ id: eventId, is_new: status !== "duplicate" }], error: null }
-        : { data: [counts], error: null });
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "set_health_source_time_zone") return { data: null, error: null };
+      if (name !== "health_ingest_record") throw new Error(`unexpected rpc ${name}`);
+      const isNew = status !== "duplicate";
+      return { data: [{ event_id: eventId, is_new: isNew,
+        ...(isNew ? counts : { accepted: 0, updated: 0, skipped: 0 }) }], error: null };
+    });
     return { rpc } as never;
+  }
+
+  /**
+   * The database as one transaction per call (migration 20261230091000): a payload hash is
+   * remembered only when its apply committed, and a failed apply leaves nothing behind.
+   */
+  function transactionalAdmin(failures: number) {
+    const committed = new Map<string, string>();
+    let left = failures;
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === "set_health_source_time_zone") return { data: null, error: null };
+      if (name !== "health_ingest_record") throw new Error(`unexpected rpc ${name}`);
+      const hash = String(args.p_payload_hash);
+      const prior = committed.get(hash);
+      if (prior) {
+        return { data: [{ event_id: prior, is_new: false, accepted: 0, updated: 0, skipped: 0 }],
+          error: null };
+      }
+      if (left > 0) {
+        left -= 1;
+        return { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } };
+      }
+      const id = `ev-${committed.size + 1}`;
+      committed.set(hash, id);
+      return { data: [{ event_id: id, is_new: true,
+        accepted: (args.p_samples as unknown[]).length, updated: 0, skipped: 0 }], error: null };
+    });
+    return { value: { rpc } as never, rpc };
   }
 
   const body = (over: Record<string, unknown> = {}) => ({ source_kind: "apple_health_shortcut",
@@ -121,8 +152,35 @@ describe("applyIngest", async () => {
     const out = await real(admin, source, body(), now);
     expect(out).toEqual({ event_id: "ev-1", status: "duplicate", accepted: 0, updated: 0,
       skipped: 0, rejected: [] });
-    expect((admin as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc)
-      .not.toHaveBeenCalledWith("health_ingest_apply", expect.anything());
+    const rpc = (admin as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+    expect(rpc.mock.calls.map(([name]) => name)).not.toContain("health_ingest_apply");
+  });
+
+  it("records the event and applies the samples in one RPC, never two (A009, A081)", async () => {
+    const db = transactionalAdmin(0);
+    await real(db.value, source, body(), now);
+    expect(db.rpc.mock.calls.filter(([name]) => name !== "set_health_source_time_zone"))
+      .toHaveLength(1);
+    expect(db.rpc).toHaveBeenCalledWith("health_ingest_record", expect.objectContaining({
+      p_user_id: "user-1", p_source_id: "src-1",
+      p_samples: [expect.objectContaining({ type: "step_count", value: 812 })] }));
+    expect(db.rpc).not.toHaveBeenCalledWith("health_ingest_event", expect.anything());
+    expect(db.rpc).not.toHaveBeenCalledWith("health_ingest_apply", expect.anything());
+  });
+
+  it("500s a failed apply, and the identical retry applies instead of answering duplicate", async () => {
+    const db = transactionalAdmin(1);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(real(db.value, source, body(), now))
+        .rejects.toMatchObject({ status: 500, code: "internal" });
+    } finally {
+      logged.mockRestore();
+    }
+    const retry = await real(db.value, source, body(), now);
+    expect(retry).toMatchObject({ event_id: "ev-1", status: "applied", accepted: 1 });
+    const resend = await real(db.value, source, body(), now);
+    expect(resend).toMatchObject({ event_id: "ev-1", status: "duplicate", accepted: 0 });
   });
 
   it("lists a malformed sample in rejected and still applies the rest", async () => {

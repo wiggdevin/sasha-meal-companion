@@ -127,15 +127,56 @@ export function safetyConditionEntries(answers: SafetyAnswers): string[] {
   return out;
 }
 
-/** Age in whole years on `onDate` (YYYY-MM-DD), the way the formula counts it (year − birth year). */
+/** Age in whole years on `onDate` (YYYY-MM-DD), the way the formula counts it (year − birth year).
+ *  It can be one year high before the birthday; `isMinorOn` takes the full date when it is known. */
 export function ageOn(birthYear: number, onDate: string): number {
   return Number(onDate.slice(0, 4)) - birthYear;
 }
 
-/** Under 18 on `onDate`, by stored birth year; an unknown birth year is not a minor here. */
-export function isMinorOn(birthYear: number | null | undefined, onDate: string): boolean {
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** A real calendar day as "YYYY-MM-DD" (no Feb 30), else null. */
+function calendarDay(value: string | null | undefined): { y: number; m: number; d: number } | null {
+  const match = typeof value === "string" ? ISO_DAY.exec(value) : null;
+  if (!match) return null;
+  const [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const at = new Date(Date.UTC(y, m - 1, d));
+  return at.getUTCFullYear() === y && at.getUTCMonth() === m - 1 && at.getUTCDate() === d
+    ? { y, m, d } : null;
+}
+
+/** Whole years on `onDate` from a full date of birth (both "YYYY-MM-DD"): a birthday later in
+ *  the year has not happened yet. Null when either date is not a real day. */
+export function ageOnBirthDate(birthDate: string, onDate: string): number | null {
+  const born = calendarDay(birthDate);
+  const on = calendarDay(onDate);
+  if (!born || !on) return null;
+  const hadBirthday = on.m > born.m || (on.m === born.m && on.d >= born.d);
+  return on.y - born.y - (hadBirthday ? 0 : 1);
+}
+
+/**
+ * A year-only count cannot tell an 18-year-old from a 17-year-old in the calendar year they turn
+ * 18 (audit 2026-10-10 A092). True for exactly that year: the phone then asks for the full date
+ * of birth before it builds a plan.
+ */
+export function adultAgeUnconfirmed(birthYear: number | null | undefined, onDate: string): boolean {
   return typeof birthYear === "number" && Number.isFinite(birthYear)
-    && ageOn(birthYear, onDate) < ADULT_AGE;
+    && ageOn(birthYear, onDate) === ADULT_AGE;
+}
+
+/**
+ * Under 18 on `onDate`. With a full `birthDate` of the same year it is the exact age (a 17-year-old
+ * whose birthday is still ahead is a minor); without one, the stored birth year's count, which is
+ * what the server reads (`422 adult_only`). An unknown birth year is not a minor here.
+ */
+export function isMinorOn(
+  birthYear: number | null | undefined, onDate: string, birthDate?: string | null,
+): boolean {
+  if (typeof birthYear !== "number" || !Number.isFinite(birthYear)) return false;
+  const exact = birthDate && calendarDay(birthDate)?.y === birthYear
+    ? ageOnBirthDate(birthDate, onDate) : null;
+  return (exact ?? ageOn(birthYear, onDate)) < ADULT_AGE;
 }
 
 /** True when this account may get a non-zero loss or gain pace. */

@@ -17,30 +17,24 @@ const mocked = vi.hoisted(() => ({
     ({ threadId: "thread-1", messageId: "message-1", duplicate: false })),
   accountIds: vi.fn(),
   accountZones: vi.fn(),
-  upload: vi.fn(async () => ({ error: null })),
+  // Reads a streamed body to its end, as Storage does.
+  upload: vi.fn(async (_path: string, body: unknown) => {
+    if (body instanceof ReadableStream) await new Response(body).arrayBuffer();
+    return { error: null };
+  }),
   timeZoneFor: vi.fn(async (_admin: unknown, _userId: string) => "UTC"),
   warmEatsFacets: vi.fn(async () => ({ foods: 0, warmed: 0, skipped: 0, errors: 0,
     stoppedEarly: false })),
 }));
 
-function updateChain() {
-  const chain = {
-    eq: () => chain,
-    lt: () => chain,
-    select: async () => ({ data: [{}], error: null }),
-    then: (resolveValue: (value: unknown) => unknown) =>
-      Promise.resolve({ data: [{}], error: null }).then(resolveValue),
-  };
-  return chain;
-}
-
-/** A keyset listing double: filters and order chain, `range` answers the rows once. */
+/** A keyset listing double: filters and order chain, `range` or `limit` answers the rows once. */
 function listingChain(rows: Record<string, unknown>[]) {
   let after: string | null = null;
   const chain = {
     eq: () => chain, is: () => chain, lt: () => chain, order: () => chain,
     gt: (_key: string, value: string) => { after = value; return chain; },
     range: async () => ({ data: after === null ? rows : [], error: null }),
+    limit: async () => ({ data: after === null ? rows : [], error: null }),
   };
   return chain;
 }
@@ -49,7 +43,8 @@ function listingChain(rows: Record<string, unknown>[]) {
 const jobCursors = () => {
   const chain = { select: () => chain, eq: () => chain,
     maybeSingle: async () => ({ data: null, error: null }) };
-  return { ...chain, upsert: async () => ({ error: null }) };
+  const saved = { eq: () => saved, select: async () => ({ data: [{ job: "backup" }], error: null }) };
+  return { ...chain, upsert: async () => ({ error: null }), update: () => saved };
 };
 
 async function* listOf<T>(items: T[]): AsyncGenerator<T> {
@@ -64,7 +59,8 @@ const admin = {
   from: (table: string) => {
     if (table === "job_cursors") return jobCursors();
     if (table === "media_objects") {
-      return { select: () => listingChain([{ path: "media/user-1/old.jpg" }]) };
+      return { select: () => listingChain([{
+        path: "media/user-1/11111111-1111-4111-8111-111111111111.jpg", user_id: "user-1" }]) };
     }
     if (table === "health_sources") {
       return { select: () => listingChain([{ id: "source-1", user_id: "user-1", oauth: "sealed" }]) };
@@ -84,21 +80,20 @@ const admin = {
           eq: () => routeChain,
           order: () => chain,
           range: async () => ({ data: [], error: null }),
+          limit: async () => ({ data: [], error: null }),
         };
         return chain;
       } };
     }
     if (table === "backup_runs") {
-      return {
-        insert: (row: unknown) => ({ select: async () => ({ data: [row], error: null }) }),
-        update: () => updateChain(),
-      };
+      return { upsert: async () => ({ error: null }) };
     }
     return {
       select: () => {
         const chain = {
           order: () => chain,
           range: async () => ({ data: [], error: null }),
+          limit: async () => ({ data: [], error: null }),
         };
         return chain;
       },
@@ -106,7 +101,12 @@ const admin = {
   },
   // Scale S2 spend sweep: expired-hold counts alternate 1, 0 (one hold before each pass, none
   // after it), and each sweep pass reports one reconciled hold.
-  rpc: vi.fn(async (fn: string) => {
+  rpc: vi.fn(async (fn: string, args?: Record<string, unknown>) => {
+    // The backup refuses to run without its pass lease: a fresh pass every fire.
+    if (fn === "claim_job_cursor" && args?.p_job === "backup") {
+      return { data: [{ after_key: null, listed: false, retry_keys: [], relist: false, done: false,
+        pass_started_at: new Date().toISOString() }], error: null };
+    }
     if (fn === "ai_spend_expired_count") return { data: mocked.expiredCounts++ % 2 === 0 ? 1 : 0, error: null };
     if (fn === "ai_spend_sweep") { mocked.spendSweeps += 1; return { data: 1, error: null }; }
     // Phase 18 W6: one partial purge pass (fewer rows than a full batch) ends the run.
@@ -119,7 +119,8 @@ const admin = {
 
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => admin }));
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: vi.fn(async () => undefined) }));
-vi.mock("@/lib/server/media", () => ({ deleteMedia: mocked.deleteMedia }));
+vi.mock("@/lib/server/media", async (orig) => ({
+  ...(await orig<typeof import("@/lib/server/media")>()), deleteMedia: mocked.deleteMedia }));
 vi.mock("@/lib/server/oura", () => ({ pullTwoDays: mocked.pullTwoDays }));
 vi.mock("@/lib/server/expenditure", () => ({
   runEstimate: mocked.runEstimate,
@@ -193,7 +194,9 @@ const manifest = JSON.parse(
 ) as { crons: { path: string; schedule: string }[] };
 
 const jobRuns: Record<string, () => number> = {
-  "/api/jobs/backup": () => mocked.upload.mock.calls.length,
+  // One manifest per finished pass; the parts before it are not separate runs.
+  "/api/jobs/backup": () => mocked.upload.mock.calls
+    .filter(([path]) => !path.includes("/part-")).length,
   "/api/jobs/estimate": () => mocked.runEstimate.mock.calls.length,
   "/api/jobs/facet-warm": () => mocked.warmEatsFacets.mock.calls.length,
   "/api/jobs/media-sweep": () => mocked.deleteMedia.mock.calls.length,

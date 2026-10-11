@@ -252,7 +252,7 @@ export const BUILDERS: Record<string, Builder> = {
       snapshot: {}, grams: 100 }, { grams: 50 });
   },
   media_objects: async (owner) => {
-    const path = `${owner}/tenancy-${randomUUID()}.jpg`;
+    const path = `media/${owner}/${randomUUID()}.jpg`; // the owner-path CHECK (W019)
     return { table: "media_objects", row: { path, user_id: owner, kind: "image", bytes: 3 },
       match: { path }, touch: () => ({ bytes: 4 }) };
   },

@@ -298,6 +298,26 @@ describe("the review and report script (scripts/allergen-jev-holds.ts)", () => {
     expect(() => assertHoldsWriteTarget(["--review"], "not a url")).toThrow(/cannot identify/);
     expect(() => assertHoldsWriteTarget(["--production"], prod)).toThrow(/only applies/);
   });
+
+  it("a review dry run is a read: no --production, and never with it", () => {
+    const prod = "https://fivatgdpuenszxxnijpc.supabase.co";
+    expect(() => assertHoldsWriteTarget(["--review", "--dry-run"], prod)).not.toThrow();
+    expect(() => assertHoldsWriteTarget(["--review", "--dry-run", "--production"], prod))
+      .toThrow(/writes nothing/);
+    expect(() => assertHoldsWriteTarget(["--dry-run"], prod)).toThrow(/only applies with --review/);
+    expect(() => assertHoldsWriteTarget(["--rederive", "--dry-run"], prod)).toThrow(/only applies/);
+  });
+
+  it("W022 (B277): a rice or tuna revision held for gluten stays held on review", () => {
+    // The last name is the one rice row production holds for gluten (read-only, 2026-10-10): it
+    // has no ingredient rows, so a review finds no deterministic evidence and the hold stays.
+    for (const foodName of ["Rice, white, long-grain, regular, enriched, cooked",
+      "Fish, tuna, light, canned in water, drained solids",
+      "Soup, HEALTHY CHOICE Chicken and Rice Soup, canned"]) {
+      expect(reviewReplacement("gluten", { ingredientsText: null, labelComplete: false, tags: null,
+        foodName })).toBeNull();
+    }
+  });
 });
 
 /**
