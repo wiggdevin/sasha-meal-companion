@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gramsForPortion, gramsFromUnit, isLogUnit, LOG_UNITS } from "./grams";
+import { gramsForPortion, gramsFromUnit, isLogUnit, LOG_UNITS, parseGramsText } from "./grams";
 
 describe("gramsForPortion", () => {
   it("multiplies the portion's gram weight by the quantity, to a tenth", () => {
@@ -44,4 +44,11 @@ describe("LOG_UNITS", () => {
     expect(isLogUnit("cup")).toBe(false);
     expect(isLogUnit("oz")).toBe(true);
   });
+});
+
+describe("parseGramsText", () => {
+  it.each([["150", 150], ["150,5", 150.5], ["150.5", 150.5], ["150.", 150], [".5", 0.5], [" 80 ", 80],
+    ["0", 0]])("reads %s as %s", (text, grams) => expect(parseGramsText(text)).toBe(grams));
+  it.each([[""], ["-"], ["."], [","], ["-5"], ["12a"], ["1,2,3"], ["1.2.3"], ["1e3"]])(
+    "reads %s as no number", (text) => expect(parseGramsText(text)).toBeNull());
 });

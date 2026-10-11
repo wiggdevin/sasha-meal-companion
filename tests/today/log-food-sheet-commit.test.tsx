@@ -155,6 +155,43 @@ describe("a single pick", () => {
     expect(grams.value).toBe("300");
   });
 
+  it("moves the grams with the count for a catalog food with no portions (audit 2026-10-10 A015)", async () => {
+    process.env.NEXT_PUBLIC_CATALOG_SEARCH = "1";
+    await sheet();
+    fireEvent.click(screen.getByRole("button", { name: "Catalog bread" }));
+    const grams = await screen.findByRole("textbox", { name: "Grams" }) as HTMLInputElement;
+    for (let i = 0; i < 2; i += 1) fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(grams.value).toBe("150");
+    const logIt = await waitFor(() => {
+      const b = screen.getAllByRole("button").find((x) => /^Log it · /.test(x.textContent ?? ""))!;
+      expect((b as HTMLButtonElement).disabled).toBe(false);
+      return b;
+    });
+    expect(logIt.textContent).toContain("150 g");
+    fireEvent.click(logIt);
+    await waitFor(() => expect(spies.commit).toHaveBeenCalledOnce());
+    expect(commitCall().req.items[0]).toMatchObject({ grams: 150, unit: "g" });
+  });
+
+  it("logs the grams the box shows: a comma decimal counts, partial input logs nothing (A016)", async () => {
+    process.env.NEXT_PUBLIC_CATALOG_SEARCH = "1";
+    await sheet();
+    fireEvent.click(screen.getByRole("button", { name: "Catalog bread" }));
+    const grams = await screen.findByRole("textbox", { name: "Grams" }) as HTMLInputElement;
+    const logIt = () => screen.getAllByRole("button").find((x) => /^Log it · /.test(x.textContent ?? ""))!;
+    await waitFor(() => expect((logIt() as HTMLButtonElement).disabled).toBe(false));
+    for (const partial of ["-", ".", "", "-5", "12a"]) {
+      fireEvent.change(grams, { target: { value: "150" } });
+      fireEvent.change(grams, { target: { value: partial } });
+      expect((logIt() as HTMLButtonElement).disabled, partial).toBe(true);
+    }
+    fireEvent.change(grams, { target: { value: "150,5" } });
+    expect(logIt().textContent).toContain("150.5 g");
+    fireEvent.click(logIt());
+    await waitFor(() => expect(spies.commit).toHaveBeenCalledOnce());
+    expect(commitCall().req.items[0]).toMatchObject({ grams: 150.5, unit: "g" });
+  });
+
   it("files a log from a past day on that day, card and request alike (UI audit 2026-10-07)", async () => {
     const at = new Date("2026-10-05T08:30:00");
     const onAdd = await sheet("food", at);

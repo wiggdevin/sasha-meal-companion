@@ -13,6 +13,7 @@ import { DisclosurePanel } from "@/components/ui/Disclosure";
 import Button from "@/components/ui/Button";
 import { setFoodMembership } from "@/lib/foods/prefs-client";
 import { currentAccountOrNull, isCurrent } from "@/lib/device/account";
+import { readRecipeChecks, writeRecipeChecks } from "@/lib/recipes/session-checks";
 import { RECIPE_MACROS, type RecipeCandidate, type RecipeNutrient } from "@/lib/recipe-catalog/types";
 import { macroFacts, recipePhoto } from "@/lib/recipes-hub/hub";
 import { displayAmount, displayMinutes } from "@/lib/recipes/preview-display";
@@ -42,19 +43,12 @@ const CHECK = "M5 12.5l4.5 4.5L19 7.5";
 
 /** The ticked ingredients of one recipe revision, kept for the session (like a result card's open
  *  state, components/RecipeResults.tsx), so a card that re-renders or remounts keeps its checklist. */
-function useSessionChecks(key: string) {
-  const storageKey = `recipe-checks:${key}`;
-  const [checked, setChecked] = useState<number[]>(() => {
-    if (typeof sessionStorage === "undefined") return [];
-    try {
-      const stored: unknown = JSON.parse(sessionStorage.getItem(storageKey) ?? "[]");
-      return Array.isArray(stored) ? stored.filter((value): value is number => typeof value === "number") : [];
-    } catch { return []; }
-  });
+function useSessionChecks(revisionId: string) {
+  const [checked, setChecked] = useState<number[]>(() => readRecipeChecks(revisionId));
   function toggle(seq: number) {
     setChecked((was) => {
       const next = was.includes(seq) ? was.filter((value) => value !== seq) : [...was, seq];
-      try { sessionStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* storage is optional */ }
+      writeRecipeChecks(revisionId, next);
       return next;
     });
   }

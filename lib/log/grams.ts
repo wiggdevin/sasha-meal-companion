@@ -41,3 +41,16 @@ export function gramsFromUnit(qty: number, unit: LogUnit): number | null {
   if (unit === "oz") return round1(qty * GRAMS_PER_OZ);
   return null;
 }
+
+/**
+ * The grams a typed box holds, or null when it holds no number (audit 2026-10-10 A016). A decimal
+ * comma reads as a point ("150,5" is 150.5), since a comma-decimal keypad types it; a sign, a lone
+ * separator or any other character is not a weight, so the sheet logs nothing rather than the last
+ * number it read.
+ */
+export function parseGramsText(text: string): number | null {
+  const plain = (text ?? "").trim().replace(",", ".");
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(plain)) return null;
+  const n = Number(plain);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}

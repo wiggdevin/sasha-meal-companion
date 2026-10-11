@@ -29,6 +29,7 @@ import { generateOpenRouter } from "@/lib/ai/openrouter";
 import { transcribeOpenRouterPayload } from "@/lib/ai/openrouter-payloads";
 import { providerFallbackWorthTrying } from "@/lib/ai/provider-fallback";
 import { openRouterConfigured } from "@/lib/ai/provider-env";
+import { MEDIA_PATH } from "@/lib/capture/types";
 import { validateAudio } from "@/lib/media/validate";
 import { HttpError } from "@/lib/server/auth";
 import { fetchOwnedObject as fetchOwnedObjectImpl } from "@/lib/server/media";
@@ -66,7 +67,8 @@ export { TRANSCRIBE_PROMPT } from "@/lib/ai/prompts";
 
 const transcriptSchema = z.object({ text: z.string() });
 
-export const transcribeRequestSchema = z.object({ path: z.string().min(1).max(512) }).strip();
+/** The same media/<uid>/<uuid>.<ext> shape the sign route mints (W019, A136). */
+export const transcribeRequestSchema = z.object({ path: z.string().max(512).regex(MEDIA_PATH) }).strip();
 export type TranscribeRequest = z.infer<typeof transcribeRequestSchema>;
 export type TranscribeResponse = { text: string; ms: number };
 
@@ -92,7 +94,7 @@ export async function transcribeAudio(
   // Phase 13 §9 R3: the attestation is checked before the clip is read, and again by the payload
   // builder before it is serialised. Off, transcription refuses with 503 nous_unconfirmed.
   assertGeminiAttested();
-  // Throws 403 on a path whose first segment is not theirs, before a byte is downloaded.
+  // Throws 403 on any path that is not exactly one of theirs, before a byte is downloaded.
   const object = await (deps.fetchOwnedObject ?? fetchOwnedObjectImpl)(admin, userId, req.path);
   const checked = validateAudio(object.bytes, object.mimeType);
   if (!checked.ok) refuse(checked);
