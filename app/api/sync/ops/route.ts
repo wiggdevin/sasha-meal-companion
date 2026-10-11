@@ -6,12 +6,14 @@
  * batch (`lib/server/target-recompute.ts`); a recompute failure is logged and never fails the op.
  * Applied `log_entries` ops are stamped with their occasion once per batch
  * (`lib/server/log-occasion.ts`, Phase 17 D1); a stamp failure is logged the same way.
+ * Queued `log_entries` writes answer with the commit's policy marks (`lib/server/sync-log-ops.ts`).
  */
 import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { stampLogOccasionsSafely } from "@/lib/server/log-occasion";
 import { recomputeDerivedTarget } from "@/lib/server/target-recompute";
+import { applyLabelFoodOp, isLabelFoodOp, withLogEntryFlags } from "@/lib/server/sync-log-ops";
 import {
   OpsRequestSchema, type OpResult, type OpsResponse, type SyncOp,
 } from "@/lib/sync/types";
@@ -49,9 +51,12 @@ function asOpResult(data: unknown, o: SyncOp): OpResult {
 async function applyOp(client: Awaited<ReturnType<typeof requireUser>>["client"], userId: string,
   op: SyncOp): Promise<OpResult> {
   if (op.entity !== "food_membership") {
+    // A033/A030: a queued label commit goes through the commit path whole; every other queued log
+    // write gets the commit's policy marks on its result.
+    if (isLabelFoodOp(op)) return applyLabelFoodOp(client, userId, op);
     const { data, error } = await client.rpc("apply_sync_op", { p_user_id: userId, p_op: op });
     if (error) throw new Error(error.message);
-    return asOpResult(data, op);
+    return withLogEntryFlags(client, userId, op, asOpResult(data, op));
   }
   const { name_norm: nameNorm, status, note, rev } = op.payload;
   if (typeof nameNorm !== "string"
@@ -113,7 +118,9 @@ export async function POST(req: Request): Promise<Response> {
         if (wire.entity === "user_settings") settingsTouched = true;
         // D1: only a log write this request applied is stamped, after the batch. A conflict, a
         // replay or an error wrote nothing here, and stamping its id could label an old row.
-        if (wire.entity === "log_entries" && result.status === "applied") {
+        // A label op's commit path stamps its own write and reports a replay as applied too, so it
+        // is left out here (a replay is never restamped).
+        if (wire.entity === "log_entries" && result.status === "applied" && !isLabelFoodOp(wire)) {
           loggedEntries.push(wire.entity_id);
         }
       } catch (e) {

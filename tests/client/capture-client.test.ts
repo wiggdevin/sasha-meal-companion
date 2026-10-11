@@ -225,10 +225,11 @@ describe("draft edits", () => {
     expect(canSave(applyEdits(twoItemDraft().items, { 2: { removed: true } }))).toBe(true);
   });
 
-  it("will not save a blocked item, and will once it is removed", () => {
+  // A034 (ruling 2026-09-14): logging marks, never refuses — a blocked item saves with its mark.
+  it("saves a blocked item, and needs something left to save", () => {
     const blocked: ProposeResponse = { ...DRAFT, items: [
       { ...DRAFT.items[0], policy: { verdict: "blocked", reason: "allergen:gluten" } }] };
-    expect(canSave(applyEdits(blocked.items, {}))).toBe(false);
+    expect(canSave(applyEdits(blocked.items, {}))).toBe(true);
     expect(canSave(applyEdits(blocked.items, { 1: { removed: true } }))).toBe(false); // nothing left
   });
 });
@@ -296,8 +297,9 @@ describe("commitDraft", () => {
     const ctx = { eatenAt: new Date("2026-09-11T18:30:00.000Z"), tz: "UTC", slot: "meal-2" as const,
       saveLabelAsFood: true, fetchImpl };
 
-    await commitDraft({ ...DRAFT, method: "label" }, {}, ctx);
-    await commitDraft({ ...DRAFT, method: "photo" }, {}, ctx);
+    const labelFood = { name: "Crackers", per100g: {}, allergenTags: [] };
+    await commitDraft({ ...DRAFT, method: "label", labelFood }, {}, ctx);
+    await commitDraft({ ...DRAFT, method: "photo", labelFood }, {}, ctx);
     expect(bodies[0].save_label_as_food).toBe(true);
     expect(bodies[1].save_label_as_food).toBeUndefined();
   });
@@ -311,14 +313,16 @@ describe("commitDraft", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  // Spec AC9: a blocked item never leaves this sheet. The write path refuses it itself, so no
-  // caller can reach the server by skipping the Save button's canSave check.
-  it("refuses a blocked item on the write path, without a network call", async () => {
-    const fetchImpl = vi.fn() as unknown as typeof fetch;
+  // A034: a blocked item is sent, and the server's answer marks it (ruling 2026-09-14).
+  it("sends a blocked item, so the server can record it with its mark", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ status: "ok", entry_id: "e",
+      rev: 1, items: [], totals: { local_date: "2026-09-11", nutrients: [], micro_coverage_pct: 0 },
+      flagged: [{ path: "items.0", message: "blocked:allergen:gluten" }] }),
+    { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
     const blocked: ProposeResponse = { ...DRAFT, items: [
       { ...DRAFT.items[0], policy: { verdict: "blocked", reason: "allergen:gluten" } }] };
     const out = await commitDraft(blocked, {}, { tz: "UTC", slot: "meal-2", fetchImpl });
-    expect(out).toMatchObject({ status: "invalid" });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ status: "ok" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
