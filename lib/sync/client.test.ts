@@ -151,6 +151,12 @@ describe("pullChanges", () => {
       row(4, { entity: "log_entries", entity_key: E7, op: "update", current: entry(E7) }),
     ], next_cursor: 4, has_more: false }) });
     expect((loadStore().days["2026-10-07"]?.extras ?? []).map((e) => e.id)).toEqual([E4]);
+    // A replayed row older than the mirror's neither lowers the mirror nor moves the card.
+    await pullChanges(h, 4, { fetchFn: pageFn({ changes: [
+      row(5, { entity: "log_entries", entity_key: E4, op: "update", current: { ...entry(E4), rev: 0, title: "Old" } }),
+    ], next_cursor: 5, has_more: false }) });
+    await expect(getRow(h, "log_entries", E4)).resolves.toMatchObject({ rev: 1 });
+    expect(loadStore().days["2026-10-07"]?.extras?.[0]?.name).toBe("Tuna bowl");
     expect(extras[0]?.name).toBe("Tuna bowl");
     await expect(getRow(h, "log_entries", E5)).resolves.toMatchObject({ id: E5 });
   });

@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/store", () => ({
   addExtra: mocks.addExtra,
-  upsertExtra: mocks.addExtra, // a new coach card is an upsert: one entry, one card
   loadStore: mocks.loadStore,
   removeExtra: mocks.removeExtra,
 }));

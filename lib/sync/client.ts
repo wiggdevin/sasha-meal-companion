@@ -113,6 +113,9 @@ async function projectPulledLogEntry(
   h: AccountHandle, entryId: string, current: Record<string, unknown>,
 ): Promise<void> {
   const mirror = await getRow(h, "log_entries", entryId);
+  const mirrorRev = typeof mirror?.rev === "number" ? mirror.rev : null;
+  // A feed row older than the mirror's (a replay) neither lowers the mirror nor moves the card.
+  if (mirrorRev !== null && typeof current.rev === "number" && current.rev < mirrorRev) return;
   await putRow(h, "log_entries", entryId, current);
   if (await isCommitting(entryId) || await hasQueuedOp(h, entryId) !== false) return;
   // Last, because a commit writes its record before it paints its card: once this read finds no
@@ -120,7 +123,6 @@ async function projectPulledLogEntry(
   // any state (in flight, waiting on a read-back, deleted here) belongs to this phone's own write.
   if (await recordFor(h, entryId)) return;
   const store = loadStore();
-  const mirrorRev = typeof mirror?.rev === "number" ? mirror.rev : null;
   const days = projectPulledEntry(store.days, entryId, current, mirrorRev);
   if (days !== store.days) saveStoreFor(h, { ...store, days }, { silent: true });
 }
