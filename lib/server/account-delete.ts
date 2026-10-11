@@ -5,7 +5,7 @@
  *
  *  1. Storage: every object under `media/<user id>/` is removed while the account still exists.
  *     If Storage fails, nothing else has changed: the account is whole and the user can retry.
- *  2. `delete_account(user)` (migration 20261229090000): ONE transaction removes every row the
+ *  2. `delete_account(user)` (migration 20261231190000): ONE transaction removes every row the
  *     account owns — the rows no cascade reaches, its job-cursor retry keys and rate-limit
  *     windows, then the `auth.users` row, which every account table cascades from. It either
  *     happens whole or not at all, so the database never holds half an account.
