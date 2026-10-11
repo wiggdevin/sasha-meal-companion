@@ -259,12 +259,13 @@ describe("POST /api/sync/ops", () => {
 
   it("turns a single op's RPC error into an 'error' result, not a 500 for the whole batch", async () => {
     const failing = op();
-    rpc.mockResolvedValue({ data: null, error: { message: "deadlock on log_entries" } });
+    rpc.mockResolvedValue({ data: null, error: { message: "deadlock on log_entries", code: "40P01" } });
     const res = await POST(request({ ops: [failing] }));
     expect(res.status).toBe(200);
     const body = await res.json();
+    // W026 (A137): a deadlock is the database's moment, not the op's fault.
     expect(body.results).toEqual([
-      { op_id: failing.op_id, status: "error", message: "deadlock on log_entries" },
+      { op_id: failing.op_id, status: "error", message: "deadlock on log_entries", retryable: true },
     ]);
   });
 
@@ -273,14 +274,38 @@ describe("POST /api/sync/ops", () => {
     const b = op({ entity: "gut_log", entity_id: "6f2d1a3c-0b1e-4d2a-9a3b-1c2d3e4f5a6b" });
     rpc
       .mockResolvedValueOnce({ data: { op_id: a.op_id, status: "applied", rev: 2, seq: 8 }, error: null })
-      .mockResolvedValueOnce({ data: null, error: { message: "deadlock on gut_log" } });
+      .mockResolvedValueOnce({ data: null, error: { message: "check failed on gut_log", code: "23514" } });
     const res = await POST(request({ ops: [a, b] }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.results).toEqual([
       { op_id: a.op_id, status: "applied", rev: 2, seq: 8 },
-      { op_id: b.op_id, status: "error", message: "deadlock on gut_log" },
+      { op_id: b.op_id, status: "error", message: "check failed on gut_log" },
     ]);
+  });
+
+  it.each([
+    ["57014", true], ["08006", true], ["40001", true], ["53300", true], ["55P03", true],
+    ["PGRST003", true], ["", true], ["23505", false], ["22023", false], ["PGRST202", false],
+  ])("marks an RPC error with code %j retryable: %s (W026, A137)", async (code, retryable) => {
+    const failing = op();
+    rpc.mockResolvedValue({ data: null, error: { message: "failed", code } });
+    const body = await (await POST(request({ ops: [failing] }))).json();
+    expect(body.results[0].retryable === true).toBe(retryable);
+  });
+
+  it("names the deployment that answered, so a parked op can be released by a new one (W026)", async () => {
+    const before = process.env.VERCEL_GIT_COMMIT_SHA;
+    process.env.VERCEL_GIT_COMMIT_SHA = "abc123";
+    try {
+      const applied = op();
+      rpc.mockResolvedValue({ data: { op_id: applied.op_id, status: "applied", rev: 2, seq: 1 }, error: null });
+      const body = await (await POST(request({ ops: [applied] }))).json();
+      expect(body.server_build).toBe("abc123");
+    } finally {
+      if (before === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+      else process.env.VERCEL_GIT_COMMIT_SHA = before;
+    }
   });
 
   it("turns a null RPC result into an 'error' result instead of pushing it on the wire", async () => {

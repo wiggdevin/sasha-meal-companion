@@ -128,7 +128,8 @@ async function rebaseLogNoteOnce(
   const folded = noteEditsAfter(seen);
   const latest = folded.length > 0 ? folded[folded.length - 1] : op;
   const mine = latest.payload as Record<string, unknown>;
-  const serverTs = String(server.updated_at ?? "");
+  // The conflict's own `at` (W026) when the server sends it; else the row's `updated_at`.
+  const serverTs = typeof result.at === "string" ? result.at : String(server.updated_at ?? "");
   // With the note the edits started from, only a note BOTH sides changed is joined: one the other
   // device left alone takes the user's, a clear included (audit 2026-10-10 A077). An op queued before
   // that base was recorded keeps the old rule. Theirs second: it is the newer of the two, and a
