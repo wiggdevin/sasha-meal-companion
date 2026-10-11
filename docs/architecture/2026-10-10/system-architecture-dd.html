@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meal Companion System Architecture</title>
+<meta name="description" content="System architecture of Meal Companion with route groups, cron jobs and the MCP admin-client path.">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --paper:#E0DCD1; --paper-2:#D3CDC0; --ink:#1D1D1C; --ink-strong:#141413;
+  --muted:#4F5343; --soft:#5E5C55; --rule:rgba(29,29,28,.14); --rule-solid:#A9A394;
+  --accent:#9E431B; --accent-tint:rgba(212,107,56,.12); --accent-05:rgba(158,67,27,.05); --accent-50:rgba(158,67,27,.5);
+  --link:#3F6482; --backend:#F6F2E9; --card:#F6F2E9; --ramp:.46;
+  --ink-02:rgba(29,29,28,.02); --ink-03:rgba(29,29,28,.03); --ink-05:rgba(29,29,28,.05);
+  --ink-06:rgba(29,29,28,.06); --ink-10:rgba(29,29,28,.10); --ink-20:rgba(29,29,28,.20); --ink-30:rgba(29,29,28,.30);
+  --muted-10:rgba(79,83,67,.10);
+  --font-sans:'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-serif:'Fraunces', 'Noto Serif', serif;
+  --font-mono:'Geist Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+    --rule:rgba(226,220,208,.14); --rule-solid:rgba(226,220,208,.28);
+    --accent:#E59A73; --accent-tint:rgba(229,154,115,.12); --accent-05:rgba(229,154,115,.05); --accent-50:rgba(229,154,115,.5);
+    --link:#A2C4D2; --backend:#2A2A27; --card:#242421; --ramp:.34;
+    --ink-02:rgba(226,220,208,.02); --ink-03:rgba(226,220,208,.03); --ink-05:rgba(226,220,208,.05);
+    --ink-06:rgba(226,220,208,.06); --ink-10:rgba(226,220,208,.10); --ink-20:rgba(226,220,208,.20); --ink-30:rgba(226,220,208,.30);
+    --muted-10:rgba(177,178,169,.10);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+  --rule:rgba(226,220,208,.14); --rule-solid:rgba(226,220,208,.28);
+  --accent:#E59A73; --accent-tint:rgba(229,154,115,.12); --accent-05:rgba(229,154,115,.05); --accent-50:rgba(229,154,115,.5);
+  --link:#A2C4D2; --backend:#2A2A27; --card:#242421; --ramp:.34;
+  --ink-02:rgba(226,220,208,.02); --ink-03:rgba(226,220,208,.03); --ink-05:rgba(226,220,208,.05);
+  --ink-06:rgba(226,220,208,.06); --ink-10:rgba(226,220,208,.10); --ink-20:rgba(226,220,208,.20); --ink-30:rgba(226,220,208,.30);
+  --muted-10:rgba(177,178,169,.10);
+}
+body { font-family: var(--font-sans); background: var(--paper); color: var(--ink); min-height: 100vh; padding: 3rem 2rem 2rem; }
+.frame { max-width: 1280px; width: 100%; margin: 0 auto; }
+.diagram-container { width: 100%; overflow-x: auto; }
+.eyebrow { font-family: var(--font-mono); font-size: .66rem; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: .5rem; }
+h1 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.4vw + .75rem, 1.75rem); font-weight: 400; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); margin-bottom: .75rem; }
+h2 { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; letter-spacing: -.01em; margin: 3rem 0 .5rem; }
+.sub { color: var(--muted); font-size: .9rem; max-width: 62ch; margin-bottom: 1.5rem; line-height: 1.5; }
+.fig-note { color: var(--soft); font-size: .8rem; max-width: 80ch; margin: .75rem 0 1rem; line-height: 1.5; }
+svg { width: 100%; display: block; }
+svg.fig { min-width: 1280px; }
+.cards { display: grid; grid-template-columns: 1.1fr 1fr .9fr; gap: 1rem; margin-top: 1.25rem; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 1.1rem 1.25rem; }
+.card h3 { font-family: var(--font-serif); font-weight: 400; font-size: 1rem; margin-bottom: .5rem; }
+.card ul { list-style: none; font-size: .82rem; line-height: 1.55; color: var(--ink); }
+.card li { padding-left: 1rem; position: relative; margin-bottom: .3rem; }
+.card li::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+.card .dot-acc::before, li.acc::before { background: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: .74rem; color: var(--ink); }
+.tbl-wrap { overflow-x: auto; margin-top: .75rem; }
+table { border-collapse: collapse; width: 100%; font-size: .8rem; min-width: 880px; }
+th { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--rule-solid); }
+td { padding: .55rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.45; }
+td.k { font-weight: 600; white-space: nowrap; }
+td.nw code { white-space: nowrap; }
+tr.hl td { background: var(--accent-05); }
+.foot { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--font-mono); font-size: .66rem; color: var(--muted); }
+details { margin-top: 1rem; } summary { cursor: pointer; font-size: .82rem; color: var(--muted); font-family: var(--font-mono); }
+p, li { overflow-wrap: anywhere; }
+.nm { font-family: var(--font-mono); font-size: .7rem; }
+
+/* svg roles */
+.f-sans { font-family: var(--font-sans); } .f-mono { font-family: var(--font-mono); } .f-serif { font-family: var(--font-serif); }
+.t-ink { fill: var(--ink); } .t-muted { fill: var(--muted); } .t-soft { fill: var(--soft); } .t-acc { fill: var(--accent); } .t-paper { fill: var(--paper); } .t-link { fill: var(--link); }
+.bg { fill: var(--paper); }
+.zone { fill: var(--ink-02); stroke: var(--ink-10); stroke-width: .8; }
+.n-backend { fill: var(--backend); stroke: var(--ink); stroke-width: 1; }
+.n-store { fill: var(--ink-05); stroke: var(--muted); stroke-width: 1; }
+.n-external { fill: var(--ink-03); stroke: var(--ink-30); stroke-width: 1; }
+.n-input { fill: var(--muted-10); stroke: var(--soft); stroke-width: 1; }
+.n-optional { fill: var(--ink-02); stroke: var(--ink-20); stroke-width: 1; stroke-dasharray: 4 3; }
+.n-focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.2; }
+.n-security { fill: var(--accent-05); stroke: var(--accent-50); stroke-width: 1; stroke-dasharray: 4 4; }
+.a { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.a-acc { fill: none; stroke: var(--accent); stroke-width: 1.2; }
+.a-link { fill: none; stroke: var(--link); stroke-width: 1.2; }
+.dash { stroke-dasharray: 5 4; }
+.life { stroke: var(--ink-20); stroke-width: 1; stroke-dasharray: 3 3; }
+.act { fill: var(--ink-06); stroke: var(--muted); stroke-width: .8; }
+.hair { stroke: var(--ink-10); stroke-width: .8; }
+.m-muted { fill: var(--muted); } .m-acc { fill: var(--accent); } .m-link { fill: var(--link); }
+.badge { fill: none; stroke: var(--ink-30); stroke-width: .8; }
+.hm-paper { fill: var(--paper); }
+.hm-cell { fill: var(--ink); fill-opacity: calc(0.07 + var(--k) * (var(--ramp) - 0.07)); }
+@media (max-width: 720px) { body { padding: 1.5rem 1rem; } .cards { grid-template-columns: 1fr; } }
+@media print { .diagram-container { overflow-x: visible; } svg.fig { min-width: 0; } }
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Architecture · audit 2026-10-10</p>
+<h1>Meal Companion system architecture</h1>
+<p class="sub">Phone PWA, Next.js on Vercel sfo1, Supabase us-west-1 and the outside providers. This version adds every route group, the ten cron jobs and the MCP route. Facts checked against code at <code>7405f41f</code>.</p>
+<div class="diagram-container"><svg class="fig" viewBox="0 56 1280 736" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sysarch-title sysarch-desc">
+<title id="sysarch-title">Meal Companion system architecture</title>
+<desc id="sysarch-desc">Phone PWA, six route groups, lib/server and lib/ai on Vercel sfo1, Supabase, and the outside providers, with the cron and MCP callers.</desc>
+<defs><marker id="sysarch-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-muted"/></marker><marker id="sysarch-arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-acc"/></marker><marker id="sysarch-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-link"/></marker></defs>
+<rect width="100%" height="100%" class="bg"/>
+<rect x="28" y="72" width="808" height="104" rx="8" class="zone"/>
+<rect x="40" y="76" width="56" height="12" rx="2" class="bg"/><text x="68.0" y="85" text-anchor="middle" font-size="7" letter-spacing="0.14em" class="f-mono t-soft">PHONE PWA</text>
+<rect x="28" y="224" width="1216" height="336" rx="8" class="zone"/>
+<rect x="196" y="228" width="80" height="12" rx="2" class="bg"/><text x="236.0" y="237" text-anchor="middle" font-size="7" letter-spacing="0.14em" class="f-mono t-soft">VERCEL · SFO1</text>
+<rect x="28" y="600" width="512" height="112" rx="8" class="zone"/>
+<rect x="308" y="604" width="116" height="12" rx="2" class="bg"/><text x="366.0" y="613" text-anchor="middle" font-size="7" letter-spacing="0.14em" class="f-mono t-soft">SUPABASE · US-WEST-1</text>
+<rect x="560" y="600" width="684" height="112" rx="8" class="zone"/>
+<rect x="1066" y="604" width="56" height="12" rx="2" class="bg"/><text x="1094.0" y="613" text-anchor="middle" font-size="7" letter-spacing="0.14em" class="f-mono t-soft">PROVIDERS</text>
+<path d="M136,160 L136,256" class="a-link" marker-end="url(#sysarch-arrow-link)"/>
+<path d="M496,160 L496,192 Q496,200 488,200 L344,200 Q336,200 336,208 L336,256" class="a-link" marker-end="url(#sysarch-arrow-link)"/>
+<path d="M536,160 L536,256" class="a-link" marker-end="url(#sysarch-arrow-link)"/>
+<path d="M576,160 L576,192 Q576,200 584,200 L728,200 Q736,200 736,208 L736,256" class="a-link" marker-end="url(#sysarch-arrow-link)"/>
+<path d="M448,132 L424,132" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M248,132 L224,132" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M648,132 L624,132" class="a dash" marker-end="url(#sysarch-arrow)"/>
+<path d="M936,160 L936,256" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M1136,160 L1136,256" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M136,320 L136,376" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M336,320 L336,376" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M536,320 L536,376" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M736,320 L736,376" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M936,320 L936,376" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M1136,320 L1136,376" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M100,440 L100,632" class="a-link" marker-end="url(#sysarch-arrow-link)"/>
+<path d="M164,440 L164,632" class="a-acc" marker-end="url(#sysarch-arrow-acc)"/>
+<path d="M284,440 L284,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M448,440 L448,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M764,440 L764,480" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M1028,440 L1028,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M1160,440 L1160,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M724,536 L724,560 Q724,568 716,568 L640,568 Q632,568 632,576 L632,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M764,536 L764,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M804,536 L804,560 Q804,568 812,568 L888,568 Q896,568 896,576 L896,632" class="a" marker-end="url(#sysarch-arrow)"/>
+<path d="M28,124 L21.0,124.0 Q14,124 14.0,131.0 L14,652 Q14,660 22,660 L48,660" class="a-link dash" marker-end="url(#sysarch-arrow-link)"/>
+<rect x="143" y="202" width="80" height="12" rx="2" class="bg"/><text x="183" y="211" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">OPS / CHANGES</text>
+<rect x="382" y="181" width="68" height="12" rx="2" class="bg"/><text x="416" y="190" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">FETCH + JWT</text>
+<rect x="943" y="202" width="44" height="12" rx="2" class="bg"/><text x="965" y="211" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">BEARER</text>
+<rect x="1143" y="202" width="76" height="12" rx="2" class="bg"/><text x="1181" y="211" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">GET + BEARER</text>
+<rect x="21" y="202" width="64" height="12" rx="2" class="bg"/><text x="53" y="211" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">DIRECT RLS</text>
+<rect x="29" y="534" width="64" height="12" rx="2" class="bg"/><text x="61" y="543" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">RLS CLIENT</text>
+<rect x="171" y="534" width="76" height="12" rx="2" class="bg"/><text x="209" y="543" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-acc">SERVICE ROLE</text>
+<rect x="291" y="534" width="60" height="12" rx="2" class="bg"/><text x="321" y="543" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">GETCLAIMS</text>
+<rect x="455" y="534" width="80" height="12" rx="2" class="bg"/><text x="495" y="543" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">MEDIA, BACKUP</text>
+<rect x="771" y="454" width="60" height="12" rx="2" class="bg"/><text x="801" y="463" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">CALLMODEL</text>
+<rect x="1035" y="534" width="64" height="12" rx="2" class="bg"/><text x="1067" y="543" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">OAUTH PULL</text>
+<rect x="1167" y="534" width="48" height="12" rx="2" class="bg"/><text x="1191" y="543" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">BARCODE</text>
+<rect x="644" y="549" width="68" height="12" rx="2" class="bg"/><text x="678" y="558" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">MODEL CALLS</text>
+<rect x="48" y="104" width="176" height="56" rx="6" class="bg"/>
+<rect x="48" y="104" width="176" height="56" rx="6" class="n-backend"/>
+<text x="136" y="124" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Sync engine</text>
+<text x="136" y="137" text-anchor="middle" font-size="9" class="f-mono t-muted">account-sync, post-sync</text>
+<text x="136" y="149" text-anchor="middle" font-size="9" class="f-mono t-muted">outbox, 1.5 s debounce</text>
+<rect x="248" y="104" width="176" height="56" rx="6" class="bg"/>
+<rect x="248" y="104" width="176" height="56" rx="6" class="n-store"/>
+<text x="336" y="130" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">IndexedDB</text>
+<text x="336" y="143" text-anchor="middle" font-size="9" class="f-mono t-muted">mirrors, outbox, META</text>
+<rect x="448" y="104" width="176" height="56" rx="6" class="bg"/>
+<rect x="448" y="104" width="176" height="56" rx="6" class="n-backend"/>
+<text x="536" y="124" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Screens + store</text>
+<text x="536" y="137" text-anchor="middle" font-size="9" class="f-mono t-muted">app/, components/</text>
+<text x="536" y="149" text-anchor="middle" font-size="9" class="f-mono t-muted">lib/store.ts, resolveDay</text>
+<rect x="648" y="104" width="176" height="56" rx="6" class="bg"/>
+<rect x="648" y="104" width="176" height="56" rx="6" class="n-optional"/>
+<text x="736" y="124" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Service worker</text>
+<text x="736" y="137" text-anchor="middle" font-size="9" class="f-mono t-muted">sw.js shell cache</text>
+<text x="736" y="149" text-anchor="middle" font-size="9" class="f-mono t-muted">never caches /api</text>
+<rect x="848" y="104" width="176" height="56" rx="6" class="bg"/>
+<rect x="848" y="104" width="176" height="56" rx="6" class="n-external"/>
+<text x="936" y="124" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Token clients</text>
+<text x="936" y="137" text-anchor="middle" font-size="9" class="f-mono t-muted">MCP agent: smc_ token</text>
+<text x="936" y="149" text-anchor="middle" font-size="9" class="f-mono t-muted">Health Shortcut: smh_</text>
+<rect x="1048" y="104" width="176" height="56" rx="6" class="bg"/>
+<rect x="1048" y="104" width="176" height="56" rx="6" class="n-external"/>
+<text x="1136" y="124" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Vercel Cron</text>
+<text x="1136" y="137" text-anchor="middle" font-size="9" class="f-mono t-muted">10 schedules</text>
+<text x="1136" y="149" text-anchor="middle" font-size="9" class="f-mono t-muted">vercel.json</text>
+<rect x="48" y="256" width="176" height="64" rx="6" class="bg"/>
+<rect x="48" y="256" width="176" height="64" rx="6" class="n-backend"/>
+<text x="136" y="280" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">sync</text>
+<text x="136" y="293" text-anchor="middle" font-size="9" class="f-mono t-muted">/api/sync · 2 routes</text>
+<text x="136" y="305" text-anchor="middle" font-size="9" class="f-mono t-muted">JWT · RLS client + RPC</text>
+<rect x="248" y="256" width="176" height="64" rx="6" class="bg"/>
+<rect x="248" y="256" width="176" height="64" rx="6" class="n-backend"/>
+<text x="336" y="280" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">domain routes</text>
+<text x="336" y="293" text-anchor="middle" font-size="9" class="f-mono t-muted">57 routes · JWT</text>
+<text x="336" y="305" text-anchor="middle" font-size="9" class="f-mono t-muted">log foods targets body</text>
+<rect x="448" y="256" width="176" height="64" rx="6" class="bg"/>
+<rect x="448" y="256" width="176" height="64" rx="6" class="n-backend"/>
+<text x="536" y="280" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">recipes + shopping</text>
+<text x="536" y="293" text-anchor="middle" font-size="9" class="f-mono t-muted">22 routes · pilot gate</text>
+<text x="536" y="305" text-anchor="middle" font-size="9" class="f-mono t-muted">requireRecipeUser (21)</text>
+<rect x="648" y="256" width="176" height="64" rx="6" class="bg"/>
+<rect x="648" y="256" width="176" height="64" rx="6" class="n-backend"/>
+<text x="736" y="280" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">coach + plan</text>
+<text x="736" y="293" text-anchor="middle" font-size="9" class="f-mono t-muted">12 routes · JWT</text>
+<text x="736" y="305" text-anchor="middle" font-size="9" class="f-mono t-muted">user + admin client</text>
+<rect x="848" y="256" width="176" height="64" rx="6" class="bg"/>
+<rect x="848" y="256" width="176" height="64" rx="6" class="n-backend"/>
+<text x="936" y="280" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">token routes</text>
+<text x="936" y="293" text-anchor="middle" font-size="9" class="f-mono t-muted">MCP, health ingest, Oura cb</text>
+<text x="936" y="305" text-anchor="middle" font-size="9" class="f-mono t-muted">token auth · admin client</text>
+<rect x="1048" y="256" width="176" height="64" rx="6" class="bg"/>
+<rect x="1048" y="256" width="176" height="64" rx="6" class="n-backend"/>
+<text x="1136" y="280" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">cron routes</text>
+<text x="1136" y="293" text-anchor="middle" font-size="9" class="f-mono t-muted">/api/jobs · 10 routes</text>
+<text x="1136" y="305" text-anchor="middle" font-size="9" class="f-mono t-muted">CRON_SECRET · admin client</text>
+<rect x="48" y="376" width="1176" height="64" rx="6" class="bg"/>
+<rect x="48" y="376" width="1176" height="64" rx="6" class="n-backend"/>
+<text x="636" y="400" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/server</text>
+<text x="636" y="413" text-anchor="middle" font-size="9" class="f-mono t-muted">143 files: auth, http, ratelimit, admin, and the domain services</text>
+<text x="636" y="425" text-anchor="middle" font-size="9" class="f-mono t-muted">requireUser() → RLS client · adminClient() → service role</text>
+<rect x="676" y="480" width="176" height="56" rx="6" class="bg"/>
+<rect x="676" y="480" width="176" height="56" rx="6" class="n-backend"/>
+<text x="764" y="500" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/ai · callModel</text>
+<text x="764" y="513" text-anchor="middle" font-size="9" class="f-mono t-muted">35 files</text>
+<text x="764" y="525" text-anchor="middle" font-size="9" class="f-mono t-muted">caps, circuit, ledger</text>
+<rect x="48" y="632" width="144" height="56" rx="6" class="bg"/>
+<rect x="48" y="632" width="144" height="56" rx="6" class="n-store"/>
+<text x="120" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Postgres</text>
+<text x="120" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">tables, RPCs, RLS</text>
+<rect x="212" y="632" width="144" height="56" rx="6" class="bg"/>
+<rect x="212" y="632" width="144" height="56" rx="6" class="n-external"/>
+<text x="284" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Supabase Auth</text>
+<text x="284" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">JWT, magic link</text>
+<rect x="376" y="632" width="144" height="56" rx="6" class="bg"/>
+<rect x="376" y="632" width="144" height="56" rx="6" class="n-store"/>
+<text x="448" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Storage</text>
+<text x="448" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">media, backups</text>
+<rect x="576" y="632" width="112" height="56" rx="6" class="bg"/>
+<rect x="576" y="632" width="112" height="56" rx="6" class="n-external"/>
+<text x="632" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Gemini</text>
+<text x="632" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">@google/genai</text>
+<rect x="708" y="632" width="112" height="56" rx="6" class="bg"/>
+<rect x="708" y="632" width="112" height="56" rx="6" class="n-external"/>
+<text x="764" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">OpenRouter</text>
+<text x="764" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">plan, capture</text>
+<rect x="840" y="632" width="112" height="56" rx="6" class="bg"/>
+<rect x="840" y="632" width="112" height="56" rx="6" class="n-external"/>
+<text x="896" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">TypeSafe Jev</text>
+<text x="896" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">api.typesafe.ai</text>
+<rect x="972" y="632" width="112" height="56" rx="6" class="bg"/>
+<rect x="972" y="632" width="112" height="56" rx="6" class="n-external"/>
+<text x="1028" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Oura Cloud</text>
+<text x="1028" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">OAuth pull</text>
+<rect x="1104" y="632" width="112" height="56" rx="6" class="bg"/>
+<rect x="1104" y="632" width="112" height="56" rx="6" class="n-external"/>
+<text x="1160" y="658" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">OFF + USDA</text>
+<text x="1160" y="671" text-anchor="middle" font-size="9" class="f-mono t-muted">barcode lookup</text>
+<line x1="30" y1="742" x2="1250" y2="742" class="hair"/>
+<text x="30" y="758" font-size="8" letter-spacing="0.14em" class="f-mono t-muted">LEGEND</text>
+<rect x="96" y="750" width="20" height="12" rx="3" class="n-backend"/>
+<text x="124" y="759" font-size="8" class="f-mono t-soft">app code</text>
+<rect x="188" y="750" width="20" height="12" rx="3" class="n-store"/>
+<text x="216" y="759" font-size="8" class="f-mono t-soft">store</text>
+<rect x="268" y="750" width="20" height="12" rx="3" class="n-external"/>
+<text x="296" y="759" font-size="8" class="f-mono t-soft">outside party</text>
+<rect x="388" y="750" width="20" height="12" rx="3" class="n-optional"/>
+<text x="416" y="759" font-size="8" class="f-mono t-soft">off the request path</text>
+<line x1="540" y1="756" x2="564" y2="756" class="a-link"/>
+<text x="572" y="759" font-size="8" class="f-mono t-soft">RLS client call</text>
+<line x1="672" y1="756" x2="696" y2="756" class="a-acc"/>
+<text x="704" y="759" font-size="8" class="f-mono t-soft">admin (service role)</text>
+<line x1="828" y1="756" x2="852" y2="756" class="a-link dash"/>
+<text x="860" y="759" font-size="8" class="f-mono t-soft">browser, direct</text>
+</svg></div>
+<div class="cards"><div class="card"><h3>How a phone request moves</h3><ul><li>The phone writes the store and IndexedDB first. The sync engine sends queued ops 1.5 s later (<code>lib/sync/account-sync.ts:31</code>) to <code>/api/sync/ops</code>, which calls <code>apply_sync_op</code> (<code>app/api/sync/ops/route.ts:52</code>).</li><li>Every route checks its own auth. The middleware matcher skips <code>/api/</code> (<code>middleware.ts:15</code>); <code>requireUser</code> verifies the JWT and the <code>x-smc-account</code> header (<code>lib/server/auth.ts:27-46</code>).</li><li>The phone also calls Supabase directly: sign-in (<code>app/sign-in/page.tsx:98</code>) and PostgREST writes to <code>user_foods</code>, <code>food_refs</code>, <code>user_food_prefs</code> and the <code>apply_sync_op</code> RPC (<code>components/add-food/catalog-food.ts:34-64</code>).</li></ul></div><div class="card"><h3>Which client runs</h3><ul><li>User routes use the request-scoped client, so RLS applies.</li><li>The admin (service-role) client runs the cron routes, the token routes and the MCP tools. Coach and plan routes pass <code>adminClient()</code> into their libs (<code>app/api/coach/route.ts:71</code>, <code>app/api/plan/ideas/route.ts:32</code>).</li><li>Cross-tenant safety on that path rests on each query adding <code>.eq("user_id")</code>. Canary tests cover it (<code>tests/tenancy/admin-canary.test.ts</code>).</li></ul></div><div class="card"><h3>Added to the Archify map</h3><ul><li>Every route group now has its own arrow into <code>lib/server</code>.</li><li>The cron caller and the ten job routes: figure 2.</li><li>The MCP route and its admin-client tools: figure 3.</li><li>The direct phone-to-Supabase path (dashed).</li></ul></div></div>
+<h2>Route groups call lib/server</h2>
+<p class="fig-note">106 <code>route.ts</code> files under <code>app/api</code>. Counts come from the file tree; module names come from each group's <code>lib/server</code> imports.</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Group</th><th>Routes</th><th>Who may call</th><th>Client</th><th>Main lib/server modules</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td class="k">sync</td><td>2</td><td>Signed-in phone (JWT)</td><td>User client; RPC <code>apply_sync_op</code>, <code>sync_changes</code></td><td>auth, ratelimit, log-occasion, target-recompute</td><td><code>app/api/sync/ops/route.ts:91</code>, <code>changes/route.ts:28-35</code></td></tr>
+<tr><td class="k">domain</td><td>57</td><td>JWT. No auth: <code>/api/health</code>, <code>/api/warm</code>, and <code>/api/dev/sign-in</code> (404 outside local dev).</td><td>User client. Admin in log commit and propose, foods world, barcode and facets, media sign, onboarding extract, constraints review.</td><td>auth, http, ratelimit, request-ip, catalog, food-world, taste-favor</td><td><code>app/api/log/commit/route.ts</code>, <code>app/api/foods/world/route.ts</code></td></tr>
+<tr><td class="k">recipes + shopping</td><td>22 (recipes 9, shopping 11, pantry 2)</td><td>JWT and an allowlist. Others get 404.</td><td>User client; <code>pantry/photo</code> also admin</td><td>recipe-access, recipe-candidates, recipe-plan, shopping-rule-marks, shopping-focus</td><td><code>lib/server/recipe-access.ts:19-25</code> (21 routes call it; <code>recipes/access</code> does not)</td></tr>
+<tr><td class="k">coach + plan</td><td>12 (coach 9, plan 3)</td><td>JWT</td><td>User client plus <code>adminClient()</code> passed to the lib</td><td>coach-turn, coach-threads, coach-undo, coach-transcribe, plan-inspire, plan-ideas, plan-document</td><td><code>app/api/coach/route.ts:68-71</code>, <code>app/api/plan/*/route.ts</code></td></tr>
+<tr><td class="k">token</td><td>3 (MCP, health ingest, Oura callback)</td><td>MCP: <code>smc_</code> token. Ingest: <code>smh_</code> token. Callback: OAuth state row.</td><td>Admin only</td><td>privileged, tokens, health-tokens, health-ingest, oura</td><td><code>app/api/mcp/route.ts:103-127</code>, <code>app/api/health/ingest/route.ts:23-40</code></td></tr>
+<tr class="hl"><td class="k">cron</td><td>10</td><td>Vercel Cron with <code>CRON_SECRET</code></td><td>Admin only</td><td>jobs, job-cursor, job-sweep, ratelimit, plus the job's service</td><td><code>app/api/jobs/*/route.ts</code>, <code>lib/server/jobs.ts:22</code></td></tr>
+</tbody></table></div>
+<h2>Cron jobs and their gates</h2>
+<p class="fig-note">All ten jobs in <code>vercel.json</code> hit a route that exports GET and POST. Vercel sends GET with the bearer header; a POST starts a fresh pass and is the manual run. Every job checks the secret before it spends the shared rate limit.</p>
+<div class="diagram-container"><svg class="fig" viewBox="0 72 1280 348" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cron-title cron-desc">
+<title id="cron-title">Cron gate chain</title>
+<desc id="cron-desc">Vercel Cron calls each job route with a bearer secret. Every route checks the secret, takes a rate limit, may check a flag, claims a lock and then works on the admin client.</desc>
+<defs><marker id="cron-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-muted"/></marker><marker id="cron-arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-acc"/></marker><marker id="cron-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-link"/></marker></defs>
+<rect width="100%" height="100%" class="bg"/>
+
+<path d="M188,128 L212,128" class="a" marker-end="url(#cron-arrow)"/>
+<path d="M360,128 L384,128" class="a" marker-end="url(#cron-arrow)"/>
+<path d="M532,128 L556,128" class="a" marker-end="url(#cron-arrow)"/>
+<path d="M704,128 L728,128" class="a" marker-end="url(#cron-arrow)"/>
+<path d="M876,128 L900,128" class="a" marker-end="url(#cron-arrow)"/>
+<path d="M286,160 L286,232" class="a dash" marker-end="url(#cron-arrow)"/>
+<path d="M458,160 L458,232" class="a dash" marker-end="url(#cron-arrow)"/>
+<path d="M630,160 L630,232" class="a dash" marker-end="url(#cron-arrow)"/>
+<path d="M1048,124 L1096,124" class="a-acc" marker-end="url(#cron-arrow-acc)"/>
+<path d="M1048,204 L1096,204" class="a-acc" marker-end="url(#cron-arrow-acc)"/>
+<path d="M1048,284 L1096,284" class="a-acc" marker-end="url(#cron-arrow-acc)"/>
+
+<rect x="40" y="96" width="148" height="64" rx="6" class="bg"/>
+<rect x="40" y="96" width="148" height="64" rx="6" class="n-external"/>
+<text x="114" y="120" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Vercel Cron</text>
+<text x="114" y="133" text-anchor="middle" font-size="9" class="f-mono t-muted">GET + Authorization</text>
+<text x="114" y="145" text-anchor="middle" font-size="9" class="f-mono t-muted">Bearer CRON_SECRET</text>
+<rect x="212" y="96" width="148" height="64" rx="6" class="bg"/>
+<rect x="212" y="96" width="148" height="64" rx="6" class="n-backend"/>
+<text x="286" y="120" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">1 Bearer check</text>
+<text x="286" y="133" text-anchor="middle" font-size="9" class="f-mono t-muted">cronSecretOk()</text>
+<text x="286" y="145" text-anchor="middle" font-size="9" class="f-mono t-muted">timing-safe compare</text>
+<rect x="384" y="96" width="148" height="64" rx="6" class="bg"/>
+<rect x="384" y="96" width="148" height="64" rx="6" class="n-backend"/>
+<text x="458" y="120" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">2 Rate limit</text>
+<text x="458" y="133" text-anchor="middle" font-size="9" class="f-mono t-muted">enforceRateLimit()</text>
+<text x="458" y="145" text-anchor="middle" font-size="9" class="f-mono t-muted">jobs:&lt;name&gt; per hour</text>
+<rect x="556" y="96" width="148" height="64" rx="6" class="bg"/>
+<rect x="556" y="96" width="148" height="64" rx="6" class="n-backend"/>
+<text x="630" y="120" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">3 Feature flag</text>
+<text x="630" y="133" text-anchor="middle" font-size="9" class="f-mono t-muted">4 of 10 jobs only</text>
+<text x="630" y="145" text-anchor="middle" font-size="9" class="f-mono t-muted">ESTIMATOR, HEALTH, coach</text>
+<rect x="728" y="96" width="148" height="64" rx="6" class="bg"/>
+<rect x="728" y="96" width="148" height="64" rx="6" class="n-backend"/>
+<text x="802" y="120" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">4 Pass and lock</text>
+<text x="802" y="133" text-anchor="middle" font-size="9" class="f-mono t-muted">claimLock, job_runs</text>
+<text x="802" y="145" text-anchor="middle" font-size="9" class="f-mono t-muted">sweep, job_cursors</text>
+<rect x="900" y="96" width="148" height="224" rx="6" class="bg"/>
+<rect x="900" y="96" width="148" height="224" rx="6" class="n-focal"/>
+<text x="974" y="182" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">5 Work</text>
+<text x="974" y="195" text-anchor="middle" font-size="9" class="f-mono t-muted">adminClient()</text>
+<text x="974" y="207" text-anchor="middle" font-size="9" class="f-mono t-muted">service role</text>
+<text x="974" y="219" text-anchor="middle" font-size="9" class="f-mono t-muted">bypasses RLS</text>
+<text x="974" y="231" text-anchor="middle" font-size="9" class="f-mono t-muted">per-account loop</text>
+<text x="974" y="243" text-anchor="middle" font-size="9" class="f-mono t-muted">or one global RPC</text>
+<rect x="1096" y="96" width="148" height="56" rx="6" class="bg"/>
+<rect x="1096" y="96" width="148" height="56" rx="6" class="n-store"/>
+<text x="1170" y="122" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Postgres</text>
+<text x="1170" y="135" text-anchor="middle" font-size="9" class="f-mono t-muted">tables + RPCs</text>
+<rect x="1096" y="176" width="148" height="56" rx="6" class="bg"/>
+<rect x="1096" y="176" width="148" height="56" rx="6" class="n-store"/>
+<text x="1170" y="202" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Storage</text>
+<text x="1170" y="215" text-anchor="middle" font-size="9" class="f-mono t-muted">media, backups</text>
+<rect x="1096" y="256" width="148" height="56" rx="6" class="bg"/>
+<rect x="1096" y="256" width="148" height="56" rx="6" class="n-external"/>
+<text x="1170" y="282" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Providers</text>
+<text x="1170" y="295" text-anchor="middle" font-size="9" class="f-mono t-muted">Gemini, Jev, Oura</text>
+<rect x="212" y="232" width="148" height="40" rx="6" class="bg"/>
+<rect x="212" y="232" width="148" height="40" rx="6" class="n-optional"/>
+<text x="286" y="256" text-anchor="middle" font-size="11" font-weight="600" class="f-sans t-ink">401 unauthorized</text>
+<rect x="384" y="232" width="148" height="40" rx="6" class="bg"/>
+<rect x="384" y="232" width="148" height="40" rx="6" class="n-optional"/>
+<text x="458" y="256" text-anchor="middle" font-size="11" font-weight="600" class="f-sans t-ink">429 / 503 limiter</text>
+<rect x="556" y="232" width="148" height="40" rx="6" class="bg"/>
+<rect x="556" y="232" width="148" height="40" rx="6" class="n-optional"/>
+<text x="630" y="256" text-anchor="middle" font-size="11" font-weight="600" class="f-sans t-ink">503 or 200 skip</text>
+<line x1="30" y1="370" x2="1250" y2="370" class="hair"/>
+<text x="30" y="386" font-size="8" letter-spacing="0.14em" class="f-mono t-muted">LEGEND</text>
+<rect x="96" y="378" width="20" height="12" rx="3" class="n-backend"/>
+<text x="124" y="387" font-size="8" class="f-mono t-soft">gate step</text>
+<rect x="196" y="378" width="20" height="12" rx="3" class="n-focal"/>
+<text x="224" y="387" font-size="8" class="f-mono t-soft">admin-client work</text>
+<rect x="336" y="378" width="20" height="12" rx="3" class="n-optional"/>
+<text x="364" y="387" font-size="8" class="f-mono t-soft">early exit</text>
+<line x1="440" y1="384" x2="464" y2="384" class="a-acc"/>
+<text x="472" y="387" font-size="8" class="f-mono t-soft">service-role call</text>
+<line x1="584" y1="384" x2="608" y2="384" class="a dash"/>
+<text x="616" y="387" font-size="8" class="f-mono t-soft">reject</text>
+</svg></div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Job</th><th>Schedule (UTC)</th><th>Flag</th><th>Pass control</th><th>Work</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td class="k">media-sweep</td><td class="nw"><code>0 3 * * *</code></td><td>none</td><td>none; swept rows leave the listing</td><td>Delete unattached media older than 24 h; scrub expired coach Undo records</td><td><code>media-sweep/route.ts:68-70</code></td></tr>
+<tr><td class="k">backup</td><td class="nw"><code>45 3 * * *</code></td><td>none</td><td><code>backup_runs</code> row per UTC date, 2 h stale lease</td><td>Stream a JSON dump of user tables to the private <code>backups</code> bucket</td><td><code>backup/route.ts:134-175</code></td></tr>
+<tr><td class="k">facet-warm</td><td class="nw"><code>20 4-7 * * *</code></td><td>none</td><td>sweep, <code>job_runs</code> (4 fires)</td><td><code>warmEatsFacets</code>; Jev calls</td><td><code>facet-warm/route.ts:41-47</code></td></tr>
+<tr><td class="k">signal-purge</td><td class="nw"><code>50 4 * * *</code></td><td>none</td><td>bounded passes</td><td>RPC <code>food_signal_events_purge</code> (180 days)</td><td><code>signal-purge/route.ts:33-34</code></td></tr>
+<tr><td class="k">onboarding-events-purge</td><td class="nw"><code>55 4 * * *</code></td><td>none</td><td>bounded passes</td><td>RPC <code>onboarding_events_purge</code> (90 days)</td><td><code>onboarding-events-purge/route.ts:33-34</code></td></tr>
+<tr><td class="k">estimate</td><td class="nw"><code>0 7-9 * * *</code></td><td><code>ESTIMATOR_ENABLED</code>, else 503</td><td>sweep, <code>job_runs</code> (3 fires)</td><td><code>runEstimate</code>; RPC <code>upsert_expenditure_estimate</code></td><td><code>estimate/route.ts:44-47</code></td></tr>
+<tr><td class="k">oura-pull</td><td class="nw"><code>0 10-12 * * *</code></td><td><code>HEALTH_INGEST_ENABLED</code>, else 200 empty</td><td>sweep, <code>job_runs</code> (3 fires)</td><td><code>pullTwoDays</code>; RPC <code>health_ingest_event</code> and <code>health_ingest_apply</code></td><td><code>oura-pull/route.ts:59-63</code></td></tr>
+<tr><td class="k">weekly-proposal</td><td class="nw"><code>0 1-3 * * 1</code></td><td><code>ESTIMATOR_ENABLED</code>, else 503</td><td>sweep, <code>job_runs</code> keyed by week</td><td><code>runEstimate</code>, <code>buildProposal</code>; RPC <code>write_target_proposal</code></td><td><code>weekly-proposal/route.ts:111-115</code></td></tr>
+<tr><td class="k">weekly-review</td><td class="nw"><code>30 * * * *</code></td><td><code>coachEnabled()</code>, else 200 skip</td><td>Local Sunday 18:00 window; week lock plus one retry; no cursor</td><td><code>writeWeeklyReview</code>; Gemini through <code>callModel</code></td><td><code>weekly-review/route.ts:78-80</code></td></tr>
+<tr><td class="k">spend-sweep</td><td class="nw"><code>*/15 * * * *</code></td><td>none</td><td>60 s budget; single-flight lock inside the RPC</td><td>RPC <code>ai_spend_sweep</code> on expired holds</td><td><code>spend-sweep/route.ts:42-55</code></td></tr>
+</tbody></table></div>
+<h2>MCP runs tools on the admin client</h2>
+<p class="fig-note">The MCP token is an opaque <code>smc_</code> string, not a Supabase JWT, so RLS cannot apply. <code>withTokenUser</code> resolves one user id from the token row and hands the tool the admin client (<code>lib/server/privileged.ts:1-8, 49</code>). Each tool then filters by that id in its own query.</p>
+<div class="diagram-container"><svg class="fig" viewBox="0 24 1280 636" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mcp-title mcp-desc">
+<title id="mcp-title">MCP request on the admin client</title>
+<desc id="mcp-desc">An MCP agent posts a bearer token. The route rate-limits, looks the token up with the service role, then runs a tool whose query filters by the token's user id.</desc>
+<defs><marker id="mcp-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-muted"/></marker><marker id="mcp-arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-acc"/></marker><marker id="mcp-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-link"/></marker></defs>
+<rect width="100%" height="100%" class="bg"/>
+<line x1="150" y1="104" x2="150" y2="568" class="life"/>
+<line x1="400" y1="104" x2="400" y2="568" class="life"/>
+<line x1="650" y1="104" x2="650" y2="568" class="life"/>
+<line x1="900" y1="104" x2="900" y2="568" class="life"/>
+<line x1="1150" y1="104" x2="1150" y2="568" class="life"/>
+<rect x="396" y="148" width="8" height="374" class="act"/>
+<rect x="646" y="184" width="8" height="156" class="act"/>
+<rect x="1146" y="256" width="8" height="48" class="act"/>
+<rect x="1146" y="400" width="8" height="48" class="act"/>
+<rect x="896" y="364" width="8" height="120" class="act"/>
+<path d="M150,152 L396,152" class="a-link" marker-end="url(#mcp-arrow-link)"/>
+<path d="M404,188 L646,188" class="a" marker-end="url(#mcp-arrow)"/>
+<path d="M404,224 L646,224" class="a" marker-end="url(#mcp-arrow)"/>
+<path d="M654,260 L1146,260" class="a" marker-end="url(#mcp-arrow)"/>
+<path d="M1146,296 L654,296" class="a dash" marker-end="url(#mcp-arrow)"/>
+<path d="M646,332 L404,332" class="a dash" marker-end="url(#mcp-arrow)"/>
+<path d="M404,368 L896,368" class="a" marker-end="url(#mcp-arrow)"/>
+<path d="M904,404 L1146,404" class="a-acc" marker-end="url(#mcp-arrow-acc)"/>
+<path d="M1146,440 L904,440" class="a dash" marker-end="url(#mcp-arrow)"/>
+<path d="M896,476 L404,476" class="a dash" marker-end="url(#mcp-arrow)"/>
+<path d="M396,512 L150,512" class="a dash" marker-end="url(#mcp-arrow)"/>
+<rect x="233" y="133" width="80" height="12" rx="2" class="bg"/><text x="273" y="142" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">1 POST BEARER</text>
+<rect x="487" y="169" width="76" height="12" rx="2" class="bg"/><text x="525" y="178" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">2 RATE LIMIT</text>
+<rect x="487" y="205" width="76" height="12" rx="2" class="bg"/><text x="525" y="214" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">3 WITH TOKEN</text>
+<rect x="862" y="241" width="76" height="12" rx="2" class="bg"/><text x="900" y="250" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">4 RPC LOOKUP</text>
+<rect x="860" y="277" width="80" height="12" rx="2" class="bg"/><text x="900" y="286" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">5 USER, SCOPE</text>
+<rect x="485" y="313" width="80" height="12" rx="2" class="bg"/><text x="525" y="322" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">6 CTX + ADMIN</text>
+<rect x="618" y="349" width="64" height="12" rx="2" class="bg"/><text x="650" y="358" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">7 RUN TOOL</text>
+<rect x="985" y="385" width="80" height="12" rx="2" class="bg"/><text x="1025" y="394" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-acc">8 ADMIN QUERY</text>
+<rect x="1003" y="421" width="44" height="12" rx="2" class="bg"/><text x="1025" y="430" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">9 ROWS</text>
+<rect x="620" y="457" width="60" height="12" rx="2" class="bg"/><text x="650" y="466" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">10 RESULT</text>
+<rect x="239" y="493" width="68" height="12" rx="2" class="bg"/><text x="273" y="502" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">11 JSON-RPC</text>
+<rect x="62" y="40" width="176" height="56" rx="6" class="bg"/>
+<rect x="62" y="40" width="176" height="56" rx="6" class="n-external"/>
+<text x="150" y="66" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">MCP agent</text>
+<text x="150" y="79" text-anchor="middle" font-size="9" class="f-mono t-muted">Bearer smc_ token</text>
+<rect x="312" y="40" width="176" height="56" rx="6" class="bg"/>
+<rect x="312" y="40" width="176" height="56" rx="6" class="n-backend"/>
+<text x="400" y="66" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">/api/mcp</text>
+<text x="400" y="79" text-anchor="middle" font-size="9" class="f-mono t-muted">app/api/mcp/route.ts</text>
+<rect x="562" y="40" width="176" height="56" rx="6" class="bg"/>
+<rect x="562" y="40" width="176" height="56" rx="6" class="n-backend"/>
+<text x="650" y="66" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/server</text>
+<text x="650" y="79" text-anchor="middle" font-size="9" class="f-mono t-muted">ratelimit · privileged</text>
+<rect x="812" y="40" width="176" height="56" rx="6" class="bg"/>
+<rect x="812" y="40" width="176" height="56" rx="6" class="n-backend"/>
+<text x="900" y="66" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/mcp tools</text>
+<text x="900" y="79" text-anchor="middle" font-size="9" class="f-mono t-muted">6 tools in 3 files</text>
+<rect x="1062" y="40" width="176" height="56" rx="6" class="bg"/>
+<rect x="1062" y="40" width="176" height="56" rx="6" class="n-store"/>
+<text x="1150" y="66" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">Postgres</text>
+<text x="1150" y="79" text-anchor="middle" font-size="9" class="f-mono t-muted">admin client, service role</text>
+<line x1="30" y1="602" x2="1250" y2="602" class="hair"/>
+<text x="30" y="618" font-size="8" letter-spacing="0.14em" class="f-mono t-muted">LEGEND</text>
+<line x1="96" y1="616" x2="120" y2="616" class="a-link"/>
+<text x="128" y="619" font-size="8" class="f-mono t-soft">agent call</text>
+<line x1="204" y1="616" x2="228" y2="616" class="a-acc"/>
+<text x="236" y="619" font-size="8" class="f-mono t-soft">tool query on admin client</text>
+<line x1="392" y1="616" x2="416" y2="616" class="a dash"/>
+<text x="424" y="619" font-size="8" class="f-mono t-soft">return</text>
+</svg></div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Step</th><th>What happens</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td class="k">2</td><td>Two pre-identity limits, 30 per minute each: one on the token hash, one on <code>x-real-ip</code>.</td><td><code>app/api/mcp/route.ts:103-104</code></td></tr>
+<tr><td class="k">3</td><td>Body cap 64 KB, then <code>withTokenUser</code> with the scope the body needs.</td><td><code>route.ts:32, 89-98, 105-107</code></td></tr>
+<tr><td class="k">4-6</td><td>Admin RPC <code>lookup_api_token</code> (service role only). It returns no row for an unknown, revoked or expired token (401). Exact-match scope check (403). Then a 60 per minute limit per token id.</td><td><code>lib/server/privileged.ts:33-49</code>, <code>route.ts:108, 117-122</code></td></tr>
+<tr><td class="k">7-9</td><td>A fresh MCP handler per request; the tool runs on the admin client.</td><td><code>route.ts:20-30, 127</code></td></tr>
+</tbody></table></div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Tool</th><th>Scope</th><th>How it binds to the user</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td class="k">get_body_data</td><td>read</td><td><code>mergedDays(admin, userId)</code> reads <code>health_samples</code> with <code>.eq("user_id")</code></td><td><code>lib/mcp/health-tools.ts:37</code>, <code>lib/server/health-daily.ts:73-74</code></td></tr>
+<tr><td class="k">get_expenditure_status</td><td>read</td><td><code>latestEstimate</code> with <code>.eq("user_id")</code></td><td><code>lib/mcp/expenditure-tools.ts:38</code>, <code>lib/server/expenditure.ts:205-207</code></td></tr>
+<tr><td class="k">get_targets</td><td>read</td><td><code>activeTargets</code> then <code>activeProfile</code> with <code>.eq("user_id")</code></td><td><code>expenditure-tools.ts:59</code>, <code>lib/server/targets.ts:53</code></td></tr>
+<tr><td class="k">get_constraints</td><td>read</td><td><code>getProfile(admin, userId)</code></td><td><code>lib/mcp/coach-tools.ts:45</code></td></tr>
+<tr class="hl"><td class="k">set_constraints</td><td>constraints:write</td><td><code>putProfile(admin, userId, args)</code>, compare-and-swap on <code>baseRev</code></td><td><code>coach-tools.ts:55</code>, <code>lib/server/constraints.ts:120</code></td></tr>
+<tr><td class="k">list_coach_messages</td><td>read</td><td>Direct query on <code>coach_messages</code> with <code>.eq("user_id")</code></td><td><code>coach-tools.ts:71-77</code></td></tr>
+</tbody></table></div>
+<h2>Leads for the audit</h2>
+<p class="fig-note">Found while checking these three areas. Each one is a fact in code; none is yet a confirmed defect.</p>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Lead</th><th>Fact</th></tr></thead><tbody><tr><td class="k">1</td><td class="k" style="white-space:normal">MCP <code>set_constraints</code> skips the hold recompute</td><td>The HTTP route re-derives the target after a conditions change (<code>app/api/constraints/route.ts:31-35</code> calls <code>recomputeAfterHoldChange</code>). The MCP tool calls <code>putProfile</code> and stops (<code>lib/mcp/coach-tools.ts:55</code>). A condition set over MCP (for example pregnancy) leaves the stored target on its old pace until a later settings op or an HTTP save.</td></tr><tr><td class="k">2</td><td class="k" style="white-space:normal">Nightly JSON backup lists a fixed set of tables</td><td><code>TABLES</code> holds 32 names and its comment names one source migration (<code>app/api/jobs/backup/route.ts:33-52</code>). At least 37 user-keyed tables from later migrations are absent, among them <code>shopping_*</code>, <code>recipe_plan_*</code>, <code>care_*</code>, <code>coach_action_undos</code>, <code>coach_action_receipts</code>, <code>user_dietary_profiles</code>, <code>food_signal_events</code>, <code>taste_chip_receipts</code>, <code>onboarding_events</code>. The job also gets one fire a day with <code>maxDuration</code> 300 (<code>route.ts:29</code>) and a 2 h stale lease (<code>route.ts:58</code>).</td></tr><tr><td class="k">3</td><td class="k" style="white-space:normal">Coach transcribe has no flag check and no per-user limit</td><td>Eight other coach routes answer 404 when <code>coachEnabled()</code> is off. <code>app/api/coach/transcribe/route.ts:25-31</code> does not, and limits only by IP before it transcribes with the admin client in hand.</td></tr><tr><td class="k">4</td><td class="k" style="white-space:normal">Coach turn budget fails open and can race</td><td><code>assertTurnBudget</code> counts successful <code>ai_calls</code> rows and returns on a read error (<code>lib/server/coach.ts:104-112</code>). Parallel turns all read the same count. The coach route has an IP limit only (<code>app/api/coach/route.ts:68</code>).</td></tr><tr><td class="k">5</td><td class="k" style="white-space:normal">Coach Undo routes limit after auth</td><td><code>app/api/coach/undo/route.ts:40-41, 62-63</code> and <code>undo/[id]/route.ts:29-30</code> have no pre-identity IP limit, unlike the other coach routes.</td></tr><tr><td class="k">6</td><td class="k" style="white-space:normal">Cron schedule and its stated plan disagree</td><td><code>media-sweep/route.ts:3</code> says the job is daily because Vercel Hobby allows nothing faster. <code>vercel.json:4-13</code> holds a 15-minute job, an hourly job and four multi-fire jobs.</td></tr><tr><td class="k">7</td><td class="k" style="white-space:normal">Three jobs copy the secret check</td><td><code>backup/route.ts:124-132</code>, <code>media-sweep/route.ts:39-47</code> and <code>oura-pull/route.ts:46-54</code> define their own <code>bearerOk</code>. The other seven use <code>cronSecretOk</code> (<code>lib/server/jobs.ts:22-30</code>).</td></tr><tr><td class="k">8</td><td class="k" style="white-space:normal">Flag-off answers differ between jobs</td><td><code>estimate</code> and <code>weekly-proposal</code> answer 503 when <code>ESTIMATOR_ENABLED</code> is unset (<code>estimate/route.ts:46-48</code>, <code>weekly-proposal/route.ts:113-115</code>), so each cron fire logs a failure. <code>oura-pull</code> and <code>weekly-review</code> answer 200 (<code>oura-pull/route.ts:63</code>, <code>weekly-review/route.ts:80</code>).</td></tr><tr><td class="k">9</td><td class="k" style="white-space:normal">First constraints write has no compare-and-swap</td><td>At revision 0, <code>putProfile</code> upserts (<code>lib/server/constraints.ts:162-166</code>). Two first writers both succeed and the second overwrites the first. The HTTP route and the MCP tool share this path.</td></tr></tbody></table></div>
+<p class="foot">Architecture, flow and sequence figures · built with diagram-design, profile meal-companion · the Archify <code>system-architecture.html</code> stays as it was</p>
+</div>
+</body>
+</html>
