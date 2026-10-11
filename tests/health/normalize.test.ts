@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeHealthAutoExport, normalizeShortcut } from "@/lib/health/normalize";
+import { normalizeHealthAutoExport, normalizeHealthAutoExportRows, normalizeShortcut } from "@/lib/health/normalize";
 
 const TZ = "America/New_York";
 
@@ -120,6 +120,38 @@ describe("normalizeHealthAutoExport", () => {
       { date: "2026-09-15 13:00:00 -0400", qty: 1 }] }] } };
     expect(normalizeHealthAutoExport(odd, TZ)).toEqual({ samples: [],
       rejected: [{ index: 0, reason: "unknown metric blood_alcohol" }] });
+  });
+
+  it("rejects a sleep row with neither asleep nor inBed instead of dropping it silently (A012)", () => {
+    const blank = { data: { metrics: [{ name: "sleep_analysis", units: "hr", data: [
+      { date: "2026-09-15 06:30:00 -0400", sleepStart: "2026-09-14 23:05:00 -0400" },
+      { date: "2026-09-15 06:30:00 -0400", inBed: 8,
+        sleepStart: "2026-09-14 23:05:00 -0400", sleepEnd: "2026-09-15 07:05:00 -0400" }] }] } };
+    const { samples, rejected } = normalizeHealthAutoExport(blank, TZ);
+    expect(samples).toHaveLength(1);
+    expect(samples[0].type).toBe("sleep_in_bed");
+    expect(rejected).toEqual([{ index: 0, reason: "no sleep value" }]);
+  });
+
+  it("names the payload rows behind each folded sample (A012)", () => {
+    const result = normalizeHealthAutoExportRows({ data: { metrics: [
+      { name: "blood_alcohol", units: "%", data: [{ date: "2026-09-15 13:00:00 -0400", qty: 1 }] },
+      { name: "step_count", units: "count", data: [
+        { date: "2026-09-15 13:00:00 -0400", qty: 812 },
+        { date: "2026-09-16 13:00:00 -0400", qty: 100 },
+        { date: "2026-09-15 14:00:00 -0400", qty: 610 }] },
+      { name: "weight_body_mass", units: "kg", data: [
+        { date: "2026-09-15 07:00:00 -0400", qty: 57.7 },
+        { date: "2026-09-15 07:15:00 -0400", qty: 57.5 }] },
+    ] } }, TZ);
+    expect(result.samples.map((s) => s.vendor_sample_id)).toEqual(["hae:step_count:2026-09-15",
+      "hae:step_count:2026-09-16", "hae:body_mass:2026-09-15"]);
+    expect(result.rows).toEqual([[1, 3], [2], [4, 5]]);
+    // The plain entry point keeps its shape.
+    const { rows: _rows, ...plain } = result;
+    expect(normalizeHealthAutoExport({ data: { metrics: [{ name: "step_count", units: "count",
+      data: [{ date: "2026-09-15 13:00:00 -0400", qty: 812 }] }] } }, TZ)).not.toHaveProperty("rows");
+    expect(plain.rejected).toEqual([{ index: 0, reason: "unknown metric blood_alcohol" }]);
   });
 
   it("returns a single envelope rejection for a payload that is not an HAE document", () => {
