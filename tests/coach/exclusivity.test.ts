@@ -134,10 +134,17 @@ describe("Eats/Avoid exclusivity", () => {
     expect(mocks.saveFoodNoteForRef).not.toHaveBeenCalled();
   });
 
-  it("this device's latest mark outranks the ref's older status (audit A025)", async () => {
-    mocks.currentPrefStatus.mockResolvedValue({ status: "eats", note: null });
+  it("the ref's mirrored status outranks this device's older name cache (Sol review)", async () => {
+    mocks.currentPrefStatus.mockResolvedValue({ status: "avoid", note: null });
+    mocks.readFoodMembership.mockReturnValueOnce({ status: "eats", note: null, rev: 4 } as never);
+    const result = await applyFoodListMark(mark("remove_from_avoid"));
+    expect(result.status).toBe("applied");
+    expect(mocks.setFoodMembership).toHaveBeenCalledWith("watermelon", null, expect.anything());
+  });
+
+  it("with no mirrored status, this device's last mark decides (audit A025)", async () => {
     mocks.readFoodMembership.mockReturnValueOnce({ status: "avoid", note: null, rev: 4 } as never);
-    const result = await applyFoodListMark(mark("remove_from_eats"));
+    const result = await applyFoodListMark({ ...mark("remove_from_eats"), name: "kiwi" });
     expect(result.status).toBe("failed");
     expect(mocks.setFoodMembership).not.toHaveBeenCalled();
   });

@@ -4,12 +4,11 @@
 
 import type { CoachAction } from "@/lib/coach/actions";
 import { deriveMealTitle, sanitizeMealTitle } from "@/lib/coach/meal-title";
-import { completeComponentFromCatalog } from "@/lib/plan/catalog-component";
 import { addComponent, removeComponent, replaceComponent }
   from "@/lib/plan/slot-override";
 import { saveMealEdit } from "@/lib/plan-day-client";
 import {
-  amountReason, componentFor, componentsFor, incompleteReason, matchIndex, mealName, per100g, sameComponent, sameComponents, slotContext,
+  amountReason, componentFor, componentsFor, incompleteReason, matchIndex, mealName, sameComponent, sameComponents, slotContext,
   type ApplyResult, type SlotItemEdit, type SlotUndoState, type UndoToken,
 } from "@/lib/coach/apply-shared";
 import type { FoodComponent } from "@/lib/types";
@@ -24,27 +23,19 @@ type SetSlotMealAction = Extract<CoachAction, { kind: "set_slot_meal" }>;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
- * The matched line at the asked grams (audit 2026-10-10 A158). A line measured in grams scales its
- * OWN numbers and keeps its food: the action's catalog row is a fresh search for the model's short
- * word ("rice" found a dry row at 365 kcal/100 g for a cooked-rice line), so it only sizes a line
- * that has no gram basis of its own. Either way the line keeps its name, role and food key.
+ * The matched line at the asked grams (audit 2026-10-10 A158). It scales the line's OWN numbers and
+ * keeps its food, name, role and food key: the action's catalog row is a fresh search for the
+ * model's short word ("rice" found a dry row at 365 kcal/100 g for a cooked-rice line). A line
+ * with no gram basis (cups, whole) has no own number to scale by grams, so it is refused rather
+ * than given another food's nutrition (Sol review).
  */
-function resizedLine(current: FoodComponent,
-  action: Extract<SlotItemAction, { kind: "set_slot_item" }>): FoodComponent | null {
-  if (current.unit === "g" && current.qty > 0) {
-    const scale = action.grams / current.qty;
-    const { macros } = current;
-    return { ...current, qty: action.grams, macros: { kcal: Math.round(macros.kcal * scale),
-      protein: round1(macros.protein * scale), carbs: round1(macros.carbs * scale),
-      fat: round1(macros.fat * scale) } };
-  }
-  // Built at the asked grams, so every macro is rounded once (a line built at 100 g and then
-  // rescaled rounds twice: 0.04 g fat per 100 g over 250 g became 0).
-  const grounded = completeComponentFromCatalog(current.name, per100g(action), action.grams);
-  if (!grounded) return null;
-  return { ...grounded, role: current.role,
-    ...(current.foodKey !== undefined ? { foodKey: current.foodKey } : {}),
-    ...(current.foodKeyInvalid ? { foodKeyInvalid: true as const } : {}) };
+function resizedLine(current: FoodComponent, grams: number): FoodComponent | null {
+  if (current.unit !== "g" || !(current.qty > 0)) return null;
+  const scale = grams / current.qty;
+  const { macros } = current;
+  return { ...current, qty: grams, macros: { kcal: Math.round(macros.kcal * scale),
+    protein: round1(macros.protein * scale), carbs: round1(macros.carbs * scale),
+    fat: round1(macros.fat * scale) } };
 }
 
 export async function applySlot(action: SlotItemAction): Promise<ApplyResult> {
@@ -74,8 +65,11 @@ export async function applySlot(action: SlotItemAction): Promise<ApplyResult> {
       const current = context.components[index];
       const badAmount = amountReason(current.name, action.grams);
       if (badAmount) return { status: "failed", reason: badAmount };
-      const changed = resizedLine(current, action);
-      if (!changed) return { status: "failed", reason: incompleteReason(current.name) };
+      const changed = resizedLine(current, action.grams);
+      if (!changed) {
+        return { status: "failed", reason: `${current.name} is measured in ${current.unit}, not`
+          + " grams, so I left it as it is. Change its amount on the meal card." };
+      }
       components = replaceComponent(context.components, index, changed);
       edit = { op: "set", index, before: current, after: changed };
     }

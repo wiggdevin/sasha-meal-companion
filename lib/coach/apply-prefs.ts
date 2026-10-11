@@ -58,7 +58,7 @@ async function roleRowIsReady(h: AccountHandle, foodRefId: string): Promise<bool
 /**
  * A removal clears only its own list (audit 2026-10-10 A025). The membership write is neutral for
  * both removals, so "take peanuts off my eats list" cleared an Avoid mark and let peanuts back into
- * plans. The status is this device's latest mark for the name, else the grounded ref's, else the
+ * plans. The status is the grounded ref's, else this device's latest mark for the name, else the
  * local list's; a removal whose food is not on that list changes nothing and says why.
  */
 function removalMismatch(action: ListAction, h: AccountHandle,
@@ -68,8 +68,10 @@ function removalMismatch(action: ListAction, h: AccountHandle,
   const marked = readFoodMembership(h.userId, action.name);
   const localId = localIdFor(action.name);
   const local = localId ? getFoods()[localId]?.status : undefined;
-  const status = marked !== undefined ? marked.status
-    : refStatus ?? (local === "eats" || local === "avoid" ? local : null);
+  // The ref's mirrored status first: a pull refreshes it, while the name cache holds this device's
+  // own last mark and can lag a newer mark from another device (Sol review).
+  const status = refStatus ?? (marked !== undefined ? marked.status
+    : local === "eats" || local === "avoid" ? local : null);
   if (status === list) return null;
   const label = list === "eats" ? "Favored" : "Avoid";
   return status === null

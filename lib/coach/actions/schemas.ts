@@ -148,12 +148,11 @@ export function buildActionSchemas(specs: readonly AnySpec[]) {
    * A numeric rest list (update_profile's training weekdays) without its zero placeholders. 0 is
    * both the provider's placeholder and Sunday (audit 2026-10-10 A160): a goal-only update padded
    * with zeros wrote Sunday as the only training day. Two or more zeros are padding (a weekday is
-   * never listed twice); a rest of one 0 beside another named field is padding too. A single 0
-   * among other weekdays, or as the action's whole content, is Sunday. Repeats are dropped.
+   * never listed twice); a single 0 is Sunday. Repeats are dropped.
    */
-  function restValues(values: number[], otherFieldNamed: boolean): number[] {
+  function restValues(values: number[]): number[] {
     const zeros = values.filter((value) => value === 0).length;
-    const padding = zeros > 1 || (values.length === 1 && zeros === 1 && otherFieldNamed);
+    const padding = zeros > 1;
     const kept = values.filter((value) => typeof value === "number" && !(padding && value === 0));
     return [...new Set(kept)];
   }
@@ -179,7 +178,7 @@ export function buildActionSchemas(specs: readonly AnySpec[]) {
     const rest = wire?.numbersRest;
     const fixed = wire?.numbers?.length ?? 0;
     if (rest && expanded[rest.field] === undefined && numbers.length > fixed) {
-      const values = restValues(numbers.slice(fixed), Object.keys(expanded).length > 1);
+      const values = restValues(numbers.slice(fixed));
       if (values.length > 0) expanded[rest.field] = values;
     }
     const stringsRest = wire?.stringsRest;

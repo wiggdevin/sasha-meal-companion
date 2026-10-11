@@ -172,15 +172,6 @@ describe("set_slot_meal undo", () => {
   });
 });
 
-describe("set_slot_item rounds once (Grok round 5)", () => {
-  it("builds a line with no gram basis at the asked grams: 0.04 g fat per 100 g over 250 g is 0.1 g, not 0", async () => {
-    await apply({ ...setOil(250), kcalPer100g: 20, proteinPer100g: 1.2, carbsPer100g: 3.3,
-      fatPer100g: 0.04 } as unknown as SlotAction);
-    expect(current()[2]).toMatchObject({ name: "Olive oil", qty: 250, unit: "g", role: "fat",
-      macros: { kcal: 50, protein: 3, carbs: 8.3, fat: 0.1 } });
-  });
-});
-
 describe("set_slot_item keeps the line's own food (audit 2026-10-10 A158)", () => {
   it("scales a gram line's own numbers, not the searched row's", async () => {
     // The search for "chicken" found a 365 kcal/100 g row; the line is chicken breast at 165.
@@ -198,6 +189,13 @@ describe("set_slot_item keeps the line's own food (audit 2026-10-10 A158)", () =
       grams: 150, flagged: [] } as unknown as SlotAction);
     expect(current()[1]).toEqual({ ...keyed, qty: 150,
       macros: { kcal: 195, protein: 4.1, carbs: 42, fat: 0.5 } });
+  });
+
+  it("refuses a line with no gram basis rather than give it the searched row's numbers", async () => {
+    const result = await applySlot(setOil(20));
+    expect(result).toMatchObject({ status: "failed",
+      reason: "Olive oil is measured in tbsp, not grams, so I left it as it is. Change its amount on the meal card." });
+    expect(names()[2]).toBe("Olive oil:1");
   });
 
   it("applies even when the searched row's nutrition is incomplete", async () => {
@@ -243,12 +241,6 @@ describe("an item with incomplete catalog nutrition (audit #20)", () => {
     const result = await applySlot({ ...addBanana(), item: grounded(sparse) } as SlotAction);
     expect(result).toMatchObject({ status: "failed", reason: expect.stringMatching(/incomplete nutrition/) });
     expect((fake.slots.get(key(DATE, "meal-2")) as Slot).override).toBeNull();
-  });
-
-  it("is refused by set_slot_item on a line with no gram basis", async () => {
-    const result = await applySlot({ ...setOil(20), ...sparse } as unknown as SlotAction);
-    expect(result.status).toBe("failed");
-    expect(names()[2]).toBe("Olive oil:1");
   });
 
   it("is refused by set_slot_meal", async () => {

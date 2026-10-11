@@ -3,9 +3,18 @@
  * a compound food phrase never becomes one arbitrary mark, and zero placeholders never become
  * Sunday training days.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { systemOneMock } = vi.hoisted(() => ({ systemOneMock: vi.fn() }));
+vi.mock("@/lib/ai/typesafe", () => ({
+  choice: (instructions: string, criteria: Record<string, string>) => ({ type: "choice", instructions, criteria }),
+  noul: (instructions: string) => ({ type: "noul", instructions }),
+  systemOne: (p: { state: unknown }) => systemOneMock(p.state),
+}));
 import { actionSpecFor, coachActionWireSchema } from "@/lib/coach/actions";
-import { extractNumbers, isFastPathEligible, type ClassifiedIntentResult } from "@/lib/coach/intent";
+import {
+  classifyIntent, extractNumbers, isFastPathEligible, type ClassifiedIntentResult,
+} from "@/lib/coach/intent";
 import { addLocalDays, foodArgs, statedDay } from "@/lib/coach/intent-args";
 import { fastPathAction } from "@/lib/server/coach-turn/fast-path-copy";
 import { foodMentions } from "@/lib/server/coach-turn/intent";
@@ -143,9 +152,10 @@ describe("zero placeholders are not Sunday (A160)", () => {
     expect(parsed.success && parsed.data).toEqual({ kind: "update_profile", goal: "maintain" });
   });
 
-  it("a single padding zero beside a named field sets no training days", () => {
-    const parsed = parse([0, 0, 1990, 0, 0]);
-    expect(parsed.success && parsed.data).toEqual({ kind: "update_profile", birthYear: 1990 });
+  it("a single 0 beside a named field is Sunday (Sol review)", () => {
+    const parsed = parse([0, 0, 0, 0, 0], ["", "", "maintain"]);
+    expect(parsed.success && parsed.data).toEqual({ kind: "update_profile", goal: "maintain",
+      trainingWeekdays: [0] });
   });
 
   it("repeated zeros among weekdays are padding; real weekdays stay", () => {
@@ -159,5 +169,32 @@ describe("zero placeholders are not Sunday (A160)", () => {
       .toEqual({ kind: "update_profile", trainingWeekdays: [0, 3] });
     expect(parse([0, 0, 0, 0, 0]).success && parse([0, 0, 0, 0, 0]).data)
       .toEqual({ kind: "update_profile", trainingWeekdays: [0] });
+  });
+});
+
+describe("the dated and compound forms reach the classifier (Sol review)", () => {
+  const answer = (intent: string) => ({
+    intent: { choice: intent, confidence: 0.97 },
+    direction: { choice: "later", confidence: 0.98 },
+    scope: { choice: "remaining", confidence: 0.96 },
+    suggest_kind: { choice: "meal", confidence: 0.9 }, suggest_count: { choice: "3", confidence: 0.9 },
+    suggest_slot: { choice: "none", confidence: 0.99 }, fit_remaining: { noul: 0.1 },
+    mentions_specific_foods: { noul: 0.1 }, mentions_size: { noul: 0.1 },
+  });
+  const ctx = { now: "2026-09-19T10:00:00-06:00", userId: "u1" };
+  beforeEach(() => { vi.stubEnv("TYPESAFE_API_KEY", "test-key"); systemOneMock.mockReset(); });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each([
+    ["log_water", "I drank 3 cups of water yesterday", { ml: 720, dayOffset: -1 }],
+    ["log_weight", "I weighed 58 kg yesterday", { kg: 58, dayOffset: -1 }],
+    ["shift_schedule", "move my meals 30 minutes later tomorrow", { minutes: 30, dayOffset: 1 }],
+    ["shift_schedule", "push my meals back an hour and a half", { minutes: 90 }],
+    ["log_water", "log 1 1/2 cups of water", { ml: 360 }],
+  ] as const)("%s: %s", async (intent, message, args) => {
+    systemOneMock.mockResolvedValue(answer(intent));
+    const result = await classifyIntent(message, ctx);
+    expect(result).toMatchObject({ intent, args });
+    expect(isFastPathEligible(result!)).toBe(true);
   });
 });
