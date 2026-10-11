@@ -15,7 +15,7 @@ import { SyncHttpError } from "./client";
 import { encodeKey } from "./keys";
 import { type Row } from "./merge";
 import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
-import { headOfLine, requeueInPlace, settleAppliedRow } from "./row-queue";
+import { headOfLine, requeueInPlace, retryStaleRead, settleAppliedRow } from "./row-queue";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
 import { withSettingsProvenance } from "./user-settings";
@@ -135,11 +135,16 @@ function capByBytes(ops: OutboxOp[]): OutboxOp[] {
 async function onConflict(
   h: AccountHandle, result: Extract<OpResult, { status: "conflict" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
-  const rebase = await settleConflict(h, result, op, now);
-  if (!rebase) return;
-  assertKeyMatchesPayload(rebase.op);
-  await requeueInPlace(h, op, rebase.op, rebase.retire, rebase.mirror, now());
-  announceQueued();
+  // An edit queued behind `op` while the rebase is worked out makes the requeue refuse, and the
+  // rebase is worked out again with it (lib/sync/row-queue.ts).
+  const requeued = await retryStaleRead(async () => {
+    const rebase = await settleConflict(h, result, op, now);
+    if (!rebase) return false;
+    assertKeyMatchesPayload(rebase.op);
+    await requeueInPlace(h, op, rebase.op, rebase.retire, rebase.mirror, now(), rebase.seen);
+    return true;
+  });
+  if (requeued) announceQueued();
 }
 
 /** Server errored on this op specifically (not a network failure). Retried with backoff, like a

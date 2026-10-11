@@ -56,17 +56,18 @@ function restarAsRestore(op: OutboxOp, currentRev: number, now: number): SyncOp 
 }
 
 /** A refused op's replacement: the rebase, the queued ops folded into it, and the mirror row. */
-export type Rebase = { op: SyncOp; retire: string[]; mirror: Row };
+export type Rebase = { op: SyncOp; retire: string[]; mirror: Row; seen: OutboxOp[] };
 
 /**
- * The run of create/update ops queued right behind `op` for its row. They were aimed at revisions
- * only `op` could produce; folded into its rebase, the latest of them is what the rebase carries
- * (audit 2026-10-10 A165, A141), instead of a rebased older edit landing after them.
+ * The run of create/update ops at the head of `behind`, the ops queued right behind `op` for its
+ * row. They were aimed at revisions only `op` could produce; folded into its rebase, the latest of
+ * them is what the rebase carries (audit 2026-10-10 A165, A141), instead of a rebased older edit
+ * landing after them.
  */
-function foldable(all: readonly OutboxOp[], op: OutboxOp): OutboxOp[] {
+function foldable(behind: readonly OutboxOp[], op: OutboxOp): OutboxOp[] {
   if (op.kind !== "create" && op.kind !== "update") return [];
   const out: OutboxOp[] = [];
-  for (const next of queuedAfter(all, op)) {
+  for (const next of behind) {
     if (next.kind !== "create" && next.kind !== "update") break;
     out.push(next);
   }
@@ -96,15 +97,17 @@ export async function settleConflict(
       now());
     return null;
   }
+  // What is queued behind the refused op now; the requeue refuses if that changes before it lands.
+  const seen = queuedAfter(await allOps(h), op);
   if (op.kind === "create" && FAVORITES.has(op.entity) && server.deleted_at) {
     // A restore keeps the server row's own columns (its sort), so that is what the mirror shows.
-    return { op: restarAsRestore(op, result.current_rev, now()), retire: [],
+    return { op: restarAsRestore(op, result.current_rev, now()), retire: [], seen,
       mirror: { ...server, deleted_at: null, rev: result.current_rev } };
   }
   // syncOnce pulls before it pushes, but a pulled row is held while an op for it is queued, so the
   // mirror holds the newest optimistic state. The ops' payloads are the only surviving record of
   // what the user meant, oldest first, so they win over the mirror.
-  const folded = foldable(await allOps(h), op);
+  const folded = foldable(seen, op);
   const mirror = ((await getRow(h, op.entity, op.entity_id)) ?? {}) as Row;
   const local = Object.assign({ ...mirror }, op.payload, ...folded.map((o) => o.payload)) as Row;
   const localTs = folded.length > 0 ? folded[folded.length - 1].client_ts : op.client_ts;
@@ -114,5 +117,6 @@ export async function settleConflict(
     op: rebaseOp(wireOp(op), stripServerOwned(merged), result.current_rev),
     retire: folded.map((o) => o.op_id),
     mirror: { ...merged, rev: result.current_rev },
+    seen,
   };
 }
