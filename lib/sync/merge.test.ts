@@ -1,6 +1,9 @@
 // lib/sync/merge.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { joinNotes, MergeRefusedError, mergeEntity, NEVER_MERGED, rebaseOp } from "./merge";
+import {
+  joinNotes, MergeRefusedError, mergeEntity, mergeNoteFromBase, mergePlanDayFields, NEVER_MERGED,
+  carriedPlanDayStamps, planDayStamps, rebaseOp,
+} from "./merge";
 import type { SyncOp } from "./types";
 
 const OLD = "2026-09-10T10:00:00.000Z";
@@ -102,6 +105,138 @@ describe("joinNotes — a real two-sided conflict", () => {
   });
   it("returns undefined when neither side has a note", () => {
     expect(joinNotes(undefined, undefined, OLD, NEW)).toBeUndefined();
+  });
+});
+
+/** Audit 2026-10-10 A139: each further conflict appended the server's text again. */
+describe("joinNotes — repeated conflicts add nothing new", () => {
+  it("keeps a rebased note that already carries the server's text as it is", () => {
+    const first = joinNotes("hurt on 9/12", "fine 9/04", NEW, OLD);
+    expect(first).toBe("fine 9/04\nhurt on 9/12");
+    // The rebased op is refused again by a write that kept the server's note.
+    expect(joinNotes(first, "fine 9/04", NEW, OLD)).toBe("fine 9/04\nhurt on 9/12");
+    expect(joinNotes("fine 9/04", first, OLD, NEW)).toBe("fine 9/04\nhurt on 9/12");
+  });
+
+  it("is stable however many times the same pair conflicts", () => {
+    let note = joinNotes("felt fine", "a bit heavy", NEW, OLD);
+    for (let i = 0; i < 5; i += 1) note = joinNotes(note, "a bit heavy", NEW, OLD);
+    expect(note).toBe("a bit heavy\nfelt fine");
+  });
+
+  it("appends only the newer side's lines the older side lacks", () => {
+    expect(joinNotes("fine 9/04\nbloated", "fine 9/04\nslept badly", NEW, OLD))
+      .toBe("fine 9/04\nslept badly\nbloated");
+  });
+
+  it("does the same for a user_food_prefs conflict replayed onto its own result", () => {
+    const once = mergeEntity("user_food_prefs", { food_ref_id: "f1", note: "hurt on 9/12" },
+      { food_ref_id: "f1", note: "fine 9/04", rev: 5 }, NEW, OLD);
+    const twice = mergeEntity("user_food_prefs", { food_ref_id: "f1", note: once.note },
+      { food_ref_id: "f1", note: "fine 9/04", rev: 6 }, NEW, OLD);
+    expect(twice.note).toBe("fine 9/04\nhurt on 9/12");
+  });
+});
+
+/** Audit 2026-10-10 A077: a whole-note edit is merged against the note it started from. */
+describe("mergeNoteFromBase", () => {
+  it("takes her rewrite when the other device left the note alone", () => {
+    expect(mergeNoteFromBase("felt fine", "felt fine, then good", "felt fine", NEW, OLD))
+      .toBe("felt fine, then good");
+  });
+
+  it("takes her clear when the other device left the note alone", () => {
+    expect(mergeNoteFromBase("felt fine", null, "felt fine", NEW, OLD)).toBeUndefined();
+  });
+
+  it("takes the other device's note when she left it alone", () => {
+    expect(mergeNoteFromBase("felt fine", "felt fine", "felt worse", NEW, OLD)).toBe("felt worse");
+    expect(mergeNoteFromBase(null, null, "after the gym", NEW, OLD)).toBe("after the gym");
+  });
+
+  it("joins the two when both changed it, older text first", () => {
+    expect(mergeNoteFromBase(null, "felt fine", "a bit heavy", NEW, OLD))
+      .toBe("a bit heavy\nfelt fine");
+  });
+
+  it("treats surrounding whitespace as no change", () => {
+    expect(mergeNoteFromBase("ok", "ok now", " ok ", NEW, OLD)).toBe("ok now");
+  });
+});
+
+/** Audit 2026-10-10 A141 / backlog B091: a field-wise plan edit, merged slot by slot. */
+describe("mergePlanDayFields", () => {
+  it("keeps the other side's value for a field this edit left as it found it", () => {
+    expect(mergePlanDayFields({ floor_day: false }, { floor_day: false }, { floor_day: true }, NEW, OLD))
+      .toEqual({ floor_day: true });
+  });
+
+  it("keeps this edit's value for a field the other side left alone, older or not", () => {
+    expect(mergePlanDayFields({ floor_day: true }, { floor_day: false }, { floor_day: false }, OLD, NEW))
+      .toEqual({ floor_day: true });
+  });
+
+  it("merges swaps and item overrides per slot", () => {
+    const merged = mergePlanDayFields(
+      { swaps: { "meal-1": "oats" }, item_overrides: { "meal-1": { title: "Oats" } } },
+      { swaps: {}, item_overrides: {} },
+      { swaps: { "meal-2": "eggs" }, item_overrides: { "meal-3": { title: "Pad thai" } } }, OLD, NEW);
+    expect(merged).toEqual({
+      swaps: { "meal-1": "oats", "meal-2": "eggs" },
+      item_overrides: { "meal-1": { title: "Oats" }, "meal-3": { title: "Pad thai" } },
+    });
+  });
+
+  it("keeps a slot this edit removed, unless the other side changed it too", () => {
+    expect(mergePlanDayFields({ swaps: {} }, { swaps: { "meal-1": "oats" } },
+      { swaps: { "meal-1": "oats", "meal-2": "eggs" } }, OLD, NEW)).toEqual({ swaps: { "meal-2": "eggs" } });
+    expect(mergePlanDayFields({ swaps: {} }, { swaps: { "meal-1": "oats" } },
+      { swaps: { "meal-1": "toast" } }, OLD, NEW)).toEqual({ swaps: { "meal-1": "toast" } });
+  });
+
+  it("gives a slot both sides changed to the newer one, and keeps both notes", () => {
+    expect(mergePlanDayFields({ swaps: { "meal-1": "oats" } }, { swaps: {} },
+      { swaps: { "meal-1": "eggs" } }, NEW, OLD)).toEqual({ swaps: { "meal-1": "oats" } });
+    expect(mergePlanDayFields({ slot_notes: { "meal-1": "ate half" } }, { slot_notes: {} },
+      { slot_notes: { "meal-1": "no rice" } }, NEW, OLD))
+      .toEqual({ slot_notes: { "meal-1": "no rice\nate half" } });
+  });
+
+  it("gives each field and slot its own stamp from the ops that changed it (Sol WARN 4)", () => {
+    const stamps = planDayStamps([
+      { payload: { swaps: { "meal-1": "oats" } }, base_fields: { swaps: {} }, client_ts: OLD },
+      { payload: { floor_day: true }, base_fields: { floor_day: false }, client_ts: NEW },
+    ]);
+    expect(stamps("swaps", "meal-1")).toBe(OLD);
+    expect(stamps("floor_day")).toBe(NEW);
+    const between = new Date((Date.parse(OLD) + Date.parse(NEW)) / 2).toISOString();
+    expect(mergePlanDayFields({ swaps: { "meal-1": "oats" }, floor_day: true },
+      { swaps: {}, floor_day: false }, { swaps: { "meal-1": "eggs" }, floor_day: false }, stamps, between))
+      .toEqual({ swaps: { "meal-1": "eggs" }, floor_day: true });
+  });
+
+  it("keeps an edit's own stamp through a rebase, so a second conflict still judges it old", () => {
+    const MID = new Date((Date.parse(OLD) + Date.parse(NEW)) / 2).toISOString();
+    const LATER = "2026-09-10T12:00:00.000Z";
+    // The phone's swap at OLD meets a server day that changed only Floor Day; the rebase is made at LATER.
+    const first = { swaps: {}, floor_day: true };
+    const stamps = planDayStamps([{ payload: { swaps: { "meal-1": "oats" } },
+      base_fields: { swaps: {} }, client_ts: OLD }]);
+    const merged = mergePlanDayFields({ swaps: { "meal-1": "oats" } }, { swaps: {} }, first, stamps, OLD);
+    const rebased = { payload: merged, base_fields: { swaps: {} }, client_ts: LATER,
+      field_stamps: carriedPlanDayStamps(merged, first, stamps) };
+    // The tablet then picks eggs for that meal at MID: newer than the phone's pick, older than the rebase.
+    expect(mergePlanDayFields(rebased.payload, rebased.base_fields,
+      { swaps: { "meal-1": "eggs" }, floor_day: true }, planDayStamps([rebased]), MID))
+      .toEqual({ swaps: { "meal-1": "eggs" } });
+  });
+
+  it("reads an override the server re-ordered as the same override", () => {
+    const mine = { baseMealId: null, title: "Chili", components: [] };
+    const jsonb = { title: "Chili", components: [], baseMealId: null };
+    expect(mergePlanDayFields({ item_overrides: { "meal-1": mine } },
+      { item_overrides: { "meal-1": jsonb } }, { item_overrides: {} }, NEW, OLD))
+      .toEqual({ item_overrides: {} });
   });
 });
 

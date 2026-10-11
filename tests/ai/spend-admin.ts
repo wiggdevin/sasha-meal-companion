@@ -40,6 +40,9 @@ function reservations(spendFor: (userId: string) => number[], onReserve?: (userI
       spendFor(hold.userId).push(Number(args.p_actual_usd));
       return { data: true, error: null };
     }
+    // About one settle in 50 also sweeps (lib/ai/spend.ts SWEEP_CHANCE). Answered here, or a test
+    // that expects no console.error fails at random (CI, W011 PR #59).
+    if (fn === "ai_spend_sweep") return { data: 0, error: null };
     throw new Error(`unexpected rpc ${fn}`);
   };
 }

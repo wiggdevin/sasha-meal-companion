@@ -23,7 +23,7 @@ export const META_STORE = "meta";
 /** Phase 2: cached catalog revisions (contracts 1–2 §5), keyed by revision_id. */
 export const CATALOG_STORE = "catalog_revisions";
 
-const CURSOR_KEY = "cursor";
+export const CURSOR_KEY = "cursor";
 const LAST_SYNC_KEY = "last_sync_at";
 /** This device's queue counter. Exported so a settlement can allocate a seq inside its own
  *  transaction (lib/sync/settings.ts) instead of opening a second one. */
@@ -46,7 +46,22 @@ export type OutboxOp = OwnedOp & {
    *  number. Device bookkeeping only — `wireOp` strips both before an op goes on the wire. */
   intents?: { key: string; value: unknown; sub?: string[]; delta?: { add: string[]; remove: string[] } }[];
   generation?: number;
+  /** A whole-note edit (a log entry's note): the note the edit started from, so a conflict can
+   *  tell the user's change from the server's (lib/sync/log-entry-ops.ts). Device bookkeeping only:
+   *  `wireOp` strips it. `null` is "no note"; absent is an op queued before this field existed. */
+  note_base?: string | null;
+  /** A field-wise edit (a `plan_days` op): each payload field's value in the mirror the edit
+   *  started from, so a conflict merges slot by slot what the user changed (lib/sync/merge.ts
+   *  `mergePlanDayFields`). Device bookkeeping only: `wireOp` strips it. */
+  base_fields?: Record<string, unknown>;
+  /** A rebased field-wise edit: when the user made each field or slot it still carries, so the next
+   *  conflict compares that edit's own time, not the rebase's (lib/sync/merge.ts `planDayStamps`).
+   *  Device bookkeeping only: `wireOp` strips it. */
+  field_stamps?: Record<string, string>;
 };
+
+/** A queued op with the bookkeeping its writer may attach at queue time. */
+export type QueuedSyncOp = SyncOp & Pick<OutboxOp, "note_base" | "base_fields" | "field_stamps">;
 
 /** The store layout, shared by the per-account database and the legacy database. */
 export function upgradeStores(db: IDBPDatabase): void {
@@ -212,6 +227,12 @@ function snapshotInputWritten(h: AccountHandle): void {
   }, 0));
 }
 
+/** After a committed write to `entity` made in a transaction of the caller's own: a snapshot
+ *  input forgets the snapshot, exactly as `writeEntity` does (lib/sync/row-queue.ts). */
+export function entityWritten(h: AccountHandle, entity: string): void {
+  if (SNAPSHOT_INPUTS.has(entity)) snapshotInputWritten(h);
+}
+
 /** A write to `entity`; a snapshot input also forgets the snapshot, after and apart from it. */
 async function writeEntity(h: AccountHandle, entity: Entity,
   fn: (store: { put(value: unknown, key: string): Promise<unknown>; delete(key: string): Promise<unknown> }) =>
@@ -293,11 +314,20 @@ export async function deleteMeta(h: AccountHandle, key: string): Promise<void> {
 }
 
 /** The queue number, this device's retry state, the owner and the op — one outbox row. */
-export function outboxRow(h: AccountHandle, op: SyncOp, seq: number, now: number): OutboxOp {
+export function outboxRow(h: AccountHandle, op: QueuedSyncOp, seq: number, now: number): OutboxOp {
   return {
     ...op, user_id: h.userId, seq, attempts: 0, error_attempts: 0,
     queued_at: new Date(now).toISOString(), next_attempt_at: now,
   };
+}
+
+/** Strip this device's queue bookkeeping; the op and its owner go on the wire (spec §0.5). */
+export function wireOp(op: OutboxOp): OwnedOp {
+  const { seq, attempts, error_attempts, queued_at, next_attempt_at, intents, generation,
+    note_base, base_fields, field_stamps, ...rest } = op;
+  void seq; void attempts; void error_attempts; void queued_at; void next_attempt_at;
+  void intents; void generation; void note_base; void base_fields; void field_stamps;
+  return rest;
 }
 
 /** Allocates this device's next queue number and stores the op in the same transaction. */
@@ -318,7 +348,8 @@ export async function appendOp(
  * a row under a key that does not describe it.
  */
 export async function appendOpWithRow(
-  h: AccountHandle, row: Record<string, unknown>, op: SyncOp, now: number = Date.now(),
+  h: AccountHandle, row: Record<string, unknown>, op: QueuedSyncOp, now: number = Date.now(),
+  precondition?: QueuePrecondition,
 ): Promise<OutboxOp> {
   const rowKey = encodeKey(op.entity, row);
   if (rowKey !== op.entity_id) {
@@ -326,11 +357,22 @@ export async function appendOpWithRow(
       `${op.entity}: row key ${rowKey} does not match op entity_id ${op.entity_id}`,
     );
   }
-  return writeOp(h, op, { entity: op.entity, key: rowKey, row }, now);
+  return writeOp(h, op, { entity: op.entity, key: rowKey, row, precondition }, now);
 }
 
+/**
+ * Checked inside the write's own transaction, against the queued ops and the row it replaces: a
+ * throw aborts the write. A caller that built its op from earlier, separate reads uses it to refuse
+ * a write those reads no longer describe (lib/log-note-client.ts).
+ */
+export type QueuePrecondition = (reads: {
+  ops: OutboxOp[]; current: Record<string, unknown> | undefined;
+}) => void;
+
 /** The mirror row, when there is one, rides the outbox transaction. */
-type Mirror = { entity: Entity; key: string; row: Record<string, unknown> } | null;
+type Mirror = {
+  entity: Entity; key: string; row: Record<string, unknown>; precondition?: QueuePrecondition;
+} | null;
 
 /**
  * What one `mutateRowWithOp` write returns. `retire` names ops this write REPLACES — a coalesced
@@ -368,7 +410,7 @@ async function abortQuietly(tx: { abort(): void }, done: Promise<void>): Promise
  * fresh seq each time would let a failing op jump ahead of everything queued behind it and reset
  * its own retry delay. Only the payload is new.
  */
-async function writeOp(h: AccountHandle, op: SyncOp, mirror: Mirror, now: number): Promise<OutboxOp> {
+async function writeOp(h: AccountHandle, op: QueuedSyncOp, mirror: Mirror, now: number): Promise<OutboxOp> {
   const db = await openAccountDb(h);
   const stores = mirror ? [mirror.entity, OUTBOX_STORE, META_STORE] : [OUTBOX_STORE, META_STORE];
   const tx = db.transaction(stores, "readwrite");
@@ -385,6 +427,13 @@ async function writeOp(h: AccountHandle, op: SyncOp, mirror: Mirror, now: number
     } else {
       seq = (((await meta.get(OUTBOX_SEQ_KEY)) as number | undefined) ?? 0) + 1;
       await meta.put(seq, OUTBOX_SEQ_KEY);
+    }
+    if (mirror?.precondition) {
+      mirror.precondition({
+        ops: (await outbox.getAll()) as OutboxOp[],
+        current: (await tx.objectStore(mirror.entity).get(mirror.key)) as
+          Record<string, unknown> | undefined,
+      });
     }
     if (mirror) await tx.objectStore(mirror.entity).put(mirror.row, mirror.key);
     const fresh = outboxRow(h, op, seq, now);
