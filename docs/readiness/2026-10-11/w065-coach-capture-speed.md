@@ -96,3 +96,94 @@ stream the final call's text and also attack the time before it:
 - AC10 (controlled cold vs warm, 5× per route) was not run; the proxy above is all the data offers.
 - Plate photo through the capture sheet records no `photo` propose rows in 90 days; re-check after
   real use.
+
+## Billed phone-path run (2026-10-11, coach-eval branch)
+
+The owner approved one billed run of the spec's smallest set: 10 label photos, 10 plate photos,
+10 coach turns and a controlled cold-vs-warm test. Production was not touched.
+
+### Setup
+
+- Branch: the persistent `coach-eval` branch. Its data was saved first to
+  `~/Backups/supabase/meal-companion-coach-eval/20261011T191338Z{,-full}.sql` (mode 600, off the
+  repo). Then `scripts/db-branch.sh reset coach-eval` ran. Afterwards the branch's migration ledger
+  matched the repo exactly (161 of 161 versions).
+- Server: this branch built with `next build` and served by `next start` on :3535 on the
+  developer's Mac, with the app's own lane pins and keys and every Supabase variable pointed at the
+  branch. The test user is the coach-streak user, seeded by `scripts/eval/coach-streak-harness.ts`
+  (profile, target revision, 18 catalog foods, Eats, three days of logs).
+- Driver: a one-off script that signs in with cookie auth and calls the same routes in the same
+  order as the phone, timing the same hops the phone marks. For capture that is `POST /api/media/sign`
+  (sign), PUT to the signed URL (upload) and `POST /api/log/propose` (propose). For the coach it is
+  `POST /api/coach`, sent until the reply arrives (first-text, which is also the full reply, since
+  there is no streaming). It also records the server's own `model` and `ground` ms. No commit was
+  sent, so nothing was logged.
+- Images: label photos are 20 synthetic Nutrition Facts panels drawn with PIL (1200×1600 JPEG,
+  q 80, slight tilt and blur). Plate photos are the app's 20 meal-art pictures (`public/meal-art`),
+  converted to 1600 px JPEG q 80, the size `lib/media/resize.ts` sends from the phone.
+- Cold vs warm: 5 cycles, each started after ≥ 15 minutes with no request to the server. Each
+  route got one "cold" call followed at once by one "warm" call. The route order rotated between
+  cycles. One extra coach-only cycle replaced a warm turn the 8-chat limit refused (`409
+  chat_limit`; the cycles open a new chat per turn). The test user's old chats were then closed on
+  the branch.
+
+### Results: 10 runs each (main set)
+
+| Path | n | sign | upload | propose | Total p50 / p95 | Budget | Server `model` p50 / p95 |
+|---|---|---|---|---|---|---|---|
+| Label (photo → draft) | 10 | 0.23 / 0.35 s | 0.32 / 0.54 s | 4.1 / 4.7 s | **4.6 / 5.4 s** | ≤ 5 s | 3.0 / 3.6 s |
+| Plate photo (photo → draft) | 10 | 0.20 / 0.25 s | 0.36 / 0.61 s | 4.0 / 4.6 s | **4.5 / 5.3 s** | ≤ 6 s | 2.8 / 3.1 s |
+
+| Coach | n | first-text p50 / p95 | Budget | Server `model` p50 / p95 |
+|---|---|---|---|---|
+| All 10 turns | 10 | **6.4 / 13.7 s** | ≤ 3 s (AC9), 15 s target | 4.3 / 12.2 s |
+| Model turns (OpenRouter, `google/gemini-2.5-flash`) | 9 | 5.8 / 13.9 s | | 4.6 / 12.3 s |
+| Jev fast path | 1 | 6.9 s | | 0 |
+
+Coach model turns made 2.4 OpenRouter calls each on average (45 calls for 19 model turns across
+the whole run), which matches production (2 at p50).
+
+### Results: cold vs warm (5 pairs per route)
+
+| Route | Cold p50 / p95 | Warm p50 / p95 |
+|---|---|---|
+| Coach model turn, first-text | 9.6 / 14.0 s | 7.0 / 12.0 s |
+| Label, total | 5.1 / 7.8 s | 4.6 / 12.2 s |
+| Plate photo, total | 4.5 / 8.1 s | 4.9 / 8.4 s |
+
+There is no consistent cold penalty. The p95s come from one cycle (20:09 UTC) where every route
+was slow, cold and warm alike (label warm 14.1 s, coach warm 13.1 s; model time rose on every
+call). That is provider latency at that moment, not a cold start. Without that cycle, label and plate
+cold and warm medians are within about 0.5 s of each other. Coach turns vary with the number of
+model calls the turn makes, not with idle time: the slowest cold turn (15.0 s, cycle 6) spent
+13.2 s in the model.
+
+### Verdicts
+
+- **AC7, label ≤ 5 s p95: not met, near.** p95 is 5.4 s (p50 4.6 s). Model time is 3.0 s; propose
+  adds about 1 s of server work around it.
+- **AC8, plate ≤ 6 s p95: met.** 5.3 s.
+- **AC9, coach first-text ≤ 3 s p95: not met.** 13.7 s, close to the production 14.2 s (7 days). The
+  15 s Phase 13 target is met here. This confirms the streaming decision above (build W091) and
+  its two companions: fewer model calls per turn and less server work before the first token.
+- **AC10, warm ping halves the first-tap latency: not measurable here.** `next start` on one machine
+  has no serverless cold start, so the ping has nothing to remove. The controlled test shows that
+  upstream connections (database, OpenRouter, TypeSafe) left idle for 15 minutes add no
+  measurable time.
+
+### Gaps (need a real phone or a Vercel deployment)
+
+- Function cold start and the warm ping (AC10) need the deployed `sfo1` functions. A local
+  server cannot reproduce them.
+- The phone's own upload over cellular or Wi-Fi, and `card-visible`, need a phone and the UI. The
+  upload here went from the developer's Mac.
+- The commit hop was not sent, to keep the branch's log empty. Production telemetry above has it at
+  2–4 s.
+- Grounding ran against the seeded 20-food catalog, not production's 13,694 foods. Production's
+  text `ground` step (0.6–0.8 s) is the better guide.
+
+### Spend
+
+From the branch's `ai_calls` after the run: **$0.146 in 105 calls**. That is coach-openrouter $0.101
+(45), labelToNutrients-openrouter $0.026 (20), photoToItems-openrouter $0.018 (20), and Jev $0.0006
+(20). No Gemini fallback call was needed.
