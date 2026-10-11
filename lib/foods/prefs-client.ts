@@ -22,7 +22,7 @@
  * the save failed. The backfill catches that error, leaves the food uncached, and retries later.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Food, FoodStatus } from "@/lib/foods";
+import { withPerUnit, type Food, type FoodStatus } from "@/lib/foods";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import { uuidV5 } from "@/lib/foods/uuid5";
 import {
@@ -587,7 +587,7 @@ type UserFoodRow = { id: string; catalog_food_id: number | null; rev: number };
 export function per100gFor(food: Food): Record<string, number> {
   // The same weight the logger and the Foods page use (lib/foods/unit-grams.ts): starter first.
   const grams = accountUnitGrams(food);
-  return grams === null ? {} : perUnitTo100g(food.perUnit, grams);
+  return grams === null ? {} : perUnitTo100g(food.perUnit, grams, food.kcalPerUnit);
 }
 
 async function foodRefFor(
@@ -837,7 +837,7 @@ export async function saveFoodEdits(food: Food, note: string, role: Food["role"]
         .select("id,name,brand,ingredients_text,catalog_food_id,kind,per_100g,allergen_tags,rev")
         .eq("id", row.id).eq("user_id", owner).single());
       if (full.error || !full.data) throw new Error("Could not load this food for editing.");
-      const per100g = per100gFor({ ...food, perUnit });
+      const per100g = per100gFor(withPerUnit(food, perUnit));
       if (Object.keys(per100g).length === 0) throw new Error("This serving has no known gram weight.");
       const payload = { ...full.data, per_100g: per100g } as Record<string, unknown>;
       delete payload.rev;

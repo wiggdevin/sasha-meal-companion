@@ -22,6 +22,8 @@ import { scheduleSignature } from "./plan-schedule";
 import { type Food, type FoodRole, type FoodStatus } from "./foods";
 import { starterForName } from "./foods/starter";
 import { inferFoodRole } from "./foods/role";
+import { accountFoodKcalPer100g } from "./catalog/account-food-nutrients";
+import { macroKcal } from "./scaling";
 import type { LoggedFood, LoggedItem, Settings, SlotId, Store, StoredDay } from "./types";
 
 /** The account-scoped name of the store (`smc:u:<userId>:store`). */
@@ -346,6 +348,22 @@ function finiteNutrient(row: Record<string, unknown>, key: string): number {
 }
 
 /**
+ * The row's measured energy per gram (W004, audit A156): reported, else calculated, by the one
+ * energy rule; undefined when the row has none. A stored 0 beside macros that carry energy is the
+ * pre-W004 catalog add path's "unmeasured as 0" (audit A154), not a measurement: it is ignored, so
+ * the food keeps its macro-derived energy until scripts/catalog-food-energy-backfill.ts repairs the
+ * row. Water and diet soda (0 kcal, no macros) keep their measured zero.
+ */
+function measuredKcalPerGram(row: Record<string, unknown>): number | undefined {
+  const per100 = accountFoodKcalPer100g(row);
+  if (per100 === null) return undefined;
+  const macros = { protein: finiteNutrient(row, "protein"), carbs: finiteNutrient(row, "carbohydrate"),
+    fat: finiteNutrient(row, "fat_total") };
+  if (per100 === 0 && macroKcal(macros) > 0) return undefined;
+  return per100 / 100;
+}
+
+/**
  * A stored catalog link: an integer, or a string of digits ("0" included). null, a missing
  * column, "" and whitespace (which `Number` reads as 0) and any other value are no link.
  */
@@ -382,6 +400,7 @@ export function foodsFromSyncRows(
       ? pref.role as FoodRole : starter?.role ?? inferFoodRole(row.name, {
         protein: finiteNutrient(nutrients, "protein"), carbs: finiteNutrient(nutrients, "carbohydrate"),
         fat: finiteNutrient(nutrients, "fat_total") });
+    const kcalPerGram = measuredKcalPerGram(nutrients);
     foods[row.id] = {
       id: row.id,
       name: row.name,
@@ -392,6 +411,7 @@ export function foodsFromSyncRows(
         carbs: finiteNutrient(nutrients, "carbohydrate") * (starter?.grams ?? 1),
         fat: finiteNutrient(nutrients, "fat_total") * (starter?.grams ?? 1),
       },
+      ...(kcalPerGram === undefined ? {} : { kcalPerUnit: kcalPerGram * (starter?.grams ?? 1) }),
       // Water and diet soda store real zeros; a row with no macro at all says nothing.
       ...(["protein", "carbohydrate", "fat_total", "energy_kcal"].some((key) =>
         nutrients[key] !== null && nutrients[key] !== "" && Number.isFinite(Number(nutrients[key])))

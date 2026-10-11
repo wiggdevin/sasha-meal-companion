@@ -12,8 +12,14 @@ export type Food = {
   name: string;
   role: FoodRole;
   unit: FoodUnit;
-  /** Macros for ONE unit. kcal is derived, never stored. */
+  /** Macros for ONE unit. */
   perUnit: { protein: number; carbs: number; fat: number };
+  /**
+   * Energy for ONE unit as the source measured it — reported, else calculated (the one energy
+   * rule, lib/nutrients/energy.ts) — when the food's row carries it (W004, audit A156). Absent:
+   * the energy is derived from `perUnit` (4/4/9). Read it through `foodKcalPerUnit`.
+   */
+  kcalPerUnit?: number;
   /** True when the stored row records no nutrition at all, so a zero `perUnit` means unknown, not
    *  zero calories (lib/foods/display.ts). Absent means the numbers are the food's own. */
   nutritionUnknown?: boolean;
@@ -24,6 +30,30 @@ export type Food = {
   /** Present when this account row was created from a catalog result. */
   catalogFoodId?: number;
 };
+
+/**
+ * One unit's energy: the measured `kcalPerUnit` when the food has a usable one, else 4 P + 4 C + 9 F
+ * from its macros. Alcohol energy is in no macro, so a drink logged without its measured energy
+ * would count about an eighth of it (W004, audit A156).
+ */
+export function foodKcalPerUnit(food: Pick<Food, "perUnit" | "kcalPerUnit">): number {
+  const measured = food.kcalPerUnit;
+  return typeof measured === "number" && Number.isFinite(measured) && measured >= 0
+    ? measured : macroKcal(food.perUnit);
+}
+
+/**
+ * The food with new per-unit macros. Measured energy belongs to the numbers it was measured with:
+ * an edit that changes any macro drops it, so the energy follows the user's own numbers.
+ */
+export function withPerUnit(food: Food, perUnit: Food["perUnit"]): Food {
+  const same = food.perUnit.protein === perUnit.protein && food.perUnit.carbs === perUnit.carbs
+    && food.perUnit.fat === perUnit.fat;
+  if (same) return { ...food, perUnit };
+  const { kcalPerUnit: _dropped, ...rest } = food;
+  void _dropped;
+  return { ...rest, perUnit };
+}
 
 export const ROLE_LABELS: Record<FoodRole, string> = {
   protein: "Protein",

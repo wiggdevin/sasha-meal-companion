@@ -1,6 +1,7 @@
 "use client";
 
 import { getFoodDetail } from "@/lib/catalog-client";
+import { accountFoodKcalPer100g, accountFoodPer100g } from "@/lib/catalog/account-food-nutrients";
 import type { Food } from "@/lib/foods";
 import { inferFoodRole } from "@/lib/foods/role";
 import { setFoodMembership } from "@/lib/foods/prefs-client";
@@ -13,11 +14,6 @@ import { enqueue } from "@/lib/sync/outbox";
 import type { OpResult } from "@/lib/sync/types";
 
 const CATALOG_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
-
-function amount(values: Record<string, { amount: number | null }>, key: string): number {
-  const value = Number(values[key]?.amount);
-  return Number.isFinite(value) && value >= 0 ? value : 0;
-}
 
 export async function addCatalogFood(
   catalogFoodId: number,
@@ -33,15 +29,16 @@ export async function addCatalogFood(
   if (detail.kind !== "ok") throw new Error("Food details are unavailable.");
   const client = browserClient();
   const id = await uuidV5(CATALOG_NAMESPACE, `catalog-food:${userId}:${catalogFoodId}`);
-  const values = detail.detail.per100g;
-  const protein = amount(values, "protein");
-  const carbs = amount(values, "carbohydrate");
-  const fat = amount(values, "fat_total");
+  // Only what the revision measured (W004, audit A154): an unmeasured nutrient stays absent, never
+  // a stored 0, and calculated-only energy keeps its own `energy_kcal_calc` code.
+  const per100g = accountFoodPer100g(detail.detail.per100g);
+  const protein = per100g.protein ?? 0;
+  const carbs = per100g.carbohydrate ?? 0;
+  const fat = per100g.fat_total ?? 0;
+  const kcalPer100g = accountFoodKcalPer100g(per100g);
   const now = new Date().toISOString();
   const row = { id, user_id: userId, kind: "custom", name: detail.detail.description,
-    catalog_food_id: catalogFoodId,
-    per_100g: { energy_kcal: amount(values, "energy_kcal"), protein,
-      carbohydrate: carbs, fat_total: fat }, allergen_tags: [], deleted_at: null };
+    catalog_food_id: catalogFoodId, per_100g: per100g, allergen_tags: [], deleted_at: null };
   const written = await withAccount(h, () => client.from("user_foods")
     .upsert(row, { onConflict: "id" }).select("rev").single());
   if (written.error || typeof written.data?.rev !== "number") throw new Error("Could not add that food.");
@@ -50,8 +47,10 @@ export async function addCatalogFood(
     kind: "update", base_rev: written.data.rev, payload: row, client_ts: now });
   const role = inferFoodRole(row.name, { protein, carbs, fat });
   const food: Food = { id, name: row.name, role, unit: "g",
-    perUnit: { protein: protein / 100, carbs: carbs / 100, fat: fat / 100 }, status: targetStatus,
-    updatedAt: now, catalogFoodId };
+    perUnit: { protein: protein / 100, carbs: carbs / 100, fat: fat / 100 },
+    ...(kcalPer100g === null ? {} : { kcalPerUnit: kcalPer100g / 100 }),
+    ...(Object.keys(per100g).length === 0 ? { nutritionUnknown: true } : {}),
+    status: targetStatus, updatedAt: now, catalogFoodId };
   await setFoodMembership(food.name, targetStatus, { food, acknowledge: true, account: h });
   const ref = await withAccount(h, () => client.from("food_refs").select("id")
     .eq("kind", "user").eq("user_food_id", id).single());

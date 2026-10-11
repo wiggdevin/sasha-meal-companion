@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import AddFoodSheet from "@/components/AddFoodSheet";
 import FoodSheet from "@/components/FoodSheet";
-import { foodToAvoid, ROLE_LABELS, type Food, type FoodRole } from "@/lib/foods";
+import { foodToAvoid, ROLE_LABELS, withPerUnit, type Food, type FoodRole } from "@/lib/foods";
 import { kcalPer100Label } from "@/lib/foods/display";
 import { roleFromName } from "@/lib/foods/role";
 import {
@@ -315,10 +315,11 @@ function saved(
 
 function projectFoodEdit(current: Food, note: string, role: FoodRole,
   perUnit: Food["perUnit"], fields: FoodEditFields): Food {
-  return { ...current,
+  // A macro edit drops the food's measured energy (`withPerUnit`, W004): it was measured with the
+  // old numbers.
+  return { ...(fields.nutrition ? withPerUnit(current, perUnit) : current),
     note: fields.note ? note.trim() || undefined : current.note,
-    role: fields.role ? role : current.role,
-    perUnit: fields.nutrition ? perUnit : current.perUnit };
+    role: fields.role ? role : current.role };
 }
 
 function SaveError({ message }: { message: string | null }) {
