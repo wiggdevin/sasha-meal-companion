@@ -341,6 +341,7 @@ export async function appendOp(
  */
 export async function appendOpWithRow(
   h: AccountHandle, row: Record<string, unknown>, op: QueuedSyncOp, now: number = Date.now(),
+  precondition?: QueuePrecondition,
 ): Promise<OutboxOp> {
   const rowKey = encodeKey(op.entity, row);
   if (rowKey !== op.entity_id) {
@@ -348,11 +349,22 @@ export async function appendOpWithRow(
       `${op.entity}: row key ${rowKey} does not match op entity_id ${op.entity_id}`,
     );
   }
-  return writeOp(h, op, { entity: op.entity, key: rowKey, row }, now);
+  return writeOp(h, op, { entity: op.entity, key: rowKey, row, precondition }, now);
 }
 
+/**
+ * Checked inside the write's own transaction, against the queued ops and the row it replaces: a
+ * throw aborts the write. A caller that built its op from earlier, separate reads uses it to refuse
+ * a write those reads no longer describe (lib/log-note-client.ts).
+ */
+export type QueuePrecondition = (reads: {
+  ops: OutboxOp[]; current: Record<string, unknown> | undefined;
+}) => void;
+
 /** The mirror row, when there is one, rides the outbox transaction. */
-type Mirror = { entity: Entity; key: string; row: Record<string, unknown> } | null;
+type Mirror = {
+  entity: Entity; key: string; row: Record<string, unknown>; precondition?: QueuePrecondition;
+} | null;
 
 /**
  * What one `mutateRowWithOp` write returns. `retire` names ops this write REPLACES — a coalesced
@@ -407,6 +419,13 @@ async function writeOp(h: AccountHandle, op: QueuedSyncOp, mirror: Mirror, now: 
     } else {
       seq = (((await meta.get(OUTBOX_SEQ_KEY)) as number | undefined) ?? 0) + 1;
       await meta.put(seq, OUTBOX_SEQ_KEY);
+    }
+    if (mirror?.precondition) {
+      mirror.precondition({
+        ops: (await outbox.getAll()) as OutboxOp[],
+        current: (await tx.objectStore(mirror.entity).get(mirror.key)) as
+          Record<string, unknown> | undefined,
+      });
     }
     if (mirror) await tx.objectStore(mirror.entity).put(mirror.row, mirror.key);
     const fresh = outboxRow(h, op, seq, now);

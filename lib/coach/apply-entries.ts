@@ -21,8 +21,9 @@ import { commitLogEntry } from "@/lib/log-commit-client";
 import { commitNutritionUnchecked } from "@/lib/nutrition-display";
 import { saveRecipe } from "@/lib/recipes-client";
 import { addExtra, getDay, loadStore, updateExtra } from "@/lib/store";
-import { allOps, getRow } from "@/lib/sync/idb";
+import { allOps, getRow, type QueuePrecondition } from "@/lib/sync/idb";
 import { enqueueWithRow } from "@/lib/sync/outbox";
+import { latestQueued, retryStaleRead, unchangedSince } from "@/lib/sync/row-queue";
 import { browserClient } from "@/lib/supabase/client";
 import type { LoggedFood, LoggedItem, SlotId } from "@/lib/types";
 import {
@@ -155,14 +156,14 @@ export async function undoDeleteEntry(
   return commitNutritionUnchecked(result) ? { nutritionUnchecked: true } : undefined;
 }
 
-/** The complete normalized row an update has to POST back, the way `saveExtraNote` finds it. */
+/** The complete normalized row an update has to POST back, the way `saveExtraNote` finds it, and
+ *  the check its write makes that the queued op or mirror it was read from still stands. */
 async function completeRow(h: AccountHandle, entryId: string, entry: LoggedFood):
-  Promise<Record<string, unknown> | null> {
-  const pending = (await allOps(h))
-    .filter((op) => op.entity === "log_entries" && op.entity_id === entryId)
-    .sort((a, b) => b.seq - a.seq)[0];
+  Promise<{ row: Record<string, unknown> | null; unchanged: QueuePrecondition }> {
+  const pending = latestQueued(await allOps(h), "log_entries", entryId);
   if (pending?.kind === "delete") throw new Error("This entry has been removed.");
-  let row = await getRow(h, "log_entries", entryId) as Record<string, unknown> | undefined;
+  const mirrored = await getRow(h, "log_entries", entryId) as Record<string, unknown> | undefined;
+  let row = mirrored;
   if (pending) row = { ...pending.payload, rev: (pending.base_rev ?? 0) + 1 };
   if (!row && entry.items?.some((item) => !item.food_ref_id.startsWith("local:"))) {
     const result = await withAccount(h, () => browserClient().from("log_entries")
@@ -170,7 +171,7 @@ async function completeRow(h: AccountHandle, entryId: string, entry: LoggedFood)
     if (result.error || !result.data) throw new Error("Could not load the entry to move it.");
     row = result.data as Record<string, unknown>;
   }
-  return row ?? null;
+  return { row: row ?? null, unchanged: unchangedSince("log_entries", entryId, pending, mirrored?.rev) };
 }
 
 /** A move carries the entry's note unchanged, so on a conflict the other device's note stands
@@ -187,8 +188,9 @@ export async function retime(
   if (!entry) throw new Error("That entry is not on this phone.");
   const eatenAt = instantAt(date, at, tz);
   if (!eatenAt) throw new Error(`${at} is not a time on ${date}.`);
-  const row = await completeRow(h, entryId, entry);
-  if (row) {
+  await retryStaleRead(async () => {
+    const { row, unchanged } = await completeRow(h, entryId, entry);
+    if (!row) return;
     if (!isCompleteEntryRow(row)) throw new Error("The entry is not ready for editing.");
     const rev = row.rev as number;
     const payload = { ...serverFields(row), id: entryId,
@@ -197,8 +199,8 @@ export async function retime(
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
       note_base: noteBaseOf(row),
-    });
-  }
+    }, Date.now(), unchanged);
+  });
   assertCurrent(h);
   updateExtra(date, entryId, { at: eatenAt.toISOString() });
 }
@@ -222,8 +224,9 @@ export async function undoMoveEntry(
   const entry = getDay(token.date)?.extras?.find((extra) => extra.id === token.entryId);
   if (!entry) throw new Error("That entry is not on this phone.");
   const clock = new Date(token.previousAt);
-  const row = await completeRow(h, token.entryId, entry);
-  if (row) {
+  await retryStaleRead(async () => {
+    const { row, unchanged } = await completeRow(h, token.entryId, entry);
+    if (!row) return;
     if (!isCompleteEntryRow(row)) throw new Error("The entry is not ready for editing.");
     const rev = row.rev as number;
     const payload = { ...serverFields(row), id: token.entryId, eaten_at: token.previousAt };
@@ -231,8 +234,8 @@ export async function undoMoveEntry(
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: token.entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
       note_base: noteBaseOf(row),
-    });
-  }
+    }, Date.now(), unchanged);
+  });
   assertCurrent(h);
   updateExtra(token.date, token.entryId, { at: clock.toISOString() });
 }

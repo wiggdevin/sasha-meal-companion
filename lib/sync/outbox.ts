@@ -6,7 +6,8 @@
  */
 import {
   allOps, appendOp, appendOpWithRow, countOps, deleteOp, deleteRow, getCursor,
-  putOp, setCursor, wireOp, type AccountHandle, type OutboxOp, type OwnedOp, type QueuedSyncOp,
+  putOp, setCursor, wireOp, type AccountHandle, type OutboxOp, type OwnedOp, type QueuePrecondition,
+  type QueuedSyncOp,
 } from "./idb";
 import { drainable, handleLogEntryResult } from "./log-entry-ops";
 import { applyFoodMembershipResult, type SyncResult } from "./outbox-membership";
@@ -79,9 +80,10 @@ export async function enqueue(h: AccountHandle, op: SyncOp, now: number = Date.n
  */
 export async function enqueueWithRow(
   h: AccountHandle, row: Record<string, unknown>, op: QueuedSyncOp, now: number = Date.now(),
+  precondition?: QueuePrecondition,
 ): Promise<OutboxOp> {
   assertKeyMatchesPayload(op);
-  const queued = await appendOpWithRow(h, row, op, now);
+  const queued = await appendOpWithRow(h, row, op, now, precondition);
   announceQueued();
   return queued;
 }
