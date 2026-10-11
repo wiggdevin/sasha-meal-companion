@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Dependency Graph</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--paper:#E0DCD1;--paper2:#D3CDC0;--ink:#1D1D1C;--muted:#4F5343;--soft:#5E5C55;--rule:#A9A394;--accent:#9E431B;--link:#3F6482;
+--p0:#9E431B;--p1:#CFA038;--p2:#5B7F99;--p3:#7E9A62;--serif:'Fraunces',Georgia,serif;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'Geist Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1D1D1C;--paper2:#2A2A27;--ink:#E2DCD0;--muted:#B1B2A9;--soft:#A8A59A;--rule:#5a5850;--accent:#E59A73;--link:#A2C4D2;--p0:#E59A73;--p1:#E3C477;--p2:#A2C4D2;--p3:#B5C79E}}
+:root[data-theme="dark"]{--paper:#1D1D1C;--paper2:#2A2A27;--ink:#E2DCD0;--muted:#B1B2A9;--soft:#A8A59A;--rule:#5a5850;--accent:#E59A73;--link:#A2C4D2;--p0:#E59A73;--p1:#E3C477;--p2:#A2C4D2;--p3:#B5C79E}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);padding:2rem 1rem 3rem}
+.frame{max-width:none;margin:0 auto}
+.eyebrow{font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+h1{font-family:var(--serif);font-size:1.75rem;font-weight:400;letter-spacing:-.02em;line-height:1.15;margin-bottom:.6rem}
+p.lede{max-width:70ch;color:var(--soft);font-size:.9rem;line-height:1.5;margin-bottom:1.2rem}
+.scroll{overflow-x:auto;padding-bottom:.5rem}
+svg{display:block}
+svg text{font-family:var(--sans);fill:var(--ink)}
+.mono{font-family:var(--mono)!important}
+.eb{font-family:var(--mono)!important;font-size:7.5px;letter-spacing:.14em;fill:var(--muted)}
+.lane{font-family:var(--mono)!important;font-size:8.5px;font-weight:500;letter-spacing:.14em;fill:var(--ink);text-transform:uppercase}
+.nm{font-size:9.5px;font-weight:600}
+.id{font-family:var(--mono)!important;font-size:7.5px;fill:var(--muted)}
+.n rect.bg{stroke-width:1;fill-opacity:.2}
+.n.p0 rect.bg{fill:var(--p0);stroke:var(--p0)} .n.p1 rect.bg{fill:var(--p1);stroke:var(--p1)}
+.n.p2 rect.bg{fill:var(--p2);stroke:var(--p2)} .n.p3 rect.bg{fill:var(--p3);stroke:var(--p3)}
+.n.p0 rect.bar{fill:var(--p0)} .n.p1 rect.bar{fill:var(--p1)} .n.p2 rect.bar{fill:var(--p2)} .n.p3 rect.bar{fill:var(--p3)}
+.n.own rect.bg{stroke-dasharray:3 2}
+.tag{font-family:var(--mono)!important;font-size:6.5px;letter-spacing:.12em;fill:var(--ink)}
+.gate rect{fill:var(--paper);stroke:var(--ink);stroke-width:1}
+.gate path.dm{fill:var(--link);stroke:none}
+.edge{fill:none;stroke:var(--muted);stroke-width:.9;opacity:.65}
+.gedge{fill:none;stroke:var(--link);stroke-width:.9;stroke-dasharray:4 3;opacity:.85}
+.band{fill:var(--paper2);opacity:.45}
+.rule{stroke:var(--rule);stroke-width:.8;fill:none}
+.legend text{font-size:9px}
+.cnt{font-family:var(--mono)!important;font-size:9px}
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Dependency graph · Meal Companion audit 2026-10-10</p>
+<h1>Work items by lane, ranked by wave</h1>
+<p class="lede">100 of 157 work items sit in a dependency chain or behind an owner gate. Lanes run left to right; waves run top to bottom, so every arrow points down. Solid arrows are "depends on"; dashed arrows come from an owner-decision gate. The 57 items with no dependencies are counted per lane at the bottom (all priorities, not only P3, because they have no edges to draw).</p>
+<div class="scroll">
+<svg viewBox="0 0 5458 1386" width="5458" height="1386" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="wg-title wg-desc">
+<title id="wg-title">Meal Companion work dependency graph by lane</title>
+<desc id="wg-desc">Dependency graph of 100 work items that have dependencies or are depended on, grouped in lane columns and ranked top to bottom by wave. Colour shows priority P0 to P3. 15 owner-decision gates feed items with dashed arrows. 57 items with no dependencies are summarised as counts per lane below the graph.</desc>
+<defs><marker id="wg-ar" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" style="fill:var(--muted)"/></marker><marker id="wg-arl" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" style="fill:var(--link)"/></marker></defs>
+<rect width="5458" height="1386" style="fill:var(--paper)"/>
+<rect class="band" x="0" y="70" width="5458" height="94"/>
+<text class="eb" x="8" y="96" transform="rotate(-90 8 160) translate(0,0)" style="display:none">W1</text>
+<text class="eb" x="8" y="230.8" transform="rotate(-90 8 402.8) translate(0,0)" style="display:none">W2</text>
+<rect class="band" x="0" y="406.8" width="5458" height="483.40000000000003"/>
+<text class="eb" x="8" y="606.2" transform="rotate(-90 8 886.2) translate(0,0)" style="display:none">W3</text>
+<text class="eb" x="8" y="1045.4" transform="rotate(-90 8 1181.4) translate(0,0)" style="display:none">W4</text>
+<rect class="band" x="0" y="1185.4" width="5458" height="61.40000000000009"/>
+<text class="eb" x="8" y="1214.8000000000002" transform="rotate(-90 8 1242.8000000000002) translate(0,0)" style="display:none">W5</text>
+<text class="eb" x="8" y="81" style="font-weight:600">WAVE 1</text>
+<text class="eb" x="8" y="215.8" style="font-weight:600">WAVE 2</text>
+<text class="eb" x="8" y="591.2" style="font-weight:600">WAVE 3</text>
+<text class="eb" x="8" y="1030.4" style="font-weight:600">WAVE 4</text>
+<text class="eb" x="8" y="1199.8000000000002" style="font-weight:600">WAVE 5</text>
+<text class="lane" x="87.4" y="44">owner</text>
+<text class="eb" x="87.4" y="56">13 linked</text>
+<line class="rule" x1="87.4" y1="62" x2="271.4" y2="62"/>
+<text class="lane" x="353.6" y="44">coach-ai</text>
+<text class="eb" x="353.6" y="56">9 linked + 3 gates</text>
+<line class="rule" x1="353.6" y1="62" x2="537.6" y2="62"/>
+<text class="lane" x="617.2" y="44">security</text>
+<text class="eb" x="617.2" y="56">8 linked</text>
+<line class="rule" x1="617.2" y1="62" x2="801.2" y2="62"/>
+<text class="lane" x="870.4000000000001" y="44">ui-today</text>
+<text class="eb" x="870.4000000000001" y="56">7 linked + 2 gates</text>
+<line class="rule" x1="870.4000000000001" y1="62" x2="1054.4" y2="62"/>
+<text class="lane" x="1128.8" y="44">server-db</text>
+<text class="eb" x="1128.8" y="56">6 linked</text>
+<line class="rule" x1="1128.8" y1="62" x2="1312.8" y2="62"/>
+<text class="lane" x="1361.2" y="44">food-world</text>
+<text class="eb" x="1361.2" y="56">5 linked</text>
+<line class="rule" x1="1361.2" y1="62" x2="1545.2" y2="62"/>
+<text class="lane" x="1609.2" y="44">nutrition-engine</text>
+<text class="eb" x="1609.2" y="56">5 linked + 1 gate</text>
+<line class="rule" x1="1609.2" y1="62" x2="1793.2" y2="62"/>
+<text class="lane" x="1867.6" y="44">scale</text>
+<text class="eb" x="1867.6" y="56">5 linked + 2 gates</text>
+<line class="rule" x1="1867.6" y1="62" x2="2051.6" y2="62"/>
+<text class="lane" x="2128.6" y="44">sync</text>
+<text class="eb" x="2128.6" y="56">5 linked</text>
+<line class="rule" x1="2128.6" y1="62" x2="2312.6" y2="62"/>
+<text class="lane" x="2379.2" y="44">targets-safety</text>
+<text class="eb" x="2379.2" y="56">5 linked</text>
+<line class="rule" x1="2379.2" y1="62" x2="2563.2" y2="62"/>
+<text class="lane" x="2627.2" y="44">capture-catalog</text>
+<text class="eb" x="2627.2" y="56">4 linked + 1 gate</text>
+<line class="rule" x1="2627.2" y1="62" x2="2811.2" y2="62"/>
+<text class="lane" x="2875.2" y="44">server-ops</text>
+<text class="eb" x="2875.2" y="56">4 linked + 1 gate</text>
+<line class="rule" x1="2875.2" y1="62" x2="3059.2" y2="62"/>
+<text class="lane" x="3125.8" y="44">docs-tests</text>
+<text class="eb" x="3125.8" y="56">3 linked</text>
+<line class="rule" x1="3125.8" y1="62" x2="3309.8" y2="62"/>
+<text class="lane" x="3353.0" y="44">food-policy</text>
+<text class="eb" x="3353.0" y="56">3 linked</text>
+<line class="rule" x1="3353.0" y1="62" x2="3537.0" y2="62"/>
+<text class="lane" x="3588.0" y="44">health</text>
+<text class="eb" x="3588.0" y="56">3 linked + 1 gate</text>
+<line class="rule" x1="3588.0" y1="62" x2="3772.0" y2="62"/>
+<text class="lane" x="3830.8" y="44">onboarding</text>
+<text class="eb" x="3830.8" y="56">3 linked + 2 gates</text>
+<line class="rule" x1="3830.8" y1="62" x2="4014.8" y2="62"/>
+<text class="lane" x="4068.4" y="44">recipes-shopping</text>
+<text class="eb" x="4068.4" y="56">3 linked</text>
+<line class="rule" x1="4068.4" y1="62" x2="4252.4" y2="62"/>
+<text class="lane" x="4306.0" y="44">server-api</text>
+<text class="eb" x="4306.0" y="56">3 linked</text>
+<line class="rule" x1="4306.0" y1="62" x2="4490.0" y2="62"/>
+<text class="lane" x="4541.0" y="44">logging</text>
+<text class="eb" x="4541.0" y="56">2 linked + 1 gate</text>
+<line class="rule" x1="4541.0" y1="62" x2="4725.0" y2="62"/>
+<text class="lane" x="4776.0" y="44">server-dates</text>
+<text class="eb" x="4776.0" y="56">2 linked + 1 gate</text>
+<line class="rule" x1="4776.0" y1="62" x2="4960.0" y2="62"/>
+<text class="lane" x="5003.2" y="44">ui-foods</text>
+<text class="eb" x="5003.2" y="56">1 linked</text>
+<line class="rule" x1="5003.2" y1="62" x2="5187.2" y2="62"/>
+<text class="lane" x="5230.400000000001" y="44">ui-settings</text>
+<text class="eb" x="5230.400000000001" y="56">1 linked</text>
+<line class="rule" x1="5230.400000000001" y1="62" x2="5414.400000000001" y2="62"/>
+<path class="edge" d="M1793.2,103.0 L1796.7,103.0 Q1799.2,103.0 1799.2,105.5 L1799.2,169.5 Q1799.2,172.0 1796.7,172.0 L83.9,172.0 Q81.4,172.0 81.4,174.5 L81.4,235.3 Q81.4,237.8 83.9,237.8 L87.4,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1793.2,103.0 L1801.9,103.0 Q1804.4,103.0 1804.4,105.5 L1804.4,183.1 Q1804.4,185.6 1801.9,185.6 L1605.7,185.6 Q1603.2,185.6 1603.2,188.1 L1603.2,235.3 Q1603.2,237.8 1605.7,237.8 L1609.2,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2563.2,103.0 L2566.7,103.0 Q2569.2,103.0 2569.2,105.5 L2569.2,193.3 Q2569.2,195.8 2566.7,195.8 L2375.7,195.8 Q2373.2,195.8 2373.2,198.3 L2373.2,235.3 Q2373.2,237.8 2375.7,237.8 L2379.2,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1793.2,103.0 L1804.5,103.0 Q1807.0,103.0 1807.0,105.5 L1807.0,186.5 Q1807.0,189.0 1804.5,189.0 L1603.1,189.0 Q1600.6,189.0 1600.6,191.5 L1600.6,271.3 Q1600.6,273.8 1603.1,273.8 L1609.2,273.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2811.2,103.0 L2819.9,103.0 Q2822.4,103.0 2822.4,105.5 L2822.4,196.7 Q2822.4,199.2 2819.9,199.2 L2623.7,199.2 Q2621.2,199.2 2621.2,201.7 L2621.2,271.3 Q2621.2,273.8 2623.7,273.8 L2627.2,273.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,103.0 L3067.9,103.0 Q3070.4,103.0 3070.4,105.5 L3070.4,179.7 Q3070.4,182.2 3067.9,182.2 L613.7,182.2 Q611.2,182.2 611.2,184.7 L611.2,235.3 Q611.2,237.8 613.7,237.8 L617.2,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,103.0 L3073.1,103.0 Q3075.6,103.0 3075.6,105.5 L3075.6,200.1 Q3075.6,202.6 3073.1,202.6 L2871.7,202.6 Q2869.2,202.6 2869.2,205.1 L2869.2,235.3 Q2869.2,237.8 2871.7,237.8 L2875.2,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3772.0,103.0 L3783.3,103.0 Q3785.8,103.0 3785.8,105.5 L3785.8,203.5 Q3785.8,206.0 3783.3,206.0 L3584.5,206.0 Q3582.0,206.0 3582.0,208.5 L3582.0,235.3 Q3582.0,237.8 3584.5,237.8 L3588.0,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2312.6,103.0 L2321.3,103.0 Q2323.8,103.0 2323.8,105.5 L2323.8,189.9 Q2323.8,192.4 2321.3,192.4 L2125.1,192.4 Q2122.6,192.4 2122.6,194.9 L2122.6,235.3 Q2122.6,237.8 2125.1,237.8 L2128.6,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2312.6,237.8 L2323.9,237.8 Q2326.4,237.8 2326.4,240.3 L2326.4,510.9 Q2326.4,513.4 2323.9,513.4 L2122.5,513.4 Q2120.0,513.4 2120.0,515.9 L2120.0,610.7 Q2120.0,613.2 2122.5,613.2 L2128.6,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,237.8 L3080.9,237.8 Q3083.4,237.8 3083.4,240.3 L3083.4,575.5 Q3083.4,578.0 3085.9,578.0 L4767.5,578.0 Q4770.0,578.0 4770.0,580.5 L4770.0,610.7 Q4770.0,613.2 4772.5,613.2 L4776.0,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4960.0,613.2 L4966.1,613.2 Q4968.6,613.2 4968.6,615.7 L4968.6,1021.5 Q4968.6,1024.0 4966.1,1024.0 L4767.3,1024.0 Q4764.8,1024.0 4764.8,1026.5 L4764.8,1049.9 Q4764.8,1052.4 4767.3,1052.4 L4776.0,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1054.4,273.8 L1057.9,273.8 Q1060.4,273.8 1060.4,276.3 L1060.4,466.7 Q1060.4,469.2 1057.9,469.2 L866.9,469.2 Q864.4,469.2 864.4,471.7 L864.4,646.7 Q864.4,649.2 866.9,649.2 L870.4,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M537.6,309.8 L541.1,309.8 Q543.6,309.8 543.6,312.3 L543.6,436.1 Q543.6,438.6 541.1,438.6 L350.1,438.6 Q347.6,438.6 347.6,441.1 L347.6,646.7 Q347.6,649.2 350.1,649.2 L353.6,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M801.2,103.0 L804.7,103.0 Q807.2,103.0 807.2,105.5 L807.2,176.3 Q807.2,178.8 804.7,178.8 L611.1,178.8 Q608.6,178.8 608.6,181.3 L608.6,271.3 Q608.6,273.8 611.1,273.8 L617.2,273.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4490.0,103.0 L4496.1,103.0 Q4498.6,103.0 4498.6,105.5 L4498.6,206.9 Q4498.6,209.4 4496.1,209.4 L4302.5,209.4 Q4300.0,209.4 4300.0,211.9 L4300.0,235.3 Q4300.0,237.8 4302.5,237.8 L4306.0,237.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,273.8 L285.3,273.8 Q287.8,273.8 287.8,276.3 L287.8,487.1 Q287.8,489.6 290.3,489.6 L1859.1,489.6 Q1861.6,489.6 1861.6,492.1 L1861.6,610.7 Q1861.6,613.2 1864.1,613.2 L1867.6,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,273.8 L287.9,273.8 Q290.4,273.8 290.4,276.3 L290.4,490.5 Q290.4,493.0 292.9,493.0 L1856.5,493.0 Q1859.0,493.0 1859.0,495.5 L1859.0,646.7 Q1859.0,649.2 1861.5,649.2 L1867.6,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M537.6,345.8 L561.9,345.8 Q564.4,345.8 564.4,348.3 L564.4,493.9 Q564.4,496.4 566.9,496.4 L1853.9,496.4 Q1856.4,496.4 1856.4,498.9 L1856.4,682.7 Q1856.4,685.2 1858.9,685.2 L1867.6,685.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2057.7,613.2 Q2060.2,613.2 2060.2,615.7 L2060.2,953.5 Q2060.2,956.0 2057.7,956.0 L1125.3,956.0 Q1122.8,956.0 1122.8,958.5 L1122.8,1049.9 Q1122.8,1052.4 1125.3,1052.4 L1128.8,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4490.0,237.8 L4493.5,237.8 Q4496.0,237.8 4496.0,240.3 L4496.0,507.5 Q4496.0,510.0 4493.5,510.0 L1856.3,510.0 Q1853.8,510.0 1853.8,512.5 L1853.8,718.7 Q1853.8,721.2 1856.3,721.2 L1867.6,721.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M537.6,345.8 L564.5,345.8 Q567.0,345.8 567.0,348.3 L567.0,497.3 Q567.0,499.8 569.5,499.8 L1848.7,499.8 Q1851.2,499.8 1851.2,502.3 L1851.2,718.7 Q1851.2,721.2 1853.7,721.2 L1867.6,721.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,139.0 L3075.7,139.0 Q3078.2,139.0 3078.2,141.5 L3078.2,1004.5 Q3078.2,1007.0 3075.7,1007.0 L2869.1,1007.0 Q2866.6,1007.0 2866.6,1009.5 L2866.6,1049.9 Q2866.6,1052.4 2869.1,1052.4 L2875.2,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2078.5,613.2 Q2081.0,613.2 2081.0,615.7 L2081.0,1001.1 Q2081.0,1003.6 2083.5,1003.6 L2861.5,1003.6 Q2864.0,1003.6 2864.0,1006.1 L2864.0,1049.9 Q2864.0,1052.4 2866.5,1052.4 L2875.2,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2075.9,613.2 Q2078.4,613.2 2078.4,615.7 L2078.4,990.9 Q2078.4,993.4 2080.9,993.4 L2112.3,993.4 Q2114.8,993.4 2114.8,995.9 L2114.8,1049.9 Q2114.8,1052.4 2117.3,1052.4 L2128.6,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2312.6,237.8 L2329.1,237.8 Q2331.6,237.8 2331.6,240.3 L2331.6,994.3 Q2331.6,996.8 2329.1,996.8 L2114.7,996.8 Q2112.2,996.8 2112.2,999.3 L2112.2,1049.9 Q2112.2,1052.4 2114.7,1052.4 L2128.6,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2060.3,613.2 Q2062.8,613.2 2062.8,615.7 L2062.8,956.9 Q2062.8,959.4 2060.3,959.4 L1122.7,959.4 Q1120.2,959.4 1120.2,961.9 L1120.2,1085.9 Q1120.2,1088.4 1122.7,1088.4 L1128.8,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2312.6,237.8 L2316.1,237.8 Q2318.6,237.8 2318.6,240.3 L2318.6,967.1 Q2318.6,969.6 2316.1,969.6 L1120.1,969.6 Q1117.6,969.6 1117.6,972.1 L1117.6,1085.9 Q1117.6,1088.4 1120.1,1088.4 L1128.8,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2073.3,613.2 Q2075.8,613.2 2075.8,615.7 L2075.8,987.5 Q2075.8,990.0 2073.3,990.0 L1845.9,990.0 Q1843.4,990.0 1843.4,992.5 L1843.4,1049.9 Q1843.4,1052.4 1845.9,1052.4 L1867.6,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M801.2,237.8 L807.3,237.8 Q809.8,237.8 809.8,240.3 L809.8,453.1 Q809.8,455.6 807.3,455.6 L608.5,455.6 Q606.0,455.6 606.0,458.1 L606.0,610.7 Q606.0,613.2 608.5,613.2 L617.2,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,237.8 L3070.5,237.8 Q3073.0,237.8 3073.0,240.3 L3073.0,459.9 Q3073.0,462.4 3070.5,462.4 L605.9,462.4 Q603.4,462.4 603.4,464.9 L603.4,646.7 Q603.4,649.2 605.9,649.2 L617.2,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1054.4,273.8 L1060.5,273.8 Q1063.0,273.8 1063.0,276.3 L1063.0,470.1 Q1063.0,472.6 1060.5,472.6 L864.3,472.6 Q861.8,472.6 861.8,475.1 L861.8,682.7 Q861.8,685.2 864.3,685.2 L870.4,685.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2563.2,103.0 L2569.3,103.0 Q2571.8,103.0 2571.8,105.5 L2571.8,517.7 Q2571.8,520.2 2569.3,520.2 L2373.1,520.2 Q2370.6,520.2 2370.6,522.7 L2370.6,610.7 Q2370.6,613.2 2373.1,613.2 L2379.2,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2563.2,237.8 L2571.9,237.8 Q2574.4,237.8 2574.4,240.3 L2574.4,521.1 Q2574.4,523.6 2571.9,523.6 L2370.5,523.6 Q2368.0,523.6 2368.0,526.1 L2368.0,610.7 Q2368.0,613.2 2370.5,613.2 L2379.2,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4014.8,103.0 L4018.3,103.0 Q4020.8,103.0 4020.8,105.5 L4020.8,172.9 Q4020.8,175.4 4018.3,175.4 L81.3,175.4 Q78.8,175.4 78.8,177.9 L78.8,307.3 Q78.8,309.8 81.3,309.8 L87.4,309.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1545.2,237.8 L1548.7,237.8 Q1551.2,237.8 1551.2,240.3 L1551.2,412.3 Q1551.2,414.8 1548.7,414.8 L78.7,414.8 Q76.2,414.8 76.2,417.3 L76.2,610.7 Q76.2,613.2 78.7,613.2 L87.4,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,685.2 L2055.1,685.2 Q2057.6,685.2 2057.6,687.7 L2057.6,939.9 Q2057.6,942.4 2055.1,942.4 L337.1,942.4 Q334.6,942.4 334.6,944.9 L334.6,1049.9 Q334.6,1052.4 337.1,1052.4 L353.6,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4490.0,237.8 L4498.7,237.8 Q4501.2,237.8 4501.2,240.3 L4501.2,568.7 Q4501.2,571.2 4498.7,571.2 L4299.9,571.2 Q4297.4,571.2 4297.4,573.7 L4297.4,610.7 Q4297.4,613.2 4299.9,613.2 L4306.0,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1312.8,1052.4 L1318.9,1052.4 Q1321.4,1052.4 1321.4,1054.9 L1321.4,1190.9 Q1321.4,1193.4 1318.9,1193.4 L1107.1,1193.4 Q1104.6,1193.4 1104.6,1195.9 L1104.6,1219.3 Q1104.6,1221.8 1107.1,1221.8 L1128.8,1221.8" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2062.9,613.2 Q2065.4,613.2 2065.4,615.7 L2065.4,960.3 Q2065.4,962.8 2062.9,962.8 L1117.5,962.8 Q1115.0,962.8 1115.0,965.3 L1115.0,1121.9 Q1115.0,1124.4 1117.5,1124.4 L1128.8,1124.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2312.6,237.8 L2318.7,237.8 Q2321.2,237.8 2321.2,240.3 L2321.2,970.5 Q2321.2,973.0 2318.7,973.0 L1114.9,973.0 Q1112.4,973.0 1112.4,975.5 L1112.4,1121.9 Q1112.4,1124.4 1114.9,1124.4 L1128.8,1124.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1312.8,237.8 L1316.3,237.8 Q1318.8,237.8 1318.8,240.3 L1318.8,950.1 Q1318.8,952.6 1316.3,952.6 L1112.3,952.6 Q1109.8,952.6 1109.8,955.1 L1109.8,1157.9 Q1109.8,1160.4 1112.3,1160.4 L1128.8,1160.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2051.6,613.2 L2065.5,613.2 Q2068.0,613.2 2068.0,615.7 L2068.0,963.7 Q2068.0,966.2 2065.5,966.2 L1109.7,966.2 Q1107.2,966.2 1107.2,968.7 L1107.2,1157.9 Q1107.2,1160.4 1109.7,1160.4 L1128.8,1160.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2563.2,613.2 L2577.1,613.2 Q2579.6,613.2 2579.6,615.7 L2579.6,997.7 Q2579.6,1000.2 2577.1,1000.2 L2365.3,1000.2 Q2362.8,1000.2 2362.8,1002.7 L2362.8,1049.9 Q2362.8,1052.4 2365.3,1052.4 L2379.2,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2563.2,103.0 L2574.5,103.0 Q2577.0,103.0 2577.0,105.5 L2577.0,524.5 Q2577.0,527.0 2574.5,527.0 L2367.9,527.0 Q2365.4,527.0 2365.4,529.5 L2365.4,646.7 Q2365.4,649.2 2367.9,649.2 L2379.2,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M801.2,273.8 L815.1,273.8 Q817.6,273.8 817.6,276.3 L817.6,544.9 Q817.6,547.4 820.1,547.4 L3117.3,547.4 Q3119.8,547.4 3119.8,549.9 L3119.8,610.7 Q3119.8,613.2 3122.3,613.2 L3125.8,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M801.2,309.8 L809.9,309.8 Q812.4,309.8 812.4,312.3 L812.4,456.5 Q812.4,459.0 809.9,459.0 L603.3,459.0 Q600.8,459.0 600.8,461.5 L600.8,682.7 Q600.8,685.2 603.3,685.2 L617.2,685.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3772.0,237.8 L3780.7,237.8 Q3783.2,237.8 3783.2,240.3 L3783.2,463.3 Q3783.2,465.8 3780.7,465.8 L600.7,465.8 Q598.2,465.8 598.2,468.3 L598.2,718.7 Q598.2,721.2 600.7,721.2 L617.2,721.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,273.8 L290.5,273.8 Q293.0,273.8 293.0,276.3 L293.0,541.5 Q293.0,544.0 295.5,544.0 L3114.7,544.0 Q3117.2,544.0 3117.2,546.5 L3117.2,646.7 Q3117.2,649.2 3119.7,649.2 L3125.8,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3772.0,103.0 L3775.5,103.0 Q3778.0,103.0 3778.0,105.5 L3778.0,429.3 Q3778.0,431.8 3775.5,431.8 L76.1,431.8 Q73.6,431.8 73.6,434.3 L73.6,646.7 Q73.6,649.2 76.1,649.2 L87.4,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3772.0,237.8 L3778.1,237.8 Q3780.6,237.8 3780.6,240.3 L3780.6,432.7 Q3780.6,435.2 3778.1,435.2 L73.5,435.2 Q71.0,435.2 71.0,437.7 L71.0,646.7 Q71.0,649.2 73.5,649.2 L87.4,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2811.2,103.0 L2814.7,103.0 Q2817.2,103.0 2817.2,105.5 L2817.2,419.1 Q2817.2,421.6 2814.7,421.6 L70.9,421.6 Q68.4,421.6 68.4,424.1 L68.4,682.7 Q68.4,685.2 70.9,685.2 L87.4,685.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2811.2,273.8 L2817.3,273.8 Q2819.8,273.8 2819.8,276.3 L2819.8,422.5 Q2819.8,425.0 2817.3,425.0 L68.3,425.0 Q65.8,425.0 65.8,427.5 L65.8,682.7 Q65.8,685.2 68.3,685.2 L87.4,685.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4252.4,237.8 L4255.9,237.8 Q4258.4,237.8 4258.4,240.3 L4258.4,919.5 Q4258.4,922.0 4255.9,922.0 L60.5,922.0 Q58.0,922.0 58.0,924.5 L58.0,1049.9 Q58.0,1052.4 60.5,1052.4 L87.4,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4252.4,613.2 L4258.5,613.2 Q4261.0,613.2 4261.0,615.7 L4261.0,922.9 Q4261.0,925.4 4258.5,925.4 L57.9,925.4 Q55.4,925.4 55.4,927.9 L55.4,1049.9 Q55.4,1052.4 57.9,1052.4 L87.4,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4252.4,237.8 L4261.1,237.8 Q4263.6,237.8 4263.6,240.3 L4263.6,561.9 Q4263.6,564.4 4261.1,564.4 L4064.9,564.4 Q4062.4,564.4 4062.4,566.9 L4062.4,610.7 Q4062.4,613.2 4064.9,613.2 L4068.4,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,103.0 L3065.3,103.0 Q3067.8,103.0 3067.8,105.5 L3067.8,449.7 Q3067.8,452.2 3065.3,452.2 L347.5,452.2 Q345.0,452.2 345.0,454.7 L345.0,682.7 Q345.0,685.2 347.5,685.2 L353.6,685.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4490.0,103.0 L4501.3,103.0 Q4503.8,103.0 4503.8,105.5 L4503.8,582.3 Q4503.8,584.8 4506.3,584.8 L5221.9,584.8 Q5224.4,584.8 5224.4,587.3 L5224.4,610.7 Q5224.4,613.2 5226.9,613.2 L5230.4,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M537.6,381.8 L543.7,381.8 Q546.2,381.8 546.2,384.3 L546.2,439.5 Q546.2,442.0 543.7,442.0 L344.9,442.0 Q342.4,442.0 342.4,444.5 L342.4,718.7 Q342.4,721.2 344.9,721.2 L353.6,721.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,721.2 L282.7,721.2 Q285.2,721.2 285.2,723.7 L285.2,980.7 Q285.2,983.2 287.7,983.2 L1592.9,983.2 Q1595.4,983.2 1595.4,985.7 L1595.4,1049.9 Q1595.4,1052.4 1597.9,1052.4 L1609.2,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1793.2,237.8 L1807.1,237.8 Q1809.6,237.8 1809.6,240.3 L1809.6,483.7 Q1809.6,486.2 1807.1,486.2 L1600.5,486.2 Q1598.0,486.2 1598.0,488.7 L1598.0,646.7 Q1598.0,649.2 1600.5,649.2 L1609.2,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2312.6,103.0 L2326.5,103.0 Q2329.0,103.0 2329.0,105.5 L2329.0,514.3 Q2329.0,516.8 2326.5,516.8 L2119.9,516.8 Q2117.4,516.8 2117.4,519.3 L2117.4,646.7 Q2117.4,649.2 2119.9,649.2 L2128.6,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,309.8 L293.1,309.8 Q295.6,309.8 295.6,312.3 L295.6,555.1 Q295.6,557.6 298.1,557.6 L3822.3,557.6 Q3824.8,557.6 3824.8,560.1 L3824.8,646.7 Q3824.8,649.2 3827.3,649.2 L3830.8,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4252.4,237.8 L4263.7,237.8 Q4266.2,237.8 4266.2,240.3 L4266.2,565.3 Q4266.2,567.8 4263.7,567.8 L4062.3,567.8 Q4059.8,567.8 4059.8,570.3 L4059.8,646.7 Q4059.8,649.2 4062.3,649.2 L4068.4,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3537.0,103.0 L3543.1,103.0 Q3545.6,103.0 3545.6,105.5 L3545.6,548.3 Q3545.6,550.8 3543.1,550.8 L3349.5,550.8 Q3347.0,550.8 3347.0,553.3 L3347.0,610.7 Q3347.0,613.2 3349.5,613.2 L3353.0,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3537.0,103.0 L3545.7,103.0 Q3548.2,103.0 3548.2,105.5 L3548.2,551.7 Q3548.2,554.2 3545.7,554.2 L3346.9,554.2 Q3344.4,554.2 3344.4,556.7 L3344.4,646.7 Q3344.4,649.2 3346.9,649.2 L3353.0,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1545.2,237.8 L1551.3,237.8 Q1553.8,237.8 1553.8,240.3 L1553.8,415.7 Q1553.8,418.2 1551.3,418.2 L65.7,418.2 Q63.2,418.2 63.2,420.7 L63.2,826.7 Q63.2,829.2 65.7,829.2 L87.4,829.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,757.2 L274.9,757.2 Q277.4,757.2 277.4,759.7 L277.4,895.7 Q277.4,898.2 274.9,898.2 L55.3,898.2 Q52.8,898.2 52.8,900.7 L52.8,1085.9 Q52.8,1088.4 55.3,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,793.2 L277.5,793.2 Q280.0,793.2 280.0,795.7 L280.0,899.1 Q280.0,901.6 277.5,901.6 L52.7,901.6 Q50.2,901.6 50.2,904.1 L50.2,1085.9 Q50.2,1088.4 52.7,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1545.2,613.2 L1553.9,613.2 Q1556.4,613.2 1556.4,615.7 L1556.4,905.9 Q1556.4,908.4 1553.9,908.4 L50.1,908.4 Q47.6,908.4 47.6,910.9 L47.6,1085.9 Q47.6,1088.4 50.1,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M5187.2,613.2 L5190.7,613.2 Q5193.2,613.2 5193.2,615.7 L5193.2,926.3 Q5193.2,928.8 5190.7,928.8 L47.5,928.8 Q45.0,928.8 45.0,931.3 L45.0,1085.9 Q45.0,1088.4 47.5,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M271.4,829.2 L280.1,829.2 Q282.6,829.2 282.6,831.7 L282.6,902.5 Q282.6,905.0 280.1,905.0 L44.9,905.0 Q42.4,905.0 42.4,907.5 L42.4,1085.9 Q42.4,1088.4 44.9,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3537.0,103.0 L3540.5,103.0 Q3543.0,103.0 3543.0,105.5 L3543.0,916.1 Q3543.0,918.6 3540.5,918.6 L42.3,918.6 Q39.8,918.6 39.8,921.1 L39.8,1085.9 Q39.8,1088.4 42.3,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1545.2,237.8 L1556.5,237.8 Q1559.0,237.8 1559.0,240.3 L1559.0,909.3 Q1559.0,911.8 1556.5,911.8 L39.7,911.8 Q37.2,911.8 37.2,914.3 L37.2,1085.9 Q37.2,1088.4 39.7,1088.4 L87.4,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M3059.2,103.0 L3062.7,103.0 Q3065.2,103.0 3065.2,105.5 L3065.2,425.9 Q3065.2,428.4 3062.7,428.4 L63.1,428.4 Q60.6,428.4 60.6,430.9 L60.6,862.7 Q60.6,865.2 63.1,865.2 L87.4,865.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1054.4,273.8 L1063.1,273.8 Q1065.6,273.8 1065.6,276.3 L1065.6,473.5 Q1065.6,476.0 1063.1,476.0 L861.7,476.0 Q859.2,476.0 859.2,478.5 L859.2,718.7 Q859.2,721.2 861.7,721.2 L870.4,721.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1054.4,273.8 L1065.7,273.8 Q1068.2,273.8 1068.2,276.3 L1068.2,476.9 Q1068.2,479.4 1065.7,479.4 L859.1,479.4 Q856.6,479.4 856.6,481.9 L856.6,754.7 Q856.6,757.2 859.1,757.2 L870.4,757.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2811.2,273.8 L2822.5,273.8 Q2825.0,273.8 2825.0,276.3 L2825.0,531.3 Q2825.0,533.8 2822.5,533.8 L2621.1,533.8 Q2618.6,533.8 2618.6,536.3 L2618.6,610.7 Q2618.6,613.2 2621.1,613.2 L2627.2,613.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M801.2,103.0 L812.5,103.0 Q815.0,103.0 815.0,105.5 L815.0,527.9 Q815.0,530.4 817.5,530.4 L2613.5,530.4 Q2616.0,530.4 2616.0,532.9 L2616.0,646.7 Q2616.0,649.2 2618.5,649.2 L2627.2,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M2811.2,103.0 L2825.1,103.0 Q2827.6,103.0 2827.6,105.5 L2827.6,534.7 Q2827.6,537.2 2825.1,537.2 L2615.9,537.2 Q2613.4,537.2 2613.4,539.7 L2613.4,646.7 Q2613.4,649.2 2615.9,649.2 L2627.2,649.2" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M537.6,685.2 L551.5,685.2 Q554.0,685.2 554.0,687.7 L554.0,929.7 Q554.0,932.2 551.5,932.2 L334.5,932.2 Q332.0,932.2 332.0,934.7 L332.0,1085.9 Q332.0,1088.4 334.5,1088.4 L353.6,1088.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M1545.2,649.2 L1559.1,649.2 Q1561.6,649.2 1561.6,651.7 L1561.6,977.3 Q1561.6,979.8 1559.1,979.8 L1357.7,979.8 Q1355.2,979.8 1355.2,982.3 L1355.2,1049.9 Q1355.2,1052.4 1357.7,1052.4 L1361.2,1052.4" marker-end="url(#wg-ar)"/>
+<path class="edge" d="M4725.0,649.2 L4728.5,649.2 Q4731.0,649.2 4731.0,651.7 L4731.0,946.7 Q4731.0,949.2 4728.5,949.2 L853.9,949.2 Q851.4,949.2 851.4,951.7 L851.4,1049.9 Q851.4,1052.4 853.9,1052.4 L870.4,1052.4" marker-end="url(#wg-ar)"/>
+<path class="gedge" d="M2051.6,237.8 L2068.1,237.8 Q2070.6,237.8 2070.6,240.3 L2070.6,500.7 Q2070.6,503.2 2068.1,503.2 L1851.1,503.2 Q1848.6,503.2 1848.6,505.7 L1848.6,682.7 Q1848.6,685.2 1851.1,685.2 L1867.6,685.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M2051.6,273.8 L2070.7,273.8 Q2073.2,273.8 2073.2,276.3 L2073.2,504.1 Q2073.2,506.6 2070.7,506.6 L1848.5,506.6 Q1846.0,506.6 1846.0,509.1 L1846.0,646.7 Q1846.0,649.2 1848.5,649.2 L1867.6,649.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M3059.2,613.2 L3078.3,613.2 Q3080.8,613.2 3080.8,615.7 L3080.8,1007.9 Q3080.8,1010.4 3078.3,1010.4 L2863.9,1010.4 Q2861.4,1010.4 2861.4,1012.9 L2861.4,1049.9 Q2861.4,1052.4 2863.9,1052.4 L2875.2,1052.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M537.6,237.8 L546.3,237.8 Q548.8,237.8 548.8,240.3 L548.8,442.9 Q548.8,445.4 546.3,445.4 L342.3,445.4 Q339.8,445.4 339.8,447.9 L339.8,682.7 Q339.8,685.2 342.3,685.2 L353.6,685.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M537.6,237.8 L554.1,237.8 Q556.6,237.8 556.6,240.3 L556.6,933.1 Q556.6,935.6 554.1,935.6 L331.9,935.6 Q329.4,935.6 329.4,938.1 L329.4,1085.9 Q329.4,1088.4 331.9,1088.4 L353.6,1088.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M4960.0,237.8 L4963.5,237.8 Q4966.0,237.8 4966.0,240.3 L4966.0,578.9 Q4966.0,581.4 4963.5,581.4 L4769.9,581.4 Q4767.4,581.4 4767.4,583.9 L4767.4,610.7 Q4767.4,613.2 4769.9,613.2 L4776.0,613.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M537.6,273.8 L548.9,273.8 Q551.4,273.8 551.4,276.3 L551.4,446.3 Q551.4,448.8 548.9,448.8 L339.7,448.8 Q337.2,448.8 337.2,451.3 L337.2,718.7 Q337.2,721.2 339.7,721.2 L353.6,721.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M2811.2,237.8 L2827.7,237.8 Q2830.2,237.8 2830.2,240.3 L2830.2,538.1 Q2830.2,540.6 2827.7,540.6 L2613.3,540.6 Q2610.8,540.6 2610.8,543.1 L2610.8,646.7 Q2610.8,649.2 2613.3,649.2 L2627.2,649.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M1793.2,613.2 L1809.7,613.2 Q1812.2,613.2 1812.2,615.7 L1812.2,984.1 Q1812.2,986.6 1809.7,986.6 L1595.3,986.6 Q1592.8,986.6 1592.8,989.1 L1592.8,1049.9 Q1592.8,1052.4 1595.3,1052.4 L1609.2,1052.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M1793.2,613.2 L1799.3,613.2 Q1801.8,613.2 1801.8,615.7 L1801.8,912.7 Q1801.8,915.2 1799.3,915.2 L37.1,915.2 Q34.6,915.2 34.6,917.7 L34.6,1085.9 Q34.6,1088.4 37.1,1088.4 L87.4,1088.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M4014.8,237.8 L4023.5,237.8 Q4026.0,237.8 4026.0,240.3 L4026.0,558.5 Q4026.0,561.0 4023.5,561.0 L3824.7,561.0 Q3822.2,561.0 3822.2,563.5 L3822.2,646.7 Q3822.2,649.2 3824.7,649.2 L3830.8,649.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M4725.0,237.8 L4731.1,237.8 Q4733.6,237.8 4733.6,240.3 L4733.6,572.1 Q4733.6,574.6 4731.1,574.6 L4537.5,574.6 Q4535.0,574.6 4535.0,577.1 L4535.0,610.7 Q4535.0,613.2 4537.5,613.2 L4541.0,613.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M1054.4,237.8 L1068.3,237.8 Q1070.8,237.8 1070.8,240.3 L1070.8,480.3 Q1070.8,482.8 1068.3,482.8 L856.5,482.8 Q854.0,482.8 854.0,485.3 L854.0,718.7 Q854.0,721.2 856.5,721.2 L870.4,721.2" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M1054.4,613.2 L1070.9,613.2 Q1073.4,613.2 1073.4,615.7 L1073.4,943.3 Q1073.4,945.8 1070.9,945.8 L851.3,945.8 Q848.8,945.8 848.8,948.3 L848.8,1085.9 Q848.8,1088.4 851.3,1088.4 L870.4,1088.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M3772.0,613.2 L3785.9,613.2 Q3788.4,613.2 3788.4,615.7 L3788.4,1014.7 Q3788.4,1017.2 3785.9,1017.2 L3581.9,1017.2 Q3579.4,1017.2 3579.4,1019.7 L3579.4,1049.9 Q3579.4,1052.4 3581.9,1052.4 L3588.0,1052.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M4014.8,613.2 L4026.1,613.2 Q4028.6,613.2 4028.6,615.7 L4028.6,1018.1 Q4028.6,1020.6 4026.1,1020.6 L3822.1,1020.6 Q3819.6,1020.6 3819.6,1023.1 L3819.6,1049.9 Q3819.6,1052.4 3822.1,1052.4 L3830.8,1052.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M4014.8,613.2 L4020.9,613.2 Q4023.4,613.2 4023.4,615.7 L4023.4,1011.3 Q4023.4,1013.8 4020.9,1013.8 L3117.1,1013.8 Q3114.6,1013.8 3114.6,1016.3 L3114.6,1049.9 Q3114.6,1052.4 3117.1,1052.4 L3125.8,1052.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M537.6,613.2 L556.7,613.2 Q559.2,613.2 559.2,615.7 L559.2,936.5 Q559.2,939.0 556.7,939.0 L329.3,939.0 Q326.8,939.0 326.8,941.5 L326.8,1121.9 Q326.8,1124.4 329.3,1124.4 L353.6,1124.4" marker-end="url(#wg-arl)"/>
+<path class="gedge" d="M537.6,613.2 L559.3,613.2 Q561.8,613.2 561.8,615.7 L561.8,973.9 Q561.8,976.4 564.3,976.4 L1350.1,976.4 Q1352.6,976.4 1352.6,978.9 L1352.6,1085.9 Q1352.6,1088.4 1355.1,1088.4 L1361.2,1088.4" marker-end="url(#wg-arl)"/>
+<g class="gate"><rect x="1867.6" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M1879.6,229.8 L1887.6,237.8 L1879.6,245.8 L1871.6,237.8Z"/><text class="id" x="1893.6" y="233.8">OD01</text><text class="nm" x="1893.6" y="245.8">AI spend cap</text></g>
+<g class="gate"><rect x="1867.6" y="258.8" width="184" height="30" rx="5"/><path class="dm" d="M1879.6,265.8 L1887.6,273.8 L1879.6,281.8 L1871.6,273.8Z"/><text class="id" x="1893.6" y="269.8">OD02</text><text class="nm" x="1893.6" y="281.8">Error tracker vendor</text></g>
+<g class="gate"><rect x="2875.2" y="598.2" width="184" height="30" rx="5"/><path class="dm" d="M2887.2,605.2 L2895.2,613.2 L2887.2,621.2 L2879.2,613.2Z"/><text class="id" x="2901.2" y="609.2">OD03</text><text class="nm" x="2901.2" y="621.2">Hosted backup choice</text></g>
+<g class="gate"><rect x="353.6" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M365.6,229.8 L373.6,237.8 L365.6,245.8 L357.6,237.8Z"/><text class="id" x="379.6" y="233.8">OD04</text><text class="nm" x="379.6" y="245.8">Undo receipts: restart?</text></g>
+<g class="gate"><rect x="4776.0" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M4788.0,229.8 L4796.0,237.8 L4788.0,245.8 L4780.0,237.8Z"/><text class="id" x="4802.0" y="233.8">OD05</text><text class="nm" x="4802.0" y="245.8">Voice coach fate</text></g>
+<g class="gate"><rect x="353.6" y="258.8" width="184" height="30" rx="5"/><path class="dm" d="M365.6,265.8 L373.6,273.8 L365.6,281.8 L357.6,273.8Z"/><text class="id" x="379.6" y="269.8">OD06</text><text class="nm" x="379.6" y="281.8">Build streaming?</text></g>
+<g class="gate"><rect x="2627.2" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M2639.2,229.8 L2647.2,237.8 L2639.2,245.8 L2631.2,237.8Z"/><text class="id" x="2653.2" y="233.8">OD07</text><text class="nm" x="2653.2" y="245.8">Capture auto-resolve</text></g>
+<g class="gate"><rect x="1609.2" y="598.2" width="184" height="30" rx="5"/><path class="dm" d="M1621.2,605.2 L1629.2,613.2 L1621.2,621.2 L1613.2,613.2Z"/><text class="id" x="1635.2" y="609.2">OD11</text><text class="nm" x="1635.2" y="621.2">Clinical sign-off</text></g>
+<g class="gate"><rect x="3830.8" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M3842.8,229.8 L3850.8,237.8 L3842.8,245.8 L3834.8,237.8Z"/><text class="id" x="3856.8" y="233.8">OD13</text><text class="nm" x="3856.8" y="245.8">Open-world scope</text></g>
+<g class="gate"><rect x="4541.0" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M4553.0,229.8 L4561.0,237.8 L4553.0,245.8 L4545.0,237.8Z"/><text class="id" x="4567.0" y="233.8">OD16</text><text class="nm" x="4567.0" y="245.8">Duplicate card: finish?</text></g>
+<g class="gate"><rect x="870.4000000000001" y="222.8" width="184" height="30" rx="5"/><path class="dm" d="M882.4000000000001,229.8 L890.4000000000001,237.8 L882.4000000000001,245.8 L874.4000000000001,237.8Z"/><text class="id" x="896.4000000000001" y="233.8">OD17</text><text class="nm" x="896.4000000000001" y="245.8">Cards v4 rulings</text></g>
+<g class="gate"><rect x="870.4000000000001" y="598.2" width="184" height="30" rx="5"/><path class="dm" d="M882.4000000000001,605.2 L890.4000000000001,613.2 L882.4000000000001,621.2 L874.4000000000001,613.2Z"/><text class="id" x="896.4000000000001" y="609.2">OD19</text><text class="nm" x="896.4000000000001" y="621.2">Sprout sulking</text></g>
+<g class="gate"><rect x="3588.0" y="598.2" width="184" height="30" rx="5"/><path class="dm" d="M3600.0,605.2 L3608.0,613.2 L3600.0,621.2 L3592.0,613.2Z"/><text class="id" x="3614.0" y="609.2">OD23</text><text class="nm" x="3614.0" y="621.2">Native iOS wrapper</text></g>
+<g class="gate"><rect x="3830.8" y="598.2" width="184" height="30" rx="5"/><path class="dm" d="M3842.8,605.2 L3850.8,613.2 L3842.8,621.2 L3834.8,613.2Z"/><text class="id" x="3856.8" y="609.2">OD25</text><text class="nm" x="3856.8" y="621.2">Close onboarding specs</text></g>
+<g class="gate"><rect x="353.6" y="598.2" width="184" height="30" rx="5"/><path class="dm" d="M365.6,605.2 L373.6,613.2 L365.6,621.2 L357.6,613.2Z"/><text class="id" x="379.6" y="609.2">OD26</text><text class="nm" x="379.6" y="621.2">compose_meal cap</text></g>
+<g class="n p0"><rect class="bg" x="2875.2" y="88" width="184" height="30" rx="5"/><rect class="bar" x="2875.2" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="2885.2" y="99">W003 · P0 · M</text><text class="nm" x="2885.2" y="111">Reconcile migration ledger</text></g>
+<g class="n p0"><rect class="bg" x="1609.2" y="88" width="184" height="30" rx="5"/><rect class="bar" x="1609.2" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="1619.2" y="99">W004 · P0 · M</text><text class="nm" x="1619.2" y="111">Energy rule: no fake zeros</text></g>
+<g class="n p0 own"><rect class="bg" x="87.4" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="233.8">W005 · P0 · S</text><text class="nm" x="97.4" y="245.8">Re-import Foundation data</text><text class="tag" x="265.4" y="233.8" text-anchor="end">OWNER</text></g>
+<g class="n p0"><rect class="bg" x="1609.2" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="1609.2" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="1619.2" y="233.8">W006 · P0 · M</text><text class="nm" x="1619.2" y="245.8">Proposal and TDEE intake</text></g>
+<g class="n p0"><rect class="bg" x="2379.2" y="88" width="184" height="30" rx="5"/><rect class="bar" x="2379.2" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="2389.2" y="99">W007 · P0 · M</text><text class="nm" x="2389.2" y="111">Target safety on all writes</text></g>
+<g class="n p0"><rect class="bg" x="2379.2" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="2379.2" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="2389.2" y="233.8">W008 · P0 · S</text><text class="nm" x="2389.2" y="245.8">Drop 1650 kcal floor</text></g>
+<g class="n p0"><rect class="bg" x="3830.8" y="88" width="184" height="30" rx="5"/><rect class="bar" x="3830.8" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="3840.8" y="99">W009 · P0 · M</text><text class="nm" x="3840.8" y="111">Legacy onboarding safety</text></g>
+<g class="n p0"><rect class="bg" x="3588.0" y="88" width="184" height="30" rx="5"/><rect class="bar" x="3588.0" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="3598.0" y="99">W010 · P0 · M</text><text class="nm" x="3598.0" y="111">Health ingest transaction</text></g>
+<g class="n p0"><rect class="bg" x="2128.6" y="88" width="184" height="30" rx="5"/><rect class="bar" x="2128.6" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="2138.6" y="99">W011 · P0 · L</text><text class="nm" x="2138.6" y="111">Sync merge conflicts</text></g>
+<g class="n p0"><rect class="bg" x="4306.0" y="88" width="184" height="30" rx="5"/><rect class="bar" x="4306.0" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="4316.0" y="99">W012 · P0 · M</text><text class="nm" x="4316.0" y="111">Exports past 1,000 rows</text></g>
+<g class="n p0"><rect class="bg" x="2627.2" y="88" width="184" height="30" rx="5"/><rect class="bar" x="2627.2" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="2637.2" y="99">W013 · P0 · S</text><text class="nm" x="2637.2" y="111">Portion maths fixes</text></g>
+<g class="n p0"><rect class="bg" x="3353.0" y="88" width="184" height="30" rx="5"/><rect class="bar" x="3353.0" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="3363.0" y="99">W014 · P0 · M</text><text class="nm" x="3363.0" y="111">Food rules parity</text></g>
+<g class="n p0"><rect class="bg" x="1609.2" y="258.8" width="184" height="30" rx="5"/><rect class="bar" x="1609.2" y="258.8" width="3.5" height="30" rx="1.5"/><text class="id" x="1619.2" y="269.8">W015 · P0 · S</text><text class="nm" x="1619.2" y="281.8">Bundled food data bands</text></g>
+<g class="n p0"><rect class="bg" x="2875.2" y="124" width="184" height="30" rx="5"/><rect class="bar" x="2875.2" y="124" width="3.5" height="30" rx="1.5"/><text class="id" x="2885.2" y="135">W016 · P0 · M</text><text class="nm" x="2885.2" y="147">Nightly backup coverage</text></g>
+<g class="n p0"><rect class="bg" x="2627.2" y="258.8" width="184" height="30" rx="5"/><rect class="bar" x="2627.2" y="258.8" width="3.5" height="30" rx="1.5"/><text class="id" x="2637.2" y="269.8">W017 · P0 · M</text><text class="nm" x="2637.2" y="281.8">Capture and log flow</text></g>
+<g class="n p0"><rect class="bg" x="617.2" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="233.8">W018 · P0 · M</text><text class="nm" x="627.2" y="245.8">Lock server-owned tables</text></g>
+<g class="n p0"><rect class="bg" x="617.2" y="88" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="88" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="99">W019 · P0 · M</text><text class="nm" x="627.2" y="111">Media storage paths</text></g>
+<g class="n p1"><rect class="bg" x="2875.2" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="2875.2" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="2885.2" y="233.8">W023 · P1 · S</text><text class="nm" x="2885.2" y="245.8">Renumber parked migrations</text></g>
+<g class="n p1"><rect class="bg" x="4068.4" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="4068.4" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="4078.4" y="233.8">W024 · P1 · M</text><text class="nm" x="4078.4" y="245.8">Shopping preview crashes</text></g>
+<g class="n p1"><rect class="bg" x="3588.0" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="3588.0" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="3598.0" y="233.8">W025 · P1 · M</text><text class="nm" x="3598.0" y="245.8">Oura sources and refresh</text></g>
+<g class="n p1"><rect class="bg" x="2128.6" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="2128.6" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="2138.6" y="233.8">W026 · P1 · M</text><text class="nm" x="2138.6" y="245.8">Sync outbox ordering</text></g>
+<g class="n p1"><rect class="bg" x="2128.6" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="2128.6" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="2138.6" y="609.2">W027 · P1 · S</text><text class="nm" x="2138.6" y="621.2">Log mirror races</text></g>
+<g class="n p1"><rect class="bg" x="353.6" y="294.8" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="294.8" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="305.8">W028 · P1 · M</text><text class="nm" x="363.6" y="317.8">Coach action fast paths</text></g>
+<g class="n p1"><rect class="bg" x="1361.2" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="1361.2" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="1371.2" y="233.8">W029 · P1 · M</text><text class="nm" x="1371.2" y="245.8">Membership and Favor sync</text></g>
+<g class="n p1"><rect class="bg" x="870.4000000000001" y="258.8" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="258.8" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="269.8">W030 · P1 · M</text><text class="nm" x="880.4000000000001" y="281.8">Today meal cards by date</text></g>
+<g class="n p1"><rect class="bg" x="4776.0" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="4776.0" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="4786.0" y="609.2">W031 · P1 · M</text><text class="nm" x="4786.0" y="621.2">Voice retirement, zones</text></g>
+<g class="n p1"><rect class="bg" x="4776.0" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="4776.0" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="4786.0" y="1048.4">W032 · P1 · S</text><text class="nm" x="4786.0" y="1060.4">Server account-day dates</text></g>
+<g class="n p1"><rect class="bg" x="870.4000000000001" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="645.2">W033 · P1 · M</text><text class="nm" x="880.4000000000001" y="657.2">Phone account-day dates</text></g>
+<g class="n p1"><rect class="bg" x="1128.8" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="1128.8" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="1138.8" y="233.8">W034 · P1 · S</text><text class="nm" x="1138.8" y="245.8">Database lock order</text></g>
+<g class="n p1"><rect class="bg" x="353.6" y="330.8" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="330.8" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="341.8">W035 · P1 · M</text><text class="nm" x="363.6" y="353.8">Coach turn budget</text></g>
+<g class="n p1"><rect class="bg" x="353.6" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="645.2">W036 · P1 · S</text><text class="nm" x="363.6" y="657.2">Plan-sheet imports</text></g>
+<g class="n p1"><rect class="bg" x="617.2" y="258.8" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="258.8" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="269.8">W037 · P1 · S</text><text class="nm" x="627.2" y="281.8">MCP route hardening</text></g>
+<g class="n p1"><rect class="bg" x="4306.0" y="222.8" width="184" height="30" rx="5"/><rect class="bar" x="4306.0" y="222.8" width="3.5" height="30" rx="1.5"/><text class="id" x="4316.0" y="233.8">W038 · P1 · S</text><text class="nm" x="4316.0" y="245.8">Unbounded hot-path reads</text></g>
+<g class="n p1"><rect class="bg" x="1867.6" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="1867.6" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1877.6" y="609.2">W041 · P1 · S</text><text class="nm" x="1877.6" y="621.2">Scale 1: Measure</text></g>
+<g class="n p1"><rect class="bg" x="1867.6" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="1867.6" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1877.6" y="645.2">W042 · P1 · S</text><text class="nm" x="1877.6" y="657.2">Scale 2: Alerts</text></g>
+<g class="n p1"><rect class="bg" x="1867.6" y="670.2" width="184" height="30" rx="5"/><rect class="bar" x="1867.6" y="670.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1877.6" y="681.2">W043 · P1 · S</text><text class="nm" x="1877.6" y="693.2">Scale 3: AI budget policy</text></g>
+<g class="n p1"><rect class="bg" x="1128.8" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="1128.8" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1138.8" y="1048.4">W044 · P1 · S</text><text class="nm" x="1138.8" y="1060.4">Scale 4: Indexes, retention</text></g>
+<g class="n p1"><rect class="bg" x="1867.6" y="706.2" width="184" height="30" rx="5"/><rect class="bar" x="1867.6" y="706.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1877.6" y="717.2">W045 · P1 · S</text><text class="nm" x="1877.6" y="729.2">Scale 5: Quick safety fixes</text></g>
+<g class="n p1"><rect class="bg" x="2875.2" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="2875.2" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="2885.2" y="1048.4">W046 · P1 · M</text><text class="nm" x="2885.2" y="1060.4">Scale 6: Hosted backup</text></g>
+<g class="n p1"><rect class="bg" x="2128.6" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="2128.6" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="2138.6" y="1048.4">W047 · P1 · M</text><text class="nm" x="2138.6" y="1060.4">Scale 7: Cut fan-out</text></g>
+<g class="n p1"><rect class="bg" x="1128.8" y="1073.4" width="184" height="30" rx="5"/><rect class="bar" x="1128.8" y="1073.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1138.8" y="1084.4">W048 · P1 · L</text><text class="nm" x="1138.8" y="1096.4">Scale 8: change_log compaction</text></g>
+<g class="n p1"><rect class="bg" x="1867.6" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="1867.6" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1877.6" y="1048.4">W049 · P1 · S</text><text class="nm" x="1877.6" y="1060.4">Sign-up load test, soak</text></g>
+<g class="n p1 own"><rect class="bg" x="87.4" y="258.8" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="258.8" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="269.8">W050 · P1 · S</text><text class="nm" x="97.4" y="281.8">Team-scoped Vercel token</text><text class="tag" x="265.4" y="269.8" text-anchor="end">OWNER</text></g>
+<g class="n p1"><rect class="bg" x="617.2" y="294.8" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="294.8" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="305.8">W053 · P1 · M</text><text class="nm" x="627.2" y="317.8">App-hardening headers</text></g>
+<g class="n p1"><rect class="bg" x="617.2" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="609.2">W054 · P1 · M</text><text class="nm" x="627.2" y="621.2">Supabase advisor backlog</text></g>
+<g class="n p1"><rect class="bg" x="617.2" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="645.2">W057 · P1 · M</text><text class="nm" x="627.2" y="657.2">Self-serve account deletion</text></g>
+<g class="n p1"><rect class="bg" x="870.4000000000001" y="670.2" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="670.2" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="681.2">W058 · P1 · M</text><text class="nm" x="880.4000000000001" y="693.2">Honest-nutrition UI</text></g>
+<g class="n p1"><rect class="bg" x="2379.2" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="2379.2" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="2389.2" y="609.2">W060 · P1 · M</text><text class="nm" x="2389.2" y="621.2">Checked target writer</text></g>
+<g class="n p1 own"><rect class="bg" x="87.4" y="294.8" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="294.8" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="305.8">W062 · P1 · S</text><text class="nm" x="97.4" y="317.8">Re-test onb3, flip flag</text><text class="tag" x="265.4" y="305.8" text-anchor="end">OWNER</text></g>
+<g class="n p1 own"><rect class="bg" x="87.4" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="609.2">W063 · P1 · S</text><text class="nm" x="97.4" y="621.2">Data-repair script runs</text><text class="tag" x="265.4" y="609.2" text-anchor="end">OWNER</text></g>
+<g class="n p1"><rect class="bg" x="353.6" y="366.8" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="366.8" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="377.8">W065 · P1 · S</text><text class="nm" x="363.6" y="389.8">Measure coach speed</text></g>
+<g class="n p2"><rect class="bg" x="353.6" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="1048.4">W068 · P2 · S</text><text class="nm" x="363.6" y="1060.4">AI call layer fixes</text></g>
+<g class="n p2"><rect class="bg" x="4306.0" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="4306.0" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="4316.0" y="609.2">W069 · P2 · S</text><text class="nm" x="4316.0" y="621.2">API input validation</text></g>
+<g class="n p2"><rect class="bg" x="1128.8" y="1206.8000000000002" width="184" height="30" rx="5"/><rect class="bar" x="1128.8" y="1206.8000000000002" width="3.5" height="30" rx="1.5"/><text class="id" x="1138.8" y="1217.8000000000002">W070 · P2 · S</text><text class="nm" x="1138.8" y="1229.8000000000002">Telemetry table inserts</text></g>
+<g class="n p2"><rect class="bg" x="1128.8" y="1109.4" width="184" height="30" rx="5"/><rect class="bar" x="1128.8" y="1109.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1138.8" y="1120.4">W071 · P2 · M</text><text class="nm" x="1138.8" y="1132.4">Scale 9: One-trip RPCs</text></g>
+<g class="n p2"><rect class="bg" x="1128.8" y="1145.4" width="184" height="30" rx="5"/><rect class="bar" x="1128.8" y="1145.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1138.8" y="1156.4">W072 · P2 · M</text><text class="nm" x="1138.8" y="1168.4">Scale 10: O(users) work</text></g>
+<g class="n p2"><rect class="bg" x="2379.2" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="2379.2" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="2389.2" y="1048.4">W073 · P2 · M</text><text class="nm" x="2389.2" y="1060.4">Phase 12 Later writers</text></g>
+<g class="n p2"><rect class="bg" x="2379.2" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="2379.2" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="2389.2" y="645.2">W074 · P2 · S</text><text class="nm" x="2389.2" y="657.2">Rate preset CHECK</text></g>
+<g class="n p2"><rect class="bg" x="3125.8" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="3125.8" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="3135.8" y="609.2">W076 · P2 · M</text><text class="nm" x="3135.8" y="621.2">Endpoint security matrix</text></g>
+<g class="n p2"><rect class="bg" x="617.2" y="670.2" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="670.2" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="681.2">W079 · P2 · M</text><text class="nm" x="627.2" y="693.2">CSP and perf gates</text></g>
+<g class="n p2"><rect class="bg" x="617.2" y="706.2" width="184" height="30" rx="5"/><rect class="bar" x="617.2" y="706.2" width="3.5" height="30" rx="1.5"/><text class="id" x="627.2" y="717.2">W080 · P2 · S</text><text class="nm" x="627.2" y="729.2">Token key re-seal</text></g>
+<g class="n p2"><rect class="bg" x="3125.8" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="3125.8" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="3135.8" y="645.2">W081 · P2 · S</text><text class="nm" x="3135.8" y="657.2">Env-name drift</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="645.2">W082 · P2 · M</text><text class="nm" x="97.4" y="657.2">Health prod rollout</text><text class="tag" x="265.4" y="645.2" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="670.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="670.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="681.2">W083 · P2 · S</text><text class="nm" x="97.4" y="693.2">Widen CAPTURE_METHODS</text><text class="tag" x="265.4" y="681.2" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="1048.4">W084 · P2 · S</text><text class="nm" x="97.4" y="1060.4">Recipe pilot rollout</text><text class="tag" x="265.4" y="1048.4" text-anchor="end">OWNER</text></g>
+<g class="n p2"><rect class="bg" x="4068.4" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="4068.4" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="4078.4" y="609.2">W085 · P2 · M</text><text class="nm" x="4078.4" y="621.2">Recipe pilot acceptance</text></g>
+<g class="n p2"><rect class="bg" x="353.6" y="670.2" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="670.2" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="681.2">W086 · P2 · L</text><text class="nm" x="363.6" y="693.2">Undo receipts PR B</text></g>
+<g class="n p2"><rect class="bg" x="5230.400000000001" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="5230.400000000001" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="5240.400000000001" y="609.2">W090 · P2 · S</text><text class="nm" x="5240.400000000001" y="621.2">ExportCard claim</text></g>
+<g class="n p2"><rect class="bg" x="353.6" y="706.2" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="706.2" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="717.2">W091 · P2 · L</text><text class="nm" x="363.6" y="729.2">Stream coach replies</text></g>
+<g class="n p2"><rect class="bg" x="1609.2" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="1609.2" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1619.2" y="1048.4">W092 · P2 · L</text><text class="nm" x="1619.2" y="1060.4">Phase 19b rebalance</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="706.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="706.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="717.2">W093 · P2 · M</text><text class="nm" x="97.4" y="729.2">19b drift study</text><text class="tag" x="265.4" y="717.2" text-anchor="end">OWNER</text></g>
+<g class="n p2"><rect class="bg" x="1609.2" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="1609.2" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1619.2" y="645.2">W094 · P2 · M</text><text class="nm" x="1619.2" y="657.2">TDEE test-suite audit</text></g>
+<g class="n p2"><rect class="bg" x="4541.0" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="4541.0" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="4551.0" y="609.2">W095 · P2 · M</text><text class="nm" x="4551.0" y="621.2">Duplicate-meal card</text></g>
+<g class="n p2"><rect class="bg" x="2128.6" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="2128.6" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="2138.6" y="645.2">W096 · P2 · S</text><text class="nm" x="2138.6" y="657.2">Replay plan_days rows</text></g>
+<g class="n p2"><rect class="bg" x="3830.8" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="3830.8" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="3840.8" y="645.2">W097 · P2 · M</text><text class="nm" x="3840.8" y="657.2">W15 onboarding ablation</text></g>
+<g class="n p2"><rect class="bg" x="5003.2" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="5003.2" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="5013.2" y="609.2">W098 · P2 · M</text><text class="nm" x="5013.2" y="621.2">W13 Favored UI</text></g>
+<g class="n p2"><rect class="bg" x="4068.4" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="4068.4" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="4078.4" y="645.2">W100 · P2 · S</text><text class="nm" x="4078.4" y="657.2">Shopping Use my list</text></g>
+<g class="n p2"><rect class="bg" x="3353.0" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="3353.0" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="3363.0" y="609.2">W104 · P2 · M</text><text class="nm" x="3363.0" y="621.2">Diet-label parser</text></g>
+<g class="n p2"><rect class="bg" x="3353.0" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="3353.0" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="3363.0" y="645.2">W105 · P2 · M</text><text class="nm" x="3363.0" y="657.2">contains_ingredient facet</text></g>
+<g class="n p2"><rect class="bg" x="1361.2" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="1361.2" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1371.2" y="609.2">W107 · P2 · S</text><text class="nm" x="1371.2" y="621.2">planDay phone benchmark</text></g>
+<g class="n p2"><rect class="bg" x="1361.2" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="1361.2" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="1371.2" y="645.2">W108 · P2 · L</text><text class="nm" x="1371.2" y="657.2">pref-2 ranking inputs</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="742.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="742.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="753.2">W109 · P2 · M</text><text class="nm" x="97.4" y="765.2">Label universe plates</text><text class="tag" x="265.4" y="753.2" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="778.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="778.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="789.2">W110 · P2 · M</text><text class="nm" x="97.4" y="801.2">Universe human review</text><text class="tag" x="265.4" y="789.2" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="814.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="814.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="825.2">W111 · P2 · S</text><text class="nm" x="97.4" y="837.2">Run star-to-favored</text><text class="tag" x="265.4" y="825.2" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="1073.4" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="1073.4" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="1084.4">W112 · P2 · S</text><text class="nm" x="97.4" y="1096.4">Release open world</text><text class="tag" x="265.4" y="1084.4" text-anchor="end">OWNER</text></g>
+<g class="n p2 own"><rect class="bg" x="87.4" y="850.2" width="184" height="30" rx="5"/><rect class="bar" x="87.4" y="850.2" width="3.5" height="30" rx="1.5"/><text class="id" x="97.4" y="861.2">W114 · P2 · S</text><text class="nm" x="97.4" y="873.2">FNDDS inputs import</text><text class="tag" x="265.4" y="861.2" text-anchor="end">OWNER</text></g>
+<g class="n p2"><rect class="bg" x="870.4000000000001" y="706.2" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="706.2" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="717.2">W115 · P2 · L</text><text class="nm" x="880.4000000000001" y="729.2">Meal Cards v4</text></g>
+<g class="n p2"><rect class="bg" x="870.4000000000001" y="742.2" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="742.2" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="753.2">W116 · P2 · S</text><text class="nm" x="880.4000000000001" y="765.2">Island views leftovers</text></g>
+<g class="n p2"><rect class="bg" x="4541.0" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="4541.0" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="4551.0" y="645.2">W123 · P2 · M</text><text class="nm" x="4551.0" y="657.2">Save, re-use, swap</text></g>
+<g class="n p2"><rect class="bg" x="2627.2" y="598.2" width="184" height="30" rx="5"/><rect class="bar" x="2627.2" y="598.2" width="3.5" height="30" rx="1.5"/><text class="id" x="2637.2" y="609.2">W124 · P2 · M</text><text class="nm" x="2637.2" y="621.2">Label scan T3</text></g>
+<g class="n p2"><rect class="bg" x="2627.2" y="634.2" width="184" height="30" rx="5"/><rect class="bar" x="2627.2" y="634.2" width="3.5" height="30" rx="1.5"/><text class="id" x="2637.2" y="645.2">W125 · P2 · L</text><text class="nm" x="2637.2" y="657.2">Plate photo T2</text></g>
+<g class="n p3"><rect class="bg" x="353.6" y="1073.4" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="1073.4" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="1084.4">W129 · P3 · M</text><text class="nm" x="363.6" y="1096.4">Undo receipts, other kinds</text></g>
+<g class="n p3"><rect class="bg" x="3125.8" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="3125.8" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="3135.8" y="1048.4">W132 · P3 · S</text><text class="nm" x="3135.8" y="1060.4">Stale branch cleanup</text></g>
+<g class="n p3"><rect class="bg" x="1361.2" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="1361.2" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1371.2" y="1048.4">W135 · P3 · L</text><text class="nm" x="1371.2" y="1060.4">W14 Taste T2</text></g>
+<g class="n p3"><rect class="bg" x="870.4000000000001" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="1048.4">W141 · P3 · M</text><text class="nm" x="880.4000000000001" y="1060.4">Slot editing C and D</text></g>
+<g class="n p3"><rect class="bg" x="3588.0" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="3588.0" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="3598.0" y="1048.4">W144 · P3 · XL</text><text class="nm" x="3598.0" y="1060.4">Deferred integrations</text></g>
+<g class="n p3"><rect class="bg" x="870.4000000000001" y="1073.4" width="184" height="30" rx="5"/><rect class="bar" x="870.4000000000001" y="1073.4" width="3.5" height="30" rx="1.5"/><text class="id" x="880.4000000000001" y="1084.4">W145 · P3 · L</text><text class="nm" x="880.4000000000001" y="1096.4">Sprout and companions</text></g>
+<g class="n p3"><rect class="bg" x="3830.8" y="1037.4" width="184" height="30" rx="5"/><rect class="bar" x="3830.8" y="1037.4" width="3.5" height="30" rx="1.5"/><text class="id" x="3840.8" y="1048.4">W150 · P3 · M</text><text class="nm" x="3840.8" y="1060.4">Onboarding Later gaps</text></g>
+<g class="n p3"><rect class="bg" x="1361.2" y="1073.4" width="184" height="30" rx="5"/><rect class="bar" x="1361.2" y="1073.4" width="3.5" height="30" rx="1.5"/><text class="id" x="1371.2" y="1084.4">W155 · P3 · L</text><text class="nm" x="1371.2" y="1096.4">Regional priors</text></g>
+<g class="n p3"><rect class="bg" x="353.6" y="1109.4" width="184" height="30" rx="5"/><rect class="bar" x="353.6" y="1109.4" width="3.5" height="30" rx="1.5"/><text class="id" x="363.6" y="1120.4">W156 · P3 · M</text><text class="nm" x="363.6" y="1132.4">compose_meal engine</text></g>
+<text class="lane" x="24" y="1272.8000000000002">Standalone items with no dependencies</text>
+<text class="eb" x="24" y="1284.8000000000002">57 ITEMS · COUNT PER LANE BY PRIORITY · FULL LIST ON THE ROADMAP</text>
+<g><rect x="24" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="32" y="1309.8000000000002">DOCS-TESTS · 11</text>
+<rect x="32" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p1)"/><text class="cnt" x="41" y="1323.8000000000002">2</text>
+<rect x="62" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="71" y="1323.8000000000002">4</text>
+<rect x="92" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="101" y="1323.8000000000002">5</text>
+</g>
+<g><rect x="174" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="182" y="1309.8000000000002">OWNER · 11</text>
+<rect x="182" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p0)"/><text class="cnt" x="191" y="1323.8000000000002">2</text>
+<rect x="212" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p1)"/><text class="cnt" x="221" y="1323.8000000000002">4</text>
+<rect x="242" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="251" y="1323.8000000000002">3</text>
+<rect x="272" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="281" y="1323.8000000000002">2</text>
+</g>
+<g><rect x="324" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="332" y="1309.8000000000002">COACH-AI · 9</text>
+<rect x="332" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p0)"/><text class="cnt" x="341" y="1323.8000000000002">1</text>
+<rect x="362" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="371" y="1323.8000000000002">4</text>
+<rect x="392" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="401" y="1323.8000000000002">4</text>
+</g>
+<g><rect x="474" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="482" y="1309.8000000000002">FOOD-WORLD · 5</text>
+<rect x="482" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="491" y="1323.8000000000002">2</text>
+<rect x="512" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="521" y="1323.8000000000002">3</text>
+</g>
+<g><rect x="624" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="632" y="1309.8000000000002">UI-TODAY · 5</text>
+<rect x="632" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="641" y="1323.8000000000002">3</text>
+<rect x="662" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="671" y="1323.8000000000002">2</text>
+</g>
+<g><rect x="774" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="782" y="1309.8000000000002">SECURITY · 4</text>
+<rect x="782" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p1)"/><text class="cnt" x="791" y="1323.8000000000002">3</text>
+<rect x="812" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="821" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="924" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="932" y="1309.8000000000002">FOOD-POLICY · 3</text>
+<rect x="932" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p0)"/><text class="cnt" x="941" y="1323.8000000000002">2</text>
+<rect x="962" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="971" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="1074" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="1082" y="1309.8000000000002">UI-FOODS · 3</text>
+<rect x="1082" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="1091" y="1323.8000000000002">2</text>
+<rect x="1112" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="1121" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="1224" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="1232" y="1309.8000000000002">CAPTURE-CATALOG · 2</text>
+<rect x="1232" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p1)"/><text class="cnt" x="1241" y="1323.8000000000002">1</text>
+<rect x="1262" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="1271" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="1374" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="1382" y="1309.8000000000002">SERVER-DB · 1</text>
+<rect x="1382" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="1391" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="1524" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="1532" y="1309.8000000000002">SERVER-OPS · 1</text>
+<rect x="1532" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p3)"/><text class="cnt" x="1541" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="1674" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="1682" y="1309.8000000000002">UI-PWA · 1</text>
+<rect x="1682" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="1691" y="1323.8000000000002">1</text>
+</g>
+<g><rect x="1824" y="1298.8000000000002" width="140" height="32" rx="5" style="fill:none;stroke:var(--rule)"/><text class="id" x="1832" y="1309.8000000000002">UI-SETTINGS · 1</text>
+<rect x="1832" y="1315.8000000000002" width="6" height="8" rx="1.5" style="fill:var(--p2)"/><text class="cnt" x="1841" y="1323.8000000000002">1</text>
+</g>
+<g class="legend" transform="translate(24,1360)"><g class="n p0"><rect class="bg" x="0" y="0" width="16" height="12" rx="3"/></g><text x="22" y="10">P0 now</text><g class="n p1"><rect class="bg" x="92" y="0" width="16" height="12" rx="3"/></g><text x="114" y="10">P1 next</text><g class="n p2"><rect class="bg" x="184" y="0" width="16" height="12" rx="3"/></g><text x="206" y="10">P2 later</text><g class="n p3"><rect class="bg" x="276" y="0" width="16" height="12" rx="3"/></g><text x="298" y="10">P3 parked</text><g class="n p2 own"><rect class="bg" x="368" y="0" width="16" height="12" rx="3" style="fill:none;stroke:var(--ink)"/></g><text x="390" y="10">dashed = owner-only step</text><g class="gate"><path class="dm" d="M546,0 L554,6 L546,12 L538,6Z"/></g><text x="560" y="10">owner decision gate</text></g>
+</svg>
+</div>
+</div>
+</body>
+</html>
