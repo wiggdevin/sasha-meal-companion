@@ -108,6 +108,29 @@ const MEMBERSHIP_CACHE_PREFIX = "membership:";
 const membershipRevisions = new Map<string, number>();
 const membershipIntents = new Map<string, number>();
 const activeMembershipCalls = new Map<string, number>();
+/** The local-write sequence each name was last reserved at (`adoptServerMemberships`). */
+const membershipLocalWrites = new Map<string, number>();
+let membershipWriteSeq = 0;
+
+/**
+ * The next revision this device asks for: one past the newest it knows of, from the server (the
+ * cache, refreshed on every sync pass and every acknowledged write) or from its own taps. Never the
+ * device clock (audit 2026-10-10 A140): the server assigns the revision it writes
+ * (`set_food_membership(..., p_op_id)`, migration 20261231110000), so this is only a hint.
+ */
+function nextMembershipRev(cachedRev: number | null | undefined, clock: number | undefined): number {
+  return Math.max(cachedRev ?? 0, clock ?? 0) + 1;
+}
+
+function noteLocalMembershipWrite(clockKey: string): void {
+  membershipWriteSeq += 1;
+  membershipLocalWrites.set(clockKey, membershipWriteSeq);
+}
+
+/** Read before a sync pass's server read: a name written locally after it keeps its local mark. */
+export function foodMembershipWriteMark(): number {
+  return membershipWriteSeq;
+}
 
 export type FoodMembershipIntent = Readonly<{
   account: AccountHandle; nameNorm: string; key: string; sequence: number; rev: number; at: number;
@@ -124,8 +147,9 @@ export function reserveFoodMembershipIntent(
   const key = `${account.epoch}:${clockKey}`;
   const at = Math.max(0, Math.floor(now));
   const previous = readFoodMembership(account.userId, nameNorm);
-  const rev = Math.max(at, (previous?.rev ?? -1) + 1, (membershipRevisions.get(clockKey) ?? -1) + 1);
+  const rev = nextMembershipRev(previous?.rev, membershipRevisions.get(clockKey));
   membershipRevisions.set(clockKey, rev);
+  noteLocalMembershipWrite(clockKey);
   const sequence = (membershipIntents.get(key) ?? 0) + 1;
   membershipIntents.set(key, sequence);
   return { account, nameNorm, key, sequence, rev, at };
@@ -140,6 +164,7 @@ export function __resetFoodMembershipState(): void {
   membershipRevisions.clear();
   membershipIntents.clear();
   activeMembershipCalls.clear();
+  membershipLocalWrites.clear();
 }
 
 /**
@@ -229,14 +254,14 @@ export function readFoodMembership(
 }
 
 function rememberMembership(
-  userId: string, nameNorm: string, membership: FoodMembershipCacheEntry,
+  userId: string, nameNorm: string, membership: FoodMembershipCacheEntry, force = false,
 ): void {
   try {
     const stored = readStoredCache();
     const account = { ...(stored[userId] ?? {}) } as Record<string, unknown>;
     const current = account[`${MEMBERSHIP_CACHE_PREFIX}${nameNorm}`] as
       Partial<FoodMembershipCacheEntry> | undefined;
-    if (typeof current?.rev === "number" && current.rev > membership.rev) return;
+    if (!force && typeof current?.rev === "number" && current.rev > membership.rev) return;
     account[`${MEMBERSHIP_CACHE_PREFIX}${nameNorm}`] = membership;
     for (const [key, value] of Object.entries(account)) {
       if (key.startsWith(MEMBERSHIP_CACHE_PREFIX)
@@ -341,8 +366,11 @@ async function commitFoodMembership(
   const id = await uuidV5(LEGACY_FOOD_NAMESPACE, `food-membership:${userId}:${nameNorm}`);
   assertCurrent(h);
   if (!latest()) return null;
+  // One op id for the queued op and the Foods sheet's acknowledgement: whichever reaches the
+  // server second is the same op, answered from the server's ledger and never written twice.
+  const opId = crypto.randomUUID();
   await enqueue(h, {
-    op_id: crypto.randomUUID(),
+    op_id: opId,
     entity: "food_membership",
     entity_id: id,
     kind: "update",
@@ -367,7 +395,7 @@ async function commitFoodMembership(
   let response: { data: unknown; error: unknown };
   try {
     response = await withAccount(h, (owner) => supabase.rpc("set_food_membership", {
-      p_user: owner, p_name_norm: nameNorm, p_status: status, p_note: note, p_rev: rev,
+      p_user: owner, p_name_norm: nameNorm, p_status: status, p_note: note, p_rev: rev, p_op_id: opId,
     }));
   } catch (cause) {
     rethrowAccountChanged(cause);
@@ -377,9 +405,12 @@ async function commitFoodMembership(
   const { data, error } = response;
   if (error) return null;
   const result = data as Record<string, unknown> | null;
-  if (result?.rev !== rev || result.status !== status
+  // The server assigns the revision (at least `rev`); the status is this op's own.
+  if (typeof result?.rev !== "number" || !Number.isSafeInteger(result.rev) || result.rev < rev
+    || result.status !== status
     || typeof result.updated !== "number" || !Number.isSafeInteger(result.updated)
     || result.updated < 0 || typeof result.truncated !== "boolean") return null;
+  acknowledgeFoodMembership(h, nameNorm, status, rev, result.rev);
   return { updated: result.updated, truncated: result.truncated };
 }
 
@@ -460,11 +491,9 @@ export async function setFoodMembershipGuarded(
       await abortQuietly(tx, done);
       return { written: false };
     }
-    // Known limit, deferred (Sol r4 #2, logged as a follow-up): the revision clock is per tab, so
-    // two tabs writing the same name in the same millisecond can mint equal revisions. That is a
-    // property of the shared membership clock (`reserveFoodMembershipIntent`) and affects every
-    // `setFoodMembership` caller, not only this one.
-    const rev = Math.max(at, (currentRev ?? -1) + 1, (clock ?? -1) + 1);
+    // Two tabs can still ask for one revision; the server assigns the next one to the later write
+    // (W029, migration 20261231110000), so neither tap is refused.
+    const rev = nextMembershipRev(currentRev, clock);
     const extra = guard.check({ rows, meta }, rev);
     if (!extra) {
       await abortQuietly(tx, done);
@@ -476,6 +505,7 @@ export async function setFoodMembershipGuarded(
       else membershipRevisions.set(clockKey, clock);
     };
     membershipRevisions.set(clockKey, rev);
+    noteLocalMembershipWrite(clockKey);
     membershipIntents.set(intentKey, (membershipIntents.get(intentKey) ?? 0) + 1);
     const op: SyncOp = {
       op_id: opId, entity: "food_membership", entity_id: id, kind: "update", base_rev: null,
@@ -560,6 +590,56 @@ export function reconcileFoodMembership(
     }));
   if (changed) saveStoreFor(h, { ...store, foods }, { silent: true });
   return true;
+}
+
+/**
+ * The server applied this device's op at `serverRev` (at least the revision the op asked for). The
+ * cache takes the server's revision only while it still holds that op's own mark, so a newer tap
+ * here is never overwritten; the next tap then asks for a revision past the server's.
+ */
+export function acknowledgeFoodMembership(
+  h: AccountHandle, name: string, status: Exclude<FoodStatus, "neutral"> | null,
+  sentRev: number, serverRev: number,
+): boolean {
+  if (!isCurrent(h) || !Number.isSafeInteger(serverRev) || serverRev < sentRev) return false;
+  const nameNorm = normalizeFoodName(name);
+  const clockKey = `${h.userId}:${nameNorm}`;
+  const cached = readFoodMembership(h.userId, nameNorm);
+  if (!cached || cached.rev !== sentRev || cached.status !== status) return false;
+  if (serverRev === sentRev) return true;
+  rememberMembership(h.userId, nameNorm, { ...cached, rev: serverRev });
+  if ((membershipRevisions.get(clockKey) ?? -1) < serverRev) membershipRevisions.set(clockKey, serverRev);
+  return true;
+}
+
+export type ServerMembership = {
+  name_norm: string; status: Exclude<FoodStatus, "neutral"> | null; note: string | null; rev: number;
+};
+
+/**
+ * Audit 2026-10-10 A039: the mark cache follows the server's marks on every sync pass, so a mark
+ * another device made, or a server Favor, is what the next tap here compares with. A name with an
+ * op still queued (`pending`) or a tap here after `mark` (`foodMembershipWriteMark`, read before
+ * the server read) keeps its local mark; every other name takes the server's mark and revision.
+ */
+export function adoptServerMemberships(
+  h: AccountHandle, rows: readonly ServerMembership[], pending: ReadonlySet<string>, mark: number,
+): number {
+  if (!isCurrent(h)) return 0;
+  let adopted = 0;
+  for (const row of rows) {
+    const nameNorm = normalizeFoodName(row.name_norm);
+    if (!nameNorm || pending.has(nameNorm) || !Number.isSafeInteger(row.rev) || row.rev < 0) continue;
+    const clockKey = `${h.userId}:${nameNorm}`;
+    if ((membershipLocalWrites.get(clockKey) ?? 0) > mark) continue;
+    if ((activeMembershipCalls.get(`${h.epoch}:${clockKey}`) ?? 0) > 0) continue;
+    const cached = readFoodMembership(h.userId, nameNorm);
+    if (cached && cached.status === row.status && cached.rev === row.rev && cached.note === row.note) continue;
+    rememberMembership(h.userId, nameNorm, { status: row.status, note: row.note, rev: row.rev }, true);
+    membershipRevisions.set(clockKey, row.rev);
+    adopted += 1;
+  }
+  return adopted;
 }
 
 /** Read-modify-write of one entry. Never throws: a full or disabled store only costs a retry. */
@@ -752,7 +832,8 @@ export async function saveFoodNoteForRef(
 /** apply_sync_op is the only row writer here that also emits a pullable change_log entry. */
 async function applyFoodRow(h: AccountHandle, supabase: SupabaseClient,
   entity: "user_foods" | "user_food_prefs", id: string, baseRev: number,
-  payload: Record<string, unknown>, onApplied: () => void): Promise<number> {
+  payload: Record<string, unknown>, onApplied: () => void,
+  mirrorBase: Record<string, unknown> = {}): Promise<number> {
   const at = new Date().toISOString();
   const applied = await withAccount(h, (owner) => supabase.rpc("apply_sync_op", {
     p_user_id: owner, p_op: { op_id: crypto.randomUUID(), entity, entity_id: id,
@@ -763,7 +844,7 @@ async function applyFoodRow(h: AccountHandle, supabase: SupabaseClient,
     throw new Error("This food changed elsewhere. Reload and try again.");
   }
   onApplied();
-  await putRow(h, entity, id, { ...payload, rev: result.rev, updated_at: at });
+  await putRow(h, entity, id, { ...mirrorBase, ...payload, rev: result.rev, updated_at: at });
   return result.rev;
 }
 
@@ -825,10 +906,11 @@ export async function saveFoodEdits(food: Food, note: string, role: Food["role"]
       role: Food["role"] | null; no_cook: boolean | null; note: string | null; rev: number } | null;
     if ((options.ensureMembership || role !== food.role) && food.status !== "neutral") {
       if (!pref) throw new Error("Membership is syncing. Retry the group change after it appears.");
-      const payload = { food_ref_id: refs.userRefId, status: pref.status, role,
-        no_cook: pref.no_cook ?? false, note: pref.note ?? null };
-      await applyFoodRow(h, supabase, "user_food_prefs", refs.userRefId, pref.rev, payload,
-        () => { saved.role = true; });
+      // A field delta (audit 2026-10-10 P15): the server's role-only branch writes the role alone,
+      // so a status that changed since the read above is never written back.
+      const { rev: _rev, ...base } = pref;
+      await applyFoodRow(h, supabase, "user_food_prefs", refs.userRefId, pref.rev, { role },
+        () => { saved.role = true; }, base);
     }
     if (nutrientsChanged) {
       const row = await userFoodRowFor(h, supabase, food);

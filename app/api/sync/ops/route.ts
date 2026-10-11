@@ -60,12 +60,16 @@ async function applyOp(client: Awaited<ReturnType<typeof requireUser>>["client"]
     || typeof rev !== "number" || !Number.isSafeInteger(rev) || rev < 0) {
     return errorResult(op, "malformed food membership payload");
   }
+  // W029 (audit 2026-10-10 A140): the server assigns the revision, at least the phone's `rev`
+  // hint, and records the op id, so a retry answers its first result and never writes again
+  // (migration 20261231110000). A tap is no longer refused for another device's clock.
   const { data, error } = await client.rpc("set_food_membership", {
     p_user: userId,
     p_name_norm: nameNorm,
     p_status: status,
     p_note: note,
     p_rev: rev,
+    p_op_id: op.op_id,
   });
   if (error) throw new Error(error.message);
   const row = data as { rev?: unknown; status?: unknown } | null;
@@ -73,7 +77,7 @@ async function applyOp(client: Awaited<ReturnType<typeof requireUser>>["client"]
     || (row.status !== null && row.status !== "eats" && row.status !== "avoid")) {
     return errorResult(op, "malformed food membership result");
   }
-  if (row.rev !== rev || row.status !== status) {
+  if (row.rev < rev || row.status !== status) {
     return {
       op_id: op.op_id,
       status: "rejected",

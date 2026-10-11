@@ -136,11 +136,9 @@ async function persistStoredRole(foodRefId: string, role: StoredMealRole): Promi
   }
   if (row.role === "protein" || row.role === "carb" || row.role === "fat") return;
   const rev = typeof row.rev === "number" && Number.isSafeInteger(row.rev) ? row.rev : 0;
-  const payload = {
-    food_ref_id: foodRefId, status: row.status, role,
-    no_cook: row.no_cook === true,
-    note: typeof row.note === "string" ? row.note : null,
-  };
+  // A field delta (audit 2026-10-10 P15): the mirror's status may be stale, so a whole row could
+  // undo another device's Avoid. The server's role-only branch writes the role alone.
+  const payload = { role };
   await enqueueWithRow(h, { ...row, ...payload, rev: rev + 1 }, {
     op_id: crypto.randomUUID(), entity: "user_food_prefs", entity_id: foodRefId,
     kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
