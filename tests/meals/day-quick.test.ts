@@ -148,4 +148,33 @@ describe("A061: a Quick meals date generates quick plates", () => {
     run(cooked);
     expect(run(base)).toEqual(quickDay("2026-10-21", slots, base).plates.map(({ plate }) => plate.name));
   });
+
+  // Sol review r2: two more findings, each reproduced before the fix.
+  it("takes a quick plate that shares the usual plate's anchor", () => {
+    const slots: DaySlot[] = [{ id: "meal-2", target: MAIN, clock: "12:30" }];
+    const foods = eats(F.tuna, F.rice, F.bread, F.broccoli, F.oliveOil);
+    const date = "2026-10-01";
+    const plain = planDay(date, slots, foods).plates[0].plate;
+    const anyQuick = rankPlates({ date, slot: "meal-2", occasion: plain.occasion, target: MAIN,
+      foods: Object.values(foods) }).plates.some(quickFit);
+    expect(quickFit(plain)).toBe(false);
+    expect(anyQuick).toBe(true);
+    const [{ plate }] = quickDay(date, slots, foods).plates;
+    expect(plate.anchorKey).toBe(plain.anchorKey);
+    expect(quickFit(plate)).toBe(true);
+  });
+
+  it("never puts one protein in neighbouring slots to gain a quick plate", () => {
+    const slots: DaySlot[] = ["12:30", "17:00", "19:00"].map((clock, i) => ({ id: `meal-${i + 2}` as DaySlot["id"],
+      target: MAIN, clock }));
+    const foods = eats(F.chicken, F.lentils, F.tuna, F.rice, F.bread, F.broccoli, F.oliveOil);
+    for (const date of DATES) {
+      const plain = planDay(date, slots, foods).plates.map(({ plate }) => plate.anchorKey);
+      const plainAdjacent = plain.some((key, i) => i > 0 && key === plain[i - 1]);
+      const anchors = quickDay(date, slots, foods).plates.map(({ plate }) => plate.anchorKey);
+      if (!plainAdjacent) {
+        expect(anchors.some((key, i) => i > 0 && key === anchors[i - 1]), `${date} ${anchors.join(",")}`).toBe(false);
+      }
+    }
+  });
 });

@@ -97,7 +97,7 @@ function inClockOrder(slots: readonly DaySlot[]): DaySlot[] {
 }
 
 /** Exhaustive best assignment with no equal neighbours; distinct anchors win over repeats. */
-function search(choices: Choice[], value: PlateValue = scoreValue): (string | null)[] {
+function search(choices: Choice[], value: PlateValue = scoreValue, empty = EMPTY): (string | null)[] {
   const n = choices.length;
   const options = choices.map((choice) => [...choice.keys()].sort());
   const best = choices.map((choice) => Math.max(0, ...[...choice.values()].map((plate) => value(plate, false))));
@@ -121,7 +121,7 @@ function search(choices: Choice[], value: PlateValue = scoreValue): (string | nu
       uses.set(key, used);
     }
     picked[i] = null;
-    walk(i + 1, total + EMPTY);
+    walk(i + 1, total + empty);
   };
   walk(0, 0);
   return answer;
@@ -216,10 +216,15 @@ function quickDay(usual: readonly (Plate | null)[], rankings: readonly { plates:
     if (plate && !choice.has(keyOf(plate))) choice.set(keyOf(plate), plate);
     return choice;
   });
-  if (choices.every((choice, i) => choice.size === (usual[i] ? 1 : 0))) return [...usual];
+  // Nothing quick anywhere: the usual day, untouched (a same-anchor quick plate is not this case).
+  if (choices.every((choice, i) => [...choice.values()].every((plate) => plate === usual[i]))) return [...usual];
   const quickValue: PlateValue = (plate, repeat) => (isQuick(plate) ? QUICK_FIT_WEIGHT : 0) + value(plate, repeat);
   const size = choices.reduce((product, choice) => product * (choice.size + 1), 1);
-  const keys = size > SEARCH_LIMIT ? assign(choices, quickValue) : search(choices, quickValue);
+  // Every slot holds its usual plate as a choice, so an empty slot is never needed for the usual
+  // day: leaving one empty costs more than any day can gain, and a slot is left empty (then given
+  // its usual plate back) only when no assignment keeps neighbours apart.
+  const keys = size > SEARCH_LIMIT ? assign(choices, quickValue)
+    : search(choices, quickValue, -QUICK_FIT_WEIGHT * (choices.length + 1));
   return choices.map((choice, i) => (keys[i] === null ? usual[i] : choice.get(keys[i] as string) as Plate));
 }
 
