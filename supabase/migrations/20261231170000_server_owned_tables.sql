@@ -18,7 +18,7 @@
 --                    update rewound day_marks_started_on (A120); delete and re-insert reset every
 --                    server-owned marker (A147).
 --   coach_messages   the user's own row is still written with the session client (RLS proves the
---                    thread is hers); every assistant row and its sanity write-back go through the
+--                    thread is the caller's); every assistant row and its sanity write-back go through the
 --                    service role, so a stored assistant message is proof the server wrote it (P16).
 -- health_samples has been select-only since 20260925000000 (B100's remaining path is closed there).
 --
@@ -43,9 +43,9 @@ begin
   end loop;
 end $$;
 
--- ---------- 2. coach_messages: read and delete her own; insert only her own question ----------
+-- ---------- 2. coach_messages: read and delete own rows; insert only the caller's own question ----
 -- The user row of a turn carries `[]` or `{ "attachments": [...] }` as tool_calls; nothing a
--- server check reads (actions, composed, tasteChips, blocks, provenance) may come from her.
+-- server check reads (actions, composed, tasteChips, blocks, provenance) may come from the user.
 drop policy if exists coach_messages_rw on public.coach_messages;
 drop policy if exists coach_messages_select on public.coach_messages;
 drop policy if exists coach_messages_insert_user on public.coach_messages;
@@ -72,7 +72,7 @@ grant select, insert, delete on table public.coach_messages to authenticated;
 
 -- ---------- 3. coach_threads: the cap guard answers only for the caller's own account -------------
 -- SECURITY DEFINER and BEFORE INSERT, it ran ahead of the RLS check: for another account's id it
--- took that account's advisory lock and answered coach_chat_limit or not, an oracle on her chat
+-- took that account's advisory lock and answered coach_chat_limit or not, an oracle on that account's chat
 -- count (A146). A signed-in caller inserting for another id now returns at once, so the RLS error
 -- wins. The service role (no JWT subject) still runs the cap, as before.
 create or replace function public._coach_chat_insert_guard() returns trigger

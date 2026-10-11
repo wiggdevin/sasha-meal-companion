@@ -96,7 +96,7 @@ export async function assertChatCapacity(client: SupabaseClient, userId: string)
 /**
  * The saved turn for `messageId`, read with the session client. `admin` writes only the "could not
  * finish" reply of an abandoned turn, a `role = 'assistant'` row the user may not insert (W018),
- * into the thread the session read just proved is hers.
+ * into the thread the session read just proved belongs to the caller.
  */
 export async function storedTurn(
   client: SupabaseClient, admin: SupabaseClient, userId: string, messageId: string,
@@ -450,8 +450,9 @@ export async function searchChatThreads(
  * One insert per row, not one array insert: each row's error is checked, and the second (the
  * assistant) row lands as its own coach_messages record, which is what the turn recorder reads.
  *
- * W018: the user's question is written with her session client, so RLS proves the thread is hers;
- * every other row (the reply) is written with the service-role client, because a signed-in user
+ * W018: the user's question is written with the caller's session client, so RLS proves the thread
+ * belongs to that account; every other row (the reply) is written with the service-role client,
+ * because a signed-in user
  * may insert only `role = 'user'` rows (migration 20261231170000). A reply is saved only beside a
  * user row of the same thread and account in the same call.
  */

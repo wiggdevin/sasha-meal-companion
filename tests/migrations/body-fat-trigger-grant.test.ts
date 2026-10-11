@@ -59,6 +59,11 @@ function check(owner: string): string {
       + "body_fat_measured_on = current_date from fired_probe p where s.user_id = p.user_id;",
     "select set_config('request.jwt.claims', json_build_object('sub', user_id, 'role', "
       + "'authenticated')::text, true) from fired_probe;",
+    // W018 (20261231170000) made user_settings select-only for a session; this rolled-back
+    // transaction puts an owner UPDATE back so the session write can reach the trigger.
+    "grant update on user_settings to authenticated;",
+    "create policy user_settings_test_update on user_settings for update to authenticated "
+      + "using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));",
     "set local role authenticated;",
     "update user_settings set body_fat_pct = 21 where user_id = (select auth.uid());",
     "reset role;",

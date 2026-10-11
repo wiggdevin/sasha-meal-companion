@@ -3,7 +3,7 @@
  * P17; backlog B100). Tables the server owns take no direct PostgREST write from a signed-in user:
  *
  * - target_profiles, change_log, change_seq, health_sources, user_settings: select only;
- * - coach_messages: select and delete her own, insert only her own `role = 'user'` question
+ * - coach_messages: select and delete own rows, insert only the caller's own `role = 'user'` question
  *   (no model fields, no tool_calls but attachments), never update;
  * - the coach_threads cap guard answers only for the caller's own account (A146).
  *
@@ -145,7 +145,7 @@ describe.skipIf(!HAS_DB)(`${MIGRATION} (migrated schema)`, () => {
     expect(runSql(`select onboarded_at is not null from public.user_settings where user_id = '${a}'`)).toBe("t");
   });
 
-  it("coach_messages: her own question only; no assistant row, no forged tool_calls, no update (P16)", () => {
+  it("coach_messages: the caller's own question only; no assistant row, no forged tool_calls, no update (P16)", () => {
     const ins = (fields: string, values: string) => attempt(a, `insert into public.coach_messages
       (thread_id, user_id, seq, content, ${fields}) values ('${thread}', '${a}', 1, 'hi', ${values})`);
     expect(ins("role, tool_calls", `'user', '[]'`)).toBe("ok");

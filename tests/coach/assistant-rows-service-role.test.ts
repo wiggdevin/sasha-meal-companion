@@ -1,8 +1,8 @@
 /**
- * W018 (audit 2026-10-10 P16): migration 20261231170000 lets a signed-in user insert only her own
+ * W018 (audit 2026-10-10 P16): migration 20261231170000 lets a signed-in user insert only the caller's own
  * `role = 'user'` coach rows and never update one. So the code must write every assistant row, and
  * the sanity write-back that patches one, with the service-role client; the user's own question
- * stays on her session client, where RLS proves the thread is hers.
+ * stays on the caller's session client, where RLS proves the thread is that account's.
  */
 import { describe, expect, it } from "vitest";
 import { persist, storedTurn, type MessageRow } from "@/lib/server/coach-threads";

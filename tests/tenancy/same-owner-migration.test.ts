@@ -52,11 +52,16 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("the migration on a live database", () =
 
   it("holds the locks until the end of its transaction", () => {
     const names = LOCKED.map((t) => `'${t}'`).join(",");
-    const held = runSql(`${sql}
-      select count(*) from pg_locks l join pg_class c on c.oid = l.relation
+    // Rolled back: committing it would re-create coach_messages_rw over later migrations (W018's
+    // 20261231170000 replaced it) for every suite that runs after this one.
+    const held = runSql(`begin;
+      ${sql}
+      select 'held:' || count(*) from pg_locks l join pg_class c on c.oid = l.relation
        where l.pid = pg_backend_pid() and l.mode = 'ShareRowExclusiveLock'
-         and c.relnamespace = 'public'::regnamespace and c.relname in (${names});`);
-    expect(Number(held.split("\n").pop())).toBe(LOCKED.length);
+         and c.relnamespace = 'public'::regnamespace and c.relname in (${names});
+      rollback;`);
+    const line = held.split("\n").find((l) => l.startsWith("held:")) ?? "";
+    expect(Number(line.slice("held:".length))).toBe(LOCKED.length);
   });
 
   it("refuses to apply over an existing cross-account row and names the reference", () => {

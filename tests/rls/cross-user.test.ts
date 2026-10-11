@@ -182,7 +182,8 @@ describe.skipIf(!HAS_BRANCH)("cross-user denial", () => {
     const write = await bClient.from("user_settings")
       .update({ height_cm: 200, birth_year: 1900, sex: "male", body_fat_pct: 3 })
       .eq("user_id", a.id).select();
-    expect(write.data).toEqual([]);
+    // W018: user_settings is select-only for a session, so the write is refused outright.
+    expect(write.data ?? []).toEqual([]);
     const check = await admin.from("user_settings")
       .select("height_cm, birth_year, sex, body_fat_pct").eq("user_id", a.id).single();
     expect(check.data).toMatchObject({ height_cm: 165, birth_year: 1996, sex: "female",
@@ -251,9 +252,10 @@ describe.skipIf(!HAS_BRANCH)("cross-user denial", () => {
       .eq("meal_id", mealId).select();
     expect(mealItem.data).toEqual([]);
 
+    // W018: no one updates a coach row from a session, so B is refused outright (no grant).
     const message = await bClient.from("coach_messages").update({ content: "hacked" })
       .eq("thread_id", threadId).select();
-    expect(message.data).toEqual([]);
+    expect(message.data ?? []).toEqual([]);
 
     const admin = adminClient();
     expect((await admin.from("recipe_revisions").select("rev").eq("id", recipeRevisionId).single())
