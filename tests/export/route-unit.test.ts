@@ -82,6 +82,49 @@ describe("GET /api/export — kind=meals CSV truncation signal", () => {
   });
 });
 
+// W012 review (Sol WARN): a multi-page download is one first request plus cursor continuations.
+// Counting the continuations against the 10/hour export budget made the second download in an
+// hour fail partway, so they draw on their own budget.
+describe("GET /api/export — cursor continuations and the hourly limit", () => {
+  beforeEach(() => {
+    resetRateLimits();
+    user.mockResolvedValue({ userId: "user-1", client: {} as never });
+    vi.mocked(streamMeals).mockImplementation(async () =>
+      ({ rows: [], notices: [], next_cursor: null }));
+  });
+
+  it("serves continuations after the hour's ten first pages are spent", async () => {
+    for (let i = 0; i < 10; i += 1) {
+      expect((await GET(get("kind=meals&format=csv"))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv"))).status).toBe(429);
+    for (let i = 0; i < 7; i += 1) {
+      expect((await GET(get(`kind=meals&format=csv&cursor=c${i}`))).status).toBe(200);
+    }
+  });
+
+  it("does not spend the hourly first-page budget on continuations", async () => {
+    for (let i = 0; i < 20; i += 1) {
+      expect((await GET(get(`kind=meals&format=csv&cursor=c${i}`))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv"))).status).toBe(200);
+  });
+
+  it("caps continuations at seventy an hour", async () => {
+    for (let i = 0; i < 70; i += 1) {
+      expect((await GET(get(`kind=meals&format=csv&cursor=c${i}`))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv&cursor=c70"))).status).toBe(429);
+  });
+
+  it("counts an empty cursor as a first page", async () => {
+    for (let i = 0; i < 10; i += 1) {
+      expect((await GET(get("kind=meals&format=csv&cursor="))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv"))).status).toBe(429);
+  });
+});
+
 describe("GET /api/export — kind=weight buffered pagination", () => {
   beforeEach(() => {
     resetRateLimits();

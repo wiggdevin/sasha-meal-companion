@@ -161,15 +161,32 @@ async function streamed(kind: StreamKind, client: SupabaseClient, userId: string
     page.next_cursor);
 }
 
+// W012 review (Sol WARN): the phone downloads a long log as one first request plus up to seven
+// cursor continuations (`MAX_EXPORT_PAGES` in lib/export-client.ts). Counted against the 10/hour
+// export budget, one download spent 8 of the 10, so a second download or a retry got 429 partway
+// and saved nothing. A continuation of a streamed kind counts against its own buckets instead,
+// sized for ten full downloads an hour; the first request of each download keeps the old limits.
+const CONTINUATIONS_PER_HOUR = 70;
+
+function isContinuation(url: URL): boolean {
+  return STREAMED.has(url.searchParams.get("kind") ?? "") && Boolean(url.searchParams.get("cursor"));
+}
+
 export async function GET(req: Request): Promise<Response> {
   try {
-    const ip = requestIp(req);
-    await enforceRateLimit(`export:ip:${ip}`, 60, 3600);
-    const { userId, client } = await requireUser(req);
-    await enforceRateLimit(`export:user:day:${userId}`, 60, 86400);
-    await enforceRateLimit(`export:user:hour:${userId}`, 10, 3600);
-
     const url = new URL(req.url);
+    const continued = isContinuation(url);
+    const ip = requestIp(req);
+    if (continued) await enforceRateLimit(`export:ip:cursor:${ip}`, CONTINUATIONS_PER_HOUR, 3600);
+    else await enforceRateLimit(`export:ip:${ip}`, 60, 3600);
+    const { userId, client } = await requireUser(req);
+    if (continued) {
+      await enforceRateLimit(`export:user:cursor:${userId}`, CONTINUATIONS_PER_HOUR, 3600);
+    } else {
+      await enforceRateLimit(`export:user:day:${userId}`, 60, 86400);
+      await enforceRateLimit(`export:user:hour:${userId}`, 10, 3600);
+    }
+
     const kind = url.searchParams.get("kind") ?? "";
     if (STREAMED.has(kind)) {
       return await streamed(kind as StreamKind, client, userId, url);

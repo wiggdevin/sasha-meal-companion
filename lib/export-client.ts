@@ -26,8 +26,9 @@ const NEXT_CURSOR_HEADER = "x-export-next-cursor";
 /** How many trailing `# ` notice lines the page ends with (the truncation notice is the last). */
 const NOTICE_LINES_HEADER = "x-export-notice-lines";
 /**
- * Pages one download may join. The route allows 10 exports an hour per account, so a log longer
- * than this many 5,000-entry pages keeps the server's own "Export truncated … cursor=" line.
+ * Pages one download may join. The route counts only the first page against its 10 exports an
+ * hour; the continuations have their own budget of 70 an hour (ten downloads of this many pages).
+ * A log longer than this many 5,000-entry pages keeps the server's "Export truncated … cursor=" line.
  */
 export const MAX_EXPORT_PAGES = 8;
 
