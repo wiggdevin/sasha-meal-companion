@@ -88,6 +88,7 @@ function contextDb(tables: Record<string, unknown[]>) {
       in: () => chain,
       is: () => chain,
       order: () => chain,
+      range: () => chain,
       limit: () => chain,
       maybeSingle: async () => ({ data: (tables[table] ?? [])[0] ?? null, error: null }),
       then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
