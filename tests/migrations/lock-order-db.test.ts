@@ -87,7 +87,9 @@ function favorAccount(): string {
   return user;
 }
 
-describe.skipIf(!HAS_DB)("one clock lock order (W034): the audited deadlock pairs commit", () => {
+// Each race holds its gate for 1.5 s and the loser of an old-order deadlock waits deadlock_timeout
+// (1 s) more, so a loaded runner gets room past the 5 s default.
+describe.skipIf(!HAS_DB)("one clock lock order (W034): the audited deadlock pairs commit", { timeout: 30_000 }, () => {
   afterAll(() => {
     dropAccounts();
     for (const drop of drops.splice(0)) drop();
