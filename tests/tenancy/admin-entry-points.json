@@ -287,6 +287,10 @@
     "test": "tests/tenancy/admin-libs.test.ts",
     "via": "@/lib/server/day-totals"
   },
+  "lib/server/expenditure-intake.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/estimate/route"
+  },
   "lib/server/expenditure.ts": {
     "test": "tests/tenancy/admin-jobs.test.ts",
     "via": "@/app/api/jobs/estimate/route"

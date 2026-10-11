@@ -130,12 +130,11 @@ export function buildProposal(args: {
   const fatG = Math.max(authored.fatG, active.fat_g_min);   // fat holds its floor and its author
 
   // §3.4 stores ONE gram set, and it is the training day's set (`percent.ts`
-  // `resolveProfileMacros`): the rest day's carbohydrate is the remainder that carries the split.
-  // So the training day must still fund `4·protein + 9·fat + 4·carb` from the authored profile —
-  // the engine never cuts what the user authored — while the rest day only answers to the protein and
-  // fat floors plus kcal_min.
-  const training = applyFloors(kcalTrainRaw, { proteinG, fatG, carbG: authored.carbG },
-    { ...floors, carbGMin: Math.max(floors.carbGMin, authored.carbG) });
+  // `resolveProfileMacros`). Carbs are the remainder on both day types (architecture §4.3), floored
+  // only at the revision's `carb_g_min`. Holding the authored training carbs instead raised every
+  // downward training day straight back to its old total, so a falling estimate could only ever
+  // move the rest day (audit 2026-10-10 A157).
+  const training = applyFloors(kcalTrainRaw, { proteinG, fatG, carbG: authored.carbG }, floors);
   const restCarb = Math.round(
     (kcalRestRaw - KCAL_PER_G_PROTEIN * proteinG - KCAL_PER_G_FAT * fatG) / KCAL_PER_G_CARB);
   const rest = applyFloors(kcalRestRaw, { proteinG, fatG, carbG: restCarb }, floors);
