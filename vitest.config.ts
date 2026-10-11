@@ -8,7 +8,7 @@ export default defineConfig({
     // A stray worktree under .claude/worktrees/ (another agent session) carries its own copy of
     // every test file; without this, a plain local run double-counts and can cross-run them.
     exclude: [...defaultExclude, ".claude/**"],
-    setupFiles: ["tests/helpers/attested-env.ts"],
+    setupFiles: ["tests/helpers/attested-env.ts", "tests/helpers/drain-scheduler.ts"],
   },
   resolve: {
     alias: {

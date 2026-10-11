@@ -7,11 +7,14 @@ import { vi } from "vitest";
 
 export type TableRows = Record<string, Record<string, unknown>[]>;
 
-type Filter = { column: string; value: unknown } | { column: string; values: unknown[] };
+type Filter = { column: string; value: unknown } | { column: string; values: unknown[] }
+  | { column: string; is: unknown };
 
 function matches(row: Record<string, unknown>, filters: Filter[]): boolean {
   return filters.every((f) =>
-    "values" in f
+    "is" in f
+      ? (row[f.column] ?? null) === f.is
+      : "values" in f
       ? f.values.some((v) => String(row[f.column]) === String(v))
       : String(row[f.column]) === String(f.value)
   );
@@ -35,6 +38,10 @@ export function fakeClient(
       range: () => builder,
       limit: () => builder,
       eq(column: string, value: unknown) { filters.push({ column, value }); return builder; },
+      // `is(col, null)` (a tombstone filter) and the keyset `or()` continuation: the catalog
+      // readers chain them; no fixture here pages past one keyset page.
+      is(column: string, value: unknown) { filters.push({ column, is: value }); return builder; },
+      or: () => builder,
       in(column: string, values: unknown[]) {
         filters.push({ column, values });
         return builder;

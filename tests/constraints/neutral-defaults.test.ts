@@ -33,7 +33,7 @@ function fakeClient(row: Row, applied: { rows: Row[] } = { rows: [] }) {
           applied.rows.push(next);
           return { eq: () => chain2, select: () => chain2 };
         },
-        upsert(next: Record<string, unknown>) { applied.rows.push(next); return chain2; },
+        insert(next: Record<string, unknown>) { applied.rows.push(next); return chain2; },
       };
       const chain2 = {
         eq: () => chain2, select: () => chain2,

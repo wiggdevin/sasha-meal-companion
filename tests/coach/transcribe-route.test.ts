@@ -19,7 +19,7 @@ const { requireUser } = await import("@/lib/server/auth");
 const { transcribeAudio } = await import("@/lib/server/coach-transcribe");
 const { POST } = await import("@/app/api/coach/transcribe/route");
 
-const body = { path: "media/u1/3f1b1a2c-0000-4000-8000-000000000030.m4a" };
+const body = { path: "media/11111111-1111-4111-8111-111111111111/3f1b1a2c-0000-4000-8000-000000000030.m4a" };
 const post = (b: unknown) => new Request("https://app.test/api/coach/transcribe",
   { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
 
