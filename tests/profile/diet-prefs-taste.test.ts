@@ -213,6 +213,8 @@ describe("diet_prefs inventory", () => {
     "lib/server/candidate-foods.ts": "reader",
     "lib/server/meal-snapshot-v3.ts": "reader",
     "lib/server/recipe-candidates.ts": "reader",
+    // W014 (A130): reads diet_prefs.flags to screen menu dishes; never writes the column.
+    "lib/server/plan-menu.ts": "reader",
     "lib/server/coach-context.ts": "reader",
     "lib/coach/suggest-policy.ts": "reader",
     "lib/recipes/recipe-freshness.ts": "reader",

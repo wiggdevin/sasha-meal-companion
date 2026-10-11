@@ -31,26 +31,41 @@ const USER_ID = "user-1";
 const TZ = "America/New_York";
 
 describe("the body-profile export columns", () => {
-  it("names the four profile fields, in order, and nothing else", () => {
-    expect(BODY_PROFILE_COLUMNS).toEqual(["height_cm", "birth_year", "sex", "body_fat_pct"]);
+  it("names the four profile fields and the body-fat provenance, in order, and nothing else", () => {
+    // W012 (B259): the provenance columns of migration 20261028090000 travel with the value.
+    expect(BODY_PROFILE_COLUMNS).toEqual(["height_cm", "birth_year", "sex", "body_fat_pct",
+      "body_fat_source", "body_fat_measured_on"]);
   });
 
   it("maps a row into column order and leaves a cleared field null", () => {
     expect(bodyProfileRowValues({ height_cm: 165, birth_year: 1996, sex: "female",
-      body_fat_pct: 25 })).toEqual([165, 1996, "female", 25]);
+      body_fat_pct: 25, body_fat_source: "dexa", body_fat_measured_on: "2026-09-01" }))
+      .toEqual([165, 1996, "female", 25, "dexa", "2026-09-01"]);
     expect(bodyProfileRowValues({ height_cm: null, birth_year: null, sex: null,
-      body_fat_pct: null })).toEqual([null, null, null, null]);
+      body_fat_pct: null, body_fat_source: null, body_fat_measured_on: null }))
+      .toEqual([null, null, null, null, null, null]);
   });
 });
 
 describe("streamBodyProfile", () => {
-  it("returns one row of the four fields, and no cursor to page", async () => {
+  it("returns one row of the profile fields with the body-fat provenance, and no cursor", async () => {
     const { client, selected } = settingsClient({ user_id: "u1", height_cm: 165, birth_year: 1996,
+      sex: "female", body_fat_pct: 25, body_fat_source: "inbody",
+      body_fat_measured_on: "2026-09-20" });
+    const page = await streamBodyProfile(client, "u1", { limit: 1000 });
+    expect(selected).toEqual(
+      ["height_cm, birth_year, sex, body_fat_pct, body_fat_source, body_fat_measured_on"]);
+    expect(page).toEqual({ rows: [{ height_cm: 165, birth_year: 1996, sex: "female",
+      body_fat_pct: 25, body_fat_source: "inbody", body_fat_measured_on: "2026-09-20" }],
+    next_cursor: null, notices: [] });
+  });
+
+  it("exports a value with no recorded provenance as null provenance", async () => {
+    const { client } = settingsClient({ user_id: "u1", height_cm: 165, birth_year: 1996,
       sex: "female", body_fat_pct: 25 });
     const page = await streamBodyProfile(client, "u1", { limit: 1000 });
-    expect(selected).toEqual(["height_cm, birth_year, sex, body_fat_pct"]);
-    expect(page).toEqual({ rows: [{ height_cm: 165, birth_year: 1996, sex: "female",
-      body_fat_pct: 25 }], next_cursor: null, notices: [] });
+    expect(page.rows[0]).toMatchObject({ body_fat_pct: 25, body_fat_source: null,
+      body_fat_measured_on: null });
   });
 
   it("returns an empty page for a user with no settings row", async () => {
@@ -216,7 +231,7 @@ describe("GET /api/export?kind=body-data", () => {
       + "readiness_score\r\n2026-09-15,1300,360,444,57.6,47.4,45.375,70\r\n");
   });
 
-  it("still serves the four-column body-profile kind through the same route", async () => {
+  it("still serves the body-profile kind through the same route", async () => {
     user.mockResolvedValue({ userId: USER_ID,
       client: settingsClient({ height_cm: 165, birth_year: 1996, sex: "female",
         body_fat_pct: 25 }).client });

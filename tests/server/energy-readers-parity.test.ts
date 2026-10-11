@@ -72,10 +72,12 @@ function fakeClient(tables: Record<string, Row[]>, rpcs: Record<string, Row[]> =
   const from = vi.fn((table: string) => {
     const filters: ((row: Row) => boolean)[] = [];
     let cap: number | undefined;
+    let offset = 0;
     const keep = (col: string, test: (v: unknown) => boolean) =>
       filters.push((row) => !(col in row) || test(row[col]));
     const result = () => {
-      const rows = (tables[table] ?? []).filter((row) => filters.every((f) => f(row)));
+      const rows = (tables[table] ?? []).filter((row) => filters.every((f) => f(row)))
+        .slice(offset);
       return { data: cap === undefined ? rows : rows.slice(0, cap), error: null };
     };
     const builder: Record<string, unknown> = {
@@ -86,6 +88,8 @@ function fakeClient(tables: Record<string, Row[]>, rpcs: Record<string, Row[]> =
       gte: (col: string, v: string) => { keep(col, (x) => String(x) >= v); return builder; },
       lte: (col: string, v: string) => { keep(col, (x) => String(x) <= v); return builder; },
       limit: (n: number) => { cap = n; return builder; },
+      // W012: the export reads its whole-set tables a `.range()` page at a time.
+      range: (a: number, b: number) => { offset = a; cap = b - a + 1; return builder; },
       maybeSingle: async () => ({ data: result().data[0] ?? null, error: null }),
       then: (resolve: (value: ReturnType<typeof result>) => unknown,
         reject?: (reason: unknown) => unknown) => Promise.resolve(result()).then(resolve, reject),

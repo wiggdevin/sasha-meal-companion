@@ -138,10 +138,12 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB)("admin-client entry points answer only f
   });
 
   it("media: A cannot fetch B's canary object through the server", async () => {
-    const path = `${b.id}/${CANARY}.jpg`;
+    // The strict owner shape (W019): fetchOwnedObject takes only media/<uid>/<uuid>.<ext>.
+    const key = `${b.id}/${crypto.randomUUID()}.jpg`;
+    const path = `media/${key}`;
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
     const up = await adminClient().storage.from("media")
-      .upload(path, new Blob([bytes], { type: "image/jpeg" }), { contentType: "image/jpeg" });
+      .upload(key, new Blob([bytes], { type: "image/jpeg" }), { contentType: "image/jpeg" });
     expect(up.error).toBeNull();
     expect((await fetchOwnedObject(adminClient(), b.id, path)).bytes).toEqual(bytes);
     await expect(fetchOwnedObject(adminClient(), a.id, path)).rejects.toMatchObject({
