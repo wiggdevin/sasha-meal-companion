@@ -1,6 +1,7 @@
 /**
  * Phase 18 D6 Favor doubles over the taste fixture's tables (tests/helpers/taste-fixture.ts):
- * - a session client under RLS: `food_membership_revisions` reads no row (no client read policy);
+ * - a session client that reads no `food_membership_revisions` row, so the plan is proved to use the
+ *   declared owner-filtered read and never the session client for marks;
  * - `favor_family_sets` and `favor_food_families` (migration 20261215090000) modelled in memory:
  *   the same family selection, version check, preflight and all-or-nothing write. The SQL itself is
  *   proved on a migrated database by tests/migrations/favor-families-db.test.ts.
@@ -64,6 +65,7 @@ export function favorFamilies(tables: Record<string, Row[]>, userId: string, wri
   }
   if (write.keyFamily && familyAvoided(tables, userId, write.keyFamily)) return { status: "avoid", family: write.keyFamily };
   const toWrite: { family: string; refIds: string[] }[] = [];
+  const toFill: { family: string; refIds: string[] }[] = [];
   const favored: string[] = [];
   for (const { name_norm: family, ref_ids: refIds } of [...write.families].sort((a, b) => a.name_norm.localeCompare(b.name_norm))) {
     const current = familyRefs(tables, userId, family);
@@ -72,8 +74,16 @@ export function favorFamilies(tables: Record<string, Row[]>, userId: string, wri
       && pref.status === "avoid" && current.includes(String(pref.food_ref_id)))) return { status: "avoid", family };
     if (current.some((id) => !write.allowed.includes(id))) return { status: "not_allowed", family };
     const mark = tables.food_membership_revisions.find((m) => m.user_id === userId && m.name_norm === family);
-    if (mark?.status === "eats") favored.push(family);
+    const missing = current.filter((id) => !tables.user_food_prefs.some((pref) => pref.user_id === userId
+      && pref.food_ref_id === id && pref.status === "eats"));
+    // W029 (migration 20261231110100): an `eats` mark is favored only when every ref carries it.
+    if (mark?.status === "eats" && !missing.length) favored.push(family);
+    else if (mark?.status === "eats") toFill.push({ family, refIds: missing });
     else toWrite.push({ family, refIds: current });
+  }
+  for (const { family, refIds } of toFill) {
+    for (const id of refIds) tables.user_food_prefs.push({ user_id: userId, food_ref_id: id, status: "eats" });
+    favored.push(family);
   }
   for (const { family, refIds } of toWrite) {
     let mark = tables.food_membership_revisions.find((m) => m.user_id === userId && m.name_norm === family);
@@ -87,11 +97,11 @@ export function favorFamilies(tables: Record<string, Row[]>, userId: string, wri
     }
     favored.push(family);
   }
-  if (toWrite.length) bumpClock(tables, userId);
-  return { status: "ok", favored, written: toWrite.map(({ family }) => family) };
+  if (toWrite.length || toFill.length) bumpClock(tables, userId);
+  return { status: "ok", favored, written: [...toWrite, ...toFill].map(({ family }) => family) };
 }
 
-/** The session client under RLS: `food_membership_revisions` reads no row. */
+/** A session client that reads no `food_membership_revisions` row (see the header). */
 export function sessionClient(tables: Record<string, Row[]>): SupabaseClient {
   const fake = fakeDb(tables).client;
   const hidden = fakeDb({ food_membership_revisions: [] }).client;

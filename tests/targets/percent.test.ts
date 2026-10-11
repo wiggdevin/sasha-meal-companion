@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyFloors, CARB_G_MIN, FAT_G_MIN, KCAL_MIN, percentToGrams,
+  applyFloors, CARB_G_MIN, FAT_G_MIN, percentToGrams,
   resolveProfileMacros, validatePercentProfile, type MacroFloors,
 } from "@/lib/targets/percent";
 
+/** A fixture account's own calorie minimum; lib/ holds no default one (W008). */
+const KCAL_MIN = 1650;
 const FLOORS: MacroFloors = { kcalMin: KCAL_MIN, proteinGMin: 135, fatGMin: FAT_G_MIN, carbGMin: CARB_G_MIN };
 
 describe("floor helpers", () => {
-  it("keeps the non-profile minimum constants stable", () => {
-    expect([KCAL_MIN, FAT_G_MIN, CARB_G_MIN]).toEqual([1650, 50, 100]);
+  it("keeps the non-profile minimum constants stable, with no default calorie minimum", async () => {
+    expect([FAT_G_MIN, CARB_G_MIN]).toEqual([50, 100]);
+    expect(await import("@/lib/targets/percent")).not.toHaveProperty("KCAL_MIN");
   });
 });
 

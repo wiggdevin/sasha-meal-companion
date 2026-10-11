@@ -1,5 +1,5 @@
 /**
- * The only impure piece of the estimator: it reads `daily_totals` and the weigh-ins, calls the
+ * The only impure piece of the estimator: it reads the intake (lib/server/expenditure-intake.ts) and the weigh-ins, calls the
  * pure engine, and upserts one `expenditure_estimates` row per (user_id, local_date). The jobs
  * reach it through the privileged boundary (§2.2) with `p_user_id` from a query, never a body.
  *
@@ -15,11 +15,10 @@ import { healthTimeZone, type DailyHealthRow } from "@/lib/health/contract";
 import { profileTdeeFor, seedFor, type SeedSource } from "@/lib/server/profile-tdee";
 import { accountDay } from "@/lib/server/account-day";
 import { HttpError } from "@/lib/server/auth";
-import { readByDateChunks } from "@/lib/server/date-chunks";
-import { readDailyEnergy } from "@/lib/server/day-energy";
+import { intakeDays } from "@/lib/server/expenditure-intake";
 import {
   ENGINE_VERSION, estimateExpenditure, fromDayNumber, startingRange, toDayNumber,
-  type ExpenditureResult, type IntakeDay, type WeighIn,
+  type ExpenditureResult, type WeighIn,
 } from "@/lib/expenditure";
 import { WEIGHT_TREND_SERIES_DAYS, type ExpenditureResponse } from "@/lib/api-types";
 
@@ -53,40 +52,6 @@ export async function timeZoneFor(admin: SupabaseClient, userId: string): Promis
   return healthTimeZone(
     null, (data?.time_zone as string | null | undefined) ?? null, process.env.HEALTH_TZ,
   );
-}
-
-async function intakeDays(
-  admin: SupabaseClient, userId: string, from: string, to: string,
-): Promise<IntakeDay[]> {
-  // `daily_energy` (lib/server/day-energy.ts) applies the one energy rule per item before it sums
-  // the day: 100 reported + 80 calculated kcal is 180, not the 100 the reported-only
-  // `daily_totals` row holds. One row per day, read in date windows (lib/server/date-chunks.ts).
-  const [days, marked] = await Promise.all([
-    readDailyEnergy(admin, userId, from, to),
-    markedDays(admin, userId, from, to),
-  ]);
-  // No item that day has usable energy: the intake is unknown, not 0 kcal. A marked day would
-  // otherwise qualify (R3) and enter the engine as a fast.
-  return [...days.values()].flatMap((day) => day.kcal === null ? [] : [{
-    date: day.localDate,
-    kcal: day.kcal,
-    energyCoverage: day.coverage,
-    userMarkedComplete: marked.has(day.localDate),
-  }]);
-}
-
-/** Step E6: the days the user marked fully logged (`plan_days.day_complete_at`). */
-async function markedDays(
-  admin: SupabaseClient, userId: string, from: string, to: string,
-): Promise<Set<string>> {
-  const data = await readByDateChunks(from, to, async (start, end) => {
-    const { data: rows, error } = await admin.from("plan_days").select("local_date")
-      .eq("user_id", userId).gte("local_date", start).lte("local_date", end)
-      .not("day_complete_at", "is", null);
-    if (error) throw error;
-    return (rows ?? []) as Record<string, unknown>[];
-  });
-  return new Set(data.map((row) => String(row.local_date).slice(0, 10)));
 }
 
 /** Ruling R3: the first-ever marked date, or null when the account has never marked a day. */

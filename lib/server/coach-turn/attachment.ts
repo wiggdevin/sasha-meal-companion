@@ -5,7 +5,7 @@
 
 import type { CoachTurnRequest, CoachTurnResponse } from "@/lib/coach/types";
 import { HttpError } from "@/lib/server/auth";
-import { assertTurnBudget } from "@/lib/server/coach";
+import { reserveTurn } from "@/lib/server/coach";
 import { runAttachmentTurn } from "@/lib/server/coach-attachments";
 import { beforeDeadline, LATE, TIMEOUT_MESSAGE } from "@/lib/server/coach-turn/deadline";
 import type { Turn } from "@/lib/server/coach-turn/types";
@@ -17,9 +17,8 @@ export async function runAttachment(
   // Bounded like the text turn (Sol review, 2026-09-23): an attachment turn that has not
   // answered by the save deadline is the retryable 503, and its replay covers a late save.
   const answered = await beforeDeadline(async () => {
-    await assertTurnBudget(admin, userId, now());
     return runAttachmentTurn(client, admin, userId, { ...req, attachment },
-      { now, newId, ...deps.attachment, saveBy: saveDeadlineAt });
+      { now, newId, reserve: () => reserveTurn(userId), ...deps.attachment, saveBy: saveDeadlineAt });
   }, saveDeadlineAt);
   if (answered === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
   return answered;

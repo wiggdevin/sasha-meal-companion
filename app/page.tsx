@@ -271,7 +271,9 @@ export default function Today() {
     let latestRead = 0;
     const active = () => live && !isAccountClosing()
       && currentAccountOrNull()?.epoch === account.epoch;
-    const readEligible = async () => {
+    // One read in flight at a time, and a burst of sync passes waits as ONE follow-up read (P06):
+    // every pass fires SYNCED_EVENT, and each read recomputes the server snapshot.
+    const readOnce = latestWins<void>(async () => {
       if (!ready || !active()) return;
       const read = ++latestRead;
       try {
@@ -291,7 +293,8 @@ export default function Today() {
           setStarterGate("unavailable");
         }
       }
-    };
+    });
+    const readEligible = () => readOnce();
     readEligibleRef.current = readEligible;
     void (async () => {
       const status = await refreshStarterGate();
@@ -992,8 +995,8 @@ export default function Today() {
         {resolved.isFloorDay && (
           <div className="shell" role="status">
             <p className="surface px-5 py-4 text-tiny font-normal leading-body-sm text-graphite">
-              <span className=" font-normal text-charcoal">Quick meals day marked.</span> Your planned
-              meals stay the same. Change this in Day type.
+              <span className=" font-normal text-charcoal">Quick meals on.</span> Suggested meals use
+              foods ready in about 15 minutes when they still fit your targets. Change this in Day type.
             </p>
           </div>
         )}
@@ -1071,7 +1074,8 @@ export default function Today() {
 
             return (
               <SlotCardEnter key={item.key} index={index}>
-                <SlotCard
+                {/* Keyed by date: a draft or preview never carries onto another day (A069). */}
+                <SlotCard key={`${viewedDate}:${item.key}`}
                   slot={slot}
                   variant={variant}
                   focusLabel={variant === "focus" ? focusLabel : undefined}

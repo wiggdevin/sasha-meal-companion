@@ -10,7 +10,8 @@ import { direction } from "@/lib/coach/actions/copy";
 import { passThrough } from "@/lib/coach/actions/ground-kit";
 import type { ActionSpec } from "@/lib/coach/actions/spec";
 import {
-  choiceConfidence, FAST_PATH_ARGUMENT_CONFIDENCE, measuredNumber, minutesOf, type MissingArgs,
+  addLocalDays, choiceConfidence, dayArgs, FAST_PATH_ARGUMENT_CONFIDENCE, measuredNumber, minutesOf,
+  type MissingArgs,
 } from "@/lib/coach/intent-args";
 
 const minutes = () => z.number().int().min(-720).max(720).refine((value) => value !== 0);
@@ -35,6 +36,7 @@ type Types = {
     minutes?: number;
     direction: "later" | "earlier";
     scope: "all" | "remaining" | "one_slot";
+    dayOffset?: number;
   };
 };
 
@@ -59,7 +61,7 @@ export const shiftSchedule: ActionSpec<Types> = {
     `  Final: { "kind": "final", "text": "Moved your remaining meals 30 minutes later. They are now at 13:30, 17:00 and 20:00.", "actions": [{ "kind": "shift_schedule", "date": "${ctx.today}", "numericArgs": [30], "stringArgs": ["remaining"] }] }`,
   ] },
   intent: {
-    extract: ({ numbers, raw }) => {
+    extract: ({ numbers, raw, message }) => {
       const measured = measuredNumber(["min", "hour"], numbers, raw);
       const minutes = minutesOf(measured.candidate);
       const missing: string[] = [];
@@ -67,9 +69,13 @@ export const shiftSchedule: ActionSpec<Types> = {
         missing.push("minutes");
       }
       if (raw.scope.choice === "one_slot") missing.push("slot");
+      // A stated day (A024): "tomorrow" is read here; any other day takes the model turn.
+      const day = dayArgs(message, [1]);
+      missing.push(...(day.missing ?? []));
       return {
         args: {
           ...(minutes === undefined ? {} : { minutes }),
+          ...(day.dayOffset === undefined ? {} : { dayOffset: day.dayOffset }),
           direction: raw.direction.choice,
           scope: raw.scope.choice,
           ...(missing.length ? { missing } : {}),
@@ -78,6 +84,7 @@ export const shiftSchedule: ActionSpec<Types> = {
           ...(minutes === undefined ? {} : { minutes: measured.confidence }),
           direction: choiceConfidence(raw.direction),
           scope: choiceConfidence(raw.scope),
+          ...day.argConfidence,
         },
       };
     },
@@ -87,7 +94,7 @@ export const shiftSchedule: ActionSpec<Types> = {
       if (args.minutes === undefined || args.scope === "one_slot") return null;
       return {
         kind: "shift_schedule",
-        date: today,
+        date: args.dayOffset ? addLocalDays(today, args.dayOffset) : today,
         minutes: args.direction === "earlier" ? -Math.abs(args.minutes) : Math.abs(args.minutes),
         scope: args.scope ?? "remaining",
       };

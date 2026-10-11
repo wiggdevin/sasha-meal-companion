@@ -88,6 +88,7 @@ function contextDb(tables: Record<string, unknown[]>) {
       in: () => chain,
       is: () => chain,
       order: () => chain,
+      range: () => chain,
       limit: () => chain,
       maybeSingle: async () => ({ data: (tables[table] ?? [])[0] ?? null, error: null }),
       then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
@@ -256,6 +257,11 @@ describe("the target authority revision", () => {
       // A row written before step E1 has no frozen seed; the engine uses the live profile.
       seed: null,
     });
+  });
+
+  it("reads a stray account_minimum row as the legacy label (W008 dropped it)", () => {
+    const stray = { ...REVISION_ROW, kcal_min_source: "account_minimum" } as never;
+    expect(targetRevisionFromProfile(stray)?.floors?.kcalMinSource).toBe("legacy_default");
   });
 
   it("maps a frozen seed only when all five columns are present (step E1)", () => {

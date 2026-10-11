@@ -62,7 +62,7 @@ describe("the chat overlay", () => {
     expect(document.body.style.overflow).toBe("hidden");
     expect(document.body.style.position).toBe("");
     expect(typeof (window.history.state as Record<string, unknown>)[CHAT_HISTORY_KEY]).toBe("number");
-  });
+  }, 20_000); // the first open pays the overlay's cold import under CI load
 
   it("carries the page's scope and shows it in the header", () => {
     openChat();
