@@ -7,9 +7,11 @@
  * 2. Each ref's name family, and each family's FULL write set: the refs `set_food_membership`
  *    would write (`favor_family_sets`, migration 20261215090000), not only the item's refs.
  * 3. Every member judged with the W3 admission verdicts (`tasteJudge`); family marks read through
- *    the owner-filtered service-role reader (the session client cannot see them).
+ *    the owner-filtered service-role reader (the declared read; the session client sees only its own).
  * 4. A family is `avoid` when any member is on Avoid, the family is avoided by name or carries an
- *    Avoid mark; `blocked` when any member is not `allowed`; `eats` when already marked; else `ok`.
+ *    Avoid mark; `blocked` when any member is not `allowed`; `eats` when already marked AND every
+ *    member carries an `eats` pref; else `ok`. A ref minted after a Favor has no pref (it does not
+ *    inherit a Favor mark), so its family is `ok` again and the next Favor writes it (W029, A038).
  *    The key is avoided outright when its own family is.
  * `favorable` = the key is not avoided and at least one family is `ok` or `eats`.
  *
@@ -114,6 +116,14 @@ async function refFamilies(client: SupabaseClient, userId: string, refIds: strin
   return out;
 }
 
+/** The refs among `refIds` that already carry this account's `eats` pref (owner-filtered read). */
+async function favoredRefs(client: SupabaseClient, userId: string, refIds: string[]): Promise<Set<string>> {
+  const rows = await readByIdBatches([...new Set(refIds)].sort(), (batch) => select<{ food_ref_id: string }>(
+    client.from("user_food_prefs").select("food_ref_id").eq("user_id", userId).eq("status", "eats")
+      .in("food_ref_id", batch)));
+  return new Set(rows.map((row) => row.food_ref_id));
+}
+
 export type FamilyVerdict = "ok" | "eats" | "avoid" | "blocked";
 
 export type KeyPlan = {
@@ -144,12 +154,14 @@ export async function planFavor(
   }
   const keyFamilies = keys.map(keyFamily).filter((family): family is string => family !== null);
   const marks = await ports.memberships(userId, [...new Set([...families, ...keyFamilies])]);
+  const eatsRefs = await favoredRefs(client, userId,
+    families.filter((family) => marks.get(family)?.status === "eats").flatMap((family) => sets.get(family) ?? []));
   const avoidedName = (family: string) => judge.avoidFamilies.has(family) || marks.get(family)?.status === "avoid";
   const verdicts = new Map(families.map((family) => {
     const set = sets.get(family) ?? [];
     const verdict: FamilyVerdict = avoidedName(family) || set.some(judge.refAvoided) ? "avoid"
       : set.length === 0 || !set.every(judge.refAllowed) ? "blocked"
-        : marks.get(family)?.status === "eats" ? "eats" : "ok";
+        : marks.get(family)?.status === "eats" && set.every((ref) => eatsRefs.has(ref)) ? "eats" : "ok";
     return [family, { refIds: set, verdict }];
   }));
   const plans = new Map<string, KeyPlan>();

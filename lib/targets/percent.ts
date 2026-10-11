@@ -1,7 +1,6 @@
 /** Pure conversion and floor helpers. The active revision supplies the authoritative floor values. */
 import type { Macros } from "@/lib/types";
 
-export const KCAL_MIN = 1650;
 export const FAT_G_MIN = 50;
 export const CARB_G_MIN = 100;
 export const KCAL_PER_G_PROTEIN = 4;

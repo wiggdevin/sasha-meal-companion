@@ -17,6 +17,7 @@ import { confirmEntry, isDeleted } from "@/lib/log/pending";
 import { finishDelete } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
 import { reconcileFromServer } from "@/lib/log/reconcile";
+import { markDrainedFlags } from "@/lib/log/drain-flags";
 
 /**
  * The due ops this drain may actually send.
@@ -229,6 +230,8 @@ export async function handleLogEntryResult(
 ): Promise<boolean> {
   if (result.status === "applied" || result.status === "duplicate") {
     await settleLogEntry(h, op);
+    // A033: the commit's marks, which a queued write used to lose.
+    markDrainedFlags(h, op.entity_id, op.payload.local_date, result.flagged);
     return true;
   }
   if (result.status !== "conflict") return false;

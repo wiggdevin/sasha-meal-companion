@@ -3,7 +3,8 @@
  * `favor_family_sets` returns set_food_membership's exact family set, and `favor_food_families`
  * locks, re-checks the account rules and evidence versions, the exact ref sets, Avoid and the judged
  * allowed ids, then writes all or nothing. A rule change that commits on another connection first
- * answers rules_changed with nothing written; a ref minted after a Favor does not inherit `eats`.
+ * answers rules_changed with nothing written; a ref minted after a Favor does not inherit `eats`,
+ * and a second Favor writes it (W029, migration 20261231110100).
  */
 import "../tenancy/local-only";
 import { afterAll, describe, expect, it } from "vitest";
@@ -131,6 +132,11 @@ describe.skipIf(!HAS_DB)("favor_food_families on the migrated schema (Phase 18 D
         and food_ref_id = '${ref}'), 'none')`);
     };
     expect(mint("Kiwi, baby")).toBe("none");
+    // W029 (A038, migration 20261231110100): a second Favor writes the ref the first could not judge.
+    const [again] = sets(a, ["kiwi"]);
+    expect(favor(a, "kiwi", [again], again.ref_ids, rules(a), evidence()))
+      .toEqual({ status: "ok", favored: ["kiwi"], written: ["kiwi"] });
+    expect(runSql(`select count(*) from public.user_food_prefs where user_id = '${a}' and status = 'eats'`)).toBe("3");
     runSql(`select public.set_food_membership('${a}', 'kiwi', 'eats', null, 5)`);
     expect(mint("Kiwi, hardy")).toBe("eats");
   });

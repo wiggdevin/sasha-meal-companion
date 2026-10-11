@@ -11,6 +11,8 @@ export type AccountFoodSnapshot = {
   prefs: { food_ref_id: string; status: string; role: string | null;
     no_cook: boolean | null; note: string | null; updated_at: string }[];
   refs: OwnedFoodRef[];
+  /** The account's family marks (W029, A039); null when they could not be read this pass. */
+  memberships?: { name_norm: string; status: "eats" | "avoid" | null; note: string | null; rev: number }[] | null;
 };
 type RawFoodRow = Omit<AccountFoodSnapshot["foods"][number], "updated_at"> & {
   user_id: string; created_at: string; brand: string | null; ingredients_text: string | null;
@@ -66,6 +68,7 @@ export async function loadAccountFoodSnapshot(
       return query.limit(SNAPSHOT_PAGE_SIZE);
     }),
   ]);
+  const memberships = await loadMemberships(account, supabase);
   const ownFoods = foodRows.filter((row) => row.user_id === account.userId);
   const refs = await loadOwnedFoodRefs(account, ownFoods.map((row) => row.id), supabase);
   const repairedFoods = await Promise.all(ownFoods.map(async (row) => {
@@ -86,8 +89,37 @@ export async function loadAccountFoodSnapshot(
   }));
   return {
     foods: repairedFoods.map((row) => ({ ...row, updated_at: row.created_at })),
-    prefs: prefRows.filter((row) => row.user_id === account.userId), refs,
+    prefs: prefRows.filter((row) => row.user_id === account.userId), refs, memberships,
   };
+}
+
+type RawMembershipRow = { user_id: string; name_norm: string; status: unknown; note: unknown; rev: unknown };
+
+/**
+ * The account's family marks, owner policy of migration 20261231110000. Best effort: a failed read
+ * (or a database without the policy) leaves the mark cache as it is and never fails the pass.
+ */
+async function loadMemberships(
+  account: AccountHandle, supabase: SupabaseClient,
+): Promise<AccountFoodSnapshot["memberships"]> {
+  try {
+    const rows = await allSnapshotPages<RawMembershipRow, "name_norm">(account, "name_norm", (userId, after) => {
+      let query = supabase.from("food_membership_revisions").select("user_id,name_norm,status,note,rev")
+        .eq("user_id", userId).order("name_norm", { ascending: true });
+      if (after !== null) query = query.gt("name_norm", after);
+      return query.limit(SNAPSHOT_PAGE_SIZE);
+    });
+    return rows.flatMap((row) => {
+      const rev = Number(row.rev);
+      const status = row.status === "eats" || row.status === "avoid" ? row.status
+        : row.status === null ? null : undefined;
+      if (row.user_id !== account.userId || status === undefined || !Number.isSafeInteger(rev) || rev < 0) return [];
+      return [{ name_norm: row.name_norm, status, note: typeof row.note === "string" ? row.note : null, rev }];
+    });
+  } catch (error) {
+    rethrowAccountChanged(error);
+    return null;
+  }
 }
 
 /** The sync feed does not include food_refs; read the account-owned join before projecting prefs. */

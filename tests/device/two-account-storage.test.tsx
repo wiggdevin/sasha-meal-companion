@@ -14,7 +14,7 @@ import RecipeDetails from "@/components/RecipeDetails";
 import { readStoredTasteChips, writeStoredTasteChips } from "@/components/coach/taste-chips-storage";
 import { cachedCoachThread, rememberCoachThread } from "@/components/coach/coach-resume";
 import { addPendingScan, readPendingScans } from "@/lib/barcode/scan-cache";
-import { latestDraft, saveDraft } from "@/lib/capture/drafts";
+import { loadDraft, saveDraft } from "@/lib/capture/drafts";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { DEVICE_KEYS } from "@/lib/device/account-storage";
 import { touchAccount } from "@/lib/device/forget";
@@ -119,7 +119,7 @@ describe("two accounts on one tab", () => {
 
     const b = switchTo(B);
     expect(loadStore().days).toEqual({});
-    expect(latestDraft()).toBeNull();
+    expect(loadDraft("d1")).toBeNull();
     expect(readPendingScans()).toEqual([]);
     expect(readOnboardingInviteDismissedAt()).toBeNull();
     expect(readStoredTasteChips(b, "p1")).toBeNull();
