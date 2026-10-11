@@ -34,7 +34,23 @@ describe("projectPulledEntry", () => {
     expect(shown?.name).toBe("Tuna bowl");
     expect(shown?.note).toBe("from the tablet");
     expect(shown?.rev).toBe(2);
-    expect(entryMacros(shown!).kcal).toBeGreaterThan(0);
+    // A snapshot holds the item's own amounts: the day counts exactly those numbers.
+    expect(entryMacros(shown!)).toMatchObject({ kcal: 200, protein: 20, carbs: 10, fat: 5 });
+  });
+
+  it("leaves a row too thin to describe its items to the mirror (no measured-looking zero)", () => {
+    expect(projectPulledEntry({}, "e1", row({ items: [] }))).toEqual({});
+    expect(projectPulledEntry({}, "e1", row({ items: [{ id: "i1" }] }))).toEqual({});
+  });
+
+  it("judges a card with no revision against the mirror's, so an old feed row cannot win", () => {
+    const days = { "2026-10-10": day("2026-10-10", [card({ rev: undefined, note: "newer" })]) };
+    expect(projectPulledEntry(days, "e1", row({ rev: 3 }), 5)).toBe(days);
+  });
+
+  it("takes the row's own partial-nutrition record", () => {
+    const partial = row({ items: [{ ...(row().items as object[])[0], nutrition_partial: true }] });
+    expect(projectPulledEntry({}, "e1", partial)["2026-10-10"]?.extras?.[0]?.nutritionPartial).toBe(true);
   });
 
   it("brings an older card up to the pulled revision and keeps the card's own food names", () => {

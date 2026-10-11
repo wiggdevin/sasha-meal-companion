@@ -9,7 +9,7 @@ import { buildCommitRequest } from "@/lib/log-client";
 import { commitLogEntry } from "@/lib/log-commit-client";
 import { commitNutritionUnchecked } from "@/lib/nutrition-display";
 import { resolveDay } from "@/lib/resolve";
-import { addExtra, loadStore, removeExtra } from "@/lib/store";
+import { loadStore, removeExtra, upsertExtra } from "@/lib/store";
 import { isCompleteEntryRow } from "@/lib/log/entry-row";
 import { allOps, getRow } from "@/lib/sync/idb";
 import { enqueue } from "@/lib/sync/outbox";
@@ -83,9 +83,10 @@ export async function applyLog(action: LogAction, ctx: ApplyContext): Promise<Ap
   if (result.status !== "ok" && result.status !== "queued") {
     return { status: "failed", reason: `The meal did not save (${result.status.replace(/_/g, " ")}).` };
   }
-  // addExtra/saveStore fires the existing save hook; Today sees the accepted meal immediately.
+  // The save hook fires; Today sees the accepted meal immediately. An upsert: a pull may already
+  // have put this entry's card on the day, and one entry is never two cards.
   assertCurrent(h);
-  addExtra(action.date, localExtra(action, entryId, itemIds, eatenAt, title, lines.components));
+  upsertExtra(action.date, localExtra(action, entryId, itemIds, eatenAt, title, lines.components));
   const baseRev = result.status === "ok" ? result.rev : null;
   return { status: "applied",
     token: { kind: "log_meal", date: action.date, entryId, baseRev, eatenAt: eatenAt.toISOString() },

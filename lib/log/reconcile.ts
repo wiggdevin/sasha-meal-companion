@@ -24,7 +24,7 @@ import {
 } from "@/lib/log/pending";
 import { finishPendingDeletes } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
-import { getDay, removeExtra, updateExtra } from "@/lib/store";
+import { getDay, loadStore, removeExtra, updateExtra, upsertExtra } from "@/lib/store";
 import type { LogCommitRequest } from "@/lib/log/contract";
 import type { LoggedFood } from "@/lib/types";
 import { deleteRow, getRow, putRow } from "@/lib/sync/idb";
@@ -71,7 +71,11 @@ function patchCardFromRow(
   assertCurrent(h);
   const date = typeof row.local_date === "string" ? row.local_date : null;
   if (date === null) return;
-  const entry = getDay(date)?.extras?.find((extra) => extra.id === entryId);
+  // Another device may have moved the entry while this phone's write was pending, and the pull
+  // that carried the move left the card to this read-back: find it on its old day.
+  const elsewhere = getDay(date)?.extras?.some((extra) => extra.id === entryId)
+    ? null : cardElsewhere(entryId, date);
+  const entry = elsewhere?.card ?? getDay(date)?.extras?.find((extra) => extra.id === entryId);
   if (!entry) return;
   if (!canPatchCard(typeof row.rev === "number" ? row.rev : null,
     typeof entry.rev === "number" ? entry.rev : null, mirrorRev)) return;
@@ -83,7 +87,22 @@ function patchCardFromRow(
   // an unreadable fallback (null) leaves the card as it was.
   const partial = rowNutritionPartial(row, partialRefs);
   if (partial !== null) patch.nutritionPartial = partial || undefined;
+  if (elsewhere) {
+    removeExtra(elsewhere.date, entryId);
+    upsertExtra(date, { ...entry, ...patch });
+    return;
+  }
   updateExtra(date, entryId, patch);
+}
+
+/** The entry's card on any day other than `date`, when this phone holds one. */
+function cardElsewhere(entryId: string, date: string): { date: string; card: LoggedFood } | null {
+  for (const [day, stored] of Object.entries(loadStore().days)) {
+    if (day === date) continue;
+    const card = stored.extras?.find((extra) => extra.id === entryId);
+    if (card) return { date: day, card };
+  }
+  return null;
 }
 
 const LOGGED_SLOTS = new Set<NonNullable<LoggedFood["slot"]>>([

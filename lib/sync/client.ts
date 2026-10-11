@@ -20,6 +20,7 @@ import { applyPulledPlanDay } from "./plan-days";
 import { projectPulledEntry } from "@/lib/log/pulled-entry";
 import { isCommitting } from "@/lib/log/live-commits";
 import { hasQueuedOp } from "@/lib/log-commit-settle";
+import { recordFor } from "@/lib/log/pending";
 import { decodeKey } from "./keys";
 import { drainOutbox, type DrainResult } from "./outbox";
 import {
@@ -111,10 +112,16 @@ async function dropDeletedEntry(
 async function projectPulledLogEntry(
   h: AccountHandle, entryId: string, current: Record<string, unknown>,
 ): Promise<void> {
+  const mirror = await getRow(h, "log_entries", entryId);
   await putRow(h, "log_entries", entryId, current);
   if (await isCommitting(entryId) || await hasQueuedOp(h, entryId) !== false) return;
+  // Last, because a commit writes its record before it paints its card: once this read finds no
+  // record, nothing below awaits, so no card of this phone's own can appear in between. A record in
+  // any state (in flight, waiting on a read-back, deleted here) belongs to this phone's own write.
+  if (await recordFor(h, entryId)) return;
   const store = loadStore();
-  const days = projectPulledEntry(store.days, entryId, current);
+  const mirrorRev = typeof mirror?.rev === "number" ? mirror.rev : null;
+  const days = projectPulledEntry(store.days, entryId, current, mirrorRev);
   if (days !== store.days) saveStoreFor(h, { ...store, days }, { silent: true });
 }
 

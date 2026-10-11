@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { lastError, lastSyncAt, pullChanges, pushOutbox, SYNCED_EVENT, syncOnce } from "./client";
 import { getCursor, getRow, setCursor } from "./idb";
 import { enqueue } from "./outbox";
+import { markDeleted, markInFlight } from "@/lib/log/pending";
 import { defaultStore, loadStore, saveStore } from "../store";
 import type { ChangeRow, ChangesResponse, OpsResponse, SyncOp } from "./types";
 import { resetTestAccount } from "@/tests/helpers/account";
@@ -140,6 +141,16 @@ describe("pullChanges", () => {
     ], next_cursor: 2, has_more: false }) });
     const extras = loadStore().days["2026-10-07"]?.extras ?? [];
     expect(extras.map((e) => e.id)).toEqual([E4]);
+    // An entry this phone deleted (its delete still owed) or is still committing stays off Today.
+    const E6 = "3f1b1a2c-0000-4000-8000-0000000000e6";
+    const E7 = "3f1b1a2c-0000-4000-8000-0000000000e7";
+    await markDeleted(h, E6);
+    await markInFlight(h, E7, null);
+    await pullChanges(h, 2, { fetchFn: pageFn({ changes: [
+      row(3, { entity: "log_entries", entity_key: E6, op: "update", current: entry(E6) }),
+      row(4, { entity: "log_entries", entity_key: E7, op: "update", current: entry(E7) }),
+    ], next_cursor: 4, has_more: false }) });
+    expect((loadStore().days["2026-10-07"]?.extras ?? []).map((e) => e.id)).toEqual([E4]);
     expect(extras[0]?.name).toBe("Tuna bowl");
     await expect(getRow(h, "log_entries", E5)).resolves.toMatchObject({ id: E5 });
   });

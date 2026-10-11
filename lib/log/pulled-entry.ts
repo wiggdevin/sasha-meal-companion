@@ -11,6 +11,8 @@
  * built from the row: its items are the row's numbers and their macros come from the snapshots,
  * the way every card's totals do.
  */
+import { isCompleteEntryRow } from "@/lib/log/entry-row";
+import { rowNutritionPartial } from "@/lib/log/partial-mark";
 import { canPatchCard, entryPatchFromRow } from "@/lib/log/reconcile";
 import type { LoggedFood, StoredDay } from "@/lib/types";
 
@@ -54,17 +56,25 @@ function withExtras(days: Days, date: string, extras: LoggedFood[]): Days {
 /**
  * The days with the pulled row projected onto them. Returns the same object when nothing changes,
  * so the caller can skip the write.
+ *
+ * `mirrorRev` is the revision the mirror held BEFORE this row: a card with no revision of its own
+ * is judged against it, as the read-back does. A row too thin to describe its items (no complete
+ * items) is left to the mirror: a card built from it would read as a measured zero.
  */
-export function projectPulledEntry(days: Days, entryId: string, row: Record<string, unknown>): Days {
+export function projectPulledEntry(
+  days: Days, entryId: string, row: Record<string, unknown>, mirrorRev: number | null = null,
+): Days {
   const date = rowDate(row);
-  if (date === null || row.deleted_at) return days;
+  if (date === null || !isCompleteEntryRow(row)) return days;
   const held = findCard(days, entryId);
   const incoming = typeof row.rev === "number" ? row.rev : null;
-  if (held && !canPatchCard(incoming, typeof held.card.rev === "number" ? held.card.rev : null, null)) {
-    return days;
-  }
+  const heldRev = held && typeof held.card.rev === "number" ? held.card.rev : null;
+  if (held && !canPatchCard(incoming, heldRev, mirrorRev)) return days;
   const base = held?.card ?? blankCard(entryId, row);
   const card: LoggedFood = { ...base, ...entryPatchFromRow(base, row) };
+  // The row's own record of a partly measured item sets or clears the mark; unknown leaves it.
+  const partial = rowNutritionPartial(row, null);
+  if (partial !== null) card.nutritionPartial = partial || undefined;
   if (typeof row.eaten_at === "string") card.at = row.eaten_at;
   let next = days;
   if (held && held.date !== date) {
