@@ -24,7 +24,8 @@ import {
 } from "@/lib/log/pending";
 import { finishPendingDeletes } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
-import { getDay, removeExtra, updateExtra } from "@/lib/store";
+import { getDay, loadStore, removeExtra } from "@/lib/store";
+import { cardFor, placeCard } from "@/lib/log/card-find";
 import type { LogCommitRequest } from "@/lib/log/contract";
 import type { LoggedFood } from "@/lib/types";
 import { deleteRow, getRow, putRow } from "@/lib/sync/idb";
@@ -71,8 +72,10 @@ function patchCardFromRow(
   assertCurrent(h);
   const date = typeof row.local_date === "string" ? row.local_date : null;
   if (date === null) return;
-  const entry = getDay(date)?.extras?.find((extra) => extra.id === entryId);
-  if (!entry) return;
+  // On its day, or where it sat before a move made elsewhere while this phone's write was pending.
+  const found = cardFor(loadStore().days, entryId, date);
+  if (!found) return;
+  const entry = found.card;
   if (!canPatchCard(typeof row.rev === "number" ? row.rev : null,
     typeof entry.rev === "number" ? entry.rev : null, mirrorRev)) return;
   const patch = entryPatchFromRow(entry, row);
@@ -83,14 +86,12 @@ function patchCardFromRow(
   // an unreadable fallback (null) leaves the card as it was.
   const partial = rowNutritionPartial(row, partialRefs);
   if (partial !== null) patch.nutritionPartial = partial || undefined;
-  updateExtra(date, entryId, patch);
+  placeCard(found, date, patch);
 }
 
 const LOGGED_SLOTS = new Set<NonNullable<LoggedFood["slot"]>>([
   "coffee", "pouches-pre", "post-refuel", "meal-1", "meal-2", "meal-3",
-  "meal-4",
-  "meal-5",
-  "meal-6",
+  "meal-4", "meal-5", "meal-6",
   "hot-chocolate", "snack",
 ]);
 
