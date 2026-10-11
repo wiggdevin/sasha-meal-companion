@@ -127,7 +127,7 @@ describe("the lane table (Phase 13 §3)", () => {
     // models.ts holds only the price table's keys: no pin of its own.
     expect(code("lib/ai/models.ts").replace(/PRICE_PER_MILLION_TOKENS[\s\S]*?\n\};/, ""))
       .not.toMatch(MODEL_ID);
-  });
+  }, 20_000); // reads every source file in app, lib, components and scripts: ~4.5 s alone
 
   it("pins the production OpenRouter ids in the one pin table", () => {
     expect(OPENROUTER_PINS).toEqual({
