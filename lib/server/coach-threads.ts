@@ -306,13 +306,15 @@ export async function nextSeq(client: SupabaseClient, threadId: string): Promise
 /**
  * generateStructured does not return the ai_calls id it wrote, and lib/ai/adapter.ts is a shared
  * file. The most recent ok row for this user and purpose is that call — one user, one turn at a
- * time. A miss leaves ai_call_id null rather than guessing.
+ * time. A miss leaves ai_call_id null rather than guessing. A coach turn passes every purpose its
+ * model call can be written under (W035: an OpenRouter-served turn is `coach-openrouter`).
  */
 export async function lastAiCallId(
-  admin: SupabaseClient, userId: string, purpose: string
+  admin: SupabaseClient, userId: string, purpose: string | readonly string[],
 ): Promise<string | null> {
+  const purposes = typeof purpose === "string" ? [purpose] : [...purpose];
   const { data } = await admin.from("ai_calls").select("id")
-    .eq("user_id", userId).eq("purpose", purpose).eq("status", "ok")
+    .eq("user_id", userId).in("purpose", purposes).eq("status", "ok")
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   return (data as { id: string } | null)?.id ?? null;
 }
@@ -449,15 +451,31 @@ async function threadMatches(
     messageId: row.id, snippet: searchSnippet(row.content, q), at: row.created_at }));
 }
 
+/** Inserts tried when another turn takes the seq this turn read (W035, audit A151). */
+const SEQ_ATTEMPTS = 3;
+
+/** A unique refusal on (thread_id, seq), as opposed to the same message id already saved. */
+function isSeqConflict(error: { code?: string; message?: string; details?: string } | null): boolean {
+  return error?.code === "23505"
+    && `${error.message ?? ""} ${error.details ?? ""}`.includes("coach_messages_thread_seq");
+}
+
+const IN_PROGRESS = "Still working on that one. Try again in a moment.";
+
 /**
  * One insert per row, not one array insert: each row's error is checked, and the second (the
  * assistant) row lands as its own coach_messages record, which is what the turn recorder reads.
+ *
+ * The rows hold consecutive seqs (a replay pairs the user row at N with the reply at N+1). When
+ * another turn on the same thread took one of them first, nothing of this turn stays saved — a
+ * user row that landed is removed — and the rows are saved again after the thread's new last seq.
+ * Returns the rows as saved.
  */
 export async function persist(
   client: SupabaseClient, threadId: string, rows: MessageRow[], newThreadTitle: string | null,
   summary?: string | null,
   kind: "chat" | "plan" = "chat", planAdmin?: SupabaseClient,
-): Promise<void> {
+): Promise<MessageRow[]> {
   if (newThreadTitle !== null) {
     const owner = kind === "plan" ? planAdmin : client;
     if (!owner) throw new HttpError(500, "internal", "Could not start a plan thread.");
@@ -469,14 +487,13 @@ export async function persist(
     }
     if (error) throw new HttpError(500, "internal", "Could not start a thread.");
   }
-  for (const row of rows) {
-    const { error } = await client.from("coach_messages").insert(row);
-    // The same message id is already saved: a retry raced an attempt still running. Retryable,
-    // and the next retry replays whichever attempt won (Sol review, 2026-09-23).
-    if ((error as { code?: string } | null)?.code === "23505") {
-      throw new HttpError(503, "in_progress", "Still working on that one. Try again in a moment.");
-    }
-    if (error) throw new HttpError(500, "internal", "Could not save the turn.");
+  let saved = rows;
+  for (let attempt = 1; ; attempt += 1) {
+    const conflict = await insertRows(client, saved);
+    if (!conflict) break;
+    if (attempt >= SEQ_ATTEMPTS) throw new HttpError(503, "in_progress", IN_PROGRESS);
+    const first = await nextSeq(client, threadId);
+    saved = saved.map((row, i) => ({ ...row, seq: first + i }));
   }
   const patch: Record<string, unknown> = { last_message_at: new Date().toISOString() };
   if (summary !== undefined && summary !== null) patch.summary = summary;
@@ -487,4 +504,31 @@ export async function persist(
     console.error("coach thread patch failed", {
       threadId, wroteSummary: patch.summary !== undefined, error: error.message.slice(0, 200) });
   }
+  return saved;
+}
+
+/**
+ * Inserts the rows in order. "seq" when another turn holds one of their seqs (any row of these
+ * that already landed is removed again, so a retry starts clean); null when all are saved.
+ */
+async function insertRows(client: SupabaseClient, rows: MessageRow[]): Promise<"seq" | null> {
+  const landed: string[] = [];
+  for (const row of rows) {
+    const { error } = await client.from("coach_messages").insert(row);
+    const failure = error as { code?: string; message?: string; details?: string } | null;
+    if (isSeqConflict(failure)) {
+      if (landed.length > 0) {
+        const { error: undoError } = await client.from("coach_messages").delete()
+          .eq("user_id", row.user_id).in("id", landed);
+        if (undoError) throw new HttpError(503, "in_progress", IN_PROGRESS);
+      }
+      return "seq";
+    }
+    // The same message id is already saved: a retry raced an attempt still running. Retryable,
+    // and the next retry replays whichever attempt won (Sol review, 2026-09-23).
+    if (failure?.code === "23505") throw new HttpError(503, "in_progress", IN_PROGRESS);
+    if (error) throw new HttpError(500, "internal", "Could not save the turn.");
+    landed.push(row.id);
+  }
+  return null;
 }
