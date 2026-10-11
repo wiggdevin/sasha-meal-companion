@@ -37,7 +37,6 @@ import { rowNutritionPartial } from "@/lib/log/partial-mark";
 /** What one read-back did about the entry. Only the first two are the end of the matter. */
 export type ReconcileOutcome = "settled" | "deleted" | "missing" | "unreadable";
 
-
 /** The revision the mirror already holds for this entry, when it holds one. */
 async function heldRev(h: AccountHandle, entryId: string): Promise<number | null> {
   try {
