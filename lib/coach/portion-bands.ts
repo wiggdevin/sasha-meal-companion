@@ -23,19 +23,35 @@ export type PortionBand = { min: number; max: number; typical: number; step: num
 const band = (min: number, typical: number, max: number, step = 5): PortionBand =>
   ({ min, typical, max, step });
 
-type Rule = { test: RegExp; band: PortionBand };
+/** `head`: the rule reads the name's head (`headOf`), not the whole name. */
+type Rule = { test: RegExp; band: PortionBand; head?: true };
 
-/** First match wins; tested against the lower-cased name. */
+/**
+ * The head of a lower-cased food name: the text before the first comma, without a parenthesis or
+ * an "and / with / in / &" clause. "macaroni and cheese" → "macaroni", "tuna, canned in oil" →
+ * "tuna", "cheese, cheddar" → "cheese". A fat or cheese band applies only when the head ENDS in
+ * that word (audit 2026-10-10 A013, A017): "cheddar cheese" is cheese, "blue cheese dressing" and
+ * "pizza, cheese" are not, and oil-packed fish keeps its own band.
+ */
+export function headOf(lower: string): string {
+  return lower.split(",")[0].replace(/\(.*?\)/g, " ").replace(/\s+(?:and|with|in|&)\s.*$/, "")
+    .replace(/\s+/g, " ").trim();
+}
+
+const HEAD_FAT = /\b(?:oils?|ghee|lard|butter|cheese)$/;
+
+/** First match wins; tested against the lower-cased name, or its head for a `head` rule. */
 const RULES: readonly Rule[] = [
-  { test: /\b(?:oil|ghee|lard)\b/, band: band(5, 10, 15) },
+  { test: /\b(?:oils?|ghee|lard)$/, band: band(5, 10, 15), head: true },
+  { test: /\bmayo(?:nnaise)?\b/, band: band(5, 15, 30) },
   { test: /\b(?:almond|peanut|cashew|sunflower|nut|seed) butter\b|\btahini\b/, band: band(10, 16, 32) },
-  { test: /\bbutter\b(?!\s*(?:milk|nut|beans?))/, band: band(5, 10, 15) },
+  { test: /\bbutter$/, band: band(5, 10, 15), head: true },
   { test: /\b(?:whey|casein|protein (?:powder|shake))\b/, band: band(20, 30, 50) },
   { test: /\begg whites?\b/, band: band(60, 120, 250, 10) },
   { test: /\begg(?:s)?\b(?!\s*(?:plant|noodle))/, band: band(50, 100, 200, 50) },
   { test: /\byog(?:h)?urt\b|\bskyr\b|\bquark\b/, band: band(100, 200, 300) },
   { test: /\bcottage cheese\b|\bcheese, cottage\b/, band: band(100, 200, 300) },
-  { test: /\bcheese\b/, band: band(15, 30, 60) },
+  { test: /\bcheese$/, band: band(15, 30, 60), head: true },
   { test: /\bsmoked salmon\b|\bsalmon, smoked\b|\blox\b/, band: band(40, 80, 120) },
   { test: /\b(?:sausages?|bacon|ham)\b/, band: band(40, 80, 120) },
   { test: /\bjerky\b/, band: band(15, 30, 60) },
@@ -64,7 +80,8 @@ const DEFAULTS: Record<Part, PortionBand> = {
 export function portionBand(name: string, part: Part): PortionBand {
   if (part === "veg") return DEFAULTS.veg;
   const lower = name.toLowerCase();
-  const rule = RULES.find((row) => row.test.test(lower));
+  const head = headOf(lower);
+  const rule = RULES.find((row) => row.test.test(row.head ? head : lower));
   if (rule) return rule.band;
   return DEFAULTS[part];
 }
@@ -79,7 +96,9 @@ const FRUIT_WORDS = /\b(?:apples?|bananas?|oranges?|grapes?|strawberr(?:y|ies)|b
 const STARCH_WORDS = /\b(?:rice|potato(?:es)?|pasta|spaghetti|penne|noodles?|quinoa|couscous|bulgur|barley|farro|polenta|bread|toast|bagel|english muffin|pita|naan|tortillas?|wraps?|oats?|oatmeal|granola|muesli|cereal|crackers?|rice cakes?|pretzels?|corn|grits|risotto|arborio)\b/;
 // Cheese and cream cheese are on the pairing table's fat lists (lib/coach/meal-pairings.ts), so
 // they read as a fat side too; cottage cheese is a protein family and never reaches this line.
-const FAT_WORDS = /\b(?:oil|butter|ghee|avocados?|almonds?|walnuts?|pecans?|cashews?|pistachios?|peanuts?|hazelnuts?|macadamias?|nuts|seeds?|chia|flax|tahini|olives?|cheese|cream cheese)\b/;
+// Oil, butter, ghee and cheese count only as the name's head (`HEAD_FAT`): "Macaroni and cheese"
+// and "Pizza, cheese" are dishes, not a cheese side (A017).
+const FAT_WORDS = /\b(?:avocados?|almonds?|walnuts?|pecans?|cashews?|pistachios?|peanuts?|hazelnuts?|macadamias?|nuts|seeds?|chia|flax|tahini|olives?|(?:almond|peanut|cashew|sunflower|nut|seed) butter)\b/;
 const FAT_FRUIT = /^(?:avocados?|coconuts?|olives?)\b/;
 const NOT_A_SIDE = /\b(?:pouch(?:es)?|juice|soda|syrup|candy|cookies?|cake|pie|chips?|fries|ice cream|sauce|soup|ketchup|dressing)\b/;
 
@@ -96,7 +115,9 @@ export function sidePartOf(name: string): SidePart | null {
     return "veg";
   }
   if (FAT_FRUIT.test(lower) || label === "plant oil" || label === "tree nuts" || label === "peanuts"
-    || label === "seeds" || label === "sesame" || FAT_WORDS.test(lower)) return "fat";
+    || label === "seeds" || label === "sesame" || FAT_WORDS.test(lower) || HEAD_FAT.test(headOf(lower))) {
+    return "fat";
+  }
   if (label === "fruit" || FRUIT_WORDS.test(lower)) return "fruit";
   if (label === "grain" || label === "oats" || label === "potato" || label === "corn"
     || label === "legume" || STARCH_WORDS.test(lower)) return "starch";
