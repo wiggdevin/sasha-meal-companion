@@ -19,6 +19,7 @@ import type { FoodHit } from "@/lib/coach/executors";
 import type { FoodDetail, FoodSearchHit } from "@/lib/server/catalog";
 import { runWeeklyReview } from "@/lib/coach/weekly-review";
 import { lastAiCallId, nextSeq } from "@/lib/server/coach-threads";
+import { enforceRateLimit, RetryableHttpError } from "@/lib/server/ratelimit";
 
 export const TURNS_PER_HOUR = 10;
 export const TURNS_PER_DAY = 60;
@@ -29,9 +30,8 @@ export class CoachRateLimited extends HttpError {
   }
 }
 
-export function coachPurpose(): "coach" {
-  return "coach";
-}
+/** Every ai_calls purpose a coach turn's model call is written under: Gemini and OpenRouter. */
+export const COACH_TURN_PURPOSES = ["coach", "coach-openrouter"] as const;
 
 export function coachModelId(): string {
   return COACH_MODEL_ID;
@@ -98,28 +98,31 @@ export function mapCatalogFoodHit(
 }
 
 /**
- * The budget is counted from ai_calls, not from the request limiter (lib/server/ratelimit.ts, a
- * short fixed window): "60 a day" is a daily count of successful turns. Only successful coach calls count.
+ * The coach turn budget (W035, audit A159/A116/A152): one reservation per new turn — a text,
+ * fast-path, model or attachment turn alike, whichever provider answers it — taken atomically in
+ * the shared database limiter (lib/server/ratelimit.ts) before the turn does any work. A model
+ * turn's tool steps, retries and synthesis are not turns, so they never count. A replay of a saved
+ * turn never reaches this. Fail closed: a limiter outage is the 503 `rate_limit_unavailable`.
+ *
+ * The windows are the limiter's fixed, epoch-aligned ones: the hour from :00 UTC, the day from
+ * 00:00 UTC. The hour is checked first, so a turn the hour refuses never spends a day slot.
  */
-export async function assertTurnBudget(
-  admin: SupabaseClient, userId: string, now: number
-): Promise<void> {
-  const dayStart = new Date(now - 86_400_000).toISOString();
-  const { data, error } = await admin.from("ai_calls")
-    .select("created_at").eq("user_id", userId).eq("status", "ok")
-    .eq("purpose", "coach").gte("created_at", dayStart)
-    .order("created_at", { ascending: true });
-  if (error) return;                        // a failed read never blocks them; the spend cap remains
-  const times = ((data ?? []) as { created_at: string }[])
-    .map((r) => Date.parse(r.created_at));
-  const hour = times.filter((t) => t >= now - 3_600_000);
-  if (hour.length >= TURNS_PER_HOUR) {
-    throw new CoachRateLimited(Math.max(1, Math.ceil((hour[0] + 3_600_000 - now) / 1000)));
-  }
-  if (times.length >= TURNS_PER_DAY) {
-    throw new CoachRateLimited(Math.max(1, Math.ceil((times[0] + 86_400_000 - now) / 1000)));
+export async function reserveTurn(userId: string): Promise<void> {
+  try {
+    await enforceRateLimit(`coach:turn:hour:user:${userId}`, TURNS_PER_HOUR, 3_600);
+    await enforceRateLimit(`coach:turn:day:user:${userId}`, TURNS_PER_DAY, 86_400);
+  } catch (error) {
+    if (error instanceof RetryableHttpError && error.status === 429) {
+      throw new CoachRateLimited(error.retryAfterSeconds);
+    }
+    throw error;
   }
 }
+
+/** A delivered (or already delivered) review, or a week with nothing logged to review. */
+export type WeeklyReviewWrite =
+  | { threadId: string; messageId: string; duplicate: boolean }
+  | { skipped: "no_logged_days"; duplicate: false };
 
 /** Inserts tried when a reply in the review thread takes the seq a review read. */
 const REVIEW_SEQ_ATTEMPTS = 3;
@@ -133,9 +136,14 @@ const REVIEW_SEQ_ATTEMPTS = 3;
 export async function writeWeeklyReview(
   admin: SupabaseClient, userId: string, weekStart: string,
   deps: { generate?: typeof generateStructured; latestEstimate?: (userId: string) => Promise<unknown> } = {}
-): Promise<{ threadId: string; messageId: string; duplicate: boolean }> {
+): Promise<WeeklyReviewWrite> {
   const delivered = await deliveredReview(admin, userId, weekStart);
   if (delivered) return { ...delivered, duplicate: true };
+
+  // A week with no logged day has nothing to review: no thread, no message, no model call (W035).
+  const review = await runWeeklyReview(admin, userId, weekStart,
+    { ...deps, latestEstimate: deps.latestEstimate ?? ((uid) => latestEstimate(admin, uid)) });
+  if (!review) return { skipped: "no_logged_days", duplicate: false };
 
   const existing = await admin.from("coach_threads").select("id")
     .eq("user_id", userId).eq("kind", "weekly_review").is("deleted_at", null).maybeSingle();
@@ -150,9 +158,6 @@ export async function writeWeeklyReview(
     }
     threadId = (created.data as { id: string }).id;
   }
-
-  const review = await runWeeklyReview(admin, userId, weekStart,
-    { ...deps, latestEstimate: deps.latestEstimate ?? ((uid) => latestEstimate(admin, uid)) });
 
   const aiCallId = review.modelUsed ? await lastAiCallId(admin, userId, "weeklyReview") : null;
   let messageId = "";

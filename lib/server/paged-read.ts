@@ -89,3 +89,28 @@ export async function fetchAllChunked<K, T>(
   }
   return out;
 }
+
+/**
+ * Reads rows by a UNIQUE key (a primary key) in `.in(...)` chunks (W038). A chunk names at most
+ * `size` keys, so it can match at most `size` rows — far under the row cap — and needs no
+ * `.range()` or `.order()`: each chunk is one request and keeps the database's own row order, as
+ * the single unchunked read did. A chunk that answers a full page breaks that contract and
+ * rejects, as does any failed chunk: never a partial set.
+ */
+export async function fetchByKeyChunks<K, T>(
+  keys: readonly K[],
+  readChunk: (chunk: K[]) => PromiseLike<PageResult<T>>,
+  size: number = IN_CHUNK_SIZE,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (const batch of chunk(keys, size)) {
+    const { data, error } = await readChunk(batch);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    if (rows.length >= PAGE_SIZE) {
+      throw new Error("fetchByKeyChunks: a chunk filled a page — the key is not unique");
+    }
+    out.push(...rows);
+  }
+  return out;
+}

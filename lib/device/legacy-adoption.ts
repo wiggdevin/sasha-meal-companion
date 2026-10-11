@@ -29,6 +29,13 @@ import { withTargetQueueLock } from "@/lib/targets/client";
 
 export const LEGACY_PREFIX = "smc:legacy:";
 const ADOPTED_PREFIX = "smc:device:legacy-adopted:";
+/** One device-level mark per held op the owner recovered: `<prefix><op_id>` → the account it went to. */
+export const RECOVERED_PREFIX = "smc:device:legacy-recovered:";
+
+/** The account a held op was recovered into, or null while it is still held. */
+export function legacyOpRecoveredBy(opId: string): string | null {
+  try { return localStorage.getItem(`${RECOVERED_PREFIX}${opId}`); } catch { return null; }
+}
 const EATEN_MARKER_PREFIX = "grandfathered_eaten:";
 
 type Lock = <T>(work: () => Promise<T>) => Promise<T>;
@@ -57,7 +64,7 @@ export const HELD_LINE = (n: number): string =>
  * browser without that API (or one that fails it) answers "unknown": adoption is skipped, the old
  * data stays untouched, and nothing is recorded as done (PR #248 review r6 #6).
  */
-async function openLegacy(): Promise<IDBPDatabase | null | "unknown"> {
+export async function openLegacy(): Promise<IDBPDatabase | null | "unknown"> {
   if (typeof indexedDB === "undefined" || typeof indexedDB.databases !== "function") return "unknown";
   let names: (string | undefined)[];
   try {
@@ -238,7 +245,9 @@ export async function legacyHeldCount(): Promise<number> {
   const db = await openLegacy();
   if (db === null || db === "unknown") return 0;
   try {
-    const ops = db.objectStoreNames.contains(OUTBOX_STORE) ? await db.count(OUTBOX_STORE) : 0;
+    // An op the owner recovered into an account (lib/device/legacy-recovery.ts) is no longer held.
+    const keys = db.objectStoreNames.contains(OUTBOX_STORE) ? await db.getAllKeys(OUTBOX_STORE) : [];
+    const ops = keys.filter((k) => legacyOpRecoveredBy(String(k)) === null).length;
     return ops + pendingRecordCount(await legacyMeta(db), (owner) => !adoptedOnThisPhone(owner));
   } finally {
     db.close();

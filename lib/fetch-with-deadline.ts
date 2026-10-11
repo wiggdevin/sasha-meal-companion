@@ -15,7 +15,7 @@
 /** The kinds of call spec §2 gives a deadline to. One name per hop the user waits on. */
 export type Budget =
   "sign" | "upload" | "propose" | "barcode" | "commit" | "coach" | "search" | "timings"
-  | "transcribe" | "prefs" | "undo" | "ideas";
+  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn";
 
 /**
  * Spec §2's table, in milliseconds: how long one call of each kind may take before the client
@@ -56,6 +56,11 @@ export const DEADLINES: Record<Budget, number> = {
    * time" line is the one the person reads.
    */
   ideas: 9_000,
+  /**
+   * W052: a sign-in call through the app's limited routes (lib/sign-in-client.ts). The server makes
+   * one Supabase Auth call; past this the screen offers to try again.
+   */
+  signIn: 10_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */
