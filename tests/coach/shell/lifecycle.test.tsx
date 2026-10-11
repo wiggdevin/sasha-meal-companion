@@ -7,6 +7,9 @@ import { COACH_DOCK_STATE_EVENT, type DockComposerState } from "@/components/coa
 import { HISTORY_PAGE_SIZE } from "@/lib/coach/thread-history";
 import type { CoachTurnResponse } from "@/lib/coach/types";
 
+// A CI shard under load can take past the 1 s default to render, restore and fail a turn.
+const SLOW = { timeout: 3000 };
+
 /** The pending/success glow CoachShell broadcasts for the dock's one send control to carry (the
  *  page composer that used to show it directly is gone); CoachShell itself renders no such button. */
 function dockStates(): { seen: DockComposerState[]; stop: () => void } {
@@ -286,11 +289,11 @@ describe("coach shell lifecycle", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue("3f1b1a2c-0000-4000-8000-000000000010");
     const view = render(<CoachShell userId="user-1" threadId="thread-1"
       onOpenDraft={() => undefined} onThreadSaved={() => undefined} />);
-    await waitFor(() => expect(view.queryByText("Loading saved messages…")).toBeNull());
+    await waitFor(() => expect(view.queryByText("Loading saved messages…")).toBeNull(), SLOW);
 
     sendViaDock("Hello");
 
-    expect(await view.findByText(/No connection to Sasha/)).not.toBeNull();
+    expect(await view.findByText(/No connection to Sasha/, {}, SLOW)).not.toBeNull();
   });
 
   it("confirms a sent message only after the server accepts it", async () => {

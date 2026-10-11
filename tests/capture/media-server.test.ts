@@ -24,7 +24,8 @@ describe("signUpload", () => {
     const out = await signUpload(client as never, "u1",
       { kind: "image", contentType: "image/jpeg", bytes: 400_000 });
     expect(out.path).toMatch(/^media\/u1\/[0-9a-f-]{36}\.jpg$/);
-    expect(out.expiresInSeconds).toBe(60);
+    // The fake URL carries no readable token: Storage's two-hour ceiling, never a fixed 60 s (P10).
+    expect(out.expiresInSeconds).toBe(7_200);
     expect(bucket.createSignedUploadUrl).toHaveBeenCalledWith(out.path.replace("media/", ""));
     expect(rows[0]).toMatchObject({ user_id: "u1", kind: "image", bytes: 400_000, path: out.path });
   });
@@ -56,6 +57,8 @@ describe("signUpload", () => {
   });
 });
 
+const OWN = "media/u1/3f1b1a2c-0000-4000-8000-000000000030.jpg";
+
 describe("fetchOwnedObject", () => {
   it("403s on another uid and downloads nothing", async () => {
     const { client, bucket } = fakeStorage();
@@ -66,8 +69,8 @@ describe("fetchOwnedObject", () => {
 
   it("downloads the caller's own object by its bucket key", async () => {
     const { client, bucket } = fakeStorage();
-    const out = await fetchOwnedObject(client as never, "u1", "media/u1/a.jpg");
-    expect(bucket.download).toHaveBeenCalledWith("u1/a.jpg");
+    const out = await fetchOwnedObject(client as never, "u1", OWN);
+    expect(bucket.download).toHaveBeenCalledWith("u1/3f1b1a2c-0000-4000-8000-000000000030.jpg");
     expect(Array.from(out.bytes)).toEqual([1, 2, 3]);
     expect(out.mimeType).toBe("image/jpeg");
   });
@@ -75,7 +78,7 @@ describe("fetchOwnedObject", () => {
   it("404s when the object is gone", async () => {
     const { client } = fakeStorage({
       download: vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } }) });
-    await expect(fetchOwnedObject(client as never, "u1", "media/u1/a.jpg"))
+    await expect(fetchOwnedObject(client as never, "u1", OWN))
       .rejects.toMatchObject({ status: 404, code: "not_found" });
   });
 });
