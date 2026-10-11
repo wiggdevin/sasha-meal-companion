@@ -382,6 +382,28 @@ describe("onboarding completion", () => {
     expect(saveWeighIn).not.toHaveBeenCalled();
   });
 
+  // Sol review (PR #62) WARN: the form reads a seeded weight back rounded to the gram.
+  it("never logs an untouched non-integer profile weight as a weigh-in", async () => {
+    const base = { ...defaultSettings(), sex: "female" as const, birthYear: 1996, heightCm: 165,
+      weightKg: 70.1234, activityLevel: "moderate" as const, goal: "recomp" as const,
+      onboardedAt: "2026-09-01T08:00:00.000Z" };
+    const state = createOnboardingState(base);
+    const saveWeighIn = vi.fn(async () => null);
+
+    await persistCompletedOnboarding(base, state, NOW, {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => undefined),
+      saveWeighIn,
+      loadConstraints: vi.fn(async () => null),
+      saveConstraints: vi.fn(),
+      localDate: () => "2026-09-19",
+      hasWeighIn: () => false,
+      openFoodWorld: async () => {},
+    });
+
+    expect(saveWeighIn).not.toHaveBeenCalled();
+  });
+
   it("logs a weight the onboarded account changed in Edit profile", async () => {
     const state: OnboardingState = { ...completeState(), flags: ["halal"] };
     const saveWeighIn = vi.fn(async () => null);

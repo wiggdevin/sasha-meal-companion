@@ -223,6 +223,12 @@ export async function retryOnboardingConstraints(flags: readonly PreferenceFlag[
   return (await applyFlagConstraints(h, flags, persistence)).constraintsSaved;
 }
 
+/** The same weight to the gram `parsedWeightKg` rounds a seeded weight to. */
+export function sameWeightKg(a: number | null | undefined, b: number | null | undefined): boolean {
+  if (a == null || b == null) return a == b;
+  return Math.round(a * 1000) === Math.round(b * 1000);
+}
+
 export type CompletedOnboardingResult = {
   settings: Settings;
   constraintsSaved: boolean;
@@ -270,7 +276,9 @@ export async function persistCompletedOnboarding(
   // weigh-in updates, so on an onboarded account (Settings › Edit profile) it can be weeks stale:
   // logging it would add a false point and derive the new target from it (audit 2026-10-10 A089).
   // Only a first completion with no weigh-in today records the weight it was given.
-  const weightChanged = settings.weightKg !== base.weightKg;
+  // The form reads a seeded weight back rounded to the gram (`parsedWeightKg`), so an untouched
+  // 70.1234 kg returns as 70.123: a difference under half a gram is the same weight.
+  const weightChanged = !sameWeightKg(settings.weightKg, base.weightKg);
   if (weightLb !== null
     && (weightChanged || (!base.onboardedAt && !deps.hasWeighIn(localDate)))) {
     await deps.saveWeighIn(localDate, weightLb);

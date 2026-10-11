@@ -25,7 +25,7 @@ const persistence = vi.hoisted(() => ({
 const storedRead = vi.hoisted(() => ({
   value: { status: "ready", eligibility: { holds: [], minor: false } } as {
     status: "loading" | "ready" | "failed"; eligibility: TargetEligibility | null },
-  refresh: vi.fn(async () => null),
+  refresh: vi.fn<() => Promise<TargetEligibility | null>>(async () => null),
 }));
 const STARTER_CHOICES = vi.hoisted(() => [
   { id: "p1", role: "protein" }, { id: "p2", role: "protein" }, { id: "p3", role: "protein" },
@@ -42,7 +42,11 @@ vi.mock("@/components/Onboarding/useStarterStep", () => ({
 vi.mock("@/components/Onboarding/useOnboardingFoodAccess", () => ({
   useOnboardingFoodAccess: () => ({ status: "pilot", retry: vi.fn(), revalidate: vi.fn(async () => "pilot") }),
 }));
-vi.mock("@/components/Onboarding/DietaryProfilePicker", () => ({ default: () => null }));
+// The picker stands in as one button: a saved profile (here, the kidney one) that calls back.
+vi.mock("@/components/Onboarding/DietaryProfilePicker", () => ({
+  default: ({ onRulesChanged }: { onRulesChanged?: () => void }) =>
+    <button type="button" onClick={() => onRulesChanged?.()}>Save a dietary profile</button>,
+}));
 vi.mock("@/components/Onboarding/v2/stored-eligibility", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/Onboarding/v2/stored-eligibility")>()),
   useStoredEligibility: () => ({ ...storedRead.value, refresh: storedRead.refresh }),
@@ -58,7 +62,7 @@ vi.mock("@/lib/profile/onboarding-client", async (importOriginal) => ({
   mirroredOnboardedAt: vi.fn(async () => "2026-10-10T12:00:00.000Z"),
 }));
 
-import OnboardingFlow, { isBodyStepComplete } from "@/components/Onboarding/OnboardingFlow";
+import OnboardingFlow, { isBodyStepComplete, SAFETY_SAVE_WARNING } from "@/components/Onboarding/OnboardingFlow";
 import { PlanStep } from "@/components/Onboarding/OnboardingSteps";
 import { legacyEligibility } from "@/components/Onboarding/legacy-eligibility";
 import {
@@ -101,7 +105,8 @@ beforeEach(async () => {
   persistence.persistSkippedOnboarding.mockReset();
   persistence.persistSkippedOnboarding.mockImplementation(async (base) => base);
   storedRead.value = { status: "ready", eligibility: { holds: [], minor: false } };
-  storedRead.refresh.mockClear();
+  storedRead.refresh.mockReset();
+  storedRead.refresh.mockImplementation(async () => null);
 });
 
 afterEach(() => {
@@ -261,5 +266,59 @@ describe("A088: the preview reads the stored holds, and holds the pace until it 
     expect(screen.getByText(/Couldn’t check your saved health answers/)).toBeTruthy();
     click("Retry");
     expect(storedRead.refresh).toHaveBeenCalled();
+  });
+});
+
+describe("Sol review (PR #62): previews read stored holds, and a failed safety save retries whole", () => {
+  it("re-reads the stored holds when a profile is saved on Dietary preferences, and previews the hold", async () => {
+    const kidney: TargetEligibility = { holds: ["kidney"], minor: false };
+    render(<OnboardingFlow initial={2} initialSettings={profile({ goal: "lose_fat", goalRateBpWeek: -50 })} />);
+    click("No, none of these");
+    await next();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Dietary preferences");
+    storedRead.refresh.mockImplementation(async () => {
+      storedRead.value = { status: "ready", eligibility: kidney };
+      return kidney;
+    });
+    click("Save a dietary profile");
+    expect(storedRead.refresh).toHaveBeenCalledOnce();
+    await next();
+    await next();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your plan");
+    // Entering the plan reads once more, so a hold saved anywhere since is seen too.
+    expect(storedRead.refresh).toHaveBeenCalledTimes(2);
+    const base = profile({ goal: "lose_fat", goalRateBpWeek: -50 });
+    const state = createOnboardingState(base);
+    const held = buildCompletedSettings(base, state, new Date(), kidney).activeTargetProfile!;
+    const free = buildCompletedSettings(base, state, new Date()).activeTargetProfile!;
+    expect(held.rest.kcal).toBeGreaterThan(free.rest.kcal);
+    expect(held.training.protein).toBeLessThan(free.training.protein);
+    expect(screen.getAllByText(`${held.rest.kcal.toLocaleString()} kcal`).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(new RegExp(`^${held.training.protein} g protein`)).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(`${free.rest.kcal.toLocaleString()} kcal`)).toHaveLength(0);
+  });
+
+  it("a failed safety-condition write is not a completion: Use this plan runs the whole save again", async () => {
+    persistence.persistCompletedOnboarding.mockImplementationOnce(async (base) =>
+      ({ settings: base, constraintsSaved: false, error: "constraints_unavailable", profileWritten: false }));
+    render(<OnboardingFlow initial={2} initialSettings={profile()} />);
+    click("Pregnant or breastfeeding");
+    fireEvent.click(screen.getByRole("radio", { name: "Pregnant" }));
+    click("Continue");
+    await next();
+    await next();
+    await next();
+    click("Use this plan");
+    await waitFor(() => expect(screen.getByText(SAFETY_SAVE_WARNING)).toBeTruthy());
+    expect(navigation.replace).not.toHaveBeenCalled();
+    // Still a draft: Back is live, and the retry writes the profile, conditions and target again.
+    expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(false);
+    click("Use this plan");
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/"));
+    expect(persistence.persistCompletedOnboarding).toHaveBeenCalledTimes(2);
+    const [first, second] = persistence.persistCompletedOnboarding.mock.calls;
+    expect(second[1]).toEqual(first[1]);
+    expect(second[4]).toEqual({ pregnancy: "pregnant", clinicianDiet: false, conditionText: null });
+    expect(second[6]).toEqual({ holds: ["pregnancy"], minor: false });
   });
 });

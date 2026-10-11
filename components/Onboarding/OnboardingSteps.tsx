@@ -259,7 +259,7 @@ function PreferenceGroup({
 export function PreferencesStep({
   state, dispatch, onBlur, classifying, cookingEffort = null,
   cookingEffortSuggestion = null, onCookingEffortChange = () => {},
-  dietaryHintOffer = null, onAddRule,
+  dietaryHintOffer = null, onAddRule, onRulesChanged,
 }: StepProps & {
   onBlur: () => void;
   classifying: boolean;
@@ -270,6 +270,8 @@ export function PreferencesStep({
   dietaryHintOffer?: DietaryTextOffer | null;
   /** Jumps to the account's own rule editor (More dietary profiles, below), still on this step. */
   onAddRule?: () => void;
+  /** A rule or profile saved in that editor: it can be a stored pace hold, so the host reads again. */
+  onRulesChanged?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -288,7 +290,7 @@ export function PreferencesStep({
       <PreferenceGroup title="Enforced exclusions"
         explanation="These become rules that block matching foods."
         flags={enforcedFlags()} state={state} dispatch={dispatch} />
-      <DietaryProfilePicker />
+      <DietaryProfilePicker onRulesChanged={onRulesChanged} />
       <section className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <h2 className={`m-0 ${LABEL}`}>Cooking effort</h2>

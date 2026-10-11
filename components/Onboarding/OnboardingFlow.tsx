@@ -79,6 +79,9 @@ export function OnboardingNotice({ message }: { message: string | null }) {
   return message ? <Notice tone="error" title={message} /> : null;
 }
 
+/** The safety round's conditions did not save, so nothing else did either. */
+export const SAFETY_SAVE_WARNING = "Couldn’t save your health answers. Try again.";
+
 /** A reason the plan cannot finish yet: the shared alert says it, and the account stays put. */
 class Blocked extends Error {}
 
@@ -193,6 +196,16 @@ export default function OnboardingFlow({
   const stored = useStoredEligibility(true);
   // The server refused a plan for this birth year (`422 adult_only`): the friendly stop (A093).
   const [serverMinor, setServerMinor] = useState(false);
+  // Previews read stored holds: entering the plan reads them again, so a hold saved anywhere since
+  // the last read (a profile on Dietary preferences, another device) shapes the plan shown.
+  const refreshStored = stored.refresh;
+  const lastStep = useRef<number | null>(state?.step ?? null);
+  useEffect(() => {
+    const now = state?.step ?? null;
+    const entered = now === 5 && lastStep.current !== null && lastStep.current !== 5;
+    lastStep.current = now;
+    if (entered) void refreshStored();
+  }, [state?.step, refreshStored]);
   const foodAccess = useOnboardingFoodAccess(state);
   const optionalFoods = foodAccess.status === "pilot";
   const starter = useStarterStep(state, foodAccess.status === "legacy");
@@ -323,6 +336,9 @@ export default function OnboardingFlow({
         setServerMinor(true);
         throw new Blocked(new AdultOnlyError().message);
       }
+      // The round's condition write failed before anything else was written (no profile, target or
+      // weigh-in): stay not-completed so "Use this plan" runs the whole save again.
+      if (result.profileWritten === false) throw new Blocked(SAFETY_SAVE_WARNING);
       // Marked done BEFORE the drain: persist is the half that must never run twice — it mints the
       // target revision and the weigh-in — so a retry after a failed drain only drains.
       setCompleted(true);
@@ -484,7 +500,8 @@ export default function OnboardingFlow({
               onCookingEffortChange={(value) =>
                 dispatch({ type: "set_cooking_effort", value })}
               onBlur={() => { void classify(currentState); }}
-              dietaryHintOffer={dietaryHintOffer} onAddRule={jumpToRuleEditor} />}
+              dietaryHintOffer={dietaryHintOffer} onAddRule={jumpToRuleEditor}
+              onRulesChanged={() => { void stored.refresh(); }} />}
             {step === 4 && !minorStop && (optionalFoods
               ? <p className="m-0 text-caption text-graphite">
                   You can discover recipes right away. Save ingredients you love in Favorites whenever you like.
