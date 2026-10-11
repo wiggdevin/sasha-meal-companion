@@ -166,8 +166,9 @@ export default function CaptureDraftEditor({
       ? { ...item, policy: { ...item.policy, verdict: "blocked" as const } }
       : item);
   const kept = keptItems(items);
-  const added = projectedCaptureMacros(kept, draft);
-  const ready = canSave(items, labelItemSeq(draft.proposal, edits, saveLabel)) && draft.saving !== true;
+  const labelSeq = labelItemSeq(draft.proposal, edits, saveLabel);
+  const added = projectedCaptureMacros(kept, draft, { seq: labelSeq, per100g: draft.proposal.labelFood?.per100g });
+  const ready = canSave(items, labelSeq) && draft.saving !== true;
   const commitCopy = draft.commitLabel === "save"
     ? `Save ${kept.length} item${kept.length === 1 ? "" : "s"}` : "Log it";
 

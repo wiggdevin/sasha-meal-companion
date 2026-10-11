@@ -14,6 +14,9 @@ import { LABEL_FOOD_PLACEHOLDER_REF, labelItemSeq } from "@/lib/capture/label-fo
 import type { ProposeResponse } from "@/lib/capture/types";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { labelFoodIdFor } from "@/lib/log/op-id";
+import { mergedItems } from "@/lib/log/card-items";
+import { projectedCaptureMacros } from "@/lib/capture/preview";
+import type { LoggedFood } from "@/lib/types";
 import { applyLogEntry } from "@/lib/server/log";
 import { TEST_USER } from "@/tests/helpers/account";
 import {
@@ -152,5 +155,26 @@ describe("label food rows only after validation (A036)", () => {
     const out = await applyLogEntry(db.client, "u1", labelReq([LABEL_ITEM]), { labelFood: LABEL_BODY });
     expect(out.status).toBe("ok");
     expect(db.inserted.some((i) => i.table === "user_foods")).toBe(false);
+  });
+});
+
+describe("the saved label on the phone (Sol review)", () => {
+  it("previews the label's own numbers for the item saved as their food", () => {
+    const per100g = { ...PER_100G, energy_kcal: 500, protein: 10, carbohydrate: 60, fat_total: 20 };
+    const items = applyEdits(LABEL_DRAFT.items, {});
+    const own = projectedCaptureMacros(items, { proposal: LABEL_DRAFT }, { seq: 1, per100g });
+    expect(own).toMatchObject({ kcal: 150, protein: 3, carbs: 18, fat: 6 });
+    expect(projectedCaptureMacros(items, { proposal: LABEL_DRAFT }, { seq: null, per100g })).toBeNull();
+  });
+
+  it("keeps the captured name when the row names the real ref for the placeholder", () => {
+    const entry = { id: ENTRY_ID, foodId: "f", name: "Seeded crackers", portionLabel: "30 g", qty: 1,
+      grams: 30, macros: { kcal: 0, protein: 0, carbs: 0, fat: 0 }, at: "2026-09-11T16:00:00.000Z",
+      items: [{ id: ITEM_ID, seq: 1, food_ref_id: LABEL_FOOD_PLACEHOLDER_REF, grams: 30, qty: 30,
+        unit: "g", snapshot: {}, foodId: "catalog:0", name: "Seeded crackers", portionLabel: "30 g",
+        macros: { kcal: 0, protein: 0, carbs: 0, fat: 0 } }] } as LoggedFood;
+    const [item] = mergedItems(entry, [{ id: ITEM_ID, seq: 1, food_ref_id: "ref-real", grams: 30,
+      qty: 30, unit: "g", snapshot: {} }]);
+    expect(item).toMatchObject({ name: "Seeded crackers", food_ref_id: "ref-real" });
   });
 });

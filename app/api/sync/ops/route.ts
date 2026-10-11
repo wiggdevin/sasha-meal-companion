@@ -118,7 +118,9 @@ export async function POST(req: Request): Promise<Response> {
         if (wire.entity === "user_settings") settingsTouched = true;
         // D1: only a log write this request applied is stamped, after the batch. A conflict, a
         // replay or an error wrote nothing here, and stamping its id could label an old row.
-        if (wire.entity === "log_entries" && result.status === "applied") {
+        // A label op's commit path stamps its own write and reports a replay as applied too, so it
+        // is left out here (a replay is never restamped).
+        if (wire.entity === "log_entries" && result.status === "applied" && !isLabelFoodOp(wire)) {
           loggedEntries.push(wire.entity_id);
         }
       } catch (e) {

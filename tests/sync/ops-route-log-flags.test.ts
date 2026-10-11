@@ -17,7 +17,10 @@ vi.mock("@/lib/server/auth", async () => {
   return { ...actual, requireUser: (req: Request) => requireUser(req) };
 });
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: vi.fn(async () => undefined) }));
-vi.mock("@/lib/server/log-occasion", () => ({ stampLogOccasionsSafely: vi.fn(async () => undefined) }));
+const stamp = vi.fn(async () => undefined);
+vi.mock("@/lib/server/log-occasion", () => ({
+  stampLogOccasionsSafely: (...args: unknown[]) => stamp(...(args as [])),
+}));
 vi.mock("@/lib/server/log", () => ({
   applyLogEntry: (...args: unknown[]) => applyLogEntry(...args),
   storedEntryFlags: (...args: unknown[]) => storedEntryFlags(...args),
@@ -50,12 +53,14 @@ beforeEach(() => {
     data: { op_id: args.p_op.op_id, status: "applied", rev: 1, seq: 4 }, error: null }));
   requireUser.mockReset().mockResolvedValue({ userId: USER, client: { rpc } });
   applyLogEntry.mockReset();
+  stamp.mockClear();
   storedEntryFlags.mockReset().mockResolvedValue([FLAG]);
 });
 
 describe("POST /api/sync/ops — queued log writes (A033)", () => {
   it("answers an applied log create with the commit's marks", async () => {
     const [result] = await post([logOp()]);
+    expect(stamp).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ status: "applied", rev: 1, flagged: [FLAG] });
     expect(storedEntryFlags).toHaveBeenCalledWith({ rpc }, USER, ENTRY);
   });
@@ -94,6 +99,8 @@ describe("POST /api/sync/ops — queued label commit (A030)", () => {
     expect(rpc).not.toHaveBeenCalled();
     expect(applyLogEntry).toHaveBeenCalledWith({ rpc }, USER, op.payload,
       { labelFood: op.payload.label_food });
+    // The commit path stamps its own write; a replay answered "ok" must not be restamped here.
+    expect(stamp).not.toHaveBeenCalled();
   });
 
   it("parks a refused label commit as an error rather than applying the placeholder", async () => {
