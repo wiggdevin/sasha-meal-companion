@@ -14,6 +14,7 @@ import { SyncHttpError } from "./client";
 import { encodeKey } from "./keys";
 import { type Row } from "./merge";
 import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
+import { hasQueuedAfter, headOfLine, requeueInPlace } from "./row-queue";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
 import { withSettingsProvenance } from "./user-settings";
@@ -132,8 +133,11 @@ function capByBytes(ops: OutboxOp[]): OutboxOp[] {
 async function onConflict(
   h: AccountHandle, result: Extract<OpResult, { status: "conflict" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
-  const rebased = await settleConflict(h, result, op, now);
-  if (rebased) await enqueue(h, rebased, now());
+  const rebase = await settleConflict(h, result, op, now);
+  if (!rebase) return;
+  assertKeyMatchesPayload(rebase.op);
+  await requeueInPlace(h, op, rebase.op, rebase.retire, rebase.mirror, now());
+  announceQueued();
 }
 
 /** Server errored on this op specifically (not a network failure). Retried with backoff, like a
@@ -189,6 +193,9 @@ function isClientFault(e: unknown): e is SyncHttpError {
 async function applyApplied(
   h: AccountHandle, result: Extract<OpResult, { status: "applied" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
+  // A newer op for this row is queued, so the mirror already holds its state: this older answer
+  // may not write over it (audit 2026-10-10 A138). The newer op is aimed at this revision.
+  if (op.entity !== SETTINGS && await hasQueuedAfter(h, op)) return deleteOp(h, op.op_id);
   if (op.kind === "delete") {
     // Tombstone, don't merge: the server accepted an empty-payload delete, and merging {}
     // would leave the row looking untouched except for its rev.
@@ -305,7 +312,9 @@ export async function drainOutbox(h: AccountHandle, push: PushFn, now: () => num
   // generation it puts on the wire is selected and frozen by ONE transaction inside
   // `selectAndFreezeSettings`, because an edit landing between a snapshot and a freeze would replace
   // the op the snapshot named (T11b ninth-round P1).
-  const ready = await drainable(all.filter((o) => o.next_attempt_at <= at && o.entity !== SETTINGS));
+  // One op per row per push, the row's oldest (lib/sync/row-queue.ts, audit 2026-10-10 A165).
+  const ready = await drainable(headOfLine(all,
+    all.filter((o) => o.next_attempt_at <= at && o.entity !== SETTINGS)));
   const { op: settingsOp, parked } = await selectAndFreezeSettings(h, at);
   const send = [...ready, ...(settingsOp === null ? [] : [settingsOp])]
     .sort((a, b) => a.seq - b.seq);
