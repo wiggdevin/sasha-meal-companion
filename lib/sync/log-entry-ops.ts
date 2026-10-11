@@ -113,8 +113,8 @@ export async function rebaseLogNote(
   const server = (result.current ?? {}) as Record<string, unknown>;
   const mine = op.payload as Record<string, unknown>;
   const serverTs = String(server.updated_at ?? "");
-  // With the note her edit started from, only a note BOTH sides changed is joined: one the other
-  // device left alone takes hers, a clear included (audit 2026-10-10 A077). An op queued before
+  // With the note the edit started from, only a note BOTH sides changed is joined: one the other
+  // device left alone takes the user's, a clear included (audit 2026-10-10 A077). An op queued before
   // that base was recorded keeps the old rule. Theirs second: it is the newer of the two, and a
   // note is evidence — neither side's is dropped.
   const note = op.note_base === undefined
