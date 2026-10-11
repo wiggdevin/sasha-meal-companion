@@ -84,6 +84,13 @@ describe("signInWithPassword limits (W052)", () => {
     );
   });
 
+  // Sol review: a limiter or Auth outage never judged the input, so it is never "did not match".
+  it.each(["rate_limit_unavailable", "auth_unavailable", "failed", "internal"])("says the service could not be reached on %s", async (code) => {
+    expect(await signInWithPassword(auth({ code }), "devs@example.com", "secret")).toBe(
+      "Could not reach the sign-in service. Check your connection and try again.",
+    );
+  });
+
   it("says the service could not be reached when the route answers offline", async () => {
     expect(await signInWithPassword(auth({ code: "offline" }), "devs@example.com", "secret")).toBe(
       "Could not reach the sign-in service. Check your connection and try again.",

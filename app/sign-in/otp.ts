@@ -5,7 +5,7 @@
  */
 
 import { checkAttemptLimit } from "@/app/sign-in/attempt-limit";
-import { LIMITED_CODES, type SignInError } from "@/lib/sign-in-client";
+import { LIMITED_CODES, UNAVAILABLE_CODES, type SignInError } from "@/lib/sign-in-client";
 
 export type OtpAuth = {
   verifyOtp(params: {
@@ -27,5 +27,5 @@ export async function verifyOtpCode(auth: OtpAuth, email: string, code: string):
   const { error } = await auth.verifyOtp({ email: address, token: code, type: "email" });
   if (!error) return null;
   if (LIMITED_CODES.has(error.code)) return LIMITED;
-  return error.code === "offline" ? OFFLINE : MISMATCH;
+  return UNAVAILABLE_CODES.has(error.code) ? OFFLINE : MISMATCH;
 }

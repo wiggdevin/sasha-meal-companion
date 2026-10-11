@@ -3,6 +3,7 @@
  * Supabase Auth sees them (lib/server/sign-in.ts). The limiter runs on the test memory store.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { resetRateLimits, setRateLimitStore } from "@/lib/server/ratelimit";
 
 type AuthError = { message: string; status?: number } | null;
@@ -148,6 +149,28 @@ describe("the sign-in routes", () => {
     const code = await handleVerify(req("/x", verifyBody, { ip: "192.0.2.5" }));
     expect(code.status).toBe(400);
     expect((await code.json()).error).toBe("invalid_code");
+  });
+
+  // Sol review: the SDK RESOLVES with an AuthRetryableFetchError when Auth is unreachable or a
+  // gateway answers 502-504, so an outage must not read as a wrong password or code.
+  it.each([
+    ["password", handlePassword, passwordBody, auth.signInWithPassword],
+    ["verify", handleVerify, verifyBody, auth.verifyOtp],
+    ["otp", handleOtp, otpBody, auth.signInWithOtp],
+  ] as const)("%s: a resolved transport error answers 502 auth_unavailable", async (_n, handle, body, fn) => {
+    fn.mockResolvedValue({ error: new AuthRetryableFetchError("fetch failed", 0) });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const res = await handle(req("/x", body, { ip: "192.0.2.7" }));
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toBe("auth_unavailable");
+  });
+
+  it("answers a Supabase 5xx on the password or code check as unavailable, not a mismatch", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    auth.signInWithPassword.mockResolvedValue({ error: { message: "Database error", status: 500 } });
+    expect((await handlePassword(req("/x", passwordBody, { ip: "192.0.2.8" }))).status).toBe(502);
+    auth.verifyOtp.mockResolvedValue({ error: { message: "Database error", status: 500 } });
+    expect((await handleVerify(req("/x", verifyBody, { ip: "192.0.2.8" }))).status).toBe(502);
   });
 
   it("answer 502 when Supabase Auth cannot be reached", async () => {

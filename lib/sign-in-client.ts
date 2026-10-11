@@ -14,8 +14,17 @@ import { fetchWithDeadline } from "@/lib/fetch-with-deadline";
 export type SignInError = { code: string };
 export type SignInResult = { error: SignInError | null };
 
-/** The codes the screen tells apart: the IP limiter, Supabase's own limit, and no connection. */
+/** The codes that mean "wait": the app's IP limiter and Supabase's own limit. */
 export const LIMITED_CODES: ReadonlySet<string> = new Set(["rate_limited", "auth_rate_limited"]);
+
+/**
+ * The codes that mean nothing judged the email, code or password: no connection, the limiter's
+ * store down (503), Supabase Auth down (502), or an answer that is not the app's (Sol review, W052).
+ * The screen says the service could not be reached, never "did not match".
+ */
+export const UNAVAILABLE_CODES: ReadonlySet<string> = new Set([
+  "offline", "failed", "rate_limit_unavailable", "auth_unavailable", "internal",
+]);
 
 async function post(path: string, body: unknown): Promise<SignInResult> {
   let res: Response;

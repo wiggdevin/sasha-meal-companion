@@ -59,6 +59,13 @@ describe("verifyOtpCode", () => {
     );
   });
 
+  // Sol review: a limiter or Auth outage never judged the input, so it is never "did not match".
+  it.each(["rate_limit_unavailable", "auth_unavailable", "failed", "internal"])("says the service could not be reached on %s", async (code) => {
+    expect(await verifyOtpCode(auth({ code }), "sasha@example.com", "12345678")).toBe(
+      "Could not reach the sign-in service. Check your connection and try again.",
+    );
+  });
+
   it("says the service could not be reached when the connection drops", async () => {
     expect(await verifyOtpCode(auth({ code: "offline" }), "sasha@example.com", "12345678")).toBe(
       "Could not reach the sign-in service. Check your connection and try again.",

@@ -41,7 +41,7 @@ const OtpBody = z.object({ email, create: z.boolean(), next: z.string().max(2_04
 const VerifyBody = z.object({ email, code: z.string().regex(/^\d{6,10}$/) }).strict();
 const PasswordBody = z.object({ email, password: z.string().min(1).max(1_024) }).strict();
 
-type AuthError = { message: string; status?: number } | null;
+type AuthError = { message: string; status?: number; name?: string } | null;
 
 function requireJson(req: Request): void {
   const type = req.headers.get("content-type") ?? "";
@@ -66,13 +66,31 @@ function limitedByAuth(error: NonNullable<AuthError>): boolean {
   return error.status === 429 || /rate limit|only request this after/i.test(error.message);
 }
 
-/** A Supabase Auth call that threw (network, DNS) rather than answering an error. */
-async function call(work: () => Promise<{ error: AuthError }>): Promise<AuthError> {
+/**
+ * True when Supabase Auth never judged the request: the SDK RESOLVES (not rejects) with an
+ * `AuthRetryableFetchError` for a network failure or a gateway 502/503/504 (Sol review, W052). For
+ * the code check and the password, any 5xx counts too, so an outage never reads as a wrong
+ * password. The email send keeps its 5xx in `otpFailure`, which answers one generic code.
+ */
+function unavailable(error: AuthError, anyServerError: boolean): boolean {
+  if (!error) return false;
+  if (error.name === "AuthRetryableFetchError") return true;
+  return anyServerError && typeof error.status === "number" && error.status >= 500;
+}
+
+/** One Supabase Auth call; a throw or an unjudged answer becomes 502 `auth_unavailable`. */
+async function call(work: () => Promise<{ error: AuthError }>, anyServerError: boolean): Promise<AuthError> {
+  let error: AuthError;
   try {
-    return (await work()).error;
+    error = (await work()).error;
   } catch (cause) {
     throw new HttpError(502, "auth_unavailable", "The sign-in service did not answer.", { cause });
   }
+  if (unavailable(error, anyServerError)) {
+    throw new HttpError(502, "auth_unavailable", "The sign-in service did not answer.",
+      { cause: { name: error?.name, message: error?.message } });
+  }
+  return error;
 }
 
 /**
@@ -112,7 +130,7 @@ export function handleOtp(req: Request): Promise<Response> {
         // Sign in never creates an account (docs/decisions/2026-09-25-self-serve-signup.md).
         shouldCreateUser: body.create,
       },
-    }));
+    }), false);
     const failure = otpFailure(body.create, error);
     if (failure === "auth_rate_limited") throw new HttpError(429, failure, "Wait a minute, then try again.");
     if (failure) throw new HttpError(400, failure, "That did not send.");
@@ -125,7 +143,7 @@ export function handleVerify(req: Request): Promise<Response> {
     const body = await readJson(req, VerifyBody, MAX_BYTES);
     const error = await call(() => createRequestClient(req).auth.verifyOtp({
       email: body.email, token: body.code, type: "email",
-    }));
+    }), true);
     if (error && limitedByAuth(error)) throw new HttpError(429, "auth_rate_limited", "Wait, then try again.");
     if (error) throw new HttpError(400, "invalid_code", "That code did not work.");
     return ok(req);
@@ -137,7 +155,7 @@ export function handlePassword(req: Request): Promise<Response> {
     const body = await readJson(req, PasswordBody, MAX_BYTES);
     const error = await call(() => createRequestClient(req).auth.signInWithPassword({
       email: body.email, password: body.password,
-    }));
+    }), true);
     if (error && limitedByAuth(error)) throw new HttpError(429, "auth_rate_limited", "Wait, then try again.");
     if (error) throw new HttpError(401, "invalid_credentials", "That email and password did not match.");
     return ok(req);

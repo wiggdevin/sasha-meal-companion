@@ -7,7 +7,7 @@
  */
 
 import { checkAttemptLimit } from "@/app/sign-in/attempt-limit";
-import { LIMITED_CODES, type SignInError } from "@/lib/sign-in-client";
+import { LIMITED_CODES, UNAVAILABLE_CODES, type SignInError } from "@/lib/sign-in-client";
 
 export type PasswordAuth = {
   signInWithPassword(credentials: {
@@ -35,7 +35,7 @@ export async function signInWithPassword(
     const { error } = await auth.signInWithPassword({ email: address, password });
     if (!error) return null;
     if (LIMITED_CODES.has(error.code)) return LIMITED;
-    return error.code === "offline" ? OFFLINE : MISMATCH;
+    return UNAVAILABLE_CODES.has(error.code) ? OFFLINE : MISMATCH;
   } catch {
     return OFFLINE;
   }
