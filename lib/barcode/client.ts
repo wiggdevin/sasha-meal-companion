@@ -12,6 +12,7 @@ import { isDeadline } from "@/lib/fetch-with-deadline";
 import {
   accountFetch, accountHandle, accountJson, rethrowAccountChanged, type AccountHandle,
 } from "@/lib/device/account";
+import { foodMembershipEpoch, foodRulesEpoch } from "@/lib/foods/rules-epoch";
 import { mark, type TimingRun } from "@/lib/timing";
 import type { PolicyVerdict } from "@/lib/policy/constraints";
 import type { Provenance } from "@/lib/types";
@@ -122,10 +123,22 @@ export async function scanGtin(
  * carries the attribution string so the ODbL notice survives into the offline snapshot's
  * source_version, which is what the food detail screen and a CSV export read (AC 12).
  */
+/**
+ * The food-rules and Avoid/Eats watermarks a scan's verdict is computed under. resolveScan takes it
+ * BEFORE the lookup, so a rules change while the request is in flight leaves the stored verdict
+ * stale instead of stamping an old-rules verdict with the new epoch (W014 review round 1).
+ */
+export type ScanRulesStamp = { rulesEpoch: number; membershipEpoch: number };
+
+export function scanRulesStamp(): ScanRulesStamp {
+  return { rulesEpoch: foodRulesEpoch(), membershipEpoch: foodMembershipEpoch() };
+}
+
 export function toCachedRevision(
   match: BarcodeMatch,
   gtin14: string,
-  now: number = Date.now()
+  now: number = Date.now(),
+  stamp: ScanRulesStamp = scanRulesStamp(),
 ): CachedRevision {
   return {
     revision_id: match.revisionId,
@@ -140,6 +153,8 @@ export function toCachedRevision(
     food_ref_id: match.foodRefId,
     allergen_tags: match.allergenTags,
     policy: match.policy,
+    rules_epoch: stamp.rulesEpoch,
+    membership_epoch: stamp.membershipEpoch,
     cached_at: new Date(now).toISOString(),
   };
 }
@@ -151,6 +166,13 @@ export function toCachedRevision(
  * policy verdict the online scan already computed are, so a known-blocked product still shows
  * blocked offline instead of downgrading to a generic "unverified" warning. A row cached before
  * these fields existed falls back to "unverified", same as before.
+ *
+ * W014 (audit 2026-10-10 A031): the verdict was computed under the rules of the original scan. It
+ * is replayed only under the same food-rules epoch and the same Avoid/Eats watermark
+ * (lib/foods/rules-epoch.ts); after a rules change, any food's Avoid or Eats mark, or a reload, an
+ * "allowed" or "unverified" verdict reads "unverified" — it may no longer hold — and only a
+ * "blocked" one is kept, because a warning that may have lapsed is safer than none. The server
+ * re-judges the commit against the current rules when it reaches it.
  */
 export function offlineMatch(cached: CachedRevision): BarcodeMatch | null {
   if (!cached.food_ref_id) return null;
@@ -168,6 +190,15 @@ export function offlineMatch(cached: CachedRevision): BarcodeMatch | null {
     ingredientsText: null,
     allergenTags: cached.allergen_tags ?? [],
     attribution: cached.version_label,
-    policy: cached.policy ?? { verdict: "unverified" },
+    policy: offlinePolicy(cached),
   };
+}
+
+function offlinePolicy(cached: CachedRevision): PolicyVerdict {
+  const policy = cached.policy;
+  if (!policy) return { verdict: "unverified" };
+  if (policy.verdict === "blocked") return policy;
+  const current = scanRulesStamp();
+  return cached.rules_epoch === current.rulesEpoch && cached.membership_epoch === current.membershipEpoch
+    ? policy : { verdict: "unverified" };
 }

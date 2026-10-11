@@ -9,7 +9,9 @@ export const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 export type WorldOptions = { world?: "open" | "closed"; conditions?: string[]; allergens?: string[];
   review?: boolean; flags?: string[]; foodWorldSetAt?: string | null; onboardedAt?: string | null;
-  defaultDueAt?: string | null };
+  defaultDueAt?: string | null;
+  /** `user_settings.first_opened_at`; brand new (after the onboarding cutover) unless given. */
+  firstOpenedAt?: string | null };
 
 export function worldTables(options: WorldOptions = {}): Record<string, Row[]> {
   const own = (id: string, name: string, per100: [number, number, number]) => ({ id, user_id: A, name,
@@ -20,6 +22,7 @@ export function worldTables(options: WorldOptions = {}): Record<string, Row[]> {
     user_settings: [{ user_id: A, food_world: options.world ?? "closed",
       food_world_set_at: options.foodWorldSetAt ?? null, onboarded_at: options.onboardedAt ?? null,
       food_world_default_due_at: options.defaultDueAt ?? null,
+      first_opened_at: "firstOpenedAt" in options ? options.firstOpenedAt : "2026-10-01T08:00:00.000Z",
       diet_prefs: { flags: options.flags ?? [] }, rev: 3 }],
     constraint_profiles: [{ user_id: A, rev: 2, conditions: options.conditions ?? [], notes: null,
       avoid_allergens: options.allergens ?? [], avoid_food_ref_ids: [], banned_categories: [], custom_rules: [],

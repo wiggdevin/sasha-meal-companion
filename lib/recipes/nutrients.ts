@@ -1,7 +1,8 @@
 /**
  * Recipe nutrient maths — Phase 3 spec, "Engines and logic". The client half of the SQL in
- * 20260919090300_phase3_sync_entities.sql: same sums, same null rule, same coverage, so the
- * sheet shows the numbers the server is about to store. The server's value still wins on sync.
+ * 20260919090300_phase3_sync_entities.sql (energy: 20261230090400_recipe_energy_rule): same sums,
+ * same null rule, same coverage, so the sheet shows the numbers the server is about to store. The
+ * server's value still wins on sync.
  *
  * `null` is "not measured" and `0` is "measured zero" (architecture §3.3). Summing a null as a
  * zero would let a recipe with one unmeasured item read as a complete one, which is the exact
@@ -10,6 +11,11 @@
  * Pure. No I/O.
  */
 import { MACRO_CODES, type NutrientCode } from "@/lib/nutrients/codes";
+import { itemKcal } from "@/lib/nutrients/energy";
+
+/** The two energy fields the one energy rule chooses between (lib/nutrients/energy.ts). */
+const ENERGY_REPORTED = "energy_kcal";
+const ENERGY_CALCULATED = "energy_kcal_calc";
 
 export type RecipeItemInput = {
   seq: number; foodRefId: string; qty: number; unit: string;
@@ -90,12 +96,26 @@ export function computeRecipeNutrients(
 
   const totals = new Map<string, number>();
   const measured = new Map<string, number>();
+  const add = (code: string, value: number | null | undefined, grams: number) => {
+    if (!totals.has(code)) totals.set(code, 0);
+    if (value === null || value === undefined) return;
+    totals.set(code, (totals.get(code) ?? 0) + (value * grams) / 100);
+    measured.set(code, (measured.get(code) ?? 0) + 1);
+  };
   for (const item of items) {
-    for (const [code, value] of Object.entries(per100g[item.foodRefId] ?? {})) {
-      if (!totals.has(code)) totals.set(code, 0);
-      if (value === null || value === undefined) continue;
-      totals.set(code, (totals.get(code) ?? 0) + (value * item.grams) / 100);
-      measured.set(code, (measured.get(code) ?? 0) + 1);
+    const values = per100g[item.foodRefId] ?? {};
+    for (const [code, value] of Object.entries(values)) {
+      if (code === ENERGY_REPORTED || code === ENERGY_CALCULATED) continue;
+      add(code, value, item.grams);
+    }
+    // Energy, one rule per ingredient BEFORE the sum (W004, audit A008): reported, else calculated,
+    // else unknown. The recipe stores the selected sum as `energy_kcal` and counts a calculated-only
+    // ingredient toward its coverage; no separate `energy_kcal_calc` sum is kept.
+    if (ENERGY_REPORTED in values || ENERGY_CALCULATED in values) {
+      add(ENERGY_REPORTED, itemKcal({
+        [ENERGY_REPORTED]: { amount: values[ENERGY_REPORTED as NutrientCode] },
+        [ENERGY_CALCULATED]: { amount: values[ENERGY_CALCULATED as NutrientCode] },
+      }), item.grams);
     }
   }
 

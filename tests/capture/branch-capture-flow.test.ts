@@ -94,14 +94,20 @@ describe.skipIf(!HAS_BRANCH)("propose to commit [needs branch]", () => {
     await admin.from("media_objects").delete().eq("path", path);
   });
 
-  it("enforces the media bucket's owner-folder policy on upload", async () => {
+  it("enforces the media bucket's upload policy: only a server-signed URL writes", async () => {
     const { a, b, admin } = await createTestUsers();
     const bytes = new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" });
     const foreignKey = `${a.userId}/${uuid(908)}.jpg`;
     const ownKey = `${a.userId}/${uuid(909)}.jpg`;
     const denied = await b.client.storage.from("media").upload(foreignKey, bytes);
     expect(denied.error).not.toBeNull();
-    const allowed = await a.client.storage.from("media").upload(ownKey, bytes);
+    // W019 (A055): no direct upload with the user's own JWT, even into her own folder.
+    const direct = await a.client.storage.from("media").upload(ownKey, bytes);
+    expect(direct.error).not.toBeNull();
+    const signed = await admin.storage.from("media").createSignedUploadUrl(ownKey);
+    expect(signed.error).toBeNull();
+    const allowed = await a.client.storage.from("media")
+      .uploadToSignedUrl(ownKey, signed.data!.token, bytes);
     expect(allowed.error).toBeNull();
     await admin.storage.from("media").remove([foreignKey, ownKey]);
     await admin.from("media_objects").delete().in("path", [`media/${foreignKey}`, `media/${ownKey}`]);

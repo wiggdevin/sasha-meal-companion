@@ -24,12 +24,12 @@ import { openRouterConfigured } from "@/lib/ai/provider-env";
 import { providerFallbackWorthTrying } from "@/lib/ai/provider-fallback";
 import { cleanIngredients, dishTitle, type InspireRequest, type InspireResult } from "@/lib/plan/inspire-types";
 import { cleanMenu, cleanPlate } from "@/lib/plan/photo-result";
-import type { ConstraintProfile } from "@/lib/policy/constraints";
-import { readPolicyProfile, type PolicyProfile } from "@/lib/server/policy-profile";
 import { parseRecipePage } from "@/lib/plan/recipe-jsonld";
 import { HttpError } from "@/lib/server/auth";
 import { fetchOwnedObject } from "@/lib/server/media";
-import { defaultMenuSearch, screenMenu, type MenuSearch } from "@/lib/server/plan-menu";
+import {
+  defaultMenuSearch, readMenuProfile, screenMenu, type MenuProfile, type MenuSearch,
+} from "@/lib/server/plan-menu";
 import { fetchRecipePage } from "@/lib/server/recipe-url";
 import { BY_APP, byModel } from "@/lib/provenance";
 
@@ -58,7 +58,8 @@ export type InspireDeps = {
   generateGemini?: typeof generateStructured;
   fetchPage?: typeof fetchRecipePage;
   /** The account's food rules, read only when a menu needs screening. */
-  readPolicy?: (admin: SupabaseClient, userId: string) => Promise<PolicyProfile | ConstraintProfile>;
+  /** W014: the profile and the diet flags, read together (lib/server/plan-menu.ts readMenuProfile). */
+  readPolicy?: (admin: SupabaseClient, userId: string) => Promise<MenuProfile>;
   /** The food search a menu's names are checked against the Avoid list with (lib/server/plan-menu.ts). */
   searchFoods?: MenuSearch;
 };
@@ -68,7 +69,7 @@ async function menuPicks(admin: SupabaseClient, client: SupabaseClient, userId: 
   const candidates = cleanMenu(raw);
   if (candidates.length === 0) return [];
   const [profile, searchFoods] = await Promise.all([
-    (deps.readPolicy ?? ((c, id) => readPolicyProfile(c, id, new Date()).then((read) => read.profile)))(admin, userId),
+    (deps.readPolicy ?? readMenuProfile)(admin, userId),
     deps.searchFoods ?? defaultMenuSearch(admin, client, req.localDate),
   ]);
   return screenMenu(userId, candidates, req.targetKcal, profile, searchFoods);
