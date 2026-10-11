@@ -8,9 +8,17 @@ import {
   ActivityStep, BodyStep, GoalStep, PlanStep, PreferencesStep,
 } from "./OnboardingSteps";
 import {
-  buildCompletedSettings, createOnboardingState, missingProfileFields, onboardingReducer,
+  createOnboardingState, missingProfileFields, onboardingReducer, previewCompletedSettings,
   type OnboardingAction, type OnboardingState,
 } from "@/lib/profile/onboarding-state";
+import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
+import { TargetSaveRefusedError } from "@/lib/targets/client";
+import { todayIso } from "@/lib/settings/date";
+import SafetyRound from "@/components/Onboarding/beats/SafetyRound";
+import MinorStop from "@/components/Onboarding/beats/MinorStop";
+import { useStoredEligibility } from "@/components/Onboarding/v2/stored-eligibility";
+import { safetyAnswersFrom, type SafetyRound as SafetyRoundAnswer } from "@/components/Onboarding/v2/plan-answers";
+import { legacyEligibility, legacyMinor, needsBirthDate } from "@/components/Onboarding/legacy-eligibility";
 import {
   CONSTRAINT_SAVE_WARNING, loadOnboardingSettings, ONBOARDING_SYNC_WARNING,
   mirroredOnboardedAt, persistCompletedOnboarding, persistSkippedOnboarding,
@@ -51,8 +59,11 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
 /** The longest the flow waits for its exit spring before it hands control back anyway. */
 const LEAVE_FALLBACK_MS = 700;
 
-export function isBodyStepComplete(state: OnboardingState): boolean {
-  return !missingProfileFields(state).some((field) => BODY_FIELDS.has(field));
+/** Every body field is answered, and in the year the birth year turns 18 the full date of birth
+ *  too (audit 2026-10-10 A092). */
+export function isBodyStepComplete(state: OnboardingState, today: string = todayIso()): boolean {
+  return !missingProfileFields(state).some((field) => BODY_FIELDS.has(field))
+    && !needsBirthDate(state, today);
 }
 
 export function isNextDisabled(
@@ -70,6 +81,12 @@ export function OnboardingNotice({ message }: { message: string | null }) {
 
 /** A reason the plan cannot finish yet: the shared alert says it, and the account stays put. */
 class Blocked extends Error {}
+
+/** The derivation's own under-18 refusal, or the server's `422 adult_only` for the stored year. */
+function isAdultOnly(error: unknown): boolean {
+  return error instanceof AdultOnlyError
+    || (error instanceof TargetSaveRefusedError && error.code === "adult_only");
+}
 
 type CookingPrefsResponse = PrefsResponse & {
   cookingEffortSuggestion?: unknown;
@@ -136,6 +153,9 @@ export default function OnboardingFlow({
   const [dietaryHintOffer, setDietaryHintOffer] = useState<DietaryTextOffer | null>(null);
   const dietaryHintSequence = useRef(0);
   const dietaryHintText = useRef<string | null>(null);
+  // The two refs are read only inside the classifier's async callback, never while rendering; the
+  // compiler's check began to see this initializer once the preview stopped throwing in render.
+  // eslint-disable-next-line react-hooks/refs
   const [classifier] = useState<PreferenceClassifier>(() => {
     let pendingCookingEffort: CookingEffort | null = null;
     return createPreferenceClassifier(
@@ -166,6 +186,13 @@ export default function OnboardingFlow({
       setDietaryHintOffer(null);
     }
   }, [state?.prefsText]);
+  // The safety round's taps (asked before the goal, A087) and the account's stored holds (A088):
+  // the pace, the preview and the save are built under both, and held at 0 until both are known.
+  const [safetyRound, setSafetyRound] = useState<SafetyRoundAnswer | null>(null);
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const stored = useStoredEligibility(true);
+  // The server refused a plan for this birth year (`422 adult_only`): the friendly stop (A093).
+  const [serverMinor, setServerMinor] = useState(false);
   const foodAccess = useOnboardingFoodAccess(state);
   const optionalFoods = foodAccess.status === "pilot";
   const starter = useStarterStep(state, foodAccess.status === "legacy");
@@ -220,6 +247,13 @@ export default function OnboardingFlow({
     leaveTo.current = () => undefined;
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
     then();
+  }
+
+  /** The minor stop's "Look around": opened over a screen it leaves with nothing written; as the
+   *  first-run route it is the skip (no plan, the account can still browse). */
+  function lookAround(): void {
+    if (embedded) leave(onClose ?? onFinished ?? (() => undefined));
+    else void skip();
   }
 
   function finish(): void {
@@ -278,7 +312,17 @@ export default function OnboardingFlow({
       if (access === "legacy" && !(starterSelectionReady && proteinAvailability?.ready)) {
         throw new Blocked("Go back to Foods and choose foods for your plan.");
       }
-      const result = await persistCompletedOnboarding(cuisine.withCuisines(currentBase), currentState);
+      let result: Awaited<ReturnType<typeof persistCompletedOnboarding>>;
+      try {
+        // The round's conditions are written before the target, and the stored holds ride along,
+        // so the revision the server derives is the plan this screen showed (A087, A088).
+        result = await persistCompletedOnboarding(cuisine.withCuisines(currentBase), currentState,
+          undefined, undefined, safetyAnswersFrom(safetyRound), undefined, planEligibility);
+      } catch (error) {
+        if (!isAdultOnly(error)) throw error;
+        setServerMinor(true);
+        throw new Blocked(new AdultOnlyError().message);
+      }
       // Marked done BEFORE the drain: persist is the half that must never run twice — it mints the
       // target revision and the weigh-in — so a retry after a failed drain only drains.
       setCompleted(true);
@@ -348,8 +392,26 @@ export default function OnboardingFlow({
   }
 
   const step = currentState.step;
-  const incomplete = missingProfileFields(currentState).length > 0;
-  const plannedCount = incomplete ? 0 : mealCountFor(buildCompletedSettings(currentBase, currentState, new Date()));
+  const today = todayIso();
+  const pace = legacyEligibility(safetyRound, stored);
+  const planEligibility = pace.eligibility;
+  // Under 18 by the form's answers, a stored minor profile, or the server's refusal: no plan, and
+  // never a crash (A093). The body step stays editable for a typo.
+  const minorStop = step > 0 && (serverMinor || legacyMinor(currentState, today, planEligibility));
+  const incomplete = missingProfileFields(currentState, planEligibility).length > 0;
+  const preview = incomplete || minorStop ? null
+    : previewCompletedSettings(currentBase, currentState, new Date(), planEligibility);
+  const plannedCount = preview ? mealCountFor(preview) : 0;
+  const showSafety = step === 2 && !minorStop && (safetyRound === null || safetyOpen);
+  const paceMatters = currentState.goal === "lose_fat" || currentState.goal === "gain_muscle";
+  const paceNote = !paceMatters || pace.check === "answered" ? null
+    : pace.check === "unanswered"
+      ? <Notice tone="attention" title="Answer the health questions to set a pace. Until then this plan keeps your calories about where you burn."
+          action={{ label: "Answer them", onClick: () => { setSafetyOpen(true); dispatch({ type: "step", value: 2 }); } }} />
+      : stored.status === "failed"
+        ? <Notice tone="attention" title="Couldn’t check your saved health answers, so this plan keeps your calories about where you burn."
+            action={{ label: "Retry", onClick: () => { void stored.refresh(); } }} />
+        : <p role="status" className="m-0 text-caption text-graphite">Checking your saved health answers…</p>;
   const selectedStarterIds = Object.entries(starter.marks)
     .filter(([, mark]) => mark === "eats").map(([id]) => id);
   const starterSelectionReady = !!starter.choices
@@ -400,17 +462,30 @@ export default function OnboardingFlow({
 
           <div className="min-h-0 flex-1">
             {step === 0 && <BodyStep state={currentState} dispatch={dispatch} />}
-            {step === 1 && <ActivityStep state={currentState} dispatch={dispatch} />}
-            {step === 2 && <GoalStep state={currentState} dispatch={dispatch} />}
-            {cuisine.at && <CuisineStep base={currentBase} chosen={cuisine.chosen} onChange={cuisine.setChosen} />}
-            {step === 3 && !cuisine.at && <PreferencesStep state={currentState} dispatch={dispatch}
+            {step === 1 && !minorStop && <ActivityStep state={currentState} dispatch={dispatch} />}
+            {minorStop && <MinorStop busy={saving} onBrowse={lookAround}
+              onChangeAge={() => { setServerMinor(false); dispatch({ type: "step", value: 0 }); }} />}
+            {showSafety && <SafetyRound initial={safetyRound} onDone={({ rulesEdited, ...round }) => {
+              setSafetyRound(round);
+              setSafetyOpen(false);
+              // A rule or profile added in the round's editor can be a stored hold: read again.
+              if (rulesEdited) void stored.refresh();
+            }} />}
+            {step === 2 && !minorStop && !showSafety && <div className="flex flex-col gap-3">
+              <GoalStep state={currentState} dispatch={dispatch} paceHeld={!paceAllowed(pace.known)} />
+              <Button variant="ghost" size="sm" className="self-start" onClick={() => setSafetyOpen(true)}>
+                Change your health answers
+              </Button>
+            </div>}
+            {cuisine.at && !minorStop && <CuisineStep base={currentBase} chosen={cuisine.chosen} onChange={cuisine.setChosen} />}
+            {step === 3 && !cuisine.at && !minorStop && <PreferencesStep state={currentState} dispatch={dispatch}
               classifying={classifying} cookingEffort={currentState.cookingEffort}
               cookingEffortSuggestion={cookingEffortSuggestion}
               onCookingEffortChange={(value) =>
                 dispatch({ type: "set_cooking_effort", value })}
               onBlur={() => { void classify(currentState); }}
               dietaryHintOffer={dietaryHintOffer} onAddRule={jumpToRuleEditor} />}
-            {step === 4 && (optionalFoods
+            {step === 4 && !minorStop && (optionalFoods
               ? <p className="m-0 text-caption text-graphite">
                   You can discover recipes right away. Save ingredients you love in Favorites whenever you like.
                 </p>
@@ -425,7 +500,8 @@ export default function OnboardingFlow({
                       action={{ label: "Retry",
                         onClick: foodAccess.status === "legacy" ? starter.retry : foodAccess.retry }} />
                   : <p role="status" className="m-0 text-caption text-graphite">Checking your food rules…</p>)}
-            {step === 5 && <PlanStep state={currentState} base={currentBase} dispatch={dispatch}
+            {step === 5 && !minorStop && <PlanStep state={currentState} base={currentBase} dispatch={dispatch}
+              eligibility={planEligibility} paceNote={paceNote}
               proteinAvailability={optionalFoods ? undefined : proteinAvailability}
               starterSelectionReady={optionalFoods ? undefined : starterSelectionReady}
               optionalFoods={optionalFoods} />}
@@ -434,7 +510,7 @@ export default function OnboardingFlow({
           <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
           {/* Back is the quieter neighbour, Next / Use this plan the flow's one primary; md, so the
               two sit level (DESIGN.md §Buttons). Each write lights only its own control (keyed). */}
-          <footer className="flex flex-col gap-2">
+          {!minorStop && <footer className="flex flex-col gap-2">
             <div className="flex gap-2">
               {step > 0 && (
                 <Button variant="tertiary" className="flex-1" disabled={saving || completed}
@@ -444,14 +520,15 @@ export default function OnboardingFlow({
               )}
               {step < 5 ? (
                 <Button variant="primary" className="flex-1"
-                  disabled={isNextDisabled(step, saving, classifying, isBodyStepComplete(currentState))
+                  disabled={isNextDisabled(step, saving, classifying, isBodyStepComplete(currentState, today))
+                    || showSafety
                     || (step === 4 && !optionalFoods && !(foodAccess.status === "legacy" && starterSelectionReady))}
                   onClick={() => { void next(); }}>
                   Next
                 </Button>
               ) : (
                 <Button variant="primary" confirmLabel="Saved" {...feedback.controlPropsFor("save")}
-                  className={`flex-1 ${feedback.controlPropsFor("save").className}`} disabled={saving || incomplete || (!completed && !planReady)} onClick={() => { void save(); }}>
+                  className={`flex-1 ${feedback.controlPropsFor("save").className}`} disabled={saving || incomplete || (!completed && (!planReady || !preview))} onClick={() => { void save(); }}>
                   {completed ? "Continue" : "Use this plan"}
                 </Button>
               )}
@@ -460,7 +537,7 @@ export default function OnboardingFlow({
               onClick={() => { void skip(); }}>
               Skip for now
             </Button>
-          </footer>
+          </footer>}
         </div>
       </div>
     </main>}
