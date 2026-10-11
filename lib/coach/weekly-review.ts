@@ -61,6 +61,9 @@ export function renderWeeklyReview(choice: WeeklyReviewChoice): string {
   return `Based on your logged week, ${STRENGTH_COPY[choice.wentWell]}. ${FOCUS_COPY[choice.focus]}`;
 }
 
+/** Fewer logged days than this is "not enough data", with or without a model. */
+export const MODEL_MIN_LOGGED_DAYS = 3;
+
 /** Days with any logged energy, the one fact the fallback may state without a model. */
 export function loggedDayCount(days: readonly DayTotals[]): number {
   return days.filter((day) => day.nutrients.some((nutrient) =>
@@ -74,7 +77,7 @@ export function loggedDayCount(days: readonly DayTotals[]): number {
  */
 export function fallbackReview(days: readonly DayTotals[]): WeeklyReviewChoice {
   const logged = loggedDayCount(days);
-  if (logged < 3) return { wentWell: "not_enough_data", focus: "logging" };
+  if (logged < MODEL_MIN_LOGGED_DAYS) return { wentWell: "not_enough_data", focus: "logging" };
   if (logged < 6) return { wentWell: "logging", focus: "logging" };
   return { wentWell: "logging", focus: "none" };
 }
@@ -106,10 +109,20 @@ async function reviewParts(
 
 export type WeeklyReviewResult = TurnStep & { kind: "final"; modelUsed: boolean };
 
+/**
+ * The week's review, or null when the week has no logged day: there is nothing to review, so
+ * the account gets no message and no model call (W035, audit A153). Under three logged days the
+ * model could only answer "not enough data", which the logged-days review says without one.
+ */
 export async function runWeeklyReview(
   admin: SupabaseClient, userId: string, weekStart: string, deps: ReviewDeps
-): Promise<WeeklyReviewResult> {
+): Promise<WeeklyReviewResult | null> {
   const days = await weekTotals(admin, userId, weekStart);
+  const logged = loggedDayCount(days);
+  if (logged === 0) return null;
+  if (logged < MODEL_MIN_LOGGED_DAYS) {
+    return { kind: "final", text: renderWeeklyReview(fallbackReview(days)), modelUsed: false };
+  }
   try {
     // Phase 13 §2: the week's totals are user content, so the attestation is checked before they
     // are rendered for a model, and again by the payload builder.

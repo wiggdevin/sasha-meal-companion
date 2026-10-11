@@ -62,6 +62,36 @@ describe("POST /api/coach/transcribe", () => {
     }
   });
 
+  it("limits each account to ten transcriptions a minute, from any network (W035, P19)", async () => {
+    const from = (ip: string) => new Request("https://app.test/api/coach/transcribe", {
+      method: "POST", headers: { "content-type": "application/json", "x-real-ip": ip },
+      body: JSON.stringify(body) });
+    for (let i = 0; i < 10; i += 1) expect((await POST(from(`10.0.0.${i}`))).status).toBe(200);
+    const res = await POST(from("10.0.1.1"));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).not.toBeNull();
+    expect(transcribeAudio).toHaveBeenCalledTimes(10);
+    // Another account is not held by this one's limit.
+    vi.mocked(requireUser).mockResolvedValue({ userId: "u2", client: {} as never });
+    expect((await POST(from("10.0.1.1"))).status).toBe(200);
+  });
+
+  it("fails closed with 503 when the limiter cannot answer for the account", async () => {
+    const { setRateLimitStore } = await import("@/lib/server/ratelimit");
+    setRateLimitStore({ hit: async (key) => {
+      if (key.startsWith("coach:transcribe:user:")) throw new Error("db down");
+      return { allowed: true, remaining: 1, resetAt: Date.now() + 60_000 };
+    } });
+    try {
+      const res = await POST(post(body));
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ error: "rate_limit_unavailable" });
+      expect(transcribeAudio).not.toHaveBeenCalled();
+    } finally {
+      setRateLimitStore(null);
+    }
+  });
+
   it("brakes a flood before it reaches identity", async () => {
     for (let i = 0; i < 120; i += 1) await POST(post(body));
     const res = await POST(post(body));

@@ -1,7 +1,8 @@
 /**
  * POST /api/coach — one turn. architecture §5: JWT, 16 KB, 60/day and 10/hour per user.
- * Order per contracts §9: rate limit, identity, body. The per-user budget is counted inside
- * runTurn from ai_calls; this first limiter is the pre-identity flood brake.
+ * Order per contracts §9: rate limit, identity, body. This first limiter is the pre-identity flood
+ * brake; the per-user turn budget is reserved inside runTurn (`reserveTurn`, the same database
+ * limiter, fail closed) once the turn is known not to be a replay of a saved one (W035).
  */
 
 import { coachTurnRequestSchema } from "@/lib/coach/types";

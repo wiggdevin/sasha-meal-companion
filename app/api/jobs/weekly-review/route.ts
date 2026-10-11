@@ -95,7 +95,8 @@ export async function POST(req: Request): Promise<Response> {
         lockKey = lock.key;
         const result = await writeWeeklyReview(admin, userId, weekStart);
         await releaseLock(admin, JOB_NAME, userId, lockKey, "ok", result);
-        if (result.duplicate) out.skipped += 1;
+        // A duplicate, or a week with no logged day (no message, no model call: W035).
+        if (result.duplicate || "skipped" in result) out.skipped += 1;
         else out.ran += 1;
       } catch (e) {
         if (lockKey) {
