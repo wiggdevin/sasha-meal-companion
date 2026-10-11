@@ -125,6 +125,25 @@ describe("pullChanges", () => {
     expect(loadStore().days["2026-10-06"].extras).toEqual([]);
   });
 
+  it("puts another device's new log entry on this phone's day, unless its own write is queued", async () => {
+    const E4 = "3f1b1a2c-0000-4000-8000-0000000000e4";
+    const E5 = "3f1b1a2c-0000-4000-8000-0000000000e5";
+    const entry = (id: string) => ({ id, local_date: "2026-10-07", eaten_at: "2026-10-07T12:00:00.000Z",
+      slot: "meal-2", title: "Tuna bowl", note: null, rev: 1, deleted_at: null,
+      items: [{ id: `${id}-i`, seq: 1, food_ref_id: "ref-1", grams: 150, qty: 150, unit: "g",
+        snapshot: { energy_kcal: { amount: 200, unit: "kcal", basis: "per_100g" } } }] });
+    await enqueue(h, { op_id: "op-e5", entity: "log_entries", entity_id: E5, kind: "update",
+      base_rev: 1, payload: { id: E5, note: "mine" }, client_ts: "2026-10-07T12:00:00.000Z" } as never);
+    await pullChanges(h, 0, { fetchFn: pageFn({ changes: [
+      row(1, { entity: "log_entries", entity_key: E4, op: "create", current: entry(E4) }),
+      row(2, { entity: "log_entries", entity_key: E5, op: "create", current: entry(E5) }),
+    ], next_cursor: 2, has_more: false }) });
+    const extras = loadStore().days["2026-10-07"]?.extras ?? [];
+    expect(extras.map((e) => e.id)).toEqual([E4]);
+    expect(extras[0]?.name).toBe("Tuna bowl");
+    await expect(getRow(h, "log_entries", E5)).resolves.toMatchObject({ id: E5 });
+  });
+
   it("writes each ChangeRow.current into its entity store", async () => {
     const fetchFn = vi.fn<typeof fetch>(async () => jsonResponse({ changes: [row(1), row(2)], next_cursor: 2, has_more: false }));
     const result = await pullChanges(h, 0, { fetchFn: fetchFn as unknown as typeof fetch });
