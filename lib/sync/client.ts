@@ -18,6 +18,10 @@ import { normalizeFoodName } from "@/lib/foods/normalize";
 import { loadAccountFoodSnapshot } from "./food-refs";
 import { applyPulledPlanDay } from "./plan-days";
 import { putPulledRow, releasePullHolds } from "./row-queue";
+import { projectPulledEntry } from "@/lib/log/pulled-entry";
+import { isCommitting } from "@/lib/log/live-commits";
+import { hasQueuedOp } from "@/lib/log-commit-settle";
+import { recordFor } from "@/lib/log/pending";
 import { decodeKey } from "./keys";
 import { drainOutbox, type DrainResult } from "./outbox";
 import {
@@ -97,6 +101,30 @@ async function dropDeletedEntry(
     if (!day?.extras?.some((extra) => extra.id === entryId)) continue;
     days = { ...days, [date]: { ...day, extras: day.extras.filter((extra) => extra.id !== entryId) } };
   }
+  if (days !== store.days) saveStoreFor(h, { ...store, days }, { silent: true });
+}
+
+/**
+ * A log entry written or edited elsewhere — another device, or the server — reaches this phone's
+ * Today, not only its mirror: the day's `extras` are what Today and the rings read. While this
+ * phone has its own write for the entry in flight or queued, that write settles the card itself
+ * (lib/log/reconcile.ts), and a pulled row must not overwrite it.
+ */
+async function projectPulledLogEntry(
+  h: AccountHandle, entryId: string, current: Record<string, unknown>,
+): Promise<void> {
+  const mirror = await getRow(h, "log_entries", entryId);
+  const mirrorRev = typeof mirror?.rev === "number" ? mirror.rev : null;
+  // A feed row older than the mirror's (a replay) neither lowers the mirror nor moves the card.
+  if (mirrorRev !== null && typeof current.rev === "number" && current.rev < mirrorRev) return;
+  await putRow(h, "log_entries", entryId, current);
+  if (await isCommitting(entryId) || await hasQueuedOp(h, entryId) !== false) return;
+  // Last, because a commit writes its record before it paints its card: once this read finds no
+  // record, nothing below awaits, so no card of this phone's own can appear in between. A record in
+  // any state (in flight, waiting on a read-back, deleted here) belongs to this phone's own write.
+  if (await recordFor(h, entryId)) return;
+  const store = loadStore();
+  const days = projectPulledEntry(store.days, entryId, current, mirrorRev);
   if (days !== store.days) saveStoreFor(h, { ...store, days }, { silent: true });
 }
 
@@ -271,6 +299,9 @@ export async function pullChanges(
       else if (change.entity === "log_entries"
         && (change.current === null || (change.current as { deleted_at?: unknown }).deleted_at)) {
         await dropDeletedEntry(h, change.entity_key, change.current);
+      }
+      else if (change.entity === "log_entries" && change.current !== null) {
+        await projectPulledLogEntry(h, change.entity_key, change.current);
       }
       else if (change.current === null) {
         if (change.entity === "user_settings") await clearPulledUserSettings(h);

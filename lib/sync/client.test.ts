@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { lastError, lastSyncAt, pullChanges, pushOutbox, SYNCED_EVENT, syncOnce } from "./client";
 import { getCursor, getRow, setCursor } from "./idb";
 import { enqueue } from "./outbox";
+import { markDeleted, markInFlight } from "@/lib/log/pending";
 import { defaultStore, loadStore, saveStore } from "../store";
 import type { ChangeRow, ChangesResponse, OpsResponse, SyncOp } from "./types";
 import { resetTestAccount } from "@/tests/helpers/account";
@@ -137,6 +138,41 @@ describe("pullChanges", () => {
         current: { id: E3, rev: 2, local_date: "2026-10-05", deleted_at: "2026-10-06T09:00:00.000Z" } }),
     ], next_cursor: 1, has_more: false }) });
     expect(loadStore().days["2026-10-06"].extras).toEqual([]);
+  });
+
+  it("puts another device's new log entry on this phone's day, unless its own write is queued", async () => {
+    const E4 = "3f1b1a2c-0000-4000-8000-0000000000e4";
+    const E5 = "3f1b1a2c-0000-4000-8000-0000000000e5";
+    const entry = (id: string) => ({ id, local_date: "2026-10-07", eaten_at: "2026-10-07T12:00:00.000Z",
+      slot: "meal-2", title: "Tuna bowl", note: null, rev: 1, deleted_at: null,
+      items: [{ id: `${id}-i`, seq: 1, food_ref_id: "ref-1", grams: 150, qty: 150, unit: "g",
+        snapshot: { energy_kcal: { amount: 200, unit: "kcal", basis: "per_100g" } } }] });
+    await enqueue(h, { op_id: "op-e5", entity: "log_entries", entity_id: E5, kind: "update",
+      base_rev: 1, payload: { id: E5, note: "mine" }, client_ts: "2026-10-07T12:00:00.000Z" } as never);
+    await pullChanges(h, 0, { fetchFn: pageFn({ changes: [
+      row(1, { entity: "log_entries", entity_key: E4, op: "create", current: entry(E4) }),
+      row(2, { entity: "log_entries", entity_key: E5, op: "create", current: entry(E5) }),
+    ], next_cursor: 2, has_more: false }) });
+    const extras = loadStore().days["2026-10-07"]?.extras ?? [];
+    expect(extras.map((e) => e.id)).toEqual([E4]);
+    // An entry this phone deleted (its delete still owed) or is still committing stays off Today.
+    const E6 = "3f1b1a2c-0000-4000-8000-0000000000e6";
+    const E7 = "3f1b1a2c-0000-4000-8000-0000000000e7";
+    await markDeleted(h, E6);
+    await markInFlight(h, E7, null);
+    await pullChanges(h, 2, { fetchFn: pageFn({ changes: [
+      row(3, { entity: "log_entries", entity_key: E6, op: "update", current: entry(E6) }),
+      row(4, { entity: "log_entries", entity_key: E7, op: "update", current: entry(E7) }),
+    ], next_cursor: 4, has_more: false }) });
+    expect((loadStore().days["2026-10-07"]?.extras ?? []).map((e) => e.id)).toEqual([E4]);
+    // A replayed row older than the mirror's neither lowers the mirror nor moves the card.
+    await pullChanges(h, 4, { fetchFn: pageFn({ changes: [
+      row(5, { entity: "log_entries", entity_key: E4, op: "update", current: { ...entry(E4), rev: 0, title: "Old" } }),
+    ], next_cursor: 5, has_more: false }) });
+    await expect(getRow(h, "log_entries", E4)).resolves.toMatchObject({ rev: 1 });
+    expect(loadStore().days["2026-10-07"]?.extras?.[0]?.name).toBe("Tuna bowl");
+    expect(extras[0]?.name).toBe("Tuna bowl");
+    await expect(getRow(h, "log_entries", E5)).resolves.toMatchObject({ id: E5 });
   });
 
   it("writes each ChangeRow.current into its entity store", async () => {
