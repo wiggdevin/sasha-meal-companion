@@ -1,0 +1,544 @@
+{
+ "batches": [
+  {
+   "id": "F01",
+   "title": "Energy rule: stop storing unmeasured nutrients as 0 and logging account foods as 4/4/9",
+   "area": "nutrition data / energy",
+   "findings": [
+    "A154",
+    "A156",
+    "A008",
+    "A019",
+    "A022"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": true,
+   "approach": "Write only measured nutrient codes when a catalog food becomes an account food, carry measured energy (reported, else calculated) per unit on account foods, and apply the one energy rule in recipe sums and its SQL twin. Fix the FDC importer's Foundation energy (2047/2048) and sugars (1063) mapping, re-import Foundation, and backfill custom rows whose energy was stored as 0."
+  },
+  {
+   "id": "F02",
+   "title": "Weekly proposal and TDEE intake correctness",
+   "area": "expenditure engine / target proposals",
+   "findings": [
+    "A157",
+    "A155",
+    "P04",
+    "A075",
+    "A098",
+    "P20"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": true,
+   "approach": "Let the proposal factor move training-day carbs (floored at carb_g_min) so downward corrections land, and count ticked plan meals and eaten recipes in server intake or mark those days intake-unknown. Date approved revisions and the active-revision read by the account day passed into approve_target_proposal, fix the held/starting status edge, and record when day marking began instead of the earliest back-dated mark."
+  },
+  {
+   "id": "F03",
+   "title": "Target safety: pace holds, kidney protein and minors on every server write path",
+   "area": "server targets / safety rules",
+   "findings": [
+    "A129",
+    "A003",
+    "A094",
+    "A103",
+    "A002",
+    "A004",
+    "A119"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": false,
+   "approach": "Clamp or refuse pending proposals approved under a pace hold and reject them when a hold is applied; switch adaptive/proposal revisions to standard protein on kidney disease and supersede paced revisions on a new under-18 signal; run the hold recompute from MCP set_constraints. Re-check pinned days against the revision's own floors, validate goalRateBpWeek on authored writes, and make the first constraint_profiles write conditional."
+  },
+  {
+   "id": "F04",
+   "title": "Health ingest: never lose a payload on a failed apply",
+   "area": "health ingest",
+   "findings": [
+    "A009",
+    "A081",
+    "A012",
+    "A095",
+    "A050"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": true,
+   "approach": "Record the dedupe event and apply samples in one RPC transaction (or mark the event failed so a retry re-applies), and report rejected indexes against the original samples. Make the correction upsert also update start_time and tz, and have the estimator honour the scale-beats-manual rule instead of a per-day median."
+  },
+  {
+   "id": "F05",
+   "title": "Sync merge: conflicts that lose or duplicate user edits",
+   "area": "phone sync / merge",
+   "findings": [
+    "A078",
+    "A141",
+    "A165",
+    "A138",
+    "A164",
+    "A168",
+    "A077",
+    "A139",
+    "P07"
+   ],
+   "severity": "high",
+   "size": "L",
+   "migration": false,
+   "approach": "Rebase a conflicting create on a tombstoned favorite as a restore, coalesce or rebase all queued ops per entity so no op aims at a speculative rev, and keep optimistic mirror state when an older op result or pulled echo arrives while ops are still queued. Send plan_days changes field-wise with per-slot merges, make note joins idempotent, and stop the pull skip from dropping another device's plan_days change."
+  },
+  {
+   "id": "F06",
+   "title": "Exports: page past the 1,000-row cap and validate cursors",
+   "area": "data export",
+   "findings": [
+    "A085",
+    "A112",
+    "A113",
+    "A086",
+    "A071",
+    "A114",
+    "A052",
+    "A126",
+    "A133"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": false,
+   "approach": "Read meals, recipes, water and target_profiles through fetchAllRows/date-chunks with a real next cursor (or an explicit truncation notice), and chunk the day-type override .in() list. Validate export cursors before they reach PostgREST filters, and use each date's own revision for historical water goals."
+  },
+  {
+   "id": "F07",
+   "title": "Capture and log sheet portion maths",
+   "area": "capture quantity / log sheet",
+   "findings": [
+    "A006",
+    "A007",
+    "A044",
+    "A015",
+    "A016"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": false,
+   "approach": "Parse the amount in a matched portion label and stop inventing 100 g per 'whole' or 'piece', keeping the model's grams or refusing per the module contract. Make the log sheet's count stepper move grams when there are no portions, and log exactly the grams the box shows."
+  },
+  {
+   "id": "F08",
+   "title": "Food rules parity on coach plan writes, menu and document imports, barcode and starters",
+   "area": "food policy / coach plan writes",
+   "findings": [
+    "A023",
+    "A128",
+    "A130",
+    "A134",
+    "A031",
+    "A026",
+    "A041"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Run the full evaluatePolicy pass (diet flags, profile hard rules, human-food check) on set_slot_meal/add_slot_item/set_slot_item and on menu-photo and document-plan grounding, failing to a 'check it' state when flags exist. Stamp offline barcode verdicts with the rules epoch, count OFF en:crustaceans as crustacean evidence, and treat wheat and gluten as one concern for starters."
+  },
+  {
+   "id": "F09",
+   "title": "Bundled food data and portion bands",
+   "area": "food data / portion bands",
+   "findings": [
+    "A013",
+    "A017",
+    "A020",
+    "A021"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": false,
+   "approach": "Exempt oil-packed fish from the name-substring oil band and stop the cheese rule from banding mixed dishes, keyed on the curated family rather than substrings. Choose bundled default portions by a sensible serving instead of the shortest label, and remap Ramen bowl and Overnight oats to correct SR rows via the build script."
+  },
+  {
+   "id": "F10",
+   "title": "Nightly backup: complete, consistent and time-bounded",
+   "area": "backup job",
+   "findings": [
+    "A083",
+    "A122",
+    "A123"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Derive the backup table list from the user-owned schema (with a test that fails when a new user table is missing) so dietary-profile rules, allergen checks, shopping and recipe-plan tables are included. Page by keyset instead of OFFSET and give the job a time budget with resumable passes like job-sweep."
+  },
+  {
+   "id": "F11",
+   "title": "Capture and log flow: label save broken, blocked items refused, inconsistent stored units",
+   "area": "capture / log commit",
+   "findings": [
+    "A030",
+    "A034",
+    "A032",
+    "A033",
+    "A035",
+    "A036"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": false,
+   "approach": "Send the label_food body and placeholder ref when 'Save as my food' is on, and let the capture sheet save blocked items with a mark per the logging-marks ruling. Re-check policy for queued commits after drain, validate before creating label food rows, keep scan qty/unit consistent with grams, and show the right draft on a duplicate 409."
+  },
+  {
+   "id": "F12",
+   "title": "Shopping planner: preview crashes on pantry photos, old batches and withdrawn recipes",
+   "area": "shopping / recipe planning",
+   "findings": [
+    "A048",
+    "A046",
+    "A047",
+    "A049",
+    "A018",
+    "P03"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": true,
+   "approach": "Make identityKey tolerate null-ref photo pantry items, judge prepared-batch reuse by the batch's first row, and block only the slot whose accepted recipe was withdrawn instead of failing the whole preview with 410. Fix the accept SQL's LEAST-with-NULL stock, the float package-count ceiling, and treat 0 g pantry rows as not on hand."
+  },
+  {
+   "id": "F13",
+   "title": "Legacy onboarding and Edit profile: crash, missing safety round, fabricated weigh-in",
+   "area": "onboarding UI",
+   "findings": [
+    "A093",
+    "A087",
+    "A088",
+    "A092",
+    "A089",
+    "A091"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": false,
+   "approach": "Catch AdultOnlyError in the legacy form (friendly stop) and add the safety round or default it to 0 pace, and make previews read stored holds and compute age by full birth date. Log a weigh-in only when the weight changed, and open the food world by default only for brand-new accounts, not invite completions."
+  },
+  {
+   "id": "F14",
+   "title": "Oura: de-duplicate steps and energy, bucket by user day, real token refresh",
+   "area": "health / Oura integration",
+   "findings": [
+    "A010",
+    "A014",
+    "A011",
+    "A117",
+    "P12",
+    "A053"
+   ],
+   "severity": "high",
+   "size": "M",
+   "migration": false,
+   "approach": "Pick one source per day for step_count and active_energy instead of unioning Oura and Apple aggregates, and bucket Oura sleep/HR/HRV/readiness by the account's local day. Implement the 401 refresh with an atomic rotated-token write, and validate the Oura callback return target against an allowlist to close the open redirect."
+  },
+  {
+   "id": "F15",
+   "title": "Sync outbox: ordering, parking and liveness",
+   "area": "phone sync / outbox",
+   "findings": [
+    "A079",
+    "A076",
+    "A074",
+    "A137",
+    "P09",
+    "A080",
+    "A082"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Enforce per-entity order so a delete never runs before a backed-off create, charge a whole-batch 4xx (including 401) to no single op, and do the conflict rebase atomically in one IndexedDB transaction. Auto-release parked ops after a fix, guard the cursor against restore-on-missing-row, decouple push from post-pull projection failures, and give settings recovery a moving watermark."
+  },
+  {
+   "id": "F16",
+   "title": "Coach actions: fast-path dates and amounts, slot edits, list removals, Undo titles",
+   "area": "coach actions",
+   "findings": [
+    "A024",
+    "A027",
+    "A029",
+    "A158",
+    "A160",
+    "A025",
+    "A028",
+    "A037",
+    "P18"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Honour the stated date and full compound quantity on fast-path actions, split compound food phrases instead of marking one arbitrary hit, and keep set_slot_item on the line's own food and macros. Stop zero placeholders from overwriting training weekdays, keep remove_from_eats/avoid from clearing the other list, restore titles on delete_entry Undo and surface dropped out-of-scope actions honestly."
+  },
+  {
+   "id": "F17",
+   "title": "Food membership and Favor consistency",
+   "area": "food membership / Favor",
+   "findings": [
+    "A039",
+    "A140",
+    "P15",
+    "A038",
+    "A042"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": true,
+   "approach": "Refresh or bypass the phone membership cache after a server-side Favor or another device's mark, and let the server assign membership revisions instead of device-clock milliseconds. Send role saves as field deltas so they cannot revert an Avoid, make re-Favor write prefs for refs minted after the first Favor, and stop cured meats inferring as fat."
+  },
+  {
+   "id": "F18",
+   "title": "Today meal cards: stale drafts across dates, Quick meals, swap and tick state",
+   "area": "Today / plan resolution",
+   "findings": [
+    "A069",
+    "A061",
+    "A064",
+    "A065",
+    "A066",
+    "A062",
+    "P06"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Key meal cards by date so drafts and previews reset on a date switch, and either implement Quick meals or remove the control and its Swap gate. Fix ticked-snapshot reading, exclude the current meal from swap alternatives, clear the frozen meal on 'not eaten', use a non-negative modulo for date variety and coalesce Today's snapshot refetch."
+  },
+  {
+   "id": "F19",
+   "title": "Lock down server-owned tables and columns from direct PostgREST writes",
+   "area": "database RLS / grants",
+   "findings": [
+    "A068",
+    "A097",
+    "A147",
+    "A148",
+    "A120",
+    "P17",
+    "P16",
+    "A146"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": true,
+   "approach": "Revoke authenticated insert/update/delete on target_profiles, change_log/change_seq and health_sources and restrict user_settings delete/insert, guarding day_marks_started_on as server-written. Restrict coach_messages inserts to role='user' rows and make the coach_threads guard return early for a foreign user_id; apply after the code that already writes via the service role is live."
+  },
+  {
+   "id": "F20",
+   "title": "Media storage: uploads, sweep and path traversal",
+   "area": "media / storage",
+   "findings": [
+    "A055",
+    "P08",
+    "A115",
+    "A099",
+    "A136",
+    "P10",
+    "A135"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": true,
+   "approach": "Remove insert/update from the authenticated media bucket policy, constrain media_objects.path to the owner's prefix and have the sweep skip foreign paths. Validate media paths (no traversal) in fetchOwnedObject, pantry/photo and coach/transcribe, fix the signed-URL expiry claim, and strip EXIF before sending document photos to the model."
+  },
+  {
+   "id": "F21",
+   "title": "Account-day dates on the server",
+   "area": "dates / time zones (server)",
+   "findings": [
+    "A167",
+    "A118",
+    "P14",
+    "A109",
+    "A110",
+    "A072",
+    "A143"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": false,
+   "approach": "Resolve the server's cached target and job days by the viewed date and the account day (lib/server/account-day.ts) instead of UTC or HEALTH_TZ, and fail loudly rather than silently falling back to UTC. Bucket coach recall windows, suggestion rotation, taste-history manual lines and the capture cap by the stored account zone."
+  },
+  {
+   "id": "F22",
+   "title": "Account-day dates and slot clocks on the phone and calendar export",
+   "area": "dates / time zones (client)",
+   "findings": [
+    "A054",
+    "A051",
+    "A063",
+    "A070",
+    "A142",
+    "A005",
+    "A166",
+    "A090",
+    "A100"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Date manual revisions and cache stamps by the phone's local day, read meal count and slot clocks from the viewed date's revision, and refresh the week page's 'today' at midnight. Make the .ics export use the app's clamped slot resolution, and make BMR age and spring-forward retiming deterministic."
+  },
+  {
+   "id": "F23",
+   "title": "Database lock order: remove deadlocks between Favor, membership, food_ref mint and barcode",
+   "area": "database locking",
+   "findings": [
+    "A162",
+    "A163",
+    "A096"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": true,
+   "approach": "Define one global lock order (evidence_clock, then account_rules_clock, then recipe_plan_state) and apply it in recipe_plan_bump_*, favor_food_families, set_food_membership and get_or_create_food_ref. Prove it with a concurrent two-session DB test."
+  },
+  {
+   "id": "F24",
+   "title": "Coach turn budget and limits",
+   "area": "coach / rate limits",
+   "findings": [
+    "A159",
+    "A116",
+    "A152",
+    "A151",
+    "P19",
+    "A153"
+   ],
+   "severity": "medium",
+   "size": "M",
+   "migration": false,
+   "approach": "Count turns rather than provider calls, include coach-openrouter turns, and make the budget atomic and fail closed with a per-user limiter on POST /api/coach and /api/coach/transcribe. Retry a seq conflict instead of returning a false 503, and skip the weekly review model call for accounts with no logged days."
+  },
+  {
+   "id": "F25",
+   "title": "Plan-sheet imports: document amounts, recipe links and the ideas body cap",
+   "area": "plan sheet / imports",
+   "findings": [
+    "A040",
+    "A043",
+    "A144",
+    "A127",
+    "A045"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": false,
+   "approach": "Refuse unreadable or over-long document amounts instead of defaulting to one portion, and parse Unicode fractions and 'N (size) can X' lines correctly. Cap or compress the 'Not this' exclusion list under the ideas body limit, and turn an unparseable redirect Location into a typed HttpError."
+  },
+  {
+   "id": "F26",
+   "title": "Care points ledger correctness",
+   "area": "care points",
+   "findings": [
+    "A106",
+    "A107",
+    "A108"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": true,
+   "approach": "Sum the seeds balance server-side (care_balance RPC) or page it past the 1,000-row cap. Evaluate the full-week accolade for the previous closed week on any sync, and stop care_points_sync raising when the phone's day differs from the stored zone's today."
+  },
+  {
+   "id": "F27",
+   "title": "AI call layer: abort handling, circuit hygiene, error-body privacy, spend seed",
+   "area": "AI call governance",
+   "findings": [
+    "A001",
+    "P01",
+    "A149",
+    "A084",
+    "P13",
+    "A161"
+   ],
+   "severity": "low",
+   "size": "S",
+   "migration": true,
+   "approach": "Check signal.aborted before each retry and attach a handler to the in-flight send, and record caller aborts as aborts so they never count toward the shared circuit. Store only HTTP status for provider error bodies on every user-content purpose, and seed the spend day rows only from ai_calls with no reservation."
+  },
+  {
+   "id": "F28",
+   "title": "MCP route hardening",
+   "area": "MCP API",
+   "findings": [
+    "A101",
+    "A111",
+    "A059",
+    "A102",
+    "A131",
+    "A150",
+    "A104"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": false,
+   "approach": "Return the newest N coach messages (newest last) and enforce the read scope on batch calls. Parse and size-check the body after auth with object-shape validation, check the IP limiter before the token key, and reject impossible calendar dates in get_body_data."
+  },
+  {
+   "id": "F29",
+   "title": "Scale: unbounded reads on hot paths",
+   "area": "server reads / scalability",
+   "findings": [
+    "A067",
+    "P02",
+    "P05",
+    "A124"
+   ],
+   "severity": "medium",
+   "size": "S",
+   "migration": false,
+   "approach": "Filter soft-deleted user_foods and batch/page foodsFor and the eligible Eats .in() read, and apply the recipe catalog cap to current published revisions only. Rank chat search hits per thread before the global limit."
+  },
+  {
+   "id": "F30",
+   "title": "API input validation: ids, limits and calendar dates",
+   "area": "API routes / validation",
+   "findings": [
+    "A132",
+    "A073",
+    "A056",
+    "A105",
+    "A125"
+   ],
+   "severity": "low",
+   "size": "S",
+   "migration": false,
+   "approach": "Add one shared calendar-date validator and UUID/limit parsers and use them in health daily, the health contract, coach threads, health tokens, proposals decide and recipe ids. Malformed input answers 400 or 404, never a Postgres 500."
+  },
+  {
+   "id": "F31",
+   "title": "Telemetry and event tables: enforce quotas at the database",
+   "area": "database grants / telemetry",
+   "findings": [
+    "A121",
+    "A145",
+    "P11"
+   ],
+   "severity": "low",
+   "size": "S",
+   "migration": true,
+   "approach": "Revoke direct INSERT on client_timings, onboarding_events and food_signal_events and write them through the rate-limited routes or a rate-checked definer function. Re-add the client_timings checks NOT VALID with a lock timeout and validate in a follow-up file."
+  },
+  {
+   "id": "F32",
+   "title": "Test guards that cannot fail",
+   "area": "tests / guards",
+   "findings": [
+    "A060",
+    "A058",
+    "A057"
+   ],
+   "severity": "low",
+   "size": "S",
+   "migration": false,
+   "approach": "Make the kosher meat-with-dairy test fail with the rule switched off, give the open-world safety test an independent admission oracle, and extend the NHANES microdata scan to data file types. Each fix ships with a mutation check showing the guard goes red."
+  }
+ ]
+}
