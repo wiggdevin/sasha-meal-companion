@@ -176,11 +176,14 @@ export function allergenRule(name: string): AllergenRule {
 /**
  * W022 (B197): USDA SR descriptions open with a food-group head, and coconut's is "Nuts,"
  * ("Nuts, coconut milk, canned"). That head names the survey's group, not an ingredient, and
- * "coconut" itself is excluded from tree nut above, so a food NAME that starts this way is read
- * without the head. Names only: ingredient text keeps every "nuts" it says. A coconut food left
- * with no other evidence reads `unknown` for tree nut ("Check the label"), never `allowed`.
+ * "coconut" itself is excluded from tree nut above, so a food NAME in the SR shape is read
+ * without the head. The shape is narrow on purpose: the head must be followed by one of SR's
+ * coconut products (meat, milk, cream, water), so a branded or custom name such as
+ * "Nuts, coconut, raisins" keeps its "nuts" listing. Names only: ingredient text keeps every
+ * "nuts" it says, and the rest of the name is still scanned. A coconut food left with no other
+ * evidence reads `unknown` for tree nut ("Check the label"), never `allowed`.
  */
-const USDA_COCONUT_HEAD = /^\s*nuts,\s*(?=coconut\b)/i;
+const USDA_COCONUT_HEAD = /^\s*nuts,\s*(?=coconut (?:meat|milk|cream|water)\b)/i;
 
 function nameForScan(name: string | null | undefined): string | null | undefined {
   return typeof name === "string" ? name.replace(USDA_COCONUT_HEAD, "") : name;

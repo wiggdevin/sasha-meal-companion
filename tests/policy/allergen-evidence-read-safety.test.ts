@@ -22,7 +22,7 @@ function clientWithFailingEvidenceRead(checksData: unknown[] = []) {
     const chain: Record<string, unknown> = {};
     const failing = table === "food_allergen_evidence";
     Object.assign(chain, {
-      select: () => chain, in: () => chain, eq: () => chain,
+      select: () => chain, in: () => chain, eq: () => chain, order: () => chain, range: () => chain,
       then: (resolve: (v: { data: unknown; error: { message: string } | null }) => unknown) =>
         Promise.resolve(failing
           ? { data: null, error: { message: "read timed out" } }
@@ -36,7 +36,7 @@ function clientWithFailingEvidenceRead(checksData: unknown[] = []) {
 describe("readAllergenEvidence: a read error must not become an empty map", () => {
   it("rejects instead of resolving to a silently-empty map", async () => {
     const client = clientWithFailingEvidenceRead();
-    await expect(readAllergenEvidence(client, ["catalog_revision:1"])).rejects.toThrow();
+    await expect(readAllergenEvidence(client, ["catalog_revision:1"])).rejects.toThrow("read timed out");
   });
 });
 
