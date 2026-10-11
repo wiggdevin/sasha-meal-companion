@@ -7,12 +7,24 @@ import type { DailyHealthRow, NormalizedSample } from "@/lib/health/contract";
 import { unionNonOverlappingDetail, type Interval } from "@/lib/health/intervals";
 import { LB_PER_KG, toCanonical } from "@/lib/health/units";
 
+/** One formatter per zone: building an Intl.DateTimeFormat per sample dominated a large payload. */
+const LOCAL_DATE_FORMATS = new Map<string, Intl.DateTimeFormat>();
+
+function localDateFormat(tz: string): Intl.DateTimeFormat {
+  const cached = LOCAL_DATE_FORMATS.get(tz);
+  if (cached) return cached;
+  // en-CA formats as YYYY-MM-DD; Intl applies the zone's offset for that instant, DST included.
+  // An unknown zone throws here, before anything is cached.
+  const format = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric",
+    month: "2-digit", day: "2-digit" });
+  LOCAL_DATE_FORMATS.set(tz, format);
+  return format;
+}
+
 export function localDateOf(iso: string, tz: string): string {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) throw new Error(`not an ISO 8601 timestamp: ${iso}`);
-  // en-CA formats as YYYY-MM-DD; Intl applies the zone's offset for that instant, DST included.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit",
-    day: "2-digit" }).format(new Date(ms));
+  return localDateFormat(tz).format(new Date(ms));
 }
 
 export function emptyDay(localDate: string): DailyHealthRow {

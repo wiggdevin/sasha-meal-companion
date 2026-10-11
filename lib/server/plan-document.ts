@@ -24,18 +24,17 @@ import { generateOpenRouter } from "@/lib/ai/openrouter";
 import { documentPlanPayload, type DocumentPayloadInput } from "@/lib/ai/openrouter-payloads";
 import { openRouterConfigured } from "@/lib/ai/provider-env";
 import { providerFallbackWorthTrying } from "@/lib/ai/provider-fallback";
-import type { ConstraintProfile } from "@/lib/policy/constraints";
 import { cleanDays, cleanRecipeIngredients, matchMeal } from "@/lib/plan/document-clean";
 import { MAX_DOCUMENT_PAGES, MAX_PDF_BYTES, pdfPageCount, sniffBytes, TOO_MANY_PAGES } from "@/lib/plan/document-files";
 import { groundDocumentMeal, itemTotals, type DocumentGroundPorts } from "@/lib/plan/document-ground";
 import type { DocumentRequest, DocumentResult } from "@/lib/plan/document-types";
 import { cleanIngredients, dishTitle } from "@/lib/plan/inspire-types";
 import { cleanMenu } from "@/lib/plan/photo-result";
+import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata";
 import { HttpError } from "@/lib/server/auth";
 import { fetchOwnedObject } from "@/lib/server/media";
 import { MAX_INSPIRE_PHOTO_BYTES } from "@/lib/server/plan-inspire";
-import { defaultMenuSearch, screenMenu } from "@/lib/server/plan-menu";
-import { readPolicyProfile, type PolicyProfile } from "@/lib/server/policy-profile";
+import { defaultMenuSearch, readMenuProfile, screenMenu, type MenuProfile } from "@/lib/server/plan-menu";
 import { byModel } from "@/lib/provenance";
 
 const DOCUMENT_BUDGET_MS = 40_000;
@@ -47,8 +46,11 @@ export type DocumentDeps = {
   generate?: typeof generateOpenRouter;
   generateGemini?: typeof generateStructured;
   /** The account's food rules, read only when a matched meal or a menu needs screening. */
-  readPolicy?: (admin: SupabaseClient, userId: string) => Promise<PolicyProfile | ConstraintProfile>;
+  /** W014: the profile and the diet flags, read together (lib/server/plan-menu.ts readMenuProfile). */
+  readPolicy?: (admin: SupabaseClient, userId: string) => Promise<MenuProfile>;
   searchFoods?: DocumentGroundPorts["searchFoods"];
+  /** The matched meal's full policy evidence (default loadSuggestionEvidence; W014, A134). */
+  evidence?: DocumentGroundPorts["evidence"];
 };
 
 /** The request's file as payload input: its type sniffed from its bytes, its size and pages bounded. */
@@ -67,7 +69,15 @@ async function source(admin: SupabaseClient, userId: string, req: DocumentReques
     if (media.bytes.byteLength > MAX_INSPIRE_PHOTO_BYTES) {
       throw new HttpError(413, "too_large", "That photo is too large. Try another one.");
     }
-    return { kind: "image", bytes: media.bytes };
+    // W019 (audit 2026-10-10 A135, spec W12-F): the same server-side strip as the Plan photo and
+    // pantry paths, before either provider leg. The phone's re-encode is not trusted: any client
+    // can PUT a JPEG with GPS EXIF to its signed URL. What cannot be parsed is refused, never sent.
+    try {
+      return { kind: "image", bytes: stripImageMetadata(media.bytes, kind) };
+    } catch (e) {
+      if (!(e instanceof UnparseableImage)) throw e;
+      throw new HttpError(422, "unreadable_photo", "That photo couldn’t be read. Try another one.");
+    }
   }
   const bytes = new Uint8Array(Buffer.from(req.data, "base64"));
   if (bytes.byteLength > MAX_PDF_BYTES) throw new HttpError(413, "too_large", "That PDF is over 3 MB.");
@@ -116,7 +126,7 @@ export async function readDocument(admin: SupabaseClient, client: SupabaseClient
 }
 
 function policy(admin: SupabaseClient, userId: string, deps: DocumentDeps) {
-  return (deps.readPolicy ?? ((c, id) => readPolicyProfile(c, id, new Date()).then((r) => r.profile)))(admin, userId);
+  return (deps.readPolicy ?? readMenuProfile)(admin, userId);
 }
 
 async function searchPort(admin: SupabaseClient, client: SupabaseClient, req: DocumentRequest,
@@ -135,7 +145,8 @@ async function route(admin: SupabaseClient, client: SupabaseClient, userId: stri
     if (!at) return { kind: "meal_plan", title, days, match: null };
     const meal = days[at.day].meals[at.meal];
     const [profile, searchFoods] = await Promise.all([policy(admin, userId, deps), searchPort(admin, client, req, deps)]);
-    const { items, left } = await groundDocumentMeal(userId, meal, profile, { searchFoods });
+    const { items, left } = await groundDocumentMeal(userId, meal, profile,
+      { searchFoods, ...(deps.evidence ? { evidence: deps.evidence } : {}) });
     return { kind: "meal_plan", title, days,
       match: { ...at, title: meal.name, items, left, totals: itemTotals(items) } };
   }

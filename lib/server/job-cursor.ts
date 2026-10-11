@@ -17,7 +17,8 @@
  *
  * The per-user `job_runs` lock, not this row, keeps an account to one run per key. A claim that
  * fails (the table or function is missing, the database is unreachable) is logged and the run
- * walks the whole listing with no cursor: slower, never wrong.
+ * walks the whole listing with no cursor: slower, never wrong. (The backup is the exception: it
+ * needs the lease to keep two runs off one pass, so it answers 503 instead.)
  */
 import { randomUUID } from "node:crypto";
 import type { adminClient } from "@/lib/server/admin";
@@ -79,24 +80,45 @@ export async function claimPass(
   }
 }
 
-/** Saves the pass and releases the lease, only while `owner` still holds it. */
+/** Writes the pass and releases the lease while `owner` still holds it: `lost` when it no longer
+ *  did (nothing written). Throws when the write itself fails. */
+async function writePass(
+  admin: Admin, job: string, period: string, owner: string,
+  state: Omit<PassState, "startedAt">,
+): Promise<"saved" | "lost"> {
+  const { data, error } = await admin.from("job_cursors").update({
+    after_key: state.after, listed: state.listed, retry_keys: state.retry, relist: state.relist,
+    done: state.done,
+    lease_owner: null, lease_until: null, updated_at: new Date().toISOString(),
+  }).eq("job", job).eq("period", period).eq("lease_owner", owner).select("job");
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) === 1 ? "saved" : "lost";
+}
+
+/** Saves the pass and releases the lease, only while `owner` still holds it. A failed or lost
+ *  save is logged; the next run repeats this one's work. */
 export async function savePass(
   admin: Admin, job: string, period: string, owner: string,
   state: Omit<PassState, "startedAt">,
 ): Promise<void> {
   try {
-    const { data, error } = await admin.from("job_cursors").update({
-      after_key: state.after, listed: state.listed, retry_keys: state.retry, relist: state.relist,
-      done: state.done,
-      lease_owner: null, lease_until: null, updated_at: new Date().toISOString(),
-    }).eq("job", job).eq("period", period).eq("lease_owner", owner).select("job");
-    if (error) throw new Error(error.message);
-    if ((data?.length ?? 0) !== 1) {
+    if (await writePass(admin, job, period, owner, state) === "lost") {
       console.error("job cursor lease lost; this run's progress was not saved", { job, period });
     }
   } catch (e) {
     console.error("job cursor save failed; the next run repeats this one", { job, period,
       error: e instanceof Error ? e.message : "unknown" });
+  }
+}
+
+/** `savePass` for a caller whose answer depends on the save: throws unless the pass was written
+ *  under `owner`'s lease. */
+export async function savePassConfirmed(
+  admin: Admin, job: string, period: string, owner: string,
+  state: Omit<PassState, "startedAt">,
+): Promise<void> {
+  if (await writePass(admin, job, period, owner, state) === "lost") {
+    throw new Error("job cursor lease lost; this run's progress was not saved");
   }
 }
 

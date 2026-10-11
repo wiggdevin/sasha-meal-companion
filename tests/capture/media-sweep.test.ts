@@ -6,10 +6,13 @@ vi.mock("@/lib/server/media", async (orig) => ({
   ...(await orig<typeof import("@/lib/server/media")>()),
   deleteMedia: vi.fn(async (_admin: unknown, path: string) => { removed.push(path); }),
 }));
-const rows = vi.hoisted(() => [{ path: "media/u1/old.jpg" }]);
+const OLD = "media/u1/11111111-1111-4111-8111-111111111111.jpg";
+const rows = vi.hoisted(() => [] as { path: string; user_id: string }[]);
 const nullFilters = vi.hoisted(() => new Set<string>());
+const selects = vi.hoisted(() => [] as string[]);
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => ({
-  from: () => ({ select: () => {
+  from: () => ({ select: (columns: string) => {
+    selects.push(columns);
     let after: string | null = null;
     const chain = {
       is: (column: string, value: unknown) => {
@@ -36,7 +39,10 @@ function req(method: "GET" | "POST", token?: string): Request {
   });
 }
 
-beforeEach(() => { resetRateLimits(); removed.length = 0; vi.stubEnv("CRON_SECRET", "s3cret"); });
+beforeEach(() => {
+  resetRateLimits(); removed.length = 0; vi.stubEnv("CRON_SECRET", "s3cret");
+  rows.splice(0, rows.length, { path: OLD, user_id: "u1" });
+});
 
 describe("GET /api/jobs/media-sweep", () => {
   it.each([undefined, "wrong"])("401s on a missing or wrong bearer (%s) and sweeps nothing", async (token) => {
@@ -52,7 +58,7 @@ describe("GET /api/jobs/media-sweep", () => {
     const get = await GET(req("GET", "s3cret"));
     expect(get.status).toBe(post.status);
     expect(await get.json()).toEqual(postBody);
-    expect(removed).toEqual(["media/u1/old.jpg"]);
+    expect(removed).toEqual([OLD]);
   });
 
   it("lists only unattached, untombstoned drafts: never a row linked to a log entry", async () => {
@@ -63,14 +69,34 @@ describe("GET /api/jobs/media-sweep", () => {
 
   it("keeps going past the old 500-object cap, page after page, in one run (S3)", async () => {
     const many = Array.from({ length: 2_345 }, (_, i) => ({
-      path: `media/u1/${String(i).padStart(5, "0")}.jpg` }));
+      path: `media/u1/00000000-0000-4000-8000-${String(i).padStart(12, "0")}.jpg`, user_id: "u1" }));
     rows.splice(0, rows.length, ...many);
     try {
       const res = await POST(req("POST", "s3cret"));
       expect(await res.json()).toEqual({ swept: 2_345, failed: 0 });
       expect([...removed].sort()).toEqual(many.map((r) => r.path));
     } finally {
-      rows.splice(0, rows.length, { path: "media/u1/old.jpg" });
+      rows.splice(0, rows.length, { path: OLD, user_id: "u1" });
+    }
+  });
+
+  it("never deletes a path outside the row owner's own folder (P08)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const foreign = [
+      { path: "media/u2/22222222-2222-4222-8222-222222222222.jpg", user_id: "u1" },
+      { path: "media/u1/../u2/22222222-2222-4222-8222-222222222222.jpg", user_id: "u1" },
+      { path: "u2/22222222-2222-4222-8222-222222222222.jpg", user_id: "u2" },
+    ];
+    rows.push(...foreign);
+    try {
+      const res = await POST(req("POST", "s3cret"));
+      expect(await res.json()).toEqual({ swept: 1, failed: 0, skipped: 3 });
+      expect(removed).toEqual([OLD]);
+      expect(selects.at(-1)?.split(",").map((c) => c.trim())).toEqual(["path", "user_id"]);
+      expect(spy).toHaveBeenCalledWith("media sweep skipped a path outside its owner's folder",
+        expect.objectContaining({ userId: "u1" }));
+    } finally {
+      spy.mockRestore();
     }
   });
 });

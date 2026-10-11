@@ -5,16 +5,31 @@
  * per-food mark, not part of the constraint profile, so the dish name and each ingredient are looked
  * up the way the coach grounds a named food (lib/coach/actions/ground-kit.ts groundNamedFood: the
  * food search's top hit and its prefStatus). Blocked dishes go; a restaurant dish is never safe.
+ *
+ * W014 (audit 2026-10-10 A130): the account's diet flags (vegetarian, halal, no_pork …) are judged
+ * too, read beside the profile (readMenuProfile). A dish a flag blocks goes; any other dish of a
+ * flagged account, or of one whose flags could not be read, says "Check it against your food rules".
  */
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FoodHit } from "@/lib/coach/executors";
 import { evaluatePolicy, type ConstraintProfile } from "@/lib/policy/constraints";
+import type { PolicyPreferenceFlag } from "@/lib/policy/facet-rules";
+import { isActiveHardRule } from "@/lib/policy/profiles/types";
+import { normalizePreferenceFlags } from "@/lib/profile/onboarding-state";
 import {
   MAX_MENU_PICKS, pickFromMenu, type MenuCandidate, type MenuPick, type MenuVerdict,
 } from "@/lib/plan/photo-result";
 import { MAX_MENU_CHECK } from "@/lib/plan/document-types";
-import type { PolicyProfile } from "@/lib/server/policy-profile";
+import { readPolicyProfile, type PolicyProfile } from "@/lib/server/policy-profile";
+
+/**
+ * The rules a menu is screened against. `preferenceFlags` is the account's diet flags; `null` means
+ * they could not be read (every dish then says "check it"), absent means the caller has none.
+ */
+export type MenuProfile = (PolicyProfile | ConstraintProfile) & {
+  preferenceFlags?: readonly PolicyPreferenceFlag[] | null;
+};
 
 export type MenuSearch = (userId: string, query: string, limit: number) => Promise<FoodHit[]>;
 
@@ -25,21 +40,29 @@ export type MenuSearch = (userId: string, query: string, limit: number) => Promi
 export const MAX_MENU_LOOKUPS = 48;
 
 /** One menu dish against the account's rules, with its Avoid-list mark already resolved. */
-export function menuVerdict(profile: PolicyProfile | ConstraintProfile, dish: MenuCandidate,
-  onAvoidList = false): MenuVerdict {
+export function menuVerdict(profile: MenuProfile, dish: MenuCandidate, onAvoidList = false): MenuVerdict {
+  const flags = profile.preferenceFlags;
   const verdict = evaluatePolicy(profile, {
     foodRefId: null, allergenTags: null, category: null, onEatsList: false, onAvoidList,
     ingredientsText: [dish.name, ...dish.ingredients].join(", "), ingredientsTextIsLabel: false,
     foodName: dish.name, packaged: false,
+    ...(flags && flags.length > 0 ? { preferenceFlags: flags } : {}),
     ...("profileRules" in profile && profile.profileRules ? { profileRules: profile.profileRules } : {}),
   });
   if (verdict.verdict === "blocked") return { blocked: true, check: null };
   const allergens = [...new Set(profile.avoid_allergens.map((a) => a.trim()).filter(Boolean))];
   if (allergens.length > 0) return { blocked: false, check: askAbout(allergens.slice(0, 3)) };
-  const rules = (profile.custom_rules?.length ?? 0) > 0 || profile.banned_categories.length > 0;
+  const rules = (profile.custom_rules?.length ?? 0) > 0 || profile.banned_categories.length > 0
+    || flags === null || (flags?.length ?? 0) > 0
+    || activeProfileRules(profile);
   if (rules) return { blocked: false, check: "Check it against your food rules" };
   // Re-audit r1 #6: a search miss is not a clear, so an account with Avoid marks is told to look.
   return { blocked: false, check: profile.avoid_food_ref_ids.length > 0 ? "Check it against your Avoid list" : null };
+}
+
+function activeProfileRules(profile: MenuProfile): boolean {
+  const rules = "profileRules" in profile ? profile.profileRules : undefined;
+  return rules?.items.some((rule) => isActiveHardRule(rule, rules.asOf)) ?? false;
 }
 
 /**
@@ -88,7 +111,7 @@ function ranked(candidates: readonly MenuCandidate[], targetKcal: number | undef
  * few searches, not one per ingredient of every dish. The picks equal a full screen's picks.
  */
 export async function screenMenu(userId: string, candidates: readonly MenuCandidate[],
-  targetKcal: number | undefined, profile: PolicyProfile | ConstraintProfile,
+  targetKcal: number | undefined, profile: MenuProfile,
   searchFoods: MenuSearch): Promise<MenuPick[]> {
   const seen = new Map<string, Promise<boolean>>();
   const avoided = (term: string): Promise<boolean> | null => {
@@ -119,6 +142,30 @@ export async function screenMenu(userId: string, candidates: readonly MenuCandid
   }
   const screened = order.slice(0, at);
   return pickFromMenu(screened, targetKcal, (dish) => verdicts.get(dish) ?? { blocked: true, check: null });
+}
+
+/** The account's diet flags, or null when the row or its flags could not be read (fail to check). */
+export async function readMenuFlags(admin: SupabaseClient, userId: string):
+  Promise<PolicyPreferenceFlag[] | null> {
+  try {
+    const { data, error } = await admin.from("user_settings").select("diet_prefs")
+      .eq("user_id", userId).maybeSingle();
+    if (error) return null;
+    const raw = (data as { diet_prefs?: { flags?: unknown } | null } | null)?.diet_prefs?.flags;
+    if (raw !== undefined && raw !== null
+      && (!Array.isArray(raw) || raw.some((flag) => typeof flag !== "string"))) return null;
+    return normalizePreferenceFlags(Array.isArray(raw) ? raw : []) as PolicyPreferenceFlag[];
+  } catch {
+    return null;
+  }
+}
+
+/** The constraint profile and the diet flags a menu is screened against, read together. */
+export async function readMenuProfile(admin: SupabaseClient, userId: string): Promise<MenuProfile> {
+  const [{ profile }, preferenceFlags] = await Promise.all([
+    readPolicyProfile(admin, userId, new Date()), readMenuFlags(admin, userId),
+  ]);
+  return { ...profile, preferenceFlags };
 }
 
 /** The food search the coach grounds with, as the signed-in user (their Eats and Avoid marks). */

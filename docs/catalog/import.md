@@ -233,6 +233,14 @@ table and its rows, which a re-import restores), after the app deploy that reads
 `atwater_incomplete` and `energy_mismatch` are written per row, into `catalog_food_revisions
 .quality_flags` — they never abort anything on their own.
 
+Fallback nutrient ids (W004, audit 2026-10-10 A019/A022): Foundation publishes most energy as
+Atwater General (2047) or Specific (2048) factors and most sugars as 1063, not 1008 and 2000.
+`NUTRIENT_PRIORITY` in `scripts/import-fdc.py` stores, per food and code, the first id with a value:
+`energy_kcal` 1008 → 2047 → 2048, `sugars_total` 2000 → 1063. A food with 1008 or 2000 is unchanged.
+Re-importing Foundation (W005, an owner step) fills `energy_kcal` for the foods that had only the
+fiber-subtracted `energy_kcal_calc`; expect more `energy_mismatch` flags there, because the published
+Atwater figure counts fiber energy and `catalog_atwater_kcal` does not.
+
 ### Gates
 
 `MIN_ROWS` (300 / 7,000 / 5,000 for Foundation / SR Legacy / FNDDS) is the only hard gate: a
