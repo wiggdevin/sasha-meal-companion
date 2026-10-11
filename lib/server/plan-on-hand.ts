@@ -6,7 +6,9 @@ import "server-only";
  * past the account's rules, Avoid list or allergens.
  *
  *  - stated: what the person named in the sheet (typed in the box, or read from a photo);
- *  - pantry: confirmed pantry rows inside their 14-day box (`source = 'photo'` → "pantry photo");
+ *  - pantry: confirmed pantry rows inside their 14-day box (`source = 'photo'` → "pantry photo"),
+ *    less a row set to 0 g: that is how a person says it is used up (audit P03); an unknown
+ *    amount (null) still counts;
  *  - list: shopping lines of a live period whose line box reaches `date` and that D7 counts as
  *    used (checked, a checked purchase window, or a manual line). Lines store no eaten state; a
  *    line that was bought and then eaten still counts until its box ends, the same rule shopping
@@ -22,7 +24,8 @@ import { recipeAccessEnabled } from "@/lib/server/recipe-access";
 import { addDays } from "@/lib/recipes-hub/put-in-meal";
 import { LINE_BOX_EXTRA_DAYS, PANTRY_BOX_DAYS, lineActiveOn, pantryActiveOn } from "@/lib/shopping/focus";
 
-type PantryRow = { name: string; confirmed_at: string; source: string | null };
+type PantryRow = { name: string; confirmed_at: string; source: string | null;
+  confirmed_grams: number | string | null };
 type PeriodRow = { id: string; start_date: string; end_date: string };
 type LineRow = { id: string; period_id: string; name: string; checked: boolean; origin: "plan" | "manual" };
 type WindowRow = { line_id: string };
@@ -49,9 +52,10 @@ async function readPantry(client: SupabaseClient, userId: string,
   day: { date: string; zone: string }): Promise<OnHandEntry[]> {
   const since = `${addDays(day.date, -PANTRY_BOX_DAYS - 1)}T00:00:00Z`;
   const rows = await fetchAllRows<PantryRow>((from, to) => client.from("shopping_pantry")
-    .select("name,confirmed_at,source").eq("user_id", userId).is("deleted_at", null)
+    .select("name,confirmed_at,source,confirmed_grams").eq("user_id", userId).is("deleted_at", null)
     .gte("confirmed_at", since).order("id").range(from, to));
-  return rows.filter((row) => pantryActiveOn({ confirmedAt: row.confirmed_at }, day.date, day.zone))
+  return rows.filter((row) => (row.confirmed_grams === null || Number(row.confirmed_grams) > 0)
+    && pantryActiveOn({ confirmedAt: row.confirmed_at }, day.date, day.zone))
     .map((row) => ({ name: row.name, source: row.source === "photo" ? "pantry_photo" as const : "pantry" as const }));
 }
 
