@@ -104,7 +104,8 @@ describe("accessTokenFor", () => {
   });
 
   it("rotates the refresh token in one compare-and-swap update", async () => {
-    const eqOauth = vi.fn().mockResolvedValue({ data: { id: "s" }, error: null });
+    const select = vi.fn().mockResolvedValue({ data: [{ id: "s" }], error: null });
+    const eqOauth = vi.fn(() => ({ select }));
     const update = vi.fn(() => ({ eq: () => ({ eq: eqOauth }) }));
     const admin = { from: vi.fn(() => ({ update })) } as never;
     const old = sealed("2026-09-15T14:01:00Z");
@@ -123,11 +124,19 @@ describe("accessTokenFor", () => {
 
 describe("pullTwoDays", () => {
   it("requests the previous two local days and applies through the RPCs", async () => {
+    // Far-future expiry: pullTwoDays reads the real clock, and a token sealed to expire on a fixed
+    // date turned this test red the morning that date arrived (2026-09-16). Expiry is the
+    // refresh test's job above; this one is about the two-day window.
+    const sealedRow = sealOauth({ access_token: "at", refresh_token: "rt",
+      expires_at: "2099-01-01T00:00:00Z", scope: "daily personal" }, Buffer.from(KEY, "base64"));
     const rpc = vi.fn(async (name: string) => name === "health_ingest_event"
       ? { data: [{ id: "ev-o", is_new: true }], error: null }
       : { data: [{ accepted: 4, updated: 0, skipped: 2 }], error: null });
-    const admin = { rpc, from: vi.fn(() => ({ select: () => ({ eq: () => ({ maybeSingle: async () =>
-      ({ data: { status: "applied" }, error: null }) }) }) })) } as never;
+    const admin = { rpc, from: vi.fn((table: string) => table === "user_settings"
+      ? { select: () => ({ eq: () => ({ maybeSingle: async () =>
+        ({ data: { time_zone: "America/New_York" }, error: null }) }) }) }
+      : { select: () => ({ eq: () => ({ eq: () => ({ is: () => ({ maybeSingle: async () =>
+        ({ data: { oauth: sealedRow }, error: null }) }) }) }) }) }) } as never;
     const fetchFn = vi.fn(async (url: string | URL | Request) => {
       const path = String(url);
       if (path.includes("daily_activity")) {
@@ -143,16 +152,16 @@ describe("pullTwoDays", () => {
         total_sleep_duration: 26640, time_in_bed: 29160 }] }), { status: 200 });
     });
 
-    // Far-future expiry: pullTwoDays reads the real clock, and a token sealed to expire on a fixed
-    // date turned this test red the morning that date arrived (2026-09-16). Expiry is the
-    // refresh test's job above; this one is about the two-day window.
-    const sealedRow = sealOauth({ access_token: "at", refresh_token: "rt",
-      expires_at: "2099-01-01T00:00:00Z", scope: "daily personal" }, Buffer.from(KEY, "base64"));
     const out = await pullTwoDays(admin, { id: "src-o", user_id: "user-1", oauth: sealedRow },
       "2026-09-15", { fetchFn });
 
     expect(out).toEqual({ inserted: 4, updated: 0, skipped: 2 });
     expect(String(fetchFn.mock.calls[0][0])).toContain("start_date=2026-09-13");
     expect(String(fetchFn.mock.calls[0][0])).toContain("end_date=2026-09-15");
+    // W025: sleep and readiness are dated in the account's zone, not UTC.
+    const applied = rpc.mock.calls.find((c) => c[0] === "health_ingest_apply") as unknown as
+      [string, { p_samples: { type: string; tz: string }[] }];
+    const sleep = applied[1].p_samples.filter((x) => x.type === "sleep_asleep");
+    expect(sleep.map((x) => x.tz)).toEqual(["America/New_York"]);
   });
 });
