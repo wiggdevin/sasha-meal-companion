@@ -63,8 +63,9 @@ export function useRecipeAccess(): RecipeAccess {
     retry };
 }
 
-export async function recipeAccessForCurrentAccount(): Promise<boolean> {
-  const account = accountHandle();
+export async function recipeAccessForCurrentAccount(
+  account: AccountHandle = accountHandle(),
+): Promise<boolean> {
   const response = await accountFetch(account, "/api/recipes/access", { cache: "no-store" }, { budget: "prefs" });
   if (!response.ok) return false;
   return (await accountJson<{ enabled: boolean }>(account, response)).enabled === true;

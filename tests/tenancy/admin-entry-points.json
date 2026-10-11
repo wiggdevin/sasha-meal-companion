@@ -207,6 +207,10 @@
     "test": "tests/tenancy/admin-routes.test.ts",
     "via": "@/app/api/mcp/route"
   },
+  "lib/server/backup-dump.ts": {
+    "test": "tests/tenancy/admin-backup.test.ts",
+    "via": "@/app/api/jobs/backup/route"
+  },
   "lib/server/barcode.ts": {
     "test": "tests/tenancy/admin-barcode.test.ts",
     "via": "@/app/api/foods/barcode/route"
