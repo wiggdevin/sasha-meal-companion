@@ -114,6 +114,8 @@ it("syncs complete role and nutrition rows without replaying a stale Eats status
   expect(result.syncing).toBe(false);
   expect(server.membershipCalls).toEqual([]);
   expect(server.changes.map((change) => change.entity)).toEqual(["user_food_prefs", "user_foods"]);
+  // Audit 2026-10-10 P15 (W029): the role save is a field delta; it carries no status to revert.
+  expect(server.changes[0].payload).toEqual({ role: "protein" });
   expect(server.pref).toMatchObject({ status: "avoid", role: "protein", rev: 4 });
   expect(server.food).toMatchObject({ rev: 2, per_100g: {
     protein: 200, carbohydrate: 400, fat_total: 600 } });

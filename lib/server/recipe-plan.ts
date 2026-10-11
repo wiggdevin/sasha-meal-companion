@@ -242,11 +242,20 @@ export async function previewRecipe(client: SupabaseClient, userId: string, reci
     ruleMark: candidateRuleMark(detail.recipe, selected.ingredientSnapshot),
     ruleFlags: detail.preferenceFlags ?? [] };
 }
-/** An accepted recipe outside the loaded candidates, only at the revision the user accepted. */
+/**
+ * An accepted recipe outside the loaded candidates, only at the revision the user accepted. A
+ * withdrawn recipe blocks its own slot, never the whole preview (audit A047).
+ */
 async function keptRecipe(client: SupabaseClient, userId: string,
-  row: { recipe_id: string; recipe_revision_id: string; local_date: string }): Promise<RecipeCandidate | null> {
-  const detail = await loadRecipeDetail(client, userId, row.recipe_id, day(row.local_date));
-  return detail?.recipe.revisionId === row.recipe_revision_id ? detail.recipe : null;
+  row: { recipe_id: string; recipe_revision_id: string; local_date: string },
+): Promise<RecipeCandidate | "withdrawn" | null> {
+  try {
+    const detail = await loadRecipeDetail(client, userId, row.recipe_id, day(row.local_date));
+    return detail?.recipe.revisionId === row.recipe_revision_id ? detail.recipe : null;
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 410) return "withdrawn";
+    throw error;
+  }
 }
 function identityFor(item: RecipeIngredient): IngredientIdentity | null {
   if (!item.foodRefId && !item.foodDbId) return null;
@@ -368,7 +377,9 @@ export async function previewShopping(client: SupabaseClient, userId: string,
     const label = `${row.recipe_name} on ${row.local_date} Meal ${String(row.slot_id).slice(5)}`;
     const recipe = catalog.candidates.find((item) => item.revisionId === row.recipe_revision_id)
       ?? await keptRecipe(client, userId, row);
-    if (!recipe) {
+    if (recipe === "withdrawn") {
+      keptBlocked.push(`Your chosen ${label} is no longer in the recipe catalog. Choose that meal again before planning this period.`);
+    } else if (!recipe) {
       keptBlocked.push(`Your chosen ${label} changed in the recipe catalog. Choose that meal again before planning this period.`);
     } else if (recipe.eligibility.status !== "eligible") {
       keptBlocked.push(`Your chosen ${label} no longer fits your food rules. Choose another recipe for that meal first.`);

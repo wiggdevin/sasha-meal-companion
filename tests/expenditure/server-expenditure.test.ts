@@ -260,8 +260,17 @@ describe("runEstimate", () => {
       const date = new Date(Date.UTC(2026, 8, 11) - d * 86_400_000).toISOString().slice(0, 10);
       graduationRows.push({ local_date: date, nutrient_code: "energy_kcal", amount: 2100, coverage: 1 });
     }
+    // It weighed in through those days, so it once had a valid observation (E2, P04).
+    const graduationWeighIns = async () => {
+      const out: { date: string; kg: number }[] = [];
+      for (let d = 226; d >= 202; d -= 1) {
+        out.push({ date: new Date(Date.UTC(2026, 8, 11) - d * 86_400_000).toISOString().slice(0, 10),
+          kg: 57.5 });
+      }
+      return out;
+    };
     const { admin } = windowedAdminWith(graduationRows);
-    const result = await runEstimate(admin, "u1", asOf, { weighIns });
+    const result = await runEstimate(admin, "u1", asOf, { weighIns: graduationWeighIns });
     expect(result.status).toBe("held");
     expect(result.phase).toBe("provisional");
     expect(result.tdeeKcal).toBe(1850);

@@ -32,13 +32,16 @@ export type SyncOp = {
   base_rev: number | null; payload: Record<string, unknown>; client_ts: string;
 };
 
+/** A033: the commit's policy marks for a queued log write the server applied or had already. */
+type LogFlags = { flagged?: { path: string; message: string }[] };
+
 export type OpResult =
-  | { op_id: string; status: "applied"; rev: number; seq: number }
+  | ({ op_id: string; status: "applied"; rev: number; seq: number } & LogFlags)
   /** `at` (W026, migration 20261231180000): when the server's row was last written. Absent from a
    *  server that predates it; `serverTimestampOf` then falls back to the row's own columns. */
   | { op_id: string; status: "conflict"; entity: Entity; current_rev: number; current: unknown; at?: string }
   | { op_id: string; status: "deleted"; entity: Entity; deleted_at: string }
-  | { op_id: string; status: "gone" | "duplicate" | "unsupported" }
+  | ({ op_id: string; status: "gone" | "duplicate" | "unsupported" } & LogFlags)
   /** `retryable` (W026): the database failed for a moment (a timeout, a lost connection, a
    *  serialization failure), so the op is not at fault and must not spend its error budget. */
   | { op_id: string; status: "error"; message: string; retryable?: boolean };

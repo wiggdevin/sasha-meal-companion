@@ -11,6 +11,7 @@ import type { ChangeRow, ChangesResponse, OpsResponse, SyncOp } from "./types";
 import { resetTestAccount } from "@/tests/helpers/account";
 import type { AccountHandle } from "@/lib/device/account";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
+import { readFoodMembership } from "@/lib/foods/prefs-client";
 
 let h: AccountHandle;
 
@@ -88,6 +89,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 /** The phone's local today for the target cases, so none depends on the runner's clock. Only
@@ -564,6 +566,25 @@ describe("pullChanges", () => {
     await pullChanges(h, undefined, { fetchFn: pageFn({ changes: [], next_cursor: 1,
       has_more: false }) });
     expect(loadStore().foods[foodId].status).toBe("eats");
+  });
+
+  // W029 (audit 2026-10-10 A039): a server Favor or another device's mark reaches the mark cache.
+  it("refreshes the mark cache from the server's marks, except a name with a queued op", async () => {
+    const data = new Map<string, string>();
+    vi.stubGlobal("localStorage", { getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => { data.set(k, v); }, removeItem: (k: string) => { data.delete(k); } });
+    foodSpies.loadAccountFoodSnapshot.mockResolvedValue({ foods: [], prefs: [], refs: [],
+      memberships: [{ name_norm: "kiwi", status: "eats", note: null, rev: 7 },
+        { name_norm: "tofu", status: "avoid", note: null, rev: 9 }] });
+    await enqueue(h, { op_id: "11111111-1111-4111-8111-111111111111",
+      entity: "food_membership", entity_id: "22222222-2222-4222-8222-222222222222",
+      kind: "update", base_rev: null,
+      payload: { id: "22222222-2222-4222-8222-222222222222",
+        name_norm: "tofu", status: "eats", note: null, rev: 10 },
+      client_ts: "2026-09-20T12:00:00.000Z" });
+    await pullChanges(h, 0, { fetchFn: pageFn({ changes: [], next_cursor: 0, has_more: false }) });
+    expect(readFoodMembership(h.userId, "kiwi")).toEqual({ status: "eats", note: null, rev: 7 });
+    expect(readFoodMembership(h.userId, "tofu")).toBeUndefined();
   });
 
   it("preserves the server note when a queued membership change has no note edit", async () => {

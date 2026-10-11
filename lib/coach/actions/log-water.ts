@@ -8,7 +8,7 @@ import { clarify, passThrough } from "@/lib/coach/actions/ground-kit";
 import { cupsLabel, wholeCups } from "@/lib/water";
 import type { ActionSpec } from "@/lib/coach/actions/spec";
 import {
-  FAST_PATH_ARGUMENT_CONFIDENCE, measuredNumber, mlOf, type MissingArgs,
+  addLocalDays, dayArgs, FAST_PATH_ARGUMENT_CONFIDENCE, measuredNumber, mlOf, type MissingArgs,
 } from "@/lib/coach/intent-args";
 
 const input = z.object({ kind: z.literal("log_water"),
@@ -24,7 +24,7 @@ type Types = {
    * left on this phone; the server's Undo runs only while the day still holds exactly that.
    */
   token: { kind: "log_water"; date: string; cups: number; after?: number; afterRev?: number };
-  intentArgs: MissingArgs & { ml?: number };
+  intentArgs: MissingArgs & { ml?: number; dayOffset?: number };
 };
 
 export const logWater: ActionSpec<Types> = {
@@ -53,21 +53,29 @@ export const logWater: ActionSpec<Types> = {
     '  Final: { "kind": "final", "text": "Logged 2 cups (16 oz) of water.", "actions": [{ "kind": "log_water", "numericArgs": [480] }] }',
   ] },
   intent: {
-    extract: ({ numbers, raw }) => {
+    extract: ({ numbers, raw, message }) => {
       const measured = measuredNumber(["cup", "ml", "oz"], numbers, raw);
       const ml = mlOf(measured.candidate);
-      const isMissing = ml === undefined || measured.confidence < FAST_PATH_ARGUMENT_CONFIDENCE;
+      // A stated day (A024): "yesterday" is read here; any other day takes the model turn.
+      const day = dayArgs(message, [-1]);
+      const missing = [
+        ...(ml === undefined || measured.confidence < FAST_PATH_ARGUMENT_CONFIDENCE ? ["ml"] : []),
+        ...(day.missing ?? []),
+      ];
       const argConfidence: Record<string, number> =
-        ml === undefined ? {} : { ml: measured.confidence };
+        { ...(ml === undefined ? {} : { ml: measured.confidence }), ...day.argConfidence };
       return {
-        args: { ...(ml === undefined ? {} : { ml }), ...(isMissing ? { missing: ["ml"] } : {}) },
+        args: { ...(ml === undefined ? {} : { ml }),
+          ...(day.dayOffset === undefined ? {} : { dayOffset: day.dayOffset }),
+          ...(missing.length ? { missing } : {}) },
         argConfidence,
       };
     },
   },
   fastPath: {
-    candidate: (args) => args.ml === undefined || wholeCups(args.ml) === 0 ? null
-      : { kind: "log_water", ml: Math.round(args.ml) },
+    candidate: (args, today) => args.ml === undefined || wholeCups(args.ml) === 0 ? null
+      : { kind: "log_water", ml: Math.round(args.ml),
+        ...(args.dayOffset ? { date: addLocalDays(today, args.dayOffset) } : {}) },
     reply: (action) => `Logging ${cupsLabel(wholeCups(action.ml))} of water.`,
   },
   card: {

@@ -15,7 +15,12 @@ import { accountUnitGrams } from "./foods/unit-grams";
 import { macroKcal } from "./scaling";
 import type { LoggedFood, Macros } from "./types";
 
-export type DbPortion = { label: string; grams: number };
+/**
+ * `isDefault`: the one serving scripts/build-food-db.py chose for a bundled food (audit 2026-10-10
+ * A020: the first everyday portion inside a serving's calories, never a whole package or a cup of
+ * nuts). Account foods carry one portion and no marker.
+ */
+export type DbPortion = { label: string; grams: number; isDefault?: true };
 
 export type DbFood = {
   id: string;
@@ -93,12 +98,21 @@ function portionRank(label: string): number {
   return r * 100 + Math.min(l.length, 60);
 }
 
-/** Portions shown to them: the food's own (everyday ones first), then 1 oz and 100 g. */
+/**
+ * The food's own portions with a real weight, at most four: the marked default first, then the
+ * everyday ones (`portionRank`), as `{ label, grams }`.
+ */
+function ownPortions(food: DbFood): DbPortion[] {
+  const ranked = food.portions.filter((p) => p.grams > 0)
+    .sort((a, b) => portionRank(a.label) - portionRank(b.label));
+  const first = ranked.findIndex((p) => p.isDefault);
+  if (first > 0) ranked.unshift(...ranked.splice(first, 1));
+  return ranked.slice(0, 4).map((p) => ({ label: p.label, grams: p.grams }));
+}
+
+/** Portions shown to them: the food's own (its default, then everyday ones), then 1 oz and 100 g. */
 export function portionsFor(food: DbFood): DbPortion[] {
-  const own = [...food.portions]
-    .filter((p) => p.grams > 0)
-    .sort((a, b) => portionRank(a.label) - portionRank(b.label))
-    .slice(0, 4);
+  const own = ownPortions(food);
   const extra: DbPortion[] = [
     { label: "1 oz", grams: GRAMS_PER_OZ },
     { label: "100 g", grams: 100 },
@@ -123,18 +137,14 @@ function kcalPer100gFor(food: DbFood): number {
 }
 
 /**
- * UI lane contract (lib/foods/portions.ts): the food's own everyday portions, ranked the same way
- * `portionsFor` ranks them but WITHOUT its "1 oz"/"100 g" extras — `buildPortions` always appends
- * its own synthetic 100 g tail, so adding those here would double it up. Offline portions have no
- * id of their own (`id: null`); the first one (after ranking) is the default, since DbPortion
- * carries no isDefault flag.
+ * UI lane contract (lib/foods/portions.ts): the food's own portions, ordered as `portionsFor`
+ * orders them but WITHOUT its "1 oz"/"100 g" extras — `buildPortions` always appends its own
+ * synthetic 100 g tail, so adding those here would double it up. Offline portions have no id of
+ * their own (`id: null`); the first one is the default: the build's marked serving, or for an
+ * account food its one unit.
  */
 function realPortionsFor(food: DbFood): { id: null; label: string; grams: number; isDefault: boolean }[] {
-  return [...food.portions]
-    .filter((p) => p.grams > 0)
-    .sort((a, b) => portionRank(a.label) - portionRank(b.label))
-    .slice(0, 4)
-    .map((p, i) => ({ id: null, label: p.label, grams: p.grams, isDefault: i === 0 }));
+  return ownPortions(food).map((p, i) => ({ id: null, label: p.label, grams: p.grams, isDefault: i === 0 }));
 }
 
 /** The four fields `defaultPortion`/`portions` and a search card's own per100g panel need. */

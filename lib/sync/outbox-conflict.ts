@@ -10,6 +10,7 @@ import {
   carriedPlanDayStamps, mergeEntity, mergePlanDayFields, NEVER_MERGED, planDayStamps, rebaseOp,
   type Row,
 } from "./merge";
+import { hasStoredRole, isRoleDelta } from "./role-delta";
 import { queuedAfter } from "./row-queue";
 import { settleUserSettings } from "./settings";
 import type { OpResult, SyncOp } from "./types";
@@ -139,6 +140,16 @@ export async function settleConflict(
     // A restore keeps the server row's own columns (its sort), so that is what the mirror shows.
     return { op: restarAsRestore(op, result.current_rev, now()), retire: [], seen,
       mirror: { ...server, deleted_at: null, rev: result.current_rev } };
+  }
+  if (isRoleDelta(op)) {
+    // A role delta stays a delta at the server's rev (P15); a role stored meanwhile wins.
+    if (hasStoredRole(server)) {
+      await putRow(h, op.entity, op.entity_id, { ...server, rev: result.current_rev });
+      await deleteOp(h, op.op_id);
+      return null;
+    }
+    return { op: rebaseOp(wireOp(op), { role: op.payload.role }, result.current_rev), retire: [], seen,
+      mirror: { ...server, role: op.payload.role, rev: result.current_rev } };
   }
   const serverTs = serverTimestampOf(server, new Date(now()).toISOString(), result.at);
   if (op.entity === "plan_days") {

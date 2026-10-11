@@ -56,6 +56,16 @@ export function lineActiveOn(
  * Confirming again restarts it (the caller reads the row's CURRENT `confirmedAt`, never a
  * history); deleting ends it at once (a deleted row is simply not in the caller's query).
  */
+/**
+ * D7 "Pantry amount" (owner decision zero-ends-focus, 2026-10-11): a row set to exactly 0 g is used
+ * up and gives no signal, as if deleted. No amount (null: unknown) still counts. PostgREST may
+ * send a numeric column as a string, so both forms are read.
+ */
+export function pantryAmountCounts(grams: number | string | null | undefined): boolean {
+  if (grams === null || grams === undefined || grams === "") return true;
+  return Number(grams) !== 0;
+}
+
 export function pantryActiveOn(item: Pick<PantryItem, "confirmedAt">, date: string, zone?: string | null): boolean {
   const confirmedDate = dateIn(item.confirmedAt, zone);
   return date >= confirmedDate && date <= addDays(confirmedDate, PANTRY_BOX_DAYS);
@@ -145,13 +155,15 @@ type KeyLine = Pick<ShoppingLine, "id" | "periodId" | "name" | "checked" | "orig
 
 /**
  * D7's evidence as dated keys: every used line (checked, a checked purchase window, or manual)
- * for its period's line box, and every confirmed pantry item for its 14-day box. The caller reads
+ * for its period's line box, and every confirmed pantry item for its 14-day box, less a row set
+ * to 0 g (`pantryAmountCounts`; a row with no amount still counts). The caller reads
  * only live rows (soft-deleted periods, lines, windows and pantry items left out).
  */
 export function focusKeysFrom(input: {
   periods: readonly KeyPeriod[]; lines: readonly KeyLine[];
   checkedWindowLineIds: ReadonlySet<string>;
-  pantry: readonly Pick<PantryItem, "name" | "confirmedAt">[]; zone?: string | null;
+  pantry: readonly (Pick<PantryItem, "name" | "confirmedAt">
+    & { confirmedGrams?: number | string | null })[]; zone?: string | null;
 }): FocusKey[] {
   const byId = new Map(input.periods.map((period) => [period.id, period]));
   const keys: FocusKey[] = [];
@@ -162,6 +174,7 @@ export function focusKeysFrom(input: {
     if (key) keys.push({ key, from: period.startDate, to: lineBoxEnd(period) });
   }
   for (const item of input.pantry) {
+    if (!pantryAmountCounts(item.confirmedGrams)) continue;
     const key = focusNameKey(item.name);
     const from = dateIn(item.confirmedAt, input.zone);
     if (key) keys.push({ key, from, to: addDays(from, PANTRY_BOX_DAYS) });

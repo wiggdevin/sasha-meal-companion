@@ -16,10 +16,14 @@ type Types = {
   token: { kind: "delete_entry"; date: string; entry: LoggedFood & { tz?: string };
     /** The originals, so Undo restores them without inventing a snack time. */
     slot: SlotId | "snack"; eatenAt: string;
+    /** The stored title (null: untitled). Absent on a token minted before it was kept (A028). */
+    title?: string | null;
     /** `grams` null: an unknown mass (t17) — `qty`/`unit` are its amount and `perUnit` its own
-     *  per-unit numbers, so Undo puts back a unit entry, never a 0 g one. */
+     *  per-unit numbers, so Undo puts back a unit entry, never a 0 g one. A known mass keeps its
+     *  own `qty`/`unit` and portion too ("2 eggs", never "100 g"). */
     items: { foodRefId: string; grams: number | null; revisionId: number | null; name: string;
-      qty?: number; unit?: string; perUnit?: Record<string, number> }[] };
+      qty?: number; unit?: string; perUnit?: Record<string, number>;
+      portionId?: number | null; wasEdited?: boolean }[] };
 };
 
 export const deleteEntry: ActionSpec<Types> = {

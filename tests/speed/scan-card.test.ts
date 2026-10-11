@@ -7,7 +7,7 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { catalogCard } from "@/lib/log/catalog-card";
+import { catalogCard, scanItemAmount } from "@/lib/log/catalog-card";
 import { offPlanFor } from "@/lib/catalog-client";
 import { buildCommitRequest, localDateOf } from "@/lib/log-client";
 import { commitLogEntry, pendingEntryIds } from "@/lib/log-commit-client";
@@ -102,5 +102,30 @@ describe("the card a scan puts on Today", () => {
     expect(source).toMatch(/flags: offPlanFor\(match\)/);
     expect(source).toMatch(/optimistic: \{ date: request\.local_date/);
     expect(source).not.toMatch(/localDateOf\(at\)/);
+  });
+});
+
+/** W017 (audit 2026-10-10 A035): the stored qty and unit agree with the grams. */
+describe("what a scan commit stores for its item", () => {
+  it("stores grams as the qty in g when no portion is picked", () => {
+    // The "100 g" pill with How many = 3 is 300 g; it used to store qty 3, unit g, grams 300.
+    expect(scanItemAmount({ grams: 300, qty: 3, portionId: null }))
+      .toEqual({ grams: 300, qty: 300, unit: "g", portionId: null });
+    const card = catalogCard({ revision: REVISION, entryId: ENTRY_ID, itemId: ITEM_ID,
+      foodRefId: REF_ID, grams: 300, qty: 3, portion: null, at: AT });
+    expect(card.items?.[0]).toMatchObject({ qty: 300, unit: "g" });
+  });
+
+  it("keeps the count for a picked portion", () => {
+    expect(scanItemAmount({ grams: 180, qty: 2, portionId: 5 }))
+      .toEqual({ grams: 180, qty: 2, unit: "portion", portionId: 5 });
+  });
+
+  it("is what both scan commits send", () => {
+    for (const file of ["components/ScanConfirmSheet.tsx", "components/coach/blocks/log_draft.tsx"]) {
+      const source = readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+      expect(source).toMatch(/\.\.\.scanItemAmount\(edits\)/);
+      expect(source).not.toMatch(/portionId === null \? "g"/);
+    }
   });
 });

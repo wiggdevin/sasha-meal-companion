@@ -1,6 +1,6 @@
 // TDEE step E6 (docs/specs/phase-16-adaptive-handoff.md): the "day fully logged" mark syncs with
-// the omit/keep, null/clear rule, and the first-ever mark date is stored and never moves later
-// (ruling R3).  [needs branch]
+// the omit/keep, null/clear rule, and the day marking began is stored once and never moves
+// (ruling R3, audit 2026-10-10 P20).  [needs branch]
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminClient, HAS_BRANCH, userClient, type TestUser } from "../helpers/supabase";
@@ -59,14 +59,17 @@ run("plan_days.day_complete_at on a real database", () => {
     expect((await day("2099-10-10"))?.day_complete_at).toBeNull();
   });
 
-  it("records the first mark date and never moves it later, even after the mark is cleared", async () => {
-    expect(await startedOn()).toBe("2099-10-10");
+  it("records the day marking began, never a marked date, and never moves it (R3, audit P20)", async () => {
+    // The account has no stored zone, so its day is the UTC date (migration 20261231130000).
+    const today = new Date().toISOString().slice(0, 10);
+    const started = await startedOn();
+    expect([today, new Date(Date.now() - 60_000).toISOString().slice(0, 10)]).toContain(started);
     await write("2099-10-20", { day_complete_at: "2099-10-20T21:00:00Z" });
-    expect(await startedOn()).toBe("2099-10-10");
+    expect(await startedOn()).toBe(started);
     await write("2099-10-05", { day_complete_at: "2099-10-05T21:00:00Z" });
-    expect(await startedOn()).toBe("2099-10-05");
+    expect(await startedOn()).toBe(started);
     await write("2099-10-05", { day_complete_at: null });
-    expect(await startedOn()).toBe("2099-10-05");
+    expect(await startedOn()).toBe(started);
   });
 
   it("puts the mark in the sync feed and keeps it from another account", async () => {

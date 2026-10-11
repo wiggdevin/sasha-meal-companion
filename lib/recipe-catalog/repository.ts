@@ -82,19 +82,44 @@ async function hydrate(client: SupabaseClient, revisions: Revision[],
   });
 }
 
+const PILOT_CAP = 64;
+const PAGE = 25;
+
+/**
+ * The current revision of every published recipe (W038): the pilot cap counts these only, never a
+ * superseded or withdrawn revision an accepted plan still pins. One extra row makes an over-cap
+ * catalog an explicit error instead of hiding a feasible dish; any failed page fails the search.
+ */
+async function currentRevisionIds(client: SupabaseClient): Promise<string[]> {
+  const ids: string[] = [];
+  for (let offset = 0; offset <= PILOT_CAP; offset += PAGE) {
+    const size = Math.min(PAGE, PILOT_CAP + 1 - offset);
+    const result = await client.from("recipe_catalog").select("id,current_revision_id")
+      .eq("publication_state", "published").not("current_revision_id", "is", null)
+      .order("id").range(offset, offset + size - 1);
+    if (result.error) failed(result.error);
+    const rows = (result.data ?? []) as { current_revision_id: string | null }[];
+    ids.push(...rows.flatMap((row) => row.current_revision_id ? [row.current_revision_id] : []));
+    if (rows.length < size) break;
+  }
+  if (ids.length > PILOT_CAP) {
+    throw new HttpError(503, "recipe_catalog_cap", "The recipe catalog exceeds the reviewed pilot limit.");
+  }
+  return ids;
+}
+
 /** Published, complete recipe content only. Caller must apply account eligibility before exposure. */
 export async function searchCatalog(client: SupabaseClient, input: RecipeSearch): Promise<CatalogRecipe[]> {
-  // Scan the whole bounded pilot before eligibility/ranking. The extra row
-  // makes an over-cap catalog an explicit error instead of hiding a feasible dish.
+  // Scan the whole bounded pilot before eligibility/ranking.
   // Query words are scored in memory (lib/recipes/candidates.ts) and never narrow the read: search
   // ranks, and only explicit filters remove a recipe (O4a review round 3).
-  const pilotCap = 64;
-  const pageSize = 25;
+  const currentIds = await currentRevisionIds(client);
+  if (currentIds.length === 0) return [];
   const revisions: Revision[] = [];
-  for (let offset = 0; offset <= pilotCap; offset += pageSize) {
+  for (let offset = 0; offset < currentIds.length; offset += PAGE) {
     let query = client.from("recipe_catalog_revisions")
       .select("id,recipe_id,name,cuisine,dish_tags,active_minutes,total_minutes,effort,servings,yield_grams,yield_status,min_serving_fraction,max_serving_fraction,nutrition_per_serving")
-      .order("name").order("id").range(offset, Math.min(offset + pageSize - 1, pilotCap));
+      .in("id", currentIds).order("name").order("id").range(offset, offset + PAGE - 1);
     // A family contains match ("Italian" finds "Italian-inspired"); account policy and ingredient
     // eligibility still run on every row after this, so a wider match never widens what is shown.
     if (input.cuisine) query = query.ilike("cuisine", cuisineSearchPattern(input.cuisine));
@@ -104,14 +129,11 @@ export async function searchCatalog(client: SupabaseClient, input: RecipeSearch)
     const result = await query;
     if (result.error) failed(result.error);
     revisions.push(...(result.data ?? []) as Revision[]);
-    if ((result.data ?? []).length < Math.min(pageSize, pilotCap + 1 - offset)) break;
-  }
-  if (revisions.length > pilotCap) {
-    throw new HttpError(503, "recipe_catalog_cap", "The recipe catalog exceeds the reviewed pilot limit.");
+    if ((result.data ?? []).length < PAGE) break;
   }
   const recipes: CatalogRecipe[] = [];
-  for (let offset = 0; offset < revisions.length; offset += pageSize) {
-    recipes.push(...await hydrate(client, revisions.slice(offset, offset + pageSize)));
+  for (let offset = 0; offset < revisions.length; offset += PAGE) {
+    recipes.push(...await hydrate(client, revisions.slice(offset, offset + PAGE)));
   }
   return recipes;
 }

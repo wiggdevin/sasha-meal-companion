@@ -87,6 +87,16 @@ and date range and calls `rollUpDay` per local day. `GET /api/health/daily` and 
 through `lib/server/health-daily.ts`, never the `daily_health` view directly, so the dashboard, the Phase 6 estimator and MCP all
 see the same merged numbers. `weigh_ins` (§2.1) is a Phase 0 object and is not redefined here.
 
+**W025 (2026-10-11).** Steps and active energy now take ONE provider per day: Oura's daily total and the Apple sources' own
+roll-up (the Watch-preferred union of HAE and Shortcut samples) are computed apart, and the larger wins, Apple on a tie. The union
+alone summed them, because a folded HAE day spans one hour while Oura's spans the whole day. Oura sleep, resting heart rate, HRV
+and readiness are dated in the account's stored zone (`user_settings.time_zone`, `lib/server/account-day.ts`; UTC only as the
+logged last resort), so a night lands on the local day it began, the same day HAE uses. Daily activity keeps Oura's own `day`.
+**Cut-over, no re-bucket script:** existing rows are left untouched. Every pull re-reads the previous two days and the correction
+upsert moves each re-pulled row's `tz` (Oura rows carry no `vendor_updated_at`, so every re-pull applies), so the two most recent
+days correct themselves on the first pull after deploy. Older Oura rows keep their UTC bucket; this lands before Oura is enabled for
+any account, so none is expected. If a connected account turns up, re-pulling its history is the fix, not a SQL rewrite.
+
 `supabase/migrations/20260926000000_phase5_oura_oauth.sql`
 
 ```sql
@@ -167,6 +177,10 @@ that it is unconsumed and unexpired, marks it consumed in the same transaction, 
 `client_secret`, seals the token pair, and upserts the `health_sources` row with `kind = 'oura'`. Then it kicks one immediate pull.
 Errors: `400` missing or unknown state, consumed state, expired state, provider `error` parameter; `502` token exchange failure. On
 any error it redirects to `/settings?oura=error&reason=<code>` and writes nothing.
+The return page is one of an allowlist (`/`, `/settings`, `/onboarding`, `/body`, `/foods`, with its own query and hash;
+`lib/health/oura-return.ts`), and the redirect is rebuilt on this origin, so a crafted `state` cannot send the browser off-site (W025).
+A 401 from Oura forces one token refresh per pull, ignoring the stored expiry; the rotated pair is stored by a compare-and-swap whose
+result is checked (no row matched: the stored winner's pair is used; a failed write is retried once, then the pull fails).
 
 ### `POST /api/health/oura/disconnect` — `app/api/health/oura/disconnect/route.ts`
 

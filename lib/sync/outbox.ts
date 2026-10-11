@@ -14,6 +14,7 @@ import { applyFoodMembershipResult, type SyncResult } from "./outbox-membership"
 import { encodeKey } from "./keys";
 import { type Row } from "./merge";
 import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
+import { isRoleDelta } from "./role-delta";
 import { headOfLine, requeueInPlace, retryStaleRead, settleAppliedRow } from "./row-queue";
 import { projectMirroredPlanDay } from "./plan-days";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, selectAndFreezeSettings } from "./settings";
@@ -52,7 +53,8 @@ export type DrainResult = {
 /** `entity_id` IS the `entity_key` of contracts §4. A create or update carries the key columns in
  *  its payload, so the two must agree; a delete or restore may send an empty payload. */
 function assertKeyMatchesPayload(op: SyncOp): void {
-  if (op.kind === "delete" || op.kind === "restore") return;
+  // A role delta is keyed by entity_id alone (lib/sync/role-delta.ts).
+  if (op.kind === "delete" || op.kind === "restore" || isRoleDelta(op)) return;
   const fromPayload = encodeKey(op.entity, op.payload);
   if (fromPayload !== op.entity_id) {
     throw new TypeError(
@@ -236,7 +238,8 @@ export async function applyResult(
  * pending until it actually lands.
  */
 async function onGone(h: AccountHandle, op: OutboxOp, now: () => number): Promise<void> {
-  if (op.kind === "delete" || op.kind === "restore") {
+  // A role delta on a pref another device removed: recreating it would bring the food back (P15).
+  if (op.kind === "delete" || op.kind === "restore" || isRoleDelta(op)) {
     await deleteRow(h, op.entity, op.entity_id);
     await deleteOp(h, op.op_id);
     return;

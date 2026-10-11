@@ -221,6 +221,10 @@ async function refreshTargetHistory(h: AccountHandle): Promise<void> {
 }
 
 async function refreshFoodProjection(h: AccountHandle): Promise<void> {
+  // Taken before the server read: a tap after it keeps its own mark (W029, A039). Imported late,
+  // as lib/sync/outbox-membership.ts does: prefs-client reaches this module through the outbox.
+  const { adoptServerMemberships, foodMembershipWriteMark } = await import("@/lib/foods/prefs-client");
+  const writeMark = foodMembershipWriteMark();
   const snapshot = await loadAccountFoodSnapshot(h);
   const pending = await allOps(h);
   const store = loadStore();
@@ -236,6 +240,11 @@ async function refreshFoodProjection(h: AccountHandle): Promise<void> {
     if (rev > (membership.get(name)?.rev ?? -1)) membership.set(name, {
       status, note: typeof op.payload.note === "string" ? op.payload.note : null, rev,
     });
+  }
+  // The mark cache follows the server's marks (a server Favor, another device's tap), so a repeat
+  // tap here compares with what the server holds; queued names keep their local mark.
+  if (snapshot.memberships) {
+    adoptServerMemberships(h, snapshot.memberships, new Set(membership.keys()), writeMark);
   }
   for (const [id, food] of Object.entries(foods)) {
     const pendingStatus = membership.get(normalizeFoodName(food.name));
