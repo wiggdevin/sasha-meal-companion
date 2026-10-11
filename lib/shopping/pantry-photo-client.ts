@@ -13,6 +13,7 @@ import { signAndUpload } from "@/lib/capture-client";
 import { AccountChanged, accountFetch, accountJson, type AccountHandle } from "@/lib/device/account";
 import type { Budget } from "@/lib/fetch-with-deadline";
 import { withRuleMarks } from "@/lib/shopping/rule-mark-wire";
+import { refreshShoppingFocus } from "@/lib/shopping/focus-client";
 import type { PantryItem } from "@/lib/shopping/types";
 
 export class PantryPhotoError extends Error {}
@@ -63,5 +64,7 @@ export async function confirmPantryPhoto(
 ): Promise<{ items: PantryItem[]; failed: FailedPantryPhotoItem[] }> {
   const result = await post<{ items: PantryItem[]; failed: FailedPantryPhotoItem[] }>(
     h, "/api/pantry/photo/confirm", { requestId, items }, "commit");
+  // D7: a confirmed pantry row is a focus key; re-read the held keys now, not a minute later.
+  void refreshShoppingFocus(h, true);
   return { items: withRuleMarks(result.items), failed: result.failed ?? [] };
 }

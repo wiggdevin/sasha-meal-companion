@@ -8,6 +8,7 @@ import type { ShoppingPreviewInput } from "@/components/ShoppingView";
 import { identityKey } from "@/lib/shopping/aggregate";
 import type { ShoppingPreviewResult } from "@/lib/shopping/preview-contract";
 import { withRuleMark, withRuleMarks } from "@/lib/shopping/rule-mark-wire";
+import { refreshShoppingFocus } from "@/lib/shopping/focus-client";
 
 export type ShoppingSnapshot = { period: ShoppingPeriod | null; lines: ShoppingLine[];
   purchaseWindows?: ShoppingPurchaseWindow[] };
@@ -140,10 +141,17 @@ export async function deleteShoppingLine(line: ShoppingLine, account?: AccountHa
     method: "DELETE", ...body({ expectedRevision: line.revision, requestId: crypto.randomUUID() }),
   }, "commit", account);
 }
+/** D7: every pantry row is a shopping-focus key unless it is deleted or set to 0 g, so a pantry
+ *  write re-reads the held focus keys at once (not awaited; a failed read holds no focus). */
+function afterPantryWrite(h: AccountHandle): void {
+  void refreshShoppingFocus(h, true);
+}
 export async function removePantryItem(item: PantryItem): Promise<void> {
+  const h = accountHandle();
   await shoppingRequest<{ deleted: true }>(`/api/shopping/pantry/${encodeURIComponent(item.id)}`, {
     method: "DELETE", ...body({ expectedRevision: item.revision, requestId: crypto.randomUUID() }),
-  }, "commit");
+  }, "commit", h);
+  afterPantryWrite(h);
 }
 export async function listPantry(): Promise<PantryItem[]> {
   const result = await shoppingRequest<{ items: PantryItem[] }>("/api/shopping/pantry", {}, "search");
@@ -151,12 +159,14 @@ export async function listPantry(): Promise<PantryItem[]> {
 }
 export async function confirmPantryForLine(line: ShoppingLine, grams: number): Promise<PantryItem> {
   if (!line.identity || !Number.isFinite(grams) || grams < 0) throw new Error("Choose a mapped ingredient and a valid amount.");
+  const h = accountHandle();
   const pantry = await listPantry();
   const existing = pantry.find((item) => identityKey(item.identity) === identityKey(line.identity!));
   const result = await shoppingRequest<{ item: PantryItem }>("/api/shopping/pantry", {
     method: "PUT", ...body({ requestId: crypto.randomUUID(), expectedRevision: existing?.revision ?? null,
       item: { id: existing?.id, name: line.name, identity: line.identity, confirmedGrams: grams } }),
-  }, "commit");
+  }, "commit", h);
+  afterPantryWrite(h);
   return withRuleMark(result.item);
 }
 

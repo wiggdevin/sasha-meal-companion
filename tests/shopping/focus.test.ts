@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import {
   coverageOf, defaultFocusEnd, endOfLocalDay, FOCUS_DEFAULT_DAYS, FOCUS_MAX_DAYS, focusKeysFrom,
-  focusRankingOn, isUsedLine, lineActiveOn, lineBoxEnd, maxFocusEnd, pantryActiveOn, shoppingFocusActive,
+  focusRankingOn, isUsedLine, lineActiveOn, lineBoxEnd, maxFocusEnd, pantryActiveOn, pantryAmountCounts, shoppingFocusActive,
 } from "@/lib/shopping/focus";
 import type { ShoppingPeriod } from "@/lib/shopping/types";
 
@@ -127,6 +127,24 @@ describe("D7: a planner line checked through its purchase window counts as used 
     expect(lineActiveOn(uncheckedPlan, period, "2026-10-03", true)).toBe(true);
     expect(lineActiveOn(uncheckedPlan, period, "2026-10-09", true)).toBe(false);
   });
+  it("pantryAmountCounts: 0 g is used up, no amount still counts (W024 zero-ends-focus)", () => {
+    expect(pantryAmountCounts(0)).toBe(false);
+    expect(pantryAmountCounts("0")).toBe(false);
+    expect(pantryAmountCounts("0.0000")).toBe(false);
+    expect(pantryAmountCounts(null)).toBe(true);
+    expect(pantryAmountCounts(undefined)).toBe(true);
+    expect(pantryAmountCounts(0.5)).toBe(true);
+  });
+
+  it("focusKeysFrom leaves out a 0 g pantry row and keeps the 14-day box for the rest", () => {
+    const at = "2026-10-02T15:00:00.000Z";
+    const keys = focusKeysFrom({ periods: [], lines: [], checkedWindowLineIds: new Set(), zone: "UTC",
+      pantry: [{ name: "Rice", confirmedAt: at, confirmedGrams: 0 },
+        { name: "Oats", confirmedAt: at, confirmedGrams: null }, { name: "Beans", confirmedAt: at }] });
+    expect(keys).toEqual([{ key: "beans", from: "2026-10-02", to: "2026-10-16" },
+      { key: "oats", from: "2026-10-02", to: "2026-10-16" }]);
+  });
+
   it("focusKeysFrom keys a window-checked planner line and never an unchecked one", () => {
     const keys = focusKeysFrom({
       periods: [{ id: "p1", ...period }],
