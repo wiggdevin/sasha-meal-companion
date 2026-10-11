@@ -19,7 +19,7 @@ import {
 import { writerFenceOk } from "./device/writer-lock";
 import { noteDietFlagsChanged } from "./foods/rules-epoch";
 import { scheduleSignature } from "./plan-schedule";
-import { type Food, type FoodRole, type FoodStatus } from "./foods";
+import { MACRO_NUTRIENT_CODES, type Food, type FoodRole, type FoodStatus, type MacroKey } from "./foods";
 import { starterForName } from "./foods/starter";
 import { inferFoodRole } from "./foods/role";
 import { accountFoodKcalPer100g } from "./catalog/account-food-nutrients";
@@ -347,12 +347,33 @@ function finiteNutrient(row: Record<string, unknown>, key: string): number {
   return Number.isFinite(value) && value >= 0 ? value / 100 : 0;
 }
 
+/** A stored amount the row really measured: a finite number ≥ 0 (not null, "" or missing). */
+function hasNutrient(row: Record<string, unknown>, key: string): boolean {
+  const value = row[key];
+  if (value === null || value === undefined || value === "") return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0;
+}
+
+/** Any of these makes the row's nutrition known (energy_kcal_calc included, W004 review). */
+const NUTRITION_KEYS = ["protein", "carbohydrate", "fat_total", "energy_kcal", "energy_kcal_calc"] as const;
+
+/** The macros a row with some nutrition never measured, so no writer stores them as 0. */
+function unmeasuredOf(row: Record<string, unknown>): Pick<Food, "unmeasured"> {
+  const unmeasured = (Object.keys(MACRO_NUTRIENT_CODES) as MacroKey[])
+    .filter((key) => !hasNutrient(row, MACRO_NUTRIENT_CODES[key]));
+  return unmeasured.length ? { unmeasured } : {};
+}
+
 /**
  * The row's measured energy per gram (W004, audit A156): reported, else calculated, by the one
  * energy rule; undefined when the row has none. A stored 0 beside macros that carry energy is the
  * pre-W004 catalog add path's "unmeasured as 0" (audit A154), not a measurement: it is ignored, so
  * the food keeps its macro-derived energy until scripts/catalog-food-energy-backfill.ts repairs the
  * row. Water and diet soda (0 kcal, no macros) keep their measured zero.
+ *
+ * Known deviation from the one energy rule (W004 review): a real reported 0 beside non-zero macros
+ * is read as macro energy too. Remove this heuristic once W005's production backfill has run.
  */
 function measuredKcalPerGram(row: Record<string, unknown>): number | undefined {
   const per100 = accountFoodKcalPer100g(row);
@@ -412,10 +433,10 @@ export function foodsFromSyncRows(
         fat: finiteNutrient(nutrients, "fat_total") * (starter?.grams ?? 1),
       },
       ...(kcalPerGram === undefined ? {} : { kcalPerUnit: kcalPerGram * (starter?.grams ?? 1) }),
-      // Water and diet soda store real zeros; a row with no macro at all says nothing.
-      ...(["protein", "carbohydrate", "fat_total", "energy_kcal"].some((key) =>
-        nutrients[key] !== null && nutrients[key] !== "" && Number.isFinite(Number(nutrients[key])))
-        ? {} : { nutritionUnknown: true }),
+      // Water and diet soda store real zeros; a row with no macro and no energy (reported or
+      // calculated) says nothing. A row that measured some macros keeps the rest unmeasured.
+      ...(NUTRITION_KEYS.some((key) => hasNutrient(nutrients, key))
+        ? unmeasuredOf(nutrients) : { nutritionUnknown: true }),
       status,
       noCook: pref?.no_cook === true,
       ...(typeof pref?.note === "string" && pref.note ? { note: pref.note }

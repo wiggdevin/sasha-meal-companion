@@ -2,7 +2,7 @@
 
 import { getFoodDetail } from "@/lib/catalog-client";
 import { accountFoodKcalPer100g, accountFoodPer100g } from "@/lib/catalog/account-food-nutrients";
-import type { Food } from "@/lib/foods";
+import { MACRO_NUTRIENT_CODES, type Food, type MacroKey } from "@/lib/foods";
 import { inferFoodRole } from "@/lib/foods/role";
 import { setFoodMembership } from "@/lib/foods/prefs-client";
 import { uuidV5 } from "@/lib/foods/uuid5";
@@ -14,6 +14,13 @@ import { enqueue } from "@/lib/sync/outbox";
 import type { OpResult } from "@/lib/sync/types";
 
 const CATALOG_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+
+/** The macros the revision did not measure: the food reads them as 0 but never writes that 0. */
+function unmeasuredMacros(per100g: Partial<Record<string, number>>): Pick<Food, "unmeasured"> {
+  const unmeasured = (Object.keys(MACRO_NUTRIENT_CODES) as MacroKey[])
+    .filter((key) => per100g[MACRO_NUTRIENT_CODES[key]] === undefined);
+  return unmeasured.length ? { unmeasured } : {};
+}
 
 export async function addCatalogFood(
   catalogFoodId: number,
@@ -49,7 +56,7 @@ export async function addCatalogFood(
   const food: Food = { id, name: row.name, role, unit: "g",
     perUnit: { protein: protein / 100, carbs: carbs / 100, fat: fat / 100 },
     ...(kcalPer100g === null ? {} : { kcalPerUnit: kcalPer100g / 100 }),
-    ...(Object.keys(per100g).length === 0 ? { nutritionUnknown: true } : {}),
+    ...(Object.keys(per100g).length === 0 ? { nutritionUnknown: true } : unmeasuredMacros(per100g)),
     status: targetStatus, updatedAt: now, catalogFoodId };
   await setFoodMembership(food.name, targetStatus, { food, acknowledge: true, account: h });
   const ref = await withAccount(h, () => client.from("food_refs").select("id")

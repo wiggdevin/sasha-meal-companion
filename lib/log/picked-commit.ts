@@ -36,7 +36,7 @@ import {
 } from "@/lib/device/account";
 import type { CachedRevision } from "@/lib/db/catalog-cache";
 import { dbFood } from "@/lib/food-db";
-import { foodKcalPerUnit, type Food } from "@/lib/foods";
+import { foodKcalPerUnit, omitUnmeasured, type Food } from "@/lib/foods";
 import {
   adoptUserFood, bundledFoodUserId, numbersKey, per100gFromBundled, type AdoptableFood,
 } from "@/lib/foods/adopt-client";
@@ -152,12 +152,13 @@ export function accountPer100g(food: Food): { per100g: Per100g; unitGrams: numbe
   const k = 100 / unitGrams;
   return {
     unitGrams,
-    per100g: {
+    // An unmeasured macro stays absent, never a stored 0 (`omitUnmeasured`, W004 review).
+    per100g: omitUnmeasured(food, {
       energy_kcal: round4(foodKcalPerUnit(food) * k),
       protein: round4(food.perUnit.protein * k),
       carbohydrate: round4(food.perUnit.carbs * k),
       fat_total: round4(food.perUnit.fat * k),
-    },
+    }),
   };
 }
 
@@ -247,8 +248,8 @@ export function accountPerUnit(food: Food): Per100g | undefined {
   if (food.nutritionUnknown) return undefined;
   const { protein, carbs, fat } = food.perUnit;
   if (![protein, carbs, fat].every((n) => Number.isFinite(n) && n >= 0)) return undefined;
-  return { energy_kcal: round4(foodKcalPerUnit(food)), protein: round4(protein),
-    carbohydrate: round4(carbs), fat_total: round4(fat) };
+  return omitUnmeasured(food, { energy_kcal: round4(foodKcalPerUnit(food)), protein: round4(protein),
+    carbohydrate: round4(carbs), fat_total: round4(fat) });
 }
 
 /**

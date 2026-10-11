@@ -6,6 +6,10 @@ import type { DayType, FoodComponent, Macros, Meal, SlotId } from "./types";
 export type FoodRole = "protein" | "carb" | "fat";
 export type FoodStatus = "eats" | "avoid" | "neutral";
 export type FoodUnit = FoodComponent["unit"];
+export type MacroKey = "protein" | "carbs" | "fat";
+
+/** The nutrient code each `perUnit` macro is stored under (`user_foods.per_100g`, snapshots). */
+export const MACRO_NUTRIENT_CODES = { protein: "protein", carbs: "carbohydrate", fat: "fat_total" } as const;
 
 export type Food = {
   id: string;
@@ -23,6 +27,12 @@ export type Food = {
   /** True when the stored row records no nutrition at all, so a zero `perUnit` means unknown, not
    *  zero calories (lib/foods/display.ts). Absent means the numbers are the food's own. */
   nutritionUnknown?: boolean;
+  /**
+   * Macros the stored row never measured (W004 review): `perUnit` reads them as 0 for arithmetic,
+   * and every writer leaves their codes out rather than storing that 0 as a measurement
+   * (`omitUnmeasured`). Absent: every macro is the food's own.
+   */
+  unmeasured?: readonly MacroKey[];
   status: FoodStatus;
   note?: string;
   noCook?: boolean;
@@ -50,9 +60,20 @@ export function withPerUnit(food: Food, perUnit: Food["perUnit"]): Food {
   const same = food.perUnit.protein === perUnit.protein && food.perUnit.carbs === perUnit.carbs
     && food.perUnit.fat === perUnit.fat;
   if (same) return { ...food, perUnit };
-  const { kcalPerUnit: _dropped, ...rest } = food;
+  // The user's own numbers replace every macro, so none of them stays unmeasured either.
+  const { kcalPerUnit: _dropped, unmeasured: _unmeasured, ...rest } = food;
   void _dropped;
+  void _unmeasured;
   return { ...rest, perUnit };
+}
+
+/** A nutrient map without the codes of the food's unmeasured macros: never a stored 0 for them. */
+export function omitUnmeasured<T extends Partial<Record<string, number>>>(
+  food: Pick<Food, "unmeasured">, values: T,
+): T {
+  if (!food.unmeasured?.length) return values;
+  const drop = new Set<string>(food.unmeasured.map((key) => MACRO_NUTRIENT_CODES[key]));
+  return Object.fromEntries(Object.entries(values).filter(([code]) => !drop.has(code))) as T;
 }
 
 export const ROLE_LABELS: Record<FoodRole, string> = {

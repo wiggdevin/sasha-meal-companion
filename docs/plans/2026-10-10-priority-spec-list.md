@@ -477,7 +477,8 @@ A wave is the item's dependency depth, raised to a floor by priority: P0 from wa
   - Foundation re-import ran per `docs/catalog/import.md` (branch first, sizing sign-off).
   - Backfill report shows 0 custom rows with energy stored as 0 where a calc value exists.
   - Receipt recorded with row counts before and after.
-- Files: `scripts/import-fdc.py`, `docs/catalog/import.md`, the W004 backfill script.
+  - Then remove the W004 stopgap in `lib/store.ts` `measuredKcalPerGram` (a stored `energy_kcal: 0` beside macros that carry energy is read as macro energy). It is a known deviation from the one energy rule: a real reported 0 with non-zero macros logs about 4 kcal instead of 0. Its test in `tests/log/account-food-energy.test.ts` flips with it.
+- Files: `scripts/import-fdc.py`, `docs/catalog/import.md`, the W004 backfill script, `lib/store.ts`.
 - Risks and guards: Production writes need a backup first. Run the backfill on a branch before production. Run it twice to show 0 further writes.
 - Depends on: W004
 - Sources: F01

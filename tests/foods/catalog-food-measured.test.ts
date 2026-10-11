@@ -91,6 +91,8 @@ describe("addCatalogFood", () => {
     const row = upserts.find((r) => r.kind === "custom") as { per_100g: Record<string, number> };
     expect(row.per_100g).toEqual({ energy_kcal: 52, carbohydrate: 13.8 });
     expect(food.kcalPerUnit).toBeCloseTo(0.52, 10);
+    // The phone's food reads the unmeasured macros as 0 but never writes them back.
+    expect(food.unmeasured).toEqual(["protein", "fat"]);
   });
 
   it("marks a revision with no nutrition at all as unknown", async () => {

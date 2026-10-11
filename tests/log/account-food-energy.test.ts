@@ -6,9 +6,11 @@
  * the user's own foods must store the same energy.
  */
 import { describe, expect, it } from "vitest";
-import { dbFood } from "@/lib/food-db";
-import { foodKcalPerUnit, withPerUnit, type Food } from "@/lib/foods";
+import { servingOfFood } from "@/lib/catalog/serving";
+import { dbFood, mineAsDb } from "@/lib/food-db";
+import { foodKcalPerUnit, omitUnmeasured, withPerUnit, type Food } from "@/lib/foods";
 import { per100gFromBundled } from "@/lib/foods/adopt-client";
+import { kcalPer100Label } from "@/lib/foods/display";
 import { accountPer100g, accountPerUnit, sheetPreview } from "@/lib/log/picked-commit";
 import { foodsFromSyncRows } from "@/lib/store";
 import { perUnitTo100g } from "@/lib/units";
@@ -98,5 +100,51 @@ describe("account food energy (alcohol)", () => {
       [{ food_ref_id: REF_ID, status: "eats", role: "protein", updated_at: AT }],
       [{ id: REF_ID, user_food_id: WINE_ID }]);
     expect(foods[WINE_ID].kcalPerUnit).toBeCloseTo(1.2, 10);
+  });
+
+  it("keeps a calc-only row's energy: its nutrition is known, and it logs 80 kcal per 100 g", () => {
+    const foods = foodsFromSyncRows(
+      [{ id: WINE_ID, name: "Stock", deleted_at: null, per_100g: { energy_kcal_calc: 80 } }],
+      [{ food_ref_id: REF_ID, status: "eats", role: "carb", updated_at: AT }],
+      [{ id: REF_ID, user_food_id: WINE_ID }]);
+    const stock = foods[WINE_ID];
+    expect(stock.nutritionUnknown).toBeUndefined();
+    expect(stock.kcalPerUnit).toBeCloseTo(0.8, 10);
+    expect(accountPer100g(stock)?.per100g).toEqual({ energy_kcal: 80 });
+    expect(accountPerUnit(stock)).toEqual({ energy_kcal: 0.8 });
+  });
+});
+
+describe("account food unmeasured macros (W004 review)", () => {
+  const partialRow = (per_100g: Record<string, unknown>) => foodsFromSyncRows(
+    [{ id: WINE_ID, name: "Apple juice", deleted_at: null, per_100g }],
+    [{ food_ref_id: REF_ID, status: "eats", role: "carb", updated_at: AT }],
+    [{ id: REF_ID, user_food_id: WINE_ID }])[WINE_ID];
+
+  it("never logs or re-stores a macro the row did not measure as 0", () => {
+    const juice = partialRow({ energy_kcal: 52, carbohydrate: 13.8 });
+    expect(juice.unmeasured).toEqual(["protein", "fat"]);
+    expect(accountPer100g(juice)?.per100g).toEqual({ energy_kcal: 52, carbohydrate: 13.8 });
+    expect(accountPerUnit(juice)).toEqual({ energy_kcal: 0.52, carbohydrate: 0.138 });
+    expect(omitUnmeasured(juice, perUnitTo100g(juice.perUnit, 1, juice.kcalPerUnit)))
+      .toEqual({ energy_kcal: 52, carbohydrate: 13.8 });
+  });
+
+  it("keeps a measured zero and drops the unmeasured mark once the user edits the macros", () => {
+    const water = partialRow({ energy_kcal: 0, protein: 0, carbohydrate: 0, fat_total: 0 });
+    expect(water.unmeasured).toBeUndefined();
+    const juice = partialRow({ energy_kcal: 52, carbohydrate: 13.8 });
+    const edited = withPerUnit(juice, { ...juice.perUnit, protein: 0.002 });
+    expect(edited.unmeasured).toBeUndefined();
+    expect(accountPer100g(edited)?.per100g).toHaveProperty("fat_total", 0);
+  });
+});
+
+describe("account food energy on the Foods page (W004 review)", () => {
+  it("shows the energy the logger stores for a drink, not its 4/4/9 figure", () => {
+    const wine = syncedWine();
+    expect(kcalPer100Label(wine)).toBe("85 kcal / 100 g");
+    expect(servingOfFood(wine).kcalPer100g).toBe(85);
+    expect(mineAsDb(wine).per100g.kcal).toBeCloseTo(85, 6);
   });
 });

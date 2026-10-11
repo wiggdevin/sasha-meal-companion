@@ -22,7 +22,7 @@
  * the save failed. The backfill catches that error, leaves the food uncached, and retries later.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { withPerUnit, type Food, type FoodStatus } from "@/lib/foods";
+import { omitUnmeasured, withPerUnit, type Food, type FoodStatus } from "@/lib/foods";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import { uuidV5 } from "@/lib/foods/uuid5";
 import {
@@ -587,7 +587,8 @@ type UserFoodRow = { id: string; catalog_food_id: number | null; rev: number };
 export function per100gFor(food: Food): Record<string, number> {
   // The same weight the logger and the Foods page use (lib/foods/unit-grams.ts): starter first.
   const grams = accountUnitGrams(food);
-  return grams === null ? {} : perUnitTo100g(food.perUnit, grams, food.kcalPerUnit);
+  // An unmeasured macro stays absent, never a stored 0 (W004 review).
+  return grams === null ? {} : omitUnmeasured(food, perUnitTo100g(food.perUnit, grams, food.kcalPerUnit));
 }
 
 async function foodRefFor(

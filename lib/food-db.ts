@@ -9,7 +9,7 @@
  */
 
 import raw from "./food-db.json";
-import type { Food } from "./foods";
+import { foodKcalPerUnit, type Food } from "./foods";
 import { buildPortions, type Portion } from "./foods/portions";
 import { accountUnitGrams } from "./foods/unit-grams";
 import { macroKcal } from "./scaling";
@@ -354,11 +354,11 @@ export function mineAsDb(f: Food): DbFood {
       protein: f.perUnit.protein * scale,
       carbs: f.perUnit.carbs * scale,
       fat: f.perUnit.fat * scale,
-      kcal: macroKcal(f.perUnit) * scale,
+      kcal: foodKcalPerUnit(f) * scale,
       fiber: 0,
     },
     portions: [{ label: `1 ${f.unit === "whole" ? "each" : f.unit}`, grams }],
     flags: offPlanFlags(f.name),
-    ...(known === null ? { servingOnly: true as const, perServing: { ...f.perUnit, kcal: macroKcal(f.perUnit) } } : {}),
+    ...(known === null ? { servingOnly: true as const, perServing: { ...f.perUnit, kcal: foodKcalPerUnit(f) } } : {}),
   };
 }
