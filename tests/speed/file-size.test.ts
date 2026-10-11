@@ -339,6 +339,7 @@ const MODULES = [
   "components/WeightTrend.tsx",
   "lib/api-types.ts",
   "lib/server/expenditure.ts",
+  "lib/server/expenditure-intake.ts",
   "app/api/expenditure/route.ts",
   "components/settings/ScheduleSection.tsx",
   // The new-user run, lane W1: the readiness walkthrough runner and its helper library.
