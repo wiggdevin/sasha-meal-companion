@@ -14,6 +14,7 @@
 import { isCompleteEntryRow } from "@/lib/log/entry-row";
 import { rowNutritionPartial } from "@/lib/log/partial-mark";
 import { canPatchCard, entryPatchFromRow } from "@/lib/log/reconcile";
+import { findCard } from "@/lib/log/card-find";
 import type { LoggedFood, StoredDay } from "@/lib/types";
 
 type Days = Record<string, StoredDay>;
@@ -23,15 +24,6 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** The day the row belongs to, or null when the row cannot say. */
 function rowDate(row: Record<string, unknown>): string | null {
   return typeof row.local_date === "string" && ISO_DATE.test(row.local_date) ? row.local_date : null;
-}
-
-/** Where the entry's card is now, if this phone holds one. */
-function findCard(days: Days, entryId: string): { date: string; card: LoggedFood } | null {
-  for (const [date, day] of Object.entries(days)) {
-    const card = day.extras?.find((extra) => extra.id === entryId);
-    if (card) return { date, card };
-  }
-  return null;
 }
 
 /** A card for an entry this phone has never seen: the row's own numbers, nothing invented. */

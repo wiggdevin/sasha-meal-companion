@@ -24,7 +24,8 @@ import {
 } from "@/lib/log/pending";
 import { finishPendingDeletes } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
-import { getDay, loadStore, removeExtra, updateExtra, upsertExtra } from "@/lib/store";
+import { getDay, loadStore, removeExtra } from "@/lib/store";
+import { cardFor, placeCard } from "@/lib/log/card-find";
 import type { LogCommitRequest } from "@/lib/log/contract";
 import type { LoggedFood } from "@/lib/types";
 import { deleteRow, getRow, putRow } from "@/lib/sync/idb";
@@ -71,12 +72,10 @@ function patchCardFromRow(
   assertCurrent(h);
   const date = typeof row.local_date === "string" ? row.local_date : null;
   if (date === null) return;
-  // Another device may have moved the entry while this phone's write was pending, and the pull
-  // that carried the move left the card to this read-back: find it on its old day.
-  const elsewhere = getDay(date)?.extras?.some((extra) => extra.id === entryId)
-    ? null : cardElsewhere(entryId, date);
-  const entry = elsewhere?.card ?? getDay(date)?.extras?.find((extra) => extra.id === entryId);
-  if (!entry) return;
+  // On its day, or where it sat before a move made elsewhere while this phone's write was pending.
+  const found = cardFor(loadStore().days, entryId, date);
+  if (!found) return;
+  const entry = found.card;
   if (!canPatchCard(typeof row.rev === "number" ? row.rev : null,
     typeof entry.rev === "number" ? entry.rev : null, mirrorRev)) return;
   const patch = entryPatchFromRow(entry, row);
@@ -87,29 +86,12 @@ function patchCardFromRow(
   // an unreadable fallback (null) leaves the card as it was.
   const partial = rowNutritionPartial(row, partialRefs);
   if (partial !== null) patch.nutritionPartial = partial || undefined;
-  if (elsewhere) {
-    removeExtra(elsewhere.date, entryId);
-    upsertExtra(date, { ...entry, ...patch });
-    return;
-  }
-  updateExtra(date, entryId, patch);
-}
-
-/** The entry's card on any day other than `date`, when this phone holds one. */
-function cardElsewhere(entryId: string, date: string): { date: string; card: LoggedFood } | null {
-  for (const [day, stored] of Object.entries(loadStore().days)) {
-    if (day === date) continue;
-    const card = stored.extras?.find((extra) => extra.id === entryId);
-    if (card) return { date: day, card };
-  }
-  return null;
+  placeCard(found, date, patch);
 }
 
 const LOGGED_SLOTS = new Set<NonNullable<LoggedFood["slot"]>>([
   "coffee", "pouches-pre", "post-refuel", "meal-1", "meal-2", "meal-3",
-  "meal-4",
-  "meal-5",
-  "meal-6",
+  "meal-4", "meal-5", "meal-6",
   "hot-chocolate", "snack",
 ]);
 
