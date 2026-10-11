@@ -37,8 +37,8 @@ describe("registerCoachTools", () => {
 
   it("binds every query to ctx.userId, never to an argument", async () => {
     const eq = vi.fn().mockReturnThis();
-    const admin = { from: () => ({ select: () => ({ eq, gte: () => ({ order: () => ({
-      limit: async () => ({ data: [], error: null }) }) }) }) }) };
+    const ordered = { order: () => ordered, limit: async () => ({ data: [], error: null }) };
+    const admin = { from: () => ({ select: () => ({ eq, gte: () => ordered }) }) };
     const server = recorder();
     registerCoachTools(server as never, { userId: "u1", admin: admin as never });
     await server.tools.get("list_coach_messages")!({ limit: 10, userId: "u2" } as never);
@@ -46,22 +46,44 @@ describe("registerCoachTools", () => {
   });
 
   // W037 (audit A101, A111): the default read is the newest N, still presented newest last.
-  function messagesDb(rows: { id: number; created_at: string }[]) {
+  type Row = { id: number; seq: number; created_at: string };
+  /** Applies every .order() in turn, as PostgREST does; a tie with no key keeps insertion order. */
+  function messagesDb(rows: Row[]) {
     const calls: { ascending?: boolean; limit?: number } = {};
+    const orders: { column: keyof Row; ascending: boolean }[] = [];
     const chain: Record<string, unknown> = {};
     Object.assign(chain, {
       select: () => chain, eq: () => chain, gte: () => chain,
-      order: (_c: string, o: { ascending: boolean }) => { calls.ascending = o.ascending; return chain; },
+      order: (column: keyof Row, o: { ascending: boolean }) => {
+        calls.ascending ??= o.ascending;
+        orders.push({ column, ascending: o.ascending });
+        return chain;
+      },
       limit: async (n: number) => {
         calls.limit = n;
-        const sorted = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at));
-        return { data: (calls.ascending ? sorted : sorted.reverse()).slice(0, n), error: null };
+        const sorted = [...rows].sort((a, b) => {
+          for (const { column, ascending } of orders) {
+            const d = String(a[column]).localeCompare(String(b[column]), undefined, { numeric: true });
+            if (d !== 0) return ascending ? d : -d;
+          }
+          return 0;
+        });
+        return { data: sorted.slice(0, n), error: null };
       },
     });
     return { calls, admin: { from: () => chain } };
   }
-  const history = Array.from({ length: 300 }, (_, i) => ({ id: i + 1,
+  const history: Row[] = Array.from({ length: 300 }, (_, i) => ({ id: i + 1, seq: i + 1,
     created_at: new Date(Date.UTC(2026, 0, 1) + i * 3_600_000).toISOString() }));
+
+  it("keeps a user turn before its reply when both share created_at", async () => {
+    const at = "2026-10-11T10:00:00.000Z";
+    const { admin } = messagesDb([{ id: 1, seq: 1, created_at: at }, { id: 2, seq: 2, created_at: at }]);
+    const server = recorder();
+    registerCoachTools(server as never, { userId: "u1", admin: admin as never });
+    const out = await server.tools.get("list_coach_messages")!({} as never);
+    expect(JSON.parse(out.content[0].text).map((r: Row) => r.id)).toEqual([1, 2]);
+  });
 
   it("returns the newest N messages, newest last, with no sinceIso", async () => {
     const { admin } = messagesDb(history);

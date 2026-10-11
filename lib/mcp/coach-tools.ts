@@ -87,7 +87,10 @@ export function registerCoachTools(
       const fromSince = a.sinceIso !== undefined;
       const { data, error } = await query
         .gte("created_at", a.sinceIso ?? MESSAGES_FROM_FLOOR)
-        .order("created_at", { ascending: fromSince }).limit(a.limit ?? 50);
+        .order("created_at", { ascending: fromSince })
+        // A user turn and its reply can share created_at (attachment turns); seq keeps them in order.
+        .order("seq", { ascending: fromSince })
+        .limit(a.limit ?? 50);
       if (error) return json({ error: "could not read coach messages" });
       const rows = data ?? [];
       return json(fromSince ? rows : [...rows].reverse());
