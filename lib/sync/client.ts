@@ -320,11 +320,8 @@ export async function pullChanges(
       else if (change.entity === "target_profiles") {
         await applyAndMirrorTargetProfile(h, change.entity_key, change.current);
       }
-      // A log entry's mirror is settled by its commit path (lib/log/reconcile.ts). Every other row
-      // waits while an op for it is queued (lib/sync/row-queue.ts, audit 2026-10-10 A164).
-      else if (change.entity === "log_entries") {
-        await putRow(h, change.entity, change.entity_key, change.current);
-      }
+      // Every other row waits while an op for it is queued (lib/sync/row-queue.ts, audit 2026-10-10
+      // A164). A log entry never gets here: projectPulledLogEntry above defers to its own writes.
       else await putPulledRow(h, change);
       applied += 1;
     }
