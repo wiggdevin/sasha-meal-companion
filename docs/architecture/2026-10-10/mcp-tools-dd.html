@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP tool surface</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --color-paper: #E0DCD1; --color-ink: #1D1D1C; --color-muted: #4F5343; --color-soft: #5E5C55; --color-accent: #9E431B;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+}
+body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink); min-height: 100vh; padding: 3rem 2rem; }
+.frame { max-width: 1200px; margin: 0 auto; }
+.diagram-container { width: 100%; overflow-x: auto; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-muted); margin-bottom: 0.5rem; }
+h1 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.4vw + 0.75rem, 1.75rem); font-weight: 400; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1.5rem; }
+.note { font-size: 0.85rem; line-height: 1.5; color: var(--color-soft); margin-top: 1.25rem; max-width: 70ch; }
+.note code { font-family: var(--font-mono); font-size: 0.8rem; }
+svg { width: 100%; min-width: 1072px; display: block; }
+@media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Architecture · MCP tool surface · 2026-10-10</p>
+<h1>One bearer token, one user id, six tools on the service role</h1>
+<div class="diagram-container">
+<svg viewBox="0 0 1072 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mcp-tools-title mcp-tools-desc">
+<title id="mcp-tools-title">MCP tool surface</title>
+<desc id="mcp-tools-desc">A request passes the pre-identity limiter, token lookup and scope check, then six tools run on the service-role client, each filtered by the token's user id.</desc>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4F5343"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#9E431B"/></marker>
+<marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3F6482"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#E0DCD1"/>
+<rect x="838" y="64" width="212" height="424" rx="8" fill="rgba(29,29,28,0.02)" stroke="rgba(29,29,28,0.10)" stroke-width="0.8"/>
+<rect x="866" y="68" width="156" height="12" rx="2" fill="#E0DCD1"/>
+<text x="944" y="77" fill="#5E5C55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.14em">SERVICE ROLE · NO RLS</text>
+<line x1="160" y1="132" x2="218" y2="132" stroke="#3F6482" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<line x1="370" y1="132" x2="428" y2="132" stroke="#4F5343" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="580" y1="132" x2="638" y2="132" stroke="#4F5343" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="790" y1="132" x2="848" y2="132" stroke="#9E431B" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<line x1="295" y1="168" x2="295" y2="246" stroke="#4F5343" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="505" y1="168" x2="505" y2="246" stroke="#4F5343" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="934" y1="168" x2="934" y2="246" stroke="#9E431B" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<line x1="934" y1="320" x2="934" y2="398" stroke="#9E431B" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="168" y="110" width="44" height="12" rx="2" fill="#E0DCD1"/>
+<text x="190" y="119" fill="#3F6482" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">BEARER</text>
+<rect x="382" y="110" width="36" height="12" rx="2" fill="#E0DCD1"/>
+<text x="400" y="119" fill="#4F5343" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">PASS</text>
+<rect x="586" y="110" width="48" height="12" rx="2" fill="#E0DCD1"/>
+<text x="610" y="119" fill="#4F5343" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">USER ID</text>
+<rect x="799" y="110" width="40" height="12" rx="2" fill="#E0DCD1"/>
+<text x="819" y="119" fill="#9E431B" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">ALLOW</text>
+<rect x="303" y="200" width="28" height="12" rx="2" fill="#E0DCD1"/>
+<text x="317" y="209" fill="#4F5343" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HIT</text>
+<rect x="513" y="200" width="28" height="12" rx="2" fill="#E0DCD1"/>
+<text x="527" y="209" fill="#4F5343" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RPC</text>
+<rect x="942" y="200" width="28" height="12" rx="2" fill="#E0DCD1"/>
+<text x="956" y="209" fill="#9E431B" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">CTX</text>
+<rect x="942" y="352" width="66" height="12" rx="2" fill="#E0DCD1"/>
+<text x="975" y="361" fill="#9E431B" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">EQ USER_ID</text>
+<rect x="40" y="96" width="120" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="40" y="96" width="120" height="72" rx="6" fill="rgba(79,93,71,0.10)" stroke="#5E5C55" stroke-width="1"/>
+<rect x="48" y="104" width="27" height="12" rx="2" fill="transparent" stroke="#5E5C55" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="61" y="113" fill="#5E5C55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+<text x="100" y="133" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">MCP agent</text>
+<text x="100" y="147" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Bearer smc_…</text>
+<text x="100" y="158" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">POST /api/mcp</text>
+<rect x="220" y="96" width="150" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="220" y="96" width="150" height="72" rx="6" fill="rgba(158,67,27,0.05)" stroke="rgba(158,67,27,0.50)" stroke-width="1" stroke-dasharray="4,4"/>
+<rect x="228" y="104" width="32" height="12" rx="2" fill="transparent" stroke="#9E431B" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="244" y="113" fill="#9E431B" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">GATE</text>
+<text x="295" y="133" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">Pre-identity gate</text>
+<text x="295" y="147" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">30/min per token hash</text>
+<text x="295" y="158" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">30/min per IP · 64 KB</text>
+<rect x="430" y="96" width="150" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="430" y="96" width="150" height="72" rx="6" fill="#F6F2E9" stroke="#1D1D1C" stroke-width="1"/>
+<rect x="438" y="104" width="32" height="12" rx="2" fill="transparent" stroke="#1D1D1C" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="454" y="113" fill="#1D1D1C" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">AUTH</text>
+<text x="505" y="133" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">withTokenUser</text>
+<text x="505" y="147" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">sha256 → lookup RPC</text>
+<text x="505" y="158" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">401 without a live row</text>
+<rect x="640" y="96" width="150" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="640" y="96" width="150" height="72" rx="6" fill="rgba(158,67,27,0.05)" stroke="rgba(158,67,27,0.50)" stroke-width="1" stroke-dasharray="4,4"/>
+<rect x="648" y="104" width="38" height="12" rx="2" fill="transparent" stroke="#9E431B" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="667" y="113" fill="#9E431B" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">SCOPE</text>
+<text x="715" y="133" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">Scope check</text>
+<text x="715" y="147" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">TOOL_SCOPES map</text>
+<text x="715" y="158" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">60/min per token id</text>
+<rect x="850" y="96" width="168" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="850" y="96" width="168" height="72" rx="6" fill="#F6F2E9" stroke="#1D1D1C" stroke-width="1"/>
+<rect x="858" y="104" width="38" height="12" rx="2" fill="transparent" stroke="#1D1D1C" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="877" y="113" fill="#1D1D1C" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">TOOLS</text>
+<text x="934" y="133" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">6 tools</text>
+<text x="934" y="147" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">userId from ctx only</text>
+<text x="934" y="158" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">body · targets · coach</text>
+<rect x="220" y="248" width="150" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="220" y="248" width="150" height="72" rx="6" fill="rgba(29,29,28,0.05)" stroke="#4F5343" stroke-width="1"/>
+<rect x="228" y="256" width="21" height="12" rx="2" fill="transparent" stroke="#4F5343" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="239" y="265" fill="#4F5343" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
+<text x="295" y="285" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">Rate limiter</text>
+<text x="295" y="299" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">rate_limits table</text>
+<text x="295" y="310" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">rate_limit_hit RPC</text>
+<rect x="430" y="248" width="150" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="430" y="248" width="150" height="72" rx="6" fill="rgba(29,29,28,0.05)" stroke="#4F5343" stroke-width="1"/>
+<rect x="438" y="256" width="21" height="12" rx="2" fill="transparent" stroke="#4F5343" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="449" y="265" fill="#4F5343" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
+<text x="505" y="285" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">api_tokens</text>
+<text x="505" y="299" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">hash only (bytea)</text>
+<text x="505" y="310" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">revoked / expiry</text>
+<rect x="850" y="248" width="168" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="850" y="248" width="168" height="72" rx="6" fill="rgba(212,107,56,0.12)" stroke="#9E431B" stroke-width="1"/>
+<rect x="858" y="256" width="38" height="12" rx="2" fill="transparent" stroke="#9E431B" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="877" y="265" fill="#9E431B" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">ADMIN</text>
+<text x="934" y="285" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">adminClient()</text>
+<text x="934" y="299" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">service-role key</text>
+<text x="934" y="310" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">bypasses RLS</text>
+<rect x="850" y="400" width="168" height="72" rx="6" fill="#E0DCD1"/>
+<rect x="850" y="400" width="168" height="72" rx="6" fill="rgba(29,29,28,0.05)" stroke="#4F5343" stroke-width="1"/>
+<rect x="858" y="408" width="21" height="12" rx="2" fill="transparent" stroke="#4F5343" stroke-opacity="0.5" stroke-width="0.8"/>
+<text x="869" y="417" fill="#4F5343" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
+<text x="934" y="437" fill="#1D1D1C" font-size="12" font-weight="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" text-anchor="middle">User tables</text>
+<text x="934" y="451" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">7 tables</text>
+<text x="934" y="462" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">filtered by user_id</text>
+<text x="40" y="428" fill="#1D1D1C" font-size="14" font-style="italic" font-family="'Fraunces', Georgia, serif">Tenancy rests on one habit:</text>
+<text x="40" y="448" fill="#1D1D1C" font-size="14" font-style="italic" font-family="'Fraunces', Georgia, serif">every query adds .eq("user_id", ctx.userId).</text>
+<text x="40" y="468" fill="#5E5C55" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">No RLS backstop on this path.</text>
+<text x="40" y="528" fill="#4F5343" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+<rect x="40" y="540" width="14" height="10" rx="2" fill="rgba(212,107,56,0.12)" stroke="#9E431B" stroke-width="1"/>
+<text x="60" y="548" fill="#4F5343" font-size="8.5" font-family="'Plus Jakarta Sans', system-ui, sans-serif">Service-role client</text>
+<rect x="170" y="540" width="14" height="10" rx="2" fill="rgba(158,67,27,0.05)" stroke="rgba(158,67,27,0.50)" stroke-width="1" stroke-dasharray="4,4"/>
+<text x="190" y="548" fill="#4F5343" font-size="8.5" font-family="'Plus Jakarta Sans', system-ui, sans-serif">Gate</text>
+<rect x="250" y="540" width="14" height="10" rx="2" fill="#F6F2E9" stroke="#1D1D1C" stroke-width="1"/>
+<text x="270" y="548" fill="#4F5343" font-size="8.5" font-family="'Plus Jakarta Sans', system-ui, sans-serif">Code step</text>
+<rect x="340" y="540" width="14" height="10" rx="2" fill="rgba(29,29,28,0.05)" stroke="#4F5343" stroke-width="1"/>
+<text x="360" y="548" fill="#4F5343" font-size="8.5" font-family="'Plus Jakarta Sans', system-ui, sans-serif">Table</text>
+<rect x="410" y="540" width="14" height="10" rx="2" fill="rgba(79,93,71,0.10)" stroke="#5E5C55" stroke-width="1"/>
+<text x="430" y="548" fill="#4F5343" font-size="8.5" font-family="'Plus Jakarta Sans', system-ui, sans-serif">Caller</text>
+</svg>
+</div>
+<p class="note">Facts and file references: <code>mcp-tools.md</code>. The tenancy check on the right edge is code discipline, not a database rule.</p>
+</div>
+</body>
+</html>
