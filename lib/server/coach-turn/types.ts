@@ -65,7 +65,7 @@ export type Turn = {
   replyDeadlineAt: number;
   saveDeadlineAt: number;
   /** Saving the turn, bounded: late, the phone gets the retryable 503 while it still waits. */
-  save: (...args: Parameters<typeof persist>) => Promise<void>;
+  save: (...args: Parameters<typeof persist>) => Promise<MessageRow[]>;
 };
 
 /** A turn whose setup reads answered: the thread, the next seq and the user's own row. */
