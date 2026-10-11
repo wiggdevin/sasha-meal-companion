@@ -163,7 +163,8 @@ function generatedPlan(store: Store, date: string, eligibleFoodIds?: ReadonlySet
   if (!pool.view) return null;
   const slots = pool.generated.map((slot) => ({ ...slot, clock: times.get(slot.id) ?? null }));
   return { plan: planMealsForDay(date, slots, pool.eligibleFoods, undefined,
-    mealEvidenceOf(eligibleFoodIds), pool.open, focusOf(eligibleFoodIds, date), store.settings.cuisines),
+    mealEvidenceOf(eligibleFoodIds), pool.open, focusOf(eligibleFoodIds, date), store.settings.cuisines,
+    store.days[date]?.floorDay === true),
     required: slots.length,
     pool: pool.eligibleFoods };
 }
@@ -242,7 +243,8 @@ export function resolveDay(store: Store, date: string, waterCups = 0,
     targets, layoutIds, eligibleFoodIds);
   const rotated = planMealsForDay(date, generated.map((slot) => ({
     ...slot, clock: layoutTimes.get(slot.id) ?? null })), eligibleFoods, undefined,
-    mealEvidenceOf(eligibleFoodIds), open, focusOf(eligibleFoodIds, date), store.settings.cuisines).meals;
+    mealEvidenceOf(eligibleFoodIds), open, focusOf(eligibleFoodIds, date), store.settings.cuisines,
+    isFloorDay).meals;
   const rotationBySlot = new Map(rotated.map((entry) => [entry.slot, entry.meal]));
   // W8: an open account's saved lines may name admitted universe foods (a swapped-in plate).
   const admittedFoods = open ? Object.values(livePool(open, store.foods)) : undefined;
