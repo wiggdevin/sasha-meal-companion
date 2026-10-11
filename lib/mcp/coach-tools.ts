@@ -69,7 +69,7 @@ export function registerCoachTools(
     "list_coach_messages",
     {
       title: "Read coach turns",
-      description: "Your coach messages, newest last, for a review. Optionally one thread or since an ISO timestamp.",
+      description: "Your latest coach messages (default 50), newest last, for a review. Optionally one thread; with sinceIso, the first messages from that time on.",
       inputSchema: z.object({
         threadId: z.uuid().optional(),
         sinceIso: z.iso.datetime({ offset: true }).optional(),
@@ -82,11 +82,15 @@ export function registerCoachTools(
         .select("id, thread_id, role, content, seq, deflected, created_at")
         .eq("user_id", ctx.userId);
       if (a.threadId) query = query.eq("thread_id", a.threadId);
+      // With sinceIso: the oldest-first window from that moment. Without: the newest N, read
+      // newest-first and reversed so the answer still reads newest last (audit A101, A111).
+      const fromSince = a.sinceIso !== undefined;
       const { data, error } = await query
         .gte("created_at", a.sinceIso ?? MESSAGES_FROM_FLOOR)
-        .order("created_at", { ascending: true }).limit(a.limit ?? 50);
+        .order("created_at", { ascending: fromSince }).limit(a.limit ?? 50);
       if (error) return json({ error: "could not read coach messages" });
-      return json(data ?? []);
+      const rows = data ?? [];
+      return json(fromSince ? rows : [...rows].reverse());
     },
   );
 }

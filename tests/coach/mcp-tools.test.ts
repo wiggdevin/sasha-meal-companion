@@ -45,6 +45,46 @@ describe("registerCoachTools", () => {
     expect(eq).toHaveBeenCalledWith("user_id", "u1");
   });
 
+  // W037 (audit A101, A111): the default read is the newest N, still presented newest last.
+  function messagesDb(rows: { id: number; created_at: string }[]) {
+    const calls: { ascending?: boolean; limit?: number } = {};
+    const chain: Record<string, unknown> = {};
+    Object.assign(chain, {
+      select: () => chain, eq: () => chain, gte: () => chain,
+      order: (_c: string, o: { ascending: boolean }) => { calls.ascending = o.ascending; return chain; },
+      limit: async (n: number) => {
+        calls.limit = n;
+        const sorted = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+        return { data: (calls.ascending ? sorted : sorted.reverse()).slice(0, n), error: null };
+      },
+    });
+    return { calls, admin: { from: () => chain } };
+  }
+  const history = Array.from({ length: 300 }, (_, i) => ({ id: i + 1,
+    created_at: new Date(Date.UTC(2026, 0, 1) + i * 3_600_000).toISOString() }));
+
+  it("returns the newest N messages, newest last, with no sinceIso", async () => {
+    const { admin } = messagesDb(history);
+    const server = recorder();
+    registerCoachTools(server as never, { userId: "u1", admin: admin as never });
+    const out = await server.tools.get("list_coach_messages")!({ limit: 3 } as never);
+    expect(JSON.parse(out.content[0].text).map((r: { id: number }) => r.id)).toEqual([298, 299, 300]);
+    const all = await server.tools.get("list_coach_messages")!({} as never);
+    const ids = JSON.parse(all.content[0].text).map((r: { id: number }) => r.id);
+    expect(ids).toHaveLength(50);
+    expect(ids[0]).toBe(251);
+    expect(ids.at(-1)).toBe(300);
+  });
+
+  it("keeps the oldest-first window from sinceIso", async () => {
+    const { admin, calls } = messagesDb(history);
+    const server = recorder();
+    registerCoachTools(server as never, { userId: "u1", admin: admin as never });
+    await server.tools.get("list_coach_messages")!(
+      { sinceIso: "2026-01-02T00:00:00Z", limit: 2 } as never);
+    expect(calls.ascending).toBe(true);
+  });
+
   it("refuses a read-only token on set_constraints, through the real scope check", () => {
     const scopes = ["read"];
     expect(hasScope(scopes, COACH_TOOL_SCOPES.set_constraints)).toBe(false);
