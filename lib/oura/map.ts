@@ -5,6 +5,7 @@
  */
 import { DEFAULT_TZ, type NormalizedSample, type SampleType } from "@/lib/health/contract";
 import { toCanonical } from "@/lib/health/units";
+import { localDateOf } from "@/lib/health/daily";
 
 export const OURA_DEVICE_LABEL = "Oura";
 /** Anchor tz for the synthetic `${day}T00:00:00Z`-style windows below (daily_activity, and the
@@ -23,8 +24,11 @@ function sample(id: string, type: SampleType, value: number, unit: string, start
     vendor_updated_at: updatedAt, device_label: OURA_DEVICE_LABEL, tz };
 }
 
-/** usercollection/sleep — the sleep-period document; daily_sleep carries only a score. */
-export function ouraSleepToSamples(doc: unknown): NormalizedSample[] {
+/** usercollection/sleep — the sleep-period document; daily_sleep carries only a score.
+ *  `tz` is the account's zone (W025, audit A014/B264): the samples are real instants, and the
+ *  roll-up buckets each by `localDateOf(start_time, tz)`, so a night lands on the local day it
+ *  began, the same day a Health Auto Export sleep row uses. UTC put a US bedtime on the next day. */
+export function ouraSleepToSamples(doc: unknown, tz: string = DEFAULT_TZ): NormalizedSample[] {
   const d = doc as Record<string, unknown> | null;
   if (!d || typeof d.id !== "string") return [];
   const start = typeof d.bedtime_start === "string" ? d.bedtime_start : null;
@@ -33,13 +37,13 @@ export function ouraSleepToSamples(doc: unknown): NormalizedSample[] {
 
   const out: NormalizedSample[] = [];
   const asleep = num(d.total_sleep_duration);
-  if (asleep !== null) out.push(sample(d.id, "sleep_asleep", asleep, "s", start, end, DEFAULT_TZ));
+  if (asleep !== null) out.push(sample(d.id, "sleep_asleep", asleep, "s", start, end, tz));
   const inBed = num(d.time_in_bed);
-  if (inBed !== null) out.push(sample(d.id, "sleep_in_bed", inBed, "s", start, end, DEFAULT_TZ));
+  if (inBed !== null) out.push(sample(d.id, "sleep_in_bed", inBed, "s", start, end, tz));
   const rhr = num(d.lowest_heart_rate);
-  if (rhr !== null) out.push(sample(d.id, "resting_heart_rate", rhr, "bpm", start, end, DEFAULT_TZ));
+  if (rhr !== null) out.push(sample(d.id, "resting_heart_rate", rhr, "bpm", start, end, tz));
   const hrv = num(d.average_hrv);
-  if (hrv !== null) out.push(sample(d.id, "hrv_sdnn", hrv, "ms", start, end, DEFAULT_TZ));
+  if (hrv !== null) out.push(sample(d.id, "hrv_sdnn", hrv, "ms", start, end, tz));
   return out;
 }
 
@@ -58,14 +62,24 @@ export function ouraActivityToSamples(doc: unknown): NormalizedSample[] {
   return out;
 }
 
-/** usercollection/daily_readiness — one score, stored as an instantaneous sample. */
-export function ouraReadinessToSamples(doc: unknown): NormalizedSample[] {
+/** usercollection/daily_readiness — one score, stored as an instantaneous sample. The score
+ *  belongs to Oura's own `day`: its real timestamp is used, in the account's zone, only when that
+ *  instant falls on `day` there; otherwise (no timestamp, an unparseable one, or a ring on another
+ *  zone's clock) the synthetic UTC window keeps it on `day`. */
+export function ouraReadinessToSamples(doc: unknown, tz: string = DEFAULT_TZ): NormalizedSample[] {
   const d = doc as Record<string, unknown> | null;
   if (!d || typeof d.id !== "string" || typeof d.day !== "string") return [];
   const score = num(d.score);
   if (score === null) return [];
-  const hasRealTimestamp = typeof d.timestamp === "string";
-  const at = hasRealTimestamp ? (d.timestamp as string) : `${d.day}T00:00:00Z`;
-  const tz = hasRealTimestamp ? DEFAULT_TZ : OURA_SYNTHETIC_DAY_TZ;
-  return [sample(d.id, "readiness_score", score, "score", at, at, tz)];
+  const real = typeof d.timestamp === "string" && onDay(d.timestamp, d.day, tz)
+    ? d.timestamp : null;
+  const at = real ?? `${d.day}T00:00:00Z`;
+  return [sample(d.id, "readiness_score", score, "score", at, at,
+    real ? tz : OURA_SYNTHETIC_DAY_TZ)];
+}
+
+function onDay(iso: string, day: string, tz: string): boolean {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return false;
+  try { return localDateOf(new Date(ms).toISOString(), tz) === day; } catch { return false; }
 }

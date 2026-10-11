@@ -133,6 +133,7 @@ export const setSlotItem: ActionSpec<{
   card: {
     title: (action) => `Changed ${action.name} to ${action.grams} g`,
     lines: (action) => [{ name: action.name, grams: action.grams }],
-    macroItems: (action) => [{ ...action, grams: action.grams }],
+    // No macro strip: the grounded row is a search for the model's word, not the line's own food,
+    // whose numbers the apply scales (audit 2026-10-10 A158).
   },
 };

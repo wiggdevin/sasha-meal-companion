@@ -7,6 +7,7 @@ import { browserClient } from "@/lib/supabase/client";
 import { lastError, lastSyncAt, SYNCED_EVENT, syncOnce } from "@/lib/sync/client";
 import { pendingCount, retryParked } from "@/lib/sync/outbox";
 import { HELD_LINE, legacyHeldCount } from "@/lib/device/legacy-adoption";
+import { installHeldChangesConsole } from "@/lib/device/legacy-recovery";
 import AutoHeight from "@/components/ui/AutoHeight";
 import Button, { type ButtonStatus } from "@/components/ui/Button";
 import { useButtonStatus } from "@/components/ui/useButtonStatus";
@@ -130,6 +131,8 @@ export default function SyncStatus() {
   const refresh = useCallback(async () => {
     try {
       const snapshot = await loadSyncStatus();
+      // W055: the owner-run recovery tool exists only on a phone that holds changes.
+      if ((snapshot.held ?? 0) > 0) installHeldChangesConsole();
       setState((s) => ({
         ...s, ...snapshot, loaded: true,
       }));

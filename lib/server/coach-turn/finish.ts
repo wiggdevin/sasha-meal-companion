@@ -11,7 +11,7 @@ import type { CoachTurnResponse } from "@/lib/coach/types";
 import { deterministicSanity } from "@/lib/log/sanity-deterministic";
 import { attachDeterministicCoachSanity, hasCoachSanityTargets, startPersistedCoachSanity }
   from "@/lib/server/coach-sanity";
-import { coachPurpose } from "@/lib/server/coach";
+import { COACH_TURN_PURPOSES } from "@/lib/server/coach";
 import { lastAiCallId, view, type MessageRow } from "@/lib/server/coach-threads";
 import { AI_CALL_LOOKUP_GRACE_MS, beforeDeadline, LATE } from "@/lib/server/coach-turn/deadline";
 import { outcomeProvenance, stampProvenance, type TurnOutcome } from "@/lib/server/coach-turn/outcome";
@@ -23,10 +23,10 @@ async function aiCallLink(turn: OpenTurn, outcome: TurnOutcome): Promise<string 
   if (outcome.kind === "model") {
     // A lookup, not the turn: late, the row is saved without its ai_calls link.
     return beforeDeadline(
-      () => lastAiCallId(admin, userId, coachPurpose()), replyDeadlineAt + AI_CALL_LOOKUP_GRACE_MS,
+      () => lastAiCallId(admin, userId, COACH_TURN_PURPOSES), replyDeadlineAt + AI_CALL_LOOKUP_GRACE_MS,
     ).then((id) => id === LATE ? null : id);
   }
-  return lastAiCallId(admin, userId, coachPurpose());
+  return lastAiCallId(admin, userId, COACH_TURN_PURPOSES);
 }
 
 export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<CoachTurnResponse> {
@@ -53,8 +53,10 @@ export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<Coac
       assistantRow.tool_calls, { deterministic: deterministicSanity },
     ) };
   }
-  await save(client, threadId, [userRow, assistantRow],
+  // The rows as saved: a seq another turn took first moves both (W035, audit A151).
+  const [savedUser, savedAssistant] = await save(client, threadId, [userRow, assistantRow],
     req.threadId === null ? req.text : null, outcome.kind === "model" ? outcome.memory : undefined);
+  assistantRow = { ...assistantRow, seq: savedAssistant.seq };
   let body = outcome.body;
   if (hasSanity) {
     const sanitySignal = AbortSignal.timeout(
@@ -86,6 +88,6 @@ export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<Coac
     || (outcome.kind === "fast_path" && outcome.messages === "plain");
   return {
     threadId, ...body, provenance,
-    messages: plain ? [userRow, assistantRow].map(view) : [userRow, assistantRow].map(toMessageView),
+    messages: plain ? [savedUser, assistantRow].map(view) : [savedUser, assistantRow].map(toMessageView),
   };
 }
