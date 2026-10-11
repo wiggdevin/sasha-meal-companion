@@ -87,6 +87,78 @@ function oracleAllows(rules: AdmissionRules, item: UniverseItem): boolean {
   return verdict.verdict === "allowed" && avoided.every((key) => item.allergens[key] === "clear");
 }
 
+/*
+ * The independent text oracle (audit A058). `oracleAllows` above reads the same evidence builder
+ * `admitUniverse` reads (`admissionEvidence`), so for every rule that does not go through the
+ * allergen states it only proves self-consistency: if the builder stopped passing the name, the
+ * ingredient text or the policy categories, both sides would clear the food together. These tables
+ * are the test's own, judged from the bundled row's two names alone (the curated name and the SR
+ * description), and read nothing from lib/policy or lib/catalog. They are one-way: a food a table
+ * names must never be admitted under that rule; a food no table names proves nothing.
+ */
+const ANIMAL = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|ham|bacon|sausage|steak|fish|salmon|tuna|cod|tilapia|trout|halibut|catfish|sardine|anchov|mackerel|shrimp|prawn|crab|lobster|scallop|mussel|clam|oyster|octopus|squid|egg|milk|cheese|yogurt|butter|ghee|cream|paneer|whey|\bhoney\b/i;
+const MEAT = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|ham|bacon|sausage|steak|fish|salmon|tuna|cod|tilapia|trout|halibut|catfish|sardine|anchov|mackerel|shrimp|prawn|crab|lobster|scallop|mussel|clam|oyster|octopus|squid/i;
+const NOT_ANIMAL = /peanut butter|almond butter|cashew butter|sunflower seed butter|nut butter|coconut milk|almond milk|soy milk|oat milk|rice milk|eggplant|butternut|butter bean|cream of wheat/i;
+const LAND_MEAT = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|\bham\b|bacon|sausage|steak|brisket|filet mignon|chuck roast|new york strip/i;
+const PORK = /\bpork\b|\bham\b|bacon/i;
+const BEEF = /\bbeef\b|steak|brisket|filet mignon|chuck roast|new york strip/i;
+const CRUSTACEAN = /shrimp|prawn|crab|lobster|crustacean/i;
+const EGG = /\beggs?\b/i;
+const SOY = /\bsoy|tofu|tempeh|edamame|\bmiso\b/i;
+const PEANUT = /peanut/i;
+const SESAME = /sesame|tahini/i;
+const RAW = /\braw\b/i;
+
+/** Banned categories: the plain members of each, by name. Refried beans and bean sprouts are left
+ * out on purpose (docs/catalog/category-map.md rules them out of `beans`), as is anything cooked
+ * from the two raw categories. `simple_sugars` names nothing in the universe today. */
+const CATEGORY_WORDS: Record<string, (text: string) => boolean> = {
+  onion_garlic: (text) => /\b(onions?|garlic|leeks?|shallots?|scallions?)\b/i.test(text),
+  beans: (text) => !/sprout|refried/i.test(text) && /\b(black|pinto|kidney|white|navy|fava|adzuki|mung|lima) beans?\b|\blentils?\b|\bchickpeas?\b|\bsplit peas?\b|black-eyed peas?|\bdal\b|edamame/i.test(text),
+  raw_cruciferous: (text) => RAW.test(text) && /broccoli|cauliflower|cabbage|kale|radish|arugula|watercress/i.test(text),
+  raw_leafy_greens: (text) => RAW.test(text) && /spinach|lettuce|romaine|arugula|watercress/i.test(text),
+  simple_sugars: (text) => /\b(sugar|honey|syrup|molasses|candy|jam)\b/i.test(text),
+};
+
+const FLAG_WORDS: Partial<Record<PolicyPreferenceFlag, (text: string) => boolean>> = {
+  vegan: (text) => ANIMAL.test(text) && !NOT_ANIMAL.test(text),
+  vegetarian: (text) => MEAT.test(text),
+  pescatarian: (text) => LAND_MEAT.test(text),
+  no_pork: (text) => PORK.test(text),
+  no_beef: (text) => BEEF.test(text),
+  no_shellfish: (text) => CRUSTACEAN.test(text),
+  no_eggs: (text) => EGG.test(text),
+  no_soy: (text) => SOY.test(text),
+  no_peanuts: (text) => PEANUT.test(text),
+  halal: (text) => PORK.test(text),
+  kosher: (text) => PORK.test(text) || CRUSTACEAN.test(text),
+};
+
+/** Hard profile facets. `high_sodium` is a nutrient threshold, not a name, so no table judges it. */
+const FACET_WORDS: Record<string, (text: string) => boolean> = {
+  pork: (text) => PORK.test(text),
+  beef: (text) => BEEF.test(text),
+  shellfish: (text) => CRUSTACEAN.test(text),
+  alcohol: (text) => /\b(wine|beer|vodka|rum|whiske?y|liquor|sake)\b/i.test(text),
+  "food_named:rice": (text) => /\brice\b/i.test(text),
+  "food_named:salmon": (text) => /salmon/i.test(text),
+  "contains_allergen:sesame": (text) => SESAME.test(text),
+};
+
+/** The rule a fixed table says this item breaks, or null. Reads only the item's two names. */
+function textOracleBlock(rules: AdmissionRules, item: UniverseItem): string | null {
+  const text = `${item.row.name} | ${item.row.sr}`;
+  for (const rule of rules.profile.custom_rules ?? []) {
+    if (new RegExp(`\\b${rule.text}s?\\b`, "i").test(text)) return `custom:${rule.text}`;
+  }
+  for (const key of rules.profile.banned_categories) if (CATEGORY_WORDS[key]?.(text)) return `category:${key}`;
+  for (const flag of rules.preferenceFlags) if (FLAG_WORDS[flag]?.(text)) return `flag:${flag}`;
+  for (const rule of rules.profile.profileRules?.items ?? []) {
+    if (FACET_WORDS[rule.facet]?.(text)) return `facet:${rule.facet}`;
+  }
+  return null;
+}
+
 /** Arbitrary step-4 outputs: scores and similarity edges over every universe id, admitted or not. */
 function arbitraryOutputs(seed: number): { scores: Record<string, number>; edges: GraphEdge[] } {
   const random = rng(seed ^ 0x5bd1e995);
@@ -102,6 +174,7 @@ describe("open-world admission over the full universe (W2b acceptance 1)", () =>
   it("500 random rule profiles and arbitrary scores admit zero non-allowed foods", () => {
     let admittedTotal = 0;
     let excludedTotal = 0;
+    let textNamed = 0;
     for (let seed = 1; seed <= 500; seed += 1) {
       const { rules } = randomRules(seed);
       const { admitted, excluded } = admitUniverse(ITEMS, rules);
@@ -111,6 +184,13 @@ describe("open-world admission over the full universe (W2b acceptance 1)", () =>
         return !oracleAllows(rules, item) || !usableForGeneration(item.food);
       });
       expect([seed, wrong]).toEqual([seed, []]);
+      // The independent oracle: no admitted item is one a fixed table names for one of the rules.
+      const named = admitted.flatMap((id) => {
+        const reason = textOracleBlock(rules, byId.get(id)!);
+        return reason ? [`${id} (${reason})`] : [];
+      });
+      expect([seed, named]).toEqual([seed, []]);
+      textNamed += ITEMS.filter((item) => textOracleBlock(rules, item) !== null).length;
       expect(admitted.length + excluded.length).toBe(ITEMS.length);
       const { scores, edges } = arbitraryOutputs(seed);
       const set = new Set(admitted);
@@ -123,6 +203,8 @@ describe("open-world admission over the full universe (W2b acceptance 1)", () =>
     // Not vacuous: the random profiles both admit and exclude.
     expect(admittedTotal).toBeGreaterThan(2_000);
     expect(excludedTotal).toBeGreaterThan(100_000);
+    // Not vacuous either: the text tables name foods under these profiles, and every one stayed out.
+    expect(textNamed).toBeGreaterThan(5_000);
   }, 120_000);
 
   it("admission reads no score: the admitted set is the same whatever the step-4 outputs are", () => {
@@ -173,9 +255,6 @@ describe("the admission input (Sol r1 BLOCK 1: fix the input, never the verdict)
   });
 
   it("a diet flag still excludes what it names: no animal food for vegan, no meat or fish for vegetarian", () => {
-    const ANIMAL = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|ham|bacon|sausage|steak|fish|salmon|tuna|cod|tilapia|trout|halibut|catfish|sardine|anchov|mackerel|shrimp|prawn|crab|lobster|scallop|mussel|clam|oyster|octopus|squid|egg|milk|cheese|yogurt|butter|ghee|cream|paneer|whey|\bhoney\b/i;
-    const MEAT = /chicken|beef|pork|lamb|turkey|duck|goat|bison|veal|ham|bacon|sausage|steak|fish|salmon|tuna|cod|tilapia|trout|halibut|catfish|sardine|anchov|mackerel|shrimp|prawn|crab|lobster|scallop|mussel|clam|oyster|octopus|squid/i;
-    const NOT_ANIMAL = /peanut butter|almond butter|cashew butter|sunflower seed butter|nut butter|coconut milk|almond milk|soy milk|oat milk|rice milk|eggplant|butternut|butter bean|cream of wheat/i;
     for (const [flag, words] of [["vegan", ANIMAL], ["vegetarian", MEAT]] as const) {
       const rules: AdmissionRules = { profile: EMPTY_PROFILE, preferenceFlags: [flag as PolicyPreferenceFlag],
         avoidFamilies: new Set() };
