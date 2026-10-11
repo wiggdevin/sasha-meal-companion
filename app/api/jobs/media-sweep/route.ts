@@ -16,6 +16,11 @@
  * retried next run; the in-run paging moves past it. A row linked to a log entry (`entry_id`) is
  * never swept: only unattached drafts are.
  *
+ * Owner binding (audit 2026-10-10 P08): the sweep deletes with the service role, so it deletes
+ * only a path inside the row owner's own folder (`ownedObjectKey(path, user_id)`). Any other row
+ * is skipped and logged, never touched; the media_objects CHECK (migration 20261230091900) keeps
+ * new rows to that shape too.
+ *
  * The timing-safe bearer check runs before the rate limit (scale S2): the limit is a shared counter,
  * so an unauthenticated caller must not be able to spend the cron's quota.
  */
@@ -24,7 +29,7 @@ import { timingSafeEqual } from "node:crypto";
 import { adminClient } from "@/lib/server/admin";
 import { HttpError } from "@/lib/server/auth";
 import { jsonError } from "@/lib/server/http";
-import { deleteMedia } from "@/lib/server/media";
+import { deleteMedia, ownedObjectKey } from "@/lib/server/media";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { keysetRows, runWithinBudget } from "@/lib/server/job-sweep";
 import { BUDGET_MS, HARD_STOP_MS } from "@/lib/server/job-cursor";
@@ -72,9 +77,10 @@ async function sweep(req: Request): Promise<Response> {
     const cutoff = new Date(Date.now() - MAX_AGE_MS).toISOString();
     let swept = 0;
     let failed = 0;
+    let skipped = 0;
     const pass = await runWithinBudget({
-      items: keysetRows<{ path: string }>((last, size) => {
-        let query = admin.from("media_objects").select("path")
+      items: keysetRows<{ path: string; user_id: string }>((last, size) => {
+        let query = admin.from("media_objects").select("path, user_id")
           .is("deleted_at", null).is("entry_id", null).lt("created_at", cutoff);
         if (last !== null) query = query.gt("path", last);
         return query.order("path", { ascending: true }).range(0, size - 1);
@@ -82,7 +88,16 @@ async function sweep(req: Request): Promise<Response> {
       keyOf: (row) => row.path,
       concurrency: CONCURRENCY, deadline: startedAt + BUDGET_MS,
       hardStop: startedAt + HARD_STOP_MS,
-      work: async (row) => { await deleteMedia(admin, row.path); swept += 1; },
+      work: async (row) => {
+        if (ownedObjectKey(row.path, row.user_id) === null) {
+          skipped += 1;
+          console.error("media sweep skipped a path outside its owner's folder",
+            { path: row.path, userId: row.user_id });
+          return;
+        }
+        await deleteMedia(admin, row.path);
+        swept += 1;
+      },
       onError: (row, e) => {
         failed += 1;
         console.error("sweep delete failed", { path: row.path, error: e });
@@ -95,10 +110,11 @@ async function sweep(req: Request): Promise<Response> {
       console.error("media sweep listing stopped", { error: pass.listError });
     }
     if (!pass.complete) {
-      console.warn("media sweep stopped at its budget; the next run continues", { swept, failed });
+      console.warn("media sweep stopped at its budget; the next run continues", { swept, failed, skipped });
     }
     await scrubExpiredUndos(admin);
-    return Response.json({ swept, failed, ...(pass.complete ? {} : { incomplete: true }) });
+    return Response.json({ swept, failed, ...(skipped > 0 ? { skipped } : {}),
+      ...(pass.complete ? {} : { incomplete: true }) });
   } catch (e) {
     return jsonError(e);
   }
