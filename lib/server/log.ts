@@ -6,7 +6,9 @@ import type { Snapshot } from "@/lib/nutrients/snapshot";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
 import { profileRuleFacets } from "@/lib/policy/profiles/account-rules";
 import { dayTotals } from "@/lib/server/day-totals";
-import { commitLabelFood, labelFoodOrFailure, type LabelFoodInput } from "@/lib/server/log-label-food";
+import {
+  commitLabelFood, LABEL_FOOD_PLACEHOLDER_REF, labelFoodOrFailure, type LabelFoodInput,
+} from "@/lib/server/log-label-food";
 import { evidenceForItems } from "@/lib/server/log-evidence";
 import { recordFingerprint } from "@/lib/server/log-duplicates";
 import { partialRecipeItems } from "@/lib/server/log-recipe-coverage";
@@ -19,16 +21,18 @@ import { getProfile } from "@/lib/server/constraints";
 import { readPolicyProfile } from "@/lib/server/policy-profile";
 type OpResult = { status: string; rev?: number; current_rev?: number; current?: Record<string, unknown>; deleted_at?: string };
 
-/** Every food_ref the items name must exist and be visible to this caller. */
-async function unknownRefIssues(client: SupabaseClient, req: LogCommitRequest) {
-  const ids = [...new Set(req.items.map((i) => i.food_ref_id))];
+/** Every food_ref the items name must exist and be visible to this caller. The label item's
+ * placeholder is skipped while a label food will replace it (A036: checked before that save). */
+async function unknownRefIssues(client: SupabaseClient, req: LogCommitRequest, label = false) {
+  const named = (id: string) => !(label && id === LABEL_FOOD_PLACEHOLDER_REF);
+  const ids = [...new Set(req.items.map((i) => i.food_ref_id).filter(named))];
   const { data, error } = await client.from("food_refs").select("id, kind").in("id", ids);
   if (error) throw error;
   const kinds = new Map((data ?? []).map((r) => [r.id as string, r.kind as string | undefined]));
   return [
     ...req.items
       .map((item, index) => ({ item, index }))
-      .filter(({ item }) => !kinds.has(item.food_ref_id))
+      .filter(({ item }) => named(item.food_ref_id) && !kinds.has(item.food_ref_id))
       .map(({ index }) => ({ path: `items.${index}.food_ref_id`, message: "unknown food_ref_id" })),
     // t17 round 3: null grams and per_unit only on the account's own food (SQL trigger twin).
     // An unknown ref is already refused above; it is not reported twice.
@@ -260,6 +264,26 @@ async function checkLabelAndPolicy(
   return { ...labelCheck, flagged };
 }
 
+function storedItemFlags(
+  client: SupabaseClient, userId: string, req: LogCommitRequest,
+  items: LogCommitResponse["items"],
+): Promise<{ path: string; message: string }[]> {
+  return policyIssues(client, userId, { ...req, items: items
+    .map((i) => ({ ...i, confidence: i.confidence ?? undefined })) }, null);
+}
+
+/**
+ * The marks for an entry a queued op wrote through /api/sync/ops (A033): the same policy check the
+ * commit runs, judged from the STORED items. Only the items are read off `req`.
+ */
+export async function storedEntryFlags(
+  client: SupabaseClient, userId: string, entryId: string,
+): Promise<{ path: string; message: string }[]> {
+  const items = await storedItems(client, entryId);
+  if (items.length === 0) return [];
+  return storedItemFlags(client, userId, { items: [] } as unknown as LogCommitRequest, items);
+}
+
 export async function applyLogEntry(
   client: SupabaseClient, userId: string, body: unknown,
   extras: { admin?: SupabaseClient; labelFood?: unknown } = {}
@@ -272,14 +296,15 @@ export async function applyLogEntry(
   if ("status" in labelCheck) return labelCheck;
   const flagged = labelCheck.flagged;
 
-  const labelResult = await commitLabelFood(client, userId, req, labelCheck.label);
-  const userFoodId = labelResult.userFoodId;
-
-  const issues = await unknownRefIssues(client, req);
+  // A036: every refusal is decided before the label food exists, so a refused commit leaves none.
+  const issues = await unknownRefIssues(client, req, labelCheck.label !== null);
   if (issues.length > 0) return { status: "invalid", issues };
 
   const stale = await staleRevision(client, req);
   if (stale) return stale;
+
+  const labelResult = await commitLabelFood(client, userId, req, labelCheck.label);
+  const userFoodId = labelResult.userFoodId;
 
   const { data, error } = await client.rpc("apply_sync_op",
     { p_user_id: userId, p_op: opFor(userId, req) });
@@ -303,8 +328,7 @@ export async function applyLogEntry(
     if (!row) return { status: "gone" };
     // A retry keeps its marks, judged from the STORED items — never the retry body, which may differ.
     const response = await ok(client, userId, req, Number(row.rev));
-    const stored = await policyIssues(client, userId, { ...req, items: response.items
-      .map((i) => ({ ...i, confidence: i.confidence ?? undefined })) }, null);
+    const stored = await storedItemFlags(client, userId, req, response.items);
     return stored.length > 0 ? { ...response, flagged: stored } : response;
   }
   if (result.status === "conflict") {

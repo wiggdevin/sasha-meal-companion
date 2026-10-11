@@ -89,5 +89,5 @@ describe("property: an appended word of any kind never shrinks the candidate set
       expect(ids(search(`${base} ${word}`)), `"${base}" + "${word}"`).toEqual(expected);
       expect(ids(search(`${word} ${base}`)), `"${word}" + "${base}"`).toEqual(expected);
     }
-  });
+  }, 20_000); // 152 searches per case: about 1 s alone, past 5 s on a loaded CI runner
 });

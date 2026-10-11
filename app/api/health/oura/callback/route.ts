@@ -8,13 +8,13 @@ import { adminClient } from "@/lib/server/admin";
 import { HttpError } from "@/lib/server/auth";
 import { completeOura, pullTwoDays } from "@/lib/server/oura";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
-import { oauthReturnTo } from "@/lib/health/oura-return";
+import { ouraReturnUrl } from "@/lib/health/oura-return";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function back(origin: string, state: string | null, reason?: string): Response {
-  const url = new URL(oauthReturnTo(state, origin), origin);
+  const url = ouraReturnUrl(state, origin);
   url.searchParams.set("oura", reason ? "error" : "connected");
   if (reason) url.searchParams.set("reason", reason);
   return Response.redirect(url, 302);

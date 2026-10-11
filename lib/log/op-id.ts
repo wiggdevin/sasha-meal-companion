@@ -94,3 +94,12 @@ function uuidV5(name: string, namespace: string): string {
 export function opIdFor(entryId: string, baseRev: number | undefined): string {
   return uuidV5(`log_entries:${entryId.toLowerCase()}:${baseRev ?? 0}`, OP_NAMESPACE);
 }
+
+/**
+ * The user_foods id a label commit saves its food under (audit 2026-10-10 A036). Named by the
+ * account and the entry, so a retried or replayed commit of one entry meets the row its first
+ * attempt inserted instead of inserting a second one.
+ */
+export function labelFoodIdFor(userId: string, entryId: string): string {
+  return uuidV5(`label_food:${userId.toLowerCase()}:${entryId.toLowerCase()}`, OP_NAMESPACE);
+}

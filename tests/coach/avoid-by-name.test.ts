@@ -23,6 +23,8 @@ vi.mock("@/lib/foods/prefs-client", () => ({
   currentPrefStatus: mocks.currentPrefStatus,
   setFoodMembership: mocks.setFoodMembership,
   reserveFoodMembershipIntent: mocks.reserveFoodMembershipIntent,
+  raiseFoodMembershipIntent: (intent: unknown) => intent,
+  readServerMembershipRev: async () => null,
   isLatestFoodMembershipIntent: mocks.isLatestFoodMembershipIntent,
   readFoodMembership: () => undefined,
 }));

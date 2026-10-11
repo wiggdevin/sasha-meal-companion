@@ -2,8 +2,8 @@ import "server-only";
 /**
  * The Favor path's service-role reads and write (Phase 18 D6, lib/server/taste-favor.ts), always
  * for the session user's id, never a value from the request body:
- * - the caller's family membership marks (`food_membership_revisions` has RLS on and no client
- *   read policy, so the session client sees no row), with the explicit `user_id` filter;
+ * - the caller's family membership marks, with the explicit `user_id` filter (the declared read;
+ *   since W029 the owner may also read them through RLS, migration 20261231110000);
  * - `favor_family_sets` and `favor_food_families` (migration 20261215090000), executable by
  *   service_role only, which take the owner as their first argument.
  * Tenancy canary: tests/tenancy/admin-favor.test.ts.
