@@ -995,8 +995,8 @@ export default function Today() {
         {resolved.isFloorDay && (
           <div className="shell" role="status">
             <p className="surface px-5 py-4 text-tiny font-normal leading-body-sm text-graphite">
-              <span className=" font-normal text-charcoal">Quick meals day marked.</span> Your planned
-              meals stay the same. Change this in Day type.
+              <span className=" font-normal text-charcoal">Quick meals on.</span> Suggested meals use
+              foods ready in about 15 minutes when they still fit your targets. Change this in Day type.
             </p>
           </div>
         )}

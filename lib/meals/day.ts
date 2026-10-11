@@ -59,6 +59,35 @@ const scoreValue: PlateValue = (plate, repeat) => plate.score * (repeat ? REPEAT
 const focusValue: PlateValue = (plate, repeat) => (plate.fits ? FOCUS_FIT_WEIGHT : 0)
   + (plate.coverage ?? 0) * FOCUS_COVERAGE_WEIGHT + plate.score * (repeat ? REPEAT : 1);
 
+/**
+ * A061 "Quick meals" (owner decision 2026-10-11): the date is marked quick, so a plate that fits
+ * the slot AND is ready inside `maxMinutes` ranks ahead of every other plate; below that, the
+ * day's own order (score, or the focus key) is unchanged. A quick plate that misses the slot's
+ * fit (protein below 90 %, or calories outside 10 %) gains nothing, so protein never softens and a
+ * slot with no quick plate that fits keeps exactly the plate it had. Domain-agnostic like `focus`:
+ * the caller (lib/foods/layout-plan.ts) supplies the minutes rule (lib/plan/prep-minutes.ts).
+ * Ranking only: the pool, admission and every food's verdict are untouched.
+ */
+export type QuickRanking = {
+  maxMinutes: number;
+  minutesOf: (foods: readonly Food[]) => number;
+};
+/** Above any day's whole sum of the lower terms (fit 1e6 + coverage + score per slot). */
+const QUICK_FIT_WEIGHT = 1e9;
+
+/** The quick key for one plate: true when it fits the slot and is ready in time. */
+function quickFit(quick: QuickRanking): (plate: Plate) => boolean {
+  const seen = new Map<Plate, boolean>();
+  return (plate) => {
+    let value = seen.get(plate);
+    if (value === undefined) {
+      value = plate.fits && quick.minutesOf(plate.rows.map((row) => row.food)) <= quick.maxMinutes;
+      seen.set(plate, value);
+    }
+    return value;
+  };
+}
+
 /** The day's slots in clock order (input order when any clock is unknown). */
 function inClockOrder(slots: readonly DaySlot[]): DaySlot[] {
   if (slots.some((slot) => clockMinutes(slot.clock) === null)) return [...slots];
@@ -68,7 +97,7 @@ function inClockOrder(slots: readonly DaySlot[]): DaySlot[] {
 }
 
 /** Exhaustive best assignment with no equal neighbours; distinct anchors win over repeats. */
-function search(choices: Choice[], value: PlateValue = scoreValue): (string | null)[] {
+function search(choices: Choice[], value: PlateValue = scoreValue, empty = EMPTY): (string | null)[] {
   const n = choices.length;
   const options = choices.map((choice) => [...choice.keys()].sort());
   const best = choices.map((choice) => Math.max(0, ...[...choice.values()].map((plate) => value(plate, false))));
@@ -92,7 +121,7 @@ function search(choices: Choice[], value: PlateValue = scoreValue): (string | nu
       uses.set(key, used);
     }
     picked[i] = null;
-    walk(i + 1, total + EMPTY);
+    walk(i + 1, total + empty);
   };
   walk(0, 0);
   return answer;
@@ -152,6 +181,55 @@ function assign(choices: Choice[], value: PlateValue = scoreValue): (string | nu
   return answer;
 }
 
+/** The day's plate per slot (null: nothing can fill it), from the anchored choices. */
+function pickDay(choices: Choice[], rankings: readonly { plates: Plate[] }[], value: PlateValue,
+  order: (a: Plate, b: Plate) => number): (Plate | null)[] {
+  // Search whenever it is affordable, so a much better repeated protein (half score, never in
+  // neighbouring slots) can beat a weak distinct one; above the limit, distinct first.
+  const size = choices.reduce((product, choice) => product * (choice.size + 1), 1);
+  const keys = size > SEARCH_LIMIT ? assign(choices, value) : search(choices, value);
+  return choices.map((choice, i) => {
+    const key = keys[i];
+    if (key !== null) return choice.get(key) as Plate;
+    // D5 (amended): a protein repeats in a neighbouring slot only when the other choice is an
+    // empty slot. A repeated meal is better than no meal.
+    return [...choice.values()].sort(order)[0]
+      ?? rankings[i].plates.find((plate) => plate.anchorKey === null) ?? null;
+  });
+}
+
+/**
+ * A061: the quick day over the usual day `usual`. Each slot chooses between its fitting quick
+ * plates (anchored ones by anchor, a fitting quick fruit-and-fat snack by its own key) and its
+ * usual plate, never anything else: a slot ends quick or exactly as it was, so no slot without a
+ * fitting quick plate changes and protein never drops below the usual plate's fit.
+ */
+function quickDay(usual: readonly (Plate | null)[], rankings: readonly { plates: Plate[] }[],
+  isQuick: (plate: Plate) => boolean, value: PlateValue): (Plate | null)[] {
+  const choices: Choice[] = rankings.map((ranking, i) => {
+    // An anchorless snack has no protein to repeat: its key is the slot's own, so the neighbour
+    // and repeat rules (protein rules, D5) never apply to it.
+    const keyOf = (plate: Plate) => plate.anchorKey ?? `none:${i}:${plate.key}`;
+    const choice: Choice = new Map();
+    for (const plate of ranking.plates) {
+      if (isQuick(plate) && !choice.has(keyOf(plate))) choice.set(keyOf(plate), plate);
+    }
+    const plate = usual[i];
+    if (plate && !choice.has(keyOf(plate))) choice.set(keyOf(plate), plate);
+    return choice;
+  });
+  // Nothing quick anywhere: the usual day, untouched (a same-anchor quick plate is not this case).
+  if (choices.every((choice, i) => [...choice.values()].every((plate) => plate === usual[i]))) return [...usual];
+  const quickValue: PlateValue = (plate, repeat) => (isQuick(plate) ? QUICK_FIT_WEIGHT : 0) + value(plate, repeat);
+  const size = choices.reduce((product, choice) => product * (choice.size + 1), 1);
+  // Every slot holds its usual plate as a choice, so an empty slot is never needed for the usual
+  // day: leaving one empty costs more than any day can gain, and a slot is left empty (then given
+  // its usual plate back) only when no assignment keeps neighbours apart.
+  const keys = size > SEARCH_LIMIT ? assign(choices, quickValue)
+    : search(choices, quickValue, -QUICK_FIT_WEIGHT * (choices.length + 1));
+  return choices.map((choice, i) => (keys[i] === null ? usual[i] : choice.get(keys[i] as string) as Plate));
+}
+
 /**
  * Plan every slot of a day from this account's Eats.
  *
@@ -172,11 +250,14 @@ function assign(choices: Choice[], value: PlateValue = scoreValue): (string | nu
  *
  * `cuisine` is the account's stated cuisines (lib/meals/cuisine.ts): each plate's score takes its
  * cuisine factor. Absent (no cuisine stated): byte-identical to the day without it.
+ *
+ * `quick` is the date's "Quick meals" mark (A061, `QuickRanking` above): a quick plate that fits
+ * wins its slot. Absent (the date is not marked): byte-identical to the day without it.
  */
 export function planDay(date: string, slots: readonly DaySlot[],
   foods: readonly Food[] | Readonly<Record<string, Food>>, overrides?: OccasionOverrides,
   evidence?: MealEvidence | null, taste?: TasteValues, open?: OpenRanking, focus?: FocusRanking,
-  cuisine?: CuisineRanking): DayPlan {
+  cuisine?: CuisineRanking, quick?: QuickRanking): DayPlan {
   // A slot with no calories or no protein left to serve (an eaten recipe covered the day's
   // protein) gets no generated plate, as before O1: protein leads every plate.
   const ordered = inClockOrder(slots).filter((slot) => slot.target.kcal > 0 && slot.target.protein > 0);
@@ -195,30 +276,15 @@ export function planDay(date: string, slots: readonly DaySlot[],
   const rankings = inputs.map((input) => rankPlates(input));
   const choices: Choice[] = rankings.map((ranking) => new Map(bestPerAnchor(ranking.plates)
     .filter((plate) => plate.anchorKey !== null).map((plate) => [plate.anchorKey as string, plate])));
-  // Search whenever it is affordable, so a much better repeated protein (half score, never in
-  // neighbouring slots) can beat a weak distinct one; above the limit, distinct first.
-  const size = choices.reduce((product, choice) => product * (choice.size + 1), 1);
-  const keys = focus
-    ? (size > SEARCH_LIMIT ? assign(choices, focusValue) : search(choices, focusValue))
-    : (size > SEARCH_LIMIT ? assign(choices) : search(choices));
+  const value = focus ? focusValue : scoreValue;
+  const picked = pickDay(choices, rankings, value, focus ? byFocus : byScore);
+  const final = quick ? quickDay(picked, rankings, quickFit(quick), value) : picked;
 
   const plan: DayPlan = { plates: [], shortages: [], misses: [] };
   ordered.forEach((slot, i) => {
-    const key = keys[i];
-    if (key !== null) {
-      plan.plates.push({ slot: slot.id, plate: choices[i].get(key) as Plate });
-      return;
-    }
-    // D5 (amended): a protein repeats in a neighbouring slot only when the other choice is an
-    // empty slot. A repeated meal is better than no meal.
-    const repeat = [...choices[i].values()].sort(focus ? byFocus : byScore)[0];
-    if (repeat) {
-      plan.plates.push({ slot: slot.id, plate: repeat });
-      return;
-    }
-    const anchorless = rankings[i].plates.find((plate) => plate.anchorKey === null);
-    if (anchorless) {
-      plan.plates.push({ slot: slot.id, plate: anchorless });
+    const plate = final[i];
+    if (plate) {
+      plan.plates.push({ slot: slot.id, plate });
       return;
     }
     // No anchored plate and no anchorless one means rankPlates found none and said why.
