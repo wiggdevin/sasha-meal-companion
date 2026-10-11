@@ -109,8 +109,8 @@ export const MAX_UPDATE_REBASES = 3;
  * too, and the card keeps their note until this op lands, because `ownWriteQueued` still sees it.
  *
  * The note edits queued right behind it fold into the same rebase (audit 2026-10-10 W011 review):
- * the latest one is what she means now, and the first one's base is the note the run of edits
- * started from. Rebased one at a time, a rewrite she replaced came back — the first rebase joined
+ * the latest one is what the user means now, and the first one's base is the note the run of
+ * edits started from. Rebased one at a time, a replaced rewrite came back — the first rebase joined
  * it to the other device's note, and the next edit's base no longer matched that join.
  */
 export async function rebaseLogNote(
@@ -121,8 +121,8 @@ export async function rebaseLogNote(
   const latest = folded.length > 0 ? folded[folded.length - 1] : op;
   const mine = latest.payload as Record<string, unknown>;
   const serverTs = String(server.updated_at ?? "");
-  // With the note her edits started from, only a note BOTH sides changed is joined: one the other
-  // device left alone takes hers, a clear included (audit 2026-10-10 A077). An op queued before
+  // With the note the edits started from, only a note BOTH sides changed is joined: one the other
+  // device left alone takes the user's, a clear included (audit 2026-10-10 A077). An op queued before
   // that base was recorded keeps the old rule. Theirs second: it is the newer of the two, and a
   // note is evidence — neither side's is dropped.
   const note = op.note_base === undefined

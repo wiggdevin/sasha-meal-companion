@@ -49,8 +49,8 @@ async function save(h: AccountHandle, date: string, id: string, note: string): P
     // Never the client's own keys: an optimistic row carries the attempt that wrote it, and a
     // payload is a `log_entries` write (Grok pass 10, HIGH 2).
     const payload = { ...serverFields(row), id, note: note || null };
-    // The note this edit replaces: a conflict then keeps her clear or rewrite instead of joining
-    // it to the very text she changed (audit 2026-10-10 A077).
+    // The note this edit replaces: a conflict then keeps the user's clear or rewrite instead of
+    // joining it to the very text they changed (audit 2026-10-10 A077).
     const base = typeof row.note === "string" ? canonicalNote(row.note) : "";
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: id,
