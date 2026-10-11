@@ -4,7 +4,7 @@
  * B. The download is a fetch for the account the card was rendered for instead: the route answers
  * `409 account_mismatch` to a stale tab, and a body that arrives after a switch is never saved.
  */
-import { accountBlob, accountFetch, type AccountHandle } from "@/lib/device/account";
+import { accountFetch, accountText, type AccountHandle } from "@/lib/device/account";
 
 export type ExportKind = "meals" | "progress";
 
@@ -61,7 +61,7 @@ export function joinCsvPages(pages: readonly CsvPage[]): string {
 async function fetchCsvPage(h: AccountHandle, href: string, deps: DownloadDeps): Promise<CsvPage> {
   const res = await accountFetch(h, href, {}, { fetchImpl: deps.fetchImpl });
   if (!res.ok) throw new Error(`export failed with ${res.status}`);
-  const text = await (await accountBlob(h, res)).text();
+  const text = await accountText(h, res);
   const page = splitPage(text, Number(res.headers.get(NOTICE_LINES_HEADER) ?? 0));
   return { ...page, next: res.headers.get(NEXT_CURSOR_HEADER) };
 }
