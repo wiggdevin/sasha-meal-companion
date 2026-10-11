@@ -5,23 +5,25 @@
  * allergens, banned categories, custom rules and Avoid list but not its diet flags (vegetarian,
  * halal, no_pork …), its confirmed profile hard rules or the human-food check. A suggestion, an
  * eligible food and a saved recipe read all of them (suggest-verdict.ts). This brings a plan write
- * to the same pass, over the same cache-only evidence (loadSuggestionEvidence):
+ * to the same pass, over the same cache-only evidence (loadSuggestionEvidence), and fails closed
+ * the same way (suggestionItemsVerdict):
  *
  * - blocked by any rule, or not human food → `blocked`, so lib/coach/plan-policy.ts
  *   refusePlanBlocked refuses the action whole with the reason;
- * - a rule the evidence cannot settle → `unverified` with its marks ("Not verified" on the card);
- * - evidence that could not be read → `unverified` (fail closed: never a silent `allowed`).
+ * - a rule the evidence cannot settle, a grounded `unverified`, or a food that is not a plain whole
+ *   food and has no human-food judgment yet → `unverified`;
+ * - evidence that could not be read → `unverified` (never a silent `allowed`).
  *
- * A food with no human-food judgment yet stays as grounded: that facet is warmed for few catalog
- * foods (suggest-verdict.ts), and a plan write is the user's own named food, not a suggestion.
- * Jev decides nothing here: allergen, diet and profile marks are deterministic (Phase 18 W2a/W2c).
+ * A plan holds only foods the rules clear: gatePlanActions refuses an action holding an
+ * `unverified` food too, with its own words (A128, review round 1). Jev decides nothing here:
+ * allergen, diet and profile marks are deterministic (Phase 18 W2a/W2c).
  */
 import type { CoachAction, GroundedNamedFood } from "@/lib/coach/actions";
-import { PLAN_WRITE_KINDS } from "@/lib/coach/plan-policy";
+import { PLAN_WRITE_KINDS, refusePlanBlocked } from "@/lib/coach/plan-policy";
 import {
   loadSuggestionEvidence, suggestionFoodIdentity, type SuggestionEvidence, type SuggestionEvidenceOptions,
 } from "@/lib/coach/suggest-policy";
-import { suggestionPolicyEvidence } from "@/lib/coach/suggest-verdict";
+import { plainWholeFood, suggestionPolicyEvidence } from "@/lib/coach/suggest-verdict";
 import { evaluatePolicy, type ConstraintProfile, type PolicyMark } from "@/lib/policy/constraints";
 import { facetOutcome } from "@/lib/policy/facet-rules";
 import { profileRuleFacets } from "@/lib/policy/profiles/account-rules";
@@ -50,11 +52,15 @@ export function judgePlanFood(
   const policy = evaluatePolicy(profile,
     suggestionPolicyEvidence(food.foodRefId, facts, evidence.preferenceFlags, profile));
   if (policy.verdict === "blocked") return { verdict: "blocked", reason: policy.reason };
-  if (facetOutcome("human_food", facts?.facets.human_food?.p, "exclude") === "absent") {
-    return { verdict: "blocked", reason: "not_human_food" };
-  }
+  const human = facetOutcome("human_food", facts?.facets.human_food?.p, "exclude");
+  if (human === "absent") return { verdict: "blocked", reason: "not_human_food" };
   if (policy.verdict === "unverified") return { verdict: "unverified", marks: policy.marks ?? [] };
   if (food.verdict === "unverified") return { verdict: "unverified", marks: food.marks ?? [] };
+  // suggestionItemsVerdict's rule: a plain whole food is human food by its own name; anything else
+  // (packaged, branded, a dish) needs a judgment before a plan holds it.
+  if (human === "unknown" && !plainWholeFood(facts)) {
+    return { verdict: "unverified", marks: policy.marks ?? [] };
+  }
   return { verdict: "allowed" };
 }
 
@@ -113,4 +119,39 @@ export async function judgePlanActions(
   }
   return actions.map((action) => PLAN_WRITE_KINDS.has(action.kind)
     ? judgedAction(action, (food) => judgePlanFood(food, evidence, profile)) : action);
+}
+
+/**
+ * A plan write holding a food the rules could not clear is refused whole, like a blocked one, but
+ * says so honestly: the food may be fine, it just could not be checked (A128: fail closed, as
+ * suggestions and recipes do). A log is never refused (ruling 2026-09-14).
+ */
+export function refusePlanUnverified(actions: readonly CoachAction[]): {
+  actions: CoachAction[]; refusals: string[];
+} {
+  const kept: CoachAction[] = [];
+  const refusals: string[] = [];
+  for (const action of actions) {
+    const unchecked = PLAN_WRITE_KINDS.has(action.kind)
+      ? planFoodsOf(action).filter((food) => food.verdict === "unverified").map((food) => food.name)
+      : [];
+    if (unchecked.length === 0) {
+      kept.push(action);
+      continue;
+    }
+    refusals.push(`I didn't put ${unchecked.join(", ")} in your plan — I couldn't check `
+      + `${unchecked.length === 1 ? "it" : "them"} against your food rules. Pick something else, `
+      + "or try again in a moment.");
+  }
+  return { actions: kept, refusals };
+}
+
+/** The whole plan-write gate: judge every plan food, then refuse blocked and unchecked writes. */
+export async function gatePlanActions(
+  userId: string, actions: readonly CoachAction[], profile: ConstraintProfile,
+  options: PlanPolicyOptions = {},
+): Promise<{ actions: CoachAction[]; refusals: string[] }> {
+  const blocked = refusePlanBlocked(await judgePlanActions(userId, actions, profile, options));
+  const unchecked = refusePlanUnverified(blocked.actions);
+  return { actions: unchecked.actions, refusals: [...blocked.refusals, ...unchecked.refusals] };
 }

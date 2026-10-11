@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
-  SCAN_FORMATS, ScanUnavailable, offlineMatch, scanGtin, toCachedRevision,
+  SCAN_FORMATS, ScanUnavailable, offlineMatch, scanGtin, scanRulesStamp, toCachedRevision,
   type BarcodeMatch,
 } from "@/lib/barcode/client";
 import type { CachedRevision } from "@/lib/db/catalog-cache";
-import { foodRulesEpoch, noteFoodRulesChanged } from "@/lib/foods/rules-epoch";
+import {
+  foodMembershipEpoch, foodRulesEpoch, noteFoodRulesChanged, noteFoodStatuses,
+} from "@/lib/foods/rules-epoch";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { TEST_USER } from "@/tests/helpers/account";
 
@@ -75,7 +77,8 @@ describe("toCachedRevision", () => {
       portions: [{ id: 5, description: "1 pouch (90 g)", gramWeight: 90, isDefault: true }],
       gtin14: GTIN, food_ref_id: "11111111-1111-4111-8111-111111111111",
       allergen_tags: ["apple"], policy: { verdict: "blocked", reason: "allergen:apple" },
-      rules_epoch: foodRulesEpoch(), cached_at: "2026-09-19T12:00:00.000Z",
+      rules_epoch: foodRulesEpoch(), membership_epoch: foodMembershipEpoch(),
+      cached_at: "2026-09-19T12:00:00.000Z",
     });
     expect(row.per_100g.iron).toBeNull();
   });
@@ -112,6 +115,24 @@ describe("offlineMatch", () => {
     // The user added an allergy or an Avoid mark since: the old "allowed" may no longer hold.
     expect(offlineMatch(allowed)?.policy).toEqual({ verdict: "unverified" });
     expect(offlineMatch({ ...allowed, rules_epoch: undefined })?.policy).toEqual({ verdict: "unverified" });
+  });
+
+  it("W014 review: an Avoid or Eats mark since the scan revokes an allowed verdict", () => {
+    const allowed = toCachedRevision({ ...MATCH, policy: { verdict: "allowed" } }, GTIN);
+    noteFoodStatuses({ granola: { status: "eats" } }, { granola: { status: "eats" } });
+    expect(offlineMatch(allowed)?.policy).toEqual({ verdict: "allowed" });
+    // The user marks the brand Avoid (a tap here or a pull from another device).
+    noteFoodStatuses({ granola: { status: "eats" } }, { granola: { status: "avoid" } });
+    expect(offlineMatch(allowed)?.policy).toEqual({ verdict: "unverified" });
+    expect(offlineMatch({ ...allowed, membership_epoch: undefined, rules_epoch: foodRulesEpoch() })?.policy)
+      .toEqual({ verdict: "unverified" });
+  });
+
+  it("W014 review: a verdict stamped before the lookup is stale once the rules moved mid-flight", () => {
+    const stamp = scanRulesStamp();
+    noteFoodRulesChanged();
+    const row = toCachedRevision({ ...MATCH, policy: { verdict: "allowed" } }, GTIN, Date.now(), stamp);
+    expect(offlineMatch(row)?.policy).toEqual({ verdict: "unverified" });
   });
 
   it("W014 (A031): keeps a blocked verdict after a rules change — a lapsed warning beats none", () => {

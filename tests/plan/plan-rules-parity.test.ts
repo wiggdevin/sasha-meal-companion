@@ -105,6 +105,14 @@ describe("an uploaded meal plan's matched meal", () => {
     expect(out.items.map((item) => item.name)).toEqual(["ham sandwich", "apple"]);
   });
 
+  it("leaves out a dish nothing has judged human food yet, as suggestions do", async () => {
+    const evidence = readyPlanEvidence([], { "ham sandwich": { facets: {} }, apple: { facets: {} } });
+    const out = await groundDocumentMeal("u", meal, PROFILE, { searchFoods, evidence });
+    expect(out.items.map((item) => item.name)).toEqual(["apple"]);
+    expect(out.left).toContainEqual({ name: "ham sandwich", amount: "150 g",
+      reason: "Couldn’t confirm it against your food rules" });
+  });
+
   it("leaves everything out when the rules cannot be read", async () => {
     const evidence = vi.fn(async () => ({ status: "unavailable" as const, preferenceFlags: [], byIdentity: {} }));
     const out = await groundDocumentMeal("u", meal, PROFILE, { searchFoods, evidence });
