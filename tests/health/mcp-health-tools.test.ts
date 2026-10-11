@@ -57,4 +57,23 @@ describe("registerHealthTools", () => {
     expect(JSON.parse(out.content[0].text)[0]).toMatchObject({ resting_heart_rate: 47.4,
       hrv_sdnn: 45.375 });
   });
+
+  // W037 (audit A104): the shape alone let 2026-02-31 roll into March and 2026-13-01 throw.
+  it.each([["2026-02-30", "2026-03-05"], ["2026-13-01", "2026-13-05"], ["2026-04-31", "2026-05-02"],
+    ["2026-03-01", "2026-02-29"]])("rejects the impossible date in %s..%s", async (from, to) => {
+    vi.mocked(mergedDays).mockClear();
+    const { server, tools } = fakeServer();
+    registerHealthTools(server, { userId: "user-1", admin: {} as never });
+    expect(() => tools[0].config.inputSchema.parse({ from, to })).toThrow();
+    const out = await tools[0].run({ from, to });
+    expect(out.content[0].text).toMatch(/real calendar dates/);
+    expect(mergedDays).not.toHaveBeenCalled();
+  });
+
+  it("accepts a leap day", () => {
+    const { server, tools } = fakeServer();
+    registerHealthTools(server, { userId: "user-1", admin: {} as never });
+    expect(() => tools[0].config.inputSchema.parse({ from: "2028-02-29", to: "2028-03-01" }))
+      .not.toThrow();
+  });
 });
