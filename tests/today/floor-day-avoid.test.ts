@@ -53,6 +53,19 @@ const stamped = (ids: string[], marks: [string, RuleMark][] = []) =>
 const slotOf = (store: Store, slot: string, eligible?: ReadonlySet<string>) =>
   resolveDay(store, DAY, 0, eligible).slots.find((entry) => entry.slot === slot);
 
+/** An onboarded account with a target revision and admitted foods (eggs on Avoid). */
+function readyStore(): { store: Store; eligible: Set<string> } {
+  const store = defaultStore();
+  const foods = [{ ...F.eggs, status: "avoid" as const }, F.yogurt, F.oats, F.toast, F.tuna, F.banana,
+    F.rice, F.broccoli, F.oliveOil];
+  store.foods = Object.fromEntries(foods.map((entry) => [entry.id, entry]));
+  store.settings = { ...store.settings, onboardedAt: "2026-09-26T12:00:00Z", trainingWeekdays: [],
+    ruleReviewReady: true, mealsPerDay: 3, activeTargetProfile: { revision: 1, training: MACROS,
+      rest: MACROS, pins: { trainingKcal: null, restKcal: null, proteinG: null } } } as Store["settings"];
+  const eligible = new Set(foods.filter((entry) => entry.status === "eats").map((entry) => entry.id));
+  return { store, eligible };
+}
+
 afterEach(() => resetFoodRulesMemoryForTests());
 
 describe("Floor Day honours Avoid (B105)", () => {
@@ -75,14 +88,7 @@ describe("Floor Day honours Avoid (B105)", () => {
   });
 
   it("never substitutes the fixed Floor Day template: the day is the account's own plates", () => {
-    const store = defaultStore();
-    const foods = [{ ...F.eggs, status: "avoid" as const }, F.yogurt, F.oats, F.toast, F.tuna, F.banana,
-      F.rice, F.broccoli, F.oliveOil];
-    store.foods = Object.fromEntries(foods.map((entry) => [entry.id, entry]));
-    store.settings = { ...store.settings, onboardedAt: "2026-09-26T12:00:00Z", trainingWeekdays: [],
-      ruleReviewReady: true, mealsPerDay: 3, activeTargetProfile: { revision: 1, training: MACROS,
-        rest: MACROS, pins: { trainingKcal: null, restKcal: null, proteinG: null } } } as Store["settings"];
-    const eligible = new Set(foods.filter((entry) => entry.status === "eats").map((entry) => entry.id));
+    const { store, eligible } = readyStore();
     const usual = resolveDay(store, DAY, 0, eligible);
     store.days[DAY] = { date: DAY, floorDay: true };
     const floor = resolveDay(store, DAY, 0, eligible);
@@ -99,11 +105,14 @@ describe("Floor Day honours Avoid (B105)", () => {
   });
 
   it("does not render a Floor Day template id stored as a meal-slot swap", () => {
-    const store = storeWith({ floorDay: true, swaps: { "meal-1": floorMeal.id } },
-      [food("eggs", "Eggs", "avoid")]);
-    const meal = slotOf(store, "meal-1", stamped([]))?.meal;
-    expect(meal?.id).not.toBe(floorMeal.id);
-    expect(meal?.tags ?? []).not.toContain("floor-day");
+    const { store, eligible } = readyStore();
+    store.days[DAY] = { date: DAY, floorDay: true, swaps: { "meal-1": floorMeal.id } };
+    const slot = slotOf(store, "meal-1", eligible);
+    // A generated plate stands in the slot, so the negative checks below test a real meal.
+    expect(slot?.meal).toBeTruthy();
+    expect(slot?.meal?.id).not.toBe(floorMeal.id);
+    expect(slot?.meal?.tags ?? []).not.toContain("floor-day");
+    expect(slot?.components.map((part) => part.name)).not.toContain(F.eggs.name);
   });
 });
 
@@ -123,6 +132,8 @@ describe("low FODMAP on an uncategorised food (B221 F1)", () => {
     const rules = { ...EMPTY_PROFILE };
     expect(evaluatePolicy(rules, { ...evidence, preferenceFlags: ["low_fodmap"] }).verdict)
       .toBe("unverified");
+    expect(evaluatePolicy(rules, { ...evidence, category: [], preferenceFlags: ["low_fodmap"] }).verdict)
+      .toBe("allowed");
     expect(evaluatePolicy(rules, { ...evidence, category: ["beans"], preferenceFlags: ["low_fodmap"] }))
       .toMatchObject({ verdict: "blocked" });
   });
