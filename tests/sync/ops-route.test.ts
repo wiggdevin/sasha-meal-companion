@@ -202,6 +202,8 @@ describe("POST /api/sync/ops", () => {
       p_status: null,
       p_note: "try again later",
       p_rev: 1_800_000_000_000,
+      // W029: the op id, so the server answers a retry from its ledger.
+      p_op_id: membership.op_id,
     });
     await expect(res.json()).resolves.toMatchObject({
       results: [{ op_id: membership.op_id, status: "applied", rev: 1_800_000_000_000, seq: 0 }],

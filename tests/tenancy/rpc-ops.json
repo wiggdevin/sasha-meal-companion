@@ -35,6 +35,7 @@
   "revoke_api_token(uuid,uuid)": { "class": "account", "case": "revoke_token" },
   "save_food_note(uuid,uuid,uuid,integer,text,text)": { "class": "account", "case": "food_note" },
   "set_food_membership(uuid,text,text,text,bigint)": { "class": "account", "case": "food_membership" },
+  "set_food_membership(uuid,text,text,text,bigint,uuid)": { "class": "account", "case": "food_membership_op" },
   "shopping_create_receipt_guard()": { "class": "pure", "reason": "Trigger compares only old and new receipt columns." },
   "shopping_patch_purchase_window(uuid,uuid,integer,uuid,jsonb)": { "class": "account", "case": "shopping_window" },
   "sync_changes(uuid,bigint,integer)": { "class": "account", "case": "sync_changes" },

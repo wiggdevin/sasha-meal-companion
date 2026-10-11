@@ -9,7 +9,8 @@
  *
  * The rule, in order:
  *   1. a pure fat by name (oil, ghee, lard, tallow, "beef fat") is fat;
- *   2. a meat, poultry, fish, seafood, egg or plant-protein name is protein — whatever the dish
+ *   2. a meat (cured, processed and organ meats included), poultry, fish, seafood, egg or
+ *      plant-protein name is protein — whatever the dish
  *      (a beef soup or a chicken stew is where that meal's protein comes from); goat or buffalo
  *      beside a dairy word is the milk, not the meat;
  *   3. nuts, seeds, nut butters, avocado, olives, coconut, butter and mayonnaise are fat — but
@@ -39,7 +40,7 @@ const FAT_DESCRIPTOR = /\b(?:low|reduced|non|no|less|lean|light|lite|full)[\s-]?
 
 const PURE_FAT = new RegExp([
   "\\b(?:oils?|ghee|lard|tallow|shortening|margarine|suet|drippings|schmaltz)\\b",
-  "\\b(?:beef|pork|chicken|duck|goose|bacon|animal|lamb)\\s+fat\\b",
+  "\\b(?:beef|pork|chicken|duck|goose|bacon|animal|lamb)\\s+(?:fat|grease)\\b",
   "^fat\\b",
 ].join("|"));
 
@@ -47,6 +48,12 @@ const PROTEIN = new RegExp(`\\b(?:${[
   "beef", "steaks?", "sirloin", "brisket", "veal", "bison", "buffalo", "venison", "deer", "elk",
   "game meat", "lamb", "mutton", "goat", "pork", "ham", "prosciutto", "chicken", "turkey", "duck",
   "goose", "quail", "poultry", "meat", "meatballs?", "jerky",
+  // Cured, processed and organ meats are protein too, however much fat they carry (audit
+  // 2026-10-10 A042: bacon, pepperoni and liver read as fat by the calorie rule).
+  "bacon", "sausages?", "pepperoni", "salami", "chorizo", "hot\\s*dogs?", "frankfurters?",
+  "wieners?", "bratwursts?", "kielbasa", "andouille", "pastrami", "bologna", "mortadella",
+  "pancetta", "soppressata", "capicola", "bresaola", "liverwurst", "liver", "kidneys?",
+  "giblets", "tripe", "offal",
   "fish", "salmon", "tuna", "albacore", "cod", "tilapia", "halibut", "trout", "sardines?",
   "anchov(?:y|ies)", "mackerel", "mahi(?:[\\s-]mahi)?", "snapper", "sea bass", "catfish", "pollock",
   "haddock", "swordfish", "shrimp", "prawns?", "crab", "lobster", "scallops?", "clams?",
@@ -68,6 +75,8 @@ const NOT_PROTEIN = new RegExp([
   "\\b(?:oyster|chicken)\\s+mushrooms?\\b",
   "\\bchicken\\s+of\\s+the\\s+woods\\b",
   "\\bswedish\\s+fish\\b",
+  "\\bhot\\s*dog\\s+(?:buns?|rolls?)\\b",
+  "\\bkidney\\s+beans?\\b",
 ].join("|"), "g");
 
 const FAT_FOOD = new RegExp(`\\b(?:${[

@@ -20,6 +20,8 @@ vi.mock("@/lib/foods/prefs-client", () => ({
   currentPrefStatus: sync.currentPrefStatus,
   setFoodMembership: sync.setFoodMembership,
   reserveFoodMembershipIntent: sync.reserveFoodMembershipIntent,
+  raiseFoodMembershipIntent: (intent: unknown) => intent,
+  readServerMembershipRev: async () => null,
   isLatestFoodMembershipIntent: sync.isLatestFoodMembershipIntent,
 }));
 vi.mock("@/lib/store", () => ({
@@ -133,6 +135,8 @@ describe("meal-component role confirmation", () => {
       note: "works well", rev: 5 });
     expect(op).toMatchObject({ entity: "user_food_prefs", entity_id: ADVICE.foodRefId,
       kind: "update", base_rev: 4 });
+    // Audit 2026-10-10 P15 (W029): a field delta, never the mirror's status, note or no_cook.
+    expect(op.payload).toEqual({ role: "fat" });
   });
 
   // PR #248 review r4 #1 sweep: the role write reads the bound account, so it waits for no switch.

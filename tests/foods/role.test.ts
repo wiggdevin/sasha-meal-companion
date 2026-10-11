@@ -133,3 +133,26 @@ describe("the phone projection's role for a food with no stored role", () => {
     expect(foods.soup.role).toBe("carb");
   });
 });
+
+// Audit 2026-10-10 A042 (W029): cured and processed meats and offal fell through to the calorie
+// rule and, being fat-heavy, read as fat.
+describe("cured, processed and organ meats", () => {
+  const FATTY = { protein: 12, carbs: 1, fat: 40 };
+
+  it("are protein by name, whatever the calories say", () => {
+    for (const name of ["Bacon", "Bacon, cooked", "Pork sausage", "Sausages, breakfast", "Pepperoni",
+      "Salami", "Chorizo", "Hot dog", "Hot dogs, beef", "Frankfurter", "Bratwurst", "Kielbasa",
+      "Liver, chicken", "Liver", "Beef kidney", "Pastrami", "Bologna", "Pancetta", "Prosciutto",
+      "Liverwurst", "Andouille sausage", "Mortadella", "Turkey bacon"]) {
+      expect(judgeFoodRole(name, FATTY), name).toEqual({ role: "protein", source: "name" });
+    }
+  });
+
+  it("keeps the pure fats, a bun and kidney beans out of it", () => {
+    expect(roleFromName("Bacon fat")).toBe("fat");
+    expect(roleFromName("Bacon grease")).toBe("fat");
+    expect(roleFromName("Cod liver oil")).toBe("fat");
+    expect(roleFromName("Hot dog bun")).toBe("carb");
+    expect(roleFromName("Kidney beans")).toBeNull();
+  });
+});

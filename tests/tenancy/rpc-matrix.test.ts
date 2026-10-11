@@ -123,7 +123,8 @@ describe.skipIf(!HAS_DB)("RPC manifest (spec 3.3)", () => {
 /** Case ids, so the manifest check above can run without a database. */
 const CASE_NAMES = {
   assert_caller: 1, apply_sync_op: 1, contradictions: 1,
-  food_ref: 1, weigh_in: 1, revoke_token: 1, food_membership: 1, food_note: 1, sync_changes: 1,
+  food_ref: 1, weigh_in: 1, revoke_token: 1, food_membership: 1, food_membership_op: 1, food_note: 1,
+  sync_changes: 1,
   compute_item_snapshot: 1,
   recipe_accept: 1, recipe_consumed: 1, recipe_undo: 1, shopping_window: 1,
   coach_undo_record: 1, coach_undo_perform: 1, food_signals: 1, taste_confirm: 1, taste_undo: 1,
@@ -202,6 +203,14 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
       const before = await rowsOf("food_membership_revisions", b.id);
       const { error } = await asA.rpc("set_food_membership", { p_user: b.id,
         p_name_norm: `tenancy ${crypto.randomUUID()}`, p_status: "eats", p_note: null, p_rev: 0 });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("food_membership_revisions", b.id)).toEqual(before);
+    },
+    food_membership_op: async () => {
+      const before = await rowsOf("food_membership_revisions", b.id);
+      const { error } = await asA.rpc("set_food_membership", { p_user: b.id,
+        p_name_norm: `tenancy ${crypto.randomUUID()}`, p_status: "eats", p_note: null, p_rev: 0,
+        p_op_id: crypto.randomUUID() });
       expect(error?.message).toContain("forbidden");
       expect(await rowsOf("food_membership_revisions", b.id)).toEqual(before);
     },

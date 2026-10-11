@@ -45,6 +45,8 @@ export const BACKUP_TABLES: readonly BackupTable[] = [
   table("user_allergen_checks", "user_id", "food_key", "allergen"),
   table("food_allergen_evidence", "food_key", "allergen"),
   table("food_membership_revisions", "user_id", "name_norm"),
+  // W029: each applied membership op's answer, so a replay after a restore is not applied twice.
+  table("food_membership_ops", "op_id"),
   table("food_note_authority", "user_id", "name_norm"),
   table("food_world_condition_confirmations", "user_id", "condition_key"),
   table("account_rules_clock", "user_id"),

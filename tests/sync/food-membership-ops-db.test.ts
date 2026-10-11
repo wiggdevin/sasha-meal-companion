@@ -103,15 +103,24 @@ run("food_membership ops against the real set_food_membership", () => {
     expect(await stored(name)).toEqual({ status: "avoid", rev: 2_000 });
   });
 
-  it("still rejects an older mark, with the state the server holds", async () => {
+  // W029 (audit 2026-10-10 A140, migration 20261231110000): the server assigns the revision. A
+  // mark whose hint is below the stored revision (another device's clock ran ahead) is the later
+  // tap and applies at the next revision; a retried op id is answered and never written again.
+  it("applies a mark below the stored revision at the next server revision", async () => {
     const name = freshName();
     await send(op(name, "eats", 1_000));
     await send(op(name, "avoid", 2_000));
-    const stale = op(name, "eats", 1_500);
-    expect(await send(stale)).toEqual({
-      op_id: stale.op_id, status: "rejected", user_id: userId, name_norm: name,
-      current_status: "avoid", current_rev: 2_000,
-    });
+    const later = op(name, "eats", 1_500);
+    expect(await send(later)).toEqual({ op_id: later.op_id, status: "applied", rev: 2_001, seq: 0 });
+    expect(await stored(name)).toEqual({ status: "eats", rev: 2_001 });
+  });
+
+  it("answers a retried op from its first result and writes nothing over a later mark", async () => {
+    const name = freshName();
+    const first = op(name, "eats", 1_000);
+    await send(first);
+    await send(op(name, "avoid", 2_000));
+    expect(await send(first)).toEqual({ op_id: first.op_id, status: "applied", rev: 1_000, seq: 0 });
     expect(await stored(name)).toEqual({ status: "avoid", rev: 2_000 });
   });
 });
