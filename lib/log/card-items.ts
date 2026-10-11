@@ -7,6 +7,7 @@
  */
 import { amountLabel, massOf, relabelLostMass } from "@/lib/log/mass";
 import type { LoggedFood } from "@/lib/types";
+import { LABEL_FOOD_PLACEHOLDER_REF } from "@/lib/capture/label-food";
 
 type Item = NonNullable<LoggedFood["items"]>[number];
 
@@ -68,7 +69,8 @@ function itemFor(
   const seq = typeof row.seq === "number" ? row.seq : index + 1;
   const qty = typeof row.qty === "number" ? row.qty : held?.qty ?? grams ?? 1;
   const unit = typeof row.unit === "string" ? row.unit : held?.unit ?? "g";
-  if (held && held.food_ref_id === food_ref_id) {
+  // A label saved as their own food went up under the placeholder; the row names its real ref (A030).
+  if (held && (held.food_ref_id === food_ref_id || held.food_ref_id === LABEL_FOOD_PLACEHOLDER_REF)) {
     return relabelLostMass(held, { ...held, seq, food_ref_id, grams, qty, unit, snapshot });
   }
   return {

@@ -26,6 +26,8 @@ function matches(row: Row, filters: Filter[]): boolean {
 export function fakeClient(opts: {
   tables?: Record<string, Row[]>;
   rpc?: Record<string, unknown | ((args: unknown) => unknown)>;
+  /** A table whose insert fails with this error (a 23505 replay, W017 A036). */
+  insertError?: Record<string, { code: string; message: string }>;
 } = {}) {
   const tables = opts.tables ?? {};
   const rpcResults = opts.rpc ?? {};
@@ -49,7 +51,9 @@ export function fakeClient(opts: {
       maybeSingle: async () => ({ data: rows().find((r) => matches(r, filters)) ?? null, error: null }),
       insert: (row: Row) => {
         inserted.push({ table, row });
-        return { select: () => ({ single: async () => ({ data: { id: `${table}-new` }, error: null }) }) };
+        const failed = opts.insertError?.[table];
+        return { select: () => ({ single: async () => (failed ? { data: null, error: failed }
+          : { data: { id: `${table}-new` }, error: null }) }) };
       },
       then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
         Promise.resolve({ data: rows().filter((r) => matches(r, filters)), error: null }).then(resolve),

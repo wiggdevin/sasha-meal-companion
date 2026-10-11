@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   setFoodMembership: vi.fn(),
   saveFoodNoteForRef: vi.fn(),
   reserveFoodMembershipIntent: vi.fn(() => ({})),
+  raiseFoodMembershipIntent: (intent: unknown) => intent,
+  readServerMembershipRev: async () => null,
   isLatestFoodMembershipIntent: vi.fn(() => true),
   readFoodMembership: vi.fn(() => undefined),
 }));
@@ -70,6 +72,11 @@ describe("Eats/Avoid exclusivity", () => {
   ] as const)("maps %s to one normalized-name membership RPC with %s", async (kind, status) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 8, 19, 12));
+    // A removal clears only its own list, so the food is on that list first.
+    if (kind === "remove_from_avoid" || kind === "remove_from_eats") {
+      mocks.currentPrefStatus.mockResolvedValue({
+        status: kind === "remove_from_avoid" ? "avoid" : "eats", note: null });
+    }
     await applyFoodListMark(mark(kind));
     expect(mocks.setFoodMembership).toHaveBeenCalledTimes(1);
     expect(mocks.setFoodMembership).toHaveBeenCalledWith(
@@ -116,6 +123,39 @@ describe("Eats/Avoid exclusivity", () => {
       "removed from Favored by Sasha on 2026-09-19");
     expect(getFoods()[local.id]).toMatchObject({ status: "eats" });
     vi.useRealTimers();
+  });
+
+  it.each([
+    ["remove_from_eats", "avoid", /on your Avoid list, not Favored/],
+    ["remove_from_avoid", "eats", /on your Favored list, not Avoid/],
+  ] as const)("%s leaves a food on the other list alone (audit A025)", async (kind, status, reason) => {
+    mocks.currentPrefStatus.mockResolvedValue({ status, note: null });
+    const result = await applyFoodListMark(mark(kind));
+    expect(result).toMatchObject({ status: "failed", reason: expect.stringMatching(reason) });
+    expect(mocks.setFoodMembership).not.toHaveBeenCalled();
+    expect(mocks.saveFoodNoteForRef).not.toHaveBeenCalled();
+  });
+
+  it("the ref's mirrored status outranks this device's older name cache (Sol review)", async () => {
+    mocks.currentPrefStatus.mockResolvedValue({ status: "avoid", note: null });
+    mocks.readFoodMembership.mockReturnValueOnce({ status: "eats", note: null, rev: 4 } as never);
+    const result = await applyFoodListMark(mark("remove_from_avoid"));
+    expect(result.status).toBe("applied");
+    expect(mocks.setFoodMembership).toHaveBeenCalledWith("watermelon", null, expect.anything());
+  });
+
+  it("with no mirrored status, this device's last mark decides (audit A025)", async () => {
+    mocks.readFoodMembership.mockReturnValueOnce({ status: "avoid", note: null, rev: 4 } as never);
+    const result = await applyFoodListMark({ ...mark("remove_from_eats"), name: "kiwi" });
+    expect(result.status).toBe("failed");
+    expect(mocks.setFoodMembership).not.toHaveBeenCalled();
+  });
+
+  it("a removal of a food on neither list changes nothing (audit A025)", async () => {
+    const result = await applyFoodListMark({ ...mark("remove_from_avoid"), name: "kiwi" });
+    expect(result).toMatchObject({ status: "failed",
+      reason: "kiwi is not on your Avoid list, so nothing changed." });
+    expect(mocks.setFoodMembership).not.toHaveBeenCalled();
   });
 
   it("does not change the local list when the membership operation cannot be queued", async () => {

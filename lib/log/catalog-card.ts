@@ -17,6 +17,17 @@ export function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
 }
 
+/**
+ * What a barcode commit stores for its one item (audit 2026-10-10 A035). With no portion picked the
+ * amount is grams, so `qty` is the grams in unit "g" — the same reading the card above and the Log
+ * sheet use. The "How many" count multiplies a portion only; sent with "g" it stored 3 g for 300 g.
+ */
+export function scanItemAmount(edits: { grams: number; qty: number; portionId: number | null }) {
+  return edits.portionId === null
+    ? { grams: edits.grams, qty: edits.grams, unit: "g", portionId: null }
+    : { grams: edits.grams, qty: edits.qty, unit: "portion", portionId: edits.portionId };
+}
+
 export function catalogCard(input: {
   revision: CachedRevision;
   entryId: string;

@@ -1,8 +1,9 @@
 /**
  * The coach turn — spec "API changes", "Security"; contracts §4.
  *
- * Order, and it is not negotiable: flag, budget, messageId idempotency, deflection (zero model
- * calls), the health-context / R4 gate, then the loop. The policy runs after the model and before
+ * Order, and it is not negotiable: flag, messageId idempotency, budget (W035: after the replay,
+ * so a retry of a saved turn never spends a slot), deflection (zero model calls), the
+ * health-context / R4 gate, then the loop. The policy runs after the model and before
  * render, on the server, so a client that ignores `verdict` cannot show an allowed-looking card.
  *
  * This file is the public entry and reads top to bottom: each stage lives in

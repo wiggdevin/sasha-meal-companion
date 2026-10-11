@@ -1,16 +1,17 @@
 import { createMcpHandler } from "mcp-handler";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { z } from "zod";
 import { COACH_TOOL_SCOPES, registerCoachTools } from "@/lib/mcp/coach-tools";
 import {
   EXPENDITURE_TOOL_SCOPES, registerExpenditureTools,
 } from "@/lib/mcp/expenditure-tools";
 import { HEALTH_TOOL_SCOPES, registerHealthTools } from "@/lib/mcp/health-tools";
-import { HttpError } from "@/lib/server/auth";
-import { jsonError, readJson } from "@/lib/server/http";
-import { withTokenUser, type TokenUser } from "@/lib/server/privileged";
+import {
+  parseMessages, readCappedText, rejectDeclaredOversize, scopesForMessages,
+} from "@/lib/mcp/body";
+import { jsonError } from "@/lib/server/http";
+import { withTokenUser, type TokenScope, type TokenUser } from "@/lib/server/privileged";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
-import { hashToken, hasScope } from "@/lib/server/tokens";
+import { hashToken } from "@/lib/server/tokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +30,6 @@ const buildMcpHandler = (ctx: TokenUser, admin: SupabaseClient) => createMcpHand
   },
 );
 
-const MAX_BODY_BYTES = 64 * 1024;
 const PRE_IDENTITY_LIMIT = 30;
 
 function preIdentityKey(req: Request): string {
@@ -46,81 +46,31 @@ function preIdentityIpKey(req: Request): string {
   return `mcp:pre:ip:${req.headers.get("x-real-ip") ?? "unknown"}`;
 }
 
-type Scope = "read" | "constraints:write";
-
-const TOOL_SCOPES: Record<string, Scope> = {
+const TOOL_SCOPES: Record<string, TokenScope> = {
   ...HEALTH_TOOL_SCOPES,
   ...EXPENDITURE_TOOL_SCOPES,
   ...COACH_TOOL_SCOPES,
 };
 
-function toolNamesInBody(raw: string): string[] {
-  if (raw.length === 0) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  const names: string[] = [];
-  for (const call of Array.isArray(parsed) ? parsed : [parsed]) {
-    const candidate = call as { method?: unknown; params?: { name?: unknown } };
-    if (candidate.method === "tools/call" && typeof candidate.params?.name === "string") {
-      names.push(candidate.params.name);
-    }
-  }
-  return names;
-}
-
-function scopesForBody(raw: string): Set<Scope> {
-  const required = new Set<Scope>();
-  for (const name of toolNamesInBody(raw)) {
-    const scope = TOOL_SCOPES[name];
-    if (scope && scope !== "read") required.add(scope);
-  }
-  return required;
-}
-
-function scopeForBody(raw: string): Scope {
-  const [first] = scopesForBody(raw);
-  return first ?? "read";
-}
-
-async function readCappedBody(req: Request): Promise<{
-  bodyConsumed: boolean;
-  raw: string;
-}> {
-  const bodyConsumed = req.method !== "GET" && req.method !== "DELETE";
-  const raw = bodyConsumed ? await req.text() : "";
-  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
-    throw new HttpError(413, "too_large", `Body over ${MAX_BODY_BYTES} bytes.`);
-  }
-  return { bodyConsumed, raw };
-}
-
 async function guarded(req: Request): Promise<Response> {
   try {
-    await enforceRateLimit(preIdentityKey(req), PRE_IDENTITY_LIMIT, 60);
+    // The IP key first (audit A150): a refused IP stops in memory before a fresh token-hash key can
+    // reach the database.
     await enforceRateLimit(preIdentityIpKey(req), PRE_IDENTITY_LIMIT, 60);
-    const { bodyConsumed, raw } = await readCappedBody(req);
+    await enforceRateLimit(preIdentityKey(req), PRE_IDENTITY_LIMIT, 60);
+    // A declared oversize is refused from the header alone; no body byte is read before auth (A131).
+    rejectDeclaredOversize(req);
+    const bodyConsumed = req.method !== "GET" && req.method !== "DELETE";
+    let raw = "";
 
-    return await withTokenUser(req, scopeForBody(raw), async (ctx, admin) => {
+    const requiredScopes = async (ctx: TokenUser) => {
       await enforceRateLimit(`mcp:${ctx.tokenId}`, 60, 60);
+      if (!bodyConsumed) return ["read" as const];
+      raw = await readCappedText(req);
+      return scopesForMessages(parseMessages(raw), TOOL_SCOPES);
+    };
 
-      if (bodyConsumed) {
-        await readJson(
-          new Request(req.url, { method: req.method, headers: req.headers, body: raw }),
-          z.unknown(),
-          MAX_BODY_BYTES,
-        );
-      }
-
-      for (const scope of scopesForBody(raw)) {
-        if (!hasScope(ctx.scopes, scope)) {
-          throw new HttpError(403, "forbidden", `Token lacks the "${scope}" scope.`);
-        }
-      }
-
+    return await withTokenUser(req, requiredScopes, async (ctx, admin) => {
       const replayed = bodyConsumed
         ? new Request(req.url, { method: req.method, headers: req.headers, body: raw })
         : req;

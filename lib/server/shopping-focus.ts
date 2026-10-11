@@ -45,12 +45,12 @@ export async function getShoppingFocusUntil(client: SupabaseClient, userId: stri
 type PeriodRow = { id: string; start_date: string; end_date: string };
 type LineRow = { id: string; period_id: string; name: string; checked: boolean; origin: "plan" | "manual" };
 type WindowRow = { line_id: string };
-type PantryRow = { name: string; confirmed_at: string };
+type PantryRow = { name: string; confirmed_at: string; confirmed_grams: number | string | null };
 
 /**
  * The stored end and, while it is active, the D7 keys from today on: used lines of live periods
  * whose line box reaches today (a checked line, a checked purchase window, or a manual line) and
- * confirmed pantry items inside their 14 days. Soft-deleted periods, lines, windows and pantry
+ * confirmed pantry items inside their 14 days, less a row set to 0 g. Soft-deleted periods, lines, windows and pantry
  * rows are never read. Every read is owner-filtered and paged; a failed page fails the whole read.
  */
 export async function readShoppingFocusState(client: SupabaseClient, userId: string, day: FocusDay,
@@ -74,14 +74,15 @@ export async function readShoppingFocusState(client: SupabaseClient, userId: str
   // A day of slack on the instant bound; the box itself is judged on the local date below.
   const since = `${addDays(day.date, -PANTRY_BOX_DAYS - 1)}T00:00:00Z`;
   const pantry = await fetchAllRows<PantryRow>((from, to) => client.from("shopping_pantry")
-    .select("name,confirmed_at").eq("user_id", userId).is("deleted_at", null)
+    .select("name,confirmed_at,confirmed_grams").eq("user_id", userId).is("deleted_at", null)
     .gte("confirmed_at", since).order("id").range(from, to));
   const keys = focusKeysFrom({
     periods: periods.map((row) => ({ id: row.id, startDate: row.start_date, endDate: row.end_date })),
     lines: lines.map((row) => ({ id: row.id, periodId: row.period_id, name: row.name,
       checked: row.checked === true, origin: row.origin })),
     checkedWindowLineIds: new Set(windows.map((row) => row.line_id)),
-    pantry: pantry.map((row) => ({ name: row.name, confirmedAt: row.confirmed_at })),
+    pantry: pantry.map((row) => ({ name: row.name, confirmedAt: row.confirmed_at,
+      confirmedGrams: row.confirmed_grams })),
     zone: day.zone,
   }).filter((row) => row.to >= day.date);
   return { until, keys };
