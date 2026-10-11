@@ -114,8 +114,10 @@ const BASELINES: Record<string, number> = {
    * scanned barcode/label can never read as a generic unbranded whole food.
    */
   /** +2 (2026-10-02, live warm): name and brand reach deriveEvidence, so a plain whole food's
-   *  class bounds what Jev may list (jasmine rice had been stored as gluten "listed"). */
-  "lib/policy/allergens.ts": 465,
+   *  class bounds what Jev may list (jasmine rice had been stored as gluten "listed"). +2
+   *  (W022): the "sesame butter" exclusion and the import of the name scan, which lives in its
+   *  own module (lib/policy/allergen-name.ts). */
+  "lib/policy/allergens.ts": 467,
   /**
    * 2026-10-02 DeepSeek audit (HIGH, finding #2): was exactly 400 before `toMatch` and
    * `matchFromDraft` both gained `foodBrand`/`packaged` on their evaluatePolicy call, so a scanned
