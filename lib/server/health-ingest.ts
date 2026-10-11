@@ -1,6 +1,6 @@
 /**
- * The ingest pipeline (spec §5): source → replay window → payload hash → event RPC → normalize →
- * apply RPC → response. Identity is the source row, so every database call is a security-definer RPC
+ * The ingest pipeline (spec §5): source → replay window → normalize → payload hash → one record RPC
+ * (the dedupe event and the samples in one transaction, migration 20261230091000) → response. Identity is the source row, so every database call is a security-definer RPC
  * whose first argument is that row's user_id (§2.2 rule 3); withTokenUser is the MCP path and is
  * deliberately not used here (contracts §2).
  */
@@ -10,7 +10,8 @@ import { z } from "zod";
 import { healthAutoExportBodySchema, healthIngestBodySchema, healthTimeZone, ianaTimeZoneSchema,
   MAX_SAMPLES_PER_PAYLOAD, REPLAY_WINDOW_MS, type HealthIngestResponse, type NormalizedSample,
   type NormalizeResult } from "@/lib/health/contract";
-import { normalizeHealthAutoExport, normalizeShortcut } from "@/lib/health/normalize";
+import { normalizeHealthAutoExportRows, normalizeShortcut,
+  type HaeNormalizeResult } from "@/lib/health/normalize";
 import { withinReplayWindow } from "@/lib/health/replay";
 import { HttpError } from "@/lib/server/auth";
 
@@ -75,41 +76,55 @@ async function parsePayload(admin: SupabaseClient, source: ResolvedSource, body:
     } | null;
     const tz = healthTimeZone(contextRow?.source_time_zone, contextRow?.user_time_zone,
       process.env.HEALTH_TZ);
-    const result = normalizeHealthAutoExport(hae.data, tz, now);
-    const fresh: NormalizedSample[] = [];
-    result.samples.forEach((sample, index) => {
-      if (now.getTime() - Date.parse(sample.start_time) > MAX_SAMPLE_AGE_MS) {
-        result.rejected.push({ index, reason: "sample outside the 8-day freshness window" });
-      } else {
-        fresh.push(sample);
-      }
-    });
-    return { result: { samples: fresh, rejected: result.rejected } };
+    const result = normalizeHealthAutoExportRows(hae.data, tz, now);
+    return { result: freshHealthAutoExport(result, now) };
   }
 
   throw new HttpError(422, "unprocessable", "Body is neither the ingest envelope nor an HAE export.");
 }
 
+/**
+ * The 8-day freshness check runs on the FOLDED day (a partial day would overwrite the stored total
+ * through the correction upsert), but a rejection names the payload rows that day was folded from,
+ * the same index space every other rejection uses (A012).
+ */
+function freshHealthAutoExport(result: HaeNormalizeResult, now: Date): NormalizeResult {
+  const fresh: NormalizedSample[] = [];
+  const stale: NormalizeResult["rejected"] = [];
+  result.samples.forEach((sample, position) => {
+    if (now.getTime() - Date.parse(sample.start_time) > MAX_SAMPLE_AGE_MS) {
+      for (const index of result.rows[position]) {
+        stale.push({ index, reason: "sample outside the 8-day freshness window" });
+      }
+    } else {
+      fresh.push(sample);
+    }
+  });
+  const rejected = [...result.rejected, ...stale].sort((a, b) => a.index - b.index);
+  return { samples: fresh, rejected };
+}
+
+type RecordRow = { event_id: string; is_new: boolean; accepted: number; updated: number;
+  skipped: number };
+
 export async function applyIngest(admin: SupabaseClient, source: ResolvedSource, body: unknown,
     now: Date = new Date()): Promise<HealthIngestResponse> {
   const { result } = await parsePayload(admin, source, body, now);
 
-  const event = await admin.rpc("health_ingest_event", { p_user_id: source.userId,
-    p_source_id: source.id, p_payload_hash: toBytea(payloadHash(body)), p_status: "applied" });
-  if (event.error) throw new HttpError(500, "internal", "could not record the ingest event");
-  const row = (Array.isArray(event.data) ? event.data[0] : event.data) as
-    { id: string; is_new: boolean };
-  const eventId = row.id;
-  if (!row.is_new) {
-    return { event_id: eventId, status: "duplicate", accepted: 0, updated: 0, skipped: 0, rejected: [] };
+  // One call, one transaction: a failed apply rolls its event back, so the exporter's identical
+  // retry is applied rather than answered "duplicate" (A009, A081).
+  const recorded = await admin.rpc("health_ingest_record", { p_user_id: source.userId,
+    p_source_id: source.id, p_payload_hash: toBytea(payloadHash(body)), p_samples: result.samples });
+  if (recorded.error) {
+    console.error("health ingest record failed", { sourceId: source.id, code: recorded.error.code });
+    throw new HttpError(500, "internal", "could not apply the samples");
   }
-
-  const applied = await admin.rpc("health_ingest_apply", { p_user_id: source.userId,
-    p_source_id: source.id, p_event_id: eventId, p_samples: result.samples });
-  if (applied.error) throw new HttpError(500, "internal", "could not apply the samples");
-  const counts = (Array.isArray(applied.data) ? applied.data[0] : applied.data) as
-    { accepted: number; updated: number; skipped: number } | null;
-
-  return { event_id: eventId, status: "applied", accepted: counts?.accepted ?? 0,
-    updated: counts?.updated ?? 0, skipped: counts?.skipped ?? 0, rejected: result.rejected };
+  const row = (Array.isArray(recorded.data) ? recorded.data[0] : recorded.data) as RecordRow | null;
+  if (!row?.event_id) throw new HttpError(500, "internal", "could not record the ingest event");
+  if (!row.is_new) {
+    return { event_id: row.event_id, status: "duplicate", accepted: 0, updated: 0, skipped: 0,
+      rejected: [] };
+  }
+  return { event_id: row.event_id, status: "applied", accepted: row.accepted ?? 0,
+    updated: row.updated ?? 0, skipped: row.skipped ?? 0, rejected: result.rejected };
 }

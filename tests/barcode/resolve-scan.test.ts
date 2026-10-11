@@ -10,6 +10,9 @@ import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { closeAllAccountDbs, openAccountDb } from "@/lib/sync/idb";
 import { resolveScan } from "@/lib/barcode/resolve-scan";
 import { readPendingScans } from "@/lib/barcode/scan-cache";
+import { offlineMatch } from "@/lib/barcode/client";
+import type { CachedRevision } from "@/lib/db/catalog-cache";
+import { foodRulesEpoch, noteFoodRulesChanged } from "@/lib/foods/rules-epoch";
 
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -68,5 +71,18 @@ describe("resolveScan across a switch", () => {
     const out = await resolveScan(a, GTIN, undefined, undefined, { fetchImpl: fetchImpl as never });
     expect(out.kind).toBe("resolved");
     expect(await catalogRows(A)).toHaveLength(1);
+  });
+
+  it("W014 review: stamps the verdict with the rules epoch from before the lookup", async () => {
+    const before = foodRulesEpoch();
+    const fetchImpl = vi.fn(async () => {
+      noteFoodRulesChanged(); // a rule saved while the lookup is in flight
+      return Response.json(resolved);
+    });
+    const a = bindAccount(A);
+    await resolveScan(a, GTIN, undefined, undefined, { fetchImpl: fetchImpl as never });
+    const [row] = await catalogRows(A) as CachedRevision[];
+    expect(row.rules_epoch).toBe(before);
+    expect(offlineMatch(row)?.policy).toEqual({ verdict: "unverified" });
   });
 });

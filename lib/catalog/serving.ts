@@ -19,7 +19,7 @@
  */
 import { currentAccountOrNull, onAccountGone } from "@/lib/device/account";
 import { dbFood, FOOD_DB, portionsFor, type DbFood } from "@/lib/food-db";
-import { UNIT_LABELS, type Food } from "@/lib/foods";
+import { foodKcalPerUnit, UNIT_LABELS, type Food } from "@/lib/foods";
 import { unitGrams } from "@/lib/foods/display";
 import { macroKcal } from "@/lib/scaling";
 
@@ -97,8 +97,11 @@ export function servingOfDbFood(food: DbFood): Serving {
  * own base, lib/foods/display.ts `per100Base`); a household unit states one of it ("1 tbsp"), with
  * its weight when that is known exactly. A food with no nutrition states none.
  */
-export function servingOfFood(food: Pick<Food, "name" | "unit" | "perUnit" | "nutritionUnknown">): Serving {
-  const perUnit = macroKcal(food.perUnit);
+export function servingOfFood(
+  food: Pick<Food, "name" | "unit" | "perUnit" | "kcalPerUnit" | "nutritionUnknown">,
+): Serving {
+  // The energy the logger stores (`foodKcalPerUnit`, W004): a drink's alcohol is in no macro.
+  const perUnit = foodKcalPerUnit(food);
   if (!Number.isFinite(perUnit) || perUnit < 0 || (perUnit === 0 && food.nutritionUnknown)) return NONE;
   const grams = unitGrams(food);
   if (food.unit === "g" || food.unit === "ml") {

@@ -6,7 +6,8 @@ sides read the files the same way. Prints one JSON object per dish (FoodData Cen
   {"fdcId", "description", "nutrients": [[code, amount|null], ...], "portions": [[seq, label, grams, is_default], ...]}
 
 nutrients: every NUTRIENT_MAP nutrient import-fdc.py stages for the food (`_staged_food_nutrient_rows`),
-  the max amount per code as `_write_nutrients` keeps it (null when every staged amount is null).
+  the amount per code as `_write_nutrients` keeps it (`select_amount`: the first FDC id in priority
+  order with a value, its max; null when every staged amount is null).
   `energy_kcal_calc` is not here: the catalog derives it in SQL from these rows.
 portions: `normalise_portions` over the food's staged portion rows, in `load_portions` order
   (seq_num nulls last, then the row id), with the measure unit's name joined.
@@ -38,10 +39,12 @@ def main(csv_dir: Path) -> None:
         if data_type == DATA_TYPE and description is not None:
             foods[fdc_id] = description
 
+    # Staged amounts per food and raw FDC id (a mapped id or one of its aliases), so the stored value
+    # per code follows import-fdc.py's own priority (`select_amount`).
     amounts = defaultdict(lambda: defaultdict(list))
     for _, fdc_id, nutrient_id, amount in fdc._staged_food_nutrient_rows(SOURCE, csv_dir):
         if fdc_id in foods:
-            amounts[fdc_id][fdc.NUTRIENT_MAP[nutrient_id].code].append(amount)
+            amounts[fdc_id][nutrient_id].append(amount)
 
     units = {row[1]: row[2] for row in fdc._generic_rows(SOURCE, csv_dir / "measure_unit.csv", "measure_unit",
                                                          ["id", "name"])}
@@ -54,10 +57,12 @@ def main(csv_dir: Path) -> None:
             staged[record["fdc_id"]].append(record)
 
     for fdc_id in sorted(foods, key=int):
-        nutrients = []
-        for code in sorted(amounts[fdc_id]):
-            present = [a for a in amounts[fdc_id][code] if a is not None]
-            nutrients.append([code, repr(max(present)) if present else None])
+        stored = {}
+        for primary_id, nutrient in fdc.NUTRIENT_MAP.items():
+            value = fdc.select_amount(amounts[fdc_id], primary_id)
+            if value is not fdc.MISSING:
+                stored[nutrient.code] = value
+        nutrients = [[code, None if stored[code] is None else repr(stored[code])] for code in sorted(stored)]
         rows = sorted(staged[fdc_id], key=lambda r: (r["seq_num"] is None, r["seq_num"] or 0,
                                                     r["row_id"] is None, r["row_id"] or 0))
         portions = fdc.normalise_portions([{

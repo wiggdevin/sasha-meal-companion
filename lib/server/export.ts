@@ -7,6 +7,11 @@
  * no gap and no duplicate while the user keeps logging. Progress pages by `local_date` with a row cap of
  * (limit+1) × 20 (one row per nutrient code per date), so a full-history export never loads more
  * than one page of `daily_totals` rows.
+ *
+ * W012 (A085, A112, A113): PostgREST stops every response at `max_rows = 1000` without saying so,
+ * so a page of up to 5,000 rows is read in keyset requests (`fetchUpTo`), the favorites and target
+ * revisions are read whole (`fetchAllRows`), and every `.in()` key list is chunked — a page holds
+ * every row it says it holds, and `next_cursor` is set whenever more remain.
  */
 
 import { massOf } from "@/lib/log/mass";
@@ -20,7 +25,11 @@ import { itemEnergy, type EnergySourceMix } from "@/lib/nutrients/energy";
 import { microCoverage, type NutrientTotal } from "@/lib/nutrients/totals";
 import { dayTypeFor } from "@/lib/plan";
 import { readDailyEnergy, type DayEnergy } from "@/lib/server/day-energy";
-import { decodeTextCursor, encodeTextCursor } from "@/lib/server/export-cursor";
+import { decodeIdCursor, decodeTextCursor, encodeTextCursor, isIsoInstant, isLocalDate, isUuid }
+  from "@/lib/server/export-cursor";
+import { loadDayTypeOverrides, loadTargetProfiles, profileForDate }
+  from "@/lib/server/export-targets";
+import { fetchAllChunked, fetchAllRows, fetchUpTo } from "@/lib/server/paged-read";
 import { targetsFromProfile } from "@/lib/server/targets";
 import { streamWater, WATER_COLUMNS, waterRowValues } from "@/lib/server/export-water";
 import type { WaterExportRow } from "@/lib/server/export-water";
@@ -97,6 +106,12 @@ export function encodeCursor(cursor: ExportCursor): string {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
 
+/**
+ * W012 (A126, A133): every field is checked against its column's shape before it reaches a
+ * PostgREST filter — a real calendar date, a strict ISO instant, a uuid — so a crafted cursor is a
+ * 422, never a Postgres cast error or an extra clause in the keyset `or()`. `eaten_at` and `id` are
+ * empty on a progress cursor, which pages by date alone.
+ */
 export function decodeCursor(raw: string): ExportCursor {
   let parsed: unknown;
   try {
@@ -106,7 +121,8 @@ export function decodeCursor(raw: string): ExportCursor {
   }
   const c = parsed as Partial<ExportCursor>;
   if (typeof c?.local_date !== "string" || typeof c?.eaten_at !== "string"
-    || typeof c?.id !== "string") {
+    || typeof c?.id !== "string" || !isLocalDate(c.local_date)
+    || (c.eaten_at !== "" && !isIsoInstant(c.eaten_at)) || (c.id !== "" && !isUuid(c.id))) {
     throw new HttpError(422, "bad_request", "malformed cursor");
   }
   return { local_date: c.local_date, eaten_at: c.eaten_at, id: c.id };
@@ -139,47 +155,62 @@ type EntryRow = { id: string; local_date: string; eaten_at: string; tz: string; 
     food_ref_id: string; food_revision_id: number | null; snapshot: Snapshot;
     nutrition_partial?: boolean | null }[] };
 
-function applyWindow<T>(q: T, opts: ExportOpts): T {
+/** The meals cursor, decoded; a log keyset needs all three fields (a progress cursor has two empty). */
+function mealCursor(raw: string | undefined): ExportCursor | null {
+  if (!raw) return null;
+  const c = decodeCursor(raw);
+  if (c.eaten_at === "" || c.id === "") throw new HttpError(422, "bad_request", "malformed cursor");
+  return c;
+}
+
+/** `after` is a validated cursor or a row this export just read, so no value can alter the `or()`. */
+function applyWindow<T>(q: T, opts: ExportOpts, after: ExportCursor | null): T {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = q as any;
   if (opts.from) query = query.gte("local_date", opts.from);
   if (opts.to) query = query.lte("local_date", opts.to);
-  if (opts.cursor) {
-    const c = decodeCursor(opts.cursor);
-    query = query.or([`local_date.gt.${c.local_date}`,
-      `and(local_date.eq.${c.local_date},eaten_at.gt.${c.eaten_at})`,
-      `and(local_date.eq.${c.local_date},eaten_at.eq.${c.eaten_at},id.gt.${c.id})`].join(","));
+  if (after) {
+    query = query.or([`local_date.gt.${after.local_date}`,
+      `and(local_date.eq.${after.local_date},eaten_at.gt.${after.eaten_at})`,
+      `and(local_date.eq.${after.local_date},eaten_at.eq.${after.eaten_at},id.gt.${after.id})`]
+      .join(","));
   }
   return query as T;
+}
+
+type RefRow = { id: string; catalog_food_id: number | null; user_food_id: string | null;
+  user_foods?: { name: string; brand?: string | null } | null };
+type ActiveRevision = { catalog_food_id: number; description: string; brand: string | null };
+
+/** The active catalog revision of each food, read in `.in()` chunks past the row cap. */
+function activeRevisions(client: SupabaseClient, catalogIds: number[]): Promise<ActiveRevision[]> {
+  return fetchAllChunked<number, ActiveRevision>(catalogIds, (batch, from, to) =>
+    client.from("catalog_food_revisions").select("id, catalog_food_id, description, brand")
+      .in("catalog_food_id", batch).eq("is_active", true).order("id", { ascending: true })
+      .range(from, to)
+      .then((r) => ({ data: r.data as unknown as ActiveRevision[] | null, error: r.error })));
 }
 
 /** food_ref_id → display name and brand, for the page's refs only. */
 async function namesFor(client: SupabaseClient, refIds: string[]) {
   const names = new Map<string, { food_name: string; brand: string | null }>();
   if (refIds.length === 0) return names;
-  const refs = await client.from("food_refs")
-    .select("id, catalog_food_id, user_food_id, user_foods(name, brand)").in("id", refIds);
-  if (refs.error) throw refs.error;
+  const refs = await fetchAllChunked<string, RefRow>(refIds, (batch, from, to) =>
+    client.from("food_refs").select("id, catalog_food_id, user_food_id, user_foods(name, brand)")
+      .in("id", batch).order("id", { ascending: true }).range(from, to)
+      .then((r) => ({ data: r.data as unknown as RefRow[] | null, error: r.error })));
 
-  const catalogIds = (refs.data ?? []).map((r) => r.catalog_food_id as number | null)
-    .filter((v): v is number => v != null);
+  const catalogIds = [...new Set(refs.map((r) => r.catalog_food_id)
+    .filter((v): v is number => v != null))];
   const byCatalogId = new Map<number, { description: string; brand: string | null }>();
-  if (catalogIds.length > 0) {
-    const revs = await client.from("catalog_food_revisions")
-      .select("catalog_food_id, description, brand").in("catalog_food_id", catalogIds)
-      .eq("is_active", true);
-    if (revs.error) throw revs.error;
-    for (const r of revs.data ?? []) {
-      byCatalogId.set(r.catalog_food_id as number,
-        { description: r.description as string, brand: (r.brand as string | null) ?? null });
-    }
+  const revs = await activeRevisions(client, catalogIds);
+  for (const r of revs) {
+    byCatalogId.set(r.catalog_food_id, { description: r.description, brand: r.brand ?? null });
   }
-  for (const ref of refs.data ?? []) {
-    const own = (ref as unknown as { user_foods?: { name: string; brand: string | null } | null })
-      .user_foods;
-    const cat = ref.catalog_food_id == null
-      ? undefined : byCatalogId.get(ref.catalog_food_id as number);
-    names.set(ref.id as string, {
+  for (const ref of refs) {
+    const own = ref.user_foods;
+    const cat = ref.catalog_food_id == null ? undefined : byCatalogId.get(ref.catalog_food_id);
+    names.set(ref.id, {
       food_name: own?.name ?? cat?.description ?? "(unknown food)",
       brand: own?.brand ?? cat?.brand ?? null });
   }
@@ -189,16 +220,19 @@ async function namesFor(client: SupabaseClient, refIds: string[]) {
 export async function streamMeals(
   client: SupabaseClient, userId: string, opts: ExportOpts
 ): Promise<ExportJson<MealExportRow>> {
-  const base = client.from("log_entries")
-    .select("id, local_date, eaten_at, tz, slot, note, " +
-      "log_items(seq, qty, unit, grams, food_ref_id, food_revision_id, snapshot, nutrition_partial)")
-    .eq("user_id", userId).is("deleted_at", null);
-  const { data, error } = await applyWindow(base, opts)
-    .order("local_date", { ascending: true }).order("eaten_at", { ascending: true })
-    .order("id", { ascending: true }).limit(opts.limit + 1);
-  if (error) throw error;
-
-  const entries = (data ?? []) as unknown as EntryRow[];
+  const cursor = mealCursor(opts.cursor);
+  // Keyset requests of at most the row cap each, continuing after the last entry read, until the
+  // page and its one sentinel entry are in hand (A085, A112).
+  const entries = await fetchUpTo<EntryRow>(opts.limit + 1, async (after, size) => {
+    const base = client.from("log_entries")
+      .select("id, local_date, eaten_at, tz, slot, note, " +
+        "log_items(seq, qty, unit, grams, food_ref_id, food_revision_id, snapshot, nutrition_partial)")
+      .eq("user_id", userId).is("deleted_at", null);
+    const { data, error } = await applyWindow(base, opts, after ?? cursor)
+      .order("local_date", { ascending: true }).order("eaten_at", { ascending: true })
+      .order("id", { ascending: true }).limit(size);
+    return { data: data as unknown as EntryRow[] | null, error };
+  });
   const hasMore = entries.length > opts.limit;
   const page = hasMore ? entries.slice(0, opts.limit) : entries;
   const refIds = [...new Set(page.flatMap((e) => e.log_items.map((i) => i.food_ref_id)))];
@@ -313,36 +347,6 @@ async function loadSettings(client: SupabaseClient, userId: string): Promise<Set
   };
 }
 
-async function loadOverrides(client: SupabaseClient, userId: string, dates: string[]) {
-  const overrides = await client.from("plan_days")
-    .select("local_date, day_type_override").eq("user_id", userId).in("local_date", dates);
-  if (overrides.error) throw overrides.error;
-  return new Map((overrides.data ?? []).map((r) =>
-    [r.local_date as string, (r.day_type_override ?? undefined) as DayType | undefined]));
-}
-
-async function loadTargetProfiles(
-  client: SupabaseClient,
-  userId: string,
-  through: string | undefined,
-): Promise<TargetProfile[]> {
-  if (!through) return [];
-  const rows = await client.from("target_profiles").select("*")
-    .eq("user_id", userId).lte("effective_from", through)
-    .order("effective_from", { ascending: true }).order("rev", { ascending: true });
-  if (rows.error) throw rows.error;
-  return (rows.data ?? []) as TargetProfile[];
-}
-
-function profileForDate(profiles: TargetProfile[], localDate: string): TargetProfile | null {
-  let selected: TargetProfile | null = null;
-  for (const profile of profiles) {
-    if (profile.effective_from > localDate) break;
-    selected = profile;
-  }
-  return selected;
-}
-
 /** One row per local date: the day's totals against the day's target. */
 const addDaysTo = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
@@ -412,7 +416,7 @@ export async function streamProgress(
 
   const [settings, overrideByDate, targetProfiles, energyByDate] = await Promise.all([
     loadSettings(client, userId),
-    loadOverrides(client, userId, page),
+    loadDayTypeOverrides(client, userId, page),
     loadTargetProfiles(client, userId, page.at(-1)),
     // The day's calories are the per-item selected energy, not daily_totals' reported-only row.
     page.length === 0 ? new Map<string, DayEnergy>()
@@ -446,30 +450,28 @@ export async function streamProgress(
 async function refDetails(client: SupabaseClient, refIds: string[]) {
   const out = new Map<string, { description: string; source: string }>();
   if (refIds.length === 0) return out;
-  const refs = await client.from("food_refs")
-    .select("id, catalog_food_id, user_food_id, user_foods(name)").in("id", refIds);
-  if (refs.error) throw refs.error;
-  const catalogIds = (refs.data ?? []).map((r) => r.catalog_food_id as number | null)
-    .filter((v): v is number => v != null);
+  const refs = await fetchAllChunked<string, RefRow>(refIds, (batch, from, to) =>
+    client.from("food_refs").select("id, catalog_food_id, user_food_id, user_foods(name)")
+      .in("id", batch).order("id", { ascending: true }).range(from, to)
+      .then((r) => ({ data: r.data as unknown as RefRow[] | null, error: r.error })));
+  const catalogIds = [...new Set(refs.map((r) => r.catalog_food_id)
+    .filter((v): v is number => v != null))];
   const byId = new Map<number, { description: string; source: string }>();
-  if (catalogIds.length > 0) {
-    const [revs, foods] = await Promise.all([
-      client.from("catalog_food_revisions").select("catalog_food_id, description")
-        .in("catalog_food_id", catalogIds).eq("is_active", true),
-      client.from("catalog_foods").select("id, source").in("id", catalogIds),
-    ]);
-    if (revs.error) throw revs.error;
-    if (foods.error) throw foods.error;
-    const sources = new Map((foods.data ?? []).map((f) => [f.id as number, f.source as string]));
-    for (const r of revs.data ?? []) {
-      byId.set(r.catalog_food_id as number, { description: r.description as string,
-        source: sources.get(r.catalog_food_id as number) ?? "" });
-    }
+  const [revs, foods] = await Promise.all([
+    activeRevisions(client, catalogIds),
+    fetchAllChunked<number, { id: number; source: string }>(catalogIds, (batch, from, to) =>
+      client.from("catalog_foods").select("id, source").in("id", batch)
+        .order("id", { ascending: true }).range(from, to)),
+  ]);
+  const sources = new Map(foods.map((f) => [f.id, f.source]));
+  for (const r of revs) {
+    byId.set(r.catalog_food_id, { description: r.description,
+      source: sources.get(r.catalog_food_id) ?? "" });
   }
-  for (const ref of refs.data ?? []) {
-    const own = (ref as unknown as { user_foods?: { name: string } | null }).user_foods;
-    const cat = ref.catalog_food_id == null ? undefined : byId.get(ref.catalog_food_id as number);
-    out.set(ref.id as string, { description: own?.name ?? cat?.description ?? "(unknown food)",
+  for (const ref of refs) {
+    const own = ref.user_foods;
+    const cat = ref.catalog_food_id == null ? undefined : byId.get(ref.catalog_food_id);
+    out.set(ref.id, { description: own?.name ?? cat?.description ?? "(unknown food)",
       source: own ? "user" : cat?.source ?? "" });
   }
   return out;
@@ -479,18 +481,20 @@ async function refDetails(client: SupabaseClient, refIds: string[]) {
 export async function streamRecipes(
   client: SupabaseClient, userId: string, opts: ExportOpts,
 ): Promise<ExportJson<RecipeExportRow>> {
-  let query = client.from("recipes")
-    .select("id, name, servings, recipe_revisions(id, rev, created_at, nutrients_per_serving, " +
-      "recipe_items(seq, grams, food_ref_id))")
-    .eq("user_id", userId).is("deleted_at", null);
-  if (opts.cursor) query = query.gt("id", decodeTextCursor(opts.cursor));
-  const { data, error } = await query.order("id", { ascending: true }).limit(opts.limit + 1);
-  if (error) throw error;
-
+  const cursor = opts.cursor ? decodeIdCursor(opts.cursor) : undefined;
   type Rev = { rev: number; created_at: string; nutrients_per_serving: Record<string, number | null>;
     recipe_items: { seq: number; grams: number; food_ref_id: string }[] };
   type Recipe = { id: string; name: string; servings: number; recipe_revisions: Rev[] };
-  const all = (data ?? []) as unknown as Recipe[];
+  const all = await fetchUpTo<Recipe>(opts.limit + 1, async (after, size) => {
+    let query = client.from("recipes")
+      .select("id, name, servings, recipe_revisions(id, rev, created_at, nutrients_per_serving, " +
+        "recipe_items(seq, grams, food_ref_id))")
+      .eq("user_id", userId).is("deleted_at", null);
+    const floor = after?.id ?? cursor;
+    if (floor) query = query.gt("id", floor);
+    const { data, error } = await query.order("id", { ascending: true }).limit(size);
+    return { data: data as unknown as Recipe[] | null, error };
+  });
   const hasMore = all.length > opts.limit;
   const page = hasMore ? all.slice(0, opts.limit) : all;
   const details = await refDetails(client, [...new Set(page.flatMap((r) =>
@@ -526,32 +530,37 @@ export async function streamFavorites(
 ): Promise<ExportJson<FavoriteExportRow>> {
   // added_at reads created_at, not updated_at: a re-sort touches updated_at on every one of these
   // rows, and "date added" must not move just because the user reordered the strip (contracts §3).
+  // Each list is read whole past the row cap, ordered by its own key (A113).
+  type Fav = { sort: number; created_at: string };
   const [foods, recipes, meals] = await Promise.all([
-    client.from("favorites_foods").select("food_ref_id, sort, created_at")
-      .eq("user_id", userId).is("deleted_at", null),
-    client.from("favorites_recipes").select("recipe_id, sort, created_at, recipes(name)")
-      .eq("user_id", userId).is("deleted_at", null),
-    client.from("favorites_meals").select("id, name, sort, created_at")
-      .eq("user_id", userId).is("deleted_at", null),
+    fetchAllRows<Fav & { food_ref_id: string }>((from, to) => client.from("favorites_foods")
+      .select("food_ref_id, sort, created_at").eq("user_id", userId).is("deleted_at", null)
+      .order("food_ref_id", { ascending: true }).range(from, to)),
+    fetchAllRows<Fav & { recipe_id: string; recipes?: { name: string } | null }>((from, to) =>
+      client.from("favorites_recipes").select("recipe_id, sort, created_at, recipes(name)")
+        .eq("user_id", userId).is("deleted_at", null)
+        .order("recipe_id", { ascending: true }).range(from, to)
+        .then((r) => ({ data: r.data as unknown as (Fav & { recipe_id: string;
+          recipes?: { name: string } | null })[] | null, error: r.error }))),
+    fetchAllRows<Fav & { id: string; name: string }>((from, to) => client.from("favorites_meals")
+      .select("id, name, sort, created_at").eq("user_id", userId).is("deleted_at", null)
+      .order("id", { ascending: true }).range(from, to)),
   ]);
-  for (const result of [foods, recipes, meals]) if (result.error) throw result.error;
 
-  const details = await refDetails(client,
-    (foods.data ?? []).map((f) => f.food_ref_id as string));
+  const details = await refDetails(client, foods.map((f) => f.food_ref_id));
   const notices = new Set<string>();
   const all: FavoriteExportRow[] = [
-    ...(foods.data ?? []).map((f) => {
-      const detail = details.get(f.food_ref_id as string);
+    ...foods.map((f) => {
+      const detail = details.get(f.food_ref_id);
       if (detail?.source === "off") notices.add(ODBL_NOTICE);
-      return { kind: "food", id: f.food_ref_id as string,
+      return { kind: "food", id: f.food_ref_id,
         name: detail?.description ?? "(unknown food)", sort: Number(f.sort),
-        added_at: f.created_at as string };
+        added_at: f.created_at };
     }),
-    ...(recipes.data ?? []).map((r) => ({ kind: "recipe", id: r.recipe_id as string,
-      name: (r as unknown as { recipes?: { name: string } | null }).recipes?.name ?? "(recipe)",
-      sort: Number(r.sort), added_at: r.created_at as string })),
-    ...(meals.data ?? []).map((m) => ({ kind: "meal", id: m.id as string, name: m.name as string,
-      sort: Number(m.sort), added_at: m.created_at as string })),
+    ...recipes.map((r) => ({ kind: "recipe", id: r.recipe_id,
+      name: r.recipes?.name ?? "(recipe)", sort: Number(r.sort), added_at: r.created_at })),
+    ...meals.map((m) => ({ kind: "meal", id: m.id, name: m.name,
+      sort: Number(m.sort), added_at: m.created_at })),
   ].sort((a, b) => `${a.kind}:${a.id}`.localeCompare(`${b.kind}:${b.id}`));
 
   const after = opts.cursor ? decodeTextCursor(opts.cursor) : "";

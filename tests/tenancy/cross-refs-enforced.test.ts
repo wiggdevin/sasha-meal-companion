@@ -74,7 +74,7 @@ const REFS: Ref[] = [
     key: (r) => ({ id: r.id }), shared: () => [null] },
   { name: "media_objects.entry_id", table: "media_objects", column: "entry_id",
     target: (o) => o.entry,
-    row: (u, _o, ref) => ({ path: `${u.id}/xref-${crypto.randomUUID()}.jpg`, user_id: u.id,
+    row: (u, _o, ref) => ({ path: `media/${u.id}/${crypto.randomUUID()}.jpg`, user_id: u.id,
       kind: "image", bytes: 1, entry_id: ref }),
     key: (r) => ({ path: r.path }), shared: () => [null] },
   { name: "coach_messages.ai_call_id", table: "coach_messages", column: "ai_call_id",

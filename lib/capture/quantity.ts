@@ -4,12 +4,16 @@
  * A vague measure returns null on purpose. "A handful" has no gram weight, and inventing one would
  * put a number in their day that nothing stands behind; null sends the item to the stepper instead.
  * A volume unit with no portion row is the same case: grams per cup is a density, and we have none.
+ * So is a count with no portion row (audit 2026-10-10 A007, A044): "two bananas" or "8 shrimp" has
+ * no weight here, and the caller keeps the model's own grams rather than a flat 100 g a piece.
+ *
+ * A portion row's gram weight is the weight of the amount its label names: `import-fdc.py`
+ * `portion_label` writes "<amount> <unit> …", so "0.5 cup" weighs half a cup (A006).
  *
  * Pure. No I/O.
  */
 
 const GRAMS_PER_OZ = 28.3495;
-const DEFAULT_WHOLE_GRAMS = 100;
 
 const WORD_NUMBERS: Record<string, number> = {
   a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -62,28 +66,51 @@ export function parseAmount(text: string): { qty: number; unit: string } | null 
 }
 
 export type CapturePortion = { id: number | null; description: string; gramWeight: number };
-export type Per100g = Record<string, number | null>;
 
+/**
+ * The amount a portion label starts with: "0.5 cup" → 0.5, "1/2 cup" → 0.5, "1 1/2 cups" → 1.5,
+ * "2 tbsp" → 2. A label with no leading amount ("NLEA serving", "slice") is one of itself.
+ */
+export function portionAmount(description: string): number {
+  const text = (description ?? "").trim();
+  const mixed = text.match(/^(\d+)\s+(\d+)\/(\d+)(?![\d.\/])/);
+  if (mixed) return positiveOr1(Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]));
+  const fraction = text.match(/^(\d+)\/(\d+)(?![\d.\/])/);
+  if (fraction) return positiveOr1(Number(fraction[1]) / Number(fraction[2]));
+  const decimal = text.match(/^(\d+(?:\.\d+)?|\.\d+)(?![\d\/])/);
+  return decimal ? positiveOr1(Number(decimal[1])) : 1;
+}
+
+function positiveOr1(n: number): number {
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+function usable(p: CapturePortion): boolean {
+  return Number.isFinite(p.gramWeight) && p.gramWeight > 0;
+}
+
+/**
+ * The portion row whose label names the unit, preferring one of exactly one unit ("1 cup" over
+ * "0.5 cup") so the matched row reads the way the user said it.
+ */
 export function matchPortion(unit: string, portions: CapturePortion[]): CapturePortion | null {
   const want = unit.toLowerCase();
   const words = (p: CapturePortion) => p.description.toLowerCase().split(/[^a-z]+/).filter(Boolean);
-  return portions.find((p) => words(p).includes(want))
-    ?? portions.find((p) => words(p).includes(`${want}s`))
-    ?? null;
+  for (const word of [want, `${want}s`]) {
+    const named = portions.filter((p) => usable(p) && words(p).includes(word));
+    const one = named.find((p) => portionAmount(p.description) === 1);
+    if (one ?? named[0]) return one ?? named[0];
+  }
+  return null;
 }
 
-export function gramsFor(
-  qty: number, unit: string, portions: CapturePortion[], per100g: Per100g
-): number | null {
+/** Grams for `qty` of `unit`, or null when nothing here can weigh it (the caller keeps its own). */
+export function gramsFor(qty: number, unit: string, portions: CapturePortion[]): number | null {
   if (!Number.isFinite(qty) || qty < 0) return null;
   const want = unit.toLowerCase();
   if (want === "g") return qty;
   if (want === "oz") return qty * GRAMS_PER_OZ;
   const portion = matchPortion(want, portions);
-  if (portion) return qty * portion.gramWeight;
-  // No portion row. A count of a whole food still has a defensible default; a volume does not.
-  if ((want === "whole" || want === "piece") && Object.keys(per100g).length > 0) {
-    return qty * DEFAULT_WHOLE_GRAMS;
-  }
-  return null;
+  if (!portion) return null;
+  return (qty * portion.gramWeight) / portionAmount(portion.description);
 }
