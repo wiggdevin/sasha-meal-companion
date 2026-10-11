@@ -334,5 +334,6 @@ it("serializes a remote note projection before a concurrent local time edit snap
   expect(getDay(date)?.notes?.coffee).toBe("Later today");
   expect((await getRow(h, "plan_days", date))?.slot_notes).toEqual({ coffee: "Later today" });
   const { allOps } = await import("./idb");
-  expect((await allOps(h)).at(-1)?.payload.slot_notes).toEqual({ coffee: "Later today" });
+  // The local edit names only what it changed, so it cannot carry an older note back.
+  expect((await allOps(h)).at(-1)?.payload).not.toHaveProperty("slot_notes");
 });
