@@ -167,37 +167,73 @@ export const PLAN_DAY_EMPTY: Readonly<Record<string, unknown>> = {
 };
 
 /**
+ * When this phone last changed each `plan_days` field, and each slot of a per-slot field: the
+ * `client_ts` of the latest op whose value there differs from the value that op replaced. A field
+ * or slot an op named without changing falls back to the field's stamp, then to the latest op that
+ * named the field. So a later edit of one field never makes an older edit of another one newer
+ * (W011 review, Sol WARN 4).
+ */
+export type PlanDayStamps = (field: string, slot?: string) => string;
+
+export function planDayStamps(
+  ops: readonly { payload: Row; base_fields?: Row; client_ts: string }[],
+): PlanDayStamps {
+  const named: Record<string, string> = {};
+  const fields: Record<string, string> = {};
+  const slots: Record<string, Record<string, string>> = {};
+  for (const op of ops) {
+    const base = op.base_fields ?? {};
+    for (const field of Object.keys(op.payload)) {
+      named[field] = op.client_ts;
+      if (!same(op.payload[field], base[field])) fields[field] = op.client_ts;
+      if (!PLAN_DAY_MAPS.has(field)) continue;
+      const mine = asMap(op.payload[field]);
+      const was = asMap(base[field]);
+      for (const slot of new Set([...Object.keys(mine), ...Object.keys(was)])) {
+        if (!same(mine[slot], was[slot])) (slots[field] ??= {})[slot] = op.client_ts;
+      }
+    }
+  }
+  const last = ops.length > 0 ? ops[ops.length - 1].client_ts : "";
+  const fieldStamp = (field: string) => fields[field] ?? named[field] ?? last;
+  return (field, slot) => (slot === undefined ? undefined : slots[field]?.[slot]) ?? fieldStamp(field);
+}
+
+/**
  * A field-wise `plan_days` edit merged onto the server's row (audit 2026-10-10 A141, backlog B091).
  * `local` holds only the fields the user's ops wrote, `base` each field as the edit found it. A
  * field — or, for swaps, slot notes and item overrides, a slot — that one side left as it was takes
  * the other side's value; only one both sides changed falls to the newer side, and a slot note both
- * changed keeps both texts. Eaten ticks keep their own per-slot clock. Returns the merged values
- * of the fields `local` names.
+ * changed keeps both texts. "Newer" compares that field's or slot's own stamp (`planDayStamps`)
+ * with the server's; a single string stamps every field alike. Eaten ticks keep their own per-slot
+ * clock. Returns the merged values of the fields `local` names.
  */
 export function mergePlanDayFields(
-  local: Row, base: Row, server: Row, localTs: string, serverTs: string,
+  local: Row, base: Row, server: Row, localTs: string | PlanDayStamps, serverTs: string,
 ): Row {
-  const localWins = isNewer(localTs, serverTs);
+  const stampOf: PlanDayStamps = typeof localTs === "string" ? () => localTs : localTs;
+  const localWins = (field: string, slot?: string) => isNewer(stampOf(field, slot), serverTs);
   const out: Row = {};
   for (const field of Object.keys(local)) {
     if (field === "local_date") out[field] = local[field];
     else if (field === "eaten_slots") out[field] = mergeEatenSlots(local[field], server[field]);
-    else if (!(field in base)) out[field] = localWins || server[field] === undefined ? local[field] : server[field];
-    else if (PLAN_DAY_MAPS.has(field)) {
+    else if (!(field in base)) {
+      out[field] = localWins(field) || server[field] === undefined ? local[field] : server[field];
+    } else if (PLAN_DAY_MAPS.has(field)) {
       const mine = asMap(local[field]);
       const was = asMap(base[field]);
       const theirs = asMap(server[field]);
       const merged: Record<string, unknown> = {};
       for (const slot of new Set([...Object.keys(theirs), ...Object.keys(was), ...Object.keys(mine)])) {
         const value = threeWay(mine[slot], was[slot], theirs[slot], () => field === "slot_notes"
-          ? joinNotes(mine[slot], theirs[slot], localTs, serverTs)
-          : localWins ? mine[slot] : theirs[slot]);
+          ? joinNotes(mine[slot], theirs[slot], stampOf(field, slot), serverTs)
+          : localWins(field, slot) ? mine[slot] : theirs[slot]);
         if (value !== undefined) merged[slot] = value;
       }
       out[field] = merged;
     } else {
       out[field] = threeWay(local[field], base[field], server[field],
-        () => localWins ? local[field] : server[field]);
+        () => localWins(field) ? local[field] : server[field]);
     }
   }
   return out;

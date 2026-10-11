@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   joinNotes, MergeRefusedError, mergeEntity, mergeNoteFromBase, mergePlanDayFields, NEVER_MERGED,
-  rebaseOp,
+  planDayStamps, rebaseOp,
 } from "./merge";
 import type { SyncOp } from "./types";
 
@@ -200,6 +200,19 @@ describe("mergePlanDayFields", () => {
     expect(mergePlanDayFields({ slot_notes: { "meal-1": "ate half" } }, { slot_notes: {} },
       { slot_notes: { "meal-1": "no rice" } }, NEW, OLD))
       .toEqual({ slot_notes: { "meal-1": "no rice\nate half" } });
+  });
+
+  it("gives each field and slot its own stamp from the ops that changed it (Sol WARN 4)", () => {
+    const stamps = planDayStamps([
+      { payload: { swaps: { "meal-1": "oats" } }, base_fields: { swaps: {} }, client_ts: OLD },
+      { payload: { floor_day: true }, base_fields: { floor_day: false }, client_ts: NEW },
+    ]);
+    expect(stamps("swaps", "meal-1")).toBe(OLD);
+    expect(stamps("floor_day")).toBe(NEW);
+    const between = new Date((Date.parse(OLD) + Date.parse(NEW)) / 2).toISOString();
+    expect(mergePlanDayFields({ swaps: { "meal-1": "oats" }, floor_day: true },
+      { swaps: {}, floor_day: false }, { swaps: { "meal-1": "eggs" }, floor_day: false }, stamps, between))
+      .toEqual({ swaps: { "meal-1": "eggs" }, floor_day: true });
   });
 
   it("reads an override the server re-ordered as the same override", () => {

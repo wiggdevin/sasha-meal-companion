@@ -126,6 +126,22 @@ describe("one day's plan edited on two devices", () => {
     expect(getDay(DAY)?.swaps).toEqual({ "meal-1": "eggs" });
   });
 
+  it("judges a slot by its own edit, not by a later edit of another field (Sol WARN 4)", async () => {
+    await onDevice(phone);
+    await saveSwap(DAY, "meal-1", "oats"); // 10:00
+    later();
+    await onDevice(tablet);
+    await saveSwap(DAY, "meal-1", "eggs"); // 10:01, the newer pick
+    await pass();
+    later();
+    await onDevice(phone);
+    await toggleFloorDay(DAY); // 10:03, an unrelated edit queued behind the pick
+    await pass();
+    await pass();
+    expect(await allOps(h)).toEqual([]);
+    expect(serverDay()).toMatchObject({ floor_day: true, swaps: { "meal-1": "eggs" } });
+  });
+
   it("keeps both notes when both devices wrote one on the same meal", async () => {
     await onDevice(phone);
     await saveSlotNote(DAY, "meal-2", "ate half");
