@@ -391,7 +391,10 @@ export function rankPlates(input: PlateInput): PlateRanking {
   const tierOf = (anchor: Food) => affinity(anchor, input.occasion, input.untimed, input.evidence).score;
   const plates = searched.flatMap((anchor) => {
     const tier = searched.filter((other) => tierOf(other) === tierOf(anchor));
-    const variety = 1 - ANCHOR_ROTATION * (((tier.indexOf(anchor) + day) % tier.length) / tier.length);
+    // A date before the rotation epoch has a negative `day`: normalise the phase into [0, n) as
+    // `rotate` does, so variety stays in (1 - ANCHOR_ROTATION, 1] on every date (audit A062).
+    const phase = (((tier.indexOf(anchor) + day) % tier.length) + tier.length) % tier.length;
+    const variety = 1 - ANCHOR_ROTATION * (phase / tier.length);
     return platesFor(anchor, pools, input, day, variety);
   });
   if (input.occasion === "snack" && input.target.kcal <= SMALL_SNACK_KCAL) plates.push(...platesFor(null, pools, input, day, 0.9));
