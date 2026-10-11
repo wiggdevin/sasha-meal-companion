@@ -22,6 +22,7 @@ export type { PlanDayPatch };
 import type { DayTypeChoice } from "@/lib/plan-day";
 import type { AcceptedRecipeSelection } from "@/lib/shopping/preview-contract";
 import { ruleMarkFromWire } from "@/lib/foods/rule-mark-wire";
+import { frozenTick, tickMutationId, unfreezeOnUntick } from "@/lib/plan/tick-freeze";
 import type {
   EatenSlotState, FoodComponent, RuleMark, SlotId, SlotOverride, StoredDay,
 } from "@/lib/types";
@@ -259,14 +260,21 @@ function writeEatenSlot(
     }
     const itemOverrides = { ...(day?.itemOverrides ?? {}) };
     const previous = itemOverrides[slot];
+    let overridesChanged = false;
     if (eatenAt && generated && (!previous || previous.followPlan) && !previous?.cleared) {
-      const { followPlan: _followPlan, ...saved } = previous ?? { baseMealId: null, components: [] };
-      void _followPlan;
-      itemOverrides[slot] = { ...saved, baseMealId: generated.baseMealId,
-        title: generated.title, components: generated.components };
+      itemOverrides[slot] = frozenTick(previous, generated, tickMutationId(date, slot, eatenAt));
+      overridesChanged = true;
+    } else if (eatenAt === null) {
+      // Untick undoes the tick's own freeze, never a later edit (audit A066).
+      const restored = unfreezeOnUntick(previous, date, slot,
+        [previousMark?.eaten_at ?? undefined, day?.eaten?.[slot]]);
+      if (restored !== previous) {
+        if (restored) itemOverrides[slot] = restored; else delete itemOverrides[slot];
+        overridesChanged = true;
+      }
     }
     return writePlanDay(h, date, {
-      ...(eatenAt && generated ? { itemOverrides } : {}),
+      ...(overridesChanged ? { itemOverrides } : {}),
       eatenSlots: {
         ...localEatenSlots(day),
         ...(mirror?.eaten_slots ?? {}),

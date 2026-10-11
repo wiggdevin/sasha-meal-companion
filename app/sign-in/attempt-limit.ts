@@ -1,15 +1,9 @@
 /**
- * Email-keyed throttle for the two sign-in paths that call Supabase directly
- * from the browser — `verifyOtp` (app/sign-in/otp.ts) and
- * `signInWithPassword` (app/sign-in/password.ts). Neither ever reaches an app
- * server route, so neither can be keyed by IP the way
- * `app/auth/callback/route.ts` keys `enforceRateLimit` (lib/server/ratelimit.ts)
- * — email is the only stable identifier available before Supabase confirms
- * who is signing in.
- *
- * This is a floor, not a substitute for server-side protection: it lives in
- * page memory, so a reload clears it. The real backstop is whatever the
- * Supabase project's own auth rate limit is configured to.
+ * Email-keyed page-memory floor for the code check (app/sign-in/otp.ts) and the password sign-in
+ * (app/sign-in/password.ts). A reload clears it, so it is not the protection: since W052 both calls
+ * go through the app's own routes, which count every call per IP on the server
+ * (lib/server/sign-in.ts, 10 per 10 minutes), and Supabase's project auth limits sit behind that.
+ * It stays because it answers a run of wrong guesses on this screen before any network call.
  */
 
 type Window = { count: number; resetAt: number };

@@ -33,6 +33,11 @@ function visibleKey(row: SwapAlternative): string {
       .map((key) => Math.round(row.macros[key]))].join("|");
 }
 
+/** The foods a row or card holds, ignoring portions: the same foods resized are the same meal. */
+function foodsKey(components: readonly FoodComponent[]): string {
+  return components.map((part) => part.name.trim().replace(/\s+/g, " ").toLowerCase()).sort().join("|");
+}
+
 function refFoods(foods: Record<string, Food>, refs: FoodPrefRefCache): Map<string, Food> {
   const byRef = new Map<string, Food>();
   for (const food of Object.values(foods)) {
@@ -93,6 +98,9 @@ const PLATE_ROWS = 40;
 export function swapAlternatives(input: {
   slot: SlotId; target: Macros; foods: Record<string, Food>; refs?: FoodPrefRefCache;
   recipes?: RecipeRow[]; savedMeals?: SavedMealRow[]; currentMealId?: string;
+  /** The foods on the card now. A row holding the same foods is the current meal (audit A065):
+   *  a generated plate's id (`suggested:`) never equals the `plate:` row it was built from. */
+  currentComponents?: readonly FoodComponent[];
   clock?: string | null; occasion?: Occasion; date?: string;
   /** The account's snapshot evidence (Phase 17 O2). Absent: read from `eligible`, else curated. */
   evidence?: MealEvidence | null;
@@ -130,7 +138,9 @@ export function swapAlternatives(input: {
         proteinKey: plate.anchor?.id ?? `plate:${plate.key}`,
         foodIds: plate.rows.map((row) => row.food.id), ...(reasons.length ? { reasons } : {}) };
     });
-  const candidates = [...saved, ...composed].filter((row) => row.id !== input.currentMealId);
+  const current = input.currentComponents?.length ? foodsKey(input.currentComponents) : null;
+  const candidates = [...saved, ...composed].filter((row) => row.id !== input.currentMealId
+    && (current === null || foodsKey(row.components) !== current));
   const result: SwapAlternative[] = [];
   const ids = new Set<string>();
   const proteins = new Set<string>();
