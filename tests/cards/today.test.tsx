@@ -391,10 +391,10 @@ describe("Today, the page", () => {
   });
 
   it("raises the floor-day banner only while quick meals are on, and links to the Week screen", async () => {
-    await renderToday({ day: { isFloorDay: true } });
-    expect(screen.getByText(/Quick meals on\./)).toBeTruthy();
+    await renderToday({ day: { isFloorDay: true, slots: [PLANNED_SLOT] } });
+    expect(screen.getByText(/Quick meals day marked\./) && screen.getByRole("button", { name: "Swap Breakfast" })).toBeTruthy(); // A061
     cleanup(); await renderToday();
-    expect(screen.queryByText(/Quick meals on\./)).toBeNull();
+    expect(screen.queryByText(/Quick meals day marked\./)).toBeNull();
     expect(screen.getByRole("link", { name: "Open the Week screen" }).getAttribute("href")).toBe("/week");
   });
 });
