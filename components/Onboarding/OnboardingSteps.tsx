@@ -1,5 +1,6 @@
 "use client";
 
+import { useId, type ReactNode } from "react";
 import { BodyProfileFieldsView } from "@/components/BodyProfileFields";
 import DietaryProfilePicker from "@/components/Onboarding/DietaryProfilePicker";
 import { Pill } from "@/components/Sheet";
@@ -11,9 +12,12 @@ import GoalRateField, { rateClampCopy, rateSentence } from "@/components/GoalRat
 import { activityFactor, deriveTargets, energyProfileFrom, katchEligible }
   from "@/lib/profile/energy";
 import {
-  buildCompletedSettings, enforcedFlags, missingProfileFields, parsedWeightKg,
+  enforcedFlags, missingProfileFields, parsedWeightKg, previewCompletedSettings,
   type OnboardingAction, type OnboardingState, type PreferenceFlag,
 } from "@/lib/profile/onboarding-state";
+import type { TargetEligibility } from "@/lib/profile/rate-eligibility";
+import { todayIso } from "@/lib/settings/date";
+import { needsBirthDate } from "@/components/Onboarding/legacy-eligibility";
 import type { CookingEffort } from "@/lib/sync/user-settings";
 import type { ActivityLevel, Goal, Macros, Settings } from "@/lib/types";
 import { kgToLb } from "@/lib/health/units";
@@ -68,6 +72,7 @@ export function BodyStep({ state, dispatch }: StepProps) {
         />
         {age !== null && <p className={`m-0 ${CAPTION}`}>Age today: {age}</p>}
       </div>
+      <BirthDateField state={state} dispatch={dispatch} />
       {state.body.bodyFatPct.trim() !== "" && (
         <BodyFatSourceField source={state.bodyFatSource} measuredOn={state.bodyFatMeasuredOn}
           onChange={(patch) => dispatch({ type: "set_body_fat_source",
@@ -85,6 +90,32 @@ export function BodyStep({ state, dispatch }: StepProps) {
           onUnitChange={(value) => dispatch({ type: "set_weight_unit", value })} />
         <span className={CAPTION}>Stored in kilograms.</span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The full date of birth, asked only in the year the birth year turns 18 (audit 2026-10-10 A092):
+ * a birth year alone counts a 17-year-old whose birthday is still ahead as 18. Next stays off until
+ * it is answered; it is never saved (the account keeps its birth year).
+ */
+function BirthDateField({ state, dispatch }: StepProps) {
+  const helpId = useId();
+  const today = todayIso();
+  const asked = needsBirthDate(state, today) || (!!state.birthDate
+    && state.birthDate.slice(0, 4) === state.body.birthYear.trim());
+  if (!asked) return null;
+  const year = state.body.birthYear.trim();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-1.5">
+        <span className={FIELD_LABEL}>Date of birth</span>
+        <input type="date" value={state.birthDate ?? ""} min={`${year}-01-01`}
+          max={today < `${year}-12-31` ? today : `${year}-12-31`} aria-describedby={helpId}
+          onChange={(event) => dispatch({ type: "set_birth_date", value: event.target.value || null })}
+          className={`well min-h-11 w-full bg-transparent px-3 outline-none ${FIELD}`} />
+      </label>
+      <span id={helpId} className={CAPTION}>Plans start at 18, so we check the day you turn 18 this year.</span>
     </div>
   );
 }
@@ -142,7 +173,14 @@ const GOALS: { value: Goal; title: string; detail: string }[] = [
   { value: "gain_muscle", title: "Gain muscle", detail: "A small surplus to support muscle growth." },
 ];
 
-export function GoalStep({ state, dispatch }: StepProps) {
+/** Said in place of the pace once the safety round or a stored answer holds it (G1–G3). */
+export const PACE_HELD_NOTE =
+  "Your health answers keep your calories about where you burn, so there’s no pace to set.";
+
+export function GoalStep({ state, dispatch, paceHeld = false }: StepProps & {
+  /** A hold from the safety round or the account's stored answers: no pace is asked. */
+  paceHeld?: boolean;
+}) {
   return (
     <div className="flex flex-col gap-2">
       {GOALS.map((goal) => (
@@ -153,7 +191,10 @@ export function GoalStep({ state, dispatch }: StepProps) {
           <span className={CAPTION}>{goal.detail}</span>
         </button>
       ))}
-      {state.goal !== null && (
+      {state.goal !== null && paceHeld && state.goal !== "maintain" && state.goal !== "recomp" && (
+        <p role="status" className={`m-0 pt-2 ${CAPTION}`}>{PACE_HELD_NOTE}</p>
+      )}
+      {state.goal !== null && !paceHeld && (
         <div className="pt-2">
           <GoalRateField goal={state.goal} value={state.goalRateBpWeek} required
             onChange={(value) => dispatch({ type: "set_goal_rate", value })}
@@ -218,7 +259,7 @@ function PreferenceGroup({
 export function PreferencesStep({
   state, dispatch, onBlur, classifying, cookingEffort = null,
   cookingEffortSuggestion = null, onCookingEffortChange = () => {},
-  dietaryHintOffer = null, onAddRule,
+  dietaryHintOffer = null, onAddRule, onRulesChanged,
 }: StepProps & {
   onBlur: () => void;
   classifying: boolean;
@@ -229,6 +270,8 @@ export function PreferencesStep({
   dietaryHintOffer?: DietaryTextOffer | null;
   /** Jumps to the account's own rule editor (More dietary profiles, below), still on this step. */
   onAddRule?: () => void;
+  /** A rule or profile saved in that editor: it can be a stored pace hold, so the host reads again. */
+  onRulesChanged?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -247,7 +290,7 @@ export function PreferencesStep({
       <PreferenceGroup title="Enforced exclusions"
         explanation="These become rules that block matching foods."
         flags={enforcedFlags()} state={state} dispatch={dispatch} />
-      <DietaryProfilePicker />
+      <DietaryProfilePicker onRulesChanged={onRulesChanged} />
       <section className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <h2 className={`m-0 ${LABEL}`}>Cooking effort</h2>
@@ -295,15 +338,21 @@ function MissingProfileCard({ missing }: { missing: string[] }) {
 }
 
 export function PlanStep({ state, base, dispatch, proteinAvailability, starterSelectionReady,
-  optionalFoods = false }: StepProps & {
+  optionalFoods = false, eligibility, paceNote = null }: StepProps & {
   base: Settings;
   proteinAvailability?: { selected: number; eligible: number; required: number; ready: boolean } | null;
   starterSelectionReady?: boolean;
   optionalFoods?: boolean;
+  /** The account's holds (safety round + stored answers): the preview the server will write. */
+  eligibility?: TargetEligibility;
+  /** Why the pace is held although no hold was found (unanswered round, unread answers). */
+  paceNote?: ReactNode;
 }) {
-  const missing = missingProfileFields(state);
+  const missing = missingProfileFields(state, eligibility);
   if (missing.length > 0) return <MissingProfileCard missing={missing} />;
-  const settings = buildCompletedSettings(base, state, new Date());
+  // Never a crash: an adult-only refusal is the flow's own stop (A093), and here the same card.
+  const settings = previewCompletedSettings(base, state, new Date(), eligibility);
+  if (!settings) return <MissingProfileCard missing={missing} />;
   const targets = settings.activeTargetProfile;
   // A revision the builder could not produce is the same user-visible state as a missing field:
   // the missing-data card, not a crash. The non-null assertion this replaces made any gap between
@@ -325,6 +374,7 @@ export function PlanStep({ state, base, dispatch, proteinAvailability, starterSe
   const clamp = settings.goalRateBpWeek ? rateClampCopy(rate, settings.goalRateBpWeek) : null;
   return (
     <div className="flex flex-col gap-3">
+      {paceNote}
       <MacroPanel title="Training day" macros={targets.training} />
       <MacroPanel title="Rest day" macros={targets.rest} />
       <div className="well flex flex-col gap-3 p-4">

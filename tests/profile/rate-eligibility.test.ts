@@ -2,7 +2,8 @@
 // hold the pace, and the derivation's own under-18 refusal.
 import { describe, expect, it } from "vitest";
 import {
-  AdultOnlyError, SAFETY_CONDITION_TEXT, eligibilityFromSafetyAnswers, isMinorOn, paceAllowed,
+  AdultOnlyError, SAFETY_CONDITION_TEXT, adultAgeUnconfirmed, ageOnBirthDate, eligibilityFromSafetyAnswers,
+  isMinorOn, paceAllowed,
   profileAffectsPace, safetyConditionEntries, standardProtein, targetEligibility,
 } from "@/lib/profile/rate-eligibility";
 import { deriveTargetRevision } from "@/lib/profile/derive";
@@ -57,6 +58,26 @@ describe("targetEligibility", () => {
     expect(isMinorOn(2008, "2026-01-01")).toBe(false);
     expect(isMinorOn(null, "2026-10-08")).toBe(false);
     expect(targetEligibility({ birthYear: 2010, onDate: "2026-10-08" }).minor).toBe(true);
+  });
+
+  // Audit 2026-10-10 A092: a birth year alone counts a 17-year-old as 18 for the rest of the year.
+  it("judges age by the full date of birth when it is known", () => {
+    expect(ageOnBirthDate("2008-12-01", "2026-10-10")).toBe(17);
+    expect(ageOnBirthDate("2008-10-10", "2026-10-10")).toBe(18);
+    expect(ageOnBirthDate("2008-03-01", "2026-10-10")).toBe(18);
+    expect(ageOnBirthDate("2008-02-30", "2026-10-10")).toBeNull();
+    expect(isMinorOn(2008, "2026-10-10", "2008-12-01")).toBe(true);
+    expect(isMinorOn(2008, "2026-10-10", "2008-03-01")).toBe(false);
+    // A date for another year answers nothing; the stored year's count stands.
+    expect(isMinorOn(2008, "2026-10-10", "2009-12-01")).toBe(false);
+    expect(isMinorOn(2008, "2026-10-10", "not a date")).toBe(false);
+  });
+
+  it("flags exactly the year a birth year turns 18 as unconfirmed", () => {
+    expect(adultAgeUnconfirmed(2008, "2026-10-10")).toBe(true);
+    expect(adultAgeUnconfirmed(2007, "2026-10-10")).toBe(false);
+    expect(adultAgeUnconfirmed(2009, "2026-10-10")).toBe(false);
+    expect(adultAgeUnconfirmed(null, "2026-10-10")).toBe(false);
   });
 });
 
