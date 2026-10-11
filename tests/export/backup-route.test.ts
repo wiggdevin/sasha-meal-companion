@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetRateLimits } from "@/lib/server/ratelimit";
 import { BACKUP_TABLES } from "@/lib/server/backup-tables";
 import {
-  PAGE, START, afterFilter, manifestPath, parseCursor, partPath, serializeCursor,
+  PAGE, START, afterFilter, manifestPath, parseCursor, partPath, partText, serializeCursor,
+  type BackupCursor,
 } from "@/lib/server/backup-dump";
+import { adminClient } from "@/lib/server/admin";
 import { HARD_STOP_MS } from "@/lib/server/job-cursor";
 
 type Row = Record<string, unknown>;
@@ -16,7 +18,12 @@ let cursorRow: Row | null;
 let claimFails: boolean;
 let uploadFails: boolean;
 let hangUpload: boolean;
+let hangManifest: boolean;
 let completionFails: boolean;
+/** The cursor save that marks the pass done fails (a database error). */
+let doneSaveFails: boolean;
+/** Paths of uploads left hanging. */
+let hung: string[];
 let failTable: string | null;
 let orders: Record<string, string[]>;
 let pageReads: Record<string, number>;
@@ -109,6 +116,7 @@ vi.mock("@/lib/server/admin", () => ({
           const query = {
             eq: (key: string, value: unknown) => { if (key === "lease_owner") owner = value; return query; },
             select: async () => {
+              if (doneSaveFails && fields.done === true) return { data: null, error: { message: "save failed" } };
               if (!cursorRow || cursorRow.lease_owner !== owner) return { data: [], error: null };
               cursorRow = { ...cursorRow, ...fields };
               return { data: [{ job: "backup" }], error: null };
@@ -147,7 +155,10 @@ vi.mock("@/lib/server/admin", () => ({
       upload: async (path: string, body: ReadableStream<Uint8Array> | string) => {
         uploadLog.push(path);
         if (uploadFails) return { error: { message: "upload failed" } };
-        if (hangUpload) return new Promise(() => undefined);
+        if (hangUpload || (hangManifest && !path.includes("/part-"))) {
+          hung.push(path);
+          return new Promise(() => undefined);
+        }
         uploads.set(path, typeof body === "string" ? Buffer.from(body) : await drain(body));
         return { error: null };
       },
@@ -187,6 +198,7 @@ describe("scheduled user-table backup", () => {
     tableData = {}; uploads = new Map(); uploadLog = []; run = null; cursorRow = null;
     orders = {}; pageReads = {}; onUpload = null; onPageRead = null; failTable = null;
     claimFails = false; uploadFails = false; hangUpload = false; completionFails = false;
+    hangManifest = false; doneSaveFails = false; hung = [];
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -280,15 +292,21 @@ describe("scheduled user-table backup", () => {
     expect(await first.json()).toMatchObject({ ok: true, done: false, incomplete: true, parts: 1 });
     expect(run).toMatchObject({ status: "running" });
     expect(uploads.has(manifestPath(today()))).toBe(false);
-    expect(parseCursor(cursorRow!.after_key as string))
-      .toMatchObject({ table: "user_foods", after: ["row-02999"], part: 2 });
+    const saved = parseCursor(cursorRow!.after_key as string)!;
+    expect(saved).toMatchObject({ table: "user_foods", after: ["row-02999"], part: 2 });
+    expect(saved.parts).toEqual([uploadLog[0]]);
     expect(cursorRow).toMatchObject({ lease_owner: null, done: false });
 
     const second = await POST(request());
     expect(await second.json()).toMatchObject({ ok: true, done: true, parts: 2 });
-    expect(json(manifestPath(today())).parts).toEqual([partPath(today(), 1), partPath(today(), 2)]);
+    const parts = json(manifestPath(today())).parts as string[];
+    expect(parts).toEqual([uploadLog[0], uploadLog[1]]);
+    // Each run writes at a path of its own.
+    expect(parts[0]).toMatch(new RegExp(`^meal-companion/${today()}/part-0001-[0-9a-f-]{36}\\.json$`));
+    expect(parts[1]).toMatch(/\/part-0002-/);
+    expect(parts[0].slice(-41)).not.toBe(parts[1].slice(-41));
     expect(restored().user_foods).toEqual(tableData.user_foods);
-    const partBytes = uploads.get(partPath(today(), 1))!.length + uploads.get(partPath(today(), 2))!.length;
+    const partBytes = uploads.get(parts[0])!.length + uploads.get(parts[1])!.length;
     expect(run).toMatchObject({ status: "ok", bytes: partBytes, error: null });
     expect(cursorRow).toMatchObject({ done: true, listed: true, lease_owner: null });
 
@@ -312,8 +330,59 @@ describe("scheduled user-table backup", () => {
 
       hangUpload = false;
       expect((await POST(request())).status).toBe(200);
+      // The abandoned upload lands late: at its own path, which the manifest never names.
+      expect(hung).toHaveLength(1);
+      uploads.set(hung[0], Buffer.from("{\"stale\":true}"));
+      expect(json(manifestPath(today())).parts).not.toContain(hung[0]);
       expect(restored().user_foods).toEqual(tableData.user_foods);
     });
+
+  it("bounds the finishing steps too: a manifest upload still hanging at the hard stop fails the run",
+    async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+      tableData.user_foods = ids(10);
+      hangManifest = true;
+      const pending = POST(request());
+      await vi.advanceTimersByTimeAsync(HARD_STOP_MS + 1_000);
+      expect((await pending).status).toBe(500);
+      expect(run).toMatchObject({ status: "error" });
+      expect(String(run!.error)).toMatch(/finishing the pass was still running at the hard stop/);
+      // Every part is kept: the retry writes only the manifest.
+      expect(parseCursor(cursorRow!.after_key as string)).toMatchObject({ table: null, part: 2 });
+      hangManifest = false;
+      uploadLog = [];
+      expect((await POST(request())).status).toBe(200);
+      expect(uploadLog).toEqual([manifestPath(today())]);
+      expect(restored().user_foods).toEqual(tableData.user_foods);
+    });
+
+  it("a cursor save that fails is a failed run, not a finished one", async () => {
+    doneSaveFails = true;
+    const failed = await POST(request());
+    expect(failed.status).toBe(500);
+    expect(run).toMatchObject({ status: "error" });
+    expect(String(run!.error)).toMatch(/save failed/);
+    expect(cursorRow).toMatchObject({ done: false, listed: true, lease_owner: null });
+    doneSaveFails = false;
+    uploadLog = [];
+    expect(await (await POST(request())).json()).toMatchObject({ ok: true, done: true });
+    expect(uploadLog).toEqual([manifestPath(today())]);
+    expect(cursorRow).toMatchObject({ done: true });
+  });
+
+  it("a lost lease is a failed run: progress it could not save is not reported", async () => {
+    let clock = Date.UTC(2026, 9, 10, 3, 45);
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
+    tableData.user_foods = ids(3500);
+    onPageRead = (table) => {
+      if (table !== "user_foods") return;
+      clock += 100_000;
+      cursorRow = { ...cursorRow!, lease_owner: "someone-else" };   // the lease was taken over
+    };
+    expect((await POST(request())).status).toBe(500);
+    expect(run).toMatchObject({ status: "error" });
+    expect(String(run!.error)).toMatch(/lease lost/);
+  });
 
   it("a failed read keeps the parts already written and the retry resumes after them", async () => {
     let clock = Date.UTC(2026, 9, 10, 3, 45);
@@ -330,7 +399,9 @@ describe("scheduled user-table backup", () => {
     failTable = null;
     uploadLog = [];
     expect((await POST(request())).status).toBe(200);
-    expect(uploadLog).toEqual([partPath(today(), 2), manifestPath(today())]);
+    expect(uploadLog).toHaveLength(2);
+    expect(uploadLog[0]).toMatch(/\/part-0002-/);
+    expect(uploadLog[1]).toBe(manifestPath(today()));
     expect(restored().user_foods).toEqual(tableData.user_foods);
   });
 
@@ -341,23 +412,14 @@ describe("scheduled user-table backup", () => {
     expect(uploadLog).toEqual([]);
   });
 
-  it("without a job cursor it dumps the whole pass in one run when that fits", async () => {
+  it("fails closed without a job cursor: no lease, no run (503, nothing written)", async () => {
     claimFails = true;
     tableData.user_foods = ids(3);
-    expect((await POST(request())).status).toBe(200);
-    expect(restored().user_foods).toEqual(tableData.user_foods);
-    expect(run).toMatchObject({ status: "ok" });
-  });
-
-  it("without a job cursor a dump that outruns the budget fails loudly instead of resuming", async () => {
-    let clock = Date.UTC(2026, 9, 10, 3, 45);
-    vi.spyOn(Date, "now").mockImplementation(() => clock);
-    claimFails = true;
-    tableData.user_foods = ids(3500);
-    onPageRead = (table) => { if (table === "user_foods") clock += 100_000; };
-    expect((await POST(request())).status).toBe(500);
-    expect(run).toMatchObject({ status: "error" });
-    expect(String(run!.error)).toMatch(/no job cursor/);
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(uploadLog).toEqual([]);
+    expect(run).toBeNull();
+    expect(Object.keys(pageReads)).toEqual([]);
   });
 
   it.each([null, "wrong"])("rejects a missing or wrong GET bearer (%s) before touching storage", async (token) => {
@@ -404,11 +466,53 @@ describe("scheduled user-table backup", () => {
   });
 
   it("reads back only cursors it can resume", () => {
-    const cursor = { table: "change_log", after: ["u", "12"], part: 3, bytes: 99 };
+    const cursor = { table: "change_log", after: ["u", "12"], part: 3, parts: ["p1", "p2"], bytes: 99 };
     expect(parseCursor(serializeCursor(cursor))).toEqual(cursor);
     expect(parseCursor(serializeCursor({ ...cursor, after: ["u"] }))).toBeNull();
     expect(parseCursor(serializeCursor({ ...cursor, table: "nope" }))).toBeNull();
+    expect(parseCursor(serializeCursor({ ...cursor, parts: ["p1"] }))).toBeNull();
+    const { parts: _parts, ...older } = cursor;          // a cursor from before part paths were kept
+    expect(parseCursor(JSON.stringify(older))).toBeNull();
+    expect(() => partPath("2026-10-10", 1, "not-a-run")).toThrow();
     expect(parseCursor("{")).toBeNull();
     expect(PAGE).toBe(1000);
+  });
+
+  it("caps a part by its UTF-8 bytes, row by row, and the parts rejoin exactly", async () => {
+    // "é" is two bytes and one UTF-16 unit, "🍎" four bytes and two units: counting `length`
+    // would let each part run about twice past the cap.
+    tableData.user_foods = Array.from({ length: 40 }, (_, i) => ({
+      id: `row-${String(i).padStart(3, "0")}`, name: "é".repeat(20) + "🍎".repeat(10) }));
+    const rowBytes = Buffer.byteLength(JSON.stringify(tableData.user_foods[0])) + 1;
+    const maxBytes = rowBytes * 7 + 3;                      // seven rows fit, the eighth does not
+    const db = adminClient();
+    const joined: Row[] = [];
+    let cursor: BackupCursor = START;
+    let partsWritten = 0;
+    while (cursor.table !== null) {
+      const progress: { next?: BackupCursor } = {};
+      let text = "";
+      for await (const piece of partText(db, cursor, {
+        passStartedAt: new Date(), deadline: Number.MAX_SAFE_INTEGER, maxBytes }, progress)) text += piece;
+      const rows = JSON.parse(text).tables.user_foods as Row[] | undefined ?? [];
+      const bytes = rows.reduce((sum, row) => sum + Buffer.byteLength(JSON.stringify(row)) + 1, 0);
+      expect(bytes).toBeLessThanOrEqual(maxBytes);
+      joined.push(...rows);
+      partsWritten += 1;
+      cursor = { ...progress.next!, parts: [...progress.next!.parts, `p${partsWritten}`] };
+    }
+    expect(joined).toEqual(tableData.user_foods);
+    expect(partsWritten).toBe(Math.ceil(40 / 7));
+  });
+
+  it("writes a row larger than the cap on its own rather than stall", async () => {
+    tableData.user_foods = [{ id: "a", name: "x".repeat(500) }, { id: "b", name: "y".repeat(500) }];
+    const db = adminClient();
+    const progress: { next?: BackupCursor } = {};
+    let text = "";
+    for await (const piece of partText(db, START, {
+      passStartedAt: new Date(), deadline: Number.MAX_SAFE_INTEGER, maxBytes: 100 }, progress)) text += piece;
+    expect((JSON.parse(text).tables.user_foods as Row[]).map((r) => r.id)).toEqual(["a"]);
+    expect(progress.next).toMatchObject({ table: "user_foods", after: ["a"], part: 2 });
   });
 });

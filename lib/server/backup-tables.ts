@@ -7,7 +7,10 @@
  * when a backed-up table's `key` is not its primary key, column for column. The key is what the
  * dump pages by (`key > last`), so it must be unique and complete.
  *
- * Order is restore order: an owner table comes before the child tables that reference it.
+ * Order is restore order: a table comes after every backed-up table it has a foreign key to, so
+ * replaying the JSON table by table into an empty schema never meets a missing parent. The test
+ * reads every `references` clause in the migrations and checks it. A reference to a table that is
+ * not backed up (the shared catalog, `auth.users`) needs that table restored first by its own means.
  */
 
 export type BackupTable = {
@@ -21,7 +24,10 @@ const table = (name: string, ...key: string[]): BackupTable => ({ name, key: key
 /** Every table that holds an account's own rows. */
 export const BACKUP_TABLES: readonly BackupTable[] = [
   // Owner tables (user_id column), from the first RLS migration.
-  table("user_foods"), table("user_food_prefs", "user_id", "food_ref_id"), table("log_entries"),
+  // food_refs is shared, but holds user rows (kind = 'user'); it references user_foods, and the
+  // preference, favourite, log and recipe item tables reference it.
+  table("user_foods"), table("food_refs"),
+  table("user_food_prefs", "user_id", "food_ref_id"), table("log_entries"),
   table("water_log", "user_id", "local_date"), table("plan_days", "user_id", "local_date"),
   table("user_settings", "user_id"), table("gut_log"), table("recipes"),
   table("favorites_foods", "user_id", "food_ref_id"), table("favorites_recipes", "user_id", "recipe_id"),
@@ -34,8 +40,6 @@ export const BACKUP_TABLES: readonly BackupTable[] = [
   table("log_items"), table("duplicate_group_members", "group_id", "entry_id"),
   table("recipe_revisions"), table("recipe_items", "recipe_revision_id", "seq"),
   table("favorites_meal_items", "meal_id", "seq"), table("coach_messages"),
-  // Shared, but holds user rows (kind = 'user').
-  table("food_refs"),
   // Food rules and evidence: dietary profiles, allergen checks, membership and notes.
   table("user_dietary_profiles", "user_id", "profile_id"),
   table("user_allergen_checks", "user_id", "food_key", "allergen"),

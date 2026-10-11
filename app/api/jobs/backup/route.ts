@@ -13,13 +13,17 @@
  * - Each table is read by key (`key > last`), so a concurrent write never skips or repeats a
  *   row (A122; lib/server/backup-dump.ts).
  * - One pass per UTC date, strung across budgeted runs (A123): a run writes numbered parts
- *   (`meal-companion/<date>/part-NNNN.json`) until BUDGET_MS, then saves where the next part
+ *   (`meal-companion/<date>/part-NNNN-<run>.json`) until BUDGET_MS, then saves where the next part
  *   starts in `job_cursors` (lib/server/job-cursor.ts) and answers `incomplete`; the next cron
  *   fire continues. The run that writes the last part writes the manifest
  *   (`meal-companion/<date>.json`, `user-table-export-v2`) and marks `backup_runs` ok. A part
  *   still uploading at HARD_STOP_MS is abandoned and the failure recorded before the platform
- *   kill; the cursor keeps every part already written. The job_cursors lease (360 s) keeps one run
- *   at a time on a pass; a killed run's lease lapses before the next fire.
+ *   kill; the cursor keeps every part already written. Each part's path names the run that wrote
+ *   it, so an abandoned upload that lands late cannot replace a later run's part. The finishing
+ *   steps (manifest, run record, cursor) race the same hard stop.
+ * - The job_cursors lease (360 s) keeps one run at a time on a pass; a killed run's lease lapses
+ *   before the next fire. A run that cannot claim it answers 503 and writes nothing, and a run
+ *   whose cursor save is not confirmed fails, so `done` and `incomplete` always mean saved.
  *
  * Memory stays bounded at any account count (S3): each part is streamed to Storage one page at a
  * time, pulled by the upload, so at most a page or two of rows is ever held.
@@ -37,7 +41,9 @@ import {
   type BackupCursor,
 } from "@/lib/server/backup-dump";
 import { jsonError } from "@/lib/server/http";
-import { BUDGET_MS, HARD_STOP_MS, claimPass, savePass, utcDate } from "@/lib/server/job-cursor";
+import {
+  BUDGET_MS, HARD_STOP_MS, claimPass, savePass, savePassConfirmed, utcDate,
+} from "@/lib/server/job-cursor";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 
 export const runtime = "nodejs";
@@ -67,13 +73,15 @@ async function recordRun(db: Db, date: string, fields: Record<string, unknown>):
 }
 
 /** Resolves with `work`, or rejects at `hardStop` after calling `onStop`. */
-async function beforeHardStop<T>(work: Promise<T>, hardStop: number, onStop: () => void): Promise<T> {
+async function beforeHardStop<T>(
+  work: Promise<T>, hardStop: number, what: string, onStop: () => void = () => undefined,
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const stopped = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       onStop();
-      work.catch(() => undefined);              // a late failure of the abandoned upload is moot
-      reject(new Error("a part was still uploading at the hard stop"));
+      work.catch(() => undefined);              // a late failure of the abandoned work is moot
+      reject(new Error(`${what} was still running at the hard stop`));
     }, Math.max(0, hardStop - Date.now()));
   });
   try {
@@ -83,21 +91,23 @@ async function beforeHardStop<T>(work: Promise<T>, hardStop: number, onStop: () 
   }
 }
 
-/** Writes one part from `cursor` and answers where the next one starts. */
+/** Writes one part from `cursor` at a path only this run uses, and answers where the next starts. */
 async function writePart(
-  db: Db, date: string, cursor: BackupCursor, passStartedAt: Date, deadline: number, hardStop: number,
+  db: Db, date: string, owner: string, cursor: BackupCursor, passStartedAt: Date, deadline: number,
+  hardStop: number,
 ): Promise<BackupCursor> {
   const progress: { next?: BackupCursor } = {};
   const sent = { bytes: 0 };
   const stop = { stopped: false };
+  const path = partPath(date, cursor.part, owner);
   const body = byteStream(partText(db, cursor, { passStartedAt, deadline }, progress), sent, stop);
-  const upload = db.storage.from(BUCKET).upload(partPath(date, cursor.part), body, {
+  const upload = db.storage.from(BUCKET).upload(path, body, {
     contentType: "application/json", upsert: true,
   });
-  const result = await beforeHardStop(upload, hardStop, () => { stop.stopped = true; });
+  const result = await beforeHardStop(upload, hardStop, "a part upload", () => { stop.stopped = true; });
   if (result.error) throw new Error(result.error.message);
   if (!progress.next) throw new Error("the upload ended before the part did");
-  return { ...progress.next, bytes: cursor.bytes + sent.bytes };
+  return { ...progress.next, parts: [...progress.next.parts, path], bytes: cursor.bytes + sent.bytes };
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -108,58 +118,64 @@ export async function POST(req: Request): Promise<Response> {
     await enforceRateLimit("jobs:backup", 10, 3600);
     const db = adminClient();
     const began = Date.now();
+    const hardStop = began + HARD_STOP_MS;
     const date = utcDate(new Date(began));
     const owner = randomUUID();
 
+    // The pass lease is the only guard against two overlapping runs writing one pass, so a run
+    // that cannot take it does not start (migration 20261217120300 is a deploy prerequisite).
     const claim = await claimPass(db, JOB, date, owner, false);
     if (claim.kind === "busy") throw new HttpError(409, "conflict", "a backup run for today is in progress");
-    const leased = claim.kind === "claimed";
-    if (!leased) console.error("backup: no job cursor; this run dumps from the start and cannot resume", { date });
-    const state = leased ? claim.state
-      : { after: null, listed: false, retry: [], relist: false, done: false, startedAt: new Date(began) };
+    if (claim.kind === "unavailable") {
+      throw new HttpError(503, "unavailable", "the backup's job cursor could not be claimed");
+    }
+    const state = claim.state;
     if (state.done) {
-      if (leased) await savePass(db, JOB, date, owner, state);
+      await savePass(db, JOB, date, owner, state);
       return Response.json({ ok: true, done: true, alreadyDone: true });
     }
     const saved = parseCursor(state.after);
     if (state.after && !saved) console.error("backup: unreadable cursor; the pass starts again", { date });
     const at = { cursor: saved ?? START };
-    const save = async (done: boolean) => {
-      if (!leased) return;
-      await savePass(db, JOB, date, owner, { after: serializeCursor(at.cursor),
-        listed: at.cursor.table === null, retry: [], relist: false, done });
-    };
+    const passState = (done: boolean) => ({ after: serializeCursor(at.cursor),
+      listed: at.cursor.table === null, retry: [], relist: false, done });
 
     try {
-      await recordRun(db, date, { started_at: state.startedAt.toISOString(), finished_at: null,
-        status: "running", error: null });
+      await beforeHardStop(recordRun(db, date, { started_at: state.startedAt.toISOString(),
+        finished_at: null, status: "running", error: null }), hardStop, "recording the run");
       const deadline = began + BUDGET_MS;
       for (let parts = 0; at.cursor.table !== null; parts += 1) {
         if (parts > 0 && Date.now() >= deadline) break;
-        at.cursor = await writePart(db, date, at.cursor, state.startedAt, deadline, began + HARD_STOP_MS);
+        at.cursor = await writePart(db, date, owner, at.cursor, state.startedAt, deadline, hardStop);
       }
       if (at.cursor.table !== null) {
-        if (!leased) throw new Error("the dump outran the run's budget and there is no job cursor to resume from");
-        await save(false);
+        await beforeHardStop(savePassConfirmed(db, JOB, date, owner, passState(false)), hardStop,
+          "saving the cursor");
         console.warn("backup: pass is not finished; the next run continues", { date, parts: at.cursor.part - 1 });
         return Response.json({ ok: true, done: false, incomplete: true,
           parts: at.cursor.part - 1, bytes: at.cursor.bytes });
       }
 
       const finishedAt = new Date();
-      const manifest = await db.storage.from(BUCKET).upload(manifestPath(date),
-        manifestText(date, at.cursor, state.startedAt, finishedAt),
-        { contentType: "application/json", upsert: true });
-      if (manifest.error) throw new Error(manifest.error.message);
-      await recordRun(db, date, { finished_at: finishedAt.toISOString(), bytes: at.cursor.bytes,
-        status: "ok", error: null });
-      await save(true);
+      await beforeHardStop((async () => {
+        const manifest = await db.storage.from(BUCKET).upload(manifestPath(date),
+          manifestText(at.cursor, state.startedAt, finishedAt),
+          { contentType: "application/json", upsert: true });
+        if (manifest.error) throw new Error(manifest.error.message);
+        await recordRun(db, date, { finished_at: finishedAt.toISOString(), bytes: at.cursor.bytes,
+          status: "ok", error: null });
+        await savePassConfirmed(db, JOB, date, owner, passState(true));
+      })(), hardStop, "finishing the pass");
       return Response.json({ ok: true, done: true, parts: at.cursor.part - 1, bytes: at.cursor.bytes });
     } catch (e) {
       const message = e instanceof Error ? e.message : "unknown";
-      await save(false);                        // keeps every part already written
+      // Best effort, inside the time left before the platform kill (maxDuration).
+      const grace = began + maxDuration * 1000 - 2_000;
       try {
-        await recordRun(db, date, { finished_at: new Date().toISOString(), status: "error", error: message });
+        await beforeHardStop(savePass(db, JOB, date, owner, passState(false)), grace,
+          "saving the cursor");                 // keeps every part already written
+        await beforeHardStop(recordRun(db, date, { finished_at: new Date().toISOString(),
+          status: "error", error: message }), grace, "recording the failure");
       } catch (recordError) {
         console.error("backup: could not record the failed run", {
           date, error: recordError instanceof Error ? recordError.message : "unknown" });

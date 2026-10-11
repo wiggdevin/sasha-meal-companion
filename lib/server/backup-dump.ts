@@ -5,9 +5,14 @@
  *   `PAGE` rows at a time (the API's `max_rows`, supabase/config.toml). A row that exists for the
  *   whole pass is written exactly once, whatever is inserted or deleted around it; OFFSET paging
  *   skipped or repeated a row at each page boundary a concurrent write moved.
- * - Parts (A123): one part is one Storage object. A part ends after the page that crosses the run's
- *   deadline or `PART_MAX_BYTES`, and its `BackupCursor` says where the next part starts, so a pass
- *   is strung across runs like lib/server/job-sweep.ts and no object outgrows the bucket limit.
+ * - Parts (A123): one part is one Storage object. A part ends at the page boundary after the run's
+ *   deadline, or at the row that would take it past `PART_MAX_BYTES` (UTF-8 bytes, as uploaded), and
+ *   its `BackupCursor` says where the next part starts, so a pass is strung across runs like
+ *   lib/server/job-sweep.ts and no object outgrows the bucket limit.
+ * - Each part's path names the run that wrote it (`part-NNNN-<run>.json`), and the cursor lists the
+ *   paths of the parts written so far. An upload abandoned at the hard stop may still land later,
+ *   but at its own path, which no cursor or manifest names: it can never replace the part a later
+ *   run wrote. Such a stray object is unreferenced; a reader follows the manifest only.
  *
  * Part document (`user-table-export-v2-part`): `{ format, consistency, pass_started_at, taken_at,
  * part, tables: { <name>: [rows…] } }`; a table that spans parts appears in each, its rows in key
@@ -33,11 +38,13 @@ export type BackupCursor = {
   after: string[] | null;
   /** The number of the next part to write (parts 1 … part - 1 exist). */
   part: number;
+  /** The paths of parts 1 … part - 1, in order. */
+  parts: string[];
   /** Bytes of the parts written so far. */
   bytes: number;
 };
 
-export const START: BackupCursor = { table: BACKUP_TABLES[0].name, after: null, part: 1, bytes: 0 };
+export const START: BackupCursor = { table: BACKUP_TABLES[0].name, after: null, part: 1, parts: [], bytes: 0 };
 
 export function serializeCursor(cursor: BackupCursor): string {
   return JSON.stringify(cursor);
@@ -52,12 +59,15 @@ export function parseCursor(text: string | null): BackupCursor | null {
       || (typeof c.table === "string" && BACKUP_TABLES.some((t) => t.name === c.table));
     const afterOk = c.after === null
       || (Array.isArray(c.after) && c.after.every((v) => typeof v === "string"));
-    if (!tableOk || !afterOk || !Number.isInteger(c.part) || (c.part as number) < 1
+    const partsOk = Array.isArray(c.parts) && c.parts.every((v) => typeof v === "string");
+    if (!tableOk || !afterOk || !partsOk || !Number.isInteger(c.part) || (c.part as number) < 1
+      || (c.parts as string[]).length !== (c.part as number) - 1
       || !Number.isInteger(c.bytes) || (c.bytes as number) < 0) return null;
     const table = c.table as string | null;
     const after = c.after as string[] | null;
     if (after && (table === null || after.length !== tableNamed(table).key.length)) return null;
-    return { table, after, part: c.part as number, bytes: c.bytes as number };
+    return { table, after, part: c.part as number, parts: [...(c.parts as string[])],
+      bytes: c.bytes as number };
   } catch {
     return null;
   }
@@ -69,8 +79,10 @@ function tableNamed(name: string): BackupTable {
   return found;
 }
 
-export function partPath(date: string, part: number): string {
-  return `meal-companion/${date}/part-${String(part).padStart(4, "0")}.json`;
+/** Part `part` of `date`'s pass as written by run `run` (a uuid): unique to that attempt. */
+export function partPath(date: string, part: number, run: string): string {
+  if (!/^[0-9a-f-]{36}$/.test(run)) throw new Error("backup: a part path needs the run's uuid");
+  return `meal-companion/${date}/part-${String(part).padStart(4, "0")}-${run}.json`;
 }
 
 export function manifestPath(date: string): string {
@@ -127,14 +139,17 @@ export type PartOptions = {
   passStartedAt: Date;
   /** Epoch ms after which the part ends at the next page boundary. */
   deadline: number;
+  /** The part's row bytes (UTF-8) past which it ends at the next row; default PART_MAX_BYTES. */
   maxBytes?: number;
   now?: () => number;
 };
 
 /**
- * The text of one part, from `cursor`. At least one page is always read, so every part moves the
- * cursor. When the generator finishes, `progress.next` is where the next part starts (its `bytes`
- * still the total before this part; the caller adds what it sent).
+ * The text of one part, from `cursor`. At least one page is read and one row (if any is left)
+ * written, so every part moves the cursor. The byte cap is checked row by row in UTF-8: a part
+ * passes `maxBytes` only by a single row that alone is larger. When the generator finishes,
+ * `progress.next` is where the next part starts (its `bytes` and `parts` still those before this
+ * part; the caller adds what it sent and the path it wrote).
  */
 export async function* partText(
   db: Admin, cursor: BackupCursor, options: PartOptions, progress: { next?: BackupCursor },
@@ -147,33 +162,54 @@ export async function* partText(
     JSON.stringify(new Date(now()).toISOString())},"part":${cursor.part},"tables":{`;
   let bytes = 0;
   let pages = 0;
+  let written = 0;
   let after = cursor.after;
+  const endHere = (table: string) => {
+    progress.next = { table, after, part: cursor.part + 1, parts: cursor.parts, bytes: cursor.bytes };
+  };
   const first = BACKUP_TABLES.findIndex((t) => t.name === cursor.table);
   for (let index = first; index < BACKUP_TABLES.length; index += 1) {
     const table = BACKUP_TABLES[index];
     yield `${index === first ? "" : ","}${JSON.stringify(table.name)}:[`;
     let firstRow = true;
     for (;;) {
-      if (pages > 0 && (now() >= options.deadline || bytes >= maxBytes)) {
-        progress.next = { table: table.name, after, part: cursor.part + 1, bytes: cursor.bytes };
+      if (pages > 0 && now() >= options.deadline) {
+        endHere(table.name);
         yield "]}}";
         return;
       }
       const rows = await keysetPage(db, table, after);
       pages += 1;
-      if (rows.length > 0) {
-        const text = rows.map((row) => JSON.stringify(row)).join(",");
-        bytes += text.length;
-        yield `${firstRow ? "" : ","}${text}`;
+      const texts: string[] = [];
+      let full = false;
+      for (const row of rows) {
+        const text = JSON.stringify(row);
+        const size = Buffer.byteLength(text) + 1;           // the row and its comma
+        if (written > 0 && bytes + size > maxBytes) {
+          full = true;
+          break;
+        }
+        texts.push(text);
+        bytes += size;
+        written += 1;
+        after = keyOf(table, row);
+      }
+      if (texts.length > 0) {
+        yield `${firstRow ? "" : ","}${texts.join(",")}`;
         firstRow = false;
-        after = keyOf(table, rows[rows.length - 1]);
+      }
+      if (full) {
+        endHere(table.name);
+        yield "]}}";
+        return;
       }
       if (rows.length < PAGE) break;
     }
     yield "]";
     after = null;
   }
-  progress.next = { table: null, after: null, part: cursor.part + 1, bytes: cursor.bytes };
+  progress.next = { table: null, after: null, part: cursor.part + 1, parts: cursor.parts,
+    bytes: cursor.bytes };
   yield "}}";
 }
 
@@ -207,9 +243,7 @@ export function byteStream(
 }
 
 /** The pass manifest: written last, it names every part in order. */
-export function manifestText(
-  date: string, cursor: BackupCursor, passStartedAt: Date, finishedAt: Date,
-): string {
+export function manifestText(cursor: BackupCursor, passStartedAt: Date, finishedAt: Date): string {
   return JSON.stringify({
     format: MANIFEST_FORMAT,
     consistency: "keyset",
@@ -217,6 +251,6 @@ export function manifestText(
     finished_at: finishedAt.toISOString(),
     bytes: cursor.bytes,
     tables: BACKUP_TABLES.map((t) => t.name),
-    parts: Array.from({ length: cursor.part - 1 }, (_, i) => partPath(date, i + 1)),
+    parts: cursor.parts,
   });
 }

@@ -43,7 +43,8 @@ function listingChain(rows: Record<string, unknown>[]) {
 const jobCursors = () => {
   const chain = { select: () => chain, eq: () => chain,
     maybeSingle: async () => ({ data: null, error: null }) };
-  return { ...chain, upsert: async () => ({ error: null }) };
+  const saved = { eq: () => saved, select: async () => ({ data: [{ job: "backup" }], error: null }) };
+  return { ...chain, upsert: async () => ({ error: null }), update: () => saved };
 };
 
 async function* listOf<T>(items: T[]): AsyncGenerator<T> {
@@ -99,7 +100,12 @@ const admin = {
   },
   // Scale S2 spend sweep: expired-hold counts alternate 1, 0 (one hold before each pass, none
   // after it), and each sweep pass reports one reconciled hold.
-  rpc: vi.fn(async (fn: string) => {
+  rpc: vi.fn(async (fn: string, args?: Record<string, unknown>) => {
+    // The backup refuses to run without its pass lease: a fresh pass every fire.
+    if (fn === "claim_job_cursor" && args?.p_job === "backup") {
+      return { data: [{ after_key: null, listed: false, retry_keys: [], relist: false, done: false,
+        pass_started_at: new Date().toISOString() }], error: null };
+    }
     if (fn === "ai_spend_expired_count") return { data: mocked.expiredCounts++ % 2 === 0 ? 1 : 0, error: null };
     if (fn === "ai_spend_sweep") { mocked.spendSweeps += 1; return { data: 1, error: null }; }
     // Phase 18 W6: one partial purge pass (fewer rows than a full batch) ends the run.

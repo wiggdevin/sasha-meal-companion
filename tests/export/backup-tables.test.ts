@@ -57,6 +57,25 @@ function schemaTables(): Map<string, Parsed> {
   return tables;
 }
 
+/** Each table's foreign-key parents, from every `references` clause in a create or alter table. */
+function foreignKeys(): Map<string, Set<string>> {
+  const parents = new Map<string, Set<string>>();
+  const add = (child: string, parent: string) => {
+    parents.set(child, new Set([...(parents.get(child) ?? []), parent]));
+  };
+  for (const file of readdirSync(DIR).filter((name) => name.endsWith(".sql")).sort()) {
+    const sql = readFileSync(join(DIR, file), "utf8").replace(/--[^\n]*/g, "");
+    for (const m of sql.matchAll(/create table (?:if not exists )?(?:public\.)?([a-z_0-9]+)\s*\(/gi)) {
+      const body = balanced(sql, m.index + m[0].length);
+      for (const r of body.matchAll(/references\s+(?:public\.)?([a-z_0-9]+)/gi)) add(m[1], r[1]);
+    }
+    for (const m of sql.matchAll(
+      /alter table (?:only )?(?:if exists )?(?:public\.)?([a-z_0-9]+)[^;]*?references\s+(?:public\.)?([a-z_0-9]+)/gi,
+    )) add(m[1], m[2]);
+  }
+  return parents;
+}
+
 describe("backup table list (A083)", () => {
   const schema = schemaTables();
   const backedUp = BACKUP_TABLES.map((t) => t.name);
@@ -100,8 +119,20 @@ describe("backup table list (A083)", () => {
     ]) expect(backedUp, name).toContain(name);
   });
 
+  it("lists every table after the backed-up tables it references (restore order)", () => {
+    const fks = foreignKeys();
+    expect(fks.get("log_items")).toContain("food_refs");     // the parser sees the schema
+    const late = BACKUP_TABLES.flatMap(({ name }, index) => [...(fks.get(name) ?? [])]
+      .filter((parent) => parent !== name && backedUp.includes(parent)
+        && backedUp.indexOf(parent) > index)
+      .map((parent) => `${name} -> ${parent}`));
+    expect(late, "move each parent ahead of the table that references it").toEqual([]);
+  });
+
   it("lists an owner table before the child tables that reference it", () => {
     const at = (name: string) => backedUp.indexOf(name);
+    expect(at("food_refs")).toBeLessThan(at("log_items"));
+    expect(at("food_refs")).toBeLessThan(at("user_food_prefs"));
     expect(at("log_entries")).toBeLessThan(at("log_items"));
     expect(at("recipes")).toBeLessThan(at("recipe_revisions"));
     expect(at("recipe_revisions")).toBeLessThan(at("recipe_items"));
