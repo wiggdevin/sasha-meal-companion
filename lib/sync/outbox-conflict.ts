@@ -4,9 +4,9 @@
  * the queue, so this works out the rebase and hands it back for the drain to commit.
  */
 import {
-  allOps, deleteOp, getRow, putRow, wireOp, type AccountHandle, type OutboxOp,
+  allOps, deleteOp, getRow, putRow, wireOp, type AccountHandle, type OutboxOp, type QueuedSyncOp,
 } from "./idb";
-import { mergeEntity, NEVER_MERGED, rebaseOp, type Row } from "./merge";
+import { mergeEntity, mergePlanDayFields, NEVER_MERGED, rebaseOp, type Row } from "./merge";
 import { queuedAfter } from "./row-queue";
 import { settleUserSettings } from "./settings";
 import type { OpResult, SyncOp } from "./types";
@@ -56,7 +56,7 @@ function restarAsRestore(op: OutboxOp, currentRev: number, now: number): SyncOp 
 }
 
 /** A refused op's replacement: the rebase, the queued ops folded into it, and the mirror row. */
-export type Rebase = { op: SyncOp; retire: string[]; mirror: Row };
+export type Rebase = { op: QueuedSyncOp; retire: string[]; mirror: Row };
 
 /**
  * The run of create/update ops queued right behind `op` for its row. They were aimed at revisions
@@ -71,6 +71,32 @@ function foldable(all: readonly OutboxOp[], op: OutboxOp): OutboxOp[] {
     out.push(next);
   }
   return out;
+}
+
+/**
+ * A refused `plan_days` edit and the edits queued behind it, merged field by field and slot by
+ * slot onto the server's day (audit 2026-10-10 A141, backlog B091). The rebase carries only the
+ * fields they wrote, each based on the server's value now. Null for an op queued before field-wise
+ * edits existed (no `base_fields`): its whole-row payload takes the generic merge.
+ */
+function rebasePlanDay(
+  all: readonly OutboxOp[], op: OutboxOp, server: Row, currentRev: number, serverTs: string,
+): Rebase | null {
+  const ops = [op, ...foldable(all, op)];
+  if (ops.some((o) => o.base_fields === undefined)) return null;
+  const touched = Object.assign({}, ...ops.map((o) => o.payload)) as Row;
+  const base: Row = {};
+  for (const o of ops) {
+    for (const [field, value] of Object.entries(o.base_fields!)) if (!(field in base)) base[field] = value;
+  }
+  const merged = mergePlanDayFields(touched, base, server, ops[ops.length - 1].client_ts, serverTs);
+  const fields = Object.keys(merged).filter((field) => field !== "local_date" && field !== "eaten_slots");
+  return {
+    op: { ...rebaseOp(wireOp(op), merged, currentRev),
+      base_fields: Object.fromEntries(fields.map((field) => [field, server[field] ?? null])) },
+    retire: ops.slice(1).map((o) => o.op_id),
+    mirror: { ...server, ...merged, rev: currentRev },
+  };
 }
 
 /**
@@ -101,15 +127,20 @@ export async function settleConflict(
     return { op: restarAsRestore(op, result.current_rev, now()), retire: [],
       mirror: { ...server, deleted_at: null, rev: result.current_rev } };
   }
+  const serverTs = serverTimestampOf(server, new Date(now()).toISOString());
+  const all = await allOps(h);
+  if (op.entity === "plan_days") {
+    const day = rebasePlanDay(all, op, server, result.current_rev, serverTs);
+    if (day) return day;
+  }
   // syncOnce pulls before it pushes, but a pulled row is held while an op for it is queued, so the
   // mirror holds the newest optimistic state. The ops' payloads are the only surviving record of
   // what the user meant, oldest first, so they win over the mirror.
-  const folded = foldable(await allOps(h), op);
+  const folded = foldable(all, op);
   const mirror = ((await getRow(h, op.entity, op.entity_id)) ?? {}) as Row;
   const local = Object.assign({ ...mirror }, op.payload, ...folded.map((o) => o.payload)) as Row;
   const localTs = folded.length > 0 ? folded[folded.length - 1].client_ts : op.client_ts;
-  const merged = mergeEntity(op.entity, local, server, localTs,
-    serverTimestampOf(server, new Date(now()).toISOString()));
+  const merged = mergeEntity(op.entity, local, server, localTs, serverTs);
   return {
     op: rebaseOp(wireOp(op), stripServerOwned(merged), result.current_rev),
     retire: folded.map((o) => o.op_id),

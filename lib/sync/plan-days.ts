@@ -18,6 +18,23 @@ export function applyPulledPlanDay(h: AccountHandle, change: ChangeRow): Promise
   return serializePlanDay(change.entity_key, () => applyPlanDay(h, change));
 }
 
+/**
+ * Today's legacy day takes the plan the mirror holds — after a conflict merged another device's
+ * edits into this phone's queued one (audit 2026-10-10 A141). The mirror is read under the day's
+ * lock, so a local write made since is in it too.
+ */
+export function projectMirroredPlanDay(h: AccountHandle, date: string): Promise<void> {
+  return serializePlanDay(date, async () => {
+    const db = await openAccountDb(h);
+    const parsed = planDayProjectionSchema.safeParse((await db.get("plan_days", date)) ?? null);
+    assertCurrent(h);
+    if (!parsed.success) return;
+    const store = loadStore();
+    const day = withPlanAuthority({ ...store.days[date], date, ...planDayFields(parsed.data) });
+    saveStoreFor(h, { ...store, days: { ...store.days, [date]: day } }, { silent: true });
+  });
+}
+
 async function applyPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolean> {
   const parsed = planDayProjectionSchema.safeParse(change.current ?? {});
   if (!parsed.success) {

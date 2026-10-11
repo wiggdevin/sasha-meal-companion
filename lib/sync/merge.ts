@@ -129,6 +129,80 @@ function mergeEatenSlots(local: unknown, server: unknown): Record<string, EatenS
   return out;
 }
 
+/** A value's identity, whatever order its object keys were written in (a jsonb row from the
+ *  server and an object built on the phone order the same keys differently). */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).filter((key) => object[key] !== undefined).sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+function same(a: unknown, b: unknown): boolean {
+  return canonical(a) === canonical(b);
+}
+
+function asMap(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown> : {};
+}
+
+/** Three-way: theirs where mine left the base alone, mine where theirs did, else `both`. */
+function threeWay(mine: unknown, base: unknown, theirs: unknown, both: () => unknown): unknown {
+  if (same(mine, base)) return theirs;
+  if (same(theirs, base)) return mine;
+  return both();
+}
+
+/** The `plan_days` fields kept per slot: one device's slot never replaces another's. */
+const PLAN_DAY_MAPS: ReadonlySet<string> = new Set(["swaps", "slot_notes", "item_overrides"]);
+
+/** What a `plan_days` field holds on a row nobody has written yet (the server's insert defaults). */
+export const PLAN_DAY_EMPTY: Readonly<Record<string, unknown>> = {
+  day_type_override: null, floor_day: false, swaps: {}, slot_notes: {}, item_overrides: {},
+  day_complete_at: null,
+};
+
+/**
+ * A field-wise `plan_days` edit merged onto the server's row (audit 2026-10-10 A141, backlog B091).
+ * `local` holds only the fields the user's ops wrote, `base` each field as the edit found it. A
+ * field — or, for swaps, slot notes and item overrides, a slot — that one side left as it was takes
+ * the other side's value; only one both sides changed falls to the newer side, and a slot note both
+ * changed keeps both texts. Eaten ticks keep their own per-slot clock. Returns the merged values
+ * of the fields `local` names.
+ */
+export function mergePlanDayFields(
+  local: Row, base: Row, server: Row, localTs: string, serverTs: string,
+): Row {
+  const localWins = isNewer(localTs, serverTs);
+  const out: Row = {};
+  for (const field of Object.keys(local)) {
+    if (field === "local_date") out[field] = local[field];
+    else if (field === "eaten_slots") out[field] = mergeEatenSlots(local[field], server[field]);
+    else if (!(field in base)) out[field] = localWins || server[field] === undefined ? local[field] : server[field];
+    else if (PLAN_DAY_MAPS.has(field)) {
+      const mine = asMap(local[field]);
+      const was = asMap(base[field]);
+      const theirs = asMap(server[field]);
+      const merged: Record<string, unknown> = {};
+      for (const slot of new Set([...Object.keys(theirs), ...Object.keys(was), ...Object.keys(mine)])) {
+        const value = threeWay(mine[slot], was[slot], theirs[slot], () => field === "slot_notes"
+          ? joinNotes(mine[slot], theirs[slot], localTs, serverTs)
+          : localWins ? mine[slot] : theirs[slot]);
+        if (value !== undefined) merged[slot] = value;
+      }
+      out[field] = merged;
+    } else {
+      out[field] = threeWay(local[field], base[field], server[field],
+        () => localWins ? local[field] : server[field]);
+    }
+  }
+  return out;
+}
+
 function bySeqThenId(a: Row, b: Row): number {
   const seq = Number(a.seq ?? 0) - Number(b.seq ?? 0);
   return seq !== 0 ? seq : String(a.id ?? "").localeCompare(String(b.id ?? ""));

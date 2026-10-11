@@ -1,7 +1,8 @@
 // lib/sync/merge.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  joinNotes, MergeRefusedError, mergeEntity, mergeNoteFromBase, NEVER_MERGED, rebaseOp,
+  joinNotes, MergeRefusedError, mergeEntity, mergeNoteFromBase, mergePlanDayFields, NEVER_MERGED,
+  rebaseOp,
 } from "./merge";
 import type { SyncOp } from "./types";
 
@@ -160,6 +161,53 @@ describe("mergeNoteFromBase", () => {
 
   it("treats surrounding whitespace as no change", () => {
     expect(mergeNoteFromBase("ok", "ok now", " ok ", NEW, OLD)).toBe("ok now");
+  });
+});
+
+/** Audit 2026-10-10 A141 / backlog B091: a field-wise plan edit, merged slot by slot. */
+describe("mergePlanDayFields", () => {
+  it("keeps the other side's value for a field this edit left as it found it", () => {
+    expect(mergePlanDayFields({ floor_day: false }, { floor_day: false }, { floor_day: true }, NEW, OLD))
+      .toEqual({ floor_day: true });
+  });
+
+  it("keeps this edit's value for a field the other side left alone, older or not", () => {
+    expect(mergePlanDayFields({ floor_day: true }, { floor_day: false }, { floor_day: false }, OLD, NEW))
+      .toEqual({ floor_day: true });
+  });
+
+  it("merges swaps and item overrides per slot", () => {
+    const merged = mergePlanDayFields(
+      { swaps: { "meal-1": "oats" }, item_overrides: { "meal-1": { title: "Oats" } } },
+      { swaps: {}, item_overrides: {} },
+      { swaps: { "meal-2": "eggs" }, item_overrides: { "meal-3": { title: "Pad thai" } } }, OLD, NEW);
+    expect(merged).toEqual({
+      swaps: { "meal-1": "oats", "meal-2": "eggs" },
+      item_overrides: { "meal-1": { title: "Oats" }, "meal-3": { title: "Pad thai" } },
+    });
+  });
+
+  it("keeps a slot this edit removed, unless the other side changed it too", () => {
+    expect(mergePlanDayFields({ swaps: {} }, { swaps: { "meal-1": "oats" } },
+      { swaps: { "meal-1": "oats", "meal-2": "eggs" } }, OLD, NEW)).toEqual({ swaps: { "meal-2": "eggs" } });
+    expect(mergePlanDayFields({ swaps: {} }, { swaps: { "meal-1": "oats" } },
+      { swaps: { "meal-1": "toast" } }, OLD, NEW)).toEqual({ swaps: { "meal-1": "toast" } });
+  });
+
+  it("gives a slot both sides changed to the newer one, and keeps both notes", () => {
+    expect(mergePlanDayFields({ swaps: { "meal-1": "oats" } }, { swaps: {} },
+      { swaps: { "meal-1": "eggs" } }, NEW, OLD)).toEqual({ swaps: { "meal-1": "oats" } });
+    expect(mergePlanDayFields({ slot_notes: { "meal-1": "ate half" } }, { slot_notes: {} },
+      { slot_notes: { "meal-1": "no rice" } }, NEW, OLD))
+      .toEqual({ slot_notes: { "meal-1": "no rice\nate half" } });
+  });
+
+  it("reads an override the server re-ordered as the same override", () => {
+    const mine = { baseMealId: null, title: "Chili", components: [] };
+    const jsonb = { title: "Chili", components: [], baseMealId: null };
+    expect(mergePlanDayFields({ item_overrides: { "meal-1": mine } },
+      { item_overrides: { "meal-1": jsonb } }, { item_overrides: {} }, NEW, OLD))
+      .toEqual({ item_overrides: {} });
   });
 });
 
