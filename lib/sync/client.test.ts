@@ -35,6 +35,18 @@ const idbSpies = vi.hoisted(() => ({
   actualPutRow: null as null | ((...args: never[]) => Promise<void>),
 }));
 
+// A pulled row other than a log entry is written through `putPulledRow` (lib/sync/row-queue.ts).
+const rowQueueSpies = vi.hoisted(() => ({
+  putPulledRow: vi.fn(),
+  actualPutPulledRow: null as null | ((...args: never[]) => Promise<unknown>),
+}));
+
+vi.mock("./row-queue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./row-queue")>();
+  rowQueueSpies.actualPutPulledRow = actual.putPulledRow as never;
+  return { ...actual, putPulledRow: (...args: unknown[]) => rowQueueSpies.putPulledRow(...args) };
+});
+
 const foodSpies = vi.hoisted(() => ({ loadAccountFoodSnapshot: vi.fn() }));
 vi.mock("./food-refs", () => ({ loadAccountFoodSnapshot: foodSpies.loadAccountFoodSnapshot }));
 
@@ -66,6 +78,8 @@ beforeEach(async () => {
   globalThis.indexedDB = new IDBFactory();
   idbSpies.putRow.mockReset();
   idbSpies.putRow.mockImplementation(idbSpies.actualPutRow!);
+  rowQueueSpies.putPulledRow.mockReset();
+  rowQueueSpies.putPulledRow.mockImplementation(rowQueueSpies.actualPutPulledRow!);
   settingsSpies.selectAndFreezeSettings.mockReset();
   settingsSpies.selectAndFreezeSettings.mockImplementation(settingsSpies.actualSelectAndFreezeSettings!);
   foodSpies.loadAccountFoodSnapshot.mockReset().mockResolvedValue({ foods: [], prefs: [], refs: [] });
@@ -630,7 +644,7 @@ describe("pullChanges", () => {
 
   it("leaves the cursor alone when writing a row genuinely fails", async () => {
     await setCursor(h, 41);
-    idbSpies.putRow.mockRejectedValue(new Error("disk is full"));
+    rowQueueSpies.putPulledRow.mockRejectedValue(new Error("disk is full"));
     await expect(pullChanges(h, undefined, {
       fetchFn: pageFn({ changes: [row(42)], next_cursor: 42, has_more: false }),
     })).rejects.toThrow(/disk is full/);

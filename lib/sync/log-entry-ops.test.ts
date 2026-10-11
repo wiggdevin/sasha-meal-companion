@@ -10,7 +10,7 @@
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { handleLogEntryResult, MAX_UPDATE_REBASES } from "./log-entry-ops";
+import { handleLogEntryResult, MAX_UPDATE_REBASES, movedFields } from "./log-entry-ops";
 import { allOps, getRow, putOp, type OutboxOp } from "./idb";
 import { PARK_MS } from "./settings";
 import type { OpResult } from "./types";
@@ -93,5 +93,144 @@ describe("a note the server refused", () => {
     expect(left).toHaveLength(1);
     expect(left[0].payload.note).toBe("felt fine");
     expect(left[0].next_attempt_at).toBeGreaterThanOrEqual(Date.now() + PARK_MS - 1_000);
+  });
+});
+
+/**
+ * Audit 2026-10-10 A077: her note op carries the WHOLE note, and the rebase joined it to the
+ * server's note on any conflict, even one another device caused without touching the note. Her
+ * rewrite came back with the old text in front of it, and a cleared note came back.
+ */
+describe("a note refused because another device changed something else", () => {
+  const server = (note: string | null) => ({
+    ...conflict, current: { ...SERVER, note },
+  }) as OpResult;
+
+  it("keeps her rewrite instead of joining it to the text she rewrote", async () => {
+    const op = noteOp({ note_base: "felt fine",
+      payload: { ...noteOp().payload, note: "felt fine, then good" } });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("felt fine"), op);
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.note).toBe("felt fine, then good");
+  });
+
+  it("keeps her clear instead of bringing the old note back", async () => {
+    const op = noteOp({ note_base: "felt fine", payload: { ...noteOp().payload, note: null } });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("felt fine"), op);
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.note).toBeNull();
+  });
+
+  it("still keeps both when the other device changed the note too", async () => {
+    const op = noteOp({ note_base: null });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("a bit heavy"), op);
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.note).toBe("a bit heavy\nfelt fine");
+  });
+
+  it("re-aims on the server's note, so a second refusal adds nothing", async () => {
+    const op = noteOp({ note_base: null });
+    await putOp(h, op);
+    await handleLogEntryResult(h, server("a bit heavy"), op);
+    const [once] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(once.note_base).toBe("a bit heavy");
+    // Another device moves the entry; the note stays theirs-plus-hers.
+    await handleLogEntryResult(h, { ...conflict, current_rev: 3,
+      current: { ...SERVER, rev: 3, note: "a bit heavy" } } as OpResult, once);
+    const [twice] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(twice.payload.note).toBe("a bit heavy\nfelt fine");
+    expect(twice.base_rev).toBe(3);
+  });
+});
+
+describe("a coach move the server refused", () => {
+  const BEFORE = "2026-11-02T17:00:00.000Z";
+  const MOVED = "2026-11-02T13:30:00.000Z";
+  /** A retime queued against rev 1: the time moved, the base records where it was. */
+  const moveOp = (over: Partial<OutboxOp> = {}): OutboxOp => noteOp({
+    payload: { ...noteOp().payload, note: null, eaten_at: MOVED },
+    base_fields: { eaten_at: BEFORE, local_date: "2026-11-02", tz: "UTC" }, note_base: null, ...over,
+  });
+
+  it("keeps the new time on the server's row instead of reading the move as a note", async () => {
+    const op = moveOp();
+    await putOp(h, op);
+
+    expect(await handleLogEntryResult(h, conflict, op)).toBe(true);
+
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.base_rev).toBe(2);
+    expect(left.payload).toMatchObject({ eaten_at: MOVED, items: SERVER.items, note: null });
+    // Re-based on the server's placement; the move keeps its own time for the next conflict.
+    expect(left.base_fields).toEqual({ eaten_at: BEFORE, local_date: "2026-11-02", tz: "UTC" });
+    expect(left.field_stamps).toEqual({ eaten_at: op.client_ts });
+  });
+
+  it("lets the other device's move stand when the row cannot say when it was made", async () => {
+    const op = moveOp();
+    await putOp(h, op);
+    const moved = { ...conflict, current: { ...SERVER, eaten_at: "2026-11-02T19:00:00.000Z" } } as OpResult;
+
+    await handleLogEntryResult(h, moved, op);
+
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.eaten_at).toBe("2026-11-02T19:00:00.000Z");
+  });
+
+  it("lets a later move on the other device stand", async () => {
+    const op = moveOp();
+    await putOp(h, op);
+    const later = { ...conflict, current: { ...SERVER, eaten_at: "2026-11-02T19:00:00.000Z",
+      updated_at: "2026-11-02T18:00:00.000Z" } } as OpResult;
+
+    await handleLogEntryResult(h, later, op);
+
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.eaten_at).toBe("2026-11-02T19:00:00.000Z");
+    expect(left.base_fields).toBeUndefined();
+  });
+
+  it("keeps a move queued behind a refused note, with the note", async () => {
+    const note = noteOp();
+    const move = moveOp({ op_id: "55555555-5555-4555-8555-555555555555", seq: 2,
+      payload: { ...noteOp().payload, note: "felt fine", eaten_at: MOVED },
+      client_ts: "2026-11-02T17:06:00.000Z", note_base: "felt fine" });
+    await putOp(h, note);
+    await putOp(h, move);
+
+    await handleLogEntryResult(h, conflict, note);
+
+    const left = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left).toHaveLength(1);
+    expect(left[0].payload).toMatchObject({ eaten_at: MOVED, note: "felt fine" });
+  });
+
+  it("judges a run of moves whole: a move and its Undo cancel out", () => {
+    const there = { payload: { eaten_at: MOVED }, base_fields: { eaten_at: BEFORE }, client_ts: "2026-11-02T17:05:00Z" };
+    const back = { payload: { eaten_at: BEFORE }, base_fields: { eaten_at: MOVED }, client_ts: "2026-11-02T17:06:00Z" };
+    expect(movedFields([there, back], { ...SERVER, updated_at: "2026-11-02T17:10:00Z" }, "2026-11-02T17:10:00Z"))
+      .toEqual({ fields: {} });
+  });
+
+  it("dates the move by its own time, not by a note folded after it", () => {
+    const move = { payload: { eaten_at: MOVED }, base_fields: { eaten_at: BEFORE },
+      client_ts: "2026-11-02T17:10:00Z", field_stamps: { eaten_at: "2026-11-02T17:05:00Z" } };
+    const remote = { ...SERVER, eaten_at: "2026-11-02T19:00:00.000Z" };
+    expect(movedFields([move], remote, "2026-11-02T17:08:00Z").fields).toEqual({});
+  });
+
+  it("compares instants, not spellings, and moves time, date and zone together", () => {
+    const move = { payload: { eaten_at: MOVED, local_date: "2026-11-02", tz: "UTC" },
+      base_fields: { eaten_at: BEFORE, local_date: "2026-11-02", tz: "UTC" }, client_ts: "2026-11-02T17:05:00.000Z" };
+    // The same server time spelt "+00:00" is not a remote move.
+    const same = movedFields([move], { ...SERVER, eaten_at: "2026-11-02T17:00:00+00:00" },
+      "2026-11-02T17:09:00.000999+00:00");
+    expect(same.fields).toEqual({ eaten_at: MOVED, local_date: "2026-11-02", tz: "UTC" });
+    // A remote date change made earlier than the move: the move wins whole, its date with it.
+    const earlier = movedFields([move], { ...SERVER, local_date: "2026-11-03" }, "2026-11-02T17:04:00.000Z");
+    expect(earlier.fields).toMatchObject({ eaten_at: MOVED, local_date: "2026-11-02" });
   });
 });

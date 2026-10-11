@@ -17,6 +17,7 @@ import { foodsFromSyncRows, loadStore, saveStoreFor } from "../store";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import { loadAccountFoodSnapshot } from "./food-refs";
 import { applyPulledPlanDay } from "./plan-days";
+import { putPulledRow, releasePullHolds } from "./row-queue";
 import { projectPulledEntry } from "@/lib/log/pulled-entry";
 import { isCommitting } from "@/lib/log/live-commits";
 import { hasQueuedOp } from "@/lib/log-commit-settle";
@@ -256,7 +257,8 @@ export async function pullChanges(
 ): Promise<PullResult> {
   const fetchFn = options.fetchFn ?? globalThis.fetch;
   const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
-  let cursor = since ?? (await getCursor(h));
+  // A change held back for a queued op is read again once that row's queue is empty (A168).
+  let cursor = since ?? await releasePullHolds(h, await getCursor(h));
   let applied = 0;
   let skipped = 0;
   let pages = 0;
@@ -306,7 +308,8 @@ export async function pullChanges(
         else if (change.entity === "target_profiles") {
           await deleteMirroredTargetProfile(h, change.entity_key);
         }
-        else await deleteRow(h, change.entity, change.entity_key);
+        // A delete echo waits for a queued op on the row like any other change (A164).
+        else await putPulledRow(h, change);
       }
       // `user_settings` is the one row a whole-row writer ALSO rewrites locally (profile save,
       // water goal), so the server's row becomes the BASELINE this client rebuilds the mirror
@@ -317,7 +320,9 @@ export async function pullChanges(
       else if (change.entity === "target_profiles") {
         await applyAndMirrorTargetProfile(h, change.entity_key, change.current);
       }
-      else await putRow(h, change.entity, change.entity_key, change.current);
+      // Every other row waits while an op for it is queued (lib/sync/row-queue.ts, audit 2026-10-10
+      // A164). A log entry never gets here: projectPulledLogEntry above defers to its own writes.
+      else await putPulledRow(h, change);
       applied += 1;
     }
     cursor = page.next_cursor;

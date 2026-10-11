@@ -70,8 +70,9 @@ describe("the other plan-day writes", () => {
   it("toggling Floor Day does not delete the edits made that day", async () => {
     await saveItemOverride(DATE, "coffee", { baseMealId: "coffee-latte", components: [wholeMilk] });
     await toggleFloorDay(DATE);
-    const payload = await lastPayload();
-    expect(payload?.item_overrides).toMatchObject({
+    // The update names only Floor Day; the server keeps the overrides a payload omits.
+    expect(await lastPayload()).not.toHaveProperty("item_overrides");
+    expect((await getRow(h, "plan_days", DATE))?.item_overrides).toMatchObject({
       coffee: { baseMealId: "coffee-latte", components: [wholeMilk], mutationId: expect.any(String) },
     });
   });
@@ -192,7 +193,9 @@ describe("saveMealEdit", () => {
       time: "14:00", mutationId: expect.any(String) });
     expect(day.notes).toEqual({ "meal-1": "Lunch note" });
     expect(getDay("2026-09-15")).toEqual(otherDate);
-    expect((await lastPayload())?.slot_notes).toEqual(day.notes);
+    // A time-only edit leaves the notes out of its payload; the mirror (the server's row) keeps them.
+    expect(await lastPayload()).not.toHaveProperty("slot_notes");
+    expect((await getRow(h, "plan_days", DATE))?.slot_notes).toEqual(day.notes);
   });
 
   it("preserves custom portions when moving an already edited meal", async () => {
