@@ -50,6 +50,31 @@ export async function fetchAllRows<T>(
 }
 
 /**
+ * Keyset reads of at most `want` rows (W012: the export's page of up to 5,000 rows read past the
+ * cap). `page(after, size)` returns the next `size` rows strictly after `after` (null: from the
+ * start) in the caller's total, unique order; each request asks for at most `PAGE_SIZE` rows, and a
+ * short request ends the read. Any failed request rejects the whole read, never a partial set.
+ */
+export async function fetchUpTo<T>(
+  want: number,
+  page: (after: T | null, size: number) => PromiseLike<PageResult<T>>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let pageNumber = 0; out.length < want; pageNumber += 1) {
+    if (pageNumber >= MAX_PAGES) {
+      throw new Error(`fetchUpTo: exceeded ${MAX_PAGES} pages — the paging contract likely broke`);
+    }
+    const size = Math.min(PAGE_SIZE, want - out.length);
+    const { data, error } = await page(out.at(-1) ?? null, size);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []).slice(0, size);
+    out.push(...rows);
+    if (rows.length < size) break;
+  }
+  return out;
+}
+
+/**
  * Pages every chunk of a large `.in(...)` key list and concatenates the results. Chunks run one
  * after another (no request burst); any failed page of any chunk rejects the whole read.
  */

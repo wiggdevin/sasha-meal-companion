@@ -113,19 +113,32 @@ export async function mergedDays(client: SupabaseClient, userId: string, from: s
   });
 }
 
+type WeighInRow = { local_date: string; value: number; unit: string; source_kind?: string | null };
+
+/**
+ * T8 §2, the dashboard's rule (lib/health/daily.ts rollUpDay, `daily_health`): on a day with a
+ * device reading, a number the user typed does not count. Otherwise the estimator's daily median
+ * (ruling R1) would blend the scale's 80.0 with a typed 80.4 the dashboard never shows (A050). A row
+ * with no source kind is an ingest reading: only `health_weigh_in` writes 'manual'.
+ */
+function scaleBeatsManual(rows: WeighInRow[]): WeighInRow[] {
+  const deviceDays = new Set(rows.filter((r) => r.source_kind !== "manual").map((r) => r.local_date));
+  return rows.filter((r) => r.source_kind !== "manual" || !deviceDays.has(r.local_date));
+}
+
 export async function weighInsKg(client: SupabaseClient, userId: string, from: string, to: string):
     Promise<{ date: string; kg: number }[]> {
   // Date windows, so five years of weigh-ins never meet the 1,000-row cap (lib/server/date-chunks.ts).
   const data = await readByDateChunks(from, to, async (start, end) => {
     const { data: rows, error } = await client.from("weigh_ins")
-      .select("local_date, value, unit")
+      .select("local_date, value, unit, source_kind")
       .eq("user_id", userId)
       .gte("local_date", start)
       .lt("local_date", new Date(Date.parse(`${end}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10));
     if (error) throw error;
-    return (rows ?? []) as { local_date: string; value: number; unit: string }[];
+    return (rows ?? []) as WeighInRow[];
   });
-  return data
+  return scaleBeatsManual(data)
     .map((row) => ({ date: row.local_date,
       kg: toCanonical("body_mass", Number(row.value), row.unit).value }))
     .sort((a, b) => a.date.localeCompare(b.date));
