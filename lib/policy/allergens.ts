@@ -33,6 +33,7 @@ import type { Facet } from "@/lib/foods/facet-vocabulary";
 import { isCompleteLabelStatement } from "@/lib/policy/label-completeness";
 import { classifyWholeFood, clearanceNameOf } from "@/lib/policy/whole-foods";
 import { HELD_ALLERGEN_TEXT, isDeterministicListed } from "@/lib/policy/allergen-holds";
+import { nameForScan } from "@/lib/policy/allergen-name";
 
 export type AllergenLevel = "listed" | "not_listed" | "no_evidence";
 /** `held` (W2a): a Jev-only `listed`, a hold; set only with `level: "listed"`, so it fails closed. */
@@ -62,9 +63,10 @@ export const ALLERGEN_RULES: Readonly<Record<string, AllergenRule>> = {
     "curd", "curds", "lactalbumin", "lactoglobulin", "paneer", "ricotta", "mozzarella",
     "parmesan", "cheddar"], exclusions: [
     "cocoa butter", "cacao butter", "shea butter", "peanut butter", "nut butter",
-    "almond butter", "cashew butter", "seed butter", "apple butter", "cream of tartar",
-    "coconut milk", "coconut cream", "almond milk", "oat milk", "soy milk", "soya milk",
-    "rice milk", "cashew milk", "milk thistle", "butternut", "cream of wheat", "cream of rice"] },
+    "almond butter", "cashew butter", "seed butter", "sesame butter", "apple butter",
+    "cream of tartar", "coconut milk", "coconut cream", "almond milk", "oat milk", "soy milk",
+    "soya milk", "rice milk", "cashew milk", "milk thistle", "butternut", "cream of wheat",
+    "cream of rice"] },
   egg: { label: "egg", major: true, facets: ["contains_egg"], keywords: [
     "egg", "eggs", "albumen", "albumin", "ovalbumin", "lysozyme", "mayonnaise", "meringue",
     "yolk", "yolks"] },
@@ -228,7 +230,7 @@ export function deriveEvidence(name: string, input: {
   const tagged = (input.tags ?? []).some((tag) => allergenKey(tag) === key);
   const hasText = typeof input.ingredientsText === "string" && input.ingredientsText.trim() !== "";
   const labelComplete = hasText && input.labelComplete;
-  if (tagged || textNames(key, input.ingredientsText) || textNames(key, input.foodName)) {
+  if (tagged || textNames(key, input.ingredientsText) || textNames(key, nameForScan(input.foodName))) {
     return { level: "listed", labelComplete };
   }
   return { level: labelComplete ? "not_listed" : "no_evidence", labelComplete };
