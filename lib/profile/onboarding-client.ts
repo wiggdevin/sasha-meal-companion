@@ -223,6 +223,12 @@ export async function retryOnboardingConstraints(flags: readonly PreferenceFlag[
   return (await applyFlagConstraints(h, flags, persistence)).constraintsSaved;
 }
 
+/** The same weight to the gram `parsedWeightKg` rounds a seeded weight to. */
+export function sameWeightKg(a: number | null | undefined, b: number | null | undefined): boolean {
+  if (a == null || b == null) return a == b;
+  return Math.round(a * 1000) === Math.round(b * 1000);
+}
+
 export type CompletedOnboardingResult = {
   settings: Settings;
   constraintsSaved: boolean;
@@ -266,8 +272,15 @@ export async function persistCompletedOnboarding(
   }
   const weightLb = weightLbFor(state);
   const localDate = deps.localDate();
+  // A typed weight is a weigh-in. An untouched one is only the profile's own `weight_kg`, which no
+  // weigh-in updates, so on an onboarded account (Settings › Edit profile) it can be weeks stale:
+  // logging it would add a false point and derive the new target from it (audit 2026-10-10 A089).
+  // Only a first completion with no weigh-in today records the weight it was given.
+  // The form reads a seeded weight back rounded to the gram (`parsedWeightKg`), so an untouched
+  // 70.1234 kg returns as 70.123: a difference under half a gram is the same weight.
+  const weightChanged = !sameWeightKg(settings.weightKg, base.weightKg);
   if (weightLb !== null
-    && (settings.weightKg !== base.weightKg || !deps.hasWeighIn(localDate))) {
+    && (weightChanged || (!base.onboardedAt && !deps.hasWeighIn(localDate)))) {
     await deps.saveWeighIn(localDate, weightLb);
   }
   // PR #248 review r2 #1: a weigh-in answered after a switch must not lead into B's settings.
@@ -291,6 +304,8 @@ export async function persistCompletedOnboarding(
   // W13 (D14): only a FIRST completion opens the world — a later re-run of this same function
   // (an account editing its profile again) must never re-invite an account that chose `closed`.
   // A completion that wrote safety conditions stays closed (a condition closes an open account).
+  // The server applies the default only to a brand-new account: a grandfathered one finishing the
+  // Today invite settles as closed (lib/server/food-world.ts, audit 2026-10-10 A091).
   if (!base.onboardedAt && conditions.length === 0) await deps.openFoodWorld(h);
   return { settings: savedSettings, ...constraints };
 }

@@ -302,7 +302,10 @@ still rejects an off-plan ingredient (R6) — a recipe is a meal the user plans,
   never rename; only the copy a person reads changes, to "Favored". A new account opens
   (`food_world = 'open'`) at onboarding completion (`lib/profile/onboarding-client.ts`
   `persistCompletedOnboarding` / `persistSkippedOnboarding`, first completion only) with 0
-  default or inherited Favored marks. The open is durable (`lib/foods/world-open-client.ts`): a
+  default or inherited Favored marks. Only a brand-new account (`first_opened_at` after the
+  onboarding cutover, `lib/profile/onboarding-cutover.ts`) gets that default: the conditional write
+  also requires it, and `readFoodWorldState` never marks a grandfathered account that finished the
+  Today invite `openDefaultPending` (audit 2026-10-10 A091). The open is durable (`lib/foods/world-open-client.ts`): a
   pending intent in the account's META store, re-posted after every successful sync
   (`lib/sync/post-sync.ts`) until the server answers 200 open, 423, 409 `condition_review` or
   another final 4xx. The retry sends `intent: "onboarding_default"`, which `setFoodWorld`
