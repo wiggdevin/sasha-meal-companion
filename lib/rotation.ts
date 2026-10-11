@@ -223,6 +223,7 @@ export function mealsForDay(
  * Floor-day meals deliberately sit OUTSIDE the rotation pools — they are not
  * normal rotation options; they are the escape hatch for a difficult day. So
  * this reads FLOOR_DAY_MEALS directly rather than scanning getMealOptions.
+ * Historical: no app path calls this; `resolveDay` never renders the template.
  */
 export function floorDayMeals(): Meal[] {
   return FLOOR_DAY_MEALS;
