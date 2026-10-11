@@ -307,7 +307,9 @@ export async function groundItem(
     checked = checks.get(revisionKey) ?? [];
     const amount = parseAmount(`${item.qty} ${item.unit} ${item.label}`)
       ?? { qty: item.qty, unit: item.unit };
-    grams = gramsFor(amount.qty, amount.unit, portions, { energy_kcal: 0 }) ?? item.grams;
+    // audit 2026-10-10 A007/A044: a count with no portion row keeps the model's own grams; nothing
+    // here invents a weight per piece.
+    grams = gramsFor(amount.qty, amount.unit, portions) ?? item.grams;
     portionId = matchPortion(amount.unit, portions)?.id ?? null;
     // review round 2 (sol BLOCK): a later, untagged row's own NAME can still name the allergen
     // (e.g. "sesame" split into its own row with no `allergen_tags` entry) even when seq 1's

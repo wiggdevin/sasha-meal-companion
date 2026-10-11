@@ -33,7 +33,7 @@ const RULES = { user_id: "u1", ...DEFAULT_PROFILE };
 
 /** Only the surface proposeDraft uses: two rpcs, three table reads, one insert. */
 function fakeDb(opts: { today?: number; duplicate?: { id: string } | null; portions?: unknown[];
-  portionsError?: boolean; mediaObject?: typeof DEFAULT_MEDIA_OBJECT | null; mediaObjectError?: boolean;
+  portionRows?: unknown[]; portionsError?: boolean; mediaObject?: typeof DEFAULT_MEDIA_OBJECT | null; mediaObjectError?: boolean;
   constraints?: Record<string, unknown> | null } = {}) {
   const inserts: Record<string, unknown>[] = [];
   const rpc = vi.fn(async (name: string) => {
@@ -51,7 +51,9 @@ function fakeDb(opts: { today?: number; duplicate?: { id: string } | null; porti
     // other table's eq keeps chaining, since those callers chain further before resolving.
     chain.eq = table === "catalog_portions" && opts.portionsError
       ? vi.fn().mockResolvedValue({ data: null, error: { message: "boom" } })
-      : vi.fn(self);
+      : table === "catalog_portions" && opts.portionRows
+        ? vi.fn().mockResolvedValue({ data: opts.portionRows, error: null })
+        : vi.fn(self);
     // The ai_calls duplicate probe chains past `.in("purpose", [twin pair])`; every other table's
     // `in` resolves a query result.
     chain.in = table === "ai_calls" ? vi.fn(self)
@@ -72,8 +74,7 @@ function fakeDb(opts: { today?: number; duplicate?: { id: string } | null; porti
 const captureOk = vi.fn(async () => ({
   items: [{ label: "eggs", grams: 100, qty: 2, unit: "whole", confidence: 0.8 }], notes: [] }));
 /** A "cup" item: with no portion row to size it, gramsFor has nothing to multiply and returns
- * null, so this is the fixture that actually shows the model's own grams surviving unchanged
- * (a "whole"/"piece" unit has its own 100 g/unit default that would mask a portions failure). */
+ * null, so this is the fixture that shows the model's own grams surviving unchanged. */
 const captureCup = vi.fn(async () => ({
   items: [{ label: "cottage cheese", grams: 227, qty: 1, unit: "cup", confidence: 0.7 }], notes: [] }));
 const searchOk = vi.fn(async () => ({ hits: [HIT], queryClass: "generic", autoResolve: null,
@@ -231,6 +232,24 @@ describe("proposeDraft", () => {
     expect(out.items[0].autoResolved).toBe(false);
     expect(out.items[0].alternatives).toEqual([{ foodRefId: "ref-70", catalogFoodRevisionId: 70,
       label: "Egg, whole, raw", score: 0.9 }]);
+  });
+
+  it("keeps the model's grams for a count with no matching portion row, never 100 g a piece (A007, A044)", async () => {
+    const shrimp = vi.fn(async () => ({
+      items: [{ label: "shrimp", grams: 120, qty: 8, unit: "piece", confidence: 0.8 }], notes: [] }));
+    const db = fakeDb({ portionRows: [{ id: 3, description: "1 large", gram_weight: 6 }] });
+    const out = await proposeDraft(db.client, db.client, "u1", REQ,
+      { runCapture: shrimp as never, searchFoods: searchOk as never });
+    expect(out.items[0].grams).toBe(120);
+    expect(out.items[0].portionId).toBeNull();
+  });
+
+  it("weighs a cup from a '0.5 cup' portion row as the label's amount, not one unit (A006)", async () => {
+    const db = fakeDb({ portionRows: [{ id: 4, description: "0.5 cup", gram_weight: 113 }] });
+    const out = await proposeDraft(db.client, db.client, "u1", REQ,
+      { runCapture: captureCup as never, searchFoods: searchOk as never });
+    expect(out.items[0].grams).toBe(226);
+    expect(out.items[0].portionId).toBe(4);
   });
 
   it("logs but still returns a draft, keeping the model's grams, when the portions lookup errors", async () => {
