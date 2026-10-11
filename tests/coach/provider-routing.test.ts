@@ -42,6 +42,9 @@ const loweredSchema = (
  * inserts land in `writes` and are read back (the adapter writes ai_calls, the coach reads it
  * for ai_call_id). Chains are thenable, like PostgREST's.
  */
+const LOGGED_DAY = { nutrient_code: "energy_kcal", amount: 2000, items_with_value: 1,
+  items_total: 1, coverage: 1 };
+
 function db(tables: Record<string, Record<string, unknown>[]> = {}) {
   const writes: { table: string; row: Record<string, unknown> }[] = [];
   const store: Record<string, Record<string, unknown>[]> = {
@@ -89,7 +92,9 @@ function db(tables: Record<string, Record<string, unknown>[]> = {}) {
     });
     return chain;
   };
-  return { client: withSpendRpc({ from, rpc: async () => ({ data: [], error: null }) }) as never, writes };
+  // Every day of the week has logged energy, so the weekly review has a week to review (W035).
+  const rpc = async (name: string) => ({ data: name === "get_daily_totals" ? [LOGGED_DAY] : [], error: null });
+  return { client: withSpendRpc({ from, rpc }) as never, writes };
 }
 
 const ports = {

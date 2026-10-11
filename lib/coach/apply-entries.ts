@@ -60,16 +60,24 @@ function perUnitOf(snapshot: LoggedItem["snapshot"]): Record<string, number> | u
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/** Everything Undo needs to put the entry back as it was: its slot, its time, its items. */
-function originals(entry: LoggedFood, slot: SlotId | "snack") {
+/**
+ * Everything Undo needs to put the entry back as it was: its slot, its time, its title and its
+ * items with their own amounts (audit 2026-10-10 A028/A037: the restore dropped the title and
+ * rewrote "2 eggs" as "100 g").
+ */
+function originals(entry: LoggedFood, wire: EntryWire) {
   return {
-    slot, eatenAt: entry.at,
-    items: (entry.items ?? []).map((item) => (item.grams === null
-      // An unknown mass (t17): its count, and the per-unit numbers its snapshot was built from.
-      ? { foodRefId: item.food_ref_id, grams: null, name: item.name, revisionId: null,
-        qty: item.qty, unit: item.unit, perUnit: perUnitOf(item.snapshot) }
-      : { foodRefId: item.food_ref_id, grams: item.grams, name: item.name,
-        revisionId: revisionOf(item) })),
+    slot: wire.slot, eatenAt: entry.at,
+    ...(wire.title !== undefined ? { title: wire.title } : {}),
+    items: (entry.items ?? []).map((item) => {
+      const stored = wire.items.get(item.id) ?? {};
+      return item.grams === null
+        // An unknown mass (t17): its count, and the per-unit numbers its snapshot was built from.
+        ? { foodRefId: item.food_ref_id, grams: null, name: item.name, revisionId: null,
+          qty: item.qty, unit: item.unit, perUnit: perUnitOf(item.snapshot), ...stored }
+        : { foodRefId: item.food_ref_id, grams: item.grams, name: item.name,
+          revisionId: revisionOf(item), qty: item.qty, unit: item.unit, ...stored };
+    }),
   };
 }
 
@@ -79,10 +87,10 @@ export async function applyDeleteEntry(
   const h = accountHandle();
   const found = dateOf(action.entryId);
   if (!found) return { status: "failed", reason: "That entry is not on this phone." };
-  const slot = await slotOfEntry(h, action.entryId);
+  const wire = await wireOfEntry(h, action.entryId, found.entry);
   await forgetLoggedEntry(found.date, action.entryId, h);
   return { status: "applied", token: { kind: "delete_entry", date: found.date,
-    entry: { ...found.entry, tz: ctx.tz }, ...originals(found.entry, slot) } };
+    entry: { ...found.entry, tz: ctx.tz }, ...originals(found.entry, wire) } };
 }
 
 const SLOTS: readonly string[] = ["coffee", "pouches-pre", "post-refuel", "meal-1", "meal-2",
@@ -103,23 +111,52 @@ function asSlot(value: unknown): SlotId | "snack" | null {
  *
  * It must be read BEFORE the delete, which takes the mirror row and the queued op with it.
  */
-async function slotOfEntry(h: AccountHandle, entryId: string): Promise<SlotId | "snack"> {
-  try {
-    const row = await getRow(h, "log_entries", entryId) as Record<string, unknown> | undefined;
-    const mirrored = asSlot(row?.slot);
-    if (mirrored) return mirrored;
-  } catch (e) {
-    rethrowAccountChanged(e); // a blocked database is not evidence of a snack; try the outbox
-  }
+type StoredItem = { portionId?: number | null; wasEdited?: boolean };
+type EntryWire = { slot: SlotId | "snack"; title?: string | null; items: Map<string, StoredItem> };
+
+/** The stored title: a string, or null for an untitled row; undefined when the row has no field. */
+function titleOf(row: Record<string, unknown>): string | null | undefined {
+  if (typeof row.title === "string") return row.title.trim() ? row.title : null;
+  return row.title === null ? null : undefined;
+}
+
+/** Each stored item's portion and edit mark, by item id. */
+function storedItems(row: Record<string, unknown>): Map<string, StoredItem> {
+  const items = Array.isArray(row.items) ? row.items as Record<string, unknown>[] : [];
+  return new Map(items.flatMap((item): [string, StoredItem][] => typeof item?.id !== "string" ? []
+    : [[item.id, {
+      ...(typeof item.portion_id === "number" || item.portion_id === null
+        ? { portionId: item.portion_id as number | null } : {}),
+      ...(typeof item.was_edited === "boolean" ? { wasEdited: item.was_edited } : {}),
+    }]]));
+}
+
+/**
+ * The wire half of the entry: its slot, its title and its items' portions — read from the
+ * newest queued create or update, else the mirrored row. With neither, the card's own name is the
+ * title it showed, so it is kept.
+ */
+async function wireOfEntry(h: AccountHandle, entryId: string, entry: LoggedFood): Promise<EntryWire> {
+  const rows: Record<string, unknown>[] = [];
   try {
     const queued = (await allOps(h))
       .filter((op) => op.entity === "log_entries" && op.entity_id === entryId
         && (op.kind === "create" || op.kind === "update"))
       .sort((a, b) => b.seq - a.seq)[0];
-    const pending = asSlot((queued?.payload as { slot?: unknown } | undefined)?.slot);
-    if (pending) return pending;
-  } catch (e) { rethrowAccountChanged(e); /* fall through */ }
-  return "snack";
+    if (queued?.payload && typeof queued.payload === "object") {
+      rows.push(queued.payload as Record<string, unknown>);
+    }
+  } catch (e) { rethrowAccountChanged(e); /* fall through to the mirror */ }
+  try {
+    const row = await getRow(h, "log_entries", entryId) as Record<string, unknown> | undefined;
+    if (row) rows.push(row);
+  } catch (e) {
+    rethrowAccountChanged(e); // a blocked database is not evidence of a snack
+  }
+  const slot = rows.map((row) => asSlot(row.slot)).find((value) => value !== null) ?? "snack";
+  const title = rows.map(titleOf).find((value) => value !== undefined);
+  const items = rows.map(storedItems).find((map) => map.size > 0) ?? new Map<string, StoredItem>();
+  return { slot, title: rows.length > 0 ? title : entry.name, items };
 }
 
 /**
@@ -135,16 +172,21 @@ export async function undoDeleteEntry(
   const entryId = crypto.randomUUID();
   const itemIds = token.items.map(() => crypto.randomUUID());
   const request = { ...buildCommitRequest({
-    // The ORIGINALS: their slot, their time, their items with their revisions. Only the id is new,
-    // because the delete left a tombstone on the old one (Grok pass 1, HIGH 8).
+    // The ORIGINALS: their slot, their time, their title, their items with their revisions and
+    // amounts. Only the id is new, because the delete left a tombstone on the old one (Grok
+    // pass 1, HIGH 8). A token minted before the title and amounts were kept restores as before.
     entryId, eatenAt: new Date(token.eatenAt), tz: entry.tz ?? "UTC", slot: token.slot,
     note: entry.note, method: "text",
+    ...(token.title !== undefined ? { title: token.title } : {}),
     items: token.items.map((item, index) => (item.grams === null
       ? { id: itemIds[index], foodRefId: item.foodRefId, revision: { revision_id: null },
-        grams: null, qty: item.qty ?? 1, unit: item.unit ?? "each", portionId: null,
+        grams: null, qty: item.qty ?? 1, unit: item.unit ?? "each", portionId: item.portionId ?? null,
+        ...(item.wasEdited !== undefined ? { wasEdited: item.wasEdited } : {}),
         ...(item.perUnit ? { perUnit: item.perUnit } : {}) }
       : { id: itemIds[index], foodRefId: item.foodRefId, revision: revisionRef(item.revisionId),
-        grams: item.grams, qty: item.grams, unit: "g", portionId: null })),
+        grams: item.grams, qty: item.qty ?? item.grams, unit: item.unit ?? "g",
+        portionId: item.portionId ?? null,
+        ...(item.wasEdited !== undefined ? { wasEdited: item.wasEdited } : {}) })),
   }), local_date: token.date };
   const result = await commitLogEntry(request, { account: h });
   if (result.status !== "ok" && result.status !== "queued") {

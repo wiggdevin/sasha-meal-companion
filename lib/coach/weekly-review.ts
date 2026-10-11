@@ -61,10 +61,21 @@ export function renderWeeklyReview(choice: WeeklyReviewChoice): string {
   return `Based on your logged week, ${STRENGTH_COPY[choice.wentWell]}. ${FOCUS_COPY[choice.focus]}`;
 }
 
+/** Fewer logged days than this is "not enough data", with or without a model. */
+export const MODEL_MIN_LOGGED_DAYS = 3;
+
 /** Days with any logged energy, the one fact the fallback may state without a model. */
 export function loggedDayCount(days: readonly DayTotals[]): number {
   return days.filter((day) => day.nutrients.some((nutrient) =>
     nutrient.code === "energy_kcal" && Number(nutrient.amount) > 0)).length;
+}
+
+/**
+ * Whether any day of the week has a logged item at all, energy known or not (W035): a day whose
+ * items carry no usable energy is still a logged day, never an empty week.
+ */
+export function anyLoggedItem(days: readonly DayTotals[]): boolean {
+  return days.some((day) => day.nutrients.some((nutrient) => Number(nutrient.itemsTotal) > 0));
 }
 
 /**
@@ -74,7 +85,7 @@ export function loggedDayCount(days: readonly DayTotals[]): number {
  */
 export function fallbackReview(days: readonly DayTotals[]): WeeklyReviewChoice {
   const logged = loggedDayCount(days);
-  if (logged < 3) return { wentWell: "not_enough_data", focus: "logging" };
+  if (logged < MODEL_MIN_LOGGED_DAYS) return { wentWell: "not_enough_data", focus: "logging" };
   if (logged < 6) return { wentWell: "logging", focus: "logging" };
   return { wentWell: "logging", focus: "none" };
 }
@@ -106,10 +117,20 @@ async function reviewParts(
 
 export type WeeklyReviewResult = TurnStep & { kind: "final"; modelUsed: boolean };
 
+/**
+ * The week's review, or null when nothing was logged all week: there is nothing to review, so
+ * the account gets no message and no model call (W035, audit A153). Under three days with logged
+ * energy the model could only answer "not enough data", which the logged-days review says
+ * without one.
+ */
 export async function runWeeklyReview(
   admin: SupabaseClient, userId: string, weekStart: string, deps: ReviewDeps
-): Promise<WeeklyReviewResult> {
+): Promise<WeeklyReviewResult | null> {
   const days = await weekTotals(admin, userId, weekStart);
+  if (!anyLoggedItem(days)) return null;
+  if (loggedDayCount(days) < MODEL_MIN_LOGGED_DAYS) {
+    return { kind: "final", text: renderWeeklyReview(fallbackReview(days)), modelUsed: false };
+  }
   try {
     // Phase 13 §2: the week's totals are user content, so the attestation is checked before they
     // are rendered for a model, and again by the payload builder.

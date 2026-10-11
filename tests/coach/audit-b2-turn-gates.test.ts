@@ -235,6 +235,17 @@ describe("a model turn's actions at the gates", () => {
     expect(result.actions).toEqual([]);
   });
 
+  it("says where a dropped action belongs instead of asking for it again (audit P18)", async () => {
+    const result = await turn("log 2 cups of water", { kind: "final", text: "Logged 2 cups of water.",
+      actions: [{ kind: "log_water", numericArgs: [480] }] },
+    { id: "35", scope: { kind: "page", page: "foods" } });
+    expect(result.actions).toEqual([]);
+    const content = result.messages.at(-1)?.content ?? "";
+    expect(content).toBe("I did not do that: it cannot be done from the Foods page. "
+      + "Ask on Today or Body or the main coach.");
+    expect(content).not.toMatch(/amounts once more/);
+  });
+
   it("applies an action the page owns (Body page, log_water)", async () => {
     const result = await turn("log 2 cups of water", { kind: "final", text: "Logged 2 cups (16 oz) of water.",
       actions: [{ kind: "log_water", numericArgs: [480] }] },

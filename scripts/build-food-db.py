@@ -17,6 +17,16 @@ FoodData Central id (`fdcId`), the `source_id` of its `fdc_sr_legacy`
 catalog food, which the Phase 18 universe manifest pins, and its SR food
 group (`srCategory`), the catalog revision's `category`.
 
+A `Recipe` entry (audit 2026-10-10 A021) is a dish SR Legacy only carries
+as its ingredients: its per-100 g values are the weighted sum of those SR
+rows, its `sr` text names them ("recipe: 85 g <SR row> + ..."), and it
+carries no `fdcId`, since no single SR row is that food.
+
+Every food marks exactly one portion `isDefault` (audit 2026-10-10 A020):
+the first everyday portion (`portion_rank`, then source order) whose
+calories sit inside one serving for the food's category (`SERVING_KCAL`).
+A whole package, pizza, order or cup of nuts is never the default.
+
 Usage: python3 scripts/build-food-db.py > lib/food-db.json
 """
 
@@ -29,6 +39,41 @@ from collections import defaultdict
 
 SR = os.path.expanduser("~/Backups/usda/sr_legacy")
 NUTRIENTS = {"1008": "kcal", "1003": "protein", "1005": "carbs", "1004": "fat", "1079": "fiber"}
+MACROS = ["kcal", "protein", "carbs", "fat", "fiber"]
+
+
+class Recipe:
+    """A dish built from SR rows: [(grams, [keywords])], and its own household portions."""
+
+    def __init__(self, parts, portions):
+        self.parts = parts
+        self.portions = portions
+
+
+# A prepared bowl: one 3 oz package with its seasoning in two cups of water (A021). The SR row is
+# the dry block, about 4x the energy of the bowl per 100 g.
+RAMEN_BOWL = Recipe(
+    [(85, ["soup", "ramen noodle", "chicken flavor", "dry"]), (480, ["water", "bottled", "generic"])],
+    [{"label": "1 bowl (1 package, 2 cups water)", "grams": 565}, {"label": "1 cup", "grams": 240}],
+)
+# Half a cup of dry rolled oats soaked in half a cup of 2% milk (A021), not oatmeal cooked in water.
+OVERNIGHT_OATS = Recipe(
+    [(40, ["cereals", "oats", "regular and quick", "not fortified", "dry"]),
+     (122, ["milk", "reduced fat", "2% milkfat", "with added vitamin a and vitamin d"])],
+    [{"label": "1 jar (1/2 cup oats, 1/2 cup milk)", "grams": 162}],
+)
+
+# The most calories one default portion may carry, by category (A020). A food whose portions all
+# sit above it defaults to its smallest one.
+SERVING_KCAL = {"meal": 900, "fat": 250, "sweet": 450, "dairy": 350, "fruit": 250, "vegetable": 200,
+                "drink": 400}
+SERVING_KCAL_OTHER = 450
+# A meal's default is at least a small meal: "1 tbsp" of omelet is not a serving.
+SERVING_KCAL_FLOOR = {"meal": 150}
+# Reviewed exceptions to the rule above, by id: the portion label that is the serving.
+DEFAULT_OVERRIDES = {
+    "miso-paste": "1 tbsp",  # filed with the meals, eaten by the spoon
+}
 
 # (friendly name, category, keywords) — keywords must all appear in the SR description.
 CURATED = [
@@ -481,7 +526,7 @@ CURATED = [
     ("Nachos with cheese", "meal", ["fast foods", "nachos", "with cheese"]),
     ("Enchilada, cheese", "meal", ["restaurant", "mexican", "cheese enchilada"]),
     ("Falafel", "meal", ["falafel", "home-prepared"]),
-    ("Ramen bowl", "meal", ["soup", "ramen noodle", "chicken flavor", "dry"]),
+    ("Ramen bowl", "meal", RAMEN_BOWL),
     ("Clam chowder", "meal", ["soup", "clam chowder", "new england", "canned", "prepared with equal volume low fat"]),
     ("Potato salad", "meal", ["potato salad", "home-prepared"]),
     ("Tuna salad", "meal", ["tuna salad"]),
@@ -496,7 +541,7 @@ CURATED = [
     ("Fish sandwich, fast food", "meal", ["fast foods", "fish sandwich", "with tartar sauce"]),
     ("Shrimp, breaded and fried", "meal", ["fast foods", "shrimp", "breaded and fried"]),
     ("Fruit salad", "fruit", ["fruit salad", "(peach and pear and apricot and pineapple and cherry)", "canned", "juice pack"]),
-    ("Overnight oats", "carb", ["cereals", "oats", "regular and quick", "cooked with water", "without salt"]),
+    ("Overnight oats", "carb", OVERNIGHT_OATS),
     ("Baby food pouch, vegetable", "vegetable", ["babyfood", "vegetable", "butternut squash and corn"]),
     ("Water", "drink", ["water", "bottled", "generic"]),
 ]
@@ -611,6 +656,7 @@ FLAG_OVERRIDES = {
     "breakfast-burrito": ["gluten", "dairy"],
     "clam-chowder": ["dairy"],
     "chicken-parmesan": ["dairy", "gluten"],
+    "overnight-oats": ["dairy"],
 }
 
 
@@ -671,6 +717,64 @@ def pick(foods, keywords):
     return hits[0][1], hits[0][2]
 
 
+def portion_rank(label):
+    """lib/food-db.ts `portionRank`, the same score: everyday portions first, prep variants last."""
+    lower = label.lower()
+    r = 0
+    if re.search(r"\bmedium\b", lower):
+        r -= 4
+    if re.search(r"\b(tbsp|tablespoon)\b", lower):
+        r -= 4
+    if re.search(r"\b(tsp|teaspoon)\b", lower):
+        r -= 3
+    if re.search(r"\b(large|small|slice|piece|each|unit|cup|oz|scoop|egg)\b", lower):
+        r -= 2
+    if re.match(r"1 ", lower):
+        r -= 1
+    if re.search(r"mashed|pureed|chopped|diced|sliced|shredded|yield|nlea|about|approx", lower):
+        r += 3
+    return r * 100 + min(len(lower), 60)
+
+
+def default_index(ports, kcal100, cat, override=None):
+    """The first ranked portion inside the category's serving band (`SERVING_KCAL`); with none
+    inside, the largest one under the cap; with none under it, the smallest. `override` names the
+    portion label to use instead (DEFAULT_OVERRIDES); a label the food lacks fails the build."""
+    if override is not None:
+        return next(i for i, p in enumerate(ports) if p["label"] == override)
+    cap = SERVING_KCAL.get(cat, SERVING_KCAL_OTHER)
+    floor = SERVING_KCAL_FLOOR.get(cat, 0)
+    kcal = [kcal100 * p["grams"] / 100 for p in ports]
+    order = sorted(range(len(ports)), key=lambda i: portion_rank(ports[i]["label"]))
+    inside = [i for i in order if floor <= kcal[i] <= cap]
+    if inside:
+        return inside[0]
+    under = [i for i in order if kcal[i] <= cap]
+    if under:
+        return max(under, key=lambda i: ports[i]["grams"])
+    return min(range(len(ports)), key=lambda i: ports[i]["grams"])
+
+
+def with_default(ports, index):
+    """The portions, the one at `index` marked `isDefault`."""
+    return [dict(p, isDefault=True) if i == index else p for i, p in enumerate(ports)]
+
+
+def recipe_row(foods, nutrients, recipe):
+    """(sr text, per-100 g values) for a Recipe, or None when an ingredient row is missing."""
+    total, sums, names = 0.0, defaultdict(float), []
+    for grams, kws in recipe.parts:
+        hit = pick(foods, kws)
+        if not hit:
+            return None
+        fid, desc = hit
+        for key in MACROS:
+            sums[key] += nutrients.get(fid, {}).get(key, 0.0) * grams / 100
+        total += grams
+        names.append(f"{grams} g {desc}")
+    return "recipe: " + " + ".join(names), {k: round(sums[k] * 100 / total, 1) for k in MACROS}
+
+
 def slug(s):
     return re.sub(r"(^-|-$)", "", re.sub(r"[^a-z0-9]+", "-", s.lower()))
 
@@ -680,6 +784,22 @@ def main():
     out, misses, seen = [], [], set()
     staples = {name for name, _, _ in UNIVERSE_STAPLES}
     for name, cat, kws in CURATED + UNIVERSE_STAPLES:
+        if isinstance(kws, Recipe):
+            row = recipe_row(foods, nutrients, kws)
+            if not row:
+                misses.append((name, kws.parts))
+                continue
+            sid = slug(name)
+            seen.add(sid)
+            desc, per100 = row
+            out.append({
+                "id": sid, "name": name, "category": cat, "sr": desc, "per100g": per100,
+                # A recipe's first portion is the serving it was written for.
+                "portions": with_default(kws.portions, 0),
+                "flags": FLAG_OVERRIDES.get(sid, flags(name)),
+            })
+            print(f"{name:40s} -> {desc[:90]}", file=sys.stderr)
+            continue
         hit = pick(foods, kws)
         if not hit:
             misses.append((name, kws))
@@ -703,13 +823,14 @@ def main():
             "sr": desc,
             "fdcId": int(fid),
             "srCategory": categories.get(fid),
-            "per100g": {k: round(n.get(k, 0.0), 1) for k in ["kcal", "protein", "carbs", "fat", "fiber"]},
-            "portions": ports,
+            "per100g": {k: round(n.get(k, 0.0), 1) for k in MACROS},
+            "portions": with_default(ports, default_index(ports, n["kcal"], cat, DEFAULT_OVERRIDES.get(sid))),
             "flags": FLAG_OVERRIDES.get(sid, flags(f"{name} {desc}" if name in staples else name)),
         })
         print(f"{name:40s} -> {desc[:90]}", file=sys.stderr)
     for sid, name, cat, per100, ports, source in EXTRA:
-        out.append({"id": sid, "name": name, "category": cat, "sr": f"label: {source}", "per100g": per100, "portions": ports, "flags": flags(name)})
+        out.append({"id": sid, "name": name, "category": cat, "sr": f"label: {source}", "per100g": per100,
+                    "portions": with_default(ports, default_index(ports, per100["kcal"], cat)), "flags": flags(name)})
     if misses:
         print(f"\nMISSES ({len(misses)}):", file=sys.stderr)
         for m in misses:
