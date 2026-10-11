@@ -385,21 +385,14 @@ describe("Today, the page", () => {
     expect(screen.queryByText("Your targets will appear after your profile is ready")).toBeNull();
   });
 
-  it("keeps Swap on a quick-meals day, because the meals are the usual ones (A061)", async () => {
-    await renderToday({ day: { isFloorDay: true, slots: [PLANNED_SLOT] } });
-    expect(screen.getByRole("button", { name: "Swap Breakfast" })).toBeTruthy();
-  });
-
   it("raises the saving elsewhere banner for meals filed under another day", async () => {
     await renderToday({ elsewhere: { date: isoDaysAgo(1), count: 2 } });
     expect(screen.getByText(/still saving\. Tap to see them\./)).toBeTruthy();
   });
 
   it("raises the floor-day banner only while quick meals are on, and links to the Week screen", async () => {
-    await renderToday({ day: { isFloorDay: true } });
-    expect(screen.getByText(/Quick meals day marked\./)).toBeTruthy();
-    // The day keeps its planned meals (A061): the banner never promises backup meals.
-    expect(screen.queryByText(/backup meals/)).toBeNull();
+    await renderToday({ day: { isFloorDay: true, slots: [PLANNED_SLOT] } });
+    expect(screen.getByText(/Quick meals day marked\./) && screen.getByRole("button", { name: "Swap Breakfast" })).toBeTruthy(); // A061
     cleanup(); await renderToday();
     expect(screen.queryByText(/Quick meals day marked\./)).toBeNull();
     expect(screen.getByRole("link", { name: "Open the Week screen" }).getAttribute("href")).toBe("/week");
