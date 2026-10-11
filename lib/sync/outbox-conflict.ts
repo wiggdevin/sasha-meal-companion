@@ -17,10 +17,13 @@ import type { OpResult, SyncOp } from "./types";
 
 export const TARGETS_CHANGED_EVENT = "meal-companion:targets-changed";
 
-/** A conflict carries the row but no stamp of its own, and the synced tables use three different
- *  names for "when". Falling back to now lets the server win a tie, which is right: its row was
- *  written after our `base_rev`. See Open question 1. */
-export function serverTimestampOf(row: unknown, fallback: string): string {
+/** When the server's row was written. A conflict answer carries it as `at` (W026, migration
+ *  20261231180000: the row's last change_log time, or its `updated_at` when later); an answer from
+ *  a server that predates it carries only the row, whose tables use three different names for
+ *  "when". Falling back to now lets the server win a tie, which is right: its row was written
+ *  after our `base_rev`. */
+export function serverTimestampOf(row: unknown, fallback: string, at?: unknown): string {
+  if (typeof at === "string" && !Number.isNaN(Date.parse(at))) return at;
   const r = (row ?? {}) as Record<string, unknown>;
   for (const column of ["updated_at", "changed_at", "eaten_at", "created_at"]) {
     const value = r[column];
@@ -148,7 +151,7 @@ export async function settleConflict(
     return { op: rebaseOp(wireOp(op), { role: op.payload.role }, result.current_rev), retire: [], seen,
       mirror: { ...server, role: op.payload.role, rev: result.current_rev } };
   }
-  const serverTs = serverTimestampOf(server, new Date(now()).toISOString());
+  const serverTs = serverTimestampOf(server, new Date(now()).toISOString(), result.at);
   if (op.entity === "plan_days") {
     const day = rebasePlanDay(seen, op, server, result.current_rev, serverTs);
     if (day) return day;

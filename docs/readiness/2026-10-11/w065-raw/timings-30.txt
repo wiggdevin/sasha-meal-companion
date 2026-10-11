@@ -1,0 +1,24 @@
+client_timings — last 30 days (ms)
+
+path              step            p50    p95    n
+photo             commit          3179   3768   2
+photo             card-visible    6      6      2
+text              propose         33380  38750  2
+text              model           1861   1936   2
+text              ground          676    774    2
+text              commit          1375   1500   2
+text              card-visible    6      7      2
+search-log        commit          2205   2556   2
+search-log        card-visible    2      2      2
+coach-turn        model           2762   14108  177
+coach-turn        ground          1577   6033   177
+coach-turn        dictation       72     88     4
+coach-turn        attach          8795   9289   3
+coach-turn        sent            7166   24475  175
+coach-turn        first-text      7569   24456  179
+coach-turn        reply-done      7569   24456  179
+coach-action      action-applied  55     3073   23
+coach-action      action-undone   343    343    1
+plan-chip:choose  card-visible    7      7      1
+plan-chip:choose  sent            1434   1434   1
+plan-chip:choose  server          817    817    1

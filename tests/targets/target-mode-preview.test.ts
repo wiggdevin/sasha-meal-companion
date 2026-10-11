@@ -2,8 +2,9 @@
 import { describe, expect, it } from "vitest";
 import { previewGrams } from "@/components/TargetModeSheet";
 import { toPounds, WEIGHT_LB_PER_KG } from "@/components/WeightTrend";
-import { CARB_G_MIN, FAT_G_MIN, KCAL_MIN, type MacroFloors } from "@/lib/targets/percent";
+import { CARB_G_MIN, FAT_G_MIN, type MacroFloors } from "@/lib/targets/percent";
 
+const KCAL_MIN = 1650; // a fixture account's own minimum
 const FLOORS: MacroFloors = { kcalMin: KCAL_MIN, proteinGMin: 135, fatGMin: FAT_G_MIN, carbGMin: CARB_G_MIN };
 
 describe("previewGrams", () => {

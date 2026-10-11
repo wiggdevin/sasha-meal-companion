@@ -47,9 +47,9 @@ export type Goal = "lose_fat" | "recomp" | "maintain" | "gain_muscle";
 export type TargetSource = "derived" | "proposal" | "manual";
 /** `trend` is the adaptive engine's smoothed weight, the basis once a proposal is approved. */
 export type TargetWeightSource = "weigh-in" | "onboarding" | "trend";
-/** Where a revision's `kcal_min` came from: the account's own macro minimum, an explicit account
- *  minimum, or the database default a row got before step D. Never a medical limit. */
-export const KCAL_MIN_SOURCES = ["macro_minimum", "account_minimum", "legacy_default"] as const;
+/** Where a revision's `kcal_min` came from: the account's own macro minimum, or the database
+ *  default a row got before step D. Never a medical limit (W008 dropped `account_minimum`). */
+export const KCAL_MIN_SOURCES = ["macro_minimum", "legacy_default"] as const;
 export type KcalMinSource = (typeof KCAL_MIN_SOURCES)[number];
 export type TargetPins = {
   trainingKcal: number | null;
