@@ -19,7 +19,7 @@ import {
   applyEdits, captureMedia, captureText, commitDraft, type CaptureContext, type CaptureOutcome, type DraftEdits,
 } from "@/lib/capture-client";
 import type { ProposeResponse } from "@/lib/capture/types";
-import type { TimingRun } from "@/lib/timing";
+import { mark, type TimingRun } from "@/lib/timing";
 import { AccountChanged, assertCurrent, isCurrent, type AccountHandle } from "@/lib/device/account";
 import { localDateOf } from "@/lib/log-client";
 import { savedFrom } from "@/lib/log/outcome";
@@ -102,6 +102,9 @@ export function scaleDraft(draft: ProposeResponse, factor: number): ProposeRespo
 function proposal(outcome: CaptureOutcome, slot: SlotId, at: Filing, factor: number): PanelProposal {
   if (outcome.kind !== "draft") return { ok: false, message: outcome.message };
   if (outcome.draft.items.length === 0) return { ok: false, message: NOTHING_TO_CHECK };
+  // The propose hop ends here, as the capture sheet's does: the run stays open until the person
+  // confirms, and without this mark their review time was filed as `propose` (W065).
+  if (outcome.run) mark(outcome.run.path, "confirm-shown", outcome.run);
   return { ok: true, pending: { draft: scaleDraft(outcome.draft, factor), run: outcome.run, slot, at } };
 }
 
