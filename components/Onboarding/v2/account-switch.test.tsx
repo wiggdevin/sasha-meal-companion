@@ -13,8 +13,8 @@ const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
 const rules = { avoid_allergens: [], avoid_food_ref_ids: [], banned_categories: [], notes: null };
 
-// Without vitest globals Testing Library never registers its own cleanup, so a hook left mounted
-// let React's scheduler run after jsdom was torn down ("window is not defined", CI 2026-10-10).
+// Unmount before the next file: a hook left mounted lets React's scheduler run after jsdom is torn
+// down ("window is not defined", CI on PR #63).
 afterEach(() => { cleanup(); unbindAccount(); });
 
 function deferred<T>() {

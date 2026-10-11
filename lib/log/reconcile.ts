@@ -24,7 +24,8 @@ import {
 } from "@/lib/log/pending";
 import { finishPendingDeletes } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
-import { getDay, removeExtra, updateExtra } from "@/lib/store";
+import { getDay, loadStore, removeExtra } from "@/lib/store";
+import { cardFor, placeCard } from "@/lib/log/card-find";
 import type { LogCommitRequest } from "@/lib/log/contract";
 import type { LoggedFood } from "@/lib/types";
 import { deleteRow, getRow, putRow } from "@/lib/sync/idb";
@@ -35,7 +36,6 @@ import { rowNutritionPartial } from "@/lib/log/partial-mark";
 
 /** What one read-back did about the entry. Only the first two are the end of the matter. */
 export type ReconcileOutcome = "settled" | "deleted" | "missing" | "unreadable";
-
 
 /** The revision the mirror already holds for this entry, when it holds one. */
 async function heldRev(h: AccountHandle, entryId: string): Promise<number | null> {
@@ -71,26 +71,26 @@ function patchCardFromRow(
   assertCurrent(h);
   const date = typeof row.local_date === "string" ? row.local_date : null;
   if (date === null) return;
-  const entry = getDay(date)?.extras?.find((extra) => extra.id === entryId);
-  if (!entry) return;
+  // On its day, or where it sat before a move made elsewhere while this phone's write was pending.
+  const found = cardFor(loadStore().days, entryId, date);
+  if (!found) return;
+  const entry = found.card;
   if (!canPatchCard(typeof row.rev === "number" ? row.rev : null,
     typeof entry.rev === "number" ? entry.rev : null, mirrorRev)) return;
   const patch = entryPatchFromRow(entry, row);
   // A write of their own is still waiting to send this entry's note. Until it does, the note on the
   // card is theirs and the row's is simply older (Grok pass 27, HIGH 2).
-  if (keepNote) delete patch.note;
+  if (keepNote) { delete patch.note; delete patch.at; } // and a queued move's time
   // The row is the server's word on this revision: it sets the mark and clears a stale one. Only
   // an unreadable fallback (null) leaves the card as it was.
   const partial = rowNutritionPartial(row, partialRefs);
   if (partial !== null) patch.nutritionPartial = partial || undefined;
-  updateExtra(date, entryId, patch);
+  placeCard(found, date, patch);
 }
 
 const LOGGED_SLOTS = new Set<NonNullable<LoggedFood["slot"]>>([
   "coffee", "pouches-pre", "post-refuel", "meal-1", "meal-2", "meal-3",
-  "meal-4",
-  "meal-5",
-  "meal-6",
+  "meal-4", "meal-5", "meal-6",
   "hot-chocolate", "snack",
 ]);
 
@@ -99,6 +99,7 @@ export function entryPatchFromRow(
   entry: LoggedFood, row: Record<string, unknown>,
 ): Partial<LoggedFood> {
   const patch = reconcileFromEntity(entry, row);
+  if (typeof row.eaten_at === "string" && !Number.isNaN(Date.parse(row.eaten_at))) patch.at = row.eaten_at;
   const title = typeof row.title === "string" ? row.title.trim() : "";
   if (title) patch.name = title;
   else if (row.title === null) {

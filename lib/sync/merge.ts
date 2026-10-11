@@ -41,14 +41,50 @@ export function newerWinsFields(local: Row, server: Row, localTs: string, server
   return out;
 }
 
-/** Notes are symptom evidence: losing one loses a record. Older text first, deterministically. */
+function noteText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function noteLines(text: string): string[] {
+  return text.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+/**
+ * Notes are symptom evidence: losing one loses a record. Older text first, deterministically.
+ *
+ * Idempotent (audit 2026-10-10 A139): a side whose every line the other side already holds adds
+ * nothing, so a rebased note that already carries the server's text is not joined to it again on
+ * the next conflict, and otherwise only the newer side's lines the older one lacks are appended.
+ */
 export function joinNotes(a: unknown, b: unknown, aTs: string, bTs: string): string | undefined {
-  const first = typeof a === "string" ? a.trim() : "";
-  const second = typeof b === "string" ? b.trim() : "";
+  const first = noteText(a);
+  const second = noteText(b);
   if (!first) return second || undefined;
   if (!second) return first;
   if (first === second) return first;
-  return isNewer(aTs, bTs) ? `${second}\n${first}` : `${first}\n${second}`;
+  const [older, newer] = isNewer(aTs, bTs) ? [second, first] : [first, second];
+  const olderLines = new Set(noteLines(older));
+  const newerLines = noteLines(newer);
+  if (newerLines.every((line) => olderLines.has(line))) return older;
+  const newerSet = new Set(newerLines);
+  if ([...olderLines].every((line) => newerSet.has(line))) return newer;
+  return [older, ...newerLines.filter((line) => !olderLines.has(line))].join("\n");
+}
+
+/**
+ * A three-way note merge for an op that carries the WHOLE note (a log entry's note edit), against
+ * the note that edit started from (audit 2026-10-10 A077). A side that left the base alone takes
+ * the other side's note, a clear included; only when both sides changed it are the two joined.
+ */
+export function mergeNoteFromBase(
+  base: unknown, mine: unknown, theirs: unknown, mineTs: string, theirsTs: string,
+): string | undefined {
+  const from = noteText(base);
+  const ours = noteText(mine);
+  const their = noteText(theirs);
+  if (their === from) return ours || undefined;
+  if (ours === from) return their || undefined;
+  return joinNotes(their, ours, theirsTs, mineTs);
 }
 
 /** The server's rev is authoritative, and a tombstone on either side dominates. */
@@ -89,6 +125,147 @@ function mergeEatenSlots(local: unknown, server: unknown): Record<string, EatenS
       out[slot] = serverTick;
     } else out[slot] = Date.parse(localTick.changed_at) > Date.parse(serverTick.changed_at)
       ? localTick : serverTick;
+  }
+  return out;
+}
+
+/** A value's identity, whatever order its object keys were written in (a jsonb row from the
+ *  server and an object built on the phone order the same keys differently). */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).filter((key) => object[key] !== undefined).sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+function same(a: unknown, b: unknown): boolean {
+  return canonical(a) === canonical(b);
+}
+
+function asMap(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown> : {};
+}
+
+/** Three-way: theirs where mine left the base alone, mine where theirs did, else `both`. */
+function threeWay(mine: unknown, base: unknown, theirs: unknown, both: () => unknown): unknown {
+  if (same(mine, base)) return theirs;
+  if (same(theirs, base)) return mine;
+  return both();
+}
+
+/** The `plan_days` fields kept per slot: one device's slot never replaces another's. */
+const PLAN_DAY_MAPS: ReadonlySet<string> = new Set(["swaps", "slot_notes", "item_overrides"]);
+
+/** What a `plan_days` field holds on a row nobody has written yet (the server's insert defaults). */
+export const PLAN_DAY_EMPTY: Readonly<Record<string, unknown>> = {
+  day_type_override: null, floor_day: false, swaps: {}, slot_notes: {}, item_overrides: {},
+  day_complete_at: null,
+};
+
+/**
+ * When this phone last changed each `plan_days` field, and each slot of a per-slot field: the time
+ * of the latest op whose value there differs from the value that op replaced — that op's
+ * `client_ts`, or the stamp a rebase carried for it (`field_stamps`). A field or slot an op named
+ * without changing falls back to the field's stamp, then to the latest op that named the field. So
+ * a later edit of one field never makes an older edit of another one newer, and neither does a
+ * rebase (W011 review, Sol WARN 4).
+ */
+export type PlanDayStamps = (field: string, slot?: string) => string;
+
+const stampKey = (field: string, slot: string) => `${field}\u0000${slot}`;
+
+type StampedOp = {
+  payload: Row; base_fields?: Row; client_ts: string; field_stamps?: Record<string, string>;
+};
+
+export function planDayStamps(ops: readonly StampedOp[]): PlanDayStamps {
+  const named: Record<string, string> = {};
+  const fields: Record<string, string> = {};
+  const slots: Record<string, string> = {};
+  for (const op of ops) {
+    const base = op.base_fields ?? {};
+    const carried = op.field_stamps ?? {};
+    for (const field of Object.keys(op.payload)) {
+      named[field] = op.client_ts;
+      const fieldStamp = carried[field] ?? op.client_ts;
+      if (!same(op.payload[field], base[field])) fields[field] = fieldStamp;
+      if (!PLAN_DAY_MAPS.has(field)) continue;
+      const mine = asMap(op.payload[field]);
+      const was = asMap(base[field]);
+      for (const slot of new Set([...Object.keys(mine), ...Object.keys(was)])) {
+        const key = stampKey(field, slot);
+        if (!same(mine[slot], was[slot])) slots[key] = carried[key] ?? fieldStamp;
+      }
+    }
+  }
+  const last = ops.length > 0 ? ops[ops.length - 1].client_ts : "";
+  const fieldStamp = (field: string) => fields[field] ?? named[field] ?? last;
+  return (field, slot) => (slot === undefined ? undefined : slots[stampKey(field, slot)])
+    ?? fieldStamp(field);
+}
+
+/**
+ * The stamps a rebased `plan_days` op carries: for every field and slot where the merge kept this
+ * phone's value over the server's, the time the user made that edit. The rebased op's own
+ * `client_ts` is the rebase's, so without these a second conflict would judge an old edit new.
+ */
+export function carriedPlanDayStamps(
+  merged: Row, server: Row, stamps: PlanDayStamps,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const field of Object.keys(merged)) {
+    if (field === "local_date" || field === "eaten_slots") continue;
+    if (!same(merged[field], server[field])) out[field] = stamps(field);
+    if (!PLAN_DAY_MAPS.has(field)) continue;
+    const mine = asMap(merged[field]);
+    const theirs = asMap(server[field]);
+    for (const slot of new Set([...Object.keys(mine), ...Object.keys(theirs)])) {
+      if (!same(mine[slot], theirs[slot])) out[stampKey(field, slot)] = stamps(field, slot);
+    }
+  }
+  return out;
+}
+
+/**
+ * A field-wise `plan_days` edit merged onto the server's row (audit 2026-10-10 A141, backlog B091).
+ * `local` holds only the fields the user's ops wrote, `base` each field as the edit found it. A
+ * field — or, for swaps, slot notes and item overrides, a slot — that one side left as it was takes
+ * the other side's value; only one both sides changed falls to the newer side, and a slot note both
+ * changed keeps both texts. "Newer" compares that field's or slot's own stamp (`planDayStamps`)
+ * with the server's; a single string stamps every field alike. Eaten ticks keep their own per-slot
+ * clock. Returns the merged values of the fields `local` names.
+ */
+export function mergePlanDayFields(
+  local: Row, base: Row, server: Row, localTs: string | PlanDayStamps, serverTs: string,
+): Row {
+  const stampOf: PlanDayStamps = typeof localTs === "string" ? () => localTs : localTs;
+  const localWins = (field: string, slot?: string) => isNewer(stampOf(field, slot), serverTs);
+  const out: Row = {};
+  for (const field of Object.keys(local)) {
+    if (field === "local_date") out[field] = local[field];
+    else if (field === "eaten_slots") out[field] = mergeEatenSlots(local[field], server[field]);
+    else if (!(field in base)) {
+      out[field] = localWins(field) || server[field] === undefined ? local[field] : server[field];
+    } else if (PLAN_DAY_MAPS.has(field)) {
+      const mine = asMap(local[field]);
+      const was = asMap(base[field]);
+      const theirs = asMap(server[field]);
+      const merged: Record<string, unknown> = {};
+      for (const slot of new Set([...Object.keys(theirs), ...Object.keys(was), ...Object.keys(mine)])) {
+        const value = threeWay(mine[slot], was[slot], theirs[slot], () => field === "slot_notes"
+          ? joinNotes(mine[slot], theirs[slot], stampOf(field, slot), serverTs)
+          : localWins(field, slot) ? mine[slot] : theirs[slot]);
+        if (value !== undefined) merged[slot] = value;
+      }
+      out[field] = merged;
+    } else {
+      out[field] = threeWay(local[field], base[field], server[field],
+        () => localWins(field) ? local[field] : server[field]);
+    }
   }
   return out;
 }
