@@ -16,6 +16,7 @@ import { encodeKey } from "./keys";
 import { type Row } from "./merge";
 import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
 import { headOfLine, requeueInPlace, retryStaleRead, settleAppliedRow } from "./row-queue";
+import { projectMirroredPlanDay } from "./plan-days";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
 import { withSettingsProvenance } from "./user-settings";
@@ -144,7 +145,10 @@ async function onConflict(
     await requeueInPlace(h, op, rebase.op, rebase.retire, rebase.mirror, now(), rebase.seen);
     return true;
   });
-  if (requeued) announceQueued();
+  if (!requeued) return;
+  // Today reads the legacy day, so a day merged with another device's edits is shown there (A141).
+  if (op.entity === "plan_days") await projectMirroredPlanDay(h, op.entity_id);
+  announceQueued();
 }
 
 /** Server errored on this op specifically (not a network failure). Retried with backoff, like a
