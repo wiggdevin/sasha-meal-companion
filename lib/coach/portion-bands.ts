@@ -43,7 +43,7 @@ const HEAD_FAT = /\b(?:oils?|ghee|lard|butter|cheese)$/;
 /** First match wins; tested against the lower-cased name, or its head for a `head` rule. */
 const RULES: readonly Rule[] = [
   { test: /\b(?:oils?|ghee|lard)$/, band: band(5, 10, 15), head: true },
-  { test: /\bmayo(?:nnaise)?\b/, band: band(5, 15, 30) },
+  { test: /\bmayo(?:nnaise)?$/, band: band(5, 15, 30), head: true },
   { test: /\b(?:almond|peanut|cashew|sunflower|nut|seed) butter\b|\btahini\b/, band: band(10, 16, 32) },
   { test: /\bbutter$/, band: band(5, 10, 15), head: true },
   { test: /\b(?:whey|casein|protein (?:powder|shake))\b/, band: band(20, 30, 50) },

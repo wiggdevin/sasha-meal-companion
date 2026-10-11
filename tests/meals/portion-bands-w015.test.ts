@@ -38,6 +38,11 @@ describe("oil-packed fish keeps a protein band (A013)", () => {
   it("does not give mayonnaise made with oil an avocado band", () => {
     expect(portionBand("Avocado oil mayo, Primal Kitchen", "fat").max).toBeLessThanOrEqual(30);
   });
+
+  it.each(["McDONALD'S, McCHICKEN Sandwich (without mayonnaise)", "Tuna salad with mayonnaise",
+    "Chicken sandwich, mayo"])("%s keeps the anchor band (a mayo mention is not mayo)", (name) => {
+    expect(portionBand(name, "anchor")).toEqual(portionBand("Unnamed dish", "anchor"));
+  });
 });
 
 describe("cheese bands by head noun, not substring (A017)", () => {
