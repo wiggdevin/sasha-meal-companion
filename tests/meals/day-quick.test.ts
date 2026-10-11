@@ -109,4 +109,43 @@ describe("A061: a Quick meals date generates quick plates", () => {
       .toEqual(quickDay(changed, SLOTS, MIXED).plates.map(({ plate }) => plate.name));
     expect(planMealsForDay(changed, SLOTS, MIXED)).toEqual(plain);
   });
+
+  // Sol review r1 (2026-10-11), three findings, each reproduced before the fix.
+  it("every slot ends quick or exactly as it was (no reshuffle of slots without a quick plate)", () => {
+    const target = { kcal: 600, protein: 40, carbs: 60, fat: 18 };
+    const slots: DaySlot[] = [
+      { id: "meal-1", target, clock: "07:30" }, { id: "meal-2", target, clock: "12:30" },
+      { id: "meal-3", target, clock: "19:00" }];
+    const foods = eats(F.tuna, F.lentils, F.rice, F.broccoli, F.oliveOil, F.oats, F.banana);
+    for (const [pool, rows] of [[foods, slots], [MIXED, SLOTS]] as const) {
+      for (const date of DATES) {
+        const plain = planDay(date, rows, pool);
+        quickDay(date, [...rows], pool).plates.forEach(({ plate }, i) => {
+          if (!quickFit(plate)) expect(plate, `${date} ${plate.name}`).toEqual(plain.plates[i].plate);
+        });
+      }
+    }
+  });
+
+  it("a fitting quick fruit-and-fat snack can win a snack slot", () => {
+    const snack: DaySlot[] = [{ id: "meal-4", target: { kcal: 250, protein: 5, carbs: 30, fat: 12 }, clock: "15:30" }];
+    const foods = eats(F.lentils, F.banana, F.almonds);
+    const date = DATES.find((day) => rankPlates({ date: day, slot: "meal-4", occasion: "snack",
+      target: snack[0].target, foods: Object.values(foods) }).plates.some((plate) => plate.anchorKey === null
+      && quickFit(plate)) && !quickFit(planDay(day, snack, foods).plates[0].plate));
+    expect(date).toBeDefined();
+    const [{ plate }] = quickDay(date as string, snack, foods).plates;
+    expect(plate.anchorKey).toBeNull();
+    expect(quickFit(plate)).toBe(true);
+  });
+
+  it("the memo re-plans a quick day when a food's no-cook mark changes", () => {
+    const slots: DaySlot[] = [{ id: "meal-2", target: MAIN, clock: "12:30" }];
+    const base = eats(F.chicken, F.tuna, F.bread, F.broccoli, F.rice, F.oliveOil);
+    const cooked = { ...base, [F.chicken.id]: { ...base[F.chicken.id], noCook: true } };
+    const run = (foods: Record<string, Food>) => planMealsForDay("2026-10-21", slots, foods, undefined, undefined,
+      undefined, undefined, undefined, true).meals.map(({ meal }) => meal.name);
+    run(cooked);
+    expect(run(base)).toEqual(quickDay("2026-10-21", slots, base).plates.map(({ plate }) => plate.name));
+  });
 });

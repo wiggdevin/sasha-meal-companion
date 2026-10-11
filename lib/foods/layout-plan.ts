@@ -40,8 +40,10 @@ const memo = new Map<string, DayPlan>();
 function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
   overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
   focus?: LayoutFocus, cuisine?: CuisineRanking, quick?: boolean): string {
+  // A quick day also reads each food's no-cook mark (lib/plan/prep-minutes.ts).
   const foodPart = Object.values(foods).map((food) => [food.id, food.name, food.role, food.status,
-    food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat].join("|")).sort().join(";");
+    food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat, ...(quick ? [food.noCook === true] : [])]
+    .join("|")).sort().join(";");
   // A closed account's key is exactly main's; an open one adds its snapshot's identity, and an
   // active shopping focus its own (end and the keys that count that day).
   return JSON.stringify([date, slots, overrides ?? null, foodPart, evidenceKey(evidence),
