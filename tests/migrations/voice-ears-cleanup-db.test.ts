@@ -1,6 +1,6 @@
 /**
  * Phase 14 voice agent retired (owner, 2026-10-08) — cleanup migration
- * supabase/migrations/20261229090000_voice_ears_cleanup.sql drops the dead `voice_ears` table and
+ * supabase/migrations/20261231190100_voice_ears_cleanup.sql drops the dead `voice_ears` table and
  * its three service-role-only functions on a real Postgres. Needs SUPABASE_TEST_DB_URL (a local
  * stack); skipped without it. Every case applies the original migration, then the cleanup, inside
  * one transaction that is rolled back, so the shared stack is left exactly as it was.
@@ -10,9 +10,9 @@ import { describe, expect, it } from "vitest";
 import { HAS_DB, runSql } from "../helpers/supabase";
 
 const ORIGINAL_UP = readFileSync("supabase/migrations/20261117090000_voice_ears.sql", "utf8");
-const CLEANUP_UP = readFileSync("supabase/migrations/20261229090000_voice_ears_cleanup.sql", "utf8");
+const CLEANUP_UP = readFileSync("supabase/migrations/20261231190100_voice_ears_cleanup.sql", "utf8");
 const CLEANUP_DOWN = readFileSync(
-  "supabase/migrations/down/20261229090000_voice_ears_cleanup.down.sql", "utf8");
+  "supabase/migrations/down/20261231190100_voice_ears_cleanup.down.sql", "utf8");
 
 const COUNTS = `select
     (select count(*) from information_schema.tables
