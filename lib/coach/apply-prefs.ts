@@ -55,6 +55,29 @@ async function roleRowIsReady(h: AccountHandle, foodRefId: string): Promise<bool
   return row !== undefined && !row.deleted_at && (row.status === "eats" || row.status === "avoid");
 }
 
+/**
+ * A removal clears only its own list (audit 2026-10-10 A025). The membership write is neutral for
+ * both removals, so "take peanuts off my eats list" cleared an Avoid mark and let peanuts back into
+ * plans. The status is this device's latest mark for the name, else the grounded ref's, else the
+ * local list's; a removal whose food is not on that list changes nothing and says why.
+ */
+function removalMismatch(action: ListAction, h: AccountHandle,
+  refStatus: Exclude<FoodStatus, "neutral"> | null): string | null {
+  if (action.kind !== "remove_from_eats" && action.kind !== "remove_from_avoid") return null;
+  const list = action.kind === "remove_from_eats" ? "eats" : "avoid";
+  const marked = readFoodMembership(h.userId, action.name);
+  const localId = localIdFor(action.name);
+  const local = localId ? getFoods()[localId]?.status : undefined;
+  const status = marked !== undefined ? marked.status
+    : refStatus ?? (local === "eats" || local === "avoid" ? local : null);
+  if (status === list) return null;
+  const label = list === "eats" ? "Favored" : "Avoid";
+  return status === null
+    ? `${action.name} is not on your ${label} list, so nothing changed.`
+    : `${action.name} is on your ${status === "eats" ? "Favored" : "Avoid"} list, not ${label}, `
+      + "so nothing changed.";
+}
+
 export async function applyFoodListMark(action: ListAction): Promise<ApplyResult> {
   const h = accountHandle();
   const intent = reserveFoodMembershipIntent(action.name, h);
@@ -71,6 +94,8 @@ export async function applyFoodListMark(action: ListAction): Promise<ApplyResult
   if (!isLatestFoodMembershipIntent(intent)) {
     return { status: "failed", reason: "A newer food choice replaced this action." };
   }
+  const notOnList = removalMismatch(action, h, previous?.status ?? null);
+  if (notOnList) return { status: "failed", reason: notOnList };
   // A removal's explanatory note is an intentional edit. Save it while the grounded pref still
   // exists, then change membership without carrying any note in a queued status operation.
   if (note !== undefined && previous) {

@@ -7,8 +7,10 @@ import type { Intent as BaseIntent } from "@/lib/coach/intent-types";
 import type { SlotId } from "@/lib/coach/types";
 import { ACTION_SPECS, actionSpecFor, type ActionIntentArgs } from "@/lib/coach/actions";
 import {
-  choiceConfidence, FAST_PATH_ARGUMENT_CONFIDENCE, type ExtractedNumber, type MissingArgs,
+  choiceConfidence, FAST_PATH_ARGUMENT_CONFIDENCE, type MissingArgs,
 } from "@/lib/coach/intent-args";
+import { extractNumbers } from "@/lib/coach/intent-numbers";
+export { extractNumbers } from "@/lib/coach/intent-numbers";
 
 export type { Intent } from "@/lib/coach/intent-types";
 type ClassifiedIntent = BaseIntent | "show_chart";
@@ -62,29 +64,6 @@ type IntentResultFor<I extends ClassifiedIntent> = {
 }[I];
 export type IntentResult<I extends BaseIntent = BaseIntent> = IntentResultFor<I>;
 export type ClassifiedIntentResult<I extends ClassifiedIntent = ClassifiedIntent> = IntentResultFor<I>;
-
-const NUMBER_RE = /\b(?:half\s+an\s+hour|an\s+hour|a\s+cup|\d+(?:\.\d+)?(?:(?:\s*-\s*|\s+)(?:minutes?|mins?|min|hours?|hrs?|hr|h|cups?|ml|oz|kg|lbs?|pounds?))?)\b/gi;
-
-function normalizedUnit(raw: string): ExtractedNumber["unit"] {
-  const unit = raw.toLowerCase().replace(/^\d+(?:\.\d+)?(?:\s*-\s*|\s+)?/, "").trim();
-  if (["minute", "minutes", "min", "mins"].includes(unit)) return "min";
-  if (["hour", "hours", "hr", "hrs", "h"].includes(unit)) return "hour";
-  if (["cup", "cups"].includes(unit)) return "cup";
-  if (unit === "ml" || unit === "oz" || unit === "kg") return unit;
-  if (["lb", "lbs", "pound", "pounds"].includes(unit)) return "lb";
-  return null;
-}
-
-export function extractNumbers(message: string): ExtractedNumber[] {
-  return Array.from(message.matchAll(NUMBER_RE), (match): ExtractedNumber => {
-    const raw = match[0];
-    const words = raw.toLowerCase();
-    if (words === "half an hour") return { value: 30, unit: "min", raw };
-    if (words === "an hour") return { value: 1, unit: "hour", raw };
-    if (words === "a cup") return { value: 1, unit: "cup", raw };
-    return { value: Number.parseFloat(raw), unit: normalizedUnit(raw), raw };
-  });
-}
 
 function result<I extends ClassifiedIntent>(
   intent: I,
@@ -188,7 +167,7 @@ export async function classifyIntent(
     default: {
       // Every other intent is an action kind whose spec reads its own arguments.
       const read = actionSpecFor(intent)?.intent?.extract({
-        numbers, raw, ...(ctx.foodsMentioned ? { foodsMentioned: ctx.foodsMentioned } : {}),
+        numbers, raw, message, ...(ctx.foodsMentioned ? { foodsMentioned: ctx.foodsMentioned } : {}),
       }) ?? { args: {}, argConfidence: {} };
       return result(intent, confidence, read.args as IntentArgs[typeof intent], read.argConfidence, raw);
     }

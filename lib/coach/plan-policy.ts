@@ -9,9 +9,14 @@
  */
 import type { CoachAction } from "@/lib/coach/actions";
 
-/** The actions that write a plan slot, as opposed to logging what was eaten. */
+/**
+ * The actions that put a food INTO a plan slot, as opposed to logging what was eaten. A
+ * `set_slot_item` only resizes a line already on the slot (lib/coach/apply-slot.ts keeps that
+ * line's food), and its grounding is a fresh search for the model's short word, so its verdict is
+ * another food's: "milk" refused to resize an allowed almond-milk line (audit 2026-10-10 A158).
+ */
 export const PLAN_WRITE_KINDS = new Set<CoachAction["kind"]>([
-  "set_slot_meal", "add_slot_item", "set_slot_item",
+  "set_slot_meal", "add_slot_item",
 ]);
 
 export function refusePlanBlocked(actions: readonly CoachAction[]): {
