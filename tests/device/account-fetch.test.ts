@@ -16,6 +16,9 @@ const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
  *  every other one, and this is exactly the gate that would have caught it if it had not. */
 const ALLOWED = new Set([
   "lib/device/account.ts", "lib/warm-client.ts", "lib/fetch-with-deadline.ts",
+  // W052: the sign-in screen's calls run before any account exists on the device, so there is no
+  // bound account to name; the answer only sets the session cookie.
+  "lib/sign-in-client.ts",
 ]);
 const HREF_API = /href=\{?["'`]?[^}"'`]*\/api\//;
 const RAW_BODY = /\.(json|text|blob)\(\)/;
