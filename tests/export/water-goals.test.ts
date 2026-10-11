@@ -57,7 +57,7 @@ type Filter = { column: string; value: unknown };
 
 /**
  * A PostgREST double for the two shapes `streamWater` uses: a filtered `.maybeSingle()` for
- * user_settings, and an awaited builder for water_log and plan_days. Every `.in()` call is
+ * user_settings, and an awaited builder for water_log, plan_days and target_profiles. Every `.in()` call is
  * recorded, so a test can assert which dates the override lookup asked for.
  */
 function fakeClient(tables: TableRows) {
@@ -72,9 +72,9 @@ function fakeClient(tables: TableRows) {
       gte: () => q, lte: () => q, gt: () => q,
       in(column: string, values: unknown[]) {
         inCalls.push({ table, column, values: [...values] });
-        return Promise.resolve({ data: matching(table), error: null });
+        return q;
       },
-      order: () => q, limit: () => q,
+      order: () => q, limit: () => q, range: () => q,
       maybeSingle: async () => ({ data: matching(table, eq[table])[0] ?? null, error: null }),
       then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
         Promise.resolve({ data: matching(table, eq[table]), error: null }).then(resolve),

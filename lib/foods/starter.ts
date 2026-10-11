@@ -44,9 +44,9 @@ export const STARTERS: readonly Starter[] = [
   S("sweet-potato-baked", "carb", "whole", 114, ALL, { default: true }),
   S("banana", "carb", "whole", 118, ALL, { default: true }),
   S("apple-with-skin", "carb", "whole", 182, ALL, { allergens: ["apple"], categories: ["apple"] }),
-  S("white-bread", "carb", "whole", 29, ALL, { allergens: ["gluten"], categories: ["gluten"] }),
+  S("white-bread", "carb", "whole", 29, ALL, { allergens: ["wheat", "gluten"], categories: ["gluten"] }),
   S("corn-tortilla", "carb", "whole", 26, ALL),
-  S("whole-wheat-bread", "carb", "whole", 32, ALL, { allergens: ["gluten"], categories: ["gluten"] }),
+  S("whole-wheat-bread", "carb", "whole", 32, ALL, { allergens: ["wheat", "gluten"], categories: ["gluten"] }),
   S("blueberries", "carb", "cup", 148, ALL, { default: true }),
   // Vegetables (role carb, as the layout counts them): a main plate takes one whenever Eats has it.
   S("broccoli-cooked", "carb", "cup", 156, ALL, { default: true }),
@@ -79,6 +79,15 @@ export function dietStyle(flags: readonly string[]): DietStyle {
 }
 
 /**
+ * One concern per allergen for a starter: wheat and gluten are the same concern here (W014, audit
+ * 2026-10-10 A041), so an account that avoids either never sees a starter tagged with the other.
+ */
+function allergenConcern(name: string): string {
+  const key = allergenKey(name);
+  return key === "wheat" ? "gluten" : key;
+}
+
+/**
  * The allergen/category/hard-rule exclusion check alone — not diet style, which `starterChoices`
  * filters separately. Factored out so the just-before-write recheck in
  * `lib/foods/starter-client.ts` (ONB2-RULE-REREAD-WRITE) can apply the IDENTICAL predicate against
@@ -89,7 +98,7 @@ function starterPassesRuleSets(
   instances: readonly ProfileInstance[], asOf: Date,
 ): boolean {
   return !(item.categories ?? []).some((key) => bannedCategories.has(key))
-    && !(item.allergens ?? []).some((key) => avoidAllergens.has(allergenKey(key)))
+    && !(item.allergens ?? []).some((key) => avoidAllergens.has(allergenConcern(key)))
     && dbFood(item.id) !== undefined
     && instances.every((instance) => instance.rules.every((rule) =>
       !isActiveHardRule(rule, asOf) || (starterFacetOutcome(item, rule.facet) ?? profileFacetOutcome(rule.facet, {
@@ -107,10 +116,10 @@ export function starterChoices(flags: readonly string[], profile: Profile,
   if (profile.avoid_food_ref_ids.length) return [];
   const style = dietStyle(flags);
   const banned = new Set(profile.banned_categories.map((x) => x.toLowerCase()));
-  const allergens = new Set(profile.avoid_allergens.map(allergenKey));
+  const allergens = new Set(profile.avoid_allergens.map(allergenConcern));
   for (const flag of flags) {
     const key = ({ no_shellfish: "shellfish", no_eggs: "egg", no_soy: "soy", no_peanuts: "peanut" } as Record<string, string>)[flag];
-    if (key) allergens.add(allergenKey(key));
+    if (key) allergens.add(allergenConcern(key));
   }
   if (flags.includes("low_fodmap")) banned.add("beans");
   if (flags.includes("no_pork") || flags.includes("halal") || flags.includes("kosher")) banned.add("pork");
@@ -131,7 +140,7 @@ export function starterExcludedByCurrentRules(
   item: Starter, profile: Profile, instances: readonly ProfileInstance[], asOf: Date = new Date(),
 ): boolean {
   const banned = new Set(profile.banned_categories.map((x) => x.toLowerCase()));
-  const allergens = new Set(profile.avoid_allergens.map(allergenKey));
+  const allergens = new Set(profile.avoid_allergens.map(allergenConcern));
   return !starterPassesRuleSets(item, banned, allergens, instances, asOf);
 }
 

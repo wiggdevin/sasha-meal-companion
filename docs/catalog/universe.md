@@ -111,10 +111,13 @@ vegan days miss the 35 g protein target on 3 of 28 slots per cuisine (a plate is
 - About 40 % of items clear each allergen. The rest are `unknown`, mostly because the whole-food
   class table (`lib/policy/whole-food-classes.ts`) does not list them (okra, bok choy, most leafy
   greens, breads, cheeses). Widening that table is a safety change for its own review, not W1's.
-- Known fail-closed listings: tahini reads as dairy ("sesame butter" is not in the dairy
-  exclusions of `lib/policy/allergens.ts`), and coconut milk reads as tree nut (its SR row says
-  "Nuts"). The category map files yardlong beans, an edible-pod vegetable, under `beans`. Each is a
-  change to a reviewed policy module, so W1 reports it and does not change it.
+- Fixed fail-closed listings (W022, 2026-10-10): tahini read as dairy ("sesame butter" was not in
+  the dairy exclusions of `lib/policy/allergens.ts`) and coconut milk read as tree nut (its SR row
+  opens with the food-group head "Nuts,"). Both now read `unknown` for that allergen, not `listed`:
+  still out of generation for an account that avoids it, never cleared
+  (`tests/policy/allergen-name-false-positives.test.ts`). The category map still files yardlong
+  beans, an edible-pod vegetable, under `beans`; that is a `policy_categories` change for its own
+  review and an annotate re-run.
 - Some curated names are looser than their SR rows: jasmine and basmati rice resolve to generic
   long-grain rows, duck breast to whole duck meat, pulled pork to roasted shoulder, sautéed onion to
   boiled onion, mixed greens to green-leaf lettuce. Nutrition is close and no allergen hides in the
@@ -140,11 +143,11 @@ it; `unknown` items stay out of generation for an account that avoids it.
 
 | Allergen | Clear | Listed | Unknown | Clear share |
 |---|---:|---:|---:|---:|
-| dairy (`dairy`) | 132 | 27 | 160 | 41.4 % |
+| dairy (`dairy`) | 132 | 26 | 161 | 41.4 % |
 | egg (`egg`) | 133 | 4 | 182 | 41.7 % |
 | soy (`soy`) | 133 | 4 | 182 | 41.7 % |
 | peanut (`peanut`) | 133 | 3 | 183 | 41.7 % |
-| tree nuts (`tree-nut`) | 126 | 14 | 179 | 39.5 % |
+| tree nuts (`tree-nut`) | 126 | 13 | 180 | 39.5 % |
 | fish (`fish`) | 122 | 20 | 177 | 38.2 % |
 | sesame (`sesame`) | 133 | 3 | 183 | 41.7 % |
 | wheat (`wheat`) | 130 | 5 | 184 | 40.8 % |

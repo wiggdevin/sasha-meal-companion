@@ -149,6 +149,91 @@ class NutrientMap(unittest.TestCase):
         self.assertIsNone(rows["energy_kcal_calc"][1])
 
 
+class FoundationAliases(unittest.TestCase):
+    """W004 (audit 2026-10-10, A019/A022): Foundation publishes energy as 2047/2048 and sugars as
+    1063 for most foods; the importer keeps them as fallbacks behind the mapped id."""
+
+    def test_aliases_fall_back_to_the_mapped_code_in_priority_order(self):
+        self.assertEqual(fdc.nutrient_ids(1008), (1008, 2047, 2048))
+        self.assertEqual(fdc.nutrient_ids(2000), (2000, 1063))
+        self.assertEqual(fdc.nutrient_ids(1003), (1003,))
+        self.assertEqual(fdc.primary_nutrient_id(2047), 1008)
+        self.assertEqual(fdc.primary_nutrient_id(2048), 1008)
+        self.assertEqual(fdc.primary_nutrient_id(1063), 2000)
+        self.assertIsNone(fdc.primary_nutrient_id(1105))
+
+    def test_aliases_never_enter_nutrient_map_or_catalog_nutrients(self):
+        for alias in (2047, 2048, 1063):
+            self.assertNotIn(alias, fdc.NUTRIENT_MAP)
+        rows = {r[0]: r for r in fdc.catalog_nutrient_rows()}
+        self.assertEqual(rows["energy_kcal"][1], 1008)
+        self.assertEqual(rows["sugars_total"][1], 2000)
+
+    def test_foundation_alias_rows_are_staged_under_their_own_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            csv_dir = pathlib.Path(tmp)
+            (csv_dir / "nutrient.csv").write_text(
+                "id,name,unit_name,nutrient_nbr,rank\n"
+                "2047,Energy (Atwater General Factors),KCAL,957,280\n"
+                "2048,Energy (Atwater Specific Factors),KCAL,958,290\n"
+                "1063,\"Sugars, Total\",G,269.3,1500\n"
+            )
+            (csv_dir / "food_nutrient.csv").write_text(
+                "id,fdc_id,nutrient_id,amount\n"
+                "1,2512381,2047,437.7\n"
+                "2,2512381,2048,431.0\n"
+                "3,2512381,1063,8.4\n"
+            )
+            rows = list(fdc._staged_food_nutrient_rows("fdc_foundation", csv_dir))
+        self.assertEqual(rows, [
+            ["fdc_foundation", "2512381", 2047, 437.7],
+            ["fdc_foundation", "2512381", 2048, 431.0],
+            ["fdc_foundation", "2512381", 1063, 8.4],
+        ])
+
+    def test_select_amount_takes_the_first_id_with_a_value(self):
+        # Coconut flour: no 1008 row, 2047 and 2048 published -> 2047 (General) wins.
+        self.assertEqual(fdc.select_amount({2047: [437.7], 2048: [431.0]}, 1008), 437.7)
+        # Only Specific factors -> 2048.
+        self.assertEqual(fdc.select_amount({2048: [431.0]}, 1008), 431.0)
+        # A measured 1008 always wins over an Atwater figure.
+        self.assertEqual(fdc.select_amount({1008: [300.0], 2047: [310.0]}, 1008), 300.0)
+        # A 1008 row with no amount does not hide a real 2047 value.
+        self.assertEqual(fdc.select_amount({1008: [None], 2047: [5.0]}, 1008), 5.0)
+        # Sugars: 2000 before 1063; 1063 alone is kept.
+        self.assertEqual(fdc.select_amount({2000: [3.0], 1063: [10.0]}, 2000), 3.0)
+        self.assertEqual(fdc.select_amount({1063: [10.0]}, 2000), 10.0)
+        # Duplicates of one id keep the max, as before.
+        self.assertEqual(fdc.select_amount({1003: [1.0, 2.5]}, 1003), 2.5)
+
+    def test_select_amount_tells_a_stored_null_from_no_row(self):
+        self.assertIsNone(fdc.select_amount({1008: [None]}, 1008))
+        self.assertIs(fdc.select_amount({}, 1008), fdc.MISSING)
+        self.assertIs(fdc.select_amount({1003: [1.0]}, 1008), fdc.MISSING)
+
+    def test_write_nutrients_passes_each_code_its_priority_list(self):
+        calls = []
+
+        class Cursor:
+            def executemany(self, sql, params):
+                calls.append(("many", sql, list(params)))
+
+            def execute(self, sql, params=None):
+                calls.append(("one", sql, params))
+
+        fdc._write_nutrients(Cursor(), fdc.SOURCES["fdc_foundation"], 7)
+        sql, params = calls[0][1], calls[0][2]
+        self.assertIn("distinct on (r.id)", sql)
+        self.assertIn("array_position", sql)
+        self.assertIn("(s.amount is null)", sql)
+        by_code = {p[0]: p for p in params}
+        self.assertEqual(by_code["energy_kcal"][4], [1008, 2047, 2048])
+        self.assertEqual(by_code["energy_kcal"][5], [1008, 2047, 2048])
+        self.assertEqual(by_code["sugars_total"][4], [2000, 1063])
+        self.assertEqual(by_code["protein"][4], [1003])
+        self.assertEqual(len(params), len(fdc.NUTRIENT_MAP))
+
+
 class Staging(unittest.TestCase):
     def test_ddl_creates_every_table_the_loader_writes(self):
         for table in ("food", "food_nutrient", "food_portion", "measure_unit", "food_category"):

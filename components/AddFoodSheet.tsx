@@ -84,9 +84,13 @@ export async function addBundledRow(
   const protein = source.per100g.protein / 100;
   const carbs = source.per100g.carbs / 100;
   const fat = source.per100g.fat / 100;
+  // The bundled row's measured energy rides along (W004, audit A156): wine's alcohol is in no macro.
+  const kcal = source.per100g.kcal;
   return reAddedFood(prior, {
     id, name: source.name, role: inferFoodRole(source.name, { protein, carbs, fat }), unit: "g",
-    perUnit: { protein, carbs, fat }, status: "eats", updatedAt: now,
+    perUnit: { protein, carbs, fat },
+    ...(Number.isFinite(kcal) && kcal >= 0 ? { kcalPerUnit: kcal / 100 } : {}),
+    status: "eats", updatedAt: now,
   }, now, targetStatus);
 }
 
