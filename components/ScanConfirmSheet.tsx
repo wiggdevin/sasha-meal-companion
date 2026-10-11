@@ -12,7 +12,7 @@ import { toCachedRevision, type BarcodeMatch, type BarcodeResponse } from "@/lib
 import { offPlanFor } from "@/lib/catalog-client";
 import { commitLogEntry } from "@/lib/log-commit-client";
 import { buildCommitRequest } from "@/lib/log-client";
-import { catalogCard } from "@/lib/log/catalog-card";
+import { catalogCard, scanItemAmount } from "@/lib/log/catalog-card";
 import { savedFrom } from "@/lib/log/outcome";
 import { NUTRITION_UNCHECKED_COPY, commitNutritionUnchecked } from "@/lib/nutrition-display";
 import { mark, type TimingRun } from "@/lib/timing";
@@ -51,8 +51,7 @@ export default function ScanConfirmSheet({
     const revision = toCachedRevision(match, response.status === "not_found" ? "" : response.gtin14);
     const request = buildCommitRequest({
       entryId, eatenAt: at, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, slot, method: "barcode",
-      items: [{ id: itemId, foodRefId: match.foodRefId, revision, grams: edits.grams, qty: edits.qty,
-        unit: edits.portionId === null ? "g" : "portion", portionId: edits.portionId }],
+      items: [{ id: itemId, foodRefId: match.foodRefId, revision, ...scanItemAmount(edits) }],
     });
     const entry = catalogCard({
       revision, entryId, itemId, foodRefId: match.foodRefId, grams: edits.grams, qty: edits.qty, at,

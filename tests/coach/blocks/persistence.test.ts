@@ -37,6 +37,7 @@ function database(
         return chain;
       },
       limit: (value: number) => { query.limit = value; return chain; },
+      range: () => chain,
       // Consult `answer` so a fixture can supply a single row (a target revision,
       // say) and not only list reads.
       maybeSingle: async () => ({ data: answer(query).data[0] ?? null, error: null }),

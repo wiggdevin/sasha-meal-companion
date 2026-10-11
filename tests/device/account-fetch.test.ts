@@ -19,6 +19,9 @@ const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
  *  account, like the warm ping: a crash during sign-in or an account switch must still be heard. */
 const ALLOWED = new Set([
   "lib/device/account.ts", "lib/warm-client.ts", "lib/fetch-with-deadline.ts", "lib/client-error-reporter.ts",
+  // W052: the sign-in screen's calls run before any account exists on the device, so there is no
+  // bound account to name; the answer only sets the session cookie.
+  "lib/sign-in-client.ts",
 ]);
 const HREF_API = /href=\{?["'`]?[^}"'`]*\/api\//;
 const RAW_BODY = /\.(json|text|blob)\(\)/;

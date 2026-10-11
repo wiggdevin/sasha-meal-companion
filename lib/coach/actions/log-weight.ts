@@ -7,7 +7,7 @@ import {
 import { passThrough } from "@/lib/coach/actions/ground-kit";
 import type { ActionSpec } from "@/lib/coach/actions/spec";
 import {
-  FAST_PATH_ARGUMENT_CONFIDENCE, kgOf, measuredNumber, type MissingArgs,
+  addLocalDays, dayArgs, FAST_PATH_ARGUMENT_CONFIDENCE, kgOf, measuredNumber, type MissingArgs,
 } from "@/lib/coach/intent-args";
 
 const input = z.object({ kind: z.literal("log_weight"),
@@ -19,7 +19,7 @@ type Types = {
   input: z.infer<typeof input>;
   action: GroundedBase & { kind: "log_weight"; date?: string; kg: number };
   token: { kind: "log_weight"; date: string; previousLb: number | null; tz: string };
-  intentArgs: MissingArgs & { kg?: number };
+  intentArgs: MissingArgs & { kg?: number; dayOffset?: number };
 };
 
 export const logWeight: ActionSpec<Types> = {
@@ -40,20 +40,28 @@ export const logWeight: ActionSpec<Types> = {
     '  Final: { "kind": "final", "text": "Logged 58.1 kg.", "actions": [{ "kind": "log_weight", "numericArgs": [58.1] }] }',
   ] },
   intent: {
-    extract: ({ numbers, raw }) => {
+    extract: ({ numbers, raw, message }) => {
       const measured = measuredNumber(["kg", "lb"], numbers, raw);
       const kg = kgOf(measured.candidate);
-      const isMissing = kg === undefined || measured.confidence < FAST_PATH_ARGUMENT_CONFIDENCE;
+      // A stated day (A024): "yesterday" is read here; any other day takes the model turn.
+      const day = dayArgs(message, [-1]);
+      const missing = [
+        ...(kg === undefined || measured.confidence < FAST_PATH_ARGUMENT_CONFIDENCE ? ["kg"] : []),
+        ...(day.missing ?? []),
+      ];
       const argConfidence: Record<string, number> =
-        kg === undefined ? {} : { kg: measured.confidence };
+        { ...(kg === undefined ? {} : { kg: measured.confidence }), ...day.argConfidence };
       return {
-        args: { ...(kg === undefined ? {} : { kg }), ...(isMissing ? { missing: ["kg"] } : {}) },
+        args: { ...(kg === undefined ? {} : { kg }),
+          ...(day.dayOffset === undefined ? {} : { dayOffset: day.dayOffset }),
+          ...(missing.length ? { missing } : {}) },
         argConfidence,
       };
     },
   },
   fastPath: {
-    candidate: (args) => args.kg === undefined ? null : { kind: "log_weight", kg: args.kg },
+    candidate: (args, today) => args.kg === undefined ? null : { kind: "log_weight", kg: args.kg,
+      ...(args.dayOffset ? { date: addLocalDays(today, args.dayOffset) } : {}) },
     reply: (action) => `Logging ${Math.round(action.kg * 10) / 10} kg.`,
   },
   card: {

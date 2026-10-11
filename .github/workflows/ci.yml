@@ -158,9 +158,26 @@ jobs:
         timeout-minutes: 12
         run: python3 scripts/ci-local-supabase.py start
 
+      # The throwaway-Postgres suites (tests/migrations/*, the files that name PG_BIN) need the
+      # server binaries. The hosted Ubuntu image ships PostgreSQL under /usr/lib/postgresql/<n>/bin
+      # (not on PATH, service off); without PG_BIN they skipped in CI until W040.
+      - name: Point the throwaway-Postgres suites at the runner's Postgres
+        run: |
+          bindir="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1)"
+          test -x "$bindir/initdb" && test -x "$bindir/pg_ctl" && test -x "$bindir/psql"
+          "$bindir/initdb" --version
+          echo "PG_BIN=$bindir" >> "$GITHUB_ENV"
+
       - name: Run integration suite
         timeout-minutes: 15
         run: pnpm test:integration
+        env:
+          VITEST_JSON_REPORT: ${{ runner.temp }}/integration-report.json
+
+      # Lists every skipped test, and fails above the ceiling in scripts/ci-skip-ceiling.json or
+      # when a throwaway-Postgres test skipped (docs/ci/skipped-tests.md).
+      - name: Check skipped tests
+        run: pnpm exec tsx scripts/ci-skip-ceiling.ts "${{ runner.temp }}/integration-report.json"
 
       - name: Stop local Supabase
         if: always()

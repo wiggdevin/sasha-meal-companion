@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { browserClient, callbackRedirectUrl, safePath } from "@/lib/supabase/client";
+import { safePath } from "@/lib/supabase/client";
+import { LIMITED_CODES, signInAuth, type SignInError } from "@/lib/sign-in-client";
 import { SignInCodeForm } from "@/components/SignInCodeForm";
 import { PasswordSignInForm } from "@/components/PasswordSignInForm";
 import { verifyOtpCode } from "@/app/sign-in/otp";
@@ -14,24 +15,17 @@ type Mode = "link" | "password" | "create";
 const SEND_FAILED = "That did not send. Check the address and try again.";
 const RATE_LIMITED = "Too many tries. Wait a minute, then try again.";
 
-type SendError = { message: string; status?: number };
-
 /**
  * The message a failed send shows, or null when the screen should move on to "sent".
  *
- * Sign in (no account enumeration, PR #246 review r1, finding 3): with shouldCreateUser: false,
- * Supabase answers an address with no account the same way it answers a signup attempt —
- * "Signups not allowed for otp" — so that specific error gets the same "sent" screen as a real
- * send. Any other error (rate limit, network) still shows the generic failure.
- *
- * Create: nothing to hide, since a known address simply gets a sign-in email. A rate limit says
- * to wait; every other error, including sign-up being switched off, is the generic failure.
+ * The server (lib/server/sign-in.ts `otpFailure`) already hides whether an address has an account:
+ * a sign-in to an unknown address answers like a real send, and every other sign-in failure is one
+ * generic code. A limit says to wait: the app's IP limiter in both modes (it counts this device,
+ * never an address), and Supabase's own limit only in create mode, where nothing is hidden.
  */
-function sendErrorMessage(mode: Mode, error: SendError | null): string | null {
+function sendErrorMessage(error: SignInError | null): string | null {
   if (!error) return null;
-  if (mode !== "create") return error.message === "Signups not allowed for otp" ? null : SEND_FAILED;
-  const limited = error.status === 429 || /rate limit|only request this after/i.test(error.message);
-  return limited ? RATE_LIMITED : SEND_FAILED;
+  return LIMITED_CODES.has(error.code) ? RATE_LIMITED : SEND_FAILED;
 }
 
 function currentNext(): string {
@@ -95,18 +89,12 @@ export default function SignInPage() {
     setStage("sending");
     const id = ++sendId.current;
     const next = currentNext();
-    const { error } = await browserClient().auth.signInWithOtp({
-      email: address,
-      options: {
-        emailRedirectTo: callbackRedirectUrl(window.location.origin, next),
-        // Sign in never creates an account, so a mistyped address cannot mint one. Only the
-        // explicit "Create an account" mode does (docs/decisions/2026-09-25-self-serve-signup.md,
-        // superseding Phase 9 §1.4 step 8 for that path only).
-        shouldCreateUser: mode === "create",
-      },
-    });
+    // Through the app's IP-limited route (W052). Sign in never creates an account, so a mistyped
+    // address cannot mint one. Only the explicit "Create an account" mode does
+    // (docs/decisions/2026-09-25-self-serve-signup.md, superseding Phase 9 §1.4 step 8 for that path only).
+    const { error } = await signInAuth().signInWithOtp({ email: address, create: mode === "create", next });
     if (id !== sendId.current) return;
-    const failure = sendErrorMessage(mode, error);
+    const failure = sendErrorMessage(error);
     if (failure) {
       setStage("error");
       setMessage(failure);
@@ -123,7 +111,7 @@ export default function SignInPage() {
   }
 
   async function verifyCode(code: string): Promise<string | null> {
-    const error = await verifyOtpCode(browserClient().auth, email, code);
+    const error = await verifyOtpCode(signInAuth(), email, code);
     if (error) return error;
     leaveSignIn();
     return null;
