@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vercel Cron Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --paper:#E0DCD1; --paper-2:#D3CDC0; --ink:#1D1D1C; --muted:#4F5343; --soft:#5E5C55;
+  --rule:rgba(29,29,28,0.14); --rule-solid:#A9A394; --accent:#9E431B; --accent-tint:rgba(212,107,56,0.12);
+  --link:#3F6482; --ivory:#F6F2E9;
+  --font-serif:'Fraunces', 'Noto Serif', serif;
+  --font-sans:'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+    --rule:rgba(226,220,208,0.14); --rule-solid:rgba(226,220,208,0.28); --accent:#E59A73;
+    --accent-tint:rgba(229,154,115,0.12); --link:#A2C4D2; --ivory:#2A2A27;
+  }
+}
+body { font-family:var(--font-sans); background:var(--paper); color:var(--ink); padding:3rem 1.5rem; }
+.frame { max-width:1180px; margin:0 auto; }
+.eyebrow { font-family:var(--font-mono); font-size:0.66rem; font-weight:500; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-bottom:0.5rem; }
+h1 { font-family:var(--font-serif); font-size:1.75rem; font-weight:400; letter-spacing:-0.02em; line-height:1.15; margin-bottom:0.75rem; }
+.lede { font-size:0.95rem; color:var(--muted); max-width:62ch; line-height:1.55; margin-bottom:2rem; }
+h2 { font-family:var(--font-serif); font-size:1.15rem; font-weight:400; margin:2.5rem 0 0.25rem; }
+.cap { font-family:var(--font-mono); font-size:0.7rem; color:var(--soft); margin-bottom:1rem; }
+.diagram-container { width:100%; overflow-x:auto; }
+svg { display:block; width:100%; min-width:1180px; }
+.cards { display:grid; grid-template-columns:1.1fr 1fr 0.9fr; gap:1rem; margin-top:2.5rem; }
+.card { background:var(--ivory); border:1px solid var(--rule); border-radius:6px; padding:1.25rem; }
+.card .eyebrow { margin-bottom:0.35rem; }
+.card h3 { font-family:var(--font-serif); font-weight:400; font-size:1.05rem; margin-bottom:0.6rem; }
+.card ul { list-style:none; font-size:0.82rem; line-height:1.5; color:var(--ink); }
+.card li { padding:0.2rem 0; }
+.card code { font-family:var(--font-mono); font-size:0.72rem; color:var(--soft); }
+footer { margin-top:2.5rem; padding-top:1rem; border-top:1px solid var(--rule); font-family:var(--font-mono); font-size:0.66rem; color:var(--muted); line-height:1.6; }
+@media (max-width:820px) { .cards { grid-template-columns:1fr; } }
+@media print { .diagram-container { overflow-x:visible; } svg { min-width:0; } }
+/* svg tokens */
+.bg { fill:var(--paper); }
+.mask { fill:var(--paper); }
+.grid { stroke:var(--rule); stroke-width:1; }
+.grid-strong { stroke:var(--rule-solid); stroke-width:1; }
+.axis { font-family:var(--font-mono); font-size:9px; fill:var(--soft); }
+.eyebrow-t { font-family:var(--font-mono); font-size:8px; font-weight:500; letter-spacing:0.18em; fill:var(--muted); }
+.name { font-family:var(--font-sans); font-size:12px; font-weight:600; fill:var(--ink); }
+.name-accent { font-family:var(--font-sans); font-size:12px; font-weight:600; fill:var(--accent); }
+.sub { font-family:var(--font-mono); font-size:9px; fill:var(--soft); }
+.note { font-family:var(--font-mono); font-size:8px; fill:var(--soft); }
+.note-accent { font-family:var(--font-mono); font-size:8px; fill:var(--accent); font-weight:500; }
+.dot-solid { fill:var(--ink); }
+.dot-accent { fill:var(--accent); }
+.dot-hollow { fill:var(--paper); stroke:var(--ink); stroke-width:1.5; }
+.dot-small { fill:var(--muted); }
+.tick { stroke:var(--muted); stroke-width:1; }
+.n-input { fill:color-mix(in srgb, var(--muted) 10%, transparent); stroke:var(--soft); stroke-width:1; }
+.n-security { fill:color-mix(in srgb, var(--accent) 5%, transparent); stroke:color-mix(in srgb, var(--accent) 50%, transparent); stroke-width:1; stroke-dasharray:4 4; }
+.n-optional { fill:color-mix(in srgb, var(--ink) 2%, transparent); stroke:color-mix(in srgb, var(--ink) 30%, transparent); stroke-width:1; stroke-dasharray:4 3; }
+.n-store { fill:color-mix(in srgb, var(--ink) 5%, transparent); stroke:var(--muted); stroke-width:1; }
+.n-backend { fill:var(--ivory); stroke:var(--ink); stroke-width:1; }
+.n-focal { fill:var(--accent-tint); stroke:var(--accent); stroke-width:1.5; }
+.tagbox { fill:none; stroke:var(--rule-solid); stroke-width:1; }
+.tag { font-family:var(--font-mono); font-size:7.5px; font-weight:500; letter-spacing:0.14em; fill:var(--muted); }
+.a-muted { stroke:var(--muted); stroke-width:1.25; fill:none; }
+.a-link { stroke:var(--link); stroke-width:1.25; fill:none; }
+.a-dash { stroke:var(--muted); stroke-width:1.25; fill:none; stroke-dasharray:5 4; }
+.mk-muted { fill:var(--muted); }
+.mk-link { fill:var(--link); }
+.alabel { font-family:var(--font-mono); font-size:8px; letter-spacing:0.06em; fill:var(--muted); }
+.callout { font-family:var(--font-serif); font-style:italic; font-size:14px; fill:var(--soft); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <p class="eyebrow">Timeline and flow · Meal Companion · 2026-10-10</p>
+  <h1>Vercel cron map</h1>
+  <p class="lede">Ten crons call <code style="font-family:var(--font-mono);font-size:0.8em">/api/jobs/*</code> in sfo1. Every call checks the secret before the limiter. Four jobs walk all accounts through a resumable pass. The rest run once, hourly or in short loops.</p>
+
+  <h2>When each cron fires</h2>
+  <p class="cap">UTC axis on top, US Eastern (EDT, UTC-4) below. After 2026-11-01 Eastern is one hour earlier than shown. Source: vercel.json:4-13</p>
+  <div class="diagram-container">
+<svg viewBox="0 0 1180 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="crons-schedule-title crons-schedule-desc">
+<title id="crons-schedule-title">Cron schedule over 24 hours, UTC</title>
+<desc id="crons-schedule-desc">Ten Vercel crons placed on a 24-hour UTC axis, with the US Eastern hour shown below; four jobs fire up to four times to resume a pass, two run on a steady cadence, and the backup fires once.</desc>
+<rect width="100%" height="100%" class="bg"/>
+<line x1="360.0" y1="84" x2="360.0" y2="530" class="grid-strong"/>
+<line x1="392.5" y1="84" x2="392.5" y2="530" class="grid"/>
+<line x1="425.0" y1="84" x2="425.0" y2="530" class="grid"/>
+<line x1="457.5" y1="84" x2="457.5" y2="530" class="grid"/>
+<line x1="490.0" y1="84" x2="490.0" y2="530" class="grid"/>
+<line x1="522.5" y1="84" x2="522.5" y2="530" class="grid"/>
+<line x1="555.0" y1="84" x2="555.0" y2="530" class="grid-strong"/>
+<line x1="587.5" y1="84" x2="587.5" y2="530" class="grid"/>
+<line x1="620.0" y1="84" x2="620.0" y2="530" class="grid"/>
+<line x1="652.5" y1="84" x2="652.5" y2="530" class="grid"/>
+<line x1="685.0" y1="84" x2="685.0" y2="530" class="grid"/>
+<line x1="717.5" y1="84" x2="717.5" y2="530" class="grid"/>
+<line x1="750.0" y1="84" x2="750.0" y2="530" class="grid-strong"/>
+<line x1="782.5" y1="84" x2="782.5" y2="530" class="grid"/>
+<line x1="815.0" y1="84" x2="815.0" y2="530" class="grid"/>
+<line x1="847.5" y1="84" x2="847.5" y2="530" class="grid"/>
+<line x1="880.0" y1="84" x2="880.0" y2="530" class="grid"/>
+<line x1="912.5" y1="84" x2="912.5" y2="530" class="grid"/>
+<line x1="945.0" y1="84" x2="945.0" y2="530" class="grid-strong"/>
+<line x1="977.5" y1="84" x2="977.5" y2="530" class="grid"/>
+<line x1="1010.0" y1="84" x2="1010.0" y2="530" class="grid"/>
+<line x1="1042.5" y1="84" x2="1042.5" y2="530" class="grid"/>
+<line x1="1075.0" y1="84" x2="1075.0" y2="530" class="grid"/>
+<line x1="1107.5" y1="84" x2="1107.5" y2="530" class="grid"/>
+<line x1="1140.0" y1="84" x2="1140.0" y2="530" class="grid-strong"/>
+<line x1="40" y1="90" x2="1140" y2="90" class="grid"/>
+<line x1="40" y1="134" x2="1140" y2="134" class="grid"/>
+<line x1="40" y1="178" x2="1140" y2="178" class="grid"/>
+<line x1="40" y1="222" x2="1140" y2="222" class="grid"/>
+<line x1="40" y1="266" x2="1140" y2="266" class="grid"/>
+<line x1="40" y1="310" x2="1140" y2="310" class="grid"/>
+<line x1="40" y1="354" x2="1140" y2="354" class="grid"/>
+<line x1="40" y1="398" x2="1140" y2="398" class="grid"/>
+<line x1="40" y1="442" x2="1140" y2="442" class="grid"/>
+<line x1="40" y1="486" x2="1140" y2="486" class="grid"/>
+<line x1="40" y1="530" x2="1140" y2="530" class="grid"/>
+<text x="360.0" y="76" text-anchor="middle" class="axis">00</text>
+<text x="425.0" y="76" text-anchor="middle" class="axis">02</text>
+<text x="490.0" y="76" text-anchor="middle" class="axis">04</text>
+<text x="555.0" y="76" text-anchor="middle" class="axis">06</text>
+<text x="620.0" y="76" text-anchor="middle" class="axis">08</text>
+<text x="685.0" y="76" text-anchor="middle" class="axis">10</text>
+<text x="750.0" y="76" text-anchor="middle" class="axis">12</text>
+<text x="815.0" y="76" text-anchor="middle" class="axis">14</text>
+<text x="880.0" y="76" text-anchor="middle" class="axis">16</text>
+<text x="945.0" y="76" text-anchor="middle" class="axis">18</text>
+<text x="1010.0" y="76" text-anchor="middle" class="axis">20</text>
+<text x="1075.0" y="76" text-anchor="middle" class="axis">22</text>
+<text x="1140.0" y="76" text-anchor="middle" class="axis">24</text>
+<text x="40" y="76" class="eyebrow-t">UTC HOUR</text>
+<text x="360.0" y="552" text-anchor="middle" class="axis">20</text>
+<text x="425.0" y="552" text-anchor="middle" class="axis">22</text>
+<text x="490.0" y="552" text-anchor="middle" class="axis">00</text>
+<text x="555.0" y="552" text-anchor="middle" class="axis">02</text>
+<text x="620.0" y="552" text-anchor="middle" class="axis">04</text>
+<text x="685.0" y="552" text-anchor="middle" class="axis">06</text>
+<text x="750.0" y="552" text-anchor="middle" class="axis">08</text>
+<text x="815.0" y="552" text-anchor="middle" class="axis">10</text>
+<text x="880.0" y="552" text-anchor="middle" class="axis">12</text>
+<text x="945.0" y="552" text-anchor="middle" class="axis">14</text>
+<text x="1010.0" y="552" text-anchor="middle" class="axis">16</text>
+<text x="1075.0" y="552" text-anchor="middle" class="axis">18</text>
+<text x="1140.0" y="552" text-anchor="middle" class="axis">20</text>
+<text x="40" y="552" class="eyebrow-t">US EASTERN, EDT</text>
+<text x="40" y="110" class="name">weekly-proposal</text>
+<text x="40" y="124" class="sub">0 1-3 * * 1  ·  Mondays  ·  Sun 21:00-23:00 ET</text>
+<circle cx="392.5" cy="112" r="5" class="dot-solid"/>
+<circle cx="425.0" cy="112" r="5" class="dot-hollow"/>
+<circle cx="457.5" cy="112" r="5" class="dot-hollow"/>
+<rect x="466.5" y="106" width="111" height="12" class="mask"/>
+<text x="471.5" y="115" class="note">01:00, 02:00, 03:00</text>
+<text x="40" y="154" class="name">media-sweep</text>
+<text x="40" y="168" class="sub">0 3 * * *  ·  23:00 ET, day before</text>
+<circle cx="457.5" cy="156" r="5" class="dot-solid"/>
+<rect x="466.5" y="150" width="36" height="12" class="mask"/>
+<text x="471.5" y="159" class="note">03:00</text>
+<text x="40" y="198" class="name-accent">backup</text>
+<text x="40" y="212" class="sub">45 3 * * *  ·  23:45 ET, day before</text>
+<circle cx="481.9" cy="200" r="5" class="dot-accent"/>
+<rect x="490.9" y="194" width="142" height="12" class="mask"/>
+<text x="495.9" y="203" class="note-accent">03:45, one fire, no retry</text>
+<text x="40" y="242" class="name">facet-warm</text>
+<text x="40" y="256" class="sub">20 4-7 * * *  ·  00:20-03:20 ET</text>
+<circle cx="500.8" cy="244" r="5" class="dot-solid"/>
+<circle cx="533.3" cy="244" r="5" class="dot-hollow"/>
+<circle cx="565.8" cy="244" r="5" class="dot-hollow"/>
+<circle cx="598.3" cy="244" r="5" class="dot-hollow"/>
+<rect x="607.3" y="238" width="84" height="12" class="mask"/>
+<text x="612.3" y="247" class="note">04:20 to 07:20</text>
+<text x="40" y="286" class="name">signal-purge</text>
+<text x="40" y="300" class="sub">50 4 * * *  ·  00:50 ET</text>
+<circle cx="517.1" cy="288" r="5" class="dot-solid"/>
+<rect x="526.1" y="282" width="36" height="12" class="mask"/>
+<text x="531.1" y="291" class="note">04:50</text>
+<text x="40" y="330" class="name">onboarding-events-purge</text>
+<text x="40" y="344" class="sub">55 4 * * *  ·  00:55 ET</text>
+<circle cx="519.8" cy="332" r="5" class="dot-solid"/>
+<rect x="528.8" y="326" width="36" height="12" class="mask"/>
+<text x="533.8" y="335" class="note">04:55</text>
+<text x="40" y="374" class="name">estimate</text>
+<text x="40" y="388" class="sub">0 7-9 * * *  ·  03:00-05:00 ET</text>
+<circle cx="587.5" cy="376" r="5" class="dot-solid"/>
+<circle cx="620.0" cy="376" r="5" class="dot-hollow"/>
+<circle cx="652.5" cy="376" r="5" class="dot-hollow"/>
+<rect x="661.5" y="370" width="111" height="12" class="mask"/>
+<text x="666.5" y="379" class="note">07:00, 08:00, 09:00</text>
+<text x="40" y="418" class="name">oura-pull</text>
+<text x="40" y="432" class="sub">0 10-12 * * *  ·  06:00-08:00 ET</text>
+<circle cx="685.0" cy="420" r="5" class="dot-solid"/>
+<circle cx="717.5" cy="420" r="5" class="dot-hollow"/>
+<circle cx="750.0" cy="420" r="5" class="dot-hollow"/>
+<rect x="759.0" y="414" width="111" height="12" class="mask"/>
+<text x="764.0" y="423" class="note">10:00, 11:00, 12:00</text>
+<text x="40" y="462" class="name">weekly-review</text>
+<text x="40" y="476" class="sub">30 * * * *  ·  hourly  ·  acts from local Sun 18:00</text>
+<circle cx="376.2" cy="464" r="3" class="dot-small"/>
+<circle cx="408.8" cy="464" r="3" class="dot-small"/>
+<circle cx="441.2" cy="464" r="3" class="dot-small"/>
+<circle cx="473.8" cy="464" r="3" class="dot-small"/>
+<circle cx="506.2" cy="464" r="3" class="dot-small"/>
+<circle cx="538.8" cy="464" r="3" class="dot-small"/>
+<circle cx="571.2" cy="464" r="3" class="dot-small"/>
+<circle cx="603.8" cy="464" r="3" class="dot-small"/>
+<circle cx="636.2" cy="464" r="3" class="dot-small"/>
+<circle cx="668.8" cy="464" r="3" class="dot-small"/>
+<circle cx="701.2" cy="464" r="3" class="dot-small"/>
+<circle cx="733.8" cy="464" r="3" class="dot-small"/>
+<circle cx="766.2" cy="464" r="3" class="dot-small"/>
+<circle cx="798.8" cy="464" r="3" class="dot-small"/>
+<circle cx="831.2" cy="464" r="3" class="dot-small"/>
+<circle cx="863.8" cy="464" r="3" class="dot-small"/>
+<circle cx="896.2" cy="464" r="3" class="dot-small"/>
+<circle cx="928.8" cy="464" r="3" class="dot-small"/>
+<circle cx="961.2" cy="464" r="3" class="dot-small"/>
+<circle cx="993.8" cy="464" r="3" class="dot-small"/>
+<circle cx="1026.2" cy="464" r="3" class="dot-small"/>
+<circle cx="1058.8" cy="464" r="3" class="dot-small"/>
+<circle cx="1091.2" cy="464" r="3" class="dot-small"/>
+<circle cx="1123.8" cy="464" r="3" class="dot-small"/>
+<text x="40" y="506" class="name">spend-sweep</text>
+<text x="40" y="520" class="sub">*/15 * * * *  ·  every 15 minutes</text>
+<line x1="360.0" y1="503" x2="360.0" y2="513" class="tick"/>
+<line x1="368.1" y1="503" x2="368.1" y2="513" class="tick"/>
+<line x1="376.2" y1="503" x2="376.2" y2="513" class="tick"/>
+<line x1="384.4" y1="503" x2="384.4" y2="513" class="tick"/>
+<line x1="392.5" y1="503" x2="392.5" y2="513" class="tick"/>
+<line x1="400.6" y1="503" x2="400.6" y2="513" class="tick"/>
+<line x1="408.8" y1="503" x2="408.8" y2="513" class="tick"/>
+<line x1="416.9" y1="503" x2="416.9" y2="513" class="tick"/>
+<line x1="425.0" y1="503" x2="425.0" y2="513" class="tick"/>
+<line x1="433.1" y1="503" x2="433.1" y2="513" class="tick"/>
+<line x1="441.2" y1="503" x2="441.2" y2="513" class="tick"/>
+<line x1="449.4" y1="503" x2="449.4" y2="513" class="tick"/>
+<line x1="457.5" y1="503" x2="457.5" y2="513" class="tick"/>
+<line x1="465.6" y1="503" x2="465.6" y2="513" class="tick"/>
+<line x1="473.8" y1="503" x2="473.8" y2="513" class="tick"/>
+<line x1="481.9" y1="503" x2="481.9" y2="513" class="tick"/>
+<line x1="490.0" y1="503" x2="490.0" y2="513" class="tick"/>
+<line x1="498.1" y1="503" x2="498.1" y2="513" class="tick"/>
+<line x1="506.2" y1="503" x2="506.2" y2="513" class="tick"/>
+<line x1="514.4" y1="503" x2="514.4" y2="513" class="tick"/>
+<line x1="522.5" y1="503" x2="522.5" y2="513" class="tick"/>
+<line x1="530.6" y1="503" x2="530.6" y2="513" class="tick"/>
+<line x1="538.8" y1="503" x2="538.8" y2="513" class="tick"/>
+<line x1="546.9" y1="503" x2="546.9" y2="513" class="tick"/>
+<line x1="555.0" y1="503" x2="555.0" y2="513" class="tick"/>
+<line x1="563.1" y1="503" x2="563.1" y2="513" class="tick"/>
+<line x1="571.2" y1="503" x2="571.2" y2="513" class="tick"/>
+<line x1="579.4" y1="503" x2="579.4" y2="513" class="tick"/>
+<line x1="587.5" y1="503" x2="587.5" y2="513" class="tick"/>
+<line x1="595.6" y1="503" x2="595.6" y2="513" class="tick"/>
+<line x1="603.8" y1="503" x2="603.8" y2="513" class="tick"/>
+<line x1="611.9" y1="503" x2="611.9" y2="513" class="tick"/>
+<line x1="620.0" y1="503" x2="620.0" y2="513" class="tick"/>
+<line x1="628.1" y1="503" x2="628.1" y2="513" class="tick"/>
+<line x1="636.2" y1="503" x2="636.2" y2="513" class="tick"/>
+<line x1="644.4" y1="503" x2="644.4" y2="513" class="tick"/>
+<line x1="652.5" y1="503" x2="652.5" y2="513" class="tick"/>
+<line x1="660.6" y1="503" x2="660.6" y2="513" class="tick"/>
+<line x1="668.8" y1="503" x2="668.8" y2="513" class="tick"/>
+<line x1="676.9" y1="503" x2="676.9" y2="513" class="tick"/>
+<line x1="685.0" y1="503" x2="685.0" y2="513" class="tick"/>
+<line x1="693.1" y1="503" x2="693.1" y2="513" class="tick"/>
+<line x1="701.2" y1="503" x2="701.2" y2="513" class="tick"/>
+<line x1="709.4" y1="503" x2="709.4" y2="513" class="tick"/>
+<line x1="717.5" y1="503" x2="717.5" y2="513" class="tick"/>
+<line x1="725.6" y1="503" x2="725.6" y2="513" class="tick"/>
+<line x1="733.8" y1="503" x2="733.8" y2="513" class="tick"/>
+<line x1="741.9" y1="503" x2="741.9" y2="513" class="tick"/>
+<line x1="750.0" y1="503" x2="750.0" y2="513" class="tick"/>
+<line x1="758.1" y1="503" x2="758.1" y2="513" class="tick"/>
+<line x1="766.2" y1="503" x2="766.2" y2="513" class="tick"/>
+<line x1="774.4" y1="503" x2="774.4" y2="513" class="tick"/>
+<line x1="782.5" y1="503" x2="782.5" y2="513" class="tick"/>
+<line x1="790.6" y1="503" x2="790.6" y2="513" class="tick"/>
+<line x1="798.8" y1="503" x2="798.8" y2="513" class="tick"/>
+<line x1="806.9" y1="503" x2="806.9" y2="513" class="tick"/>
+<line x1="815.0" y1="503" x2="815.0" y2="513" class="tick"/>
+<line x1="823.1" y1="503" x2="823.1" y2="513" class="tick"/>
+<line x1="831.2" y1="503" x2="831.2" y2="513" class="tick"/>
+<line x1="839.4" y1="503" x2="839.4" y2="513" class="tick"/>
+<line x1="847.5" y1="503" x2="847.5" y2="513" class="tick"/>
+<line x1="855.6" y1="503" x2="855.6" y2="513" class="tick"/>
+<line x1="863.8" y1="503" x2="863.8" y2="513" class="tick"/>
+<line x1="871.9" y1="503" x2="871.9" y2="513" class="tick"/>
+<line x1="880.0" y1="503" x2="880.0" y2="513" class="tick"/>
+<line x1="888.1" y1="503" x2="888.1" y2="513" class="tick"/>
+<line x1="896.2" y1="503" x2="896.2" y2="513" class="tick"/>
+<line x1="904.4" y1="503" x2="904.4" y2="513" class="tick"/>
+<line x1="912.5" y1="503" x2="912.5" y2="513" class="tick"/>
+<line x1="920.6" y1="503" x2="920.6" y2="513" class="tick"/>
+<line x1="928.8" y1="503" x2="928.8" y2="513" class="tick"/>
+<line x1="936.9" y1="503" x2="936.9" y2="513" class="tick"/>
+<line x1="945.0" y1="503" x2="945.0" y2="513" class="tick"/>
+<line x1="953.1" y1="503" x2="953.1" y2="513" class="tick"/>
+<line x1="961.2" y1="503" x2="961.2" y2="513" class="tick"/>
+<line x1="969.4" y1="503" x2="969.4" y2="513" class="tick"/>
+<line x1="977.5" y1="503" x2="977.5" y2="513" class="tick"/>
+<line x1="985.6" y1="503" x2="985.6" y2="513" class="tick"/>
+<line x1="993.8" y1="503" x2="993.8" y2="513" class="tick"/>
+<line x1="1001.9" y1="503" x2="1001.9" y2="513" class="tick"/>
+<line x1="1010.0" y1="503" x2="1010.0" y2="513" class="tick"/>
+<line x1="1018.1" y1="503" x2="1018.1" y2="513" class="tick"/>
+<line x1="1026.2" y1="503" x2="1026.2" y2="513" class="tick"/>
+<line x1="1034.4" y1="503" x2="1034.4" y2="513" class="tick"/>
+<line x1="1042.5" y1="503" x2="1042.5" y2="513" class="tick"/>
+<line x1="1050.6" y1="503" x2="1050.6" y2="513" class="tick"/>
+<line x1="1058.8" y1="503" x2="1058.8" y2="513" class="tick"/>
+<line x1="1066.9" y1="503" x2="1066.9" y2="513" class="tick"/>
+<line x1="1075.0" y1="503" x2="1075.0" y2="513" class="tick"/>
+<line x1="1083.1" y1="503" x2="1083.1" y2="513" class="tick"/>
+<line x1="1091.2" y1="503" x2="1091.2" y2="513" class="tick"/>
+<line x1="1099.4" y1="503" x2="1099.4" y2="513" class="tick"/>
+<line x1="1107.5" y1="503" x2="1107.5" y2="513" class="tick"/>
+<line x1="1115.6" y1="503" x2="1115.6" y2="513" class="tick"/>
+<line x1="1123.8" y1="503" x2="1123.8" y2="513" class="tick"/>
+<line x1="1131.9" y1="503" x2="1131.9" y2="513" class="tick"/>
+<circle cx="45" cy="592" r="5" class="dot-solid"/><text x="58" y="595" class="sub">first fire: starts the pass</text>
+<circle cx="275" cy="592" r="5" class="dot-hollow"/><text x="288" y="595" class="sub">later fire: resumes it, or does nothing</text>
+<circle cx="595" cy="592" r="3" class="dot-small"/><text x="608" y="595" class="sub">no cursor, hourly</text>
+<line x1="765" y1="587" x2="765" y2="597" class="tick"/><text x="778" y="595" class="sub">every 15 min</text>
+<circle cx="915" cy="592" r="5" class="dot-accent"/><text x="928" y="595" class="sub">one fire a day, no retry</text>
+</svg>
+  </div>
+
+  <h2>What one call does</h2>
+  <p class="cap">Gate order checked in all ten routes. Pass lease, budget and account lock apply to estimate, weekly-proposal, oura-pull and facet-warm.</p>
+  <div class="diagram-container">
+<svg viewBox="0 0 1180 444" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="crons-lifecycle-title crons-lifecycle-desc">
+<title id="crons-lifecycle-title">One cron call, gate to saved pass</title>
+<desc id="crons-lifecycle-desc">A cron call passes the secret check, the rate limit and an optional feature flag, takes a pass lease, runs accounts inside a 240 second budget under a per-account lock, does the job with the service role, and saves the pass for the next fire.</desc>
+<defs>
+<marker id="m-muted" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk-muted"/></marker>
+<marker id="m-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk-link"/></marker>
+</defs>
+<rect width="100%" height="100%" class="bg"/>
+<line x1="240" y1="96" x2="280" y2="96" class="a-link" marker-end="url(#m-link)"/>
+<line x1="460" y1="96" x2="500" y2="96" class="a-muted" marker-end="url(#m-muted)"/>
+<line x1="680" y1="96" x2="720" y2="96" class="a-muted" marker-end="url(#m-muted)"/>
+<line x1="900" y1="96" x2="940" y2="96" class="a-muted" marker-end="url(#m-muted)"/>
+<line x1="1030" y1="144" x2="1030" y2="216" class="a-muted" marker-end="url(#m-muted)"/>
+<line x1="940" y1="264" x2="900" y2="264" class="a-muted" marker-end="url(#m-muted)"/>
+<line x1="720" y1="264" x2="680" y2="264" class="a-muted" marker-end="url(#m-muted)"/>
+<line x1="500" y1="264" x2="460" y2="264" class="a-muted" marker-end="url(#m-muted)"/>
+<path d="M280 264 H158 A8 8 0 0 1 150 256 V144" class="a-dash" marker-end="url(#m-muted)"/>
+<rect x="60" y="48" width="180" height="96" class="mask"/><rect x="60" y="48" width="180" height="96" rx="6" class="n-input"/><rect x="72" y="56" width="38" height="13" rx="2" class="tagbox"/><text x="77" y="66" class="tag">INPUT</text><text x="72" y="88" class="name">Vercel Cron</text><text x="72" y="105" class="sub">GET + Bearer CRON_SECRET</text><text x="72" y="118" class="sub">sfo1, 10 schedules</text><text x="72" y="131" class="sub">vercel.json:2-14</text>
+<rect x="280" y="48" width="180" height="96" class="mask"/><rect x="280" y="48" width="180" height="96" rx="6" class="n-security"/><rect x="292" y="56" width="44" height="13" rx="2" class="tagbox"/><text x="297" y="66" class="tag">GATE 1</text><text x="292" y="88" class="name">Secret check</text><text x="292" y="105" class="sub">cronSecretOk, timing-safe</text><text x="292" y="118" class="sub">wrong or none: 401</text><text x="292" y="131" class="sub">jobs.ts:22</text>
+<rect x="500" y="48" width="180" height="96" class="mask"/><rect x="500" y="48" width="180" height="96" rx="6" class="n-security"/><rect x="512" y="56" width="44" height="13" rx="2" class="tagbox"/><text x="517" y="66" class="tag">GATE 2</text><text x="512" y="88" class="name">Rate limit</text><text x="512" y="105" class="sub">jobs:name, 10-30 per hour</text><text x="512" y="118" class="sub">limiter down: 503</text><text x="512" y="131" class="sub">ratelimit.ts:129</text>
+<rect x="720" y="48" width="180" height="96" class="mask"/><rect x="720" y="48" width="180" height="96" rx="6" class="n-optional"/><rect x="732" y="56" width="105" height="13" rx="2" class="tagbox"/><text x="737" y="66" class="tag">GATE 3, SOME JOBS</text><text x="732" y="88" class="name">Feature flag</text><text x="732" y="105" class="sub">ESTIMATOR_ENABLED</text><text x="732" y="118" class="sub">HEALTH_INGEST_ENABLED</text><text x="732" y="131" class="sub">coachEnabled()</text>
+<rect x="940" y="48" width="180" height="96" class="mask"/><rect x="940" y="48" width="180" height="96" rx="6" class="n-store"/><rect x="952" y="56" width="77" height="13" rx="2" class="tagbox"/><text x="957" y="66" class="tag">PASS, 4 JOBS</text><text x="952" y="88" class="name">Take pass lease</text><text x="952" y="105" class="sub">claim_job_cursor, 360 s</text><text x="952" y="118" class="sub">held: 200, busy</text><text x="952" y="131" class="sub">job_cursors</text>
+<rect x="940" y="216" width="180" height="96" class="mask"/><rect x="940" y="216" width="180" height="96" rx="6" class="n-focal"/><rect x="952" y="224" width="44" height="13" rx="2" class="tagbox"/><text x="957" y="234" class="tag">BUDGET</text><text x="952" y="256" class="name">Budgeted run</text><text x="952" y="273" class="sub">4 to 6 accounts at once</text><text x="952" y="286" class="sub">no new start at 240 s</text><text x="952" y="299" class="sub">abandon at 285 s</text>
+<rect x="720" y="216" width="180" height="96" class="mask"/><rect x="720" y="216" width="180" height="96" rx="6" class="n-store"/><rect x="732" y="224" width="72" height="13" rx="2" class="tagbox"/><text x="737" y="234" class="tag">PER ACCOUNT</text><text x="732" y="256" class="name">Account lock</text><text x="732" y="273" class="sub">job_runs (job,user,key)</text><text x="732" y="286" class="sub">taken, done, busy, failed</text><text x="732" y="299" class="sub">stale after 15 min</text>
+<rect x="500" y="216" width="180" height="96" class="mask"/><rect x="500" y="216" width="180" height="96" rx="6" class="n-backend"/><rect x="512" y="224" width="32" height="13" rx="2" class="tagbox"/><text x="517" y="234" class="tag">WORK</text><text x="512" y="256" class="name">Job work</text><text x="512" y="273" class="sub">adminClient, service role</text><text x="512" y="286" class="sub">tables in vercel-crons.md</text><text x="512" y="299" class="sub">per job</text>
+<rect x="280" y="216" width="180" height="96" class="mask"/><rect x="280" y="216" width="180" height="96" rx="6" class="n-store"/><rect x="292" y="224" width="32" height="13" rx="2" class="tagbox"/><text x="297" y="234" class="tag">SAVE</text><text x="292" y="256" class="name">Save the pass</text><text x="292" y="273" class="sub">compare-and-set on lease</text><text x="292" y="286" class="sub">retry_keys, done flag</text><text x="292" y="299" class="sub">job-cursor.ts:83</text>
+<rect x="1042.0" y="174" width="65" height="13" class="mask"/><text x="1046" y="183" text-anchor="start" class="alabel">LEASE TAKEN</text>
+<rect x="162.0" y="191" width="86" height="13" class="mask"/><text x="166" y="200" text-anchor="start" class="alabel">NEXT FIRE, +1 H</text>
+<text x="60" y="368" class="callout">The other six jobs skip the pass lease. Lock keys and tables per job: vercel-crons.md.</text>
+<rect x="60" y="408" width="22" height="14" rx="3" class="n-security"/><text x="92" y="419" class="sub">Refuses the call</text>
+<rect x="250" y="408" width="22" height="14" rx="3" class="n-optional"/><text x="282" y="419" class="sub">Only some jobs</text>
+<rect x="440" y="408" width="22" height="14" rx="3" class="n-store"/><text x="472" y="419" class="sub">Table state</text>
+<rect x="630" y="408" width="22" height="14" rx="3" class="n-backend"/><text x="662" y="419" class="sub">Job body</text>
+<rect x="820" y="408" width="22" height="14" rx="3" class="n-focal"/><text x="852" y="419" class="sub">Time budget</text>
+<line x1="1010" y1="415" x2="1032" y2="415" class="a-dash"/><text x="1042" y="419" class="sub">Next fire, async</text>
+</svg>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <p class="eyebrow">Time</p>
+      <h3>Budget and function limit</h3>
+      <ul>
+        <li>Nine jobs set <code>maxDuration = 300</code>. spend-sweep sets 90 and stops at 60 s.</li>
+        <li>No account starts after 240 s. In-flight work is dropped and queued at 285 s. <code>job-cursor.ts:202-203</code></li>
+        <li>The pass lease lasts 360 s, longer than any run.</li>
+        <li>All functions run in sfo1. <code>vercel.json:2</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Failure</p>
+      <h3>Who retries what</h3>
+      <ul>
+        <li>A failed account gets an <code>error</code> lock and joins the pass retry list. The next fire retries it.</li>
+        <li>weekly-review retries a week once, then stops.</li>
+        <li>backup fires once a day. A failure waits for the next day.</li>
+        <li>The cursor jobs answer 200 even when accounts failed.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Access</p>
+      <h3>Service role only</h3>
+      <ul>
+        <li>All ten use <code>adminClient()</code>. None runs as a user.</li>
+        <li>Details per job: <code>vercel-crons.md</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Checked in code at 7405f41f. Files: vercel.json, app/api/jobs/*/route.ts, lib/server/jobs.ts, lib/server/job-cursor.ts, lib/server/job-sweep.ts, supabase/migrations/20261217120300_job_cursors.sql</footer>
+</div>
+</body>
+</html>
