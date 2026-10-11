@@ -86,7 +86,7 @@ export default function DayTypeMenu({
           className="tap flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-fog focus-visible:bg-fog focus-visible:outline-none disabled:opacity-60">
           <span className="min-w-0">
             <span className="block text-body-sm text-charcoal">Quick meals</span>
-            <span className="block text-tiny text-muted">Three simple backup meals for this date</span>
+            <span className="block text-tiny text-muted">Marks this date; your planned meals stay the same</span>
           </span>
           {quickMeals && (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"

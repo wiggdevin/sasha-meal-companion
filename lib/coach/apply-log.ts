@@ -83,9 +83,11 @@ export async function applyLog(action: LogAction, ctx: ApplyContext): Promise<Ap
   if (result.status !== "ok" && result.status !== "queued") {
     return { status: "failed", reason: `The meal did not save (${result.status.replace(/_/g, " ")}).` };
   }
-  // addExtra/saveStore fires the existing save hook; Today sees the accepted meal immediately.
+  // The save hook fires; Today sees the accepted meal immediately. A pull may already have put this
+  // entry's server card on the day: that card is newer than ours, and one entry is never two cards.
   assertCurrent(h);
-  addExtra(action.date, localExtra(action, entryId, itemIds, eatenAt, title, lines.components));
+  const shown = loadStore().days?.[action.date]?.extras?.some((extra) => extra.id === entryId);
+  if (!shown) addExtra(action.date, localExtra(action, entryId, itemIds, eatenAt, title, lines.components));
   const baseRev = result.status === "ok" ? result.rev : null;
   return { status: "applied",
     token: { kind: "log_meal", date: action.date, entryId, baseRev, eatenAt: eatenAt.toISOString() },
