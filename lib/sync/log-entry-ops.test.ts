@@ -145,3 +145,54 @@ describe("a note refused because another device changed something else", () => {
     expect(twice.base_rev).toBe(3);
   });
 });
+
+describe("a coach move the server refused", () => {
+  const BEFORE = "2026-11-02T17:00:00.000Z";
+  const MOVED = "2026-11-02T13:30:00.000Z";
+  /** A retime queued against rev 1: the time moved, the base records where it was. */
+  const moveOp = (over: Partial<OutboxOp> = {}): OutboxOp => noteOp({
+    payload: { ...noteOp().payload, note: null, eaten_at: MOVED },
+    base_fields: { eaten_at: BEFORE, local_date: "2026-11-02", tz: "UTC" }, note_base: null, ...over,
+  });
+
+  it("keeps the new time on the server's row instead of reading the move as a note", async () => {
+    const op = moveOp();
+    await putOp(h, op);
+
+    expect(await handleLogEntryResult(h, conflict, op)).toBe(true);
+
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.base_rev).toBe(2);
+    expect(left.payload).toMatchObject({ eaten_at: MOVED, items: SERVER.items, note: null });
+    // Re-based on the server's time, so a second refusal compares against this row.
+    expect(left.base_fields).toEqual({ eaten_at: BEFORE });
+  });
+
+  it("lets a later move on the other device stand", async () => {
+    const op = moveOp();
+    await putOp(h, op);
+    const later = { ...conflict, current: { ...SERVER, eaten_at: "2026-11-02T19:00:00.000Z",
+      updated_at: "2026-11-02T18:00:00.000Z" } } as OpResult;
+
+    await handleLogEntryResult(h, later, op);
+
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.eaten_at).toBe("2026-11-02T19:00:00.000Z");
+    expect(left.base_fields).toBeUndefined();
+  });
+
+  it("keeps a move queued behind a refused note, with the note", async () => {
+    const note = noteOp();
+    const move = moveOp({ op_id: "55555555-5555-4555-8555-555555555555", seq: 2,
+      payload: { ...noteOp().payload, note: "felt fine", eaten_at: MOVED },
+      client_ts: "2026-11-02T17:06:00.000Z", note_base: "felt fine" });
+    await putOp(h, note);
+    await putOp(h, move);
+
+    await handleLogEntryResult(h, conflict, note);
+
+    const left = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left).toHaveLength(1);
+    expect(left[0].payload).toMatchObject({ eaten_at: MOVED, note: "felt fine" });
+  });
+});

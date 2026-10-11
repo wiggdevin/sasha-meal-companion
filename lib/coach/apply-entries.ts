@@ -180,6 +180,12 @@ function noteBaseOf(row: Record<string, unknown>): string | null {
   return typeof row.note === "string" && row.note.trim() ? row.note.trim() : null;
 }
 
+/** The fields a move changes, as the row held them before it: what a conflict rebase compares
+ *  against to keep the move's new time (lib/sync/log-entry-ops.ts `movedFields`). */
+function moveBaseOf(row: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(fields.map((field) => [field, row[field] ?? null]));
+}
+
 export async function retime(
   h: AccountHandle,
   entryId: string, date: string, at: string, tz: string,
@@ -198,7 +204,7 @@ export async function retime(
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
-      note_base: noteBaseOf(row),
+      note_base: noteBaseOf(row), base_fields: moveBaseOf(row, ["eaten_at", "local_date", "tz"]),
     }, Date.now(), unchanged);
   });
   assertCurrent(h);
@@ -233,7 +239,7 @@ export async function undoMoveEntry(
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: token.entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
-      note_base: noteBaseOf(row),
+      note_base: noteBaseOf(row), base_fields: moveBaseOf(row, ["eaten_at"]),
     }, Date.now(), unchanged);
   });
   assertCurrent(h);

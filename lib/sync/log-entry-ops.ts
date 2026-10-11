@@ -141,17 +141,51 @@ async function rebaseLogNoteOnce(
   const attempts = (op.error_attempts ?? 0) + 1;
   const parked = attempts >= MAX_UPDATE_REBASES || typeof result.current_rev !== "number";
   if (parked) console.warn(`sync: note for ${op.entity_id} parked after ${attempts} refusals.`);
+  // A coach move (retime, its Undo) rides the same update: the time it set survives the rebase
+  // unless the other device moved the entry later. Before, every refused update was read as a note
+  // and the new time was dropped.
+  const moved = movedFields([op, ...folded], server, serverTs);
   // One transaction: the folded edits leave, the re-aimed op keeps this op's place in the queue,
   // and the mirror takes the server's row when it is a whole one.
   await replaceQueued(h, op, {
     ...op,
     base_rev: typeof result.current_rev === "number" ? result.current_rev : op.base_rev,
-    payload: { ...serverFields(server), id: op.entity_id, note: note ?? null },
+    payload: { ...serverFields(server), ...moved.fields, id: op.entity_id, note: note ?? null },
     client_ts: latest.client_ts,
     note_base: serverNote || null,
+    base_fields: moved.base,
     error_attempts: attempts,
     next_attempt_at: now() + (parked ? PARK_MS : backoffMs(attempts)),
   }, folded.map((o) => o.op_id), isCompleteEntryRow(server) ? server : null, seen);
+}
+
+/** The entry fields a move sets. A note edit records none of them in `base_fields`. */
+const MOVE_FIELDS = ["eaten_at", "local_date", "tz"] as const;
+
+/**
+ * What the queued moves changed, laid over the server's row: for each move field an op recorded a
+ * base for, the op's value wins when it changed the field, unless the server changed it too and
+ * later (its `updated_at` past the op's `client_ts`). Later ops win over earlier ones. `base` is
+ * the server's value of each field kept, so a further conflict compares against this row.
+ */
+export function movedFields(
+  ops: readonly Pick<OutboxOp, "payload" | "base_fields" | "client_ts">[],
+  server: Record<string, unknown>, serverTs: string,
+): { fields: Record<string, unknown>; base: Record<string, unknown> | undefined } {
+  const fields: Record<string, unknown> = {};
+  for (const op of ops) {
+    const base = op.base_fields;
+    if (!base) continue;
+    const mine = op.payload as Record<string, unknown>;
+    for (const field of MOVE_FIELDS) {
+      if (!(field in base) || !(field in mine) || mine[field] === base[field]) continue;
+      const theirs = server[field] !== base[field];
+      if (theirs && serverTs > op.client_ts) continue;
+      fields[field] = mine[field];
+    }
+  }
+  const kept = Object.keys(fields);
+  return { fields, base: kept.length ? Object.fromEntries(kept.map((f) => [f, server[f]])) : undefined };
 }
 
 /** The run of note edits at the head of `behind` (the ops queued after a refused one). */
