@@ -161,7 +161,7 @@ describe("the recipe policy's Avoid read (lib/server/recipe-candidates.ts)", () 
     const detail = await loadRecipeDetail(fake(), USER, "stew");
     expect(detail?.recipe.eligibility.status).toBe("blocked");
     expect(detail?.recipe.eligibility.reasons.map((r) => r.code)).toContain("avoid_list");
-  });
+  }, 20_000); // 1,201 Avoid rows through the fake and the policy; 1.6–2.4 s alone, so 5 s flakes under load.
 
   it("fails closed when page 2 fails: the strict loader rejects, the marked one says unknown", async () => {
     seedAvoid(1200, ["beans"]);
