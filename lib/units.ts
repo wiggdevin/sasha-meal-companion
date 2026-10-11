@@ -194,8 +194,9 @@ function round1(n: number): number {
 }
 
 /**
- * Per-unit macros → the `user_foods.per_100g` map. Energy is Atwater over the
- * rounded macros, so the stored numbers are self-consistent: a reader that
+ * Per-unit macros → the `user_foods.per_100g` map. Energy is the food's measured energy for one
+ * unit when the caller has it (`Food.kcalPerUnit`, W004 audit A156: alcohol energy is in no macro),
+ * else Atwater over the rounded macros, so the stored numbers are self-consistent: a reader that
  * re-derives kcal from the three gram values gets the same answer.
  *
  * The keys are NUTRIENT_CODES, not the `_g` spellings this returned until T9 §5:
@@ -204,15 +205,16 @@ function round1(n: number): number {
  * `per100gFromBundled` already spoke the codes; this is the same vocabulary.
  */
 export function perUnitTo100g(
-  perUnit: Food["perUnit"], gramsPerUnit: number
+  perUnit: Food["perUnit"], gramsPerUnit: number, kcalPerUnit?: number
 ): Partial<Record<NutrientCode, number>> {
   if (!(gramsPerUnit > 0)) throw new Error("gramsPerUnit must be greater than zero");
   const k = 100 / gramsPerUnit;
   const protein = round1(perUnit.protein * k);
   const carbohydrate = round1(perUnit.carbs * k);
   const fat_total = round1(perUnit.fat * k);
-  const energy_kcal = Math.round(
-    protein * KCAL_PER_G.protein + carbohydrate * KCAL_PER_G.carbohydrate + fat_total * KCAL_PER_G.fat
+  const measured = typeof kcalPerUnit === "number" && Number.isFinite(kcalPerUnit) && kcalPerUnit >= 0;
+  const energy_kcal = Math.round(measured ? kcalPerUnit * k
+    : protein * KCAL_PER_G.protein + carbohydrate * KCAL_PER_G.carbohydrate + fat_total * KCAL_PER_G.fat
   );
   return { protein, carbohydrate, fat_total, energy_kcal };
 }

@@ -18,6 +18,7 @@ function fakeClient(tables: Record<string, Row[]>, opts: { failRefsKind?: boolea
   const from = vi.fn((table: string) => {
     const filters: ((row: Row) => boolean)[] = [];
     let cap: number | undefined;
+    let offset = 0;
     let desc = false;
     let columns = "";
     const keep = (col: string, test: (v: unknown) => boolean) =>
@@ -29,7 +30,7 @@ function fakeClient(tables: Record<string, Row[]>, opts: { failRefsKind?: boolea
       let rows = (tables[table] ?? []).filter((row) => filters.every((f) => f(row)));
       if (desc) rows = [...rows].reverse();
       // The API's own row cap (supabase/config.toml max_rows = 1000), applied to every answer.
-      const capped = rows.slice(0, Math.min(cap ?? Infinity, 1000));
+      const capped = rows.slice(offset).slice(0, Math.min(cap ?? Infinity, 1000));
       return { data: capped, error: null };
     };
     const builder: Record<string, unknown> = {
@@ -43,6 +44,8 @@ function fakeClient(tables: Record<string, Row[]>, opts: { failRefsKind?: boolea
       lte: (col: string, v: string) => { keep(col, (x) => String(x) <= v); return builder; },
       gt: (col: string, v: string) => { keep(col, (x) => String(x) > v); return builder; },
       limit: (n: number) => { cap = n; return builder; },
+      // W012: the export reads its whole-set tables a `.range()` page at a time.
+      range: (a: number, b: number) => { offset = a; cap = b - a + 1; return builder; },
       maybeSingle: async () => ({ data: (result().data ?? [])[0] ?? null, error: null }),
       then: (resolve: (value: ReturnType<typeof result>) => unknown,
         reject?: (reason: unknown) => unknown) => Promise.resolve(result()).then(resolve, reject),

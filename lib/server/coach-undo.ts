@@ -267,12 +267,16 @@ export function encodeCursor(row: Pick<UndoRow, "created_at" | "id">): string {
   return `${row.created_at},${row.id}`;
 }
 
+/** A timestamptz as PostgREST writes it. `Date.parse` alone took "Thu, 01 Jan 2026" and other
+ *  shapes that reach the quoted `or()` filter and fail the Postgres cast (W012, A126). */
+const CURSOR_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+
 export function decodeCursor(value: string): UndoCursor | null {
   const at = value.lastIndexOf(",");
   if (at <= 0) return null;
   const createdAt = value.slice(0, at);
   const id = value.slice(at + 1);
-  if (Number.isNaN(Date.parse(createdAt))
+  if (!CURSOR_INSTANT.test(createdAt) || Number.isNaN(Date.parse(createdAt))
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
   return { createdAt, id };
 }

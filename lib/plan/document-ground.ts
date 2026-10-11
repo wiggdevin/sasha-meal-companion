@@ -1,11 +1,16 @@
 /**
  * The matched meal's foods, grounded the way the coach grounds a set_slot_meal item: the same food
  * search, the same household-portion fallback for a missing amount, and the same policy check
- * (lib/coach/actions/ground-kit.ts groundNamedFood → checkItemWithMarks). Only a food that is found,
- * has a real gram amount and is allowed by the account's rules is kept; every other one is listed
- * with its reason and left out, never guessed. Port-driven; no I/O of its own.
+ * (lib/coach/actions/ground-kit.ts groundNamedFood → checkItemWithMarks), then the full plan pass a
+ * coach plan write runs (lib/coach/plan-item-policy.ts: diet flags, confirmed profile hard rules,
+ * the human-food check; W014, audit 2026-10-10 A134). Only a food that is found, has a real gram
+ * amount and is allowed by every rule of the account is kept; every other one is listed with its
+ * reason and left out, never guessed. Port-driven; no I/O of its own.
  */
 import { groundNamedFood } from "@/lib/coach/actions/ground-kit";
+import { judgePlanFood, type PlanEvidencePort } from "@/lib/coach/plan-item-policy";
+import { loadSuggestionEvidence } from "@/lib/coach/suggest-policy";
+import { profileRuleFacets } from "@/lib/policy/profiles/account-rules";
 import type { GroundedActionItem } from "@/lib/coach/actions/fields";
 import type { FoodHit } from "@/lib/coach/executors";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
@@ -18,6 +23,8 @@ export const MAX_PLACED_ITEMS = 8;
 
 export type DocumentGroundPorts = {
   searchFoods: (userId: string, query: string, limit: number) => Promise<FoodHit[]>;
+  /** The full policy evidence of the grounded foods; default loadSuggestionEvidence. */
+  evidence?: PlanEvidencePort;
 };
 
 const CONCENTRATE = /\b(powder|mix|dried|dry|concentrate|instant)\b/i;
@@ -93,9 +100,13 @@ async function groundFood(userId: string, food: DocumentFood, profile: Constrain
   const grounded = await groundNamedFood(userId, food.name, pick.grams, profile,
     { searchFoods: ports.searchFoods, newActionId: () => "" }, pick.hit);
   if (!grounded) return leave("Not found in the food list");
-  if (grounded.verdict === "blocked") return leave("Off your food rules");
-  if (grounded.verdict !== "allowed") return leave("Couldn’t confirm it against your food rules");
   return { ...grounded, grams: pick.grams };
+}
+
+/** The reason a grounded food is left out under every rule of the account, or null to keep it. */
+function ruleReason(verdict: GroundedActionItem["verdict"]): string | null {
+  if (verdict === "blocked") return "Off your food rules";
+  return verdict === "allowed" ? null : "Couldn’t confirm it against your food rules";
 }
 
 const per = (value: number | null, grams: number) => (value ?? 0) * grams / 100;
@@ -114,7 +125,15 @@ export function itemTotals(items: readonly GroundedActionItem[]): Macros {
 /** Every food of the meal, grounded together; kept items in the meal's order, the rest listed. */
 export async function groundDocumentMeal(userId: string, meal: DocumentMeal, profile: ConstraintProfile,
   ports: DocumentGroundPorts): Promise<{ items: GroundedActionItem[]; left: LeftOutFood[] }> {
-  const results = await Promise.all(meal.foods.map((food) => groundFood(userId, food, profile, ports)));
+  const grounded = await Promise.all(meal.foods.map((food) => groundFood(userId, food, profile, ports)));
+  const found = grounded.filter((result): result is GroundedActionItem => !("reason" in result));
+  const evidence = found.length === 0 ? null : await (ports.evidence ?? loadSuggestionEvidence)(
+    userId, found, { needsNoCook: false, facets: profileRuleFacets(profile.profileRules) });
+  const results = grounded.map((result, index): GroundedActionItem | LeftOutFood => {
+    if ("reason" in result || evidence === null) return result;
+    const reason = ruleReason(judgePlanFood(result, evidence, profile).verdict);
+    return reason === null ? result : { ...meal.foods[index], reason };
+  });
   const items: GroundedActionItem[] = [];
   const left: LeftOutFood[] = [];
   for (const [index, result] of results.entries()) {
