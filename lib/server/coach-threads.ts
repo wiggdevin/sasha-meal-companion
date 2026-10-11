@@ -412,33 +412,41 @@ export async function searchChatThreads(
     if (!data || data.length < 500) break;
   }
   if (threads.length === 0) return [];
-  const threadIds = threads.map((thread) => thread.id);
   const lowerQ = q.toLocaleLowerCase("en-US");
-  const titleHitIds = new Set(threads
-    .filter((thread) => (thread.title ?? "").toLocaleLowerCase("en-US").includes(lowerQ))
-    .map((thread) => thread.id));
+  // W038: each thread ranks its own newest hits before the 20-thread limit, so one chatty thread
+  // can no longer fill a global row limit and hide the matches in every other chat.
+  const results: ThreadSearchResult[] = [];
+  for (let i = 0; i < threads.length && results.length < SEARCH_THREAD_LIMIT; i += SEARCH_PARALLEL) {
+    const batch = threads.slice(i, i + SEARCH_PARALLEL);
+    const matches = await Promise.all(batch.map((thread) => threadMatches(client, userId, thread.id, q)));
+    batch.forEach((thread, index) => {
+      const titleHit = (thread.title ?? "").toLocaleLowerCase("en-US").includes(lowerQ);
+      if (titleHit || matches[index].length > 0) {
+        results.push({ threadId: thread.id, title: thread.title, matches: matches[index] });
+      }
+    });
+  }
+  return results.slice(0, SEARCH_THREAD_LIMIT);
+}
 
-  const { data: messageRows, error: messageError } = await client.from("coach_messages")
-    .select("id, thread_id, content, created_at").eq("user_id", userId).in("thread_id", threadIds)
+const SEARCH_THREAD_LIMIT = 20;
+const SEARCH_MATCHES_PER_THREAD = 3;
+const SEARCH_PARALLEL = 4;
+
+/** One thread's newest full-text hits; a failed read fails the whole search, never a partial one. */
+async function threadMatches(
+  client: SupabaseClient, userId: string, threadId: string, q: string,
+): Promise<ThreadSearchMatch[]> {
+  const { data, error } = await client.from("coach_messages")
+    .select("id, thread_id, content, created_at").eq("user_id", userId).eq("thread_id", threadId)
     .textSearch("content", q, { type: "websearch", config: "english" })
-    .order("created_at", { ascending: false }).limit(240);
-  if (messageError) {
+    .order("created_at", { ascending: false }).order("id", { ascending: false })
+    .limit(SEARCH_MATCHES_PER_THREAD);
+  if (error) {
     throw new HttpError(503, "history_unavailable", "Could not search saved messages. Try again.");
   }
-
-  const matchesByThread = new Map<string, ThreadSearchMatch[]>();
-  for (const row of (messageRows ?? []) as
-    { id: string; thread_id: string; content: string; created_at: string }[]) {
-    const list = matchesByThread.get(row.thread_id) ?? [];
-    if (list.length >= 3) continue;
-    list.push({ messageId: row.id, snippet: searchSnippet(row.content, q), at: row.created_at });
-    matchesByThread.set(row.thread_id, list);
-  }
-
-  const resultIds = new Set<string>([...titleHitIds, ...matchesByThread.keys()]);
-  return threads.filter((thread) => resultIds.has(thread.id)).slice(0, 20).map((thread) => ({
-    threadId: thread.id, title: thread.title, matches: matchesByThread.get(thread.id) ?? [],
-  }));
+  return ((data ?? []) as { id: string; content: string; created_at: string }[]).map((row) => ({
+    messageId: row.id, snippet: searchSnippet(row.content, q), at: row.created_at }));
 }
 
 /**

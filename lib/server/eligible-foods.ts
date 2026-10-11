@@ -6,7 +6,7 @@ import { profileRuleFacets } from "@/lib/policy/profiles/account-rules";
 import { HttpError } from "@/lib/server/auth";
 import { getRuleReviewStatus } from "@/lib/server/constraints";
 import { readPolicyProfile } from "@/lib/server/policy-profile";
-import { fetchAllRows } from "@/lib/server/paged-read";
+import { fetchAllRows, fetchByKeyChunks } from "@/lib/server/paged-read";
 import type { RuleMark } from "@/lib/types";
 
 type Pref = { food_ref_id: string; status: string };
@@ -89,17 +89,15 @@ export async function eligibleFoods(client: SupabaseClient, userId: string): Pro
   const unchecked = (ids: readonly string[], reason: string): ExcludedFoodRef[] =>
     ids.map((refId) => excludedRef(refId, "unknown", reason, names.get(refId)));
   if (refIds.length === 0) return empty(rulesRevision);
-  const refsResult = await client.from("food_refs")
-    .select("id,kind,catalog_food_id,user_food_id,user_foods(id,user_id,name)").in("id", refIds);
-  if (refsResult.error) throw refsResult.error;
-  const refs = (refsResult.data ?? []) as unknown as Ref[];
+  // W038: every `.in()` list is chunked (one active revision per food); a failed chunk rejects,
+  // never a shorter set.
+  const refs = await fetchByKeyChunks<string, Ref>(refIds, (batch) => client.from("food_refs")
+    .select("id,kind,catalog_food_id,user_food_id,user_foods(id,user_id,name)").in("id", batch));
   const catalogIds = [...new Set(refs.filter((ref) => ref.kind === "catalog")
     .map((ref) => ref.catalog_food_id).filter((id): id is number => id !== null))];
-  const revisionResult = catalogIds.length === 0 ? { data: [], error: null }
-    : await client.from("catalog_food_revisions")
-      .select("id,catalog_food_id,description").in("catalog_food_id", catalogIds).eq("is_active", true);
-  if (revisionResult.error) throw revisionResult.error;
-  const revisionRows = (revisionResult.data ?? []) as Revision[];
+  const revisionRows = await fetchByKeyChunks<number, Revision>(catalogIds, (batch) =>
+    client.from("catalog_food_revisions").select("id,catalog_food_id,description")
+      .in("catalog_food_id", batch).eq("is_active", true));
   const revisions = new Map(revisionRows.map((row) => [row.catalog_food_id, row.id]));
   const descriptions = new Map(revisionRows.map((row) => [row.catalog_food_id, row.description]));
   for (const ref of refs) {
@@ -118,7 +116,8 @@ export async function eligibleFoods(client: SupabaseClient, userId: string): Pro
       foodRefId: ref.id, catalogFoodRevisionId: revisionId, verdict: "allowed" as const,
     } }];
   });
-  const uncheckable = unchecked(refIds.filter((id) => !candidates.some(({ ref }) => ref.id === id)),
+  const candidateIds = new Set(candidates.map(({ ref }) => ref.id));
+  const uncheckable = unchecked(refIds.filter((id) => !candidateIds.has(id)),
     "could not be checked against your food rules.");
   if (candidates.length === 0) return { ...empty(rulesRevision), excluded: uncheckable };
   const evidence = await loadSuggestionEvidence(userId, candidates.map(({ item }) => item), {
