@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { constraintsPutSchema } from "@/lib/coach/types";
 import { getProfile, putProfile } from "@/lib/server/constraints";
+import { recomputeAfterHoldChange } from "@/lib/server/target-recompute";
 
 export const COACH_TOOL_SCOPES = {
   get_constraints: "read",
@@ -52,7 +53,16 @@ export function registerCoachTools(
       description: "Compare-and-swap on baseRev for this account's rules.",
       inputSchema: constraintsPutSchema,
     },
-    async (args: never) => json(await putProfile(ctx.admin, ctx.userId, args)),
+    async (args: never) => {
+      const body = args as Parameters<typeof putProfile>[2];
+      const result = await putProfile(ctx.admin, ctx.userId, body);
+      // The same pace-hold recompute as PUT /api/constraints (audit 2026-10-10 A103): a condition
+      // saved here holds the pace now, and a removed one restores the stored preset.
+      if (result.status === "ok" && body.conditions !== undefined) {
+        await recomputeAfterHoldChange(ctx.admin, ctx.userId, "mcp set_constraints");
+      }
+      return json(result);
+    },
   );
 
   server.registerTool(

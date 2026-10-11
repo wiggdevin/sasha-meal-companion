@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountChanged, bindAccount, unbindAccount } from "@/lib/device/account";
-import { downloadExport, exportHref } from "@/lib/export-client";
+import { downloadExport, exportHref, MAX_EXPORT_PAGES } from "@/lib/export-client";
 
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -60,6 +60,58 @@ describe("downloadExport (client)", () => {
     expect(new Headers(init.headers).get("x-smc-account")).toBe(A);
     expect(d.createObjectURL).toHaveBeenCalledTimes(1);
     expect(d.revokeObjectURL).toHaveBeenCalledWith("blob:x");
+  });
+});
+
+describe("downloadExport over several CSV pages (W012, A086)", () => {
+  /** A CSV page as the route writes it: header, rows, then `#` notice lines it counts. */
+  function page(rows: string[], notices: string[], next: string | null): Response {
+    const body = [["local_date", "note"].join(","), ...rows, ...notices.map((n) => `# ${n}`)]
+      .join("\r\n") + "\r\n";
+    const headers = new Headers({ "x-export-notice-lines": String(notices.length) });
+    if (next) headers.set("x-export-next-cursor", next);
+    return new Response(body, { status: 200, headers });
+  }
+
+  async function savedText(create: ReturnType<typeof vi.fn>): Promise<string> {
+    return await (create.mock.calls[0][0] as Blob).text();
+  }
+
+  it("follows the cursor and saves one file with one header and each notice once", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(page(["2026-09-01,a", '2026-09-02,"two\r\n# lines"'],
+        ["ODbL", "Export truncated: more rows exist. Re-request with cursor=c1 to get the rest."], "c1"))
+      .mockResolvedValueOnce(page(["2026-09-03,c"], ["ODbL"], null));
+    const d = deps(fetchImpl);
+    await downloadExport(bindAccount(A), "meals", "", "", d);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect((fetchImpl.mock.calls[1] as unknown as [string])[0])
+      .toBe("/api/export?kind=meals&format=csv&cursor=c1");
+    expect(await savedText(d.createObjectURL)).toBe(["local_date,note", "2026-09-01,a",
+      '2026-09-02,"two', '# lines"', "2026-09-03,c", "# ODbL"].join("\r\n") + "\r\n");
+  });
+
+  it("stops after the page cap and keeps the server's truncation line", async () => {
+    let n = 0;
+    const fetchImpl = vi.fn(async () => {
+      n += 1;
+      return page([`row-${n}`], [`Export truncated: cursor=c${n}`], `c${n}`);
+    });
+    const d = deps(fetchImpl);
+    await downloadExport(bindAccount(A), "meals", "", "", d);
+    expect(fetchImpl).toHaveBeenCalledTimes(MAX_EXPORT_PAGES);
+    const text = await savedText(d.createObjectURL);
+    expect(text.trimEnd().split("\r\n").at(-1)).toBe(`# Export truncated: cursor=c${MAX_EXPORT_PAGES}`);
+    expect(text.match(/Export truncated/g)).toHaveLength(1);
+  });
+
+  it("saves nothing when a later page fails", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(page(["2026-09-01,a"], ["Export truncated: cursor=c1"], "c1"))
+      .mockResolvedValueOnce(new Response("{}", { status: 429 }));
+    const d = deps(fetchImpl);
+    await expect(downloadExport(bindAccount(A), "meals", "", "", d)).rejects.toThrow(/429/);
+    expect(d.createObjectURL).not.toHaveBeenCalled();
   });
 });
 

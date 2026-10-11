@@ -23,6 +23,7 @@ import { ownPlateEvidence, universePlateEvidence } from "@/lib/foods/world/plate
 import { deriveItem } from "@/lib/foods/universe/derive";
 import { planMealsForDay, type LayoutSlot } from "@/lib/foods/layout-plan";
 import { planDay } from "@/lib/meals/day";
+import { rankPlates } from "@/lib/meals/plate";
 import { livePool, openWorldInputs, REASON_CHIP_COPY, type OpenWorldInputs } from "@/lib/meals/open-world";
 import { quantizeZ, tasteMultiplier } from "@/lib/meals/preference";
 import { sizePlateStats } from "@/lib/meals/size";
@@ -57,6 +58,8 @@ function poolIdsOf(open: OpenWorldInputs, plan: ReturnType<typeof layout>): stri
 
 const CHICKEN = ownFood("11111111-1111-4111-8111-111111111111", "Chicken breast, grilled", "protein", [31, 0, 3.6]);
 const YOGURT = ownFood("22222222-2222-4222-8222-222222222222", "Greek yogurt, plain, nonfat", "protein", [10, 3.6, 0.4]);
+const BUTTER = ownFood("88888888-8888-4888-8888-888888888888", "Butter, salted", "fat", [0.9, 0.1, 81]);
+const RICE = ownFood("77777777-7777-4777-8777-777777777777", "White rice, cooked", "carb", [2.7, 28, 0.3]);
 const TOFU = ownFood("33333333-3333-4333-8333-333333333333", "Tofu, firm", "protein", [17, 3, 9]);
 
 describe("acceptance 1: an open account with no Favored foods", () => {
@@ -202,6 +205,28 @@ describe("acceptance 8: kosher meat with dairy", () => {
       }
     }
     expect(plates).toBeGreaterThan(0);
+  });
+
+  // Audit A060: the 365-date run above holds even with the rule off, since that pool never puts
+  // meat beside dairy. This control has a pool that does (chicken, rice and butter as the only fat)
+  // and judges meat and dairy from fixed names, not from lib/policy. With the account's own
+  // `plateOk` taken out the search plates chicken with butter; with it, never.
+  it("positive control: the same search without the kosher check plates meat with dairy; with it, never", () => {
+    const favored = [CHICKEN, BUTTER, RICE];
+    const open = inputsFor(overTheWire(openSnapshot({ flags: ["kosher"], favored })), favored);
+    const foods = device(favored).foods;
+    const MEAT = /\b(chicken|beef|pork|lamb|turkey|veal|ham|bacon)\b/i;
+    const DAIRY = /\b(butter|milk|cheese|yogurt|cream|whey|ghee)\b/i;
+    const mixed = (rows: readonly { food: Food }[]) => rows.some((row) => MEAT.test(row.food.name))
+      && rows.some((row) => DAIRY.test(row.food.name));
+    const rank = (ranking: OpenWorldInputs["ranking"]) => dates(14).flatMap((date) => rankPlates({ date,
+      slot: "meal-3", occasion: "dinner", target: FOUR[3].target, foods, evidence: open.evidence, open: ranking }).plates);
+    const { plateOk, ...without } = open.ranking;
+    expect(plateOk).toBeDefined();
+    expect(rank(without).filter((plate) => mixed(plate.rows)).length).toBeGreaterThan(0);
+    const kept = rank(open.ranking);
+    expect(kept.filter((plate) => mixed(plate.rows)).map((plate) => plate.name)).toEqual([]);
+    expect(kept.length).toBeGreaterThan(0);
   });
 });
 

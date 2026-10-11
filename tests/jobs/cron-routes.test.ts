@@ -59,7 +59,8 @@ const admin = {
   from: (table: string) => {
     if (table === "job_cursors") return jobCursors();
     if (table === "media_objects") {
-      return { select: () => listingChain([{ path: "media/user-1/old.jpg" }]) };
+      return { select: () => listingChain([{
+        path: "media/user-1/11111111-1111-4111-8111-111111111111.jpg", user_id: "user-1" }]) };
     }
     if (table === "health_sources") {
       return { select: () => listingChain([{ id: "source-1", user_id: "user-1", oauth: "sealed" }]) };
@@ -118,7 +119,8 @@ const admin = {
 
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => admin }));
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: vi.fn(async () => undefined) }));
-vi.mock("@/lib/server/media", () => ({ deleteMedia: mocked.deleteMedia }));
+vi.mock("@/lib/server/media", async (orig) => ({
+  ...(await orig<typeof import("@/lib/server/media")>()), deleteMedia: mocked.deleteMedia }));
 vi.mock("@/lib/server/oura", () => ({ pullTwoDays: mocked.pullTwoDays }));
 vi.mock("@/lib/server/expenditure", () => ({
   runEstimate: mocked.runEstimate,

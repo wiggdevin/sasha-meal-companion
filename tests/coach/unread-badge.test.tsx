@@ -7,7 +7,7 @@
  * chat, and clearing it drops its mark. A failed list leaves no mark and no error.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThreadSummary } from "@/lib/coach-client";
 import { bindAccount, markAccountReady, unbindAccount } from "@/lib/device/account";
 import {
@@ -101,7 +101,16 @@ afterEach(() => {
   unbindAccount();
 });
 
+// The first render's cold module import took ~2.4 s alone and overran the 5 s test budget under
+// parallel load. Import once per block, in a hook with room for it, so each test times only itself.
+const IMPORT_BUDGET_MS = 30_000;
+
 describe("the dock's bubble", () => {
+  beforeAll(async () => {
+    await import("@/components/TabBar");
+    await import("@/components/CapabilitiesProvider");
+  }, IMPORT_BUDGET_MS);
+
   async function renderDock() {
     const { default: TabBar } = await import("@/components/TabBar");
     const { CapabilitiesProvider } = await import("@/components/CapabilitiesProvider");
@@ -167,6 +176,11 @@ describe("the dock's bubble", () => {
 });
 
 describe("the Conversations list on /coach", () => {
+  beforeAll(async () => {
+    await import("@/app/coach/CoachScreen");
+    await import("@/components/CapabilitiesProvider");
+  }, IMPORT_BUDGET_MS);
+
   async function renderCoach() {
     const { default: CoachScreen } = await import("@/app/coach/CoachScreen");
     const { CapabilitiesProvider } = await import("@/components/CapabilitiesProvider");

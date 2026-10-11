@@ -1,6 +1,6 @@
 /**
  * A small PostgREST double for the Phase 17 O2 server reads and the occasion stamp: table data in
- * memory, the filters PostgREST applies (eq, in, is, not-is-null, gte, lte), updates, and a log of
+ * memory, the filters PostgREST applies (eq, in, is, not-is-null, gt, gte, lte), updates, and a log of
  * every query so a test can prove the explicit `user_id` filter was sent. It does not model RLS:
  * the tests check the explicit filter, which is the part this code owns.
  */
@@ -71,6 +71,9 @@ export function fakeDb(tables: Record<string, Row[]>,
         op === "is" ? (row[column] ?? null) !== value : true),
       gte: (column: string, value: string) => add(`gte:${column}`, (row) => String(row[column]) >= value),
       lte: (column: string, value: string) => add(`lte:${column}`, (row) => String(row[column]) <= value),
+      // Timestamps compare as instants; a null never matches (SQL `null > x` is not true).
+      gt: (column: string, value: string) => add(`gt:${column}`, (row) => row[column] != null
+        && Date.parse(String(row[column])) > Date.parse(value)),
       maybeSingle: async () => {
         const { data } = run();
         return { data: data[0] ?? null, error: null };

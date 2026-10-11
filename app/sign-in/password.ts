@@ -3,20 +3,23 @@
  * the password exists so the account can sign in without the email round
  * trip and its 2-emails-per-hour mailer limit. Sessions have no time-box or
  * inactivity timeout on this project, so either path stays signed in.
+ * The call goes through the app's IP-limited route (lib/sign-in-client.ts, W052).
  */
 
 import { checkAttemptLimit } from "@/app/sign-in/attempt-limit";
+import { LIMITED_CODES, UNAVAILABLE_CODES, type SignInError } from "@/lib/sign-in-client";
 
 export type PasswordAuth = {
   signInWithPassword(credentials: {
     email: string;
     password: string;
-  }): Promise<{ error: { message: string } | null }>;
+  }): Promise<{ error: SignInError | null }>;
 };
 
 const EMPTY = "Enter your email and password.";
 const MISMATCH = "That email and password did not match.";
 const OFFLINE = "Could not reach the sign-in service. Check your connection and try again.";
+const LIMITED = "Too many tries. Wait a few minutes, then try again.";
 
 /** Returns an error message for the screen, or null when the session is set. */
 export async function signInWithPassword(
@@ -30,7 +33,9 @@ export async function signInWithPassword(
   if (throttled) return throttled;
   try {
     const { error } = await auth.signInWithPassword({ email: address, password });
-    return error ? MISMATCH : null;
+    if (!error) return null;
+    if (LIMITED_CODES.has(error.code)) return LIMITED;
+    return UNAVAILABLE_CODES.has(error.code) ? OFFLINE : MISMATCH;
   } catch {
     return OFFLINE;
   }
