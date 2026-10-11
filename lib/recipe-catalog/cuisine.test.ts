@@ -34,9 +34,11 @@ type Call = { table: string; method: string; args: unknown[] };
 function catalogClient(revisions: Record<string, unknown>[]) {
   const calls: Call[] = [];
   const from = (table: string) => {
-    const answer = table === "recipe_catalog_revisions" ? revisions : [];
+    // W038: the scan first reads the published recipes' current revision ids.
+    const answer = table === "recipe_catalog_revisions" ? revisions
+      : table === "recipe_catalog" ? [{ id: "recipe-1", current_revision_id: "rev-1" }] : [];
     const chain: Record<string, unknown> = {};
-    for (const method of ["select", "order", "range", "textSearch", "ilike", "lte", "eq", "in"]) {
+    for (const method of ["select", "order", "range", "textSearch", "ilike", "lte", "eq", "in", "not"]) {
       chain[method] = (...args: unknown[]) => { calls.push({ table, method, args }); return chain; };
     }
     chain.then = (resolve: (value: unknown) => unknown) =>

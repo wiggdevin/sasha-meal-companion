@@ -32,11 +32,14 @@ export type SyncOp = {
   base_rev: number | null; payload: Record<string, unknown>; client_ts: string;
 };
 
+/** A033: the commit's policy marks for a queued log write the server applied or had already. */
+type LogFlags = { flagged?: { path: string; message: string }[] };
+
 export type OpResult =
-  | { op_id: string; status: "applied"; rev: number; seq: number }
+  | ({ op_id: string; status: "applied"; rev: number; seq: number } & LogFlags)
   | { op_id: string; status: "conflict"; entity: Entity; current_rev: number; current: unknown }
   | { op_id: string; status: "deleted"; entity: Entity; deleted_at: string }
-  | { op_id: string; status: "gone" | "duplicate" | "unsupported" }
+  | ({ op_id: string; status: "gone" | "duplicate" | "unsupported" } & LogFlags)
   | { op_id: string; status: "error"; message: string };
 
 export type ChangeRow = {

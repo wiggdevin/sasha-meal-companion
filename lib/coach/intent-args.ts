@@ -36,6 +36,8 @@ export type IntentArgInput = {
   numbers: ExtractedNumber[];
   raw: IntentAnswers;
   foodsMentioned?: string[];
+  /** The user's own words, for the deterministic day read (`statedDay`). */
+  message?: string;
 };
 
 export type IntentArgOutput<A> = { args: A; argConfidence: Record<string, number> };
@@ -79,7 +81,63 @@ export function kgOf(candidate: ExtractedNumber | undefined): number | undefined
   return undefined;
 }
 
+/** "peanuts and shellfish", "eggs, milk", "beans & rice": more than one food, or one dish. */
+const FOOD_LIST = /,|&|\+|\b(?:and|or|plus|with|also|then)\b/i;
+
+/**
+ * The one food a list-mark fast path may mark. A phrase that may name several foods, or a message
+ * with several list clauses, is missing its name, so the model turn reads it and writes one mark
+ * per food (audit 2026-10-10 A027): the fast path searched "peanuts and shellfish" as one name and
+ * marked whichever single row ranked first.
+ */
 export function foodArgs(foodsMentioned: string[] | undefined): MissingArgs & { name?: string } {
-  const name = foodsMentioned?.find((food) => food.trim().length > 0)?.trim();
-  return name ? { name } : { missing: ["name"] };
+  const names = (foodsMentioned ?? []).map((food) => food.trim()).filter((food) => food.length > 0);
+  if (names.length !== 1 || FOOD_LIST.test(names[0])) return { missing: ["name"] };
+  return { name: names[0] };
+}
+
+const WEEKDAY = "(?:mon|tues|wednes|thurs|fri|satur|sun)day";
+const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+/** Every way a message names a day; each read as an offset from today, or `null` when no fixed one. */
+const DAY_WORDS: readonly { re: RegExp; offset: number | null }[] = [
+  { re: /\b(?:yesterday|last\s+night)\b/i, offset: -1 },
+  { re: /\btomorrow\b/i, offset: 1 },
+  { re: new RegExp(`\\b${WEEKDAY}s?\\b`, "i"), offset: null },
+  { re: /\b(?:\d+|a|one|two|three|four|five|six|seven)\s+(?:days?|weeks?)\s+(?:ago|from\s+now)\b/i, offset: null },
+  { re: /\b(?:last|next)\s+(?:week|month)\b|\bday\s+(?:before|after)\b|\bthe\s+other\s+day\b/i, offset: null },
+  { re: /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\bon\s+(?:the\s+)?\d{1,2}(?:\/\d{1,2}|st|nd|rd|th)\b/i, offset: null },
+  { re: new RegExp(`\\b${MONTH}\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?\\b|\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?${MONTH}\\b`, "i"), offset: null },
+];
+
+/**
+ * The day a message names (audit 2026-10-10 A024). `today`: none, or only today; `{ offset }`:
+ * yesterday or tomorrow; `other`: any other day, or more than one — the model turn reads those.
+ * A fast path that ignored "yesterday" logged the water, the weigh-in or the shift on today.
+ */
+export function statedDay(message: string): "today" | { offset: number } | "other" {
+  const offsets = DAY_WORDS.filter((word) => word.re.test(message)).map((word) => word.offset);
+  if (offsets.length === 0) return "today";
+  if (offsets.length > 1 || offsets[0] === null) return "other";
+  return /\b(?:today|tonight|this\s+morning)\b/i.test(message) ? "other" : { offset: offsets[0] };
+}
+
+/** A local `YYYY-MM-DD` date moved by whole days, on the calendar (no zone, no clock). */
+export function addLocalDays(date: string, days: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * The date argument a dated fast-path kind reads: an allowed offset becomes `dayOffset`, any other
+ * stated day is missing, so the turn takes the model path, which reads the date itself.
+ */
+export function dayArgs(
+  message: string | undefined, allowed: readonly number[],
+): { dayOffset?: number; missing?: string[]; argConfidence: Record<string, number> } {
+  const day = statedDay(message ?? "");
+  if (day === "today") return { argConfidence: {} };
+  if (day !== "other" && allowed.includes(day.offset)) {
+    return { dayOffset: day.offset, argConfidence: { date: 1 } };
+  }
+  return { missing: ["date"], argConfidence: {} };
 }

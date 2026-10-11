@@ -21,6 +21,8 @@
 import type { Food } from "@/lib/foods";
 
 export const UNKNOWN_MINUTES = 20;
+/** "Ready in 15 min": the Plan sheet's quick15 chip and a "Quick meals" date (A061). */
+export const QUICK_MINUTES = 15;
 const EXTRA_COMPONENT_MINUTES = 2;
 
 /** [pattern, minutes], first match wins. */

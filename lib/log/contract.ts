@@ -48,11 +48,21 @@ export type LogItemInput = {
   confidence?: number;
 };
 
+/**
+ * The label a `save_label_as_food` commit saves as the account's own food. Not part of the parsed
+ * schema: the route hands the raw body's `label_food` to lib/server/log-label-food.ts, which
+ * validates it, and a queued commit carries it in its op payload for /api/sync/ops (A030).
+ */
+export type LabelFoodWire = {
+  name: string; brand?: string; per100g: Record<string, number | null>;
+  ingredientsText?: string; allergenTags: string[];
+};
+
 export type LogCommitRequest = {
   entry_id: string; base_rev?: number;
   eaten_at: string; tz: string; local_date: string; slot: SlotId | "snack";
   method: (typeof METHODS)[number];
-  draft_id?: string; save_label_as_food?: boolean;
+  draft_id?: string; save_label_as_food?: boolean; label_food?: LabelFoodWire;
   /** Storage allows 80 characters so user-authored titles have headroom beyond coach titles. */
   title?: string | null;
   note?: string; items: LogItemInput[];

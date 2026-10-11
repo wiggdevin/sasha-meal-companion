@@ -12,6 +12,7 @@ import { z } from "zod";
 import type { ComposedMeal } from "@/lib/coach/compose";
 import type { SuggestInput } from "@/lib/coach/executors";
 import { MEAL_SLOT_IDS, type MealSlotId } from "@/lib/coach/types";
+import { QUICK_MINUTES } from "@/lib/plan/prep-minutes";
 import type { QuickPick } from "@/lib/plan/quick-picks";
 import type { Provenance } from "@/lib/types";
 
@@ -30,8 +31,8 @@ export const CHIP_OF: Readonly<Record<QuickPick, PlanChip>> = {
 
 /** "Something light": the plate's calories, carbs and fat at this share. Protein never shrinks. */
 export const LIGHT_SCALE = 0.75;
-/** "Ready in 15 min". */
-export const QUICK_MINUTES = 15;
+/** "Ready in 15 min" (shared with a "Quick meals" date, lib/foods/layout-plan.ts). */
+export { QUICK_MINUTES };
 /** Cards a chip answers with. */
 export const CHIP_CARD_COUNT = 3;
 export const MAX_EXCLUDE_IDS = 40;

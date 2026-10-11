@@ -5,7 +5,7 @@
  * while the phone is still waiting (review r1, BLOCK 1).
  */
 
-import { actionsInScope } from "@/lib/coach/scope";
+import { actionsInScope, scopeDropNotice } from "@/lib/coach/scope";
 import { withoutShoppingMirrors } from "@/lib/coach/shopping-confirmation";
 import { claimsAction, groundAndExpandActions } from "@/lib/coach/actions";
 import { hydrateComparison } from "@/lib/coach/blocks/hydrate-comparison";
@@ -54,7 +54,15 @@ export async function settleFinalStep(
   if (recipeWidget && (finalStep.actions ?? []).length > 0) finalStep.actions = [];
   // Scoped AI input: a meal card or a page may only run its own actions, aimed at its own slot and
   // date (lib/coach/scope.ts). Dropped before grounding, like the recipe widget's.
-  if (req.scope && finalStep.actions) finalStep.actions = actionsInScope(finalStep.actions, req.scope);
+  // A dropped action is said, not silent (audit 2026-10-10 P18): its clarification below also
+  // ends the claim-correction round, which the same filter could never satisfy.
+  let scopeDropped: string | null = null;
+  if (req.scope && finalStep.actions) {
+    const kept = actionsInScope(finalStep.actions, req.scope);
+    const dropped = finalStep.actions.filter((action) => !kept.includes(action));
+    if (dropped.length > 0) scopeDropped = scopeDropNotice(req.scope, dropped.map((a) => a.kind));
+    finalStep.actions = kept;
+  }
   // Live 2026-10-03: "Find me an easy chicken dinner recipe" got "I'm sorry, I cannot fulfill that
   // request." with no tool call, copied from earlier apologies in the thread. One corrective round.
   if (round < TURN_LIMITS.maxToolCalls && needsRefusalCorrection({
@@ -158,8 +166,9 @@ export async function settleFinalStep(
   state.logPolicyNotices = policy.logNotices;
   state.recipeRefusals = policy.recipeRefusals;
   state.actionClarifications = [...grounded.clarifications, ...policy.recipeRefusals,
-    ...(skips.dropped ? [SKIP_NOT_CONFIRMED] : [])];
+    ...(skips.dropped ? [SKIP_NOT_CONFIRMED] : []), ...(scopeDropped ? [scopeDropped] : [])];
   const reply = sanitiseReply(finalStep.text);
+  if (scopeDropped && (claimsSkip(reply) || claimsAction(reply))) state.replyClaimDropped = true;
   const actions = state.actions;
   // Re-audit r1 #2 and #4: a write the server dropped must not stay claimed in the bubble. A
   // dropped skip whose prose says it happened, and recipe-widget prose that says anything was

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { jobRunsTable } from "../helpers/job-doubles";
 import { MODELS } from "@/lib/ai/adapter";
 import { toMessageView } from "@/lib/coach/message-view";
-import { writeWeeklyReview } from "@/lib/server/coach";
+import { writeWeeklyReview, type WeeklyReviewWrite } from "@/lib/server/coach";
 import { resetRateLimits } from "@/lib/server/ratelimit";
 
 // The route resolves identity through adminClient() only after the bearer check, so the module is
@@ -68,7 +68,7 @@ function routeAdmin(opts: { lockConflict: boolean }) {
 }
 
 /** An in-memory admin for the write path: inserts are recorded and read back by later selects. */
-function memoryAdmin(initial?: { threads?: Row[] }) {
+function memoryAdmin(initial?: { threads?: Row[]; loggedDays?: number; unknownEnergy?: boolean }) {
   const writes: Write[] = [];
   const tables: Record<string, Row[]> = {
     coach_threads: initial?.threads ?? [],
@@ -111,8 +111,23 @@ function memoryAdmin(initial?: { threads?: Row[] }) {
     });
     return chain;
   };
-  return { db: { from, rpc: async () => ({ data: [], error: null }) }, writes, tables };
+  // Each week's seven day totals are read in date order: its first `loggedDays` days are logged.
+  let dayReads = 0;
+  const rpc = async (name: string) => {
+    if (name !== "get_daily_totals") return { data: [], error: null };
+    dayReads += 1;
+    const dayOfWeek = (dayReads - 1) % 7;
+    const day = initial?.unknownEnergy ? PROTEIN_ONLY_DAY : LOGGED_DAY;
+    return { data: dayOfWeek < (initial?.loggedDays ?? 7) ? [day] : [], error: null };
+  };
+  return { db: { from, rpc }, writes, tables, dayReads: () => dayReads };
 }
+
+const LOGGED_DAY = { nutrient_code: "energy_kcal", amount: 2000, items_with_value: 1,
+  items_total: 1, coverage: 1 };
+/** A logged day whose items carry no usable energy (unknown is valid, never 0). */
+const PROTEIN_ONLY_DAY = { nutrient_code: "protein", amount: 40, items_with_value: 1,
+  items_total: 1, coverage: 1 };
 
 /**
  * A stateful `job_runs`-only double: unlike `routeAdmin` (which only asserts a single insert or
@@ -137,6 +152,12 @@ function fakeJobRunsAdmin() {
   return { from, rows: jobRuns.rows };
 }
 
+/** The delivered review, or a failed test when the week was skipped. */
+function delivered(result: WeeklyReviewWrite): Extract<WeeklyReviewWrite, { threadId: string }> {
+  if ("skipped" in result) throw new Error("expected a delivered review, got a skipped week");
+  return result;
+}
+
 const review = (wentWell: "logging" | "protein", focus: "none" | "meal_timing") =>
   vi.fn(async () => ({ wentWell, focus }));
 
@@ -149,8 +170,8 @@ describe("writeWeeklyReview", () => {
       latestEstimate: async () => ({ status: "estimating", tdeeKcal: 2400 }),
     };
 
-    const first = await writeWeeklyReview(db as never, "u1", "2026-09-07", deps);
-    const second = await writeWeeklyReview(db as never, "u1", "2026-09-14", deps);
+    const first = delivered(await writeWeeklyReview(db as never, "u1", "2026-09-07", deps));
+    const second = delivered(await writeWeeklyReview(db as never, "u1", "2026-09-14", deps));
 
     const created = writes.filter((w) => w.table === "coach_threads" && w.op === "insert");
     expect(created).toHaveLength(1);
@@ -161,10 +182,10 @@ describe("writeWeeklyReview", () => {
   it("persists the review as an assistant message with model_id = MODELS.weeklyReview", async () => {
     const { db, writes } = memoryAdmin();
     const generate = review("protein", "meal_timing");
-    const { messageId } = await writeWeeklyReview(db as never, "u1", "2026-09-07", {
+    const { messageId } = delivered(await writeWeeklyReview(db as never, "u1", "2026-09-07", {
       generate: generate as never,
       latestEstimate: async () => null,
-    });
+    }));
 
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({
       payload: expect.objectContaining({ purpose: "weeklyReview" }) }));
@@ -230,8 +251,8 @@ describe("writeWeeklyReview: one review per local week, delivered unread (audit 
 
   it("the next week is a new review in the same thread", async () => {
     const { db, writes } = memoryAdmin();
-    const one = await writeWeeklyReview(db as never, "u1", "2026-10-05", deps());
-    const two = await writeWeeklyReview(db as never, "u1", "2026-10-12", deps());
+    const one = delivered(await writeWeeklyReview(db as never, "u1", "2026-10-05", deps()));
+    const two = delivered(await writeWeeklyReview(db as never, "u1", "2026-10-12", deps()));
     expect(two.duplicate).toBe(false);
     expect(two.threadId).toBe(one.threadId);
     expect(writes.filter((w) => w.table === "coach_messages")).toHaveLength(2);
@@ -304,6 +325,49 @@ describe("weekly review without a model (AI-integration audit: no fallback)", ()
   });
 });
 
+describe("writeWeeklyReview: weeks with little or nothing logged (W035, audit A153)", () => {
+  const deps = (generate: ReturnType<typeof vi.fn>) => ({
+    generate: generate as never, latestEstimate: async () => null,
+  });
+
+  it("skips a week with no logged day: no model call, no thread, no message", async () => {
+    const { db, writes } = memoryAdmin({ loggedDays: 0 });
+    const generate = review("logging", "none");
+    const result = await writeWeeklyReview(db as never, "u1", "2026-10-05", deps(generate));
+    expect(result).toEqual({ skipped: "no_logged_days", duplicate: false });
+    expect(generate).not.toHaveBeenCalled();
+    expect(writes).toEqual([]);
+  });
+
+  it("writes the logged-days review without a model call under three logged days", async () => {
+    const { db, writes } = memoryAdmin({ loggedDays: 2 });
+    const generate = review("protein", "meal_timing");
+    const result = delivered(await writeWeeklyReview(db as never, "u1", "2026-10-05", deps(generate)));
+    expect(result.duplicate).toBe(false);
+    expect(generate).not.toHaveBeenCalled();
+    const message = writes.find((w) => w.table === "coach_messages")!.row;
+    expect(message).toMatchObject({ model_id: "", ai_call_id: null, review_week: "2026-10-05" });
+    expect(message.content).toBe("Based on your logged week, there was not enough logged data to "
+      + "identify a strongest pattern. Next week, focus on logging consistently.");
+  });
+
+  it("still reviews a logged week whose energy is unknown, without a model call", async () => {
+    const { db, writes } = memoryAdmin({ loggedDays: 7, unknownEnergy: true });
+    const generate = review("logging", "none");
+    const result = delivered(await writeWeeklyReview(db as never, "u1", "2026-10-05", deps(generate)));
+    expect(result.duplicate).toBe(false);
+    expect(generate).not.toHaveBeenCalled();
+    expect(writes.filter((w) => w.table === "coach_messages")).toHaveLength(1);
+  });
+
+  it("asks the model once three days are logged", async () => {
+    const { db } = memoryAdmin({ loggedDays: 3 });
+    const generate = review("logging", "none");
+    await writeWeeklyReview(db as never, "u1", "2026-10-05", deps(generate));
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("weekStartOf", () => {
   it("uses UTC when an account has no saved timezone", () => {
     const cronFire = new Date("2026-09-14T01:30:00.000Z");
@@ -343,6 +407,12 @@ describe("POST /api/jobs/weekly-review", () => {
     expect(get.status).toBe(post.status);
     expect(get.status).toBe(200);
     expect(writeWeeklyReview).toHaveBeenCalledTimes(2);
+  });
+
+  it("counts a week with no logged day as skipped, not ran (W035)", async () => {
+    vi.mocked(writeWeeklyReview).mockResolvedValueOnce({ skipped: "no_logged_days", duplicate: false });
+    const res = await POST(cron("POST", SECRET));
+    expect(await res.json()).toMatchObject({ ran: 0, skipped: 1, errors: 0 });
   });
 
   it("answers 401 on a wrong CRON_SECRET and skips a user whose lock is already held", async () => {
