@@ -17,7 +17,7 @@ import {
   type AccountHandle,
 } from "./device/account";
 import { writerFenceOk } from "./device/writer-lock";
-import { noteDietFlagsChanged } from "./foods/rules-epoch";
+import { noteDietFlagsChanged, noteFoodStatuses } from "./foods/rules-epoch";
 import { scheduleSignature } from "./plan-schedule";
 import { type Food, type FoodRole, type FoodStatus } from "./foods";
 import { starterForName } from "./foods/starter";
@@ -232,6 +232,8 @@ export function saveStore(store: Store, opts: { silent?: boolean } = {}): void {
     && dietFlagsSignature(cached.settings) !== dietFlagsSignature(store.settings)) {
     noteDietFlagsChanged(id);
   }
+  // An Avoid/Eats mark revokes stored verdicts (an offline barcode match) from any writer.
+  if (cached !== null) noteFoodStatuses(cached.foods, store.foods);
   const scheduleEdited = cached !== null && settingsChanged && !opts.silent
     && scheduleSignature(cached.settings) !== scheduleSignature(store.settings);
   const next: Store =

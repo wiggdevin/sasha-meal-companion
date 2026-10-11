@@ -1,6 +1,6 @@
 import "server-only";
 
-import { refusePlanBlocked } from "@/lib/coach/plan-policy";
+import { gatePlanActions } from "@/lib/coach/plan-item-policy";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CoachAction, GroundedRoleAdvice } from "@/lib/coach/actions";
 import {
@@ -118,9 +118,11 @@ export async function applyGroundedActionPolicies(
     userId, marked.actions, roleAdvicePorts(admin, userId),
   );
   const recipes = await filterRecipeActions(userId, advised, profile);
-  // A plan write with a blocked item is refused whole (lib/coach/plan-policy.ts); its reason rides
-  // with the recipe refusals, which both action paths already show as clarifications.
-  const plans = refusePlanBlocked(recipes.actions);
+  // A plan write runs the full policy pass first — diet flags, profile hard rules and the
+  // human-food check, which grounding does not read (W014, lib/coach/plan-item-policy.ts). One
+  // with a blocked or unchecked item is then refused whole; its reason rides with the recipe
+  // refusals, which both action paths already show as clarifications.
+  const plans = await gatePlanActions(userId, recipes.actions, profile);
   return { actions: plans.actions, logNotices: marked.notices,
     recipeRefusals: [...recipes.refusals, ...plans.refusals] };
 }

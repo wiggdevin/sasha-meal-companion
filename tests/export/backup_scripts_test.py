@@ -74,6 +74,18 @@ elif {name!r} == 'pg_dump':
             self.assertNotIn("SUPABASE_DB_URL", row["env"])
             self.assertEqual(row["env"]["PGPASSWORD"], "secret-synthetic")
 
+    def test_dump_is_the_whole_database_so_a_restore_has_every_table(self):
+        # restore-to-branch.sh replays this dump. With no table, schema or data filter it carries
+        # every table a migration adds, with no list to keep current (audit 2026-10-10 F10).
+        self.run_backup()
+        calls = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        dump_call = next(row for row in calls if row["tool"] == "pg_dump" and "--format=plain" in row["args"])
+        narrowing = ("-t", "--table", "-T", "--exclude-table", "-n", "--schema", "-N",
+                     "--exclude-schema", "--exclude-table-data", "-a", "--data-only", "-s",
+                     "--schema-only")
+        for arg in dump_call["args"]:
+            self.assertFalse(any(arg == flag or arg.startswith(flag + "=") for flag in narrowing), arg)
+
     def test_unique_atomic_private_dumps_with_integrity_receipts(self):
         self.run_backup()
         dumps = self.run_backup()
