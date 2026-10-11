@@ -25,6 +25,8 @@ export class FakeSyncServer {
   /** The next push: `down` answers 503 and applies nothing; `lost` applies, then answers 503
    *  (the commit landed and its answer never arrived). */
   nextPush: "down" | "lost" | null = null;
+  /** The next pull: `down` answers 503 and reads nothing. */
+  nextPull: "down" | null = null;
   /** Every op the server was sent, in order. */
   readonly received: SyncOp[] = [];
 
@@ -83,6 +85,9 @@ export class FakeSyncServer {
   readonly fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input), "http://localhost");
     if (url.pathname === "/api/sync/changes") {
+      const fault = this.nextPull;
+      this.nextPull = null;
+      if (fault === "down") return new Response("down", { status: 503 });
       return json(this.changes(Number(url.searchParams.get("since") ?? 0),
         Number(url.searchParams.get("limit") ?? 500)));
     }
