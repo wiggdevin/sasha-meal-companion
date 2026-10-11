@@ -154,38 +154,49 @@ async function rebaseLogNoteOnce(
     client_ts: latest.client_ts,
     note_base: serverNote || null,
     base_fields: moved.base,
+    field_stamps: moved.stamps,
     error_attempts: attempts,
     next_attempt_at: now() + (parked ? PARK_MS : backoffMs(attempts)),
   }, folded.map((o) => o.op_id), isCompleteEntryRow(server) ? server : null, seen);
 }
 
-/** The entry fields a move sets. A note edit records none of them in `base_fields`. */
+/** The entry fields a move sets. They move together: a time without its date or zone is a
+ *  different instant. A note edit records none of them in `base_fields`. */
 const MOVE_FIELDS = ["eaten_at", "local_date", "tz"] as const;
 
+/** Same instant for times (".000Z" and "+00:00" spell one), same text for the rest. */
+function sameValue(field: string, a: unknown, b: unknown): boolean {
+  if (field === "eaten_at" && typeof a === "string" && typeof b === "string") {
+    return Date.parse(a) === Date.parse(b);
+  }
+  return (a ?? null) === (b ?? null);
+}
+
 /**
- * What the queued moves changed, laid over the server's row: for each move field an op recorded a
- * base for, the op's value wins when it changed the field, unless the server changed it too and
- * later (its `updated_at` past the op's `client_ts`). Later ops win over earlier ones. `base` is
- * the server's value of each field kept, so a further conflict compares against this row.
+ * The move the queued ops make, laid over the server's row. The run is judged whole: from the
+ * first move's base (where the entry was) to the last move's payload (where the user left it), so
+ * a move and its Undo cancel out. It stands unless the server moved the entry too, and later than
+ * the user's last move (its own time, kept in `field_stamps` across rebases; a folded note does not
+ * make the move newer). Time, date and zone are taken together. `base` is the server's placement,
+ * what the next conflict compares against.
  */
 export function movedFields(
-  ops: readonly Pick<OutboxOp, "payload" | "base_fields" | "client_ts">[],
+  ops: readonly Pick<OutboxOp, "payload" | "base_fields" | "client_ts" | "field_stamps">[],
   server: Record<string, unknown>, serverTs: string,
-): { fields: Record<string, unknown>; base: Record<string, unknown> | undefined } {
-  const fields: Record<string, unknown> = {};
-  for (const op of ops) {
-    const base = op.base_fields;
-    if (!base) continue;
-    const mine = op.payload as Record<string, unknown>;
-    for (const field of MOVE_FIELDS) {
-      if (!(field in base) || !(field in mine) || mine[field] === base[field]) continue;
-      const theirs = server[field] !== base[field];
-      if (theirs && serverTs > op.client_ts) continue;
-      fields[field] = mine[field];
-    }
-  }
-  const kept = Object.keys(fields);
-  return { fields, base: kept.length ? Object.fromEntries(kept.map((f) => [f, server[f]])) : undefined };
+): { fields: Record<string, unknown>; base?: Record<string, unknown>; stamps?: Record<string, string> } {
+  const moves = ops.filter((op) => op.base_fields && MOVE_FIELDS.some((f) => f in op.base_fields!));
+  if (moves.length === 0) return { fields: {} };
+  const start = moves[0].base_fields!;
+  const last = moves[moves.length - 1];
+  const end = last.payload as Record<string, unknown>;
+  const moved = MOVE_FIELDS.filter((f) => f in start && !sameValue(f, end[f], start[f]));
+  if (moved.length === 0) return { fields: {} };
+  const theirs = MOVE_FIELDS.some((f) => f in start && !sameValue(f, server[f], start[f]));
+  const movedAt = last.field_stamps?.eaten_at ?? last.client_ts;
+  if (theirs && Date.parse(serverTs) > Date.parse(movedAt)) return { fields: {} };
+  const fields = Object.fromEntries(MOVE_FIELDS.filter((f) => f in end).map((f) => [f, end[f]]));
+  return { fields, base: Object.fromEntries(Object.keys(fields).map((f) => [f, server[f] ?? null])),
+    stamps: { eaten_at: movedAt } };
 }
 
 /** The run of note edits at the head of `behind` (the ops queued after a refused one). */

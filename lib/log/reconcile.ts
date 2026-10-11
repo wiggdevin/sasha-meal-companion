@@ -99,6 +99,7 @@ export function entryPatchFromRow(
   entry: LoggedFood, row: Record<string, unknown>,
 ): Partial<LoggedFood> {
   const patch = reconcileFromEntity(entry, row);
+  if (typeof row.eaten_at === "string" && !Number.isNaN(Date.parse(row.eaten_at))) patch.at = row.eaten_at;
   const title = typeof row.title === "string" ? row.title.trim() : "";
   if (title) patch.name = title;
   else if (row.title === null) {

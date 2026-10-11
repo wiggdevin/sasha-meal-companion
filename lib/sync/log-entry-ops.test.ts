@@ -10,7 +10,7 @@
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { handleLogEntryResult, MAX_UPDATE_REBASES } from "./log-entry-ops";
+import { handleLogEntryResult, MAX_UPDATE_REBASES, movedFields } from "./log-entry-ops";
 import { allOps, getRow, putOp, type OutboxOp } from "./idb";
 import { PARK_MS } from "./settings";
 import type { OpResult } from "./types";
@@ -164,8 +164,9 @@ describe("a coach move the server refused", () => {
     const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
     expect(left.base_rev).toBe(2);
     expect(left.payload).toMatchObject({ eaten_at: MOVED, items: SERVER.items, note: null });
-    // Re-based on the server's time, so a second refusal compares against this row.
-    expect(left.base_fields).toEqual({ eaten_at: BEFORE });
+    // Re-based on the server's placement; the move keeps its own time for the next conflict.
+    expect(left.base_fields).toEqual({ eaten_at: BEFORE, local_date: "2026-11-02", tz: "UTC" });
+    expect(left.field_stamps).toEqual({ eaten_at: op.client_ts });
   });
 
   it("lets a later move on the other device stand", async () => {
@@ -194,5 +195,31 @@ describe("a coach move the server refused", () => {
     const left = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
     expect(left).toHaveLength(1);
     expect(left[0].payload).toMatchObject({ eaten_at: MOVED, note: "felt fine" });
+  });
+
+  it("judges a run of moves whole: a move and its Undo cancel out", () => {
+    const there = { payload: { eaten_at: MOVED }, base_fields: { eaten_at: BEFORE }, client_ts: "2026-11-02T17:05:00Z" };
+    const back = { payload: { eaten_at: BEFORE }, base_fields: { eaten_at: MOVED }, client_ts: "2026-11-02T17:06:00Z" };
+    expect(movedFields([there, back], { ...SERVER, updated_at: "2026-11-02T17:10:00Z" }, "2026-11-02T17:10:00Z"))
+      .toEqual({ fields: {} });
+  });
+
+  it("dates the move by its own time, not by a note folded after it", () => {
+    const move = { payload: { eaten_at: MOVED }, base_fields: { eaten_at: BEFORE },
+      client_ts: "2026-11-02T17:10:00Z", field_stamps: { eaten_at: "2026-11-02T17:05:00Z" } };
+    const remote = { ...SERVER, eaten_at: "2026-11-02T19:00:00.000Z" };
+    expect(movedFields([move], remote, "2026-11-02T17:08:00Z").fields).toEqual({});
+  });
+
+  it("compares instants, not spellings, and moves time, date and zone together", () => {
+    const move = { payload: { eaten_at: MOVED, local_date: "2026-11-02", tz: "UTC" },
+      base_fields: { eaten_at: BEFORE, local_date: "2026-11-02", tz: "UTC" }, client_ts: "2026-11-02T17:05:00.000Z" };
+    // The same server time spelt "+00:00" is not a remote move.
+    const same = movedFields([move], { ...SERVER, eaten_at: "2026-11-02T17:00:00+00:00" },
+      "2026-11-02T17:09:00.000999+00:00");
+    expect(same.fields).toEqual({ eaten_at: MOVED, local_date: "2026-11-02", tz: "UTC" });
+    // A remote date change made earlier than the move: the move wins whole, its date with it.
+    const earlier = movedFields([move], { ...SERVER, local_date: "2026-11-03" }, "2026-11-02T17:04:00.000Z");
+    expect(earlier.fields).toMatchObject({ eaten_at: MOVED, local_date: "2026-11-02" });
   });
 });
