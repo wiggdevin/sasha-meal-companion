@@ -237,24 +237,26 @@ export async function userFoodRefIds(admin: SupabaseClient, userId: string): Pro
     .map((row) => [row.user_food_id, row.id]));
 }
 
-/** One account's normalized food projection; no global or legacy rows participate. */
+/**
+ * One account's normalized food projection; no global or legacy rows participate.
+ * W038: live foods only (a soft-deleted food never reaches the coach), paged past the API's row
+ * cap and with every `.in()` list chunked; any failed page rejects, never a shorter food list.
+ */
 export async function foodsFor(admin: SupabaseClient, userId: string): Promise<Record<string, Food>> {
-  const foods = await admin.from("user_foods")
-    .select("id,name,per_100g,created_at,deleted_at").eq("user_id", userId);
-  if (foods.error) throw foods.error;
-  const ids = (foods.data ?? []).map((row) => String(row.id));
+  const foods = await fetchAllRows<Record<string, unknown>>((from, to) => admin.from("user_foods")
+    .select("id,name,per_100g,created_at,deleted_at").eq("user_id", userId).is("deleted_at", null)
+    .order("id").range(from, to));
+  const ids = foods.map((row) => String(row.id));
   if (ids.length === 0) return {};
-  const refs = await admin.from("food_refs").select("id,user_food_id")
-    .eq("kind", "user").in("user_food_id", ids);
-  if (refs.error) throw refs.error;
-  const refIds = (refs.data ?? []).map((row) => String(row.id));
-  const prefs = refIds.length === 0 ? { data: [], error: null } : await admin.from("user_food_prefs")
-    .select("food_ref_id,status,role,no_cook,note,updated_at")
-    .eq("user_id", userId).in("food_ref_id", refIds);
-  if (prefs.error) throw prefs.error;
-  return foodsFromSyncRows((foods.data ?? []).map((row) => ({
-    ...row, updated_at: row.created_at,
-  })), prefs.data ?? [], refs.data ?? []);
+  const refs = await fetchAllChunked<string, { id: unknown; user_food_id: unknown }>(ids,
+    (batch, from, to) => admin.from("food_refs").select("id,user_food_id")
+      .eq("kind", "user").in("user_food_id", batch).order("id").range(from, to));
+  const refIds = refs.map((row) => String(row.id));
+  const prefs = await fetchAllChunked<string, Record<string, unknown>>(refIds,
+    (batch, from, to) => admin.from("user_food_prefs")
+      .select("food_ref_id,status,role,no_cook,note,updated_at")
+      .eq("user_id", userId).in("food_ref_id", batch).order("food_ref_id").range(from, to));
+  return foodsFromSyncRows(foods.map((row) => ({ ...row, updated_at: row.created_at })), prefs, refs);
 }
 
 /**

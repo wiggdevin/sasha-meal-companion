@@ -6,6 +6,7 @@ import type { StoredMealRole, SuggestionFoodEvidence } from "@/lib/coach/suggest
 import { facetRulesFor, type PolicyPreferenceFlag } from "@/lib/policy/facet-rules";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
 import { suggestionFoodIdentity, suggestionItemsOutcome } from "@/lib/coach/suggest-verdict";
+import { fetchByKeyChunks } from "@/lib/server/paged-read";
 
 // The fail-closed verdict lives in lib/coach/suggest-verdict.ts (file-size cap); callers keep
 // importing it from here.
@@ -92,25 +93,22 @@ export async function loadSuggestionEvidence(
         import("@/lib/server/log-evidence"),
       ]);
     const admin = options.client ?? adminModule.adminClient();
-    const [settings, prefs, revisions, refs] = await Promise.all([
+    // W038: the id lists are chunked by unique key (an Eats list can name 1,500 foods); a failed
+    // chunk throws into the catch below, so the evidence is unavailable, never a shorter set.
+    const [settings, prefRows, revisionRows, refRows] = await Promise.all([
       admin.from("user_settings").select("diet_prefs").eq("user_id", userId).maybeSingle(),
-      refIds.length === 0 ? Promise.resolve({ data: [], error: null })
-        : admin.from("user_food_prefs").select("food_ref_id,status,role,no_cook")
-          .eq("user_id", userId).in("food_ref_id", refIds),
-      revisionIds.length === 0 ? Promise.resolve({ data: [], error: null })
-        : admin.from("catalog_food_revisions").select(REVISION_SELECT).in("id", revisionIds),
-      refIds.length === 0 ? Promise.resolve({ data: [], error: null })
-        : admin.from("food_refs")
-          .select("id,kind,user_food_id,catalog_food_id,user_foods(id,user_id,name,brand,ingredients_text,allergen_tags,rev,kind,catalog_food_id,deleted_at,per_100g)")
-          .in("id", refIds),
+      fetchByKeyChunks<string, PrefRow>(refIds, (batch) => admin.from("user_food_prefs")
+        .select("food_ref_id,status,role,no_cook").eq("user_id", userId).in("food_ref_id", batch)),
+      revisionsById(admin, revisionIds),
+      fetchByKeyChunks<string, RefRow>(refIds, (batch) => admin.from("food_refs")
+        .select("id,kind,user_food_id,catalog_food_id,user_foods(id,user_id,name,brand,ingredients_text,allergen_tags,rev,kind,catalog_food_id,deleted_at,per_100g)")
+        .in("id", batch)),
     ]);
-    if (settings.error || prefs.error || revisions.error || refs.error) return unavailable();
-
+    if (settings.error) return unavailable();
     // ai-audit 2026-10-01 (safety): an unpinned catalog item (the capture sheet's food swap, a
     // coach log with no revision) is judged on its food's ACTIVE revision — the same resolver
     // lib/server/log-evidence.ts uses — so /api/log/commit's two evidence layers cover the same
     // items, and a stored Jev-derived `listed` finding reaches an unpinned item too.
-    const refRows = (refs.data ?? []) as unknown as RefRow[];
     const unpinned = new Set(items.filter((item) => item.catalogFoodRevisionId === null)
       .map((item) => item.foodRefId));
     const unpinnedCatalog = refRows.filter((ref) => ref.kind === "catalog"
@@ -122,9 +120,7 @@ export async function loadSuggestionEvidence(
       return active === undefined ? [] : [[ref.id, active] as const];
     }));
     const extraIds = [...new Set(activeByRef.values())].filter((id) => !revisionIds.includes(id));
-    const extra = extraIds.length === 0 ? { data: [], error: null }
-      : await admin.from("catalog_food_revisions").select(REVISION_SELECT).in("id", extraIds);
-    if (extra.error) return unavailable();
+    const extra = await revisionsById(admin, extraIds);
     const revisionFor = (food: (typeof items)[number]) =>
       food.catalogFoodRevisionId ?? activeByRef.get(food.foodRefId) ?? null;
 
@@ -138,10 +134,8 @@ export async function loadSuggestionEvidence(
       ...facetRulesFor(preferenceFlags).map((rule) => rule.facet),
       ...(options.facets ?? []),
     ])];
-    const prefByRef = new Map(((prefs.data ?? []) as PrefRow[])
-      .map((row) => [row.food_ref_id, row]));
-    const catalogPrepared = ([...(revisions.data ?? []), ...(extra.data ?? [])] as unknown as
-      RevisionRow[]).map((row) => {
+    const prefByRef = new Map(prefRows.map((row) => [row.food_ref_id, row]));
+    const catalogPrepared = [...revisionRows, ...extra].map((row) => {
       const warm = catalogModule.catalogWarmFood(row);
       const key = {
         foodKey: keyModule.foodKey(warm.identity),
@@ -275,6 +269,13 @@ const REVISION_SELECT = "id,description,brand,category,policy_categories,prep_st
   // 2026-10-02 DeepSeek audit (F2, MED): the only way to tell a branded/OFF row from a generic
   // USDA commodity entry (lib/catalog/category-map.ts isPackagedCatalogSource).
   + "catalog_foods(source)";
+
+/** Catalog revisions by id, chunked; any failed chunk throws. */
+function revisionsById(admin: SupabaseClient, ids: readonly number[]): Promise<RevisionRow[]> {
+  return fetchByKeyChunks<number, RevisionRow>(ids, (batch) =>
+    admin.from("catalog_food_revisions").select(REVISION_SELECT).in("id", batch) as unknown as
+      PromiseLike<{ data: RevisionRow[] | null; error: { message: string } | null }>);
+}
 
 function unavailable(): SuggestionEvidence {
   return { status: "unavailable", preferenceFlags: [], byIdentity: {} };
