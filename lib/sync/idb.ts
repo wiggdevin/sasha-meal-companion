@@ -58,6 +58,9 @@ export type OutboxOp = OwnedOp & {
    *  conflict compares that edit's own time, not the rebase's (lib/sync/merge.ts `planDayStamps`).
    *  Device bookkeeping only: `wireOp` strips it. */
   field_stamps?: Record<string, string>;
+  /** The server build that answered when this op was parked for its own errors (W026): a later
+   *  build releases it (lib/sync/outbox-park.ts). `null` is "no build known". Device only. */
+  parked_build?: string | null;
 };
 
 /** A queued op with the bookkeeping its writer may attach at queue time. */
@@ -324,9 +327,9 @@ export function outboxRow(h: AccountHandle, op: QueuedSyncOp, seq: number, now: 
 /** Strip this device's queue bookkeeping; the op and its owner go on the wire (spec §0.5). */
 export function wireOp(op: OutboxOp): OwnedOp {
   const { seq, attempts, error_attempts, queued_at, next_attempt_at, intents, generation,
-    note_base, base_fields, field_stamps, ...rest } = op;
+    note_base, base_fields, field_stamps, parked_build, ...rest } = op;
   void seq; void attempts; void error_attempts; void queued_at; void next_attempt_at;
-  void intents; void generation; void note_base; void base_fields; void field_stamps;
+  void intents; void generation; void note_base; void base_fields; void field_stamps; void parked_build;
   return rest;
 }
 

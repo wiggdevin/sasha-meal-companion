@@ -206,6 +206,9 @@ const MODULES = [
   // outbox under the house rule; it leaves its 406-line baseline for the rule itself.
   "lib/sync/outbox.ts",
   "lib/sync/outbox-conflict.ts",
+  // W026 (2026-10-11): parking and its release, and the settings replay's watermark.
+  "lib/sync/outbox-park.ts",
+  "lib/sync/settings-recovery.ts",
   "components/LogFoodSheet.styles.ts",
   "lib/server/barcode-policy.ts",
   "lib/warm-client.ts",

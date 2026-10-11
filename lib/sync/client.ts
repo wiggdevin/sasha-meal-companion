@@ -31,6 +31,10 @@ import {
 import { ENTITIES, type ChangesResponse, type Entity, type OpsResponse } from "./types";
 import type { OwnedOp } from "./idb";
 import { settingsProfileFromRow, type UserSettingsProfileRow } from "./user-settings";
+import {
+  dropSettingsRecovery, loadSettingsRecovery, noteSettingsChange, saveSettingsRecovery,
+  type SettingsRecovery,
+} from "./settings-recovery";
 import type { TargetProfile } from "../api-types";
 import {
   settingsFromTargetMirror, settingsWithoutTargetRevision, settingsWithTargetRevision,
@@ -56,6 +60,9 @@ const SYNCED = new Set<string>(ENTITIES);
 export type SyncOptions = { fetchFn?: typeof fetch; maxPages?: number };
 export type PullResult = {
   applied: number; skipped: number; cursor: number; hasMore: boolean; pages: number;
+  /** The post-pull food or target projection failed (W026, A080). The feed itself was applied and
+   *  the cursor saved; the pass still pushes, and says what went wrong. */
+  projectionError?: string;
 };
 
 /** A row this client cannot address (an unknown key shape) is quarantined, not fatal: one poisoned
@@ -278,9 +285,15 @@ export async function pullChanges(
   // diffs the payload against the row the server actually holds (T11b eighth-round P1). The feed
   // is also the only way to find out that the server holds NO row — which the baseline-less payload
   // then creates (ninth-round P1, finding 2).
+  // The replay resumes where the last pass left it (lib/sync/settings-recovery.ts, A082).
   const recoveringSettings = await settingsAwaitingBaseline(h, await allOps(h));
-  if (recoveringSettings) cursor = 0;
-  let recoveredSettings: { row: Record<string, unknown>; rev: number } | null = null;
+  let recovery: SettingsRecovery | null = null;
+  if (recoveringSettings) {
+    recovery = await loadSettingsRecovery(h);
+    cursor = Math.min(cursor, recovery.cursor);
+  } else {
+    await dropSettingsRecovery(h);
+  }
 
   while (hasMore && pages < maxPages) {
     const page = await getJson<ChangesResponse>(
@@ -292,12 +305,11 @@ export async function pullChanges(
         skipped += 1;
         continue;
       }
-      if (change.entity === "user_settings" && recoveringSettings) {
+      if (change.entity === "user_settings" && recovery) {
         // A legacy payload stays parked until the COMPLETE replay says which settings row is
         // authoritative. Applying an early page would make the op sendable while later pages are
         // still outstanding (or when maxPages stops this pull before the end).
-        recoveredSettings = change.current === null
-          ? null : { row: change.current, rev: change.rev };
+        recovery = noteSettingsChange(recovery, change);
       }
       else if (change.entity === "plan_days") {
         if (!await applyPulledPlanDay(h, change)) {
@@ -336,23 +348,43 @@ export async function pullChanges(
     }
     cursor = page.next_cursor;
     await setCursor(h, cursor);
+    if (recovery) recovery = await saveSettingsRecovery(h, recovery, cursor);
     pages += 1;
     hasMore = page.has_more;
   }
 
   // Only the end of the replay establishes what the server holds. Until then the legacy op remains
   // baseline-less and the drain keeps it parked.
-  if (recoveringSettings && !hasMore) {
-    if (recoveredSettings === null) await establishEmptySettingsBaseline(h);
-    else await applyAndMirrorPulledUserSettings(h, recoveredSettings.row, recoveredSettings.rev);
+  if (recovery && !hasMore) {
+    const seen = recovery.seen;
+    if (seen === null || seen.row === null) await establishEmptySettingsBaseline(h);
+    else await applyAndMirrorPulledUserSettings(h, seen.row, seen.rev);
+    await dropSettingsRecovery(h);
   }
 
   // Direct Foods membership writes bypass the change feed. The account's canonical rows
-  // must refresh on every sync pass, including one with an already-consumed cursor.
-  await refreshFoodProjection(h);
-  await refreshTargetHistory(h);
+  // must refresh on every sync pass, including one with an already-consumed cursor. They are
+  // projections of what was pulled, not the pull: a failed read here must not keep the outbox
+  // from pushing (audit 2026-10-10 A080), so it is reported, and the pass goes on.
+  const projectionError = await projectAfterPull(h);
 
-  return { applied, skipped, cursor, hasMore, pages };
+  return { applied, skipped, cursor, hasMore, pages,
+    ...(projectionError === null ? {} : { projectionError }) };
+}
+
+/** Both post-pull projections, each on its own; the first failure's line, or null. */
+async function projectAfterPull(h: AccountHandle): Promise<string | null> {
+  let failure: string | null = null;
+  for (const project of [refreshFoodProjection, refreshTargetHistory]) {
+    try {
+      await project(h);
+    } catch (e) {
+      if (e instanceof AccountChanged || !isCurrent(h)) throw e;
+      console.warn(`sync: ${project.name} failed after the pull: ${shortMessage(e)}`);
+      failure ??= shortMessage(e);
+    }
+  }
+  return failure;
 }
 
 export function lastSyncAt(h: AccountHandle): Promise<string | null> {
@@ -542,7 +574,7 @@ async function runPass(
   if (push.failed) await setLastError(h, "some changes could not be sent");
   else {
     await setLastSyncAt(h, new Date().toISOString());
-    await setLastError(h, null);
+    await setLastError(h, pull.projectionError ?? null);
   }
   return { pull, push };
 }
