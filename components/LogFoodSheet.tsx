@@ -27,7 +27,7 @@ import {
 import type { FavoriteRow } from "@/lib/favorites";
 import type { Food } from "@/lib/foods";
 import type { FoodDetail } from "@/lib/server/catalog";
-import { gramsForPortion } from "@/lib/log/grams";
+import { gramsForPortion, parseGramsText } from "@/lib/log/grams";
 import { resolveFoodRef, type FoodRefFailureReason } from "@/lib/log-client";
 import { AccountChanged } from "@/lib/device/account";
 import { localOnlyCard, preparePickedCommit, type LogPick } from "@/lib/log/picked-commit";
@@ -184,7 +184,8 @@ export default function LogFoodSheet({
     const preferred = rev.portions.find((p) => p.isDefault) ?? rev.portions[0] ?? null;
     setRevision(rev);
     setCatPortion(preferred);
-    setTypedPer(null);
+    // No portion row: one count is 100 g, so the stepper moves the grams it shows (audit A015).
+    setTypedPer(preferred ? null : 100);
     setQty(1);
     const startGrams = preferred ? gramsForPortion({ gramWeight: preferred.gramWeight }, 1) : 100;
     setGrams(startGrams);
@@ -273,13 +274,13 @@ export default function LogFoodSheet({
 
   function typeGrams(text: string) {
     setGramsText(text);
-    const n = Number(text);
-    if (Number.isFinite(n) && n >= 0) {
-      setGrams(n);
-      // What one count weighs, from the grams typed: the stepper scales from it without drift.
-      setTypedPer(qty > 0 ? n / qty : null);
-      setCatPortion(null);
-    }
+    setCatPortion(null);
+    // The logged grams are the box's grams, or none: a partial or unreadable entry ("-", ".")
+    // holds 0 and disables Log rather than keeping the last number read (audit A016).
+    const n = parseGramsText(text);
+    setGrams(n ?? 0);
+    // What one count weighs, from the grams typed: the stepper scales from it without drift.
+    setTypedPer(n !== null && qty > 0 ? n / qty : null);
   }
 
   /**

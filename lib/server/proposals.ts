@@ -64,7 +64,9 @@ async function readOne(
  * (`approve_target_proposal`), so an account under 18 approves nothing, and a held account
  * approves only once its revision in force is at a 0 pace (a hold re-derives it at once,
  * lib/server/target-recompute.ts `recomputeAfterHoldChange`). A proposal built before the hold
- * could carry a deficit; the next weekly proposal is built at a 0 pace.
+ * could carry a deficit, but approving it writes a revision dated to its `week_start` (a week
+ * that has already ended), before the hold's own 0-pace revision, so the hold stays in force
+ * (audit 2026-10-10 A129, refuted); the next weekly proposal is built at a 0 pace.
  */
 async function assertApprovalEligible(client: SupabaseClient, userId: string): Promise<void> {
   const day = await accountDay(client, userId, { purpose: "approve proposal" });

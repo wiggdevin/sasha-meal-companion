@@ -881,6 +881,11 @@ const MEAL_LIBRARY: Record<DayType, Partial<Record<SlotId, Meal[]>>> = {
  * `getMealOptions` shape below) is the contract `lib/rotation.ts` — the
  * date/slot seam that sits between this file and plan.ts — is written
  * against.
+ *
+ * Historical: `resolveDay` never substitutes this template. A Floor Day
+ * ("Quick meals") day renders the account's own generated plates, and a meal
+ * saved under a slot that day is judged against the current rules like any
+ * saved line (W021, `tests/today/floor-day-avoid.test.ts`).
  */
 export const FLOOR_DAY_MEALS: Meal[] = [
   meal(
@@ -915,11 +920,10 @@ export const FLOOR_DAY_MEALS: Meal[] = [
 ];
 
 /**
- * The `lib/foods.ts` food id each Floor Day component is built from, so
- * `resolveDay` can check their current Avoid list before substituting the
- * fixed template for a slot. Keyed by slot, in FLOOR_DAY_MEALS component
- * order. Not meant for any other use — Floor Day components carry a plain
- * name, not a food id, everywhere else.
+ * The `lib/foods.ts` food id each Floor Day component is built from. Keyed by
+ * slot, in FLOOR_DAY_MEALS component order. Nothing reads it now: the fixed
+ * template is never substituted (see FLOOR_DAY_MEALS), so there is no Avoid
+ * check to feed.
  */
 export const FLOOR_DAY_FOOD_IDS: Partial<Record<SlotId, string[]>> = {
   "meal-1": ["eggs", "banana"],

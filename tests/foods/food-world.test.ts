@@ -177,6 +177,29 @@ describe("POST /api/foods/world intent: onboarding_default (W13 Sol round 2 BLOC
     expect(tables.user_settings[0].food_world_set_at).toBe("2026-10-07T09:00:00Z");
   });
 
+  // Audit 2026-10-10 A091: a grandfathered account finishing the Today invite or Settings "Finish
+  // profile" is not a new account; it moves over only through the invitation (D14, Q5).
+  it("never opens an account first opened before the onboarding cutover", async () => {
+    loadWorld({ firstOpenedAt: "2026-09-01T08:00:00.000Z", onboardedAt: "2026-10-07T09:00:00.000Z",
+      defaultDueAt: "2026-10-07T09:00:00.000Z" });
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+    expect(tables.user_settings[0].food_world_set_at).toBeNull();
+  });
+
+  it("treats an unreadable first_opened_at as not brand new", async () => {
+    loadWorld({ firstOpenedAt: null });
+    expect(await post({ world: "open", intent: "onboarding_default" }))
+      .toEqual({ status: 200, body: { world: "closed" } });
+    expect(tables.user_settings[0].food_world).toBe("closed");
+  });
+
+  it("a grandfathered account can still opt in itself through Settings (no intent)", async () => {
+    loadWorld({ firstOpenedAt: "2026-09-01T08:00:00.000Z" });
+    expect(await post({ world: "open" })).toEqual({ status: 200, body: { world: "open" } });
+  });
+
   it("answers 409 profile_required to the default when the account has no settings row yet", async () => {
     tables.user_settings.length = 0;
     expect(await post({ world: "open", intent: "onboarding_default" }))
@@ -214,6 +237,11 @@ describe("GET /api/foods/world (W13)", () => {
     loadWorld({ onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED });
     expect(await post({ world: "open", intent: "onboarding_default" })).toEqual({ status: 200, body: { world: "open" } });
     expect(await get()).toEqual({ world: "open", openDefaultPending: false, starterSeed: false });
+  });
+
+  it("a grandfathered account that finished the invite after W13 is not pending, and seeds (A091)", async () => {
+    loadWorld({ firstOpenedAt: "2026-09-01T08:00:00.000Z", onboardedAt: ONBOARDED, defaultDueAt: ONBOARDED });
+    expect(await get()).toEqual({ world: "closed", openDefaultPending: false, starterSeed: true });
   });
 
   it("a legacy closed account (onboarded before W13, no due stamp) still seeds", async () => {

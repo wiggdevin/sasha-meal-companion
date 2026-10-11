@@ -1,6 +1,8 @@
 /**
- * Spec 3.3 (Phase 9 slice 3): the `media` bucket policy (`media_own_folder`,
- * supabase/migrations/20260920090100_phase4_media_bucket.sql) keeps user A out of user B's folder.
+ * Spec 3.3 (Phase 9 slice 3): the `media` bucket policies keep user A out of user B's folder.
+ * W019 (audit 2026-10-10 A055, migration 20261230091900): a signed-in user can read and delete in
+ * her own folder but never write there directly; every upload goes through the server-signed URL
+ * (`signUpload`), which records its media_objects row first.
  */
 // Refuses any non-local database before anything else runs (review r8).
 import "./local-only";
@@ -27,10 +29,22 @@ describe.skipIf(!HAS_BRANCH)("media bucket (spec 3.3)", () => {
 
   const bucketAsA = async () => (await userClient(await ensureUser("a"))).storage.from("media");
 
-  it("A can write to her own folder (control)", async () => {
+  it("A cannot upload to her own folder directly: no row, no sweep, no sign limit (A055)", async () => {
     const own = `${aFolder}/canary-${crypto.randomUUID()}.jpg`;
     const { error } = await (await bucketAsA()).upload(own, jpeg(JPEG), OPTS);
-    expect(error).toBeNull();
+    expect(error).not.toBeNull();
+    expect((await adminClient().storage.from("media").download(own)).data).toBeNull();
+  });
+
+  it("A can still upload through a server-signed URL and read her own object (control)", async () => {
+    const own = `${aFolder}/${crypto.randomUUID()}.jpg`;
+    const signed = await adminClient().storage.from("media").createSignedUploadUrl(own);
+    expect(signed.error).toBeNull();
+    const put = await (await bucketAsA()).uploadToSignedUrl(own, signed.data!.token, jpeg(JPEG), OPTS);
+    expect(put.error).toBeNull();
+    const read = await (await bucketAsA()).download(own);
+    expect(read.error).toBeNull();
+    expect(new Uint8Array(await read.data!.arrayBuffer())).toEqual(JPEG);
   });
 
   it("A cannot download, list, overwrite or delete B's object", async () => {

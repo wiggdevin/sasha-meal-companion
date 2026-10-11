@@ -40,45 +40,74 @@ function hourAfter(iso: string): string {
 
 const HAE_ADDITIVE_TYPES = new Set<SampleType>(["step_count", "active_energy"]);
 
-/** HAE correction identity is daily, so reduce every payload to that same daily grain before apply. */
-function foldHealthAutoExportDays(samples: NormalizedSample[]): NormalizedSample[] {
-  const folded = new Map<string, NormalizedSample>();
-  for (const sample of samples) {
+/** One day's sample and the payload rows folded into it. */
+type FoldedDay = { sample: NormalizedSample; rows: number[] };
+
+/** Which of two same-day samples the fold keeps, or their sum for an additive type. */
+function foldPair(prior: NormalizedSample, sample: NormalizedSample): NormalizedSample {
+  if (HAE_ADDITIVE_TYPES.has(sample.type)) {
+    const earliest = Date.parse(sample.start_time) < Date.parse(prior.start_time) ? sample : prior;
+    return { ...earliest, value: prior.value + sample.value,
+      start_time: earliest.start_time,
+      end_time: Date.parse(sample.end_time) > Date.parse(prior.end_time)
+        ? sample.end_time : prior.end_time };
+  }
+  if (sample.type === "sleep_asleep" || sample.type === "sleep_in_bed") {
+    return sample.value > prior.value ? sample : prior;
+  }
+  return Date.parse(sample.start_time) >= Date.parse(prior.start_time) ? sample : prior;
+}
+
+/**
+ * HAE correction identity is daily, so reduce every payload to that same daily grain before apply.
+ * Each day keeps the payload rows it was folded from, so a rejection of the day can name them.
+ * The day accumulators are local to this call and grow in place: copying a day's row list for every
+ * further sample was quadratic in same-day samples, and HAE has no row cap.
+ */
+function foldHealthAutoExportDays(entries: Array<{ sample: NormalizedSample; row: number }>):
+    FoldedDay[] {
+  const folded = new Map<string, FoldedDay>();
+  for (const { sample, row } of entries) {
     const key = sample.vendor_sample_id!;
     const prior = folded.get(key);
-    if (!prior) {
-      folded.set(key, sample);
-      continue;
+    if (prior) {
+      prior.sample = foldPair(prior.sample, sample);
+      prior.rows.push(row);
+    } else {
+      folded.set(key, { sample, rows: [row] });
     }
-    if (HAE_ADDITIVE_TYPES.has(sample.type)) {
-      const earliest = Date.parse(sample.start_time) < Date.parse(prior.start_time) ? sample : prior;
-      folded.set(key, { ...earliest, value: prior.value + sample.value,
-        start_time: Date.parse(sample.start_time) < Date.parse(prior.start_time)
-          ? sample.start_time : prior.start_time,
-        end_time: Date.parse(sample.end_time) > Date.parse(prior.end_time)
-          ? sample.end_time : prior.end_time });
-      continue;
-    }
-    if (sample.type === "sleep_asleep" || sample.type === "sleep_in_bed") {
-      if (sample.value > prior.value) folded.set(key, sample);
-      continue;
-    }
-    if (Date.parse(sample.start_time) >= Date.parse(prior.start_time)) folded.set(key, sample);
   }
   return [...folded.values()];
 }
+
+/** The HAE result plus, for each folded sample, the payload row indexes it came from (A012). */
+export type HaeNormalizeResult = NormalizeResult & { rows: number[][] };
 
 export function normalizeHealthAutoExport(
   payload: unknown,
   tz: string,
   receivedAt: Date = new Date(),
 ): NormalizeResult {
+  const { samples, rejected } = normalizeHealthAutoExportRows(payload, tz, receivedAt);
+  return { samples, rejected };
+}
+
+/**
+ * `normalizeHealthAutoExport` with the payload rows behind each folded sample. Row indexes count
+ * every data row across metrics, the space every `rejected` entry uses.
+ */
+export function normalizeHealthAutoExportRows(
+  payload: unknown,
+  tz: string,
+  receivedAt: Date = new Date(),
+): HaeNormalizeResult {
   const metrics = (payload as { data?: { metrics?: unknown } })?.data?.metrics;
   if (!Array.isArray(metrics)) {
-    return { samples: [], rejected: [{ index: -1, reason: "not a Health Auto Export payload" }] };
+    return { samples: [], rows: [],
+      rejected: [{ index: -1, reason: "not a Health Auto Export payload" }] };
   }
 
-  const samples: NormalizedSample[] = [];
+  const samples: Array<{ sample: NormalizedSample; row: number }> = [];
   const rejected: NormalizeResult["rejected"] = [];
   let index = 0;
 
@@ -109,10 +138,13 @@ export function normalizeHealthAutoExport(
         const hours = asleep ?? finite(r.inBed);
         if (hours !== null) {
           const localDay = localDateOf(start, tz);
-          samples.push({ type: sleepType, ...toCanonical(sleepType, hours, unit || "hr"),
+          samples.push({ row: index, sample: { type: sleepType,
+            ...toCanonical(sleepType, hours, unit || "hr"),
             start_time: start, end_time: end, device_label: device, tz,
             vendor_sample_id: `hae:${sleepType}:${localDay}`,
-            vendor_updated_at: receivedAt.toISOString() });
+            vendor_updated_at: receivedAt.toISOString() } });
+        } else {
+          rejected.push({ index, reason: "no sleep value" });
         }
         index += 1;
         continue;
@@ -125,9 +157,9 @@ export function normalizeHealthAutoExport(
       try {
         const end = type === "body_mass" ? at : hourAfter(at);
         const localDay = localDateOf(at, tz);
-        samples.push({ type, ...toCanonical(type, qty, unit), start_time: at, end_time: end,
-          device_label: device, tz, vendor_sample_id: `hae:${type}:${localDay}`,
-          vendor_updated_at: receivedAt.toISOString() });
+        samples.push({ row: index, sample: { type, ...toCanonical(type, qty, unit),
+          start_time: at, end_time: end, device_label: device, tz,
+          vendor_sample_id: `hae:${type}:${localDay}`, vendor_updated_at: receivedAt.toISOString() } });
       } catch (e) {
         rejected.push({ index, reason: e instanceof Error ? e.message : "bad sample" });
       }
@@ -135,7 +167,8 @@ export function normalizeHealthAutoExport(
     }
   }
 
-  return { samples: foldHealthAutoExportDays(samples), rejected };
+  const days = foldHealthAutoExportDays(samples);
+  return { samples: days.map((d) => d.sample), rows: days.map((d) => d.rows), rejected };
 }
 
 export function normalizeShortcut(payload: unknown, tz: string): NormalizeResult {

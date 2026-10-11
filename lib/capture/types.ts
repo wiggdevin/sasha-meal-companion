@@ -37,14 +37,18 @@ const SIGN_CONTENT_TYPES = [
 ] as const;
 
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const MEDIA_PATH = /^media\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|m4a|aac|mp3|wav)$/;
+/** `media/<uid>/<uuid>.<ext>`, the only path the sign route mints. Every route that takes a media
+ *  path from a request body checks it (W019); the server re-checks ownership (`ownedObjectKey`). */
+export const MEDIA_PATH = /^media\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|m4a|aac|mp3|wav)$/;
 
 const MAX_SIGN_BYTES = 8_388_608; // 8 MiB, matches the §5 413 too_large object cap
 
 // ---------------------------------------------------------------- /api/media/sign
 
 export type SignRequest = { kind: "image" | "audio"; contentType: string; bytes: number };
-export type SignResponse = { path: string; uploadUrl: string; expiresInSeconds: 60 };
+/** `expiresInSeconds` is the upload token's real lifetime (two hours on hosted Supabase), not a
+ *  promise the URL dies sooner (audit 2026-10-10 P10). */
+export type SignResponse = { path: string; uploadUrl: string; expiresInSeconds: number };
 
 export const signRequestSchema: z.ZodType<SignRequest> = z.object({
   kind: z.enum(["image", "audio"]),

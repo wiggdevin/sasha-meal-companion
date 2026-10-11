@@ -108,7 +108,7 @@ from the body. Shared types live in `lib/capture/types.ts`.
 ```ts
 // POST /api/media/sign  — 1 KB body, 30/min/user
 type SignRequest  = { kind: "image" | "audio"; contentType: string; bytes: number };
-type SignResponse = { path: string; uploadUrl: string; expiresInSeconds: 60 };
+type SignResponse = { path: string; uploadUrl: string; expiresInSeconds: number }; // the token's JWT expiry; 7,200 s fallback
 
 // POST /api/log/propose — 8 KB body (refs only), 30/day soft, 100 hard
 type ProposeRequest =

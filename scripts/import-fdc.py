@@ -98,6 +98,57 @@ NUTRIENT_MAP = {
     1253: Nutrient("cholesterol", "Cholesterol", "mg", "lipid", "measured"),
 }
 
+# Other FDC ids that carry a mapped nutrient in some datasets (W004, audit A019/A022). FDC
+# Foundation publishes most energy as Atwater General (2047) or Specific (2048) factors, not 1008,
+# and most sugars as 1063 ("Sugars, Total", nbr 269.3), not 2000. Each code takes the first id in
+# NUTRIENT_PRIORITY order that the food has a value for, so a food with 1008 keeps it, and only a
+# food without one falls back (lib/catalog/fdc-map.ts also reads 1063 for branded rows). Aliases are
+# optional: assert_nutrient_ids requires only NUTRIENT_MAP ids, and catalog_nutrients keeps one
+# fdc_nutrient_id per code (the primary).
+NUTRIENT_PRIORITY = {
+    1008: (1008, 2047, 2048),
+    2000: (2000, 1063),
+}
+NUTRIENT_ALIASES = {
+    alias: primary
+    for primary, ids in NUTRIENT_PRIORITY.items()
+    for alias in ids if alias != primary
+}
+
+
+# select_amount's answer when a food staged no row for a code at all (so no row is written).
+MISSING = object()
+
+
+def nutrient_ids(primary_id: int) -> tuple:
+    """Every FDC id that may carry this NUTRIENT_MAP nutrient, in priority order."""
+    return NUTRIENT_PRIORITY.get(primary_id, (primary_id,))
+
+
+def primary_nutrient_id(fdc_id: int):
+    """The NUTRIENT_MAP id a mapped or alias FDC id stands for, or None."""
+    if fdc_id in NUTRIENT_MAP:
+        return fdc_id
+    return NUTRIENT_ALIASES.get(fdc_id)
+
+
+def select_amount(amounts_by_id: dict, primary_id: int):
+    """What _write_nutrients stores for one food and one code, given its staged amounts per FDC id
+    ({id: [amount|None, ...]}): the max amount of the first id in priority order that has a value;
+    None (a stored null) when ids were staged but none has a value; the sentinel MISSING when no id
+    was staged at all (no row is written). The Python twin of the SQL in _write_nutrients, used by
+    scripts/priors/fndds_release_rows.py so the release fingerprint reads what the import stored."""
+    staged = False
+    for fdc_id in nutrient_ids(primary_id):
+        if fdc_id not in amounts_by_id:
+            continue
+        staged = True
+        present = [a for a in amounts_by_id[fdc_id] if a is not None]
+        if present:
+            return max(present)
+    return None if staged else MISSING
+
+
 # Not an FDC nutrient: catalog_atwater_kcal writes it (§3.1).
 CALC_NUTRIENT = Nutrient(
     "energy_kcal_calc", "Energy, Atwater calculated", "kcal", "energy", "calculated"
@@ -320,16 +371,17 @@ def _resolve_nutrient_id(raw_nutrient_id, nbr_map: dict):
     skip. Tried two ways, both exact (never a lossy cast): the value itself when it is
     already a whole-number NUTRIENT_MAP id (Foundation/SR Legacy), else its exact
     nutrient_nbr match in nbr_map (FNDDS). Either way the resolved id must itself be a
-    NUTRIENT_MAP key, or the row names a nutrient this app does not track and is skipped."""
+    NUTRIENT_MAP key or one of its NUTRIENT_ALIASES (kept as the raw id, so _write_nutrients can
+    apply NUTRIENT_PRIORITY), or the row names a nutrient this app does not track and is skipped."""
     key = _nutrient_nbr_key(raw_nutrient_id)
     if key is None:
         return None
     if key == key.to_integral_value():
         candidate = int(key)
-        if candidate in NUTRIENT_MAP:
+        if primary_nutrient_id(candidate) is not None:
             return candidate
     candidate = nbr_map.get(key)
-    return candidate if candidate in NUTRIENT_MAP else None
+    return candidate if candidate is not None and primary_nutrient_id(candidate) is not None else None
 
 
 def _staged_food_nutrient_rows(source_key: str, csv_dir: Path):
@@ -492,20 +544,28 @@ def _write_revisions(cur, source: Source, version_id: int) -> None:
         (version_id, source.quality_class, source.key, source.key, source.data_type))
 
 
-def _write_nutrients(cur, source: Source, version_id: int) -> None:
-    # FDC bulk amounts are already per 100 g. A duplicate row (rare, FNDDS) keeps the max.
-    cur.executemany(
-        """insert into catalog_food_nutrients (food_revision_id, nutrient_code, amount_per_100g)
-           select r.id, %s, max(s.amount)
+NUTRIENT_INSERT_SQL = """insert into catalog_food_nutrients (food_revision_id, nutrient_code, amount_per_100g)
+           select distinct on (r.id) r.id, %s, s.amount
              from catalog_staging.food_nutrient s
              join catalog_foods f on f.source = %s and f.source_id = s.fdc_id
              join catalog_food_revisions r
                on r.catalog_food_id = f.id and r.catalog_version_id = %s
-            where s.source = %s and s.nutrient_id = %s
-            group by r.id
+            where s.source = %s and s.nutrient_id = any(%s::integer[])
+            order by r.id, (s.amount is null), array_position(%s::integer[], s.nutrient_id),
+                     s.amount desc
            on conflict (food_revision_id, nutrient_code) do update
-             set amount_per_100g = excluded.amount_per_100g""",
-        [(n.code, source.key, version_id, source.key, fdc_id)
+             set amount_per_100g = excluded.amount_per_100g"""
+
+
+def _write_nutrients(cur, source: Source, version_id: int) -> None:
+    # FDC bulk amounts are already per 100 g. One value per revision and code: the first FDC id in
+    # NUTRIENT_PRIORITY order with a value (1008 before 2047 before 2048; 2000 before 1063), its max
+    # when the row is duplicated (rare, FNDDS); null only when every staged amount is null.
+    # select_amount is the Python twin.
+    cur.executemany(
+        NUTRIENT_INSERT_SQL,
+        [(n.code, source.key, version_id, source.key, list(nutrient_ids(fdc_id)),
+          list(nutrient_ids(fdc_id)))
          for fdc_id, n in NUTRIENT_MAP.items()])
     # Energy, once, in SQL (§3.1). One call per revision is deliberate: the spec forbids a
     # second Atwater implementation, and the import is a quarterly job.
