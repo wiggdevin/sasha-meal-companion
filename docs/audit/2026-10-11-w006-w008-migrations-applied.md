@@ -1,5 +1,7 @@
 # W006 and W008 migrations — production receipt (2026-10-11)
 
+Owner approval: Devin, 2026-10-11, in session. Tool: `scripts/apply-migrations.py --commit` from
+each PR's checkout after a merge of `origin/main`. Project `fivatgdpuenszxxnijpc`.
 
 Backup taken first: `~/Backups/supabase/meal-companion/2026-10-11T160226Z-7b78d8e8.sql`
 (23,757,287 B, sha256 `f871cc373633bc372b4926ec29e2d70b88959465165616e0ac6c7731a52211a2`).
