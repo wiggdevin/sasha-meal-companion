@@ -25,10 +25,11 @@
  * - A revision dated after the run's date (a phone clock ahead of the account zone) is left alone:
  *   a write dated today could not supersede it, so the run skips instead of writing a dead row.
  * - The account's pace holds (lib/server/target-eligibility.ts) are read on every plan: a held
- *   account derives at a 0 pace, and an account under 18 is skipped (`adult_only`). Under a hold,
- *   the revision in force today and every scheduled later revision that carries a pace (adaptive
- *   and proposal revisions too) are superseded on their own dates by 0-pace derivations, so no
- *   date after the hold has a pace.
+ *   account derives at a 0 pace, and an account under 18 is skipped (`adult_only`). Under a hold
+ *   or under 18, the revision in force today and every scheduled later revision that carries a
+ *   pace (adaptive and proposal revisions too) are superseded on their own dates by 0-pace
+ *   derivations, so no date after the hold has a pace; under kidney disease so is every one
+ *   above standard protein (audit 2026-10-10 A003, A094).
  * - The run's date is the phone's own day when the batch carries one (t24b, owner ruling "phone's
  *   local day everywhere"), else the account's stored zone, the request's zone, and UTC as
  *   the logged last resort (lib/server/account-day.ts).
@@ -46,7 +47,9 @@ import { activeProfile, writeDerivedTargets, writeDerivedTargetsIfActive } from 
 import { resolveAccountDay } from "@/lib/server/account-day";
 import { fetchAllRows } from "@/lib/server/paged-read";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
-import { isMinorOn, paceAllowed } from "@/lib/profile/rate-eligibility";
+import {
+  isMinorOn, paceAllowed, standardProtein, type TargetEligibility,
+} from "@/lib/profile/rate-eligibility";
 
 const SETTINGS_COLUMNS = [
   "rev", "time_zone", "height_cm", "height_unit", "weight_unit", "birth_year", "sex",
@@ -239,6 +242,51 @@ type Plan =
 
 type DayHints = Pick<RecomputeOptions, "clientDay" | "requestZone">;
 
+type Supersede = { input: DeriveTargetRevisionInput; expected: Derived };
+
+/** The highest protein a revision sets on either day; a legacy row falls back to `protein_g`. */
+function proteinOf(profile: TargetProfile): number {
+  const days = [profile.training_macros?.protein, profile.rest_macros?.protein]
+    .map((value) => num(value)).filter((value): value is number => value !== null);
+  return days.length > 0 ? Math.max(...days) : num(profile.protein_g) ?? 0;
+}
+
+/**
+ * The 0-pace (and, under kidney disease, standard-protein) derivations that supersede each
+ * revision on its own date: one carrying a pace while the account is held or under 18, and one
+ * above standard protein under kidney disease, whatever formula wrote it. Each keeps that
+ * revision's weigh-in weight and pins. A date on which the account is neither held nor under 18
+ * (a birthday before a scheduled revision) keeps its revision. `incomplete_profile` when a pace
+ * must go but the profile cannot derive.
+ */
+async function supersedeWrites(
+  client: SupabaseClient, userId: string, row: SettingsRow, today: string,
+  eligibility: TargetEligibility, candidates: { profile: TargetProfile; date: string }[],
+): Promise<Supersede[] | "incomplete_profile"> {
+  const birthYear = settingsFromRow(row).birthYear;
+  const writes: Supersede[] = [];
+  for (const { profile, date } of candidates) {
+    const dated = date === today ? eligibility : await readTargetEligibility(client, userId, date);
+    const minorOn = isMinorOn(birthYear, date) || dated.minor;
+    if (!minorOn && paceAllowed(dated)) continue;
+    const settings = settingsFromRow(row, pinsOf(profile));
+    if (!isProfileComplete(settings)) {
+      if (hasPace(profile)) return "incomplete_profile";
+      continue;
+    }
+    const input: DeriveTargetRevisionInput = {
+      settings, latestWeighInKg: weighInKgToKeep(profile), today: date,
+      trainingWeekdays: row.training_weekdays ?? [], source: targetSourceFor(settings),
+      eligibility: dated, ...(minorOn ? { supersedeForMinor: true } : {}),
+    };
+    const expected = deriveTargetRevision(input);
+    const proteinAbove = standardProtein(dated)
+      && proteinOf(profile) > Math.max(expected.training.protein, expected.rest.protein);
+    if (hasPace(profile) || proteinAbove) writes.push({ input, expected });
+  }
+  return writes;
+}
+
 async function plan(
   client: SupabaseClient, userId: string, todayOverride?: string, hints: DayHints = {},
 ): Promise<Plan> {
@@ -253,39 +301,24 @@ async function plan(
   // classified, and an adaptive or proposal revision is authoritative: both are left alone.
   // The account's own pace holds (G1–G3), read before the formula check: a held account whose
   // revision in force (adaptive or proposal included) still carries a pace is re-derived from its
-  // profile at a 0 pace, so a new hold never leaves a deficit in force. Under 18 derives nothing.
+  // profile at a 0 pace, so a new hold never leaves a deficit in force. Kidney disease does the
+  // same for a revision above standard protein. Under 18 derives nothing new, but a paced
+  // revision already in force is superseded at a 0 pace (audit 2026-10-10 A003, A094).
   const eligibility = await readTargetEligibility(client, userId, today);
-  // Under 18 nothing is derived at all (owner decisions 2026-10-08).
-  if (isMinorOn(settingsFromRow(row).birthYear, today) || eligibility.minor) {
-    return { kind: "skip", reason: "adult_only", active, today };
-  }
+  const birthYear = settingsFromRow(row).birthYear;
+  const minor = isMinorOn(birthYear, today) || eligibility.minor;
   const held = !paceAllowed(eligibility);
   const future = await futureRevisions(client, userId, today);
-  if (held) {
-    // A hold leaves no date with a pace: the revision in force today and every revision
-    // scheduled after it that carries one (adaptive and proposal revisions included) is
-    // superseded on its own date by a 0-pace derivation from the profile, keeping that
-    // revision's weigh-in weight and pins. Nothing scheduled can bring a deficit back later.
-    const paced = [...(hasPace(active) ? [{ profile: active!, date: today }] : []),
-      ...future.filter(hasPace).map((profile) => ({ profile, date: profile.effective_from }))];
-    if (paced.length > 0) {
-      const writes = [];
-      for (const { profile, date } of paced) {
-        const settings = settingsFromRow(row, pinsOf(profile));
-        if (!isProfileComplete(settings)) {
-          return { kind: "skip", reason: "incomplete_profile", active, today };
-        }
-        const dated = date === today ? eligibility
-          : await readTargetEligibility(client, userId, date);
-        const input: DeriveTargetRevisionInput = {
-          settings, latestWeighInKg: weighInKgToKeep(profile), today: date,
-          trainingWeekdays: row.training_weekdays ?? [], source: targetSourceFor(settings),
-          eligibility: dated,
-        };
-        writes.push({ input, expected: deriveTargetRevision(input) });
-      }
-      return { kind: "neutralise", active, today, writes };
+  if (minor || held) {
+    const supersede = await supersedeWrites(client, userId, row, today, eligibility,
+      [...(active ? [{ profile: active, date: today }] : []),
+        ...future.map((profile) => ({ profile, date: profile.effective_from }))]);
+    if (supersede === "incomplete_profile") {
+      return { kind: "skip", reason: "incomplete_profile", active, today };
     }
+    if (supersede.length > 0) return { kind: "neutralise", active, today, writes: supersede };
+    // Under 18 nothing is derived at all (owner decisions 2026-10-08).
+    if (minor) return { kind: "skip", reason: "adult_only", active, today };
   }
   if (active && (active.formula_name !== TARGET_FORMULA_NAME
     || (active.target_source !== "derived" && active.target_source !== "manual"))) {
@@ -329,7 +362,10 @@ export async function recomputeDerivedTarget(
     // reported as the skip: the derived row written earlier is not the one left in force.
     if (next.kind === "skip") {
       // The 0-pace revisions a hold wrote stay in force on their own dates under a later one.
-      if (written && next.reason === "future_revision") return settled();
+      // So do the ones a minor's supersede wrote: nothing more is derived for that account.
+      if (written && (next.reason === "future_revision" || next.reason === "adult_only")) {
+        return settled();
+      }
       return { status: "skipped", reason: next.reason, active: next.active };
     }
     if (next.kind === "neutralise") return null;
