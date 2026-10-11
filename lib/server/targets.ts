@@ -10,7 +10,7 @@ import {
   deriveTargetRevision, targetSourceFor, type DeriveTargetRevisionInput,
   type TargetRevisionFloors,
 } from "@/lib/profile/derive";
-import type { TargetRevision, TargetSeed } from "@/lib/types";
+import type { Goal, TargetRevision, TargetSeed } from "@/lib/types";
 import {
   applyFloors, percentToGrams, resolveProfileMacros, validatePercentProfile,
   type MacroFloors,
@@ -19,7 +19,10 @@ import type { TargetProfile, TargetsRequest, TargetsResponse } from "@/lib/api-t
 import { targetRevisionFromProfile, targetSeedFromProfile } from "@/lib/targets/revision";
 import { ACCOUNT_DAY_LAST_RESORT_ZONE, accountDay, isoDateIn } from "@/lib/server/account-day";
 import { readTargetEligibility } from "@/lib/server/target-eligibility";
-import { AdultOnlyError, paceAllowed } from "@/lib/profile/rate-eligibility";
+import {
+  AdultOnlyError, paceAllowed, type TargetEligibility,
+} from "@/lib/profile/rate-eligibility";
+import { RATE_PRESETS_BP, validateRate } from "@/lib/profile/rate-goal";
 import {
   rpcWriteTargetRevision, rpcWriteTargetRevisionIfActive, rpcWriteTargetRevisionPair,
 } from "@/lib/server/target-writes";
@@ -154,6 +157,17 @@ export async function writeDerivedTargets(
   const input = await withEligibility(client, userId, rawInput);
   const revision = deriveTargetRevision({ ...input, source: targetSourceFor(input.settings) });
   return persistRevision(userId, revision, undefined, revision.floors, requestId);
+}
+
+/**
+ * Write a revision exactly as given (`write_target_revision`, unconditional). Only the server
+ * recompute calls it, to supersede a paced revision at a 0 pace when the profile cannot derive
+ * (lib/server/target-recompute.ts); nothing taken from a request body reaches it.
+ */
+export async function writeRevisionCopy(
+  userId: string, revision: TargetRevision,
+): Promise<TargetRevision> {
+  return persistRevision(userId, revision, revision.effectiveFrom, revision.floors);
 }
 
 /**
@@ -307,6 +321,37 @@ export function targetsFromProfile(profile: TargetProfile): TargetsResponse {
     resolved: { training: resolved.training, rest: resolved.rest }, revision: null };
 }
 
+/**
+ * The pace an authored (pinned) revision stores. A held account keeps 0 whatever the body sends.
+ * Otherwise a rate in the body must be 0 or a preset for the account's STORED goal, exactly as
+ * the derive path requires (audit 2026-10-10 A004); an unknown goal admits only 0. Without one,
+ * the revision it pins over keeps its rate when that rate is valid for the stored goal, and 0
+ * otherwise: an adaptive revision's rate never carries onto a goal it is not a preset for.
+ */
+function authoredRate(
+  requested: number | undefined, goal: unknown, eligibility: TargetEligibility,
+  inherited: number | string | null | undefined,
+): number {
+  if (!paceAllowed(eligibility)) return 0;
+  if (requested === undefined) {
+    const rate = Number(inherited ?? 0);
+    return rateFitsGoal(goal, rate) ? rate : 0;
+  }
+  if (!rateFitsGoal(goal, requested)) {
+    throw new HttpError(400, "rate_not_valid", "That pace is not one of the choices for your goal.");
+  }
+  return requested;
+}
+
+/** 0, or a preset for the stored goal; an unknown goal admits only 0. */
+function rateFitsGoal(goal: unknown, rate: number): boolean {
+  return rate === 0 || (Number.isFinite(rate) && isGoal(goal) && validateRate(goal, rate));
+}
+
+function isGoal(value: unknown): value is Goal {
+  return typeof value === "string" && Object.hasOwn(RATE_PRESETS_BP, value);
+}
+
 export async function authorTargets(
   client: SupabaseClient, userId: string, req: TargetsRequest,
 ): Promise<TargetsResponse> {
@@ -349,6 +394,8 @@ export async function authorTargets(
   if (settings.error) throw settings.error;
   // Under 18: no plan, pinned or derived (owner decision 2026-10-08).
   if (eligibility.minor) throw new AdultOnlyError();
+  const goalRateBpWeek = authoredRate(req.goalRateBpWeek, settings.data?.goal, eligibility,
+    active.goal_rate_bp_week);
   const weight = Number(settings.data?.weight_kg);
   const profile = await writeRevisionRow(userId, {
     effective_from: req.effectiveFrom,
@@ -375,8 +422,7 @@ export async function authorTargets(
     // A manual row keeps the rate and the minimum's provenance of the revision it pins over
     // (step D); before this the database default zeroed a confirmed rate on every pin.
     // A held account (pregnancy, eating disorder, kidney disease, clinician diet) keeps 0.
-    goal_rate_bp_week: paceAllowed(eligibility)
-      ? req.goalRateBpWeek ?? active.goal_rate_bp_week ?? 0 : 0,
+    goal_rate_bp_week: goalRateBpWeek,
     kcal_min_source: active.kcal_min_source ?? "legacy_default",
     // Pins change the numbers, not the formula start the engine learns from (step E1).
     ...seedColumns(targetSeedFromProfile(active)),
