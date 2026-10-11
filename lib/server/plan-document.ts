@@ -31,6 +31,7 @@ import { groundDocumentMeal, itemTotals, type DocumentGroundPorts } from "@/lib/
 import type { DocumentRequest, DocumentResult } from "@/lib/plan/document-types";
 import { cleanIngredients, dishTitle } from "@/lib/plan/inspire-types";
 import { cleanMenu } from "@/lib/plan/photo-result";
+import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata";
 import { HttpError } from "@/lib/server/auth";
 import { fetchOwnedObject } from "@/lib/server/media";
 import { MAX_INSPIRE_PHOTO_BYTES } from "@/lib/server/plan-inspire";
@@ -67,7 +68,15 @@ async function source(admin: SupabaseClient, userId: string, req: DocumentReques
     if (media.bytes.byteLength > MAX_INSPIRE_PHOTO_BYTES) {
       throw new HttpError(413, "too_large", "That photo is too large. Try another one.");
     }
-    return { kind: "image", bytes: media.bytes };
+    // W019 (audit 2026-10-10 A135, spec W12-F): the same server-side strip as the Plan photo and
+    // pantry paths, before either provider leg. The phone's re-encode is not trusted: any client
+    // can PUT a JPEG with GPS EXIF to its signed URL. What cannot be parsed is refused, never sent.
+    try {
+      return { kind: "image", bytes: stripImageMetadata(media.bytes, kind) };
+    } catch (e) {
+      if (!(e instanceof UnparseableImage)) throw e;
+      throw new HttpError(422, "unreadable_photo", "That photo couldn’t be read. Try another one.");
+    }
   }
   const bytes = new Uint8Array(Buffer.from(req.data, "base64"));
   if (bytes.byteLength > MAX_PDF_BYTES) throw new HttpError(413, "too_large", "That PDF is over 3 MB.");

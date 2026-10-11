@@ -16,6 +16,7 @@ const { POST: draftRoute } = await import("@/app/api/pantry/photo/route");
 const { POST: confirmRoute } = await import("@/app/api/pantry/photo/confirm/route");
 
 const userId = "00000000-0000-4000-8000-000000000001";
+const PATH = `media/${userId}/3f1b1a2c-0000-4000-8000-000000000030.jpg`;
 const json = (body: unknown) => new Request("http://test/api/pantry/photo", { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
@@ -27,16 +28,25 @@ beforeEach(() => {
 describe("POST /api/pantry/photo (draft)", () => {
   it("returns the draft the server built, writing nothing itself", async () => {
     mocks.draft.mockResolvedValue({ items: ["Eggs", "Milk"] });
-    const res = await draftRoute(json({ mediaPath: "media/u/x.jpg" }));
+    const res = await draftRoute(json({ mediaPath: PATH }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ items: ["Eggs", "Milk"] });
-    expect(mocks.draft).toHaveBeenCalledWith({ admin: true }, userId, "media/u/x.jpg");
+    expect(mocks.draft).toHaveBeenCalledWith({ admin: true }, userId, PATH);
   });
 
   it("maps a provider failure onto its HttpError status", async () => {
     mocks.draft.mockRejectedValue(new HttpError(503, "provider_unavailable", "Try again later."));
-    const res = await draftRoute(json({ mediaPath: "media/u/x.jpg" }));
+    const res = await draftRoute(json({ mediaPath: PATH }));
     expect(res.status).toBe(503);
+  });
+
+  it("rejects a traversal or malformed mediaPath before calling the server (A099)", async () => {
+    for (const mediaPath of [`media/${userId}/../aaaaaaaa-0000-4000-8000-00000000000a/x.jpg`,
+      `${userId}/3f1b1a2c-0000-4000-8000-000000000030.jpg`, "media/u/x.jpg"]) {
+      const res = await draftRoute(json({ mediaPath }));
+      expect(res.status, mediaPath).toBe(400);
+    }
+    expect(mocks.draft).not.toHaveBeenCalled();
   });
 
   it("rejects a missing mediaPath before calling the server", async () => {

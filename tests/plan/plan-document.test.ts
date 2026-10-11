@@ -12,11 +12,12 @@ import type { FoodHit } from "@/lib/coach/executors";
 import { EMPTY_PROFILE } from "@/lib/policy/constraints";
 import { documentRequestSchema, MAX_PDF_BASE64, type DocumentRequest } from "@/lib/plan/document-types";
 import { readDocument, type DocumentDeps } from "@/lib/server/plan-document";
+import { syntheticJpeg, syntheticJpegWithExif, syntheticPngWithMetadata } from "../helpers/synthetic-images";
 
 const admin = {} as never;
 const client = {} as never;
 const PATH = "media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.jpg";
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);
+const JPEG = syntheticJpeg();
 const slotFields = { localDate: "2026-10-05", slot: "meal-2", slotTime: "12:30", targetKcal: 600 } as const;
 const textReq: DocumentRequest = { kind: "text", text: "Monday lunch: chicken 150 g", ...slotFields };
 const pdf = (body: string) => Buffer.from(`%PDF-1.4\n${body}`).toString("base64");
@@ -82,6 +83,39 @@ describe("plan document file checks", () => {
     await expect(readDocument(admin, client, "u", { kind: "image", mediaPath: PATH, ...slotFields },
       deps(generate, { fetchObject: async () => ({ bytes: new TextEncoder().encode("<svg>"), mimeType: "image/jpeg" }) })))
       .rejects.toMatchObject({ status: 415 });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("strips EXIF/GPS from a photo before either provider sees it (A135)", async () => {
+    vi.stubEnv("OPENROUTER_ATTESTED", "1");
+    vi.stubEnv("HEALTH_CONTEXT_PROVIDER", "gemini");
+    vi.stubEnv("GEMINI_BILLING_ATTESTED", "1");
+    const photo = { kind: "image" as const, mediaPath: PATH, ...slotFields };
+    const decoded = (dataUrl: string) => Buffer.from(dataUrl.split(",")[1], "base64").toString("latin1");
+    for (const [bytes, mimeType] of [[syntheticJpegWithExif(), "image/jpeg"],
+      [syntheticPngWithMetadata(), "image/png"]] as const) {
+      expect(Buffer.from(bytes).toString("latin1")).toMatch(/GPS|Exif|tEXt|eXIf/);
+      const generate = read({});
+      await readDocument(admin, client, "u", photo, deps(generate, { fetchObject: async () => ({ bytes, mimeType }) }));
+      const sent = decoded(generate.mock.calls[0][0].payload.imageDataUrl);
+      expect(sent).not.toMatch(/GPS_LAT_LONG|Exif|eXIf|tEXt/);
+
+      const failing = vi.fn().mockRejectedValue(new ProviderHttpError(429, "openrouter 429"));
+      const generateGemini = read({});
+      await readDocument(admin, client, "u", photo, deps(failing, { generateGemini,
+        fetchObject: async () => ({ bytes, mimeType }) }));
+      const twin = generateGemini.mock.calls[0][0].payload.media;
+      expect(Buffer.from(twin.bytes).toString("latin1")).not.toMatch(/GPS_LAT_LONG|Exif|eXIf|tEXt/);
+    }
+  });
+
+  it("refuses a photo it cannot parse rather than send unverified bytes (A135)", async () => {
+    vi.stubEnv("OPENROUTER_ATTESTED", "1");
+    const generate = read({});
+    await expect(readDocument(admin, client, "u", { kind: "image", mediaPath: PATH, ...slotFields },
+      deps(generate, { fetchObject: async () => ({ bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]),
+        mimeType: "image/jpeg" }) })))
+      .rejects.toMatchObject({ status: 422, code: "unreadable_photo" });
     expect(generate).not.toHaveBeenCalled();
   });
 
