@@ -15,7 +15,7 @@ const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
  *  client acts only for the bound account — so the file now goes through `accountFetch` like
  *  every other one, and this is exactly the gate that would have caught it if it had not.
  *
- *  lib/client-error-reporter.ts (audit 2026-10-08 §5) posts a scrubbed crash report that names no
+ *  lib/client-error-reporter.ts (audit 2026-10-08 §5) posts an allowlisted crash report that names no
  *  account, like the warm ping: a crash during sign-in or an account switch must still be heard. */
 const ALLOWED = new Set([
   "lib/device/account.ts", "lib/warm-client.ts", "lib/fetch-with-deadline.ts", "lib/client-error-reporter.ts",

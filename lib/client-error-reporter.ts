@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * The phone side of crash reporting (lib/client-errors.ts). `reportClientError` sends one scrubbed
- * report, best effort: it never throws, never retries and never waits on the answer.
+ * The phone side of crash reporting (lib/client-errors.ts). `reportClientError` sends one
+ * allowlisted report (code, name, route pattern, digest, build; never the message or the path),
+ * best effort: it never throws, never retries and never waits on the answer.
  * `installClientErrorHandlers` hooks `window` `error` and `unhandledrejection` once per page load.
  *
- * Bounded: the same (source, name, message, route) is sent once per page load, and at most
+ * Bounded: the same (source, name, code, route) is sent once per page load, and at most
  * MAX_REPORTS_PER_LOAD reports leave one page load at all, so a render loop cannot flood the route.
  *
  * It calls `fetch` directly, not `accountFetch`: the report names no account (no `x-smc-account`
@@ -32,8 +33,8 @@ function currentPath(): string {
 
 /** Builds the report the route would log (exported for tests). */
 export function buildReport(error: unknown, source: ClientErrorSource, now: Date = new Date()): ClientErrorReport {
-  const { name, message, digest } = describeThrown(error);
-  return cleanReport({ source, name, message, digest, route: currentPath(), build: buildSha(),
+  const { name, code, digest } = describeThrown(error);
+  return cleanReport({ source, name, code, digest, route: currentPath(), build: buildSha(),
     at: now.toISOString() }, now);
 }
 
@@ -42,7 +43,7 @@ export function reportClientError(error: unknown, source: ClientErrorSource = "b
   try {
     if (typeof window === "undefined" || typeof fetch !== "function") return false;
     const report = buildReport(error, source);
-    const key = `${report.source}|${report.name}|${report.message}|${report.route}`;
+    const key = `${report.source}|${report.name}|${report.code}|${report.route}`;
     if (seen.has(key) || sent >= MAX_REPORTS_PER_LOAD) return false;
     seen.add(key);
     sent += 1;
