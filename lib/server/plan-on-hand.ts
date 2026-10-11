@@ -22,7 +22,9 @@ import type { OnHandEntry } from "@/lib/coach/suggest-shape";
 import { fetchAllChunked, fetchAllRows } from "@/lib/server/paged-read";
 import { recipeAccessEnabled } from "@/lib/server/recipe-access";
 import { addDays } from "@/lib/recipes-hub/put-in-meal";
-import { LINE_BOX_EXTRA_DAYS, PANTRY_BOX_DAYS, lineActiveOn, pantryActiveOn } from "@/lib/shopping/focus";
+import {
+  LINE_BOX_EXTRA_DAYS, PANTRY_BOX_DAYS, lineActiveOn, pantryActiveOn, pantryAmountCounts,
+} from "@/lib/shopping/focus";
 
 type PantryRow = { name: string; confirmed_at: string; source: string | null;
   confirmed_grams: number | string | null };
@@ -54,7 +56,7 @@ async function readPantry(client: SupabaseClient, userId: string,
   const rows = await fetchAllRows<PantryRow>((from, to) => client.from("shopping_pantry")
     .select("name,confirmed_at,source,confirmed_grams").eq("user_id", userId).is("deleted_at", null)
     .gte("confirmed_at", since).order("id").range(from, to));
-  return rows.filter((row) => (row.confirmed_grams === null || Number(row.confirmed_grams) > 0)
+  return rows.filter((row) => pantryAmountCounts(row.confirmed_grams)
     && pantryActiveOn({ confirmedAt: row.confirmed_at }, day.date, day.zone))
     .map((row) => ({ name: row.name, source: row.source === "photo" ? "pantry_photo" as const : "pantry" as const }));
 }

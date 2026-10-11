@@ -351,6 +351,10 @@ standing favorite, and a deleted log must not leave a mark behind.
   Lines store no check time, so the period's dates are the box.
 - **Pantry time box:** 14 days after `confirmed_at`; confirming again restarts it; deleting ends it.
   A photo draft gives no signal until the user confirms it.
+- **Pantry amount** (owner decision "zero-ends-focus", 2026-10-11, W024): a row whose amount is
+  explicitly 0 g is used up and gives no signal, the same as a deleted row. A row with no amount
+  (unknown) still counts. The 14-day box is unchanged. The phone re-reads its focus keys after
+  every pantry write (`lib/shopping-client.ts`, `lib/shopping/pantry-photo-client.ts`).
 - **Shopping focus ("use my shopping list").** `user_settings.shopping_focus_until` turns focus on.
   While it is active, every generator ranks plates by the key (fits the slot, coverage, score).
   Coverage is the share of plate calories from list and pantry foods, rounded to steps of 0.25. The

@@ -113,6 +113,25 @@ describe("readShoppingFocusState", () => {
     }
     expect(has(calls.find((entry) => entry.table === "shopping_purchase_windows"), "eq", "checked", true)).toBe(true);
   });
+
+  it("drops a pantry row set to 0 g, keeps one with no amount, and keeps the 14-day box (W024)", async () => {
+    const { client, calls } = fake({
+      user_settings: { shopping_focus_until: "2026-10-12T06:59:59.999Z" }, shopping_periods: [],
+      shopping_pantry: [
+        { name: "Rice", confirmed_at: "2026-10-03T03:00:00.000Z", confirmed_grams: 0 },
+        { name: "Pasta", confirmed_at: "2026-10-03T03:00:00.000Z", confirmed_grams: "0" },
+        { name: "Oats", confirmed_at: "2026-10-03T03:00:00.000Z", confirmed_grams: null },
+        { name: "Beans", confirmed_at: "2026-10-03T03:00:00.000Z", confirmed_grams: "250.5" },
+      ],
+    });
+    const state = await readShoppingFocusState(client, USER_ID, DAY, NOW);
+    expect(state.keys).toEqual([
+      { key: "beans", from: "2026-10-02", to: "2026-10-16" },
+      { key: "oats", from: "2026-10-02", to: "2026-10-16" },
+    ]);
+    expect(has(calls.find((entry) => entry.table === "shopping_pantry"), "select",
+      "name,confirmed_at,confirmed_grams")).toBe(true);
+  });
 });
 
 describe("focusRankingFor", () => {
