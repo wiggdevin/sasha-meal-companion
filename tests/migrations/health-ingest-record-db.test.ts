@@ -8,14 +8,19 @@
  * the identical retry applies instead of being answered "duplicate". It also proves the correction
  * upsert moves `start_time` and `tz`, and that `weigh_ins` names each reading's source kind.
  *
- * Needs the Postgres server binaries (PG_BIN, default Homebrew postgresql@16); skipped without
- * them. It never connects to any Supabase project.
+ * Two database halves. The throwaway half needs the Postgres server binaries (PG_BIN, default
+ * Homebrew postgresql@16) and skips without them, so it runs on a developer's machine only. The
+ * migrated-stack half runs the same failure-and-retry proof on the local Supabase database every
+ * migration has been applied to (SUPABASE_TEST_DB_URL, the CI Integration job), inside one
+ * transaction it rolls back. Neither can reach production (tests/tenancy/local-only).
  */
+import "../tenancy/local-only";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { HAS_DB, runSql } from "../helpers/supabase";
 
 const MIGRATION = "20261230091000_health_ingest_record.sql";
 const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
@@ -266,5 +271,88 @@ describe.skipIf(!HAS_PG)("20261230091000 health_ingest_record on Postgres", () =
     const r = sql(`begin;\n${DOWN}\nrollback;`);
     expect(r.err).toBe("");
     expect(r.ok).toBe(true);
+  });
+});
+
+/**
+ * The migrated local stack (CI Integration): the real tables, triggers and grants, with this
+ * migration applied by `supabase start`. Everything runs in one transaction that is rolled back.
+ * Each call goes through a plpgsql exception block, which is a savepoint: a failed call is undone
+ * on its own, as PostgREST undoes a failed request, and the script goes on to look at what is left.
+ */
+describe.skipIf(!HAS_DB)("20261230091000 health_ingest_record on the migrated stack", () => {
+  const U = "c0c0c0c0-0010-4000-8000-0000000000a1";
+  const S = "c0c0c0c0-0010-4000-8000-0000000000b1";
+  const sleep = (over: Record<string, unknown>) => sample({ type: "sleep_asleep", unit: "min",
+    vendor_sample_id: "hae:sleep_asleep:2026-09-19", end_time: "2026-09-19T12:00:00Z", ...over });
+  const call = (hash: string, samples: object[]) =>
+    `pg_temp.try_record('\\x${hash}'::bytea, '${JSON.stringify(samples)}'::jsonb)`;
+
+  function scenario(): Map<string, string> {
+    const out = runSql(`begin;
+      insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at,
+        updated_at)
+        values ('${U}', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+          'w010-ingest@meal-companion.test', 'x', now(), now());
+      insert into health_sources (id, user_id, kind, device_label)
+        values ('${S}', '${U}', 'health_auto_export', 'HAE');
+      create function pg_temp.try_record(h bytea, s jsonb) returns text
+        language plpgsql as $f$
+        declare r record;
+        begin
+          select * into r from health_ingest_record('${U}', '${S}', h, s);
+          return 'ok:' || r.is_new || '|' || r.accepted || '|' || r.updated || '|' || r.skipped;
+        exception when others then return 'failed:' || sqlerrm;
+        end $f$;
+      -- A stand-in for a transient apply failure, dropped again below (and rolled back at the end).
+      create function public.w010_test_fail_apply() returns trigger language plpgsql as $f$
+        begin raise exception 'simulated apply failure'; end $f$;
+      create trigger w010_test_fail_apply before insert on health_samples
+        for each row execute function public.w010_test_fail_apply();
+      select 'failed=' || ${call("0a10", [sample()])};
+      select 'events_after_fail=' || count(*) from ingest_events where source_id = '${S}';
+      select 'samples_after_fail=' || count(*) from health_samples where source_id = '${S}';
+      drop trigger w010_test_fail_apply on health_samples;
+      select 'retry=' || ${call("0a10", [sample()])};
+      select 'stored=' || value from health_samples where source_id = '${S}';
+      select 'resend=' || ${call("0a10", [sample({ value: 9999 })])};
+      select 'after_resend=' || count(*) || '|' || max(value)
+        from health_samples where source_id = '${S}';
+      select 'events=' || count(*) from ingest_events where source_id = '${S}';
+      select 'first_sleep=' || ${call("0a11", [sleep({ value: 420,
+        start_time: "2026-09-19T05:00:00Z", tz: "America/Denver" })])};
+      select 'correction=' || ${call("0a12", [sleep({ value: 480,
+        start_time: "2026-09-19T04:00:00Z", tz: "America/Chicago",
+        vendor_updated_at: "2026-09-21T08:00:00Z" })])};
+      select 'sleep_row=' || value || '|' || to_char(start_time at time zone 'UTC',
+        'YYYY-MM-DD HH24:MI') || '|' || tz
+        from health_samples where source_id = '${S}' and type = 'sleep_asleep';
+      select 'weigh_ins_kind=' || exists (select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'weigh_ins' and column_name = 'source_kind');
+      select 'grants=' || has_function_privilege('anon', 'health_ingest_record(uuid,uuid,bytea,jsonb)',
+          'execute') || '|' || has_function_privilege('authenticated',
+          'health_ingest_record(uuid,uuid,bytea,jsonb)', 'execute') || '|' ||
+        has_function_privilege('service_role', 'health_ingest_record(uuid,uuid,bytea,jsonb)', 'execute');
+      rollback;`);
+    return new Map(out.split("\n").filter((l) => l.includes("="))
+      .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]));
+  }
+
+  it("a failed apply leaves no event, the retry applies, a resend is a duplicate (A009, A081)", () => {
+    const got = scenario();
+    expect(got.get("failed")).toBe("failed:simulated apply failure");
+    expect(got.get("events_after_fail")).toBe("0");
+    expect(got.get("samples_after_fail")).toBe("0");
+    expect(got.get("retry")).toBe("ok:true|1|0|0");
+    expect(got.get("stored")).toBe("6200");
+    expect(got.get("resend")).toBe("ok:false|0|0|0");
+    expect(got.get("after_resend")).toBe("1|6200");
+    expect(got.get("events")).toBe("1");
+    // A095 on the real table: the correction moves the window's start and zone with its value.
+    expect(got.get("first_sleep")).toBe("ok:true|1|0|0");
+    expect(got.get("correction")).toBe("ok:true|0|1|0");
+    expect(got.get("sleep_row")).toBe("480|2026-09-19 04:00|America/Chicago");
+    expect(got.get("weigh_ins_kind")).toBe("true");
+    expect(got.get("grants")).toBe("false|false|true");
   });
 });

@@ -61,6 +61,8 @@ function foldPair(prior: NormalizedSample, sample: NormalizedSample): Normalized
 /**
  * HAE correction identity is daily, so reduce every payload to that same daily grain before apply.
  * Each day keeps the payload rows it was folded from, so a rejection of the day can name them.
+ * The day accumulators are local to this call and grow in place: copying a day's row list for every
+ * further sample was quadratic in same-day samples, and HAE has no row cap.
  */
 function foldHealthAutoExportDays(entries: Array<{ sample: NormalizedSample; row: number }>):
     FoldedDay[] {
@@ -68,9 +70,12 @@ function foldHealthAutoExportDays(entries: Array<{ sample: NormalizedSample; row
   for (const { sample, row } of entries) {
     const key = sample.vendor_sample_id!;
     const prior = folded.get(key);
-    folded.set(key, prior
-      ? { sample: foldPair(prior.sample, sample), rows: [...prior.rows, row] }
-      : { sample, rows: [row] });
+    if (prior) {
+      prior.sample = foldPair(prior.sample, sample);
+      prior.rows.push(row);
+    } else {
+      folded.set(key, { sample, rows: [row] });
+    }
   }
   return [...folded.values()];
 }

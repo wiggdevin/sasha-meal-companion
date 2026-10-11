@@ -154,6 +154,28 @@ describe("normalizeHealthAutoExport", () => {
     expect(plain.rejected).toEqual([{ index: 0, reason: "unknown metric blood_alcohol" }]);
   });
 
+  it("folds a large same-day payload in linear time and keeps every row (review: O(n^2) fold)", () => {
+    // 30,000 same-day step rows, about the 1.2 MB the route accepts. The fold used to copy the
+    // day's row list for every further sample, and every sample built its own date formatter.
+    const N = 30_000;
+    const data = Array.from({ length: N }, (_, i) => ({
+      date: `2026-09-15 ${String(8 + Math.floor(i / 3_600)).padStart(2, "0")}:${
+        String(Math.floor(i / 60) % 60).padStart(2, "0")}:${String(i % 60).padStart(2, "0")} -0400`,
+      qty: 1, source: "Apple Watch" }));
+    const started = performance.now();
+    const result = normalizeHealthAutoExportRows({ data: { metrics: [
+      { name: "step_count", units: "count", data }] } }, TZ);
+    const elapsed = performance.now() - started;
+    expect(result.rejected).toEqual([]);
+    expect(result.samples).toHaveLength(1);
+    expect(result.samples[0]).toMatchObject({ value: N, vendor_sample_id: "hae:step_count:2026-09-15",
+      start_time: "2026-09-15T12:00:00.000Z" });
+    expect(result.rows[0]).toHaveLength(N);
+    expect(result.rows[0][N - 1]).toBe(N - 1);
+    // About 0.6 s on a laptop; the quadratic fold took about 12 s there. Loose for a busy runner.
+    expect(elapsed).toBeLessThan(5_000);
+  });
+
   it("returns a single envelope rejection for a payload that is not an HAE document", () => {
     expect(normalizeHealthAutoExport({ nope: true }, TZ))
       .toEqual({ samples: [], rejected: [{ index: -1, reason: "not a Health Auto Export payload" }] });
