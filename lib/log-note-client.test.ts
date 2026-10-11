@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, expect, it, vi } from "vitest";
-import { allOps, getRow, putRow } from "@/lib/sync/idb";
+import { allOps, getRow, putOp, putRow } from "@/lib/sync/idb";
 import { enqueue } from "@/lib/sync/outbox";
 import { __resetStoreCache, addExtra, getDay } from "@/lib/store";
 import { saveExtraNote } from "@/lib/log-note-client";
@@ -17,8 +17,8 @@ vi.mock("@/lib/supabase/client", () => ({ browserClient: () => ({ from: () => ({
 }) }) }));
 vi.mock("@/lib/sync/outbox", async (original) => {
   const actual = await original<typeof import("@/lib/sync/outbox")>();
-  return { ...actual, enqueueWithRow: (...args: Parameters<typeof actual.enqueueWithRow>) => {
-    mocks.enqueue();
+  return { ...actual, enqueueWithRow: async (...args: Parameters<typeof actual.enqueueWithRow>) => {
+    await mocks.enqueue();
     return actual.enqueueWithRow(...args);
   } };
 });
@@ -62,6 +62,31 @@ it("serializes overlapping saves and skips a duplicate blur/close save", async (
   await Promise.all([saveExtraNote(date, id, "first"), saveExtraNote(date, id, "second"),
     saveExtraNote(date, id, "second")]);
   expect((await allOps(h)).map((op) => [op.base_rev, op.payload.note])).toEqual([[4, "first"], [5, "second"]]);
+});
+
+it("records the note each edit replaces, so a conflict can tell her change from theirs", async () => {
+  // Audit 2026-10-10 A077: the rebase reads this base; without it, it joined her note to the old one.
+  await putRow(h, "log_entries", id, row);
+  await saveExtraNote(date, id, "first");
+  await saveExtraNote(date, id, "  ");
+  expect((await allOps(h)).map((op) => op.note_base)).toEqual(["old", "first"]);
+});
+
+it("reads again when the drain rebases the queued note between its reads and its write", async () => {
+  // W011 review (Sol): built on the op the rebase replaced, this edit carried that op's items at a
+  // revision the rebase could make match, and went over another device's change.
+  await putRow(h, "log_entries", id, row);
+  await saveExtraNote(date, id, "first");
+  const [queued] = await allOps(h);
+  const theirs = [{ ...items[0], grams: 200 }];
+  mocks.enqueue.mockImplementationOnce(async () => {
+    await putOp(h, { ...queued, base_rev: 6, payload: { ...queued.payload, items: theirs } });
+  });
+  await saveExtraNote(date, id, "second");
+  const ops = await allOps(h);
+  expect(ops).toHaveLength(2);
+  expect(ops[1]).toMatchObject({ base_rev: 7, payload: { note: "second", items: theirs } });
+  expect(mocks.enqueue).toHaveBeenCalledTimes(3);
 });
 
 it("keeps legacy unbacked extras on their existing persistence path", async () => {

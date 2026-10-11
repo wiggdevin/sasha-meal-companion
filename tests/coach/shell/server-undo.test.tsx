@@ -206,7 +206,8 @@ describe("TASTE_CHIPS_ENABLED off: an empty Undo list", () => {
     mocks.listCoachUndos.mockResolvedValue([]);
     open();
     await screen.findByText("Logged your water.");
-    expect(mocks.listCoachUndos).toHaveBeenCalledWith(account, { threadId: THREAD });
+    // The Undo list is read in an effect after the transcript renders (use-coach-undo.ts).
+    await waitFor(() => expect(mocks.listCoachUndos).toHaveBeenCalledWith(account, { threadId: THREAD }));
     expect(document.querySelectorAll("[data-action-id]")).toHaveLength(0);
     expect(screen.queryByText(/taste preferences/i)).toBeNull();
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();

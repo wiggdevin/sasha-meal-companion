@@ -1,7 +1,7 @@
 "use client";
 
 import type { PantryItem, ShoppingLine, ShoppingPeriod, ShoppingPurchaseWindow } from "@/lib/shopping/types";
-import { AccountChanged, accountFetch, accountHandle, accountJson } from "@/lib/device/account";
+import { AccountChanged, accountFetch, accountHandle, accountJson, type AccountHandle } from "@/lib/device/account";
 import { defaultShoppingDraft, type ShoppingDraft } from "@/components/ShoppingControls";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
 import type { ShoppingPreviewInput } from "@/components/ShoppingView";
@@ -14,9 +14,28 @@ export type ShoppingSnapshot = { period: ShoppingPeriod | null; lines: ShoppingL
 export class ShoppingStaleRevision extends Error {
   constructor() { super("Shopping changed elsewhere."); this.name = "ShoppingStaleRevision"; }
 }
+/** A shopping route answered the request with `status`: unlike a transport failure, a deadline or
+ *  an unreadable body, the caller knows how the server decided (W020). */
+export class ShoppingRequestFailed extends Error {
+  constructor(message: string, readonly status: number) { super(message); this.name = "ShoppingRequestFailed"; }
+}
+/** The status a shopping route answered a failed request with, or null when no answer was read:
+ *  such a write may still have landed. */
+export function shoppingAnswerStatus(error: unknown): number | null {
+  if (error instanceof ShoppingStaleRevision) return 409;
+  if (error instanceof ShoppingRequestFailed) return error.status;
+  return null;
+}
+/** True when the route refused the request (4xx), so it changed nothing. */
+export function shoppingRefused(error: unknown): boolean {
+  const status = shoppingAnswerStatus(error);
+  return status !== null && status >= 400 && status < 500;
+}
+/** `account`: the handle a multi-step caller captured once, so every step runs as that account
+ *  and a mid-flow switch throws `AccountChanged` instead of carrying on as the new one. */
 async function shoppingRequest<T>(path: string, init: RequestInit = {},
-  budget: "search" | "prefs" | "commit" = "prefs"): Promise<T> {
-  const h = accountHandle();
+  budget: "search" | "prefs" | "commit" = "prefs", account?: AccountHandle): Promise<T> {
+  const h = account ?? accountHandle();
   const res = await accountFetch(h, path, { cache: "no-store", ...init }, { budget });
   if (!res.ok) {
     let body: { error?: unknown; message?: unknown } | null;
@@ -29,16 +48,17 @@ async function shoppingRequest<T>(path: string, init: RequestInit = {},
     const message = typeof body?.message === "string" ? body.message : "";
     if (code === "stale_revision" || code === "stale_preview")
       throw new ShoppingStaleRevision();
+    const fail = (text: string) => new ShoppingRequestFailed(text, res.status);
     if (code === "rule_review_required")
-      throw new Error("Confirm your food rules at the top of the planner, then preview again.");
+      throw fail("Confirm your food rules at the top of the planner, then preview again.");
     if (["needs_profile", "target_changes_in_period", "bad_period", "bad_coverage",
       "slot_unavailable", "recipe_policy_requires_review", "infeasible_plan",
       "recipe_plan_unavailable", "shopping_unavailable", "preview_unavailable"].includes(code) && message)
-      throw new Error(message);
+      throw fail(message);
     if (code === "recipe_pilot_unavailable")
-      throw new Error("Shopping is not available for this account yet.");
-    if (res.status === 409) throw new Error("Shopping changed elsewhere. Refresh and preview again.");
-    throw new Error(`Shopping request failed (${res.status}). Try again.`);
+      throw fail("Shopping is not available for this account yet.");
+    if (res.status === 409) throw fail("Shopping changed elsewhere. Refresh and preview again.");
+    throw fail(`Shopping request failed (${res.status}). Try again.`);
   }
   return accountJson<T>(h, res);
 }
@@ -52,12 +72,13 @@ function markSnapshot(snapshot: ShoppingSnapshot): ShoppingSnapshot {
 function periodPath(periodId: string): string {
   return `/api/shopping/periods/${encodeURIComponent(periodId)}`;
 }
-export async function listShoppingPeriods(startDate?: string, endDate?: string): Promise<ShoppingPeriod[]> {
+export async function listShoppingPeriods(startDate?: string, endDate?: string,
+  account?: AccountHandle): Promise<ShoppingPeriod[]> {
   const params = new URLSearchParams();
   if (startDate) params.set("start", startDate);
   if (endDate) params.set("end", endDate);
   const query = params.size ? `?${params}` : "";
-  const result = await shoppingRequest<{ periods: ShoppingPeriod[] }>(`/api/shopping/periods${query}`, {}, "search");
+  const result = await shoppingRequest<{ periods: ShoppingPeriod[] }>(`/api/shopping/periods${query}`, {}, "search", account);
   return result.periods;
 }
 export async function previewShopping(input: ShoppingPreviewInput,
@@ -86,10 +107,10 @@ export async function patchShoppingPurchaseWindow(window: ShoppingPurchaseWindow
   return result.purchaseWindow;
 }
 export async function createShoppingPeriod(draft: ShoppingDraft,
-  requestId = crypto.randomUUID()): Promise<ShoppingPeriod> {
+  requestId = crypto.randomUUID(), account?: AccountHandle): Promise<ShoppingPeriod> {
   const result = await shoppingRequest<{ period: ShoppingPeriod }>("/api/shopping/periods", {
     method: "POST", ...body({ period: draft, requestId }),
-  }, "commit");
+  }, "commit", account);
   return result.period;
 }
 export async function patchShoppingLine(line: ShoppingLine, patch: ShoppingLinePatch): Promise<ShoppingLine> {
@@ -101,7 +122,8 @@ export async function patchShoppingLine(line: ShoppingLine, patch: ShoppingLineP
   // The saved line's mark is the one to show: an edit (a new name) can change it.
   return withRuleMark(result.line);
 }
-export async function addManualShoppingLine(periodId: string, name: string, requestId: string): Promise<ShoppingLine> {
+export async function addManualShoppingLine(periodId: string, name: string, requestId: string,
+  account?: AccountHandle): Promise<ShoppingLine> {
   const line: Omit<ShoppingLine, "id" | "periodId" | "revision"> = {
     origin: "manual", name, identity: null, category: "manual", needGrams: null,
     confirmedStockGrams: null, buyGrams: null, packageGrams: null,
@@ -109,14 +131,14 @@ export async function addManualShoppingLine(periodId: string, name: string, requ
   };
   const result = await shoppingRequest<{ line: ShoppingLine }>(`${periodPath(periodId)}/lines`, {
     method: "POST", ...body({ requestId, line }),
-  }, "commit");
+  }, "commit", account);
   return withRuleMark(result.line);
 }
 /** Removes one line, plan or manual; the route keeps the row and marks it deleted. */
-export async function deleteShoppingLine(line: ShoppingLine): Promise<void> {
+export async function deleteShoppingLine(line: ShoppingLine, account?: AccountHandle): Promise<void> {
   await shoppingRequest<{ deleted: true }>(`${periodPath(line.periodId)}/lines/${encodeURIComponent(line.id)}`, {
     method: "DELETE", ...body({ expectedRevision: line.revision, requestId: crypto.randomUUID() }),
-  }, "commit");
+  }, "commit", account);
 }
 export async function removePantryItem(item: PantryItem): Promise<void> {
   await shoppingRequest<{ deleted: true }>(`/api/shopping/pantry/${encodeURIComponent(item.id)}`, {
@@ -141,21 +163,34 @@ export async function confirmPantryForLine(line: ShoppingLine, grams: number): P
 /**
  * Adds items to the saved list that covers `today`, starting this week's list when none does
  * (2026-10-02): the assistant and the Today card add to "my list" without opening Shopping.
+ * Every step runs as one account (`account`, else the one bound when the call starts): a switch
+ * part-way throws `AccountChanged`, never a list read as one account and written as another.
  */
 export async function addToCurrentShoppingList(names: readonly string[], today: string,
   timezone: string, requestIds: readonly string[] = names.map(() => crypto.randomUUID()),
-): Promise<{ lines: ShoppingLine[]; failed: string[] }> {
-  const periods = await listShoppingPeriods();
+  account: AccountHandle = accountHandle(),
+): Promise<{ lines: ShoppingLine[]; failed: string[]; uncertain: string[] }> {
+  const periods = await listShoppingPeriods(undefined, undefined, account);
   const covering = periods.find((row) => row.startDate <= today && row.endDate >= today);
-  const period = covering ?? await createShoppingPeriod(defaultShoppingDraft(today, timezone));
+  const period = covering
+    ?? await createShoppingPeriod(defaultShoppingDraft(today, timezone), crypto.randomUUID(), account);
   // Every item on its own (DeepSeek audit round 7): one failed add must not hide the lines that
   // did save, or the caller loses their Undo.
   // A caller that retries passes the same ids (DeepSeek audit round 9): an add that saved but
   // whose answer was lost then returns its own row instead of a second one.
   const results = await Promise.allSettled(names.map((name, index) =>
-    addManualShoppingLine(period.id, name, requestIds[index] ?? crypto.randomUUID())));
+    addManualShoppingLine(period.id, name, requestIds[index] ?? crypto.randomUUID(), account)));
+  // A line that failed because the account changed is not a "failed item" to retry: the whole
+  // add belongs to an account that is no longer bound.
+  const changed = results.find((result) => result.status === "rejected" && result.reason instanceof AccountChanged);
+  if (changed) throw new AccountChanged();
   return {
     lines: results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []),
     failed: names.filter((_, index) => results[index].status === "rejected"),
+    // W020: a failed add the route never refused (lost answer, deadline, 5xx) may still have saved.
+    uncertain: names.filter((_, index) => {
+      const result = results[index];
+      return result.status === "rejected" && !shoppingRefused(result.reason);
+    }),
   };
 }
