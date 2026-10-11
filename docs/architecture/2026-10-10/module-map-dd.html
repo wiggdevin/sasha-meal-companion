@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meal Companion lib Module Map</title>
+<meta name="description" content="Import dependencies between lib domains in Meal Companion, as a ranked graph and a matrix.">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --paper:#E0DCD1; --paper-2:#D3CDC0; --ink:#1D1D1C; --ink-strong:#141413;
+  --muted:#4F5343; --soft:#5E5C55; --rule:rgba(29,29,28,.14); --rule-solid:#A9A394;
+  --accent:#9E431B; --accent-tint:rgba(212,107,56,.12); --accent-05:rgba(158,67,27,.05); --accent-50:rgba(158,67,27,.5);
+  --link:#3F6482; --backend:#F6F2E9; --card:#F6F2E9; --ramp:.46;
+  --ink-02:rgba(29,29,28,.02); --ink-03:rgba(29,29,28,.03); --ink-05:rgba(29,29,28,.05);
+  --ink-06:rgba(29,29,28,.06); --ink-10:rgba(29,29,28,.10); --ink-20:rgba(29,29,28,.20); --ink-30:rgba(29,29,28,.30);
+  --muted-10:rgba(79,83,67,.10);
+  --font-sans:'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-serif:'Fraunces', 'Noto Serif', serif;
+  --font-mono:'Geist Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+    --rule:rgba(226,220,208,.14); --rule-solid:rgba(226,220,208,.28);
+    --accent:#E59A73; --accent-tint:rgba(229,154,115,.12); --accent-05:rgba(229,154,115,.05); --accent-50:rgba(229,154,115,.5);
+    --link:#A2C4D2; --backend:#2A2A27; --card:#242421; --ramp:.34;
+    --ink-02:rgba(226,220,208,.02); --ink-03:rgba(226,220,208,.03); --ink-05:rgba(226,220,208,.05);
+    --ink-06:rgba(226,220,208,.06); --ink-10:rgba(226,220,208,.10); --ink-20:rgba(226,220,208,.20); --ink-30:rgba(226,220,208,.30);
+    --muted-10:rgba(177,178,169,.10);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#1D1D1C; --paper-2:#2A2A27; --ink:#E2DCD0; --muted:#B1B2A9; --soft:#A8A59A;
+  --rule:rgba(226,220,208,.14); --rule-solid:rgba(226,220,208,.28);
+  --accent:#E59A73; --accent-tint:rgba(229,154,115,.12); --accent-05:rgba(229,154,115,.05); --accent-50:rgba(229,154,115,.5);
+  --link:#A2C4D2; --backend:#2A2A27; --card:#242421; --ramp:.34;
+  --ink-02:rgba(226,220,208,.02); --ink-03:rgba(226,220,208,.03); --ink-05:rgba(226,220,208,.05);
+  --ink-06:rgba(226,220,208,.06); --ink-10:rgba(226,220,208,.10); --ink-20:rgba(226,220,208,.20); --ink-30:rgba(226,220,208,.30);
+  --muted-10:rgba(177,178,169,.10);
+}
+body { font-family: var(--font-sans); background: var(--paper); color: var(--ink); min-height: 100vh; padding: 3rem 2rem 2rem; }
+.frame { max-width: 1280px; width: 100%; margin: 0 auto; }
+.diagram-container { width: 100%; overflow-x: auto; }
+.eyebrow { font-family: var(--font-mono); font-size: .66rem; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: .5rem; }
+h1 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.4vw + .75rem, 1.75rem); font-weight: 400; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); margin-bottom: .75rem; }
+h2 { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; letter-spacing: -.01em; margin: 3rem 0 .5rem; }
+.sub { color: var(--muted); font-size: .9rem; max-width: 62ch; margin-bottom: 1.5rem; line-height: 1.5; }
+.fig-note { color: var(--soft); font-size: .8rem; max-width: 80ch; margin: .75rem 0 1rem; line-height: 1.5; }
+svg { width: 100%; display: block; }
+svg.fig { min-width: 1280px; }
+.cards { display: grid; grid-template-columns: 1.1fr 1fr .9fr; gap: 1rem; margin-top: 1.25rem; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 1.1rem 1.25rem; }
+.card h3 { font-family: var(--font-serif); font-weight: 400; font-size: 1rem; margin-bottom: .5rem; }
+.card ul { list-style: none; font-size: .82rem; line-height: 1.55; color: var(--ink); }
+.card li { padding-left: 1rem; position: relative; margin-bottom: .3rem; }
+.card li::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+.card .dot-acc::before, li.acc::before { background: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: .74rem; color: var(--ink); }
+.tbl-wrap { overflow-x: auto; margin-top: .75rem; }
+table { border-collapse: collapse; width: 100%; font-size: .8rem; min-width: 880px; }
+th { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--rule-solid); }
+td { padding: .55rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.45; }
+td.k { font-weight: 600; white-space: nowrap; }
+td.nw code { white-space: nowrap; }
+tr.hl td { background: var(--accent-05); }
+.foot { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--font-mono); font-size: .66rem; color: var(--muted); }
+details { margin-top: 1rem; } summary { cursor: pointer; font-size: .82rem; color: var(--muted); font-family: var(--font-mono); }
+p, li { overflow-wrap: anywhere; }
+.nm { font-family: var(--font-mono); font-size: .7rem; }
+
+/* svg roles */
+.f-sans { font-family: var(--font-sans); } .f-mono { font-family: var(--font-mono); } .f-serif { font-family: var(--font-serif); }
+.t-ink { fill: var(--ink); } .t-muted { fill: var(--muted); } .t-soft { fill: var(--soft); } .t-acc { fill: var(--accent); } .t-paper { fill: var(--paper); } .t-link { fill: var(--link); }
+.bg { fill: var(--paper); }
+.zone { fill: var(--ink-02); stroke: var(--ink-10); stroke-width: .8; }
+.n-backend { fill: var(--backend); stroke: var(--ink); stroke-width: 1; }
+.n-store { fill: var(--ink-05); stroke: var(--muted); stroke-width: 1; }
+.n-external { fill: var(--ink-03); stroke: var(--ink-30); stroke-width: 1; }
+.n-input { fill: var(--muted-10); stroke: var(--soft); stroke-width: 1; }
+.n-optional { fill: var(--ink-02); stroke: var(--ink-20); stroke-width: 1; stroke-dasharray: 4 3; }
+.n-focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.2; }
+.n-security { fill: var(--accent-05); stroke: var(--accent-50); stroke-width: 1; stroke-dasharray: 4 4; }
+.a { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.a-acc { fill: none; stroke: var(--accent); stroke-width: 1.2; }
+.a-link { fill: none; stroke: var(--link); stroke-width: 1.2; }
+.dash { stroke-dasharray: 5 4; }
+.life { stroke: var(--ink-20); stroke-width: 1; stroke-dasharray: 3 3; }
+.act { fill: var(--ink-06); stroke: var(--muted); stroke-width: .8; }
+.hair { stroke: var(--ink-10); stroke-width: .8; }
+.m-muted { fill: var(--muted); } .m-acc { fill: var(--accent); } .m-link { fill: var(--link); }
+.badge { fill: none; stroke: var(--ink-30); stroke-width: .8; }
+.hm-paper { fill: var(--paper); }
+.hm-cell { fill: var(--ink); fill-opacity: calc(0.07 + var(--k) * (var(--ramp) - 0.07)); }
+@media (max-width: 720px) { body { padding: 1.5rem 1rem; } .cards { grid-template-columns: 1fr; } }
+@media print { .diagram-container { overflow-x: visible; } svg.fig { min-width: 0; } }
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Dependency graph · matrix · audit 2026-10-10</p>
+<h1>Meal Companion lib/ module map</h1>
+<p class="sub">Static import counts between lib/ domains, tests excluded. Checked against code at <code>7405f41f</code>.</p>
+<div class="diagram-container"><svg class="fig" viewBox="0 64 1280 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="modgraph-title modgraph-desc">
+<title id="modgraph-title">lib/ import dependencies</title>
+<desc id="modgraph-desc">Eight lib domains ranked by dependency, with import counts. lib/server imports lib/coach most. lib/ai imports lib/server back, which is the highlighted cycle.</desc>
+<defs><marker id="modgraph-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-muted"/></marker><marker id="modgraph-arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-acc"/></marker><marker id="modgraph-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-link"/></marker></defs>
+<rect width="100%" height="100%" class="bg"/>
+<rect x="352" y="304" width="576" height="112" rx="8" class="zone"/>
+<rect x="440" y="308" width="76" height="12" rx="2" class="bg"/><text x="478.0" y="317" text-anchor="middle" font-size="7" letter-spacing="0.14em" class="f-mono t-soft">RULES + MEALS</text>
+<path d="M520,116 L102,116 Q94,116 94,124 L94,200" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M580,144 L580,164 Q580,172 572,172 L312,172 Q304,172 304,180 L304,200" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M700,144 L700,164 Q700,172 708,172 L892,172 Q900,172 900,180 L900,200" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M640,144 L640,304" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M344,256 L344,272 Q344,280 352,280 L400,280 Q408,280 408,288 L408,304" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M264,256 L264,484 Q264,492 272,492 L520,492" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M164,228 L224,228" class="a" marker-start="url(#modgraph-arrow)" marker-end="url(#modgraph-arrow)"/>
+<path d="M384,228 H632 a 8,8 0 0,1 16,0 H820" class="a" marker-end="url(#modgraph-arrow)"/>
+<path d="M980,228 L1192,228 Q1200,228 1200,220 L1200,124 Q1200,116 1192,116 L760,116" class="a-acc dash" marker-end="url(#modgraph-arrow-acc)"/>
+<path d="M512,364 L568,364" class="a" marker-start="url(#modgraph-arrow)" marker-end="url(#modgraph-arrow)"/>
+<path d="M712,364 L768,364" class="a" marker-start="url(#modgraph-arrow)" marker-end="url(#modgraph-arrow)"/>
+<path d="M640,392 L640,464" class="a" marker-end="url(#modgraph-arrow)"/>
+<rect x="290" y="97" width="20" height="12" rx="2" class="bg"/><text x="300" y="106" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">19</text>
+<rect x="426" y="153" width="28" height="12" rx="2" class="bg"/><text x="440" y="162" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">169</text>
+<rect x="790" y="153" width="20" height="12" rx="2" class="bg"/><text x="800" y="162" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">84</text>
+<rect x="647" y="256" width="28" height="12" rx="2" class="bg"/><text x="661" y="265" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">137</text>
+<rect x="364" y="261" width="20" height="12" rx="2" class="bg"/><text x="374" y="270" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">83</text>
+<rect x="478" y="209" width="44" height="12" rx="2" class="bg"/><text x="500" y="218" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">20 / 4</text>
+<rect x="170" y="209" width="48" height="12" rx="2" class="bg"/><text x="194" y="218" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">10 / 12</text>
+<rect x="976" y="97" width="48" height="12" rx="2" class="bg"/><text x="1000" y="106" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-acc">CYCLE 5</text>
+<rect x="518" y="345" width="44" height="12" rx="2" class="bg"/><text x="540" y="354" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">9 / 14</text>
+<rect x="716" y="345" width="48" height="12" rx="2" class="bg"/><text x="740" y="354" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">31 / 19</text>
+<rect x="647" y="422" width="20" height="12" rx="2" class="bg"/><text x="657" y="431" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">38</text>
+<rect x="382" y="473" width="20" height="12" rx="2" class="bg"/><text x="392" y="482" text-anchor="middle" font-size="8" letter-spacing="0.06em" class="f-mono t-soft">35</text>
+<rect x="520" y="88" width="240" height="56" rx="6" class="bg"/>
+<rect x="520" y="88" width="240" height="56" rx="6" class="n-backend"/>
+<text x="640" y="114" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/server</text>
+<text x="640" y="127" text-anchor="middle" font-size="9" class="f-mono t-muted">143 files</text>
+<rect x="726" y="94" width="28" height="12" rx="2" class="badge"/><text x="740" y="103" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">4 in</text>
+<rect x="224" y="200" width="160" height="56" rx="6" class="bg"/>
+<rect x="224" y="200" width="160" height="56" rx="6" class="n-backend"/>
+<text x="304" y="226" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/coach</text>
+<text x="304" y="239" text-anchor="middle" font-size="9" class="f-mono t-muted">133 files</text>
+<rect x="350" y="206" width="28" height="12" rx="2" class="badge"/><text x="364" y="215" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">6 in</text>
+<rect x="24" y="200" width="140" height="56" rx="6" class="bg"/>
+<rect x="24" y="200" width="140" height="56" rx="6" class="n-backend"/>
+<text x="94" y="226" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/plan</text>
+<text x="94" y="239" text-anchor="middle" font-size="9" class="f-mono t-muted">27 files</text>
+<rect x="130" y="206" width="28" height="12" rx="2" class="badge"/><text x="144" y="215" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">6 in</text>
+<rect x="820" y="200" width="160" height="56" rx="6" class="bg"/>
+<rect x="820" y="200" width="160" height="56" rx="6" class="n-backend"/>
+<text x="900" y="226" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/ai</text>
+<text x="900" y="239" text-anchor="middle" font-size="9" class="f-mono t-muted">35 files</text>
+<rect x="946" y="206" width="28" height="12" rx="2" class="badge"/><text x="960" y="215" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">4 in</text>
+<rect x="368" y="336" width="144" height="56" rx="6" class="bg"/>
+<rect x="368" y="336" width="144" height="56" rx="6" class="n-backend"/>
+<text x="440" y="362" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/policy</text>
+<text x="440" y="375" text-anchor="middle" font-size="9" class="f-mono t-muted">31 files</text>
+<rect x="478" y="342" width="28" height="12" rx="2" class="badge"/><text x="492" y="351" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">6 in</text>
+<rect x="568" y="336" width="144" height="56" rx="6" class="bg"/>
+<rect x="568" y="336" width="144" height="56" rx="6" class="n-backend"/>
+<text x="640" y="362" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/foods</text>
+<text x="640" y="375" text-anchor="middle" font-size="9" class="f-mono t-muted">75 files</text>
+<rect x="674" y="342" width="32" height="12" rx="2" class="badge"/><text x="690" y="351" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">12 in</text>
+<rect x="768" y="336" width="144" height="56" rx="6" class="bg"/>
+<rect x="768" y="336" width="144" height="56" rx="6" class="n-backend"/>
+<text x="840" y="362" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">lib/meals</text>
+<text x="840" y="375" text-anchor="middle" font-size="9" class="f-mono t-muted">23 files</text>
+<rect x="878" y="342" width="28" height="12" rx="2" class="badge"/><text x="892" y="351" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">8 in</text>
+<rect x="520" y="464" width="240" height="56" rx="6" class="bg"/>
+<rect x="520" y="464" width="240" height="56" rx="6" class="n-store"/>
+<text x="640" y="490" text-anchor="middle" font-size="12" font-weight="600" class="f-sans t-ink">log + sync + device</text>
+<text x="640" y="503" text-anchor="middle" font-size="9" class="f-mono t-muted">63 files, phone side</text>
+<rect x="722" y="470" width="32" height="12" rx="2" class="badge"/><text x="738" y="479" text-anchor="middle" font-size="7" letter-spacing="0.06em" class="f-mono t-soft">13 in</text>
+<text x="24" y="560" text-anchor="start" font-size="9" class="f-mono t-soft" >Top-level lib/*.ts files and lib/nutrients are left out of the graph. Every domain imports the top-level files.</text>
+<text x="24" y="576" text-anchor="start" font-size="9" class="f-mono t-soft" >Numbers are import statements, tests excluded. A pair like 31 / 19 reads left to right: the left domain imports the right one 31 times, the right one imports the left 19.</text>
+<line x1="30" y1="618" x2="1250" y2="618" class="hair"/>
+<text x="30" y="634" font-size="8" letter-spacing="0.14em" class="f-mono t-muted">LEGEND</text>
+<rect x="96" y="626" width="20" height="12" rx="3" class="n-backend"/>
+<text x="124" y="635" font-size="8" class="f-mono t-soft">lib domain</text>
+<rect x="200" y="626" width="20" height="12" rx="3" class="n-store"/>
+<text x="228" y="635" font-size="8" class="f-mono t-soft">phone-side group</text>
+<line x1="332" y1="632" x2="356" y2="632" class="a"/>
+<text x="364" y="635" font-size="8" class="f-mono t-soft">imports (count)</text>
+<line x1="464" y1="632" x2="488" y2="632" class="a-acc dash"/>
+<text x="496" y="635" font-size="8" class="f-mono t-soft">the cycle, back edge</text>
+</svg></div>
+<div class="cards"><div class="card"><h3>What the graph says</h3><ul><li><code>lib/server</code> imports <code>lib/coach</code> 169 times, the heaviest edge in <code>lib/</code>. The most imported coach files are <code>turn.ts</code> 14, <code>types.ts</code> 13, <code>executors.ts</code> 12, <code>ui-blocks.ts</code> 9, <code>actions/index.ts</code> 9.</li><li><code>lib/server</code> imports <code>lib/ai</code> 84 times, and <code>lib/ai</code> imports <code>lib/server</code> back 5 times. This is the highlighted cycle.</li><li><code>lib/foods</code>, <code>lib/meals</code> and <code>lib/policy</code> import each other: foods to meals 31, meals to foods 19, foods to policy 14, policy to foods 9.</li></ul></div><div class="card"><h3>Cycles not highlighted</h3><ul><li><code>lib/ai</code> and <code>lib/coach</code>: 20 one way, 4 back.</li><li><code>lib/meals</code> reaches into <code>lib/coach</code> (4 imports) for portion bands and pairings, so the pure meals library needs the coach.</li><li>The phone-side group (log, sync, device) forms one knot: log and sync import each other, as do sync and device and log and device.</li></ul></div><div class="card"><h3>How to read it</h3><ul><li>A badge such as <code>6 in</code> counts the other domains that import the node at least 3 times.</li><li>Arrow width never changes. The number carries the weight.</li><li>A <code>lib/X.ts</code> file counts with <code>lib/X/</code> when both exist.</li></ul></div></div>
+<h2>The same data as a matrix</h2>
+<p class="fig-note">Seven importer rows against eight imported columns. The heat is the count. The graph above shows direction and cycles; this shows size.</p>
+<div class="diagram-container"><svg class="fig" viewBox="0 36 1280 564" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="modheat-title modheat-desc">
+<title id="modheat-title">Who imports whom among the heavy lib domains</title>
+<desc id="modheat-desc">A matrix of import counts. Rows import columns. lib/server importing lib/coach is the highest cell at 169.</desc>
+<defs><marker id="modheat-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-muted"/></marker><marker id="modheat-arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-acc"/></marker><marker id="modheat-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" class="m-link"/></marker></defs>
+<rect width="100%" height="100%" class="bg"/>
+<rect x="176" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="top" data-value="27" x="176" y="96" width="128" height="48" style="--k:0.3214"/>
+<rect x="308" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="foods" data-value="0" x="308" y="96" width="128" height="48" style="--k:0.0000"/>
+<rect x="440" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="policy" data-value="14" x="440" y="96" width="128" height="48" style="--k:0.1667"/>
+<rect x="572" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="meals" data-value="31" x="572" y="96" width="128" height="48" style="--k:0.3690"/>
+<rect x="704" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="plan" data-value="0" x="704" y="96" width="128" height="48" style="--k:0.0000"/>
+<rect x="836" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="coach" data-value="2" x="836" y="96" width="128" height="48" style="--k:0.0238"/>
+<rect x="968" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="ai" data-value="6" x="968" y="96" width="128" height="48" style="--k:0.0714"/>
+<rect x="1100" y="96" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="foods" data-col="server" data-value="7" x="1100" y="96" width="128" height="48" style="--k:0.0833"/>
+<rect x="176" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="top" data-value="0" x="176" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="308" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="foods" data-value="9" x="308" y="148" width="128" height="48" style="--k:0.1071"/>
+<rect x="440" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="policy" data-value="0" x="440" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="572" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="meals" data-value="0" x="572" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="704" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="plan" data-value="0" x="704" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="836" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="coach" data-value="0" x="836" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="968" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="ai" data-value="0" x="968" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="1100" y="148" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="policy" data-col="server" data-value="0" x="1100" y="148" width="128" height="48" style="--k:0.0000"/>
+<rect x="176" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="top" data-value="15" x="176" y="200" width="128" height="48" style="--k:0.1786"/>
+<rect x="308" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="foods" data-value="19" x="308" y="200" width="128" height="48" style="--k:0.2262"/>
+<rect x="440" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="policy" data-value="1" x="440" y="200" width="128" height="48" style="--k:0.0119"/>
+<rect x="572" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="meals" data-value="0" x="572" y="200" width="128" height="48" style="--k:0.0000"/>
+<rect x="704" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="plan" data-value="1" x="704" y="200" width="128" height="48" style="--k:0.0119"/>
+<rect x="836" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="coach" data-value="4" x="836" y="200" width="128" height="48" style="--k:0.0476"/>
+<rect x="968" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="ai" data-value="0" x="968" y="200" width="128" height="48" style="--k:0.0000"/>
+<rect x="1100" y="200" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="meals" data-col="server" data-value="0" x="1100" y="200" width="128" height="48" style="--k:0.0000"/>
+<rect x="176" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="top" data-value="30" x="176" y="252" width="128" height="48" style="--k:0.3571"/>
+<rect x="308" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="foods" data-value="1" x="308" y="252" width="128" height="48" style="--k:0.0119"/>
+<rect x="440" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="policy" data-value="1" x="440" y="252" width="128" height="48" style="--k:0.0119"/>
+<rect x="572" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="meals" data-value="3" x="572" y="252" width="128" height="48" style="--k:0.0357"/>
+<rect x="704" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="plan" data-value="0" x="704" y="252" width="128" height="48" style="--k:0.0000"/>
+<rect x="836" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="coach" data-value="10" x="836" y="252" width="128" height="48" style="--k:0.1190"/>
+<rect x="968" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="ai" data-value="1" x="968" y="252" width="128" height="48" style="--k:0.0119"/>
+<rect x="1100" y="252" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="plan" data-col="server" data-value="0" x="1100" y="252" width="128" height="48" style="--k:0.0000"/>
+<rect x="176" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="top" data-value="67" x="176" y="304" width="128" height="48" style="--k:0.7976"/>
+<rect x="308" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="foods" data-value="19" x="308" y="304" width="128" height="48" style="--k:0.2262"/>
+<rect x="440" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="policy" data-value="39" x="440" y="304" width="128" height="48" style="--k:0.4643"/>
+<rect x="572" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="meals" data-value="25" x="572" y="304" width="128" height="48" style="--k:0.2976"/>
+<rect x="704" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="plan" data-value="12" x="704" y="304" width="128" height="48" style="--k:0.1429"/>
+<rect x="836" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="coach" data-value="0" x="836" y="304" width="128" height="48" style="--k:0.0000"/>
+<rect x="968" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="ai" data-value="20" x="968" y="304" width="128" height="48" style="--k:0.2381"/>
+<rect x="1100" y="304" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="coach" data-col="server" data-value="6" x="1100" y="304" width="128" height="48" style="--k:0.0714"/>
+<rect x="176" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="top" data-value="1" x="176" y="356" width="128" height="48" style="--k:0.0119"/>
+<rect x="308" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="foods" data-value="5" x="308" y="356" width="128" height="48" style="--k:0.0595"/>
+<rect x="440" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="policy" data-value="0" x="440" y="356" width="128" height="48" style="--k:0.0000"/>
+<rect x="572" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="meals" data-value="0" x="572" y="356" width="128" height="48" style="--k:0.0000"/>
+<rect x="704" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="plan" data-value="4" x="704" y="356" width="128" height="48" style="--k:0.0476"/>
+<rect x="836" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="coach" data-value="4" x="836" y="356" width="128" height="48" style="--k:0.0476"/>
+<rect x="968" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="ai" data-value="0" x="968" y="356" width="128" height="48" style="--k:0.0000"/>
+<rect x="1100" y="356" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="ai" data-col="server" data-value="5" x="1100" y="356" width="128" height="48" style="--k:0.0595"/>
+<rect x="176" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="top" data-value="47" x="176" y="408" width="128" height="48" style="--k:0.5595"/>
+<rect x="308" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="foods" data-value="57" x="308" y="408" width="128" height="48" style="--k:0.6786"/>
+<rect x="440" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="policy" data-value="48" x="440" y="408" width="128" height="48" style="--k:0.5714"/>
+<rect x="572" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="meals" data-value="32" x="572" y="408" width="128" height="48" style="--k:0.3810"/>
+<rect x="704" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="plan" data-value="19" x="704" y="408" width="128" height="48" style="--k:0.2262"/>
+<rect x="836" y="408" width="128" height="48" class="hm-paper"/>
+<rect data-row="server" data-col="coach" data-value="169" data-focal="true" x="836" y="408" width="128" height="48" style="fill:var(--accent);fill-opacity:.85;stroke:var(--accent);stroke-width:1.2"/>
+<rect x="968" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="ai" data-value="84" x="968" y="408" width="128" height="48" style="--k:1.0000"/>
+<rect x="1100" y="408" width="128" height="48" class="hm-paper"/>
+<rect class="hm-cell" data-row="server" data-col="server" data-value="0" x="1100" y="408" width="128" height="48" style="--k:0.0000"/>
+
+
+
+<text x="24" y="60" text-anchor="start" font-size="8" class="f-mono t-muted" letter-spacing="0.14em">EACH ROW IMPORTS THE COLUMN</text>
+<text x="240.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">top-level files</text>
+<text x="372.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">foods</text>
+<text x="504.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">policy</text>
+<text x="636.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">meals</text>
+<text x="768.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">plan</text>
+<text x="900.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">coach</text>
+<text x="1032.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">ai</text>
+<text x="1164.0" y="84" text-anchor="middle" font-size="11" class="f-sans t-ink" font-weight="600">server</text>
+<text x="164" y="124.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">foods</text>
+<text x="240.0" y="124.0" text-anchor="middle" font-size="11" class="f-mono t-ink">27</text>
+<text x="372.0" y="124.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<text x="504.0" y="124.0" text-anchor="middle" font-size="11" class="f-mono t-ink">14</text>
+<text x="636.0" y="124.0" text-anchor="middle" font-size="11" class="f-mono t-ink">31</text>
+<text x="768.0" y="124.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="900.0" y="124.0" text-anchor="middle" font-size="11" class="f-mono t-ink">2</text>
+<text x="1032.0" y="124.0" text-anchor="middle" font-size="11" class="f-mono t-ink">6</text>
+<text x="1164.0" y="124.0" text-anchor="middle" font-size="11" class="f-mono t-ink">7</text>
+<text x="164" y="176.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">policy</text>
+<text x="240.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="372.0" y="176.0" text-anchor="middle" font-size="11" class="f-mono t-ink">9</text>
+<text x="504.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<text x="636.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="768.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="900.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="1032.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="1164.0" y="176.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="164" y="228.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">meals</text>
+<text x="240.0" y="228.0" text-anchor="middle" font-size="11" class="f-mono t-ink">15</text>
+<text x="372.0" y="228.0" text-anchor="middle" font-size="11" class="f-mono t-ink">19</text>
+<text x="504.0" y="228.0" text-anchor="middle" font-size="11" class="f-mono t-ink">1</text>
+<text x="636.0" y="228.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<text x="768.0" y="228.0" text-anchor="middle" font-size="11" class="f-mono t-ink">1</text>
+<text x="900.0" y="228.0" text-anchor="middle" font-size="11" class="f-mono t-ink">4</text>
+<text x="1032.0" y="228.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="1164.0" y="228.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="164" y="280.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">plan</text>
+<text x="240.0" y="280.0" text-anchor="middle" font-size="11" class="f-mono t-ink">30</text>
+<text x="372.0" y="280.0" text-anchor="middle" font-size="11" class="f-mono t-ink">1</text>
+<text x="504.0" y="280.0" text-anchor="middle" font-size="11" class="f-mono t-ink">1</text>
+<text x="636.0" y="280.0" text-anchor="middle" font-size="11" class="f-mono t-ink">3</text>
+<text x="768.0" y="280.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<text x="900.0" y="280.0" text-anchor="middle" font-size="11" class="f-mono t-ink">10</text>
+<text x="1032.0" y="280.0" text-anchor="middle" font-size="11" class="f-mono t-ink">1</text>
+<text x="1164.0" y="280.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="164" y="332.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">coach</text>
+<text x="240.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">67</text>
+<text x="372.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">19</text>
+<text x="504.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">39</text>
+<text x="636.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">25</text>
+<text x="768.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">12</text>
+<text x="900.0" y="332.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<text x="1032.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">20</text>
+<text x="1164.0" y="332.0" text-anchor="middle" font-size="11" class="f-mono t-ink">6</text>
+<text x="164" y="384.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">ai</text>
+<text x="240.0" y="384.0" text-anchor="middle" font-size="11" class="f-mono t-ink">1</text>
+<text x="372.0" y="384.0" text-anchor="middle" font-size="11" class="f-mono t-ink">5</text>
+<text x="504.0" y="384.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="636.0" y="384.0" text-anchor="middle" font-size="9" class="f-mono t-soft">0</text>
+<text x="768.0" y="384.0" text-anchor="middle" font-size="11" class="f-mono t-ink">4</text>
+<text x="900.0" y="384.0" text-anchor="middle" font-size="11" class="f-mono t-ink">4</text>
+<text x="1032.0" y="384.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<text x="1164.0" y="384.0" text-anchor="middle" font-size="11" class="f-mono t-ink">5</text>
+<text x="164" y="436.0" text-anchor="end" font-size="11" class="f-sans t-ink" font-weight="600">server</text>
+<text x="240.0" y="436.0" text-anchor="middle" font-size="11" class="f-mono t-ink">47</text>
+<text x="372.0" y="436.0" text-anchor="middle" font-size="11" class="f-mono t-ink">57</text>
+<text x="504.0" y="436.0" text-anchor="middle" font-size="11" class="f-mono t-ink">48</text>
+<text x="636.0" y="436.0" text-anchor="middle" font-size="11" class="f-mono t-ink">32</text>
+<text x="768.0" y="436.0" text-anchor="middle" font-size="11" class="f-mono t-ink">19</text>
+<text x="900.0" y="439.0" text-anchor="middle" font-size="20" font-weight="600" class="f-mono" style="fill:#141413">169</text>
+<text x="1032.0" y="436.0" text-anchor="middle" font-size="11" class="f-mono t-ink">84</text>
+<text x="1164.0" y="436.0" text-anchor="middle" font-size="9" class="f-mono t-soft">self</text>
+<line x1="30" y1="478" x2="1250" y2="478" class="hair"/><text x="30" y="494" font-size="8" letter-spacing="0.14em" class="f-mono t-muted">LEGEND</text>
+<text x="100" y="495" font-size="8" class="f-mono t-soft">LOW</text>
+<rect class="hm-cell" x="128" y="486" width="24" height="12" rx="2" style="--k:0.000"/>
+<rect class="hm-cell" x="156" y="486" width="24" height="12" rx="2" style="--k:0.250"/>
+<rect class="hm-cell" x="184" y="486" width="24" height="12" rx="2" style="--k:0.500"/>
+<rect class="hm-cell" x="212" y="486" width="24" height="12" rx="2" style="--k:0.750"/>
+<rect class="hm-cell" x="240" y="486" width="24" height="12" rx="2" style="--k:1.000"/>
+<text x="272" y="495" font-size="8" class="f-mono t-soft">HIGH (0 to 84, focal cell left out of the ramp)</text>
+<rect x="560" y="486" width="24" height="12" rx="2" style="fill:var(--accent);fill-opacity:.85"/><text x="592" y="495" font-size="8" class="f-mono t-soft">focal: server imports coach, 169 times</text>
+<text x="30" y="518" font-size="9" class="f-mono t-soft">Rows left out: log, sync, device, nutrients, catalog, search, barcode, mcp, profile, rebalance, shopping, health and the rest. All 14 merged domains: see the table below.</text>
+</svg></div>
+<h2>Domains, size and who imports them</h2>
+<div class="tbl-wrap"><table><thead><tr><th>Domain</th><th>Files</th><th>Heaviest importers (import statements)</th></tr></thead><tbody><tr><td class="k">top-level files</td><td>68</td><td>coach 67, server 47, log 37</td></tr><tr><td class="k">log</td><td>31</td><td>top 27, server 14, coach 8</td></tr><tr><td class="k">sync</td><td>22</td><td>top 26, foods 14, coach 14</td></tr><tr><td class="k">device</td><td>10</td><td>top 35, foods 24, log 14</td></tr><tr><td class="k">foods</td><td>75</td><td>server 57, top 29, meals 19</td></tr><tr><td class="k">policy</td><td>31</td><td>server 48, coach 39, foods 14</td></tr><tr><td class="k">nutrients</td><td>6</td><td>server 14, top 8, policy 4</td></tr><tr><td class="k">catalog + search + barcode</td><td>18</td><td>server 15, top 2, policy 1</td></tr><tr><td class="k">meals</td><td>23</td><td>server 32, foods 31, coach 25</td></tr><tr><td class="k">plan</td><td>27</td><td>server 19, coach 12, top 9</td></tr><tr><td class="k">coach</td><td>133</td><td>server 169, plan 10, top 9</td></tr><tr><td class="k">server</td><td>143</td><td>foods 7, coach 6, ai 5</td></tr><tr><td class="k">mcp</td><td>3</td><td></td></tr><tr><td class="k">ai</td><td>35</td><td>server 84, coach 20, foods 6</td></tr></tbody></table></div>
+<details><summary>Full matrix, all 14 domains (row imports column)</summary><div class="tbl-wrap"><table style="min-width:1100px"><thead><tr><th></th><th>top-leve</th><th>log</th><th>sync</th><th>device</th><th>foods</th><th>policy</th><th>nutrient</th><th>catalog </th><th>meals</th><th>plan</th><th>coach</th><th>server</th><th>mcp</th><th>ai</th></tr></thead><tbody><tr><td class="k">top-level files</td><td class="nm"></td><td class="nm">27</td><td class="nm">26</td><td class="nm">35</td><td class="nm">29</td><td class="nm">1</td><td class="nm">8</td><td class="nm">2</td><td class="nm">7</td><td class="nm">9</td><td class="nm">9</td><td class="nm">1</td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">log</td><td class="nm">37</td><td class="nm"></td><td class="nm">10</td><td class="nm">14</td><td class="nm">9</td><td class="nm"></td><td class="nm">4</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">1</td><td class="nm"></td><td class="nm"></td><td class="nm">3</td></tr><tr><td class="k">sync</td><td class="nm">15</td><td class="nm">7</td><td class="nm"></td><td class="nm">11</td><td class="nm">6</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">1</td><td class="nm"></td><td class="nm">1</td><td class="nm"></td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">device</td><td class="nm">3</td><td class="nm">3</td><td class="nm">4</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">foods</td><td class="nm">27</td><td class="nm"></td><td class="nm">14</td><td class="nm">24</td><td class="nm"></td><td class="nm">14</td><td class="nm">1</td><td class="nm">1</td><td class="nm">31</td><td class="nm"></td><td class="nm">2</td><td class="nm">7</td><td class="nm"></td><td class="nm">6</td></tr><tr><td class="k">policy</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">9</td><td class="nm"></td><td class="nm">4</td><td class="nm">1</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">nutrients</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">catalog + search + barcode</td><td class="nm">7</td><td class="nm"></td><td class="nm"></td><td class="nm">4</td><td class="nm">2</td><td class="nm">1</td><td class="nm">2</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">1</td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">meals</td><td class="nm">15</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">19</td><td class="nm">1</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">1</td><td class="nm">4</td><td class="nm"></td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">plan</td><td class="nm">30</td><td class="nm">1</td><td class="nm"></td><td class="nm">4</td><td class="nm">1</td><td class="nm">1</td><td class="nm">4</td><td class="nm">1</td><td class="nm">3</td><td class="nm"></td><td class="nm">10</td><td class="nm"></td><td class="nm"></td><td class="nm">1</td></tr><tr><td class="k">coach</td><td class="nm">67</td><td class="nm">8</td><td class="nm">14</td><td class="nm">13</td><td class="nm">19</td><td class="nm">39</td><td class="nm"></td><td class="nm">1</td><td class="nm">25</td><td class="nm">12</td><td class="nm"></td><td class="nm">6</td><td class="nm"></td><td class="nm">20</td></tr><tr><td class="k">server</td><td class="nm">47</td><td class="nm">14</td><td class="nm">5</td><td class="nm"></td><td class="nm">57</td><td class="nm">48</td><td class="nm">14</td><td class="nm">15</td><td class="nm">32</td><td class="nm">19</td><td class="nm">169</td><td class="nm"></td><td class="nm"></td><td class="nm">84</td></tr><tr><td class="k">mcp</td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm"></td><td class="nm">1</td><td class="nm">4</td><td class="nm"></td><td class="nm"></td></tr><tr><td class="k">ai</td><td class="nm">1</td><td class="nm">1</td><td class="nm"></td><td class="nm"></td><td class="nm">5</td><td class="nm"></td><td class="nm">1</td><td class="nm"></td><td class="nm"></td><td class="nm">4</td><td class="nm">4</td><td class="nm">5</td><td class="nm"></td><td class="nm"></td></tr></tbody></table></div></details>
+<h2>Not drawn (verified counts)</h2>
+<div class="cards" style="grid-template-columns:1fr"><div class="card"><ul><li>profile → foods 11, profile → sync 7</li><li>coach → sync 14, coach → device 13, coach → log 8 (phone-side apply code in the coach domain)</li><li>plan → coach 10, coach → plan 12, rebalance → plan 9, foods → device 24</li><li>server → profile 23, server → plan 19, server → shopping 15, server → health 15, server → nutrients 14, server → catalog 9</li><li>meals → coach 4: lib/meals/parts.ts:19 and templates.ts:19 import lib/coach/portion-bands; affinity.ts:30 and cuisine.ts:20 import lib/coach/meal-pairings</li></ul></div></div>
+<h2>Method</h2>
+<p class="fig-note">The counter reads every <code>.ts</code> and <code>.tsx</code> file under <code>lib/</code>, tests excluded (<code>*.test.*</code>). It counts static <code>import</code> and <code>export … from</code> statements plus dynamic <code>import("…")</code> calls whose path starts with <code>@/lib/</code> or is relative. A path resolves to <code>X.ts</code>, <code>X.tsx</code> or <code>X/index.ts</code>. A domain is the first folder under <code>lib/</code>. A top-level file <code>lib/X.ts</code> joins domain X when <code>lib/X/</code> exists (for example <code>foods.ts</code> and <code>meals.ts</code>); the other top-level files form "top-level files". The counts match the Archify map on every edge it showed. The script is not part of the repo.</p>
+<p class="foot">Dependency graph and heatmap · built with diagram-design, profile meal-companion · the Archify <code>module-map.html</code> stays as it was</p>
+</div>
+</body>
+</html>

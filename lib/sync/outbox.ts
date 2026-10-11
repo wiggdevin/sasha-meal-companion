@@ -5,8 +5,8 @@
  * so the tests drive it with a fake.
  */
 import {
-  allOps, appendOp, appendOpWithRow, countOps, deleteOp, deleteRow, getCursor, getRow,
-  putOp, putRow, setCursor, wireOp, type AccountHandle, type OutboxOp, type OwnedOp, type QueuedSyncOp,
+  allOps, appendOp, appendOpWithRow, countOps, deleteOp, deleteRow, getCursor,
+  putOp, setCursor, wireOp, type AccountHandle, type OutboxOp, type OwnedOp, type QueuedSyncOp,
 } from "./idb";
 import { drainable, handleLogEntryResult } from "./log-entry-ops";
 import { applyFoodMembershipResult, type SyncResult } from "./outbox-membership";
@@ -14,7 +14,7 @@ import { SyncHttpError } from "./client";
 import { encodeKey } from "./keys";
 import { type Row } from "./merge";
 import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
-import { hasQueuedAfter, headOfLine, requeueInPlace } from "./row-queue";
+import { headOfLine, requeueInPlace, settleAppliedRow } from "./row-queue";
 import { projectMirroredPlanDay } from "./plan-days";
 import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
@@ -196,42 +196,27 @@ function isClientFault(e: unknown): e is SyncHttpError {
 async function applyApplied(
   h: AccountHandle, result: Extract<OpResult, { status: "applied" }>, op: OutboxOp, now: () => number,
 ): Promise<void> {
-  // A newer op for this row is queued, so the mirror already holds its state: this older answer
-  // may not write over it (audit 2026-10-10 A138). The newer op is aimed at this revision.
-  if (op.entity !== SETTINGS && await hasQueuedAfter(h, op)) return deleteOp(h, op.op_id);
-  if (op.kind === "delete") {
-    // Tombstone, don't merge: the server accepted an empty-payload delete, and merging {}
-    // would leave the row looking untouched except for its rev.
-    const local = (await getRow(h, op.entity, op.entity_id)) ?? op.payload;
-    await putRow(h, op.entity, op.entity_id, {
-      ...local, deleted_at: new Date(now()).toISOString(), rev: result.rev,
-    });
-    await deleteOp(h, op.op_id);
-    return;
-  }
-  if (op.kind === "restore") {
-    const local = await getRow(h, op.entity, op.entity_id);
-    if (!local) {
-      // Nothing here to un-tombstone (this device may have GC'd it already) and 'applied'
-      // carries no row — only rev/seq. Roll the cursor back to just before this change so the
-      // next pullChanges() re-fetches its full `current` snapshot from sync_changes.
-      const cursor = await getCursor(h);
-      if (result.seq - 1 < cursor) await setCursor(h, result.seq - 1);
-      await deleteOp(h, op.op_id);
-      return;
-    }
-    await putRow(h, op.entity, op.entity_id, { ...local, deleted_at: null, rev: result.rev });
-    await deleteOp(h, op.op_id);
-    return;
-  }
-  // create / update
-  if (op.entity === SETTINGS) {
+  if (op.entity === SETTINGS && op.kind !== "delete" && op.kind !== "restore") {
     // A whole-row write the server accepted IS the new baseline; the mirror is then the baseline
     // plus whatever is still queued, so a later op's payload is never replayed twice.
     return settleUserSettings(h, op, { status: "applied", rev: result.rev }, now());
   }
-  const local = (await getRow(h, op.entity, op.entity_id)) ?? {};
-  await putRow(h, op.entity, op.entity_id, { ...local, ...op.payload, rev: result.rev });
+  // One transaction decides and writes (lib/sync/row-queue.ts): a newer op for this row queued
+  // before the write keeps the mirror, which already holds its state (audit 2026-10-10 A138).
+  const at = new Date(now()).toISOString();
+  const outcome = await settleAppliedRow(h, op, (local) => {
+    // Tombstone, don't merge: the server accepted an empty-payload delete, and merging {}
+    // would leave the row looking untouched except for its rev.
+    if (op.kind === "delete") return { ...(local ?? op.payload), deleted_at: at, rev: result.rev };
+    if (op.kind === "restore") return local ? { ...local, deleted_at: null, rev: result.rev } : null;
+    return { ...(local ?? {}), ...op.payload, rev: result.rev };
+  });
+  if (outcome !== "missing") return;
+  // A restore with nothing here to un-tombstone (this device may have GC'd it already), and
+  // 'applied' carries no row — only rev/seq. Roll the cursor back to just before this change so
+  // the next pullChanges() re-fetches its full `current` snapshot from sync_changes.
+  const cursor = await getCursor(h);
+  if (result.seq - 1 < cursor) await setCursor(h, result.seq - 1);
   await deleteOp(h, op.op_id);
 }
 

@@ -23,7 +23,7 @@ export const META_STORE = "meta";
 /** Phase 2: cached catalog revisions (contracts 1–2 §5), keyed by revision_id. */
 export const CATALOG_STORE = "catalog_revisions";
 
-const CURSOR_KEY = "cursor";
+export const CURSOR_KEY = "cursor";
 const LAST_SYNC_KEY = "last_sync_at";
 /** This device's queue counter. Exported so a settlement can allocate a seq inside its own
  *  transaction (lib/sync/settings.ts) instead of opening a second one. */
@@ -221,6 +221,12 @@ function snapshotInputWritten(h: AccountHandle): void {
     pendingForget.delete(h.userId);
     void forgetMealSnapshot(h, false).catch(() => undefined);
   }, 0));
+}
+
+/** After a committed write to `entity` made in a transaction of the caller's own: a snapshot
+ *  input forgets the snapshot, exactly as `writeEntity` does (lib/sync/row-queue.ts). */
+export function entityWritten(h: AccountHandle, entity: string): void {
+  if (SNAPSHOT_INPUTS.has(entity)) snapshotInputWritten(h);
 }
 
 /** A write to `entity`; a snapshot input also forgets the snapshot, after and apart from it. */

@@ -277,7 +277,8 @@ export async function pullChanges(
         else if (change.entity === "target_profiles") {
           await deleteMirroredTargetProfile(h, change.entity_key);
         }
-        else await deleteRow(h, change.entity, change.entity_key);
+        // A delete echo waits for a queued op on the row like any other change (A164).
+        else await putPulledRow(h, change);
       }
       // `user_settings` is the one row a whole-row writer ALSO rewrites locally (profile save,
       // water goal), so the server's row becomes the BASELINE this client rebuilds the mirror
@@ -293,7 +294,7 @@ export async function pullChanges(
       else if (change.entity === "log_entries") {
         await putRow(h, change.entity, change.entity_key, change.current);
       }
-      else await putPulledRow(h, { ...change, current: change.current });
+      else await putPulledRow(h, change);
       applied += 1;
     }
     cursor = page.next_cursor;

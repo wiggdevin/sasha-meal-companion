@@ -17,8 +17,12 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pullChanges, pushOutbox } from "@/lib/sync/client";
-import { allOps, getRow } from "@/lib/sync/idb";
-import { enqueueWithRow } from "@/lib/sync/outbox";
+import {
+  allOps, getRow, mealSnapshotEpoch, settleSnapshotForget, snapshotInputWrites,
+} from "@/lib/sync/idb";
+import { applyResult, enqueueWithRow } from "@/lib/sync/outbox";
+import { listFavorites, setFavorite } from "@/lib/favorites-client";
+import type { OpResult } from "@/lib/sync/types";
 import { addCups } from "@/lib/water-client";
 import { saveExtraNote } from "@/lib/log-note-client";
 import { savePlanDay } from "@/lib/plan-day-client";
@@ -204,5 +208,98 @@ describe("two queued writes to one row, and another device in between (A165)", (
 
     expect(await allOps(h)).toEqual([]);
     expect(server.row("gut_log", ID)).toMatchObject({ state: "flare", note: "after the gym" });
+  });
+});
+
+describe("the review of W011 slice 2 (Sol, 2026-10-10)", () => {
+  it("keeps a released hold's change when the first pull after it fails (A168, BLOCK 1)", async () => {
+    server.seed("water_log", DAY, { local_date: DAY, cups: 3 });
+    await pass();
+    await addCups(DAY, 1);
+    server.nextPush = "lost";
+    await pass();
+    elsewhere("water_log", DAY, { cups: 9 });
+    await pass(); // held; the re-push answers duplicate and the queue empties
+    server.nextPull = "down";
+    await expect(pullChanges(h, undefined, { fetchFn: server.fetch })).rejects.toThrow();
+    await pass();
+    expect(await getRow(h, "water_log", DAY)).toMatchObject({ rev: 3, cups: 9 });
+  });
+
+  it("holds a pulled delete echo while a re-star is queued (A164, BLOCK 2)", async () => {
+    const REF = "eeeeeeee-5555-4555-8555-555555555555";
+    await setFavorite("food", REF, true, { name: "Rice" }, h);
+    await pass();
+    await pass();
+    await setFavorite("food", REF, false, undefined, h);
+    await pushOutbox(h, { fetchFn: server.fetch }); // the unstar lands; its echo is not pulled yet
+    await setFavorite("food", REF, true, undefined, h); // a restore, queued
+    await pullChanges(h, undefined, { fetchFn: server.fetch }); // meets the old delete echo
+    expect(await getRow(h, "favorites_foods", REF)).toMatchObject({ deleted_at: null });
+    // Her last word is "not starred": the unstar must queue, and win.
+    await setFavorite("food", REF, false, undefined, h);
+    for (let i = 0; i < 3; i += 1) await pass();
+    expect(await allOps(h)).toEqual([]);
+    expect(server.row("favorites_foods", REF)?.deleted_at).toBeTruthy();
+    expect((await listFavorites()).map((row) => row.id)).not.toContain(REF);
+  });
+
+  it("forgets the meal snapshot on a pulled snapshot input, written or held (WARN 3)", async () => {
+    const ID = "ffffffff-6666-4666-8666-666666666666";
+    server.seed("user_foods", ID, { id: ID, name: "Rice" });
+    const before = snapshotInputWrites(h.userId);
+    await pullChanges(h, undefined, { fetchFn: server.fetch });
+    expect(snapshotInputWrites(h.userId)).toBeGreaterThan(before);
+    await settleSnapshotForget(h);
+    const epoch = await mealSnapshotEpoch(h);
+
+    const row = (await getRow(h, "user_foods", ID))!;
+    await enqueueWithRow(h, { ...row, name: "Brown rice" }, { op_id: crypto.randomUUID(),
+      entity: "user_foods", entity_id: ID, kind: "update", base_rev: 1,
+      payload: { id: ID, name: "Brown rice" }, client_ts: new Date().toISOString() });
+    await settleSnapshotForget(h);
+    const queued = await mealSnapshotEpoch(h);
+    expect(queued).toBeGreaterThan(epoch);
+    server.apply({ op_id: crypto.randomUUID(), entity: "user_foods", entity_id: ID, kind: "update",
+      base_rev: 1, payload: { name: "White rice" }, client_ts: new Date().toISOString() });
+    await pullChanges(h, undefined, { fetchFn: server.fetch }); // held
+    await settleSnapshotForget(h);
+    expect(await mealSnapshotEpoch(h)).toBeGreaterThan(queued);
+  });
+
+  it("never settles an older answer over a tap made while it settles (A138, WARN 5)", async () => {
+    server.seed("water_log", DAY, { local_date: DAY, cups: 4 });
+    await pass();
+    await addCups(DAY, 1); // 5, queued
+    const [op] = await allOps(h);
+    const result = server.apply(op) as Extract<OpResult, { status: "applied" }>;
+    await Promise.all([applyResult(h, result, op), addCups(DAY, 1)]);
+    expect(await cups()).toBe(6);
+    await pass();
+    expect(server.row("water_log", DAY)?.cups).toBe(6);
+  });
+
+  it("folds two queued note edits into one rebase against another device's note (A077, WARN 6)", async () => {
+    const ENTRY_ID = "abababab-7777-4777-8777-777777777777";
+    const card: LoggedFood = { id: ENTRY_ID, foodId: "rice", name: "Rice", portionLabel: "150 g",
+      qty: 1, grams: 150, macros: { kcal: 195, protein: 4, carbs: 42, fat: 0.4 },
+      at: "2026-10-09T17:00:00.000Z" };
+    server.seed("log_entries", ENTRY_ID, { id: ENTRY_ID, local_date: DAY, tz: "UTC",
+      slot: "meal-2", method: "search", eaten_at: card.at, note: null,
+      items: [{ id: "cdcdcdcd-8888-4888-8888-888888888888", entry_id: ENTRY_ID, seq: 1,
+        food_ref_id: "efefefef-9999-4999-8999-999999999999", qty: 1, unit: "g", grams: 150,
+        snapshot: {} }] });
+    addExtra(DAY, card);
+    await pass();
+    await saveExtraNote(DAY, ENTRY_ID, "felt fine");
+    await saveExtraNote(DAY, ENTRY_ID, "felt fine, then good");
+    vi.setSystemTime(Date.now() + 1_000);
+    elsewhere("log_entries", ENTRY_ID, { note: "a bit heavy" });
+    for (let i = 0; i < 4; i += 1) await pass();
+
+    expect(await allOps(h)).toEqual([]);
+    const lines = String(server.row("log_entries", ENTRY_ID)?.note).split("\n");
+    // Both sides' current notes, and never the rewrite she replaced.
+    expect([...lines].sort()).toEqual(["a bit heavy", "felt fine, then good"]);
   });
 });

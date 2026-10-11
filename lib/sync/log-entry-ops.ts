@@ -6,7 +6,8 @@
  * behaviour moved with it.
  */
 import type { AccountHandle } from "@/lib/device/account";
-import { deleteOp, deleteRow, putOp, putRow, type OutboxOp } from "./idb";
+import { allOps, deleteOp, deleteRow, putOp, type OutboxOp } from "./idb";
+import { queuedAfter, replaceQueued } from "./row-queue";
 import { backoffMs } from "./backoff";
 import { PARK_MS } from "./settings";
 import { joinNotes, mergeNoteFromBase } from "./merge";
@@ -106,36 +107,53 @@ export const MAX_UPDATE_REBASES = 3;
  *
  * So the op is re-aimed: the server's row, with THEIR note on it. The mirror takes the server's row
  * too, and the card keeps their note until this op lands, because `ownWriteQueued` still sees it.
+ *
+ * The note edits queued right behind it fold into the same rebase (audit 2026-10-10 W011 review):
+ * the latest one is what she means now, and the first one's base is the note the run of edits
+ * started from. Rebased one at a time, a rewrite she replaced came back — the first rebase joined
+ * it to the other device's note, and the next edit's base no longer matched that join.
  */
 export async function rebaseLogNote(
   h: AccountHandle, op: OutboxOp, result: Extract<OpResult, { status: "conflict" }>, now: () => number = Date.now,
 ): Promise<void> {
   const server = (result.current ?? {}) as Record<string, unknown>;
-  const mine = op.payload as Record<string, unknown>;
+  const folded = noteEditsAfter(await allOps(h), op);
+  const latest = folded.length > 0 ? folded[folded.length - 1] : op;
+  const mine = latest.payload as Record<string, unknown>;
   const serverTs = String(server.updated_at ?? "");
-  // With the note her edit started from, only a note BOTH sides changed is joined: one the other
+  // With the note her edits started from, only a note BOTH sides changed is joined: one the other
   // device left alone takes hers, a clear included (audit 2026-10-10 A077). An op queued before
   // that base was recorded keeps the old rule. Theirs second: it is the newer of the two, and a
   // note is evidence — neither side's is dropped.
   const note = op.note_base === undefined
-    ? joinNotes(server.note, mine.note, serverTs, op.client_ts)
-    : mergeNoteFromBase(op.note_base, mine.note, server.note, op.client_ts, serverTs);
+    ? joinNotes(server.note, mine.note, serverTs, latest.client_ts)
+    : mergeNoteFromBase(op.note_base, mine.note, server.note, latest.client_ts, serverTs);
   // The re-aimed payload is built on the server's row, so the server's note is its base now.
   const serverNote = typeof server.note === "string" ? server.note.trim() : "";
-  if (isCompleteEntryRow(server)) {
-    await putRow(h, "log_entries", op.entity_id, server).catch(() => undefined);
-  }
   const attempts = (op.error_attempts ?? 0) + 1;
   const parked = attempts >= MAX_UPDATE_REBASES || typeof result.current_rev !== "number";
   if (parked) console.warn(`sync: note for ${op.entity_id} parked after ${attempts} refusals.`);
-  await putOp(h, {
+  // One transaction: the folded edits leave, the re-aimed op keeps this op's place in the queue,
+  // and the mirror takes the server's row when it is a whole one.
+  await replaceQueued(h, op, {
     ...op,
     base_rev: typeof result.current_rev === "number" ? result.current_rev : op.base_rev,
     payload: { ...serverFields(server), id: op.entity_id, note: note ?? null },
+    client_ts: latest.client_ts,
     note_base: serverNote || null,
     error_attempts: attempts,
     next_attempt_at: now() + (parked ? PARK_MS : backoffMs(attempts)),
-  });
+  }, folded.map((o) => o.op_id), isCompleteEntryRow(server) ? server : null);
+}
+
+/** The run of note edits queued right behind `op` for its entry, oldest first. */
+function noteEditsAfter(all: readonly OutboxOp[], op: OutboxOp): OutboxOp[] {
+  const out: OutboxOp[] = [];
+  for (const next of queuedAfter(all, op)) {
+    if (next.kind !== "update") break;
+    out.push(next);
+  }
+  return out;
 }
 
 /**
