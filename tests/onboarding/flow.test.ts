@@ -361,6 +361,68 @@ describe("onboarding completion", () => {
     expect(saveWeighIn).toHaveBeenCalledOnce();
   });
 
+  // Audit 2026-10-10 A089: Settings › Edit profile re-runs this save with the profile's own
+  // `weight_kg`, which no weigh-in updates. Unchanged, it is not a new reading.
+  it("never logs an unchanged profile weight as a weigh-in on an onboarded account", async () => {
+    const state: OnboardingState = { ...completeState(), flags: ["halal"] };
+    const saveWeighIn = vi.fn(async () => null);
+    const base = { ...defaultSettings(), weightKg: 60, onboardedAt: "2026-09-01T08:00:00.000Z" };
+
+    await persistCompletedOnboarding(base, state, NOW, {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => undefined),
+      saveWeighIn,
+      loadConstraints: vi.fn(async () => null),
+      saveConstraints: vi.fn(),
+      localDate: () => "2026-09-19",
+      hasWeighIn: () => false,
+      openFoodWorld: async () => {},
+    });
+
+    expect(saveWeighIn).not.toHaveBeenCalled();
+  });
+
+  // Sol review (PR #62) WARN: the form reads a seeded weight back rounded to the gram.
+  it("never logs an untouched non-integer profile weight as a weigh-in", async () => {
+    const base = { ...defaultSettings(), sex: "female" as const, birthYear: 1996, heightCm: 165,
+      weightKg: 70.1234, activityLevel: "moderate" as const, goal: "recomp" as const,
+      onboardedAt: "2026-09-01T08:00:00.000Z" };
+    const state = createOnboardingState(base);
+    const saveWeighIn = vi.fn(async () => null);
+
+    await persistCompletedOnboarding(base, state, NOW, {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => undefined),
+      saveWeighIn,
+      loadConstraints: vi.fn(async () => null),
+      saveConstraints: vi.fn(),
+      localDate: () => "2026-09-19",
+      hasWeighIn: () => false,
+      openFoodWorld: async () => {},
+    });
+
+    expect(saveWeighIn).not.toHaveBeenCalled();
+  });
+
+  it("logs a weight the onboarded account changed in Edit profile", async () => {
+    const state: OnboardingState = { ...completeState(), flags: ["halal"] };
+    const saveWeighIn = vi.fn(async () => null);
+    const base = { ...defaultSettings(), weightKg: 64, onboardedAt: "2026-09-01T08:00:00.000Z" };
+
+    await persistCompletedOnboarding(base, state, NOW, {
+      saveLocal: vi.fn(),
+      saveSynced: vi.fn(async () => undefined),
+      saveWeighIn,
+      loadConstraints: vi.fn(async () => null),
+      saveConstraints: vi.fn(),
+      localDate: () => "2026-09-19",
+      hasWeighIn: () => true,
+      openFoodWorld: async () => {},
+    });
+
+    expect(saveWeighIn).toHaveBeenCalledOnce();
+  });
+
   it("writes a changed weight even when today already has a weigh-in", async () => {
     const state: OnboardingState = { ...completeState(), flags: ["halal"] };
     const saveWeighIn = vi.fn(async () => null);
