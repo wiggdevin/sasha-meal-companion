@@ -141,17 +141,65 @@ async function rebaseLogNoteOnce(
   const attempts = (op.error_attempts ?? 0) + 1;
   const parked = attempts >= MAX_UPDATE_REBASES || typeof result.current_rev !== "number";
   if (parked) console.warn(`sync: note for ${op.entity_id} parked after ${attempts} refusals.`);
+  // A coach move (retime, its Undo) rides the same update: the time it set survives the rebase
+  // unless the other device moved the entry later. Before, every refused update was read as a note
+  // and the new time was dropped.
+  const moved = movedFields([op, ...folded], server, serverTs);
   // One transaction: the folded edits leave, the re-aimed op keeps this op's place in the queue,
   // and the mirror takes the server's row when it is a whole one.
   await replaceQueued(h, op, {
     ...op,
     base_rev: typeof result.current_rev === "number" ? result.current_rev : op.base_rev,
-    payload: { ...serverFields(server), id: op.entity_id, note: note ?? null },
+    payload: { ...serverFields(server), ...moved.fields, id: op.entity_id, note: note ?? null },
     client_ts: latest.client_ts,
     note_base: serverNote || null,
+    base_fields: moved.base,
+    field_stamps: moved.stamps,
     error_attempts: attempts,
     next_attempt_at: now() + (parked ? PARK_MS : backoffMs(attempts)),
   }, folded.map((o) => o.op_id), isCompleteEntryRow(server) ? server : null, seen);
+}
+
+/** The entry fields a move sets. They move together: a time without its date or zone is a
+ *  different instant. A note edit records none of them in `base_fields`. */
+const MOVE_FIELDS = ["eaten_at", "local_date", "tz"] as const;
+
+/** Same instant for times (".000Z" and "+00:00" spell one), same text for the rest. */
+function sameValue(field: string, a: unknown, b: unknown): boolean {
+  if (field === "eaten_at" && typeof a === "string" && typeof b === "string") {
+    return Date.parse(a) === Date.parse(b);
+  }
+  return (a ?? null) === (b ?? null);
+}
+
+/**
+ * The move the queued ops make, laid over the server's row. The run is judged whole: from the
+ * first move's base (where the entry was) to the last move's payload (where the user left it), so
+ * a move and its Undo cancel out. It stands unless the server moved the entry too, later than the
+ * user's last move or at a time the row does not say (its own time, kept in `field_stamps` across rebases; a folded note does not
+ * make the move newer). Time, date and zone are taken together. `base` is the server's placement,
+ * what the next conflict compares against.
+ */
+export function movedFields(
+  ops: readonly Pick<OutboxOp, "payload" | "base_fields" | "client_ts" | "field_stamps">[],
+  server: Record<string, unknown>, serverTs: string,
+): { fields: Record<string, unknown>; base?: Record<string, unknown>; stamps?: Record<string, string> } {
+  const moves = ops.filter((op) => op.base_fields && MOVE_FIELDS.some((f) => f in op.base_fields!));
+  if (moves.length === 0) return { fields: {} };
+  const start = moves[0].base_fields!;
+  const last = moves[moves.length - 1];
+  const end = last.payload as Record<string, unknown>;
+  const moved = MOVE_FIELDS.filter((f) => f in start && !sameValue(f, end[f], start[f]));
+  if (moved.length === 0) return { fields: {} };
+  const theirs = MOVE_FIELDS.some((f) => f in start && !sameValue(f, server[f], start[f]));
+  const movedAt = last.field_stamps?.eaten_at ?? last.client_ts;
+  // A row with no readable time of its own (log_entries rows carry none today) cannot be judged
+  // older: when the other device moved the entry too, its move reached the server first and stands.
+  const serverAt = Date.parse(serverTs);
+  if (theirs && (Number.isNaN(serverAt) || serverAt > Date.parse(movedAt))) return { fields: {} };
+  const fields = Object.fromEntries(MOVE_FIELDS.filter((f) => f in end).map((f) => [f, end[f]]));
+  return { fields, base: Object.fromEntries(Object.keys(fields).map((f) => [f, server[f] ?? null])),
+    stamps: { eaten_at: movedAt } };
 }
 
 /** The run of note edits at the head of `behind` (the ops queued after a refused one). */
