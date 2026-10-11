@@ -19,6 +19,10 @@ import type { accountClock } from "@/lib/server/day-context";
 import type { LogEntryExistsPort } from "@/lib/server/coach-unlogged-meal";
 import type { MessageRow, persist } from "@/lib/server/coach-threads";
 
+/** `persist`'s arguments up to the summary; the save adds the kind and the writer. */
+export type SaveArgs = Parameters<typeof persist> extends [infer C, infer T, infer R, infer N, infer S,
+  ...unknown[]] ? [C, T, R, N, S?] : never;
+
 /** Every injected dependency but the model entry point, which stays with the orchestrator. */
 export type StageDeps = {
   ports?: Partial<ExecutorPorts>;
@@ -64,8 +68,9 @@ export type Turn = {
   realStartedAt: number;
   replyDeadlineAt: number;
   saveDeadlineAt: number;
-  /** Saving the turn, bounded: late, the phone gets the retryable 503 while it still waits. */
-  save: (...args: Parameters<typeof persist>) => Promise<void>;
+  /** Saving the turn, bounded: late, the phone gets the retryable 503 while it still waits. The
+   *  thread kind and the service-role writer come from the turn itself. */
+  save: (...args: SaveArgs) => Promise<void>;
 };
 
 /** A turn whose setup reads answered: the thread, the next seq and the user's own row. */

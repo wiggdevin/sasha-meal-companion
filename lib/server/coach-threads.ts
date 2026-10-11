@@ -93,8 +93,13 @@ export async function assertChatCapacity(client: SupabaseClient, userId: string)
   }
 }
 
+/**
+ * The saved turn for `messageId`, read with the session client. `admin` writes only the "could not
+ * finish" reply of an abandoned turn, a `role = 'assistant'` row the user may not insert (W018),
+ * into the thread the session read just proved is hers.
+ */
 export async function storedTurn(
-  client: SupabaseClient, userId: string, messageId: string,
+  client: SupabaseClient, admin: SupabaseClient, userId: string, messageId: string,
   model: CoachTurnResponse["model"],
   scope?: { threadId: string | null; kind: "chat" | "plan" },
 ): Promise<CoachTurnResponse | null> {
@@ -147,7 +152,7 @@ export async function storedTurn(
       assistant = unsaved;
     } else {
       const saved = { ...unsaved, id: randomUUID() };
-      const { error } = await client.from("coach_messages").insert({
+      const { error } = await admin.from("coach_messages").insert({
         ...saved, thread_id: row.thread_id, user_id: userId, policy_checks: [],
         deflected: false, model_id: null, ai_call_id: null,
       });
@@ -444,15 +449,22 @@ export async function searchChatThreads(
 /**
  * One insert per row, not one array insert: each row's error is checked, and the second (the
  * assistant) row lands as its own coach_messages record, which is what the turn recorder reads.
+ *
+ * W018: the user's question is written with her session client, so RLS proves the thread is hers;
+ * every other row (the reply) is written with the service-role client, because a signed-in user
+ * may insert only `role = 'user'` rows (migration 20261231170000). A reply is saved only beside a
+ * user row of the same thread and account in the same call.
  */
 export async function persist(
   client: SupabaseClient, threadId: string, rows: MessageRow[], newThreadTitle: string | null,
-  summary?: string | null,
-  kind: "chat" | "plan" = "chat", planAdmin?: SupabaseClient,
+  summary: string | null | undefined,
+  kind: "chat" | "plan", admin: SupabaseClient,
 ): Promise<void> {
+  const unanchored = rows.some((row, at) => row.role !== "user" && !rows.slice(0, at).some((user) =>
+    user.role === "user" && user.thread_id === row.thread_id && user.user_id === row.user_id));
+  if (unanchored) throw new HttpError(500, "internal", "Could not save the turn.");
   if (newThreadTitle !== null) {
-    const owner = kind === "plan" ? planAdmin : client;
-    if (!owner) throw new HttpError(500, "internal", "Could not start a plan thread.");
+    const owner = kind === "plan" ? admin : client;
     const { error } = await owner.from("coach_threads").insert({
       id: threadId, user_id: rows[0].user_id, title: newThreadTitle.slice(0, 80), kind,
     });
@@ -462,7 +474,8 @@ export async function persist(
     if (error) throw new HttpError(500, "internal", "Could not start a thread.");
   }
   for (const row of rows) {
-    const { error } = await client.from("coach_messages").insert(row);
+    const writer = row.role === "user" ? client : admin;
+    const { error } = await writer.from("coach_messages").insert(row);
     // The same message id is already saved: a retry raced an attempt still running. Retryable,
     // and the next retry replays whichever attempt won (Sol review, 2026-09-23).
     if ((error as { code?: string } | null)?.code === "23505") {

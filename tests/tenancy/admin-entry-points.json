@@ -247,6 +247,10 @@
     "test": "tests/tenancy/admin-libs.test.ts",
     "via": "@/lib/server/coach-role-advice"
   },
+  "lib/server/coach-sanity.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
+  },
   "lib/server/coach-threads.ts": {
     "test": "tests/tenancy/admin-routes.test.ts",
     "via": "@/app/api/coach/route"
