@@ -7,7 +7,8 @@ import {
   allOps, deleteOp, getRow, putRow, wireOp, type AccountHandle, type OutboxOp, type QueuedSyncOp,
 } from "./idb";
 import {
-  mergeEntity, mergePlanDayFields, NEVER_MERGED, planDayStamps, rebaseOp, type Row,
+  carriedPlanDayStamps, mergeEntity, mergePlanDayFields, NEVER_MERGED, planDayStamps, rebaseOp,
+  type Row,
 } from "./merge";
 import { queuedAfter } from "./row-queue";
 import { settleUserSettings } from "./settings";
@@ -92,11 +93,13 @@ function rebasePlanDay(
     for (const [field, value] of Object.entries(o.base_fields!)) if (!(field in base)) base[field] = value;
   }
   // Each field and slot is "newer" by its own last edit, not by the run's last op (Sol WARN 4).
-  const merged = mergePlanDayFields(touched, base, server, planDayStamps(ops), serverTs);
+  const stamps = planDayStamps(ops);
+  const merged = mergePlanDayFields(touched, base, server, stamps, serverTs);
   const fields = Object.keys(merged).filter((field) => field !== "local_date" && field !== "eaten_slots");
   return {
     op: { ...rebaseOp(wireOp(op), merged, currentRev),
-      base_fields: Object.fromEntries(fields.map((field) => [field, server[field] ?? null])) },
+      base_fields: Object.fromEntries(fields.map((field) => [field, server[field] ?? null])),
+      field_stamps: carriedPlanDayStamps(merged, server, stamps) },
     retire: ops.slice(1).map((o) => o.op_id),
     mirror: { ...server, ...merged, rev: currentRev },
   };

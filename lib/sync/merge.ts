@@ -167,36 +167,67 @@ export const PLAN_DAY_EMPTY: Readonly<Record<string, unknown>> = {
 };
 
 /**
- * When this phone last changed each `plan_days` field, and each slot of a per-slot field: the
- * `client_ts` of the latest op whose value there differs from the value that op replaced. A field
- * or slot an op named without changing falls back to the field's stamp, then to the latest op that
- * named the field. So a later edit of one field never makes an older edit of another one newer
- * (W011 review, Sol WARN 4).
+ * When this phone last changed each `plan_days` field, and each slot of a per-slot field: the time
+ * of the latest op whose value there differs from the value that op replaced — that op's
+ * `client_ts`, or the stamp a rebase carried for it (`field_stamps`). A field or slot an op named
+ * without changing falls back to the field's stamp, then to the latest op that named the field. So
+ * a later edit of one field never makes an older edit of another one newer, and neither does a
+ * rebase (W011 review, Sol WARN 4).
  */
 export type PlanDayStamps = (field: string, slot?: string) => string;
 
-export function planDayStamps(
-  ops: readonly { payload: Row; base_fields?: Row; client_ts: string }[],
-): PlanDayStamps {
+const stampKey = (field: string, slot: string) => `${field}\u0000${slot}`;
+
+type StampedOp = {
+  payload: Row; base_fields?: Row; client_ts: string; field_stamps?: Record<string, string>;
+};
+
+export function planDayStamps(ops: readonly StampedOp[]): PlanDayStamps {
   const named: Record<string, string> = {};
   const fields: Record<string, string> = {};
-  const slots: Record<string, Record<string, string>> = {};
+  const slots: Record<string, string> = {};
   for (const op of ops) {
     const base = op.base_fields ?? {};
+    const carried = op.field_stamps ?? {};
     for (const field of Object.keys(op.payload)) {
       named[field] = op.client_ts;
-      if (!same(op.payload[field], base[field])) fields[field] = op.client_ts;
+      const fieldStamp = carried[field] ?? op.client_ts;
+      if (!same(op.payload[field], base[field])) fields[field] = fieldStamp;
       if (!PLAN_DAY_MAPS.has(field)) continue;
       const mine = asMap(op.payload[field]);
       const was = asMap(base[field]);
       for (const slot of new Set([...Object.keys(mine), ...Object.keys(was)])) {
-        if (!same(mine[slot], was[slot])) (slots[field] ??= {})[slot] = op.client_ts;
+        const key = stampKey(field, slot);
+        if (!same(mine[slot], was[slot])) slots[key] = carried[key] ?? fieldStamp;
       }
     }
   }
   const last = ops.length > 0 ? ops[ops.length - 1].client_ts : "";
   const fieldStamp = (field: string) => fields[field] ?? named[field] ?? last;
-  return (field, slot) => (slot === undefined ? undefined : slots[field]?.[slot]) ?? fieldStamp(field);
+  return (field, slot) => (slot === undefined ? undefined : slots[stampKey(field, slot)])
+    ?? fieldStamp(field);
+}
+
+/**
+ * The stamps a rebased `plan_days` op carries: for every field and slot where the merge kept this
+ * phone's value over the server's, the time the user made that edit. The rebased op's own
+ * `client_ts` is the rebase's, so without these a second conflict would judge an old edit new.
+ */
+export function carriedPlanDayStamps(
+  merged: Row, server: Row, stamps: PlanDayStamps,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const field of Object.keys(merged)) {
+    if (field === "local_date" || field === "eaten_slots") continue;
+    if (!same(merged[field], server[field])) out[field] = stamps(field);
+    if (!PLAN_DAY_MAPS.has(field)) continue;
+    const mine = asMap(merged[field]);
+    const theirs = asMap(server[field]);
+    for (const slot of new Set([...Object.keys(mine), ...Object.keys(theirs)])) {
+      if (!same(mine[slot], theirs[slot])) out[stampKey(field, slot)] = stamps(field, slot);
+    }
+  }
+  return out;
 }
 
 /**

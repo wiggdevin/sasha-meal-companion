@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   joinNotes, MergeRefusedError, mergeEntity, mergeNoteFromBase, mergePlanDayFields, NEVER_MERGED,
-  planDayStamps, rebaseOp,
+  carriedPlanDayStamps, planDayStamps, rebaseOp,
 } from "./merge";
 import type { SyncOp } from "./types";
 
@@ -213,6 +213,22 @@ describe("mergePlanDayFields", () => {
     expect(mergePlanDayFields({ swaps: { "meal-1": "oats" }, floor_day: true },
       { swaps: {}, floor_day: false }, { swaps: { "meal-1": "eggs" }, floor_day: false }, stamps, between))
       .toEqual({ swaps: { "meal-1": "eggs" }, floor_day: true });
+  });
+
+  it("keeps an edit's own stamp through a rebase, so a second conflict still judges it old", () => {
+    const MID = new Date((Date.parse(OLD) + Date.parse(NEW)) / 2).toISOString();
+    const LATER = "2026-09-10T12:00:00.000Z";
+    // The phone's swap at OLD meets a server day that changed only Floor Day; the rebase is made at LATER.
+    const first = { swaps: {}, floor_day: true };
+    const stamps = planDayStamps([{ payload: { swaps: { "meal-1": "oats" } },
+      base_fields: { swaps: {} }, client_ts: OLD }]);
+    const merged = mergePlanDayFields({ swaps: { "meal-1": "oats" } }, { swaps: {} }, first, stamps, OLD);
+    const rebased = { payload: merged, base_fields: { swaps: {} }, client_ts: LATER,
+      field_stamps: carriedPlanDayStamps(merged, first, stamps) };
+    // The tablet then picks eggs for that meal at MID: newer than the phone's pick, older than the rebase.
+    expect(mergePlanDayFields(rebased.payload, rebased.base_fields,
+      { swaps: { "meal-1": "eggs" }, floor_day: true }, planDayStamps([rebased]), MID))
+      .toEqual({ swaps: { "meal-1": "eggs" } });
   });
 
   it("reads an override the server re-ordered as the same override", () => {
