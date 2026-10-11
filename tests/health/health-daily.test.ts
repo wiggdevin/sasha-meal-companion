@@ -276,4 +276,32 @@ describe("weighInsKg", () => {
     expect(out[0].kg).toBeCloseTo(57.697, 3);
     expect(out[1]).toEqual({ date: "2026-09-16", kg: 57.5 });
   });
+
+  it("lets a scale reading beat a typed one on the same day, as the dashboard does (A050)", async () => {
+    const rows = [
+      { local_date: "2026-09-15", value: 80.0, unit: "kg", source_kind: "health_auto_export" },
+      { local_date: "2026-09-15", value: 80.4, unit: "kg", source_kind: "manual" },
+      { local_date: "2026-09-16", value: 80.2, unit: "kg", source_kind: "manual" },
+      { local_date: "2026-09-17", value: 79.8, unit: "kg", source_kind: "oura" },
+      { local_date: "2026-09-17", value: 79.9, unit: "kg", source_kind: "health_auto_export" },
+    ];
+    const out = await weighInsKg(stubSelect(rows), "user-1", "2026-09-15", "2026-09-17");
+    // Sept 15: the typed 80.4 is dropped. Sept 16: a typed number alone still counts. Sept 17: both
+    // device readings stay; the engine takes their median (ruling R1).
+    expect(out).toEqual([{ date: "2026-09-15", kg: 80.0 }, { date: "2026-09-16", kg: 80.2 },
+      { date: "2026-09-17", kg: 79.8 }, { date: "2026-09-17", kg: 79.9 }]);
+  });
+
+  it("asks weigh_ins for each reading's source kind", async () => {
+    const selects: string[] = [];
+    const q: Record<string, unknown> = {
+      select: (columns: string) => { selects.push(columns); return q; },
+      eq: () => q, gte: () => q, lt: () => q,
+      then: <T>(resolve: (value: { data: Row[]; error: null }) => T) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    };
+    await weighInsKg({ from: () => q } as unknown as SupabaseClient, "user-1", "2026-09-15",
+      "2026-09-15");
+    expect(selects).toEqual(["local_date, value, unit, source_kind"]);
+  });
 });
