@@ -7,7 +7,7 @@
  */
 import type { AccountHandle } from "@/lib/device/account";
 import { allOps, deleteOp, deleteRow, putOp, type OutboxOp } from "./idb";
-import { queuedAfter, replaceQueued } from "./row-queue";
+import { queuedAfter, replaceQueued, retryStaleRead } from "./row-queue";
 import { backoffMs } from "./backoff";
 import { PARK_MS } from "./settings";
 import { joinNotes, mergeNoteFromBase } from "./merge";
@@ -113,11 +113,19 @@ export const MAX_UPDATE_REBASES = 3;
  * edits started from. Rebased one at a time, a replaced rewrite came back — the first rebase joined
  * it to the other device's note, and the next edit's base no longer matched that join.
  */
-export async function rebaseLogNote(
+export function rebaseLogNote(
   h: AccountHandle, op: OutboxOp, result: Extract<OpResult, { status: "conflict" }>, now: () => number = Date.now,
 ): Promise<void> {
+  // An edit queued while this works the rebase out makes the write refuse; it is worked out again.
+  return retryStaleRead(() => rebaseLogNoteOnce(h, op, result, now));
+}
+
+async function rebaseLogNoteOnce(
+  h: AccountHandle, op: OutboxOp, result: Extract<OpResult, { status: "conflict" }>, now: () => number,
+): Promise<void> {
   const server = (result.current ?? {}) as Record<string, unknown>;
-  const folded = noteEditsAfter(await allOps(h), op);
+  const seen = queuedAfter(await allOps(h), op);
+  const folded = noteEditsAfter(seen);
   const latest = folded.length > 0 ? folded[folded.length - 1] : op;
   const mine = latest.payload as Record<string, unknown>;
   const serverTs = String(server.updated_at ?? "");
@@ -143,13 +151,13 @@ export async function rebaseLogNote(
     note_base: serverNote || null,
     error_attempts: attempts,
     next_attempt_at: now() + (parked ? PARK_MS : backoffMs(attempts)),
-  }, folded.map((o) => o.op_id), isCompleteEntryRow(server) ? server : null);
+  }, folded.map((o) => o.op_id), isCompleteEntryRow(server) ? server : null, seen);
 }
 
-/** The run of note edits queued right behind `op` for its entry, oldest first. */
-function noteEditsAfter(all: readonly OutboxOp[], op: OutboxOp): OutboxOp[] {
+/** The run of note edits at the head of `behind` (the ops queued after a refused one). */
+function noteEditsAfter(behind: readonly OutboxOp[]): OutboxOp[] {
   const out: OutboxOp[] = [];
-  for (const next of queuedAfter(all, op)) {
+  for (const next of behind) {
     if (next.kind !== "update") break;
     out.push(next);
   }

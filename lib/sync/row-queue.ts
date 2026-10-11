@@ -103,12 +103,16 @@ export function queuedAfter(all: readonly OutboxOp[], op: OutboxOp): OutboxOp[] 
  * Replace a refused op with its rebase in ONE transaction: the refused op and the ops folded into
  * the rebase leave, the rebase takes the refused op's place in the queue (never the tail, where it
  * would land after the very edits it carries), and the mirror takes the merged row.
+ *
+ * `seen` is every op queued behind the refused one for its row when the rebase was worked out. An
+ * edit queued since was built on an op this write retires or rewrites, so the write refuses
+ * (`StaleQueueRead`) and the caller works the rebase out again (W011 review, Sol).
  */
 export async function requeueInPlace(
   h: AccountHandle, refused: OutboxOp, next: QueuedSyncOp, retire: readonly string[],
-  mirror: Record<string, unknown>, now: number,
+  mirror: Record<string, unknown>, now: number, seen: readonly OutboxOp[],
 ): Promise<void> {
-  await replaceQueued(h, refused, outboxRow(h, next, refused.seq, now), retire, mirror);
+  await replaceQueued(h, refused, outboxRow(h, next, refused.seq, now), retire, mirror, seen);
 }
 
 /**
@@ -117,7 +121,7 @@ export async function requeueInPlace(
  */
 export async function replaceQueued(
   h: AccountHandle, refused: OutboxOp, row: OutboxOp, retire: readonly string[],
-  mirror: Record<string, unknown> | null,
+  mirror: Record<string, unknown> | null, seen: readonly OutboxOp[],
 ): Promise<void> {
   const db = await openAccountDb(h);
   const tx = db.transaction([refused.entity, OUTBOX_STORE], "readwrite");
@@ -125,6 +129,10 @@ export async function replaceQueued(
   try {
     assertCurrent(h);
     const outbox = tx.objectStore(OUTBOX_STORE);
+    const now = queuedAfter((await outbox.getAll()) as OutboxOp[], refused);
+    if (now.length !== seen.length || now.some((op, i) => !sameOp(op, seen[i]))) {
+      throw new StaleQueueRead();
+    }
     for (const id of [refused.op_id, ...retire]) await outbox.delete(id);
     if (mirror) await tx.objectStore(refused.entity).put(mirror, refused.entity_id);
     await outbox.put(row);
