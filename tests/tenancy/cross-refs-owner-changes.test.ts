@@ -91,7 +91,7 @@ describe.skipIf(!HAS_BRANCH)("a referenced parent cannot change owner", () => {
       unit: "g", food_ref_id: own.foodRef, grams: 1, snapshot: {} }), "item");
     await must(admin().from("duplicate_group_members").insert({ group_id: own.group,
       entry_id: own.entry }), "member");
-    const path = `${a.id}/xref-del-${crypto.randomUUID()}.jpg`;
+    const path = `media/${a.id}/${crypto.randomUUID()}.jpg`;
     await must(admin().from("media_objects").insert({ path, user_id: a.id, kind: "image", bytes: 1,
       entry_id: own.entry }), "media");
     await must(admin().from("favorites_recipes").insert({ user_id: a.id, recipe_id: own.recipe }),
