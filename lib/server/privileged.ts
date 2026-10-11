@@ -12,6 +12,15 @@ import { hashToken, hasScope, toBytea } from "@/lib/server/tokens";
 
 export type TokenUser = { userId: string; tokenId: string; scopes: string[] };
 
+export type TokenScope = "read" | "log:write" | "constraints:write";
+
+/**
+ * Names the scopes a request needs once the token is known (audit 2026-10-10 A059, A131): the MCP
+ * route reads its body only after authentication, so it cannot name one scope up front. Every
+ * scope it returns is checked here, before the callback runs; an empty list requires "read".
+ */
+export type ScopeResolver = (ctx: TokenUser) => Promise<Iterable<TokenScope>>;
+
 type TokenRow = { id: string; user_id: string | null; scopes: string[] | null };
 
 function bearer(req: Request): string | null {
@@ -23,7 +32,7 @@ function bearer(req: Request): string | null {
 
 export async function withTokenUser<T>(
   req: Request,
-  scope: "read" | "log:write" | "constraints:write",
+  scope: TokenScope | ScopeResolver,
   fn: (ctx: TokenUser, admin: SupabaseClient) => Promise<T>,
 ): Promise<T> {
   const raw = bearer(req);
@@ -42,9 +51,13 @@ export async function withTokenUser<T>(
   }
 
   const scopes = Array.isArray(row.scopes) ? row.scopes : [];
-  if (!hasScope(scopes, scope)) {
-    throw new HttpError(403, "forbidden", `Token lacks the "${scope}" scope.`);
+  const ctx: TokenUser = { userId: row.user_id, tokenId: row.id, scopes };
+  const required = typeof scope === "function" ? [...await scope(ctx)] : [scope];
+  for (const each of required.length > 0 ? required : ["read" as const]) {
+    if (!hasScope(scopes, each)) {
+      throw new HttpError(403, "forbidden", `Token lacks the "${each}" scope.`);
+    }
   }
 
-  return fn({ userId: row.user_id, tokenId: row.id, scopes }, admin);
+  return fn(ctx, admin);
 }

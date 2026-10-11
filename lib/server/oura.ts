@@ -5,9 +5,10 @@
  */
 import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { OauthTokens } from "@/lib/health/contract";
+import { isIanaTimeZone, type OauthTokens } from "@/lib/health/contract";
 import { ouraActivityToSamples, ouraReadinessToSamples, ouraSleepToSamples } from "@/lib/oura/map";
 import { ouraGet } from "@/lib/oura/client";
+import { ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZone } from "@/lib/server/account-day";
 import { HttpError } from "@/lib/server/auth";
 import { openOauth, sealOauth } from "@/lib/server/crypto";
 import { hashToken, toBytea } from "@/lib/server/tokens";
@@ -97,24 +98,76 @@ export async function completeOura(admin: SupabaseClient, args: { state: string;
   return { sourceId: (stored.data as { id: string }).id, userId };
 }
 
+type TokenDeps = { fetchFn?: typeof fetch; now?: Date };
+
+/** The source's sealed tokens as stored NOW: a pull's `source` snapshot can be stale after any
+ *  rotation, by this run or another. Null when the source is gone or disconnected. */
+async function storedOauth(admin: SupabaseClient, source: OuraSourceRow): Promise<string | null> {
+  const { data, error } = await admin.from("health_sources").select("oauth")
+    .eq("id", source.id).eq("user_id", source.user_id).is("revoked_at", null).maybeSingle();
+  if (error) throw new HttpError(500, "internal", "could not read the Oura tokens");
+  return (data as { oauth: string | null } | null)?.oauth ?? null;
+}
+
+/** One compare-and-swap write of the rotated pair, keyed on the sealed value it replaces. Answers
+ *  whether this write stored it; an error is retried once, because Oura has already consumed the
+ *  old refresh token and the new pair exists nowhere else. */
+async function storeRotated(admin: SupabaseClient, source: OuraSourceRow, expected: string,
+    sealed: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { data, error } = await admin.from("health_sources").update({ oauth: sealed })
+      .eq("id", source.id).eq("oauth", expected).select("id");
+    if (!error) return Array.isArray(data) && data.length > 0;
+  }
+  throw new HttpError(500, "token_store_failed", "could not store the rotated Oura tokens");
+}
+
+/** Exchange the refresh token in `expected` and store the new pair atomically. When the swap
+ *  matches no row another worker rotated first: its stored pair is the live one, so use it. */
+async function rotate(admin: SupabaseClient, source: OuraSourceRow, expected: string,
+    deps: TokenDeps): Promise<string> {
+  const current = openOauth(expected);
+  const rotated = await exchange({ grant_type: "refresh_token",
+    refresh_token: current.refresh_token }, deps.fetchFn ?? fetch);
+  if (await storeRotated(admin, source, expected, sealOauth(rotated))) return rotated.access_token;
+  const winner = await storedOauth(admin, source);
+  if (!winner || winner === expected) {
+    throw new HttpError(409, "not_connected", "The Oura source changed during a token refresh.");
+  }
+  return openOauth(winner).access_token;
+}
+
+/**
+ * The access token to call Oura with. Near expiry it rotates first. `force` (the one refresh on a
+ * 401, spec §7) ignores the stored expiry, which can be later than Oura's: it re-reads the stored
+ * pair, and when another rotation already replaced the one this pull started from it uses that
+ * newer pair instead of spending a refresh token twice.
+ */
 export async function accessTokenFor(admin: SupabaseClient, source: OuraSourceRow,
-    deps: { fetchFn?: typeof fetch; now?: Date } = {}): Promise<string> {
+    deps: TokenDeps & { force?: boolean } = {}): Promise<string> {
   if (!source.oauth) throw new HttpError(400, "not_connected", "This source has no Oura tokens.");
+  if (deps.force) {
+    const stored = await storedOauth(admin, source);
+    if (!stored) throw new HttpError(400, "not_connected", "This source has no Oura tokens.");
+    if (stored !== source.oauth) return openOauth(stored).access_token;
+    return rotate(admin, source, stored, deps);
+  }
   const now = deps.now ?? new Date();
   const current = openOauth(source.oauth);
   if (Date.parse(current.expires_at) - now.getTime() > OURA_REFRESH_SKEW_MS) {
     return current.access_token;
   }
+  return rotate(admin, source, source.oauth, deps);
+}
 
-  const rotated = await exchange({ grant_type: "refresh_token",
-    refresh_token: current.refresh_token }, deps.fetchFn ?? fetch);
-  // One statement writes the new pair and clears the old, matched on the exact sealed value we read.
-  const { data, error } = await admin.from("health_sources")
-    .update({ oauth: sealOauth(rotated) })
-    .eq("id", source.id).eq("oauth", source.oauth);
-  if (error) throw new HttpError(500, "internal", "could not rotate the Oura tokens");
-  void data;
-  return rotated.access_token;
+/** A 401 refresh shared by every request of one pull: one exchange, never one per request. */
+function sharedRefresh(admin: SupabaseClient, source: OuraSourceRow,
+    deps: TokenDeps): () => Promise<string> {
+  let inFlight: Promise<string> | null = null;
+  return () => {
+    inFlight ??= accessTokenFor(admin, source, { ...deps, force: true });
+    return inFlight;
+  };
 }
 
 function previousTwoDays(today: string): { start: string; end: string } {
@@ -124,13 +177,28 @@ function previousTwoDays(today: string): { start: string; end: string } {
   return { start, end };
 }
 
+/**
+ * The zone Oura's sleep, heart and readiness samples are dated in (W025, B264): the account's
+ * stored zone (lib/server/account-day.ts), else UTC as the logged last resort. Daily activity keeps
+ * Oura's own `day` label whatever the zone (lib/oura/map.ts).
+ */
+async function ouraZone(admin: SupabaseClient, userId: string): Promise<string> {
+  const zone = await readAccountZone(admin, userId);
+  if (isIanaTimeZone(zone)) return zone;
+  console.warn(`oura: no account zone; dating samples by ${ACCOUNT_DAY_LAST_RESORT_ZONE} (last resort)`);
+  return ACCOUNT_DAY_LAST_RESORT_ZONE;
+}
+
 export async function pullTwoDays(admin: SupabaseClient, source: OuraSourceRow, today: string,
     deps: { fetchFn?: typeof fetch } = {}): Promise<{ inserted: number; updated: number; skipped: number }> {
   const { start, end } = previousTwoDays(today);
   const token = await accessTokenFor(admin, source, { fetchFn: deps.fetchFn });
+  // After a rotation above, a 401 refresh must start from the pair that rotation stored.
+  const current = { ...source, oauth: await storedOauth(admin, source) ?? source.oauth };
   const params = { start_date: start, end_date: end };
   const opts = { accessToken: token, fetchFn: deps.fetchFn,
-    refresh: async () => accessTokenFor(admin, source, { fetchFn: deps.fetchFn }) };
+    refresh: sharedRefresh(admin, current, { fetchFn: deps.fetchFn }) };
+  const zone = await ouraZone(admin, source.user_id);
 
   const [activity, readiness, sleep] = await Promise.all([
     ouraGet("daily_activity", params, opts),
@@ -140,8 +208,8 @@ export async function pullTwoDays(admin: SupabaseClient, source: OuraSourceRow, 
 
   const samples = [
     ...activity.data.flatMap(ouraActivityToSamples),
-    ...readiness.data.flatMap(ouraReadinessToSamples),
-    ...sleep.data.flatMap(ouraSleepToSamples),
+    ...readiness.data.flatMap((doc) => ouraReadinessToSamples(doc, zone)),
+    ...sleep.data.flatMap((doc) => ouraSleepToSamples(doc, zone)),
   ];
 
   // The same content hashes the same, so a second pull of the same day is a duplicate event and the

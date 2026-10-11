@@ -101,6 +101,23 @@ function unionAttribution(samples: NormalizedSample[]): { value: number; source:
 }
 
 /**
+ * Steps and active energy, one PROVIDER per day (W025, audit A010). Oura reports a whole-day
+ * total; Apple sources (Health Auto Export, the Shortcut) report their own totals or intervals.
+ * The interval union cannot tell two full-day totals apart — a folded HAE day spans one hour, so
+ * the union added Oura's prorated total on top of it — so the two providers are never added: each
+ * is rolled up alone and the more complete (larger) total wins, Apple on a tie. Within Apple the
+ * Watch-preferred union still merges the watch and the phone.
+ */
+function activityAttribution(samples: NormalizedSample[]): ReturnType<typeof unionAttribution> {
+  const oura = samples.filter((s) => isOura(s.device_label));
+  const other = samples.filter((s) => !isOura(s.device_label));
+  if (oura.length === 0 || other.length === 0) return unionAttribution(samples);
+  const fromOura = unionAttribution(oura);
+  const fromOther = unionAttribution(other);
+  return fromOura.value > fromOther.value ? fromOura : fromOther;
+}
+
+/**
  * The heart and readiness block of a day (T11b), each value on the rule its own data demands and
  * each naming the sample it stands on: resting heart rate is the day's **minimum** (a single false
  * high — a walk to the bathroom — must not move it), HRV the day's **mean** (a summary by
@@ -148,18 +165,21 @@ export function rollUpDay(samples: NormalizedSample[], tz: string): DailyHealthR
   if (samples.length === 0) throw new Error("rollUpDay needs at least one sample");
 
   const ordered = [...samples].sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
-  const row = emptyDay(localDateOf(ordered[0].start_time, tz));
+  // Each sample's own zone dates it, as mergedDays bucketed it: a bucket can mix an Oura day
+  // window tagged UTC with an Apple sample tagged the account zone, and `tz` (the first sample's)
+  // would put the earlier UTC window on the day before.
+  const row = emptyDay(localDateOf(ordered[0].start_time, ordered[0].tz || tz));
 
   const steps = ordered.filter((s) => s.type === "step_count");
   if (steps.length > 0) {
-    const rolled = unionAttribution(steps);
+    const rolled = activityAttribution(steps);
     row.steps = Math.round(rolled.value);
     row.provenance.step_count = rolled.source;
   }
 
   const energy = ordered.filter((s) => s.type === "active_energy");
   if (energy.length > 0) {
-    const rolled = unionAttribution(energy);
+    const rolled = activityAttribution(energy);
     row.active_kcal = Math.round(rolled.value);
     row.provenance.active_energy = rolled.source;
   }

@@ -13,7 +13,14 @@ export type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0
 
 export const HEALTH_TOOL_SCOPES: Record<"get_body_data", "read"> = { get_body_data: "read" };
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/** A real calendar date: the shape alone lets 2026-02-31 roll over and 2026-13-01 throw (A104). */
+export function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+}
+
+const isoDate = z.string().refine(isCalendarDate, "Expected a real calendar date, YYYY-MM-DD.");
 
 export function registerHealthTools(server: McpServerLike,
     ctx: { userId: string; admin: SupabaseClient }): void {
@@ -29,8 +36,12 @@ export function registerHealthTools(server: McpServerLike,
       inputSchema: z.object({ from: isoDate, to: isoDate }),
     },
     async ({ from, to }: { from: string; to: string }) => {
+      if (!isCalendarDate(from) || !isCalendarDate(to)) {
+        return { content: [{ type: "text" as const,
+          text: "Ask with real calendar dates, YYYY-MM-DD." }] };
+      }
       const span = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
-      if (span < 0 || span + 1 > MAX_DAILY_WINDOW_DAYS) {
+      if (!Number.isFinite(span) || span < 0 || span + 1 > MAX_DAILY_WINDOW_DAYS) {
         return { content: [{ type: "text" as const,
           text: `Ask for a range of at most ${MAX_DAILY_WINDOW_DAYS} days, from before to.` }] };
       }

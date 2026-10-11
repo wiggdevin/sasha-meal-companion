@@ -54,7 +54,7 @@ would not change. §3.3 lists the tripwires that would change this call.
 - **Voice-to-voice:** none. The T7 plan says "voice-to-voice is a separate spec after this one".
   This file is that spec.
 - **The coach turn** (`POST /api/coach` → `runTurn`, `lib/server/coach-turn.ts`).
-  - Order: flag, turn budget, `messageId` idempotency, medical deflection (`classifyMedical`, no
+  - Order: flag, `messageId` idempotency, turn budget, medical deflection (`classifyMedical`, no
     model call), health-context gate (`coachRouteFor`), then the Jev intent pre-pass. A
     mechanical intent takes the fast path with no Gemini call. Any other intent runs the
     `generateStructured` tool loop on `gemini-3.6-flash` (fallback 3.8).
@@ -74,7 +74,10 @@ would not change. §3.3 lists the tripwires that would change this call.
   - Coach model call median 2.6 s. Jev median 0.4–0.5 s.
   - The Jev fast path answered in 1.0–3.9 s in the 2026-09-19 live check.
 - **Limits:**
-  - Coach turns: 10 an hour and 60 a day per user (`lib/server/coach.ts`).
+  - Coach turns: 10 an hour and 60 a day per user (`lib/server/coach.ts` `reserveTurn`). Since
+    W035 one turn is one reservation in the shared database limiter (fixed UTC hour and day
+    windows, fail closed), whatever provider answers and however many model steps it takes; a
+    replay of a saved turn spends none. Transcription: 10 a minute and 200 a day per account.
   - `AI_DAILY_SPEND_CAP_USD`: $2 per user per UTC day. **Fails open on a read error**
     (`lib/ai/spend.ts`).
   - Timings: `lib/timing.ts` `TIMING_PATHS` already uses `voice` for FAB capture. The allowed

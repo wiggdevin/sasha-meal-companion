@@ -20,7 +20,9 @@ import type { DraftItem, ProposeRequest, ProposeResponse, SignRequest, SignRespo
 import { buildCommitRequest } from "@/lib/log-client";
 import { commitLogEntry, type CommitResult } from "@/lib/log-commit-client";
 import type { LogCommitRequest } from "@/lib/log/contract";
-import type { LoggedFood, LoggedItem, SlotId } from "@/lib/types";
+import type { SlotId } from "@/lib/types";
+import { draftCard } from "@/lib/capture/draft-card";
+import { LABEL_FOOD_PLACEHOLDER_REF, labelFoodBody, labelItemSeq } from "@/lib/capture/label-food";
 
 export const PROPOSE_URL = "/api/log/propose";
 export const SIGN_URL = "/api/media/sign";
@@ -291,12 +293,12 @@ export function keptItems(items: EditedItem[]): EditedItem[] {
   return items.filter((item) => !item.removed);
 }
 
-/** Spec AC9: a blocked item never leaves this sheet. An ungrounded item has no `food_ref_id` to
- *  commit, so it blocks Save the same way until the user swaps or removes it. */
-export function canSave(items: EditedItem[]): boolean {
+/** Logging marks and never refuses (ruling 2026-09-14, audit A034): a blocked item saves, with its
+ *  mark. An ungrounded item has no `food_ref_id` to commit, so it blocks Save until the user swaps
+ *  or removes it — unless it is the label item (`labelSeq`), which the server saves as their food. */
+export function canSave(items: EditedItem[], labelSeq: number | null = null): boolean {
   const kept = keptItems(items);
-  return kept.length > 0
-    && kept.every((item) => item.policy.verdict !== "blocked" && item.foodRefId !== null);
+  return kept.length > 0 && kept.every((item) => item.foodRefId !== null || item.seq === labelSeq);
 }
 
 /**
@@ -319,48 +321,16 @@ export type CommitContext = {
   run?: TimingRun;
 };
 
-/**
- * The card Today shows the moment the user taps Save on the confirm sheet (T0 §3, Grok 4.6 MEDIUM 6).
- *
- * A draft carries no nutrients — they come from the catalog rows the items were grounded to, and
- * only the server has those — so this card starts at zero and the commit's reply fills each
- * item's snapshot in. `entryMacros` reads the snapshots in preference to `macros`, so the day's
- * numbers are right from the reply onwards; the window before it is the length of the commit,
- * and the card carries the pending mark throughout it.
- */
-function draftCard(
-  draft: ProposeResponse, kept: EditedItem[], entryId: string, itemIds: string[], at: Date,
-  note: string | undefined,
-): LoggedFood {
-  const zero = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-  const grams = Math.round(kept.reduce((sum, item) => sum + item.grams, 0) * 10) / 10;
-  const name = draft.labelFood?.name
-    ?? (kept.length === 1 ? kept[0].label : `${kept.length} items`);
-  const items: LoggedItem[] = kept.map((item, i) => ({
-    id: itemIds[i], seq: i + 1, food_ref_id: item.foodRefId as string,
-    grams: item.grams, qty: item.qty, unit: item.unit,
-    snapshot: {}, foodId: `catalog:${item.catalogFoodRevisionId ?? 0}`,
-    name: item.label, portionLabel: `${item.qty} ${item.unit}`, macros: zero,
-  }));
-  return {
-    id: entryId, foodId: items[0]?.foodId ?? "capture", name,
-    portionLabel: kept.length === 1 ? `${kept[0].qty} ${kept[0].unit}` : `${kept.length} items`,
-    qty: 1, grams, macros: zero,
-    ...(note?.trim() ? { note: note.trim() } : {}),
-    items, at: at.toISOString(),
-  };
-}
-
 export async function commitDraft(
   draft: ProposeResponse,
   edits: DraftEdits,
   ctx: CommitContext,
 ): Promise<CommitResult> {
-  // The write path asks `canSave` itself rather than re-deriving a narrower rule: spec AC9 says a
-  // blocked item never leaves this sheet, and that promise has to hold here, not only where the
-  // Save button is wired.
+  // The write path asks `canSave` itself rather than re-deriving a narrower rule, so a caller
+  // that skips the Save button still cannot send an ungrounded item.
   const applied = applyEdits(draft.items, edits);
-  if (!canSave(applied)) {
+  const labelSeq = labelItemSeq(draft, edits, ctx.saveLabelAsFood);
+  if (!canSave(applied, labelSeq)) {
     return { status: "invalid", issues: [{ path: "items", message: "nothing to save" }] };
   }
   const kept = keptItems(applied);
@@ -373,17 +343,26 @@ export async function commitDraft(
     tz: ctx.tz,
     slot: ctx.slot,
     note: ctx.note,
-    items: kept.map((item, i) => ({
+    // A030: the label item names the placeholder and its grams alone; its own food has no
+    // catalog revision or portion for a pin to name.
+    items: kept.map((item, i) => item.seq === labelSeq ? {
+      id: itemIds[i], foodRefId: LABEL_FOOD_PLACEHOLDER_REF, revision: revisionRef(null),
+      grams: item.grams, qty: item.grams, unit: "g", portionId: null,
+      wasEdited: item.wasEdited, confidence: item.confidence,
+    } : {
       id: itemIds[i],
       foodRefId: item.foodRefId as string,
       revision: revisionRef(item.catalogFoodRevisionId),
       grams: item.grams, qty: item.qty, unit: item.unit,
       portionId: item.portionId, wasEdited: item.wasEdited,
       confidence: item.confidence,
-    })),
+    }),
   });
   const req: LogCommitRequest = { ...base, method: draft.method, draft_id: draft.draftId };
-  if (ctx.saveLabelAsFood === true && draft.method === "label") req.save_label_as_food = true;
+  if (labelSeq !== null && draft.labelFood) {
+    req.save_label_as_food = true;
+    req.label_food = labelFoodBody(draft.labelFood);
+  }
   // The capture method IS the timing path (spec §1), so this commit closes the run the sign /
   // upload / propose marks opened.
   return commitLogEntry(req, {
@@ -392,6 +371,6 @@ export async function commitDraft(
     // The same day the request itself files under (base.local_date), not a re-derive off the
     // device's own zone — the optimistic card and the commit must agree.
     optimistic: { date: base.local_date,
-      entry: draftCard(draft, kept, entryId, itemIds, eatenAt, ctx.note) },
+      entry: draftCard(draft, kept, entryId, itemIds, eatenAt, ctx.note, labelSeq) },
   });
 }
