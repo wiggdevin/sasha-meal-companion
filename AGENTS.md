@@ -348,6 +348,7 @@ Nothing is deleted; "avoid" keeps the note ("hurt on 9/12") so the user can brin
 | Path | What |
 |---|---|
 | `app/sign-in`, `components/AuthGate.tsx`, `middleware.ts` | Sign-in page, route gate, session refresh. |
+| `lib/server/sign-in.ts` + `app/api/auth/{otp,verify,password}` + `lib/sign-in-client.ts` | W052: the sign-in screen's email send, code check and password sign-in go through these routes, never browser → Supabase. Each counts `auth:<action>:<ip>` (10 per 10 min, never keyed by email, fail closed 503) before Supabase sees it, accepts JSON only, and sets the session cookies. Supabase limit review and the direct `/signup` path: `docs/decisions/2026-10-11-sign-in-limits.md`. |
 | `lib/supabase/*`, `lib/server/{auth,http,ratelimit,privileged,tokens,admin}.ts` | Browser/server clients; session auth, request helpers, rate limiting, privileged-token boundary, service-role admin client. |
 | `lib/sync/*`, `app/api/sync/ops`, `app/api/sync/changes`, `components/SyncBootstrap.tsx`, `components/SyncStatus.tsx` | Op-log sync: outbox, merge, fingerprint, IDB queue, status UI. |
 | `app/api/mcp/route.ts` | Per-user personal-access-token MCP for health, expenditure and coach tools. |

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { browserClient } from "@/lib/supabase/client";
+import { signInAuth } from "@/lib/sign-in-client";
 import { signInWithPassword } from "@/app/sign-in/password";
 import Button from "@/components/ui/Button";
 
@@ -24,7 +24,7 @@ export function PasswordSignInForm({ email, setEmail, onSignedIn, onUseLink }: P
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setStage("checking");
-    const error = await signInWithPassword(browserClient().auth, email, password);
+    const error = await signInWithPassword(signInAuth(), email, password);
     if (error) {
       setStage("error");
       setMessage(error);
