@@ -12,6 +12,7 @@ import { isDeadline } from "@/lib/fetch-with-deadline";
 import {
   accountFetch, accountHandle, accountJson, rethrowAccountChanged, type AccountHandle,
 } from "@/lib/device/account";
+import { foodRulesEpoch } from "@/lib/foods/rules-epoch";
 import { mark, type TimingRun } from "@/lib/timing";
 import type { PolicyVerdict } from "@/lib/policy/constraints";
 import type { Provenance } from "@/lib/types";
@@ -140,6 +141,7 @@ export function toCachedRevision(
     food_ref_id: match.foodRefId,
     allergen_tags: match.allergenTags,
     policy: match.policy,
+    rules_epoch: foodRulesEpoch(),
     cached_at: new Date(now).toISOString(),
   };
 }
@@ -151,6 +153,12 @@ export function toCachedRevision(
  * policy verdict the online scan already computed are, so a known-blocked product still shows
  * blocked offline instead of downgrading to a generic "unverified" warning. A row cached before
  * these fields existed falls back to "unverified", same as before.
+ *
+ * W014 (audit 2026-10-10 A031): the verdict was computed under the rules of the original scan. It
+ * is replayed only under the same food-rules epoch (lib/foods/rules-epoch.ts); after a rules change
+ * or a reload an "allowed" or "unverified" verdict reads "unverified" — it may no longer hold — and
+ * only a "blocked" one is kept, because a warning that may have lapsed is safer than none. The
+ * server re-judges the commit against the current rules when it reaches it.
  */
 export function offlineMatch(cached: CachedRevision): BarcodeMatch | null {
   if (!cached.food_ref_id) return null;
@@ -168,6 +176,13 @@ export function offlineMatch(cached: CachedRevision): BarcodeMatch | null {
     ingredientsText: null,
     allergenTags: cached.allergen_tags ?? [],
     attribution: cached.version_label,
-    policy: cached.policy ?? { verdict: "unverified" },
+    policy: offlinePolicy(cached),
   };
+}
+
+function offlinePolicy(cached: CachedRevision): PolicyVerdict {
+  const policy = cached.policy;
+  if (!policy) return { verdict: "unverified" };
+  if (cached.rules_epoch === foodRulesEpoch() || policy.verdict === "blocked") return policy;
+  return { verdict: "unverified" };
 }

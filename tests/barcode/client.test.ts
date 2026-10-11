@@ -4,6 +4,7 @@ import {
   type BarcodeMatch,
 } from "@/lib/barcode/client";
 import type { CachedRevision } from "@/lib/db/catalog-cache";
+import { foodRulesEpoch, noteFoodRulesChanged } from "@/lib/foods/rules-epoch";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { TEST_USER } from "@/tests/helpers/account";
 
@@ -74,7 +75,7 @@ describe("toCachedRevision", () => {
       portions: [{ id: 5, description: "1 pouch (90 g)", gramWeight: 90, isDefault: true }],
       gtin14: GTIN, food_ref_id: "11111111-1111-4111-8111-111111111111",
       allergen_tags: ["apple"], policy: { verdict: "blocked", reason: "allergen:apple" },
-      cached_at: "2026-09-19T12:00:00.000Z",
+      rules_epoch: foodRulesEpoch(), cached_at: "2026-09-19T12:00:00.000Z",
     });
     expect(row.per_100g.iron).toBeNull();
   });
@@ -101,6 +102,22 @@ describe("offlineMatch", () => {
       attribution: "Data from Open Food Facts (ODbL)", policy: { verdict: "blocked", reason: "allergen:apple" },
     });
     expect(match?.per100g.iron).toBeNull();
+  });
+
+  it("W014 (A031): replays an allowed verdict only under the rules epoch it was cached under", () => {
+    const allowed = toCachedRevision({ ...MATCH, policy: { verdict: "allowed" } }, GTIN);
+    expect(allowed.rules_epoch).toBe(foodRulesEpoch());
+    expect(offlineMatch(allowed)?.policy).toEqual({ verdict: "allowed" });
+    noteFoodRulesChanged();
+    // The user added an allergy or an Avoid mark since: the old "allowed" may no longer hold.
+    expect(offlineMatch(allowed)?.policy).toEqual({ verdict: "unverified" });
+    expect(offlineMatch({ ...allowed, rules_epoch: undefined })?.policy).toEqual({ verdict: "unverified" });
+  });
+
+  it("W014 (A031): keeps a blocked verdict after a rules change — a lapsed warning beats none", () => {
+    const blocked = toCachedRevision(MATCH, GTIN);
+    noteFoodRulesChanged();
+    expect(offlineMatch(blocked)?.policy).toEqual({ verdict: "blocked", reason: "allergen:apple" });
   });
 
   it("falls back to 'unverified' for a row cached before the verdict was persisted", () => {

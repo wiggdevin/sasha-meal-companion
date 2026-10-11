@@ -125,14 +125,15 @@ export const ALLERGEN_RULES: Readonly<Record<string, AllergenRule>> = {
   // narrow, one-off legacy-tag recovery (20261118090000_allergen_evidence.sql, the same pattern the
   // wheat/gluten recovery already uses) — an account still avoids one "Shellfish" setting.
   shellfish: { label: "shellfish", major: false, facets: ["shellfish"], keywords: [
-    "shellfish", "shrimp", "shrimps", "prawn", "prawns", "crab", "crabs", "lobster",
-    "lobsters", "crayfish", "crawfish", "langoustine", "mussel", "mussels", "clam", "clams",
-    "oyster", "oysters", "scallop", "scallops", "squid", "calamari", "octopus", "krill"] },
+    "shellfish", "crustacean", "crustaceans", "shrimp", "shrimps", "prawn", "prawns", "crab",
+    "crabs", "lobster", "lobsters", "crayfish", "crawfish", "langoustine", "mussel", "mussels",
+    "clam", "clams", "oyster", "oysters", "scallop", "scallops", "squid", "calamari", "octopus",
+    "krill"] },
   // finding #9 (FIX): crustacean-only keywords, deliberately with NO facet escalation — Jev's
   // `shellfish` facet answers for the combined class (crustacean and mollusc alike), so applying it
   // here would over-flag a mollusc-only food as crustacean-listed. Text and legacy tags only.
   crustacean: { label: "crustacean shellfish", major: true, facets: [], keywords: [
-    "shrimp", "shrimps", "prawn", "prawns", "crab", "crabs", "lobster", "lobsters", "crayfish",
+    "crustacean", "crustaceans", "shrimp", "shrimps", "prawn", "prawns", "crab", "crabs", "lobster", "lobsters", "crayfish",
     "crawfish", "langoustine", "krill"] },
 };
 
@@ -225,7 +226,7 @@ export function deriveEvidence(name: string, input: {
   foodName?: string | null;
 }): StoredAllergenEvidence {
   const key = allergenKey(name);
-  const tagged = (input.tags ?? []).some((tag) => allergenKey(tag) === key);
+  const tagged = (input.tags ?? []).some((tag) => tagCovers(tag, key));
   const hasText = typeof input.ingredientsText === "string" && input.ingredientsText.trim() !== "";
   const labelComplete = hasText && input.labelComplete;
   if (tagged || textNames(key, input.ingredientsText) || textNames(key, input.foodName)) {
@@ -233,6 +234,11 @@ export function deriveEvidence(name: string, input: {
   }
   return { level: labelComplete ? "not_listed" : "no_evidence", labelComplete };
 }
+
+/** W014 (A026): a class tag (OFF `en:crustaceans`, a bare `shellfish`) cannot rule crustaceans out. */
+const CRUSTACEAN_CLASS_TAGS = new Set(["crustacean", "crustaceans", "shellfish"]);
+const tagCovers = (tag: string, key: string): boolean => allergenKey(tag) === key
+  || (key === "crustacean" && CRUSTACEAN_CLASS_TAGS.has(tag.toLowerCase().trim().replace(/^en:/, "")));
 
 /** Two sources' evidence for one revision: a deterministic listed, then a hold (W2a), then the list. */
 export function mergeEvidence(
