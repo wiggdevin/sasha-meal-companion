@@ -206,8 +206,10 @@ function pickDay(choices: Choice[], rankings: readonly { plates: Plate[] }[], va
  */
 function quickDay(usual: readonly (Plate | null)[], rankings: readonly { plates: Plate[] }[],
   isQuick: (plate: Plate) => boolean, value: PlateValue): (Plate | null)[] {
-  const keyOf = (plate: Plate) => plate.anchorKey ?? `none:${plate.key}`;
   const choices: Choice[] = rankings.map((ranking, i) => {
+    // An anchorless snack has no protein to repeat: its key is the slot's own, so the neighbour
+    // and repeat rules (protein rules, D5) never apply to it.
+    const keyOf = (plate: Plate) => plate.anchorKey ?? `none:${i}:${plate.key}`;
     const choice: Choice = new Map();
     for (const plate of ranking.plates) {
       if (isQuick(plate) && !choice.has(keyOf(plate))) choice.set(keyOf(plate), plate);

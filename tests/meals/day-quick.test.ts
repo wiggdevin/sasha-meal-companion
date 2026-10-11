@@ -177,4 +177,19 @@ describe("A061: a Quick meals date generates quick plates", () => {
       }
     }
   });
+
+  it("neighbouring snack slots may both take the same quick fruit-and-fat snack (Sol r3)", () => {
+    const target = { kcal: 250, protein: 5, carbs: 30, fat: 12 };
+    const snacks: DaySlot[] = [{ id: "meal-4", target, clock: "15:00" }, { id: "meal-5", target, clock: "16:30" }];
+    const foods = eats(F.lentils, F.banana, F.almonds);
+    const date = DATES.find((day) => (rankPlates({ date: day, slot: "meal-4", occasion: "snack",
+      target, foods: Object.values(foods) }).plates.some((plate) => plate.anchorKey === null && quickFit(plate))));
+    expect(date).toBeDefined();
+    const plates = quickDay(date as string, snacks, foods).plates;
+    expect(plates).toHaveLength(2);
+    for (const { plate } of plates) {
+      expect(plate.occasion).toBe("snack");
+      expect(quickFit(plate), plate.name).toBe(true);
+    }
+  });
 });
