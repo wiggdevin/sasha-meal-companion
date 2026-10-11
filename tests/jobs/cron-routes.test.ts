@@ -17,30 +17,24 @@ const mocked = vi.hoisted(() => ({
     ({ threadId: "thread-1", messageId: "message-1", duplicate: false })),
   accountIds: vi.fn(),
   accountZones: vi.fn(),
-  upload: vi.fn(async () => ({ error: null })),
+  // Reads a streamed body to its end, as Storage does.
+  upload: vi.fn(async (_path: string, body: unknown) => {
+    if (body instanceof ReadableStream) await new Response(body).arrayBuffer();
+    return { error: null };
+  }),
   timeZoneFor: vi.fn(async (_admin: unknown, _userId: string) => "UTC"),
   warmEatsFacets: vi.fn(async () => ({ foods: 0, warmed: 0, skipped: 0, errors: 0,
     stoppedEarly: false })),
 }));
 
-function updateChain() {
-  const chain = {
-    eq: () => chain,
-    lt: () => chain,
-    select: async () => ({ data: [{}], error: null }),
-    then: (resolveValue: (value: unknown) => unknown) =>
-      Promise.resolve({ data: [{}], error: null }).then(resolveValue),
-  };
-  return chain;
-}
-
-/** A keyset listing double: filters and order chain, `range` answers the rows once. */
+/** A keyset listing double: filters and order chain, `range` or `limit` answers the rows once. */
 function listingChain(rows: Record<string, unknown>[]) {
   let after: string | null = null;
   const chain = {
     eq: () => chain, is: () => chain, lt: () => chain, order: () => chain,
     gt: (_key: string, value: string) => { after = value; return chain; },
     range: async () => ({ data: after === null ? rows : [], error: null }),
+    limit: async () => ({ data: after === null ? rows : [], error: null }),
   };
   return chain;
 }
@@ -84,21 +78,20 @@ const admin = {
           eq: () => routeChain,
           order: () => chain,
           range: async () => ({ data: [], error: null }),
+          limit: async () => ({ data: [], error: null }),
         };
         return chain;
       } };
     }
     if (table === "backup_runs") {
-      return {
-        insert: (row: unknown) => ({ select: async () => ({ data: [row], error: null }) }),
-        update: () => updateChain(),
-      };
+      return { upsert: async () => ({ error: null }) };
     }
     return {
       select: () => {
         const chain = {
           order: () => chain,
           range: async () => ({ data: [], error: null }),
+          limit: async () => ({ data: [], error: null }),
         };
         return chain;
       },
@@ -193,7 +186,9 @@ const manifest = JSON.parse(
 ) as { crons: { path: string; schedule: string }[] };
 
 const jobRuns: Record<string, () => number> = {
-  "/api/jobs/backup": () => mocked.upload.mock.calls.length,
+  // One manifest per finished pass; the parts before it are not separate runs.
+  "/api/jobs/backup": () => mocked.upload.mock.calls
+    .filter(([path]) => !path.includes("/part-")).length,
   "/api/jobs/estimate": () => mocked.runEstimate.mock.calls.length,
   "/api/jobs/facet-warm": () => mocked.warmEatsFacets.mock.calls.length,
   "/api/jobs/media-sweep": () => mocked.deleteMedia.mock.calls.length,
