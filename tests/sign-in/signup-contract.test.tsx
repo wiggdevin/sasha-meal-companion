@@ -4,15 +4,19 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { resetAttemptLimits } from "@/app/sign-in/attempt-limit";
 import SignInPage from "@/app/sign-in/page";
 
-type OtpArgs = { email: string; options: { emailRedirectTo: string; shouldCreateUser: boolean } };
+type OtpArgs = { email: string; create: boolean; next: string };
 
-const signInWithOtp = vi.fn(async (_args: OtpArgs) => ({ error: null as { message: string } | null }));
-const verifyOtp = vi.fn(async (_args: unknown) => ({ error: { message: "Token has expired or is invalid" } }));
+const signInWithOtp = vi.fn(async (_args: OtpArgs) => ({ error: null as { code: string } | null }));
+const verifyOtp = vi.fn(async (_args: unknown) => ({ error: { code: "invalid_code" } }));
 
 vi.mock("next/navigation", () => ({ useRouter: vi.fn(() => ({ replace: vi.fn() })) }));
+// W052: the screen talks to the app's IP-limited routes, never to Supabase Auth directly. The
+// server-side half of this contract (the redirect, the masking) is tests/server/sign-in-limits.test.ts.
+vi.mock("@/lib/sign-in-client", () => ({
+  LIMITED_CODES: new Set(["rate_limited", "auth_rate_limited"]),
+  signInAuth: () => ({ signInWithOtp, verifyOtp }),
+}));
 vi.mock("@/lib/supabase/client", () => ({
-  browserClient: () => ({ auth: { signInWithOtp, verifyOtp } }),
-  callbackRedirectUrl: (origin: string, next: string) => `${origin}/auth/callback?next=${next}`,
   safePath: (p: string | null) => p ?? "/",
 }));
 
@@ -52,7 +56,7 @@ describe("sign in never creates an account", () => {
     render(<SignInPage />);
     await submit(" tester@example.com ");
     expect(lastOtpArgs().email).toBe("tester@example.com");
-    expect(lastOtpArgs().options.shouldCreateUser).toBe(false);
+    expect(lastOtpArgs().create).toBe(false);
   });
 
   it("goes back to sign-in from create mode and stops creating accounts", async () => {
@@ -60,19 +64,19 @@ describe("sign in never creates an account", () => {
     openCreateMode();
     fireEvent.click(screen.getByRole("button", { name: "Already have an account? Sign in" }));
     await submit("tester@example.com");
-    expect(lastOtpArgs().options.shouldCreateUser).toBe(false);
+    expect(lastOtpArgs().create).toBe(false);
   });
 
   // GPT-6 Sol review, slice 8: a send still in flight when the mode changes must not land in the
-  // new mode. A sign-in for an unknown address resolves "Signups not allowed for otp"; had it
-  // landed in create mode it would claim "We sent a link and a code" when nothing was sent.
+  // new mode. A sign-in for an unknown address answers like a sent one (the server masks it); had
+  // it landed in create mode it would claim "We sent a link and a code" when nothing was sent.
   it("drops a send that resolves after the mode has changed", async () => {
-    let resolveSend: (value: { error: { message: string } | null }) => void = () => {};
+    let resolveSend: (value: { error: { code: string } | null }) => void = () => {};
     signInWithOtp.mockImplementationOnce(() => new Promise((resolve) => { resolveSend = resolve; }));
     render(<SignInPage />);
     await submit("no-account@example.com");
     openCreateMode();
-    await act(async () => resolveSend({ error: { message: "Signups not allowed for otp" } }));
+    await act(async () => resolveSend({ error: null }));
     expect(screen.getByRole("button", { name: "Create account" })).toBeTruthy();
     expect(screen.queryByText(/we sent/i)).toBeNull();
     expect(screen.queryByRole("button", { name: "Use the code instead" })).toBeNull();
@@ -90,17 +94,11 @@ describe("create an account", () => {
     expect(screen.queryByRole("button", { name: "Use a password instead" })).toBeNull();
   });
 
-  it("sends shouldCreateUser true with the trimmed address and the callback redirect", async () => {
+  it("asks the server to create the account, with the trimmed address and the next path", async () => {
     render(<SignInPage />);
     openCreateMode();
     await submit("  new-person@example.com ");
-    expect(lastOtpArgs()).toEqual({
-      email: "new-person@example.com",
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
-        shouldCreateUser: true,
-      },
-    });
+    expect(lastOtpArgs()).toEqual({ email: "new-person@example.com", create: true, next: "/" });
   });
 
   it("shows the code form after the send, and the code is checked as an email OTP", async () => {
@@ -118,7 +116,7 @@ describe("create an account", () => {
   });
 
   it("shows the generic failure when sign-up is refused, never the sent screen", async () => {
-    signInWithOtp.mockResolvedValueOnce({ error: { message: "Signups not allowed for otp" } });
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "send_failed" } });
     render(<SignInPage />);
     openCreateMode();
     await submit("new-person@example.com");
@@ -127,7 +125,7 @@ describe("create an account", () => {
   });
 
   it("tells a rate-limited person to wait instead of the generic failure", async () => {
-    signInWithOtp.mockResolvedValueOnce({ error: { message: "Email rate limit exceeded" } });
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "auth_rate_limited" } });
     render(<SignInPage />);
     openCreateMode();
     await submit("new-person@example.com");
@@ -153,7 +151,8 @@ describe("no account enumeration in the sign-in UI (PR #246 review r1 finding 3)
   });
 
   it("shows the same neutral sent copy for an address with no account", async () => {
-    signInWithOtp.mockResolvedValueOnce({ error: { message: "Signups not allowed for otp" } });
+    // The server answers an unknown address exactly like a real send (otpFailure).
+    signInWithOtp.mockResolvedValueOnce({ error: null });
     render(<SignInPage />);
     await submit("no-account@example.com");
     expect(screen.getByText(sentCopy)).toBeTruthy();
@@ -161,7 +160,23 @@ describe("no account enumeration in the sign-in UI (PR #246 review r1 finding 3)
   });
 
   it("still shows the generic error for a failure unrelated to account existence", async () => {
-    signInWithOtp.mockResolvedValueOnce({ error: { message: "Email rate limit exceeded" } });
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "send_failed" } });
+    render(<SignInPage />);
+    await submit("someone@example.com");
+    expect(screen.getByText(FAILED)).toBeTruthy();
+  });
+
+  // W052: the app's own limiter counts this device's IP, never an address, so saying "wait" tells
+  // nobody whether the address has an account.
+  it("tells a person the app's IP limiter stopped to wait", async () => {
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "rate_limited" } });
+    render(<SignInPage />);
+    await submit("someone@example.com");
+    expect(screen.getByText("Too many tries. Wait a minute, then try again.")).toBeTruthy();
+  });
+
+  it("shows the generic error when the connection drops", async () => {
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "offline" } });
     render(<SignInPage />);
     await submit("someone@example.com");
     expect(screen.getByText(FAILED)).toBeTruthy();
