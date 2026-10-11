@@ -6,7 +6,9 @@
  * `app/api/export/route.ts` imports the streams directly. `ExportJson` and `ExportOpts` are
  * type-only imports, so there is no value cycle back into export.ts.
  *
- * - `body-profile`: the four formula inputs, one row per user, no cursor.
+ * - `body-profile`: the four formula inputs, one row per user, no cursor; since W012 (B259) also
+ *   the body-fat value's provenance (`body_fat_source`, `body_fat_measured_on`, migration
+ *   20261028090000), which the database clears whenever the value changes without it.
  * - `body-data` (Sol audit findings 2 and 4): the rolled-up daily rows — the numbers the dashboard
  *   shows, RHR, HRV and readiness included. Sol's second audit rejected reading the SQL
  *   `daily_health` view here: it sums overlapping Watch and phone activity and takes the max sleep
@@ -30,9 +32,14 @@ const DAY_MS = 86_400_000;
 const ROLLUP_DAYS_PER_QUERY = 31;
 
 export type BodyProfileExportRow = { height_cm: number | null; birth_year: number | null;
-  sex: string | null; body_fat_pct: number | null };
+  sex: string | null; body_fat_pct: number | null;
+  /** How the body-fat value was measured (dexa, inbody, …); null when unknown or no value. */
+  body_fat_source: string | null;
+  /** The local date the body-fat value was measured on; null when unknown or no value. */
+  body_fat_measured_on: string | null };
 
-export const BODY_PROFILE_COLUMNS: string[] = ["height_cm", "birth_year", "sex", "body_fat_pct"];
+export const BODY_PROFILE_COLUMNS: string[] = ["height_cm", "birth_year", "sex", "body_fat_pct",
+  "body_fat_source", "body_fat_measured_on"];
 
 export function bodyProfileRowValues(row: BodyProfileExportRow):
     (string | number | null)[] {
@@ -40,12 +47,14 @@ export function bodyProfileRowValues(row: BodyProfileExportRow):
     (row as unknown as Record<string, string | number | null>)[column] ?? null);
 }
 
-/** The row as the export spells it: the four columns only, and a cleared field is null. */
+/** The row as the export spells it: the profile columns only, and a cleared field is null. */
 export function toBodyProfileRow(row: Record<string, unknown>): BodyProfileExportRow {
   const number = (value: unknown): number | null =>
     value === null || value === undefined ? null : Number(value);
+  const text = (value: unknown): string | null => typeof value === "string" ? value : null;
   return { height_cm: number(row.height_cm), birth_year: number(row.birth_year),
-    sex: (row.sex as string | null | undefined) ?? null, body_fat_pct: number(row.body_fat_pct) };
+    sex: text(row.sex), body_fat_pct: number(row.body_fat_pct),
+    body_fat_source: text(row.body_fat_source), body_fat_measured_on: text(row.body_fat_measured_on) };
 }
 
 export async function streamBodyProfile(
@@ -53,7 +62,7 @@ export async function streamBodyProfile(
 ): Promise<ExportJson<BodyProfileExportRow>> {
   void opts; // The kind is one row, so from/to/cursor/limit have nothing to page or filter.
   const { data, error } = await client.from("user_settings")
-    .select("height_cm, birth_year, sex, body_fat_pct")
+    .select("height_cm, birth_year, sex, body_fat_pct, body_fat_source, body_fat_measured_on")
     .eq("user_id", userId).maybeSingle();
   if (error) throw error;
   const profile = data as Record<string, unknown> | null;

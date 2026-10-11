@@ -18,6 +18,11 @@
  *                                   (`listed`, or `not_listed` from a complete label) and records
  *                                   the reviewer. Refuses when the food has no deterministic
  *                                   evidence: the hold stays.
+ *   --review --dry-run --food-key <key> --allergen <key>
+ *                                   reads the hold and the food and prints the outcome a review
+ *                                   would record (`would_review` with its level, or `stays_held`).
+ *                                   Writes nothing, so it needs neither --reviewer nor
+ *                                   --production. W022 (B277): the owner rehearses a review with it.
  *   --production                    required with --rederive or --review on production.
  *
  * The production count for W2a acceptance 3: run the report before merge (after --rederive) and
@@ -109,11 +114,14 @@ export function reviewReplacement(allergen: string, food: ReviewInput): StoredAl
 export function assertHoldsWriteTarget(argv: readonly string[], url: string | undefined): void {
   const ref = projectRef(url);
   const production = ref === PRODUCTION_REF;
-  const writes = argv.includes("--rederive") || argv.includes("--review");
+  const dryRun = argv.includes("--dry-run");
+  if (dryRun && !argv.includes("--review")) throw new Error("--dry-run only applies with --review");
+  const writes = argv.includes("--rederive") || (argv.includes("--review") && !dryRun);
   const optIn = argv.includes("--production");
   if (argv.includes("--rederive") && argv.includes("--review")) {
     throw new Error("--rederive and --review are separate runs");
   }
+  if (optIn && dryRun) throw new Error("--dry-run writes nothing; drop --production");
   if (optIn && !writes) throw new Error("--production only applies with --rederive or --review");
   if (optIn && !production) {
     throw new Error(`--production given, but SUPABASE_URL is not production project ${PRODUCTION_REF}`);
@@ -206,11 +214,13 @@ async function reviewInputFor(admin: SupabaseClient, foodKey: string): Promise<R
 }
 
 async function review(admin: SupabaseClient, argv: readonly string[]): Promise<void> {
+  const dryRun = argv.includes("--dry-run");
   const reviewer = flagValue(argv, "--reviewer")?.trim();
   const foodKey = flagValue(argv, "--food-key");
   const allergenArg = flagValue(argv, "--allergen");
-  if (!reviewer || !foodKey || !allergenArg) {
-    throw new Error("--review needs --reviewer <name> --food-key <key> --allergen <key>");
+  if (!foodKey || !allergenArg || (!dryRun && !reviewer)) {
+    throw new Error("--review needs --reviewer <name> --food-key <key> --allergen <key>"
+      + " (--dry-run needs no reviewer)");
   }
   const allergen = allergenKey(allergenArg);
   const { data, error } = await admin.from("food_allergen_evidence")
@@ -226,6 +236,12 @@ async function review(admin: SupabaseClient, argv: readonly string[]): Promise<v
       reason: "no deterministic evidence for this revision" }));
     return;
   }
+  if (dryRun) {
+    console.log(JSON.stringify({ foodKey: redactedFoodKey(foodKey), allergen, result: "would_review",
+      level: replacement.level, dryRun: true }));
+    return;
+  }
+  if (!reviewer) throw new Error("--review needs --reviewer <name>");
   const now = new Date().toISOString();
   let query = admin.from("food_allergen_evidence").update({
     level: replacement.level, label_complete: replacement.labelComplete,
@@ -242,7 +258,7 @@ async function review(admin: SupabaseClient, argv: readonly string[]): Promise<v
 }
 
 export async function main(argv: string[]): Promise<void> {
-  const flags = new Set(["--rederive", "--review", "--production"]);
+  const flags = new Set(["--rederive", "--review", "--dry-run", "--production"]);
   const valued = new Set(["--reviewer", "--food-key", "--allergen"]);
   for (let index = 0; index < argv.length; index += 1) {
     if (valued.has(argv[index])) { index += 1; continue; }

@@ -90,9 +90,6 @@ describe("food database", () => {
       // "Sauce, pasta, spaghetti/marinara..." is USDA's category label for this style of sauce,
       // not an ingredient list — marinara itself (tomato, garlic, herbs) has no wheat.
       "marinara-sauce": ["gluten"],
-      // "Seeds, sesame butter, tahini..." — sesame butter is a seed butter, not a dairy product;
-      // the DAIRY_OK exclusion list covers other nut/seed butters but not this one.
-      tahini: ["dairy"],
       // Our own label note "typical apple-free pouch label" — the word "apple" appears only in
       // "apple-free", i.e. the label says this food does NOT contain apple.
       "fruit-pouch": ["apple"],

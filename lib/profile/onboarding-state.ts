@@ -6,7 +6,8 @@ import { DEFAULT_RATE_BP, confirmedRate, validateRate } from "@/lib/profile/rate
 import type { ActivityLevel, BodyFatSource, Goal, Settings } from "@/lib/types";
 import type { Profile } from "@/lib/constraints-client";
 import type { HeightUnit } from "@/lib/units/height";
-import { paceAllowed, type TargetEligibility } from "@/lib/profile/rate-eligibility";
+import { AdultOnlyError, paceAllowed, type TargetEligibility } from "@/lib/profile/rate-eligibility";
+import { ONBOARDING_CUTOVER } from "@/lib/profile/onboarding-cutover";
 import { shiftForFirstMeal } from "@/lib/plan";
 import {
   cookingEffortFromDietPrefs,
@@ -20,7 +21,7 @@ export const PREFERENCE_FLAGS = [
   "no_eggs", "no_soy", "no_peanuts", "low_fodmap", "halal", "kosher",
 ] as const;
 
-export const ONBOARDING_CUTOVER = "2026-09-19T18:20:00Z";
+export { ONBOARDING_CUTOVER };
 /** The account's own name (Phase 9 §0.4): `smc:u:<userId>:onboarding-invite-dismissed-at`. */
 export const ONBOARDING_INVITE_DISMISSED_NAME = "onboarding-invite-dismissed-at";
 
@@ -91,6 +92,12 @@ export type OnboardingState = {
    * the user switching it off. Never filled from a zone, a locale or a model.
    */
   countryCode?: string | null;
+  /**
+   * The full date of birth ("YYYY-MM-DD"), asked only in the calendar year the birth year turns 18
+   * (`adultAgeUnconfirmed`, audit 2026-10-10 A092), so a 17-year-old whose birthday is still ahead
+   * meets the under-18 stop. A draft on this device only: the server keeps the birth year.
+   */
+  birthDate?: string | null;
 };
 
 /** The one pre-selected, editable onboarding country chip ("I'm in the U.S."). */
@@ -117,6 +124,7 @@ export type OnboardingAction =
   | { type: "set_meals_per_day"; value: number }
   | { type: "set_first_meal_time"; value: string | null }
   | { type: "set_country"; value: string | null }
+  | { type: "set_birth_date"; value: string | null }
   | { type: "reset_plan" };
 
 function text(value: number | null | undefined): string {
@@ -295,6 +303,9 @@ export function onboardingReducer(
       return { ...state, step: Math.max(0, Math.min(5, action.value)) };
     case "edit_body":
       return { ...state, body: { ...state.body, [action.key]: action.value },
+        // A date of birth answers only for the birth year it was given with.
+        ...(action.key === "birthYear" && state.birthDate
+          && state.birthDate.slice(0, 4) !== action.value.trim() ? { birthDate: null } : {}),
         // A different number is a different measurement: its source has to be picked again.
         ...(action.key === "bodyFatPct" && action.value.trim() !== state.body.bodyFatPct.trim()
           ? { bodyFatSource: null, bodyFatMeasuredOn: null } : {}) };
@@ -358,6 +369,9 @@ export function onboardingReducer(
     case "set_country":
       return action.value === null || /^[A-Z]{2}$/.test(action.value)
         ? { ...state, countryCode: action.value } : state;
+    case "set_birth_date":
+      return action.value === null || /^\d{4}-\d{2}-\d{2}$/.test(action.value)
+        ? { ...state, birthDate: action.value } : state;
     case "reset_plan":
       return { ...state, planEdits: { trainingKcal: null, restKcal: null, proteinG: null } };
   }
@@ -463,6 +477,26 @@ export function buildCompletedSettings(
   const shift = state.firstMealTime
     ? shiftForFirstMeal(state.firstMealTime, pinned) : null;
   return { ...completed, ...(shift !== null ? { shiftMinutes: shift } : {}) };
+}
+
+/**
+ * The plan preview, or null when no plan can be drawn for this profile yet: a missing field, or
+ * an adult-only refusal (`AdultOnlyError`) that the screen answers with its friendly stop rather
+ * than a crash (audit 2026-10-10 A093). Any other error is a real defect and still throws.
+ */
+export function previewCompletedSettings(
+  base: Settings,
+  state: OnboardingState,
+  now: Date,
+  eligibility?: TargetEligibility,
+): Settings | null {
+  if (missingProfileFields(state, eligibility).length > 0) return null;
+  try {
+    return buildCompletedSettings(base, state, now, eligibility);
+  } catch (error) {
+    if (error instanceof AdultOnlyError) return null;
+    throw error;
+  }
 }
 
 export function changedPlanFields(base: Settings, completed: Settings): PlanField[] {

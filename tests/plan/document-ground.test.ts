@@ -9,6 +9,7 @@ import type { FoodHit } from "@/lib/coach/executors";
 import { EMPTY_PROFILE } from "@/lib/policy/constraints";
 import { labelHasMeasure, parseAmount } from "@/lib/plan/document-clean";
 import { groundDocumentMeal } from "@/lib/plan/document-ground";
+import { readyPlanEvidence } from "@/tests/helpers/plan-evidence";
 
 const hit = (name: string, portionGrams: number, portionLabel: string): FoodHit => ({
   foodRefId: `${name}-ref`, name, brand: null, prefStatus: "eats", kcalPer100g: 100, proteinPer100g: 10,
@@ -20,7 +21,7 @@ const hit = (name: string, portionGrams: number, portionLabel: string): FoodHit 
 async function grams(amount: string | null, ...hits: FoodHit[]): Promise<number | string> {
   const searchFoods = vi.fn(async () => hits);
   const { items, left } = await groundDocumentMeal("u", { name: "Lunch", time: null,
-    foods: [{ name: "food", amount }] }, EMPTY_PROFILE, { searchFoods });
+    foods: [{ name: "food", amount }] }, EMPTY_PROFILE, { searchFoods, evidence: readyPlanEvidence() });
   return items[0]?.grams ?? left[0].reason;
 }
 

@@ -238,8 +238,9 @@ export function DietaryProfilePickerView({
 }
 
 /** The account-aware container: fetches the catalog and this account's instances once bound, and
- *  writes every confirm/remove through lib/profile/instances-client.ts. */
-export default function DietaryProfilePicker() {
+ *  writes every confirm/remove through lib/profile/instances-client.ts. `onRulesChanged` runs after
+ *  each saved write, so a host that reads the stored holds (onboarding's preview) can read again. */
+export default function DietaryProfilePicker({ onRulesChanged }: { onRulesChanged?: () => void } = {}) {
   const [handle, setHandle] = useState<AccountHandle | null>(() => currentAccountOrNull());
   const [catalog, setCatalog] = useState<readonly ProfileSummary[]>([]);
   const [instances, setInstances] = useState<readonly ProfileInstance[]>([]);
@@ -285,6 +286,7 @@ export default function DietaryProfilePicker() {
       if (result.status === "conflict") setCustomRules(result.profile.custom_rules ?? []);
       if (result.status !== "ok") return false;
       setCustomRules(result.profile.custom_rules ?? next);
+      onRulesChanged?.();
       return true;
     } catch {
       return false;
@@ -299,6 +301,7 @@ export default function DietaryProfilePicker() {
     try {
       const instance = await confirmProfileInstance(handle, profileId, confirmations, options);
       setInstances((current) => [...current.filter((i) => i.profileId !== profileId), instance]);
+      onRulesChanged?.();
     } catch {
       // The row keeps its previous state; the person can try again.
     } finally {
@@ -312,6 +315,7 @@ export default function DietaryProfilePicker() {
     try {
       await removeProfileInstance(handle, profileId);
       setInstances((current) => current.filter((i) => i.profileId !== profileId));
+      onRulesChanged?.();
     } catch {
       // Left in place on failure; Remove can be tapped again.
     } finally {

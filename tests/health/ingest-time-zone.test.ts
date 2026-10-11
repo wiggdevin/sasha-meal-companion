@@ -7,10 +7,9 @@ function admin(context: { source_time_zone: string | null; user_time_zone: strin
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
     if (name === "health_ingest_time_zone_context") return { data: [context], error: null };
     if (name === "set_health_source_time_zone") return { data: null, error: null };
-    if (name === "health_ingest_event") return { data: [{ id: "event-1", is_new: true }], error: null };
-    if (name === "health_ingest_apply") {
-      return { data: [{ accepted: (args.p_samples as unknown[]).length, updated: 0, skipped: 0 }],
-        error: null };
+    if (name === "health_ingest_record") {
+      return { data: [{ event_id: "event-1", is_new: true,
+        accepted: (args.p_samples as unknown[]).length, updated: 0, skipped: 0 }], error: null };
     }
     throw new Error(`unexpected rpc ${name}`);
   });
@@ -22,12 +21,9 @@ describe("ingest timezone boundary", () => {
     const failure = { code: "XX000", message: "database unavailable" };
     const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
       if (name === "set_health_source_time_zone") return { data: null, error: failure };
-      if (name === "health_ingest_event") {
-        return { data: [{ id: "event-1", is_new: true }], error: null };
-      }
-      if (name === "health_ingest_apply") {
-        return { data: [{ accepted: (args.p_samples as unknown[]).length, updated: 0, skipped: 0 }],
-          error: null };
+      if (name === "health_ingest_record") {
+        return { data: [{ event_id: "event-1", is_new: true,
+          accepted: (args.p_samples as unknown[]).length, updated: 0, skipped: 0 }], error: null };
       }
       throw new Error(`unexpected rpc ${name}`);
     });
@@ -42,7 +38,7 @@ describe("ingest timezone boundary", () => {
         kind: "apple_health_shortcut" }, body, now)).resolves.toMatchObject({
         status: "applied", accepted: 1,
       });
-      const apply = db.rpc.mock.calls.find(([name]) => name === "health_ingest_apply")![1];
+      const apply = db.rpc.mock.calls.find(([name]) => name === "health_ingest_record")![1];
       expect((apply.p_samples as Array<{ tz: string }>)[0].tz).toBe("America/Denver");
       expect(logged).toHaveBeenCalledWith("health source time zone update failed", {
         sourceId: "source-1", error: failure,
@@ -75,7 +71,7 @@ describe("ingest timezone boundary", () => {
     expect(db.rpc).toHaveBeenCalledWith("set_health_source_time_zone", {
       p_user_id: "user-1", p_source_id: "source-1", p_time_zone: "America/Denver",
     });
-    const apply = db.rpc.mock.calls.find(([name]) => name === "health_ingest_apply")![1];
+    const apply = db.rpc.mock.calls.find(([name]) => name === "health_ingest_record")![1];
     expect((apply.p_samples as Array<{ tz: string }>)[0].tz).toBe("America/Denver");
   });
 
@@ -89,7 +85,7 @@ describe("ingest timezone boundary", () => {
     expect(db.rpc).toHaveBeenCalledWith("health_ingest_time_zone_context", {
       p_user_id: "user-1", p_source_id: "source-1",
     });
-    const apply = db.rpc.mock.calls.find(([name]) => name === "health_ingest_apply")![1];
+    const apply = db.rpc.mock.calls.find(([name]) => name === "health_ingest_record")![1];
     expect((apply.p_samples as Array<{ tz: string }>)[0].tz).toBe("America/Denver");
   });
 
@@ -105,5 +101,26 @@ describe("ingest timezone boundary", () => {
     ] } }, now);
     expect(out.accepted).toBe(1);
     expect(out.rejected).toEqual([{ index: 1, reason: "sample outside the 8-day freshness window" }]);
+  });
+
+  it("names the payload rows of a stale folded day, not its place among the folded samples (A012)", async () => {
+    const db = admin({ source_time_zone: "UTC", user_time_zone: null });
+    const out = await applyIngest(db.value, { id: "source-1", userId: "user-1",
+      kind: "health_auto_export" }, { data: { metrics: [
+      { name: "weight_&_body_mass", units: "kg", data: [
+        { date: "2026-09-19 07:00:00 +0000", qty: 80.1, source: "Withings" }] },
+      { name: "step_count", units: "count", data: [
+        { date: "2026-09-19 09:00:00 +0000", qty: 800, source: "Apple Watch" },
+        { date: "2026-09-01 09:00:00 +0000", qty: 300, source: "Apple Watch" },
+        { date: "2026-09-19 10:00:00 +0000", qty: 900, source: "Apple Watch" },
+        { date: "2026-09-01 10:00:00 +0000", qty: 400, source: "Apple Watch" }] },
+    ] } }, now);
+    // Payload rows 0..4: the stale day (Sept 1) is rows 2 and 4, folded into one sample that sits
+    // at position 2 of the folded list. The rejection names the payload rows.
+    expect(out.rejected).toEqual([
+      { index: 2, reason: "sample outside the 8-day freshness window" },
+      { index: 4, reason: "sample outside the 8-day freshness window" },
+    ]);
+    expect(out.accepted).toBe(2);
   });
 });

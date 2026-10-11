@@ -20,7 +20,8 @@ const PROFILE: TargetProfile = {
 
 /** The account's stored safety answers the eligibility read sees (lib/server/target-eligibility.ts). */
 type Answers = { conditions?: readonly string[];
-  profiles?: readonly { profile_id: string; source: string }[]; birthYear?: number | null };
+  profiles?: readonly { profile_id: string; source: string }[]; birthYear?: number | null;
+  goal?: string };
 
 function clientWith(profile: TargetProfile | null, answers: Answers = {}) {
   const rpc = vi.fn(async (_name: string, args: { p_row?: Record<string, unknown> }) => ({
@@ -38,8 +39,8 @@ function clientWith(profile: TargetProfile | null, answers: Answers = {}) {
   }));
   const from = vi.fn((table: string) => {
     if (table === "user_settings") return { select: () => ({ eq: () => ({
-      maybeSingle: async () => ({ data: { weight_kg: 60, birth_year: answers.birthYear ?? 1990 },
-        error: null }),
+      maybeSingle: async () => ({ data: { weight_kg: 60, birth_year: answers.birthYear ?? 1990,
+        ...(answers.goal ? { goal: answers.goal } : {}) }, error: null }),
     }) }) };
     if (table === "constraint_profiles") return { select: () => ({ eq: () => ({
       maybeSingle: async () => ({ data: answers.conditions ? { conditions: answers.conditions } : null,
@@ -106,12 +107,26 @@ describe("manual target authoring", () => {
 
   it("keeps the active revision's rate and minimum source on a manual row (step D)", async () => {
     const { client, rpc } = clientWith({ ...PROFILE, goal_rate_bp_week: -50,
-      kcal_min_source: "macro_minimum" });
+      kcal_min_source: "macro_minimum" }, { goal: "lose_fat" });
     await authorTargets(client, "u1", { mode: "grams", effectiveFrom: "2026-09-14",
       kcalTrain: 2200, kcalRest: 1750, grams: { proteinG: 135, fatG: 85, carbG: 200 } });
     expect(rpc).toHaveBeenCalledWith("write_target_revision", expect.objectContaining({
       p_row: expect.objectContaining({ goal_rate_bp_week: -50, kcal_min_source: "macro_minimum" }),
     }));
+  });
+
+  // W007 review: an inherited rate is checked against the stored goal like a sent one.
+  it("stores 0 when the inherited rate is not a preset for the stored goal", async () => {
+    const inherited = { ...PROFILE, goal_rate_bp_week: -50 };
+    const body = { mode: "grams" as const, effectiveFrom: "2026-09-14", kcalTrain: 2200,
+      kcalRest: 1750, grams: { proteinG: 135, fatG: 85, carbG: 200 } };
+    for (const answers of [{ goal: "maintain" }, { goal: "gain_muscle" }, {}]) {
+      const { client, rpc } = clientWith(inherited, answers);
+      await authorTargets(client, "u1", body);
+      expect(rpc).toHaveBeenCalledWith("write_target_revision", expect.objectContaining({
+        p_row: expect.objectContaining({ goal_rate_bp_week: 0 }),
+      }));
+    }
   });
 
   it("labels a manual row built on a pre-D revision as legacy_default", async () => {
@@ -121,6 +136,32 @@ describe("manual target authoring", () => {
     expect(rpc).toHaveBeenCalledWith("write_target_revision", expect.objectContaining({
       p_row: expect.objectContaining({ goal_rate_bp_week: 0, kcal_min_source: "legacy_default" }),
     }));
+  });
+
+  // W007 (audit 2026-10-10 A004): the authored rate is a preset for the account's stored goal.
+  const row = (rpc: ReturnType<typeof vi.fn>) =>
+    (rpc.mock.calls.at(-1)?.[1] as { p_row: Record<string, unknown> }).p_row;
+
+  it("refuses a goalRateBpWeek that is not a preset for the stored goal", async () => {
+    const grams = { proteinG: 135, fatG: 85, carbG: 200 };
+    const body = (goalRateBpWeek: number) => ({ mode: "grams" as const,
+      effectiveFrom: "2026-09-14", kcalTrain: 2200, kcalRest: 1750, grams, goalRateBpWeek });
+    const { client: maintain, rpc } = clientWith(PROFILE, { goal: "maintain" });
+    await expect(authorTargets(maintain, "u1", body(-200)))
+      .rejects.toMatchObject({ status: 400, code: "rate_not_valid" });
+    const { client: gain } = clientWith(PROFILE, { goal: "gain_muscle" });
+    await expect(authorTargets(gain, "u1", body(-50)))
+      .rejects.toMatchObject({ status: 400, code: "rate_not_valid" });
+    const { client: unknown } = clientWith(PROFILE);
+    await expect(authorTargets(unknown, "u1", body(-50)))
+      .rejects.toMatchObject({ status: 400, code: "rate_not_valid" });
+    expect(rpc).not.toHaveBeenCalled();
+    const { client: losing, rpc: losingRpc } = clientWith(PROFILE, { goal: "lose_fat" });
+    await authorTargets(losing, "u1", body(-50));
+    expect(row(losingRpc).goal_rate_bp_week).toBe(-50);
+    const { client: zero, rpc: zeroRpc } = clientWith(PROFILE, { goal: "maintain" });
+    await authorTargets(zero, "u1", body(0));
+    expect(row(zeroRpc).goal_rate_bp_week).toBe(0);
   });
 
   it("re-applies revision floors and reports percent violations", async () => {
