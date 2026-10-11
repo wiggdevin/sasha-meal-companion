@@ -83,6 +83,19 @@ describe("package rounding (A018)", () => {
     expect(shopping.price.estimatedCheckoutAmount).toBe(count * 2);
   });
 
+  it("prices a package size with more than four decimals at its own count", () => {
+    const pack = 340.1942775; // 12 oz
+    const single = recipe({ servings: 1, ingredients: [ingredient({ seq: 1, name: "beans",
+      purchaseGrams: 300 })] });
+    const shopping = aggregateShopping(period({ budgetAmount: 10 }), [{ recipe: single,
+      localDate: "2026-10-01", slotId: "meal-3", servingsConsumed: 1, batchId: null }], {
+      identityFor, packages: [{ identity: identity("beans"), grams: pack }],
+      prices: [{ identity: identity("beans"), packageGrams: pack, amount: 3, currency: "USD",
+        locale: "US-CO", source: "store", observedAt: "2026-09-30" }] });
+    expect(shopping.lines[0].buyGrams).toBe(340.1943);
+    expect(shopping.price).toMatchObject({ estimatedCheckoutAmount: 3, budgetMet: true });
+  });
+
   it("still rounds a real remainder up to the next package", () => {
     const single = recipe({ servings: 1, ingredients: [ingredient({ seq: 1, name: "beans",
       purchaseGrams: 2381.5 })] });

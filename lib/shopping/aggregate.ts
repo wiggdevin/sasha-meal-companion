@@ -53,12 +53,13 @@ export function identityKey(identity: IngredientIdentity): string {
 const round = (value: number) => Math.round(value * 10_000) / 10_000;
 /**
  * Whole packages that cover `grams` (audit A018). Both inputs are decimal grams, so an exact
- * multiple can divide to k + 1e-15; a ratio within 1e-9 of a whole number counts as that number.
+ * multiple can divide to k + 1e-15, and a bought mass is rounded to 4 decimals (up to 0.00005 g
+ * off). A remainder under 1 mg is that rounding, never a reason to buy another package.
  */
 export function packageCount(grams: number, packageGrams: number): number {
   const ratio = grams / packageGrams;
   const nearest = Math.round(ratio);
-  return Math.abs(ratio - nearest) < 1e-9 ? nearest : Math.ceil(ratio);
+  return Math.abs(grams - nearest * packageGrams) < 0.001 ? nearest : Math.ceil(ratio);
 }
 /** Grams bought as whole packages, or null with no package size. */
 export function packageBuyGrams(net: number, packageGrams: number | null): number | null {
