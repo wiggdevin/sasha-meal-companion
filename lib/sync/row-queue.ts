@@ -23,7 +23,7 @@
 import { assertCurrent, type AccountHandle } from "@/lib/device/account";
 import {
   CURSOR_KEY, META_STORE, OUTBOX_STORE, entityWritten, openAccountDb, outboxRow, type OutboxOp,
-  type QueuedSyncOp,
+  type QueuePrecondition, type QueuedSyncOp,
 } from "./idb";
 import type { ChangeRow } from "./types";
 
@@ -49,6 +49,48 @@ export function headOfLine(all: readonly OutboxOp[], due: readonly OutboxOp[]): 
     if (seen === undefined || op.seq < seen) oldest.set(key, op.seq);
   }
   return due.filter((op) => OWN_RULES.has(op.entity) || oldest.get(rowKey(op)) === op.seq);
+}
+
+/** The newest queued op for a row: the revision the next edit of it is aimed after. */
+export function latestQueued(all: readonly OutboxOp[], entity: string, id: string): OutboxOp | undefined {
+  return all.filter((op) => op.entity === entity && op.entity_id === id)
+    .sort((a, b) => b.seq - a.seq)[0];
+}
+
+/** The drain rewrote what an edit was built on (a conflict rebase or fold): read it again. */
+export class StaleQueueRead extends Error {}
+
+function sameOp(a: OutboxOp | undefined, b: OutboxOp | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.op_id === b.op_id && a.base_rev === b.base_rev
+    && JSON.stringify(a.payload) === JSON.stringify(b.payload);
+}
+
+/**
+ * For a writer that builds an edit from separate reads (the newest queued op for the row, else the
+ * mirror) and then queues it: the write refuses, in its own transaction, when either read has
+ * moved since. The drain may rebase or fold that queued op meanwhile; queued after it, the edit
+ * would carry the folded op's payload at a revision the rebase can make match, and go over another
+ * device's change (W011 review, Sol).
+ */
+export function unchangedSince(
+  entity: string, id: string, pending: OutboxOp | undefined, mirroredRev: unknown,
+): QueuePrecondition {
+  return ({ ops, current }) => {
+    if (!sameOp(latestQueued(ops, entity, id), pending)) throw new StaleQueueRead();
+    if (!pending && (current?.rev ?? null) !== (mirroredRev ?? null)) throw new StaleQueueRead();
+  };
+}
+
+/** Run a read-then-queue write, reading again (a few times) when its write finds the read stale. */
+export async function retryStaleRead<T>(write: () => Promise<T>, tries = 3): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await write();
+    } catch (error) {
+      if (!(error instanceof StaleQueueRead) || attempt >= tries) throw error;
+    }
+  }
 }
 
 /** The ops queued behind `op` for its row, oldest first. */

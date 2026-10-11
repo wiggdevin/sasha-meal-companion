@@ -5,6 +5,7 @@ import { getDay, updateExtra } from "@/lib/store";
 import { isCompleteEntryRow, serverFields } from "@/lib/log/entry-row";
 import { canonicalNote } from "@/lib/log/note-text";
 import { allOps, getRow } from "@/lib/sync/idb";
+import { latestQueued, retryStaleRead, unchangedSince } from "@/lib/sync/row-queue";
 import { enqueueWithRow } from "@/lib/sync/outbox";
 import { browserClient } from "@/lib/supabase/client";
 
@@ -25,12 +26,17 @@ export function saveExtraNote(date: string, id: string, text: string): Promise<v
   return next;
 }
 
-async function save(h: AccountHandle, date: string, id: string, note: string): Promise<void> {
+/** Reads, then queues; a read the drain changed before the write lands is read again. */
+function save(h: AccountHandle, date: string, id: string, note: string): Promise<void> {
+  return retryStaleRead(() => saveOnce(h, date, id, note));
+}
+
+async function saveOnce(h: AccountHandle, date: string, id: string, note: string): Promise<void> {
   const entry = getDay(date)?.extras?.find((extra) => extra.id === id);
   if (!entry || (entry.note ?? "") === note) return;
-  const pending = (await allOps(h)).filter((op) => op.entity === "log_entries" && op.entity_id === id)
-    .sort((a, b) => b.seq - a.seq)[0];
-  let row = await getRow(h, "log_entries", id) as Record<string, unknown> | undefined;
+  const pending = latestQueued(await allOps(h), "log_entries", id);
+  const mirrored = await getRow(h, "log_entries", id) as Record<string, unknown> | undefined;
+  let row = mirrored;
   if (pending) {
     if (pending.kind === "delete") throw new Error("This entry has been removed.");
     row = { ...pending.payload, rev: (pending.base_rev ?? 0) + 1 };
@@ -52,11 +58,12 @@ async function save(h: AccountHandle, date: string, id: string, note: string): P
     // The note this edit replaces: a conflict then keeps the user's clear or rewrite instead of
     // joining it to the very text they changed (audit 2026-10-10 A077).
     const base = typeof row.note === "string" ? canonicalNote(row.note) : "";
+    // Built on `pending` (or the mirror): the write refuses if the drain has rebased it since.
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: id,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
       note_base: base || null,
-    });
+    }, Date.now(), unchangedSince("log_entries", id, pending, mirrored?.rev));
   }
   // Unbacked bundled/manual extras keep their established legacy persistence path.
   assertCurrent(h);
