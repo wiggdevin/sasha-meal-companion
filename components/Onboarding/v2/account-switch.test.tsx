@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Final Sol review r3 BLOCK: after an account switch in the same mounted shell, the previous
 // account's stored holds (`ready`) and reward preview stayed in force until the new reads answered.
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { bindAccount, markAccountReady, unbindAccount } from "@/lib/device/account";
 import { useStoredEligibility } from "@/components/Onboarding/v2/stored-eligibility";
@@ -13,7 +13,9 @@ const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
 const rules = { avoid_allergens: [], avoid_food_ref_ids: [], banned_categories: [], notes: null };
 
-afterEach(() => { unbindAccount(); });
+// Without vitest globals Testing Library never registers its own cleanup, so a hook left mounted
+// let React's scheduler run after jsdom was torn down ("window is not defined", CI 2026-10-10).
+afterEach(() => { cleanup(); unbindAccount(); });
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
