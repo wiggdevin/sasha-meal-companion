@@ -42,6 +42,9 @@ vi.mock("@/lib/server/admin", async (importOriginal) => ({
 
 /** Routes that never read the session cookie, each with the identity it uses instead. */
 const NOT_COOKIE: Record<string, string> = {
+  "app/api/auth/otp/route.ts": "sign-in (W052): no session yet; IP-limited before Supabase Auth",
+  "app/api/auth/password/route.ts": "sign-in (W052): no session yet; IP-limited before Supabase Auth",
+  "app/api/auth/verify/route.ts": "sign-in (W052): creates the session; IP-limited before Supabase Auth",
   "app/api/dev/sign-in/route.ts": "dev-only sign-in: creates the session, refused outside local dev",
   "app/api/health/route.ts": "uptime probe: no session, no user data",
   "app/api/health/ingest/route.ts": "per-source bearer token (health-tokens), not the cookie",
