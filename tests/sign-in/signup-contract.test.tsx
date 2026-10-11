@@ -12,10 +12,14 @@ const verifyOtp = vi.fn(async (_args: unknown) => ({ error: { code: "invalid_cod
 vi.mock("next/navigation", () => ({ useRouter: vi.fn(() => ({ replace: vi.fn() })) }));
 // W052: the screen talks to the app's IP-limited routes, never to Supabase Auth directly. The
 // server-side half of this contract (the redirect, the masking) is tests/server/sign-in-limits.test.ts.
-vi.mock("@/lib/sign-in-client", () => ({
-  LIMITED_CODES: new Set(["rate_limited", "auth_rate_limited"]),
-  signInAuth: () => ({ signInWithOtp, verifyOtp }),
-}));
+vi.mock("@/lib/sign-in-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/sign-in-client")>();
+  return {
+    LIMITED_CODES: actual.LIMITED_CODES,
+    UNAVAILABLE_CODES: actual.UNAVAILABLE_CODES,
+    signInAuth: () => ({ signInWithOtp, verifyOtp }),
+  };
+});
 vi.mock("@/lib/supabase/client", () => ({
   safePath: (p: string | null) => p ?? "/",
 }));
