@@ -78,13 +78,21 @@ function limitParam(url: URL): number {
 // finding 45: a streamed CSV export otherwise looks byte-identical whether it carries the user's whole
 // history or silently stopped partway through it. `csvDocument` already appends a trailing `#`
 // comment line for the ODbL notice, so a truncated page reuses that same mechanism.
-const TRUNCATION_NOTICE = "Export truncated: more rows exist. Re-request with the returned " +
-  "cursor to get the rest.";
+// W012 (A086): the cursor used to live only in the JSON body, so a CSV page could say it was cut
+// short but never be continued. The notice now names the cursor, and two headers carry it for the
+// phone: `x-export-next-cursor` (absent on the last page) and `x-export-notice-lines`, the count of
+// trailing `#` lines, so a client joining pages strips exactly those and never a data line.
+const NEXT_CURSOR_HEADER = "x-export-next-cursor";
+const NOTICE_LINES_HEADER = "x-export-notice-lines";
+
+function truncationNotice(cursor: string): string {
+  return `Export truncated: more rows exist. Re-request with cursor=${cursor} to get the rest.`;
+}
 
 function csvResponse(kind: string, opts: ExportOpts, header: string[],
   rows: readonly (string | number | null)[][], notices: string[],
   nextCursor: string | null): Response {
-  const allNotices = nextCursor ? [...notices, TRUNCATION_NOTICE] : notices;
+  const allNotices = nextCursor ? [...notices, truncationNotice(nextCursor)] : notices;
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder();
@@ -94,9 +102,12 @@ function csvResponse(kind: string, opts: ExportOpts, header: string[],
   });
   const from = opts.from ?? "all";
   const to = opts.to ?? "all";
-  return new Response(body, { headers: {
+  const headers = new Headers({
     "content-type": "text/csv; charset=utf-8",
-    "content-disposition": `attachment; filename="meal-companion-${kind}-${from}-${to}.csv"` } });
+    "content-disposition": `attachment; filename="meal-companion-${kind}-${from}-${to}.csv"`,
+    [NOTICE_LINES_HEADER]: String(allNotices.length) });
+  if (nextCursor) headers.set(NEXT_CURSOR_HEADER, nextCursor);
+  return new Response(body, { headers });
 }
 
 async function streamed(kind: StreamKind, client: SupabaseClient, userId: string,

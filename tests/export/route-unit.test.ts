@@ -64,6 +64,21 @@ describe("GET /api/export — kind=meals CSV truncation signal", () => {
     const res = await GET(get("kind=meals&format=csv"));
     const body = await res.text();
     expect(body).not.toMatch(/truncat/i);
+    expect(res.headers.get("x-export-next-cursor")).toBeNull();
+    expect(res.headers.get("x-export-notice-lines")).toBe("0");
+  });
+
+  // W012 (A086): the cursor used to exist only in the JSON body, so a CSV page could say it was
+  // cut short and still never be continued.
+  it("hands a truncated CSV page its cursor in the notice and in a header", async () => {
+    vi.mocked(streamMeals).mockResolvedValue({ rows: [], notices: ["ODbL"],
+      next_cursor: "abc_DEF-1" });
+    const res = await GET(get("kind=meals&format=csv"));
+    expect(res.headers.get("x-export-next-cursor")).toBe("abc_DEF-1");
+    expect(res.headers.get("x-export-notice-lines")).toBe("2");
+    const lines = (await res.text()).trimEnd().split("\r\n");
+    expect(lines.slice(-2)).toEqual(["# ODbL",
+      "# Export truncated: more rows exist. Re-request with cursor=abc_DEF-1 to get the rest."]);
   });
 });
 
