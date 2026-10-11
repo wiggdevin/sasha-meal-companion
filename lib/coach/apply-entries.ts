@@ -239,7 +239,7 @@ export async function undoMoveEntry(
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: token.entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
-      note_base: noteBaseOf(row), base_fields: moveBaseOf(row, ["eaten_at"]),
+      note_base: noteBaseOf(row), base_fields: moveBaseOf(row, ["eaten_at", "local_date", "tz"]),
     }, Date.now(), unchanged);
   });
   assertCurrent(h);

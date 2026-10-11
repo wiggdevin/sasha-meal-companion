@@ -78,7 +78,7 @@ function patchCardFromRow(
   const patch = entryPatchFromRow(entry, row);
   // A write of their own is still waiting to send this entry's note. Until it does, the note on the
   // card is theirs and the row's is simply older (Grok pass 27, HIGH 2).
-  if (keepNote) delete patch.note;
+  if (keepNote) { delete patch.note; delete patch.at; } // and a queued move's time
   // The row is the server's word on this revision: it sets the mark and clears a stale one. Only
   // an unreadable fallback (null) leaves the card as it was.
   const partial = rowNutritionPartial(row, partialRefs);

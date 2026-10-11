@@ -175,8 +175,8 @@ function sameValue(field: string, a: unknown, b: unknown): boolean {
 /**
  * The move the queued ops make, laid over the server's row. The run is judged whole: from the
  * first move's base (where the entry was) to the last move's payload (where the user left it), so
- * a move and its Undo cancel out. It stands unless the server moved the entry too, and later than
- * the user's last move (its own time, kept in `field_stamps` across rebases; a folded note does not
+ * a move and its Undo cancel out. It stands unless the server moved the entry too, later than the
+ * user's last move or at a time the row does not say (its own time, kept in `field_stamps` across rebases; a folded note does not
  * make the move newer). Time, date and zone are taken together. `base` is the server's placement,
  * what the next conflict compares against.
  */
@@ -193,7 +193,10 @@ export function movedFields(
   if (moved.length === 0) return { fields: {} };
   const theirs = MOVE_FIELDS.some((f) => f in start && !sameValue(f, server[f], start[f]));
   const movedAt = last.field_stamps?.eaten_at ?? last.client_ts;
-  if (theirs && Date.parse(serverTs) > Date.parse(movedAt)) return { fields: {} };
+  // A row with no readable time of its own (log_entries rows carry none today) cannot be judged
+  // older: when the other device moved the entry too, its move reached the server first and stands.
+  const serverAt = Date.parse(serverTs);
+  if (theirs && (Number.isNaN(serverAt) || serverAt > Date.parse(movedAt))) return { fields: {} };
   const fields = Object.fromEntries(MOVE_FIELDS.filter((f) => f in end).map((f) => [f, end[f]]));
   return { fields, base: Object.fromEntries(Object.keys(fields).map((f) => [f, server[f] ?? null])),
     stamps: { eaten_at: movedAt } };

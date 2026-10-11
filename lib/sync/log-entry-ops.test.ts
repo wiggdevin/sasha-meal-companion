@@ -169,6 +169,17 @@ describe("a coach move the server refused", () => {
     expect(left.field_stamps).toEqual({ eaten_at: op.client_ts });
   });
 
+  it("lets the other device's move stand when the row cannot say when it was made", async () => {
+    const op = moveOp();
+    await putOp(h, op);
+    const moved = { ...conflict, current: { ...SERVER, eaten_at: "2026-11-02T19:00:00.000Z" } } as OpResult;
+
+    await handleLogEntryResult(h, moved, op);
+
+    const [left] = (await allOps(h)).filter((o) => o.entity_id === ENTRY_ID);
+    expect(left.payload.eaten_at).toBe("2026-11-02T19:00:00.000Z");
+  });
+
   it("lets a later move on the other device stand", async () => {
     const op = moveOp();
     await putOp(h, op);
