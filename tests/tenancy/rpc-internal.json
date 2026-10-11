@@ -84,5 +84,10 @@
     "class": "private_trigger",
     "table": "food_allergen_evidence",
     "trigger": "recipe_state_allergen_evidence"
+  },
+  "plan_days_record_first_mark()": {
+    "class": "private_trigger",
+    "table": "plan_days",
+    "trigger": "plan_days_record_first_mark"
   }
 }

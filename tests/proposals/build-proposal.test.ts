@@ -143,7 +143,7 @@ describe("buildProposal", () => {
     const out = buildProposal({
       estimate: estimate({ tdeeKcal: 1700 }),
       active: active({ kcal_train: 1700, kcal_rest: 1700, protein_g: 135, fat_g: 95,
-        protein_g_min: 135, max_weekly_kcal_step: 20 }) });
+        protein_g_min: 135, carb_g_min: 100, max_weekly_kcal_step: 20 }) });
     expect(out.kind).toBe("blocked");
     if (out.kind !== "blocked") throw new Error("expected blocked");
     expect(out.reason).toMatch(/floor/i);
@@ -155,5 +155,33 @@ describe("buildProposal", () => {
       protein_pct: 25, fat_pct: 35, carb_pct: 40 }) });
     if (out.kind !== "proposal") throw new Error(out.kind);
     expect(out.proposed.proteinG).toBeGreaterThanOrEqual(135);
+  });
+
+  // Audit 2026-10-10 A157: a derived revision stores the training-day gram set, which adds up to
+  // kcal_train exactly. Holding those carbs raised a lower training day straight back to its total.
+  const derived = (weekdays: number[], kcalRest: number) => active({
+    kcal_train: 2042, kcal_rest: kcalRest, protein_g: 112, fat_g: 70, carb_g: 241,
+    kcal_min: 1200, protein_g_min: 112, fat_g_min: 50, carb_g_min: 50,
+    input_training_weekdays: weekdays });
+
+  it("moves a training-heavy account down: training carbs fall to carb_g_min, not the authored value", () => {
+    for (const [weekdays, rest] of [[[1, 2, 4, 5], 1818], [[0, 1, 2, 4, 5], 1706]] as const) {
+      const out = buildProposal({ estimate: estimate({ tdeeKcal: 1546 }),
+        active: derived([...weekdays], rest) });
+      if (out.kind !== "proposal") throw new Error(`${out.kind}: ${"reason" in out ? out.reason : ""}`);
+      expect(out.proposed.deltaKcalTrain).toBe(-150);
+      expect(out.proposed.deltaKcalRest).toBeLessThan(-100);
+      expect(out.proposed.carbG).toBeLessThan(241);
+      expect(out.proposed.proteinG).toBe(112);
+      expect(out.proposed.raisedToFloor).toBe(false);
+      expect(out.proposed.kcalTrain / out.proposed.kcalRest).toBeCloseTo(2042 / rest, 2);
+    }
+  });
+
+  it("moves up and down symmetrically for the same derived revision", () => {
+    const up = buildProposal({ estimate: estimate({ tdeeKcal: 2346 }), active: derived([1, 2, 4, 5], 1818) });
+    const down = buildProposal({ estimate: estimate({ tdeeKcal: 1546 }), active: derived([1, 2, 4, 5], 1818) });
+    if (up.kind !== "proposal" || down.kind !== "proposal") throw new Error("expected proposals");
+    expect(up.proposed.deltaKcalTrain).toBe(-down.proposed.deltaKcalTrain);
   });
 });
