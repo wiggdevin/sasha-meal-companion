@@ -24,7 +24,6 @@ import { generateOpenRouter } from "@/lib/ai/openrouter";
 import { documentPlanPayload, type DocumentPayloadInput } from "@/lib/ai/openrouter-payloads";
 import { openRouterConfigured } from "@/lib/ai/provider-env";
 import { providerFallbackWorthTrying } from "@/lib/ai/provider-fallback";
-import type { ConstraintProfile } from "@/lib/policy/constraints";
 import { cleanDays, cleanRecipeIngredients, matchMeal } from "@/lib/plan/document-clean";
 import { MAX_DOCUMENT_PAGES, MAX_PDF_BYTES, pdfPageCount, sniffBytes, TOO_MANY_PAGES } from "@/lib/plan/document-files";
 import { groundDocumentMeal, itemTotals, type DocumentGroundPorts } from "@/lib/plan/document-ground";
@@ -35,8 +34,7 @@ import { stripImageMetadata, UnparseableImage } from "@/lib/media/strip-metadata
 import { HttpError } from "@/lib/server/auth";
 import { fetchOwnedObject } from "@/lib/server/media";
 import { MAX_INSPIRE_PHOTO_BYTES } from "@/lib/server/plan-inspire";
-import { defaultMenuSearch, screenMenu } from "@/lib/server/plan-menu";
-import { readPolicyProfile, type PolicyProfile } from "@/lib/server/policy-profile";
+import { defaultMenuSearch, readMenuProfile, screenMenu, type MenuProfile } from "@/lib/server/plan-menu";
 import { byModel } from "@/lib/provenance";
 
 const DOCUMENT_BUDGET_MS = 40_000;
@@ -48,8 +46,11 @@ export type DocumentDeps = {
   generate?: typeof generateOpenRouter;
   generateGemini?: typeof generateStructured;
   /** The account's food rules, read only when a matched meal or a menu needs screening. */
-  readPolicy?: (admin: SupabaseClient, userId: string) => Promise<PolicyProfile | ConstraintProfile>;
+  /** W014: the profile and the diet flags, read together (lib/server/plan-menu.ts readMenuProfile). */
+  readPolicy?: (admin: SupabaseClient, userId: string) => Promise<MenuProfile>;
   searchFoods?: DocumentGroundPorts["searchFoods"];
+  /** The matched meal's full policy evidence (default loadSuggestionEvidence; W014, A134). */
+  evidence?: DocumentGroundPorts["evidence"];
 };
 
 /** The request's file as payload input: its type sniffed from its bytes, its size and pages bounded. */
@@ -125,7 +126,7 @@ export async function readDocument(admin: SupabaseClient, client: SupabaseClient
 }
 
 function policy(admin: SupabaseClient, userId: string, deps: DocumentDeps) {
-  return (deps.readPolicy ?? ((c, id) => readPolicyProfile(c, id, new Date()).then((r) => r.profile)))(admin, userId);
+  return (deps.readPolicy ?? readMenuProfile)(admin, userId);
 }
 
 async function searchPort(admin: SupabaseClient, client: SupabaseClient, req: DocumentRequest,
@@ -144,7 +145,8 @@ async function route(admin: SupabaseClient, client: SupabaseClient, userId: stri
     if (!at) return { kind: "meal_plan", title, days, match: null };
     const meal = days[at.day].meals[at.meal];
     const [profile, searchFoods] = await Promise.all([policy(admin, userId, deps), searchPort(admin, client, req, deps)]);
-    const { items, left } = await groundDocumentMeal(userId, meal, profile, { searchFoods });
+    const { items, left } = await groundDocumentMeal(userId, meal, profile,
+      { searchFoods, ...(deps.evidence ? { evidence: deps.evidence } : {}) });
     return { kind: "meal_plan", title, days,
       match: { ...at, title: meal.name, items, left, totals: itemTotals(items) } };
   }

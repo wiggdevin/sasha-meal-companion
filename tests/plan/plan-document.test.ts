@@ -13,6 +13,7 @@ import { EMPTY_PROFILE } from "@/lib/policy/constraints";
 import { documentRequestSchema, MAX_PDF_BASE64, type DocumentRequest } from "@/lib/plan/document-types";
 import { readDocument, type DocumentDeps } from "@/lib/server/plan-document";
 import { syntheticJpeg, syntheticJpegWithExif, syntheticPngWithMetadata } from "../helpers/synthetic-images";
+import { readyPlanEvidence } from "@/tests/helpers/plan-evidence";
 
 const admin = {} as never;
 const client = {} as never;
@@ -45,7 +46,7 @@ function search(): DocumentDeps["searchFoods"] {
 
 const deps = (generate: ReturnType<typeof vi.fn>, extra: DocumentDeps = {}): DocumentDeps =>
   ({ generate: generate as unknown as DocumentDeps["generate"], readPolicy: async () => EMPTY_PROFILE,
-    searchFoods: search(), ...extra });
+    searchFoods: search(), evidence: readyPlanEvidence(), ...extra });
 
 afterEach(() => { vi.unstubAllEnvs(); });
 

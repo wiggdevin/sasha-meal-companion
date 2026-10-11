@@ -64,6 +64,64 @@ describe("GET /api/export — kind=meals CSV truncation signal", () => {
     const res = await GET(get("kind=meals&format=csv"));
     const body = await res.text();
     expect(body).not.toMatch(/truncat/i);
+    expect(res.headers.get("x-export-next-cursor")).toBeNull();
+    expect(res.headers.get("x-export-notice-lines")).toBe("0");
+  });
+
+  // W012 (A086): the cursor used to exist only in the JSON body, so a CSV page could say it was
+  // cut short and still never be continued.
+  it("hands a truncated CSV page its cursor in the notice and in a header", async () => {
+    vi.mocked(streamMeals).mockResolvedValue({ rows: [], notices: ["ODbL"],
+      next_cursor: "abc_DEF-1" });
+    const res = await GET(get("kind=meals&format=csv"));
+    expect(res.headers.get("x-export-next-cursor")).toBe("abc_DEF-1");
+    expect(res.headers.get("x-export-notice-lines")).toBe("2");
+    const lines = (await res.text()).trimEnd().split("\r\n");
+    expect(lines.slice(-2)).toEqual(["# ODbL",
+      "# Export truncated: more rows exist. Re-request with cursor=abc_DEF-1 to get the rest."]);
+  });
+});
+
+// W012 review (Sol WARN): a multi-page download is one first request plus cursor continuations.
+// Counting the continuations against the 10/hour export budget made the second download in an
+// hour fail partway, so they draw on their own budget.
+describe("GET /api/export — cursor continuations and the hourly limit", () => {
+  beforeEach(() => {
+    resetRateLimits();
+    user.mockResolvedValue({ userId: "user-1", client: {} as never });
+    vi.mocked(streamMeals).mockImplementation(async () =>
+      ({ rows: [], notices: [], next_cursor: null }));
+  });
+
+  it("serves continuations after the hour's ten first pages are spent", async () => {
+    for (let i = 0; i < 10; i += 1) {
+      expect((await GET(get("kind=meals&format=csv"))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv"))).status).toBe(429);
+    for (let i = 0; i < 7; i += 1) {
+      expect((await GET(get(`kind=meals&format=csv&cursor=c${i}`))).status).toBe(200);
+    }
+  });
+
+  it("does not spend the hourly first-page budget on continuations", async () => {
+    for (let i = 0; i < 20; i += 1) {
+      expect((await GET(get(`kind=meals&format=csv&cursor=c${i}`))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv"))).status).toBe(200);
+  });
+
+  it("caps continuations at seventy an hour", async () => {
+    for (let i = 0; i < 70; i += 1) {
+      expect((await GET(get(`kind=meals&format=csv&cursor=c${i}`))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv&cursor=c70"))).status).toBe(429);
+  });
+
+  it("counts an empty cursor as a first page", async () => {
+    for (let i = 0; i < 10; i += 1) {
+      expect((await GET(get("kind=meals&format=csv&cursor="))).status).toBe(200);
+    }
+    expect((await GET(get("kind=meals&format=csv"))).status).toBe(429);
   });
 });
 
