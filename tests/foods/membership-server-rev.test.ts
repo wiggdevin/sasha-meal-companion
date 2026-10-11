@@ -15,7 +15,8 @@ import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetFoodMembershipState, adoptServerMemberships, foodMembershipWriteMark, readFoodMembership,
-  reserveFoodMembershipIntent, setFoodMembership,
+  raiseFoodMembershipIntent, readServerMembershipRev, repairFoodMembershipCache, reserveFoodMembershipIntent,
+  setFoodMembership,
 } from "@/lib/foods/prefs-client";
 import { __resetStoreCache } from "@/lib/store";
 import { allOps, deleteOp } from "@/lib/sync/idb";
@@ -107,11 +108,26 @@ describe("server-assigned membership revisions", () => {
     expect(await push()).toEqual([{ op_id: op.op_id, status: "applied", rev: 1_800_003_600_001, seq: 0 }]);
     expect(route.rpc).toHaveBeenCalledWith("set_food_membership", expect.objectContaining({
       p_op_id: op.op_id, p_rev: 1, p_status: "avoid" }));
-    expect(readFoodMembership(USER_ID, "peanut butter")).toMatchObject({ status: "avoid", rev: 1_800_003_600_001 });
+    expect(readFoodMembership(USER_ID, "peanut butter")).toEqual({ status: "avoid", note: null,
+      rev: 1_800_003_600_001, sentRev: 1 });
     expect(await allOps(h)).toEqual([]);
     // The next tap asks past the server's revision.
     await setFoodMembership("Peanut butter", "eats", { supabase: client() });
     expect((await allOps(h))[0].payload.rev).toBe(1_800_003_600_002);
+  });
+
+  it("a mark the server wrote at a later revision is still that mark for its Undo records", async () => {
+    fakeServer().set("oats", { status: null, rev: 50 });
+    await setFoodMembership("Oats", "eats", { supabase: client() });
+    await push();
+    expect(readFoodMembership(USER_ID, "oats")).toMatchObject({ status: "eats", rev: 51, sentRev: 1 });
+    // The meal heart's `done` record names rev 1: the same mark, not a newer choice.
+    expect(repairFoodMembershipCache(h, "Oats", { status: "eats", rev: 1 })).toBe(true);
+    // A sync pass reads the same mark with the family's kept note: the alias stays (Sol review).
+    adoptServerMemberships(h, [{ name_norm: "oats", status: "eats", note: "crunchy", rev: 51 }], new Set(),
+      foodMembershipWriteMark());
+    expect(readFoodMembership(USER_ID, "oats")).toEqual({ status: "eats", note: "crunchy", rev: 51, sentRev: 1 });
+    expect(repairFoodMembershipCache(h, "Oats", { status: "eats", rev: 1 })).toBe(true);
   });
 
   it("two tabs that asked for one revision: both land, the later tap wins, nothing is reverted", async () => {
@@ -127,6 +143,23 @@ describe("server-assigned membership revisions", () => {
     expect(results.map((r) => r.status)).toEqual(["applied", "applied"]);
     expect(marks.get("rice")).toEqual({ status: "avoid", rev: first.rev + 1 });
     expect(readFoodMembership(USER_ID, "rice")).toMatchObject({ status: "avoid", rev: first.rev + 1 });
+  });
+});
+
+describe("a coach mark's revision is the one its Undo record names", () => {
+  it("asks past the server's revision when the server is ahead of this device", async () => {
+    const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({
+      maybeSingle: async () => ({ data: { rev: 50 }, error: null }) }) }) }) }) } as never;
+    expect(await readServerMembershipRev(h, "Oats", supabase)).toBe(50);
+    const intent = raiseFoodMembershipIntent(reserveFoodMembershipIntent("Oats", h), 50);
+    expect(intent.rev).toBe(51);
+    await setFoodMembership("Oats", "avoid", { supabase: client(), intent });
+    expect((await allOps(h)).map((op) => op.payload.rev)).toEqual([51]);
+    expect(reserveFoodMembershipIntent("Oats", h).rev).toBe(52);
+    // Unreadable, or already behind this device: the intent is unchanged.
+    const unread = reserveFoodMembershipIntent("Rice", h);
+    expect(raiseFoodMembershipIntent(unread, null)).toBe(unread);
+    expect(raiseFoodMembershipIntent(unread, unread.rev - 1)).toBe(unread);
   });
 });
 

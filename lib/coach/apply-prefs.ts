@@ -24,8 +24,9 @@ import { accountHandle, assertCurrent, type AccountHandle } from "@/lib/device/a
 import type { CoachAction } from "@/lib/coach/actions";
 import type { FoodStatus } from "@/lib/foods";
 import { normalizeFoodName } from "@/lib/foods/normalize";
-import { currentPrefStatus, isLatestFoodMembershipIntent, readFoodMembership,
-  reserveFoodMembershipIntent, saveFoodNoteForRef, setFoodMembership } from "@/lib/foods/prefs-client";
+import { currentPrefStatus, isLatestFoodMembershipIntent, raiseFoodMembershipIntent, readFoodMembership,
+  readServerMembershipRev, reserveFoodMembershipIntent, saveFoodNoteForRef, setFoodMembership,
+} from "@/lib/foods/prefs-client";
 import { getFoods, setFoodNote, setFoodStatus } from "@/lib/store";
 import type { ApplyResult, UndoToken } from "@/lib/coach/apply-shared";
 import { confirmMealComponentRole } from "@/lib/coach/role-advice";
@@ -57,7 +58,7 @@ async function roleRowIsReady(h: AccountHandle, foodRefId: string): Promise<bool
 
 export async function applyFoodListMark(action: ListAction): Promise<ApplyResult> {
   const h = accountHandle();
-  const intent = reserveFoodMembershipIntent(action.name, h);
+  let intent = reserveFoodMembershipIntent(action.name, h);
   const status: Exclude<FoodStatus, "neutral"> | null = action.kind === "add_to_avoid"
     ? "avoid" : action.kind === "add_to_eats" ? "eats" : null;
   const note = action.kind === "remove_from_eats"
@@ -67,6 +68,8 @@ export async function applyFoodListMark(action: ListAction): Promise<ApplyResult
       : undefined;
   const refId = action.foodRefId;
   const previous = await currentPrefStatus(refId, h);
+  // The Undo record names this mark's revision; ask past the server's (W029, Sol review).
+  intent = raiseFoodMembershipIntent(intent, await readServerMembershipRev(h, action.name));
   assertCurrent(h);
   if (!isLatestFoodMembershipIntent(intent)) {
     return { status: "failed", reason: "A newer food choice replaced this action." };
@@ -125,8 +128,9 @@ export async function undoFoodListMark(
   const now = readFoodMembership(h.userId, name);
   // The status AND the revision this mark wrote (review t4r10 #7): Avoid → Eats → Avoid since is
   // the same status but a later choice, which Undo must leave alone.
+  // The server may have written the mark at a later revision than it asked for (W029): `sentRev`.
   if (now && (now.status !== setTo
-    || (typeof token.markRev === "number" && now.rev !== token.markRev))) {
+    || (typeof token.markRev === "number" && now.rev !== token.markRev && now.sentRev !== token.markRev))) {
     throw new Error(`${name} has changed since, so Undo left it alone.`);
   }
   await setFoodMembership(name, token.previous?.status ?? null,

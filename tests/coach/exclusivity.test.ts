@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   setFoodMembership: vi.fn(),
   saveFoodNoteForRef: vi.fn(),
   reserveFoodMembershipIntent: vi.fn(() => ({})),
+  raiseFoodMembershipIntent: (intent: unknown) => intent,
+  readServerMembershipRev: async () => null,
   isLatestFoodMembershipIntent: vi.fn(() => true),
   readFoodMembership: vi.fn(() => undefined),
 }));

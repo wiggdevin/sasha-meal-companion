@@ -89,6 +89,8 @@ export type FoodMembershipCacheEntry = {
   status: Exclude<FoodStatus, "neutral"> | null;
   note: string | null;
   rev: number;
+  /** The revision this device's op asked for when the server wrote it at `rev` instead (W029). */
+  sentRev?: number;
 };
 
 export const FOOD_MEMBERSHIP_SAVE_MESSAGE = "Could not save — try again";
@@ -157,6 +159,37 @@ export function reserveFoodMembershipIntent(
 
 export function isLatestFoodMembershipIntent(intent: FoodMembershipIntent): boolean {
   return isCurrent(intent.account) && membershipIntents.get(intent.key) === intent.sequence;
+}
+
+/**
+ * The server's current revision for one name (the owner policy of migration 20261231110000), or
+ * null when it cannot be read. A coach mark reads it before it queues, so the revision its Undo
+ * record names is the one the server writes (W029): a hint at or below the server's revision is
+ * written at a later one, and the server-side Undo would then refuse the mark as changed since.
+ */
+export async function readServerMembershipRev(
+  h: AccountHandle, name: string, supabase: SupabaseClient = browserClient(),
+): Promise<number | null> {
+  try {
+    const { data, error } = await withAccount(h, (owner) => supabase.from("food_membership_revisions")
+      .select("rev").eq("user_id", owner).eq("name_norm", normalizeFoodName(name)).maybeSingle());
+    const rev = Number((data as { rev?: unknown } | null)?.rev);
+    return error || !data || !Number.isSafeInteger(rev) || rev < 0 ? null : rev;
+  } catch (e) {
+    rethrowAccountChanged(e);
+    return null;
+  }
+}
+
+/** The same intent, asking for a revision past `serverRev`; the device clock moves with it. */
+export function raiseFoodMembershipIntent(
+  intent: FoodMembershipIntent, serverRev: number | null,
+): FoodMembershipIntent {
+  if (serverRev === null || serverRev < intent.rev || !isLatestFoodMembershipIntent(intent)) return intent;
+  const rev = serverRev + 1;
+  const clockKey = intent.key.slice(intent.key.indexOf(":") + 1);
+  if ((membershipRevisions.get(clockKey) ?? -1) < rev) membershipRevisions.set(clockKey, rev);
+  return { ...intent, rev };
 }
 
 /** Test-only: browser navigation keeps this clock; a fresh test/device does not. */
@@ -250,6 +283,7 @@ export function readFoodMembership(
     status: row.status,
     note: typeof row.note === "string" ? row.note : null,
     rev: row.rev,
+    ...(typeof row.sentRev === "number" && Number.isSafeInteger(row.sentRev) ? { sentRev: row.sentRev } : {}),
   };
 }
 
@@ -553,6 +587,8 @@ export function repairFoodMembershipCache(
   assertCurrent(h);
   const nameNorm = normalizeFoodName(name);
   const current = readFoodMembership(h.userId, nameNorm);
+  // The same mark, written by the server at a later revision than it asked for (W029).
+  if (current && current.sentRev === mark.rev && current.status === mark.status) return true;
   if (current && current.rev > mark.rev) return false;
   if (!current || current.rev < mark.rev) {
     rememberMembership(h.userId, nameNorm, { status: mark.status, note: null, rev: mark.rev });
@@ -607,7 +643,7 @@ export function acknowledgeFoodMembership(
   const cached = readFoodMembership(h.userId, nameNorm);
   if (!cached || cached.rev !== sentRev || cached.status !== status) return false;
   if (serverRev === sentRev) return true;
-  rememberMembership(h.userId, nameNorm, { ...cached, rev: serverRev });
+  rememberMembership(h.userId, nameNorm, { ...cached, rev: serverRev, sentRev });
   if ((membershipRevisions.get(clockKey) ?? -1) < serverRev) membershipRevisions.set(clockKey, serverRev);
   return true;
 }
@@ -635,7 +671,10 @@ export function adoptServerMemberships(
     if ((activeMembershipCalls.get(`${h.epoch}:${clockKey}`) ?? 0) > 0) continue;
     const cached = readFoodMembership(h.userId, nameNorm);
     if (cached && cached.status === row.status && cached.rev === row.rev && cached.note === row.note) continue;
-    rememberMembership(h.userId, nameNorm, { status: row.status, note: row.note, rev: row.rev }, true);
+    // The same mark (status and revision): its alias for this device's Undo records stays (Sol).
+    const same = cached && cached.status === row.status && cached.rev === row.rev && cached.sentRev !== undefined;
+    rememberMembership(h.userId, nameNorm, { status: row.status, note: row.note, rev: row.rev,
+      ...(same ? { sentRev: cached.sentRev } : {}) }, true);
     membershipRevisions.set(clockKey, row.rev);
     adopted += 1;
   }

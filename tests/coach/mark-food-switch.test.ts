@@ -14,6 +14,8 @@ vi.mock("@/lib/foods/prefs-client", () => ({
   currentPrefStatus: (refId: string, h?: unknown) => prefs.current(refId, h),
   setFoodMembership: (name: string, status: unknown, opts?: unknown) => prefs.set(name, status, opts),
   reserveFoodMembershipIntent: () => ({ id: ++prefs.nextIntent }),
+  raiseFoodMembershipIntent: (intent: unknown) => intent,
+  readServerMembershipRev: async () => null,
   isLatestFoodMembershipIntent: (intent: { id: number }) => intent.id === prefs.nextIntent,
 }));
 
