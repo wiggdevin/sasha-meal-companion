@@ -1,6 +1,8 @@
 // lib/sync/merge.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { joinNotes, MergeRefusedError, mergeEntity, NEVER_MERGED, rebaseOp } from "./merge";
+import {
+  joinNotes, MergeRefusedError, mergeEntity, mergeNoteFromBase, NEVER_MERGED, rebaseOp,
+} from "./merge";
 import type { SyncOp } from "./types";
 
 const OLD = "2026-09-10T10:00:00.000Z";
@@ -102,6 +104,62 @@ describe("joinNotes — a real two-sided conflict", () => {
   });
   it("returns undefined when neither side has a note", () => {
     expect(joinNotes(undefined, undefined, OLD, NEW)).toBeUndefined();
+  });
+});
+
+/** Audit 2026-10-10 A139: each further conflict appended the server's text again. */
+describe("joinNotes — repeated conflicts add nothing new", () => {
+  it("keeps a rebased note that already carries the server's text as it is", () => {
+    const first = joinNotes("hurt on 9/12", "fine 9/04", NEW, OLD);
+    expect(first).toBe("fine 9/04\nhurt on 9/12");
+    // The rebased op is refused again by a write that kept the server's note.
+    expect(joinNotes(first, "fine 9/04", NEW, OLD)).toBe("fine 9/04\nhurt on 9/12");
+    expect(joinNotes("fine 9/04", first, OLD, NEW)).toBe("fine 9/04\nhurt on 9/12");
+  });
+
+  it("is stable however many times the same pair conflicts", () => {
+    let note = joinNotes("felt fine", "a bit heavy", NEW, OLD);
+    for (let i = 0; i < 5; i += 1) note = joinNotes(note, "a bit heavy", NEW, OLD);
+    expect(note).toBe("a bit heavy\nfelt fine");
+  });
+
+  it("appends only the newer side's lines the older side lacks", () => {
+    expect(joinNotes("fine 9/04\nbloated", "fine 9/04\nslept badly", NEW, OLD))
+      .toBe("fine 9/04\nslept badly\nbloated");
+  });
+
+  it("does the same for a user_food_prefs conflict replayed onto its own result", () => {
+    const once = mergeEntity("user_food_prefs", { food_ref_id: "f1", note: "hurt on 9/12" },
+      { food_ref_id: "f1", note: "fine 9/04", rev: 5 }, NEW, OLD);
+    const twice = mergeEntity("user_food_prefs", { food_ref_id: "f1", note: once.note },
+      { food_ref_id: "f1", note: "fine 9/04", rev: 6 }, NEW, OLD);
+    expect(twice.note).toBe("fine 9/04\nhurt on 9/12");
+  });
+});
+
+/** Audit 2026-10-10 A077: a whole-note edit is merged against the note it started from. */
+describe("mergeNoteFromBase", () => {
+  it("takes her rewrite when the other device left the note alone", () => {
+    expect(mergeNoteFromBase("felt fine", "felt fine, then good", "felt fine", NEW, OLD))
+      .toBe("felt fine, then good");
+  });
+
+  it("takes her clear when the other device left the note alone", () => {
+    expect(mergeNoteFromBase("felt fine", null, "felt fine", NEW, OLD)).toBeUndefined();
+  });
+
+  it("takes the other device's note when she left it alone", () => {
+    expect(mergeNoteFromBase("felt fine", "felt fine", "felt worse", NEW, OLD)).toBe("felt worse");
+    expect(mergeNoteFromBase(null, null, "after the gym", NEW, OLD)).toBe("after the gym");
+  });
+
+  it("joins the two when both changed it, older text first", () => {
+    expect(mergeNoteFromBase(null, "felt fine", "a bit heavy", NEW, OLD))
+      .toBe("a bit heavy\nfelt fine");
+  });
+
+  it("treats surrounding whitespace as no change", () => {
+    expect(mergeNoteFromBase("ok", "ok now", " ok ", NEW, OLD)).toBe("ok now");
   });
 });
 

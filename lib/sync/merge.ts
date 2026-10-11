@@ -41,14 +41,50 @@ export function newerWinsFields(local: Row, server: Row, localTs: string, server
   return out;
 }
 
-/** Notes are symptom evidence: losing one loses a record. Older text first, deterministically. */
+function noteText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function noteLines(text: string): string[] {
+  return text.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+/**
+ * Notes are symptom evidence: losing one loses a record. Older text first, deterministically.
+ *
+ * Idempotent (audit 2026-10-10 A139): a side whose every line the other side already holds adds
+ * nothing, so a rebased note that already carries the server's text is not joined to it again on
+ * the next conflict, and otherwise only the newer side's lines the older one lacks are appended.
+ */
 export function joinNotes(a: unknown, b: unknown, aTs: string, bTs: string): string | undefined {
-  const first = typeof a === "string" ? a.trim() : "";
-  const second = typeof b === "string" ? b.trim() : "";
+  const first = noteText(a);
+  const second = noteText(b);
   if (!first) return second || undefined;
   if (!second) return first;
   if (first === second) return first;
-  return isNewer(aTs, bTs) ? `${second}\n${first}` : `${first}\n${second}`;
+  const [older, newer] = isNewer(aTs, bTs) ? [second, first] : [first, second];
+  const olderLines = new Set(noteLines(older));
+  const newerLines = noteLines(newer);
+  if (newerLines.every((line) => olderLines.has(line))) return older;
+  const newerSet = new Set(newerLines);
+  if ([...olderLines].every((line) => newerSet.has(line))) return newer;
+  return [older, ...newerLines.filter((line) => !olderLines.has(line))].join("\n");
+}
+
+/**
+ * A three-way note merge for an op that carries the WHOLE note (a log entry's note edit), against
+ * the note that edit started from (audit 2026-10-10 A077). A side that left the base alone takes
+ * the other side's note, a clear included; only when both sides changed it are the two joined.
+ */
+export function mergeNoteFromBase(
+  base: unknown, mine: unknown, theirs: unknown, mineTs: string, theirsTs: string,
+): string | undefined {
+  const from = noteText(base);
+  const ours = noteText(mine);
+  const their = noteText(theirs);
+  if (their === from) return ours || undefined;
+  if (ours === from) return their || undefined;
+  return joinNotes(their, ours, theirsTs, mineTs);
 }
 
 /** The server's rev is authoritative, and a tombstone on either side dominates. */

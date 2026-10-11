@@ -173,6 +173,12 @@ async function completeRow(h: AccountHandle, entryId: string, entry: LoggedFood)
   return row ?? null;
 }
 
+/** A move carries the entry's note unchanged, so on a conflict the other device's note stands
+ *  rather than being joined to the one this move copied (audit 2026-10-10 A077). */
+function noteBaseOf(row: Record<string, unknown>): string | null {
+  return typeof row.note === "string" && row.note.trim() ? row.note.trim() : null;
+}
+
 export async function retime(
   h: AccountHandle,
   entryId: string, date: string, at: string, tz: string,
@@ -190,6 +196,7 @@ export async function retime(
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
+      note_base: noteBaseOf(row),
     });
   }
   assertCurrent(h);
@@ -223,6 +230,7 @@ export async function undoMoveEntry(
     await enqueueWithRow(h, { ...payload, rev: rev + 1 }, {
       op_id: crypto.randomUUID(), entity: "log_entries", entity_id: token.entryId,
       kind: "update", base_rev: rev, payload, client_ts: new Date().toISOString(),
+      note_base: noteBaseOf(row),
     });
   }
   assertCurrent(h);

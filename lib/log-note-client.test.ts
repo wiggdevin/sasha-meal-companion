@@ -64,6 +64,14 @@ it("serializes overlapping saves and skips a duplicate blur/close save", async (
   expect((await allOps(h)).map((op) => [op.base_rev, op.payload.note])).toEqual([[4, "first"], [5, "second"]]);
 });
 
+it("records the note each edit replaces, so a conflict can tell her change from theirs", async () => {
+  // Audit 2026-10-10 A077: the rebase reads this base; without it, it joined her note to the old one.
+  await putRow(h, "log_entries", id, row);
+  await saveExtraNote(date, id, "first");
+  await saveExtraNote(date, id, "  ");
+  expect((await allOps(h)).map((op) => op.note_base)).toEqual(["old", "first"]);
+});
+
 it("keeps legacy unbacked extras on their existing persistence path", async () => {
   await saveExtraNote(date, id, "legacy note");
   expect(await allOps(h)).toHaveLength(0);
