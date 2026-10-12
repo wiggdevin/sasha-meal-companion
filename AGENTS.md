@@ -1,5 +1,10 @@
 # Meal Companion — notes for any agent (Codex, Claude, Cursor)
 
+**Not built for any one person.** "Sasha" is only the app's and the coach's brand name. The app is
+named after Sasha; she is not a user, client or stakeholder, and no account, default, reviewer or
+decision belongs to her. "The first client" in older docs is history only. Never write "Sasha's"
+anything (nutritionist, data, numbers) into a plan, decision or recommendation.
+
 Phone-first, multi-user PWA. It tells each person what to eat and when, lets meals be ticked off,
 and builds every meal from that account's current foods and rules. Profile onboarding records the
 inputs needed to derive a target candidate; the server revision remains authoritative.
