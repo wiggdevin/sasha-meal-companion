@@ -7,13 +7,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { per100gSchema } from "@/lib/ai/schemas";
 import { namedAllergenHints } from "@/lib/policy/allergens";
+import { labelFoodIdFor } from "@/lib/log/op-id";
 import type { LogCommitFailure, LogCommitRequest } from "@/lib/log/contract";
 
-/**
- * The all-zero uuid a label commit sends in place of a food_ref it cannot know yet. The server
- * mints the real ref and swaps it in before validation; the placeholder never reaches the database.
- */
-export const LABEL_FOOD_PLACEHOLDER_REF = "00000000-0000-4000-8000-000000000000";
+/** The placeholder ref, shared with the capture sheet that sends it (lib/capture/label-food.ts). */
+import { LABEL_FOOD_PLACEHOLDER_REF } from "@/lib/capture/label-food";
+export { LABEL_FOOD_PLACEHOLDER_REF };
 
 export type LabelFoodInput = {
   name: string; brand?: string; per100g: z.infer<typeof per100gSchema>;
@@ -58,10 +57,11 @@ export function labelPolicyEvidence(label: LabelFoodInput) {
   };
 }
 
-/** Their own food, from the label the user photographed. Runs BEFORE validation so the swap is honoured. */
+/** Their own food, from the label the user photographed. Runs after the refs and revisions are
+ * validated (A036) and before the RPC, so the swap is honoured. */
 async function saveLabelFood(
-  client: SupabaseClient, userId: string, label: LabelFoodInput
-): Promise<{ userFoodId: string; foodRefId: string }> {
+  client: SupabaseClient, userId: string, entryId: string, label: LabelFoodInput
+): Promise<{ userFoodId?: string; foodRefId: string }> {
   // sol BLOCK (review round 1, phase 13 slice 2): this used to re-scan with
   // lib/capture/propose.ts's allergenTagsFromIngredients, a scanner limited to gluten, dairy and
   // apple (spec AC9, a Phase 3/4 leftover from before the account-driven allergen system
@@ -73,30 +73,41 @@ async function saveLabelFood(
   // keeps reading exactly as it always did.
   const fromIngredients = namedAllergenHints(label.ingredientsText, ["apple"]);
   const allergenTags = [...new Set([...label.allergenTags, ...fromIngredients])];
+  // A036: the id is named by the account and the entry, so an attempt the RPC refused or that
+  // died after this insert is met by its retry here, never answered with a second row.
+  const id = labelFoodIdFor(userId, entryId);
   const food = await client.from("user_foods").insert({
-    user_id: userId, name: label.name, brand: label.brand ?? null, kind: "label_scan",
+    id, user_id: userId, name: label.name, brand: label.brand ?? null, kind: "label_scan",
     per_100g: label.per100g, ingredients_text: label.ingredientsText ?? null,
     allergen_tags: allergenTags,
   }).select("id").single();
-  if (food.error || !food.data) throw food.error ?? new Error("could not save the label food");
+  const created = !food.error && Boolean(food.data);
+  if (!created && (food.error as { code?: string } | null)?.code !== "23505") {
+    throw food.error ?? new Error("could not save the label food");
+  }
+  if (!created) {
+    // The earlier attempt's row. Read through RLS, so only this account's own row answers.
+    const held = await client.from("user_foods").select("id").eq("id", id).maybeSingle();
+    if (held.error || !held.data) throw held.error ?? new Error("could not read the label food");
+  }
   const ref = await client.rpc("get_or_create_food_ref", { p_user_id: userId, p_kind: "user",
-    p_catalog_food_id: null, p_user_food_id: (food.data as { id: string }).id });
+    p_catalog_food_id: null, p_user_food_id: id });
   if (ref.error || !ref.data) throw ref.error ?? new Error("could not register the label food");
-  return { userFoodId: (food.data as { id: string }).id, foodRefId: ref.data as string };
+  return { userFoodId: created ? id : undefined, foodRefId: ref.data as string };
 }
 
 /**
- * The seq-0 item's food_ref when entry_id was already committed — a retry must not insert a
- * second user_foods row (commit is idempotent on entry_id, spec §5). RLS scopes both reads to them
- * rows, so a guessed entry_id from another user reads nothing and falls back to the insert path.
+ * The label item's food_ref when entry_id was already committed — a retry must not insert a
+ * second user_foods row (commit is idempotent on entry_id, spec §5). Found by the placeholder
+ * item's own id: the client numbers items from 1, so the old seq-0 lookup never matched (A036).
+ * RLS scopes the read to their rows, so a guessed id from another user reads nothing.
  */
-async function existingLabelRef(client: SupabaseClient, entryId: string): Promise<string | null> {
-  const entry = await client.from("log_entries").select("id").eq("id", entryId).maybeSingle();
-  if (entry.error) console.error("existing entry lookup failed", { entry_id: entryId, error: entry.error });
-  if (!entry.data) return null;
+async function existingLabelRef(
+  client: SupabaseClient, entryId: string, itemId: string,
+): Promise<string | null> {
   const item = await client.from("log_items").select("food_ref_id")
-    .eq("entry_id", entryId).eq("seq", 0).maybeSingle();
-  if (item.error) console.error("existing seq-0 item lookup failed", { entry_id: entryId, error: item.error });
+    .eq("entry_id", entryId).eq("id", itemId).maybeSingle();
+  if (item.error) console.error("existing label item lookup failed", { entry_id: entryId, error: item.error });
   return (item.data as { food_ref_id: string } | null)?.food_ref_id ?? null;
 }
 
@@ -122,9 +133,9 @@ export function labelFoodOrFailure(
 }
 
 /**
- * Saves the label food and swaps the placeholder ref, mutating req.items in place so the swap
- * happens BEFORE unknownRefIssues ever sees the request. Called only once the policy check has
- * cleared every item (labelFoodOrFailure already validated the body). Returns the user_food_id
+ * Saves the label food and swaps the placeholder ref, mutating req.items in place. Called only once
+ * labelFoodOrFailure has validated the body and the other items' refs and revisions have passed
+ * (A036), so a refused commit never leaves a food behind. Returns the user_food_id
  * only when this call actually saved a new food — a retry that finds the entry already committed
  * reuses its existing ref and reports no user_food_id, keeping the duplicate/ok response shape
  * unchanged.
@@ -133,8 +144,10 @@ export async function commitLabelFood(
   client: SupabaseClient, userId: string, req: LogCommitRequest, label: LabelFoodInput | null
 ): Promise<{ userFoodId?: string }> {
   if (!label) return {};
-  const existingRef = await existingLabelRef(client, req.entry_id);
-  const saved = existingRef ? null : await saveLabelFood(client, userId, label);
+  const placeholder = req.items.find((item) => item.food_ref_id === LABEL_FOOD_PLACEHOLDER_REF);
+  const existingRef = placeholder
+    ? await existingLabelRef(client, req.entry_id, placeholder.id) : null;
+  const saved = existingRef ? null : await saveLabelFood(client, userId, req.entry_id, label);
   const foodRefId = existingRef ?? (saved as { foodRefId: string }).foodRefId;
   for (const item of req.items) {
     if (item.food_ref_id === LABEL_FOOD_PLACEHOLDER_REF) item.food_ref_id = foodRefId;

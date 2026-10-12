@@ -1,0 +1,4 @@
+{
+  "ceiling": 9,
+  "why": "docs/ci/skipped-tests.md: the 9 Integration skips that need data or settings CI does not have. Raise only with a reason recorded there."
+}

@@ -10,16 +10,21 @@ import { afterResponse, beforeDeadline, LATE } from "@/lib/server/coach-turn/dea
 import type { Started, ThreadHistory } from "@/lib/server/coach-turn/setup";
 import type { OpenTurn } from "@/lib/server/coach-turn/types";
 
-function foodMentions(message: string): string[] | undefined {
+/**
+ * The food each list clause names, one entry per clause, in message order. A message with two
+ * clauses ("add peanuts to my avoid list, and take pork off my eats list") names two, and the list
+ * fast path then leaves both to the model turn (audit 2026-10-10 A027, lib/coach/intent-args.ts
+ * `foodArgs`), which writes one mark per food.
+ */
+export function foodMentions(message: string): string[] | undefined {
   const patterns = [
-    /\b(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:my\s+|the\s+)?(?:eats|avoid)(?:\s+list)?\b/i,
-    /\b(?:remove|take)\s+(.+?)\s+(?:from|off)\s+(?:my\s+|the\s+)?(?:eats|avoid)(?:\s+list)?\b/i,
+    /\b(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:my\s+|the\s+)?(?:eats|avoid)(?:\s+list)?\b/gi,
+    /\b(?:remove|take)\s+(.+?)\s+(?:from|off)\s+(?:my\s+|the\s+)?(?:eats|avoid)(?:\s+list)?\b/gi,
   ];
-  for (const pattern of patterns) {
-    const name = pattern.exec(message)?.[1]?.replace(/\s+back$/i, "").trim();
-    if (name) return [name];
-  }
-  return undefined;
+  const found = patterns.flatMap((pattern) => Array.from(message.matchAll(pattern), (match) => ({
+    at: match.index, name: match[1].replace(/\s+back$/i, "").trim(),
+  }))).filter((mention) => mention.name.length > 0).sort((a, b) => a.at - b.at);
+  return found.length > 0 ? found.map((mention) => mention.name) : undefined;
 }
 
 function lastAssistantAskedQuestion(messages: ThreadHistory["messages"]): boolean {

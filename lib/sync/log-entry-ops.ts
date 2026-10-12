@@ -17,6 +17,7 @@ import { confirmEntry, isDeleted } from "@/lib/log/pending";
 import { finishDelete } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
 import { reconcileFromServer } from "@/lib/log/reconcile";
+import { markDrainedFlags } from "@/lib/log/drain-flags";
 
 /**
  * The due ops this drain may actually send.
@@ -128,7 +129,8 @@ async function rebaseLogNoteOnce(
   const folded = noteEditsAfter(seen);
   const latest = folded.length > 0 ? folded[folded.length - 1] : op;
   const mine = latest.payload as Record<string, unknown>;
-  const serverTs = String(server.updated_at ?? "");
+  // The conflict's own `at` (W026) when the server sends it; else the row's `updated_at`.
+  const serverTs = typeof result.at === "string" ? result.at : String(server.updated_at ?? "");
   // With the note the edits started from, only a note BOTH sides changed is joined: one the other
   // device left alone takes the user's, a clear included (audit 2026-10-10 A077). An op queued before
   // that base was recorded keeps the old rule. Theirs second: it is the newer of the two, and a
@@ -229,6 +231,8 @@ export async function handleLogEntryResult(
 ): Promise<boolean> {
   if (result.status === "applied" || result.status === "duplicate") {
     await settleLogEntry(h, op);
+    // A033: the commit's marks, which a queued write used to lose.
+    markDrainedFlags(h, op.entity_id, op.payload.local_date, result.flagged);
     return true;
   }
   if (result.status !== "conflict") return false;

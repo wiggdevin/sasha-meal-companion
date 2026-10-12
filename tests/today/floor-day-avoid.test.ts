@@ -101,7 +101,9 @@ describe("Floor Day honours Avoid (B105)", () => {
       // The Avoid food never reaches a generated plate, Floor Day or not.
       expect(slot.components.map((part) => part.name)).not.toContain(F.eggs.name);
     }
-    expect(floor.slots).toEqual(usual.slots);
+    // A061 (owner decision 2026-10-11): a Quick meals date may pick quicker plates from the same
+    // pool (tests/today/quick-meals-layout.test.ts), but it keeps every slot of the usual day.
+    expect(floor.slots.map((slot) => slot.slot)).toEqual(usual.slots.map((slot) => slot.slot));
   });
 
   it("does not render a Floor Day template id stored as a meal-slot swap", () => {

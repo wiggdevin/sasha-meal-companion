@@ -81,9 +81,10 @@ run("approve_target_proposal on a real branch", () => {
     const out = await decideProposal(users.a.client, users.a.userId, proposal?.id as string,
       { decision: "approve", expectedStatus: "pending" });
     expect(out.status).toBe("approved");
+    // W006: the approval is dated on the account's own day, not the proposal's week_start.
     const { data: row } = await admin.from("target_profiles")
       .select("input_weight_kg, input_weight_source").eq("user_id", users.a.userId)
-      .eq("effective_from", "2099-01-05").single();
+      .order("effective_from", { ascending: false }).order("rev", { ascending: false }).limit(1).single();
     expect(row).toMatchObject({ input_weight_source: "trend" });
     expect(Number(row?.input_weight_kg)).toBeCloseTo(80.4);
   });

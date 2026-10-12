@@ -28,7 +28,8 @@ const BASELINES: Record<string, number> = {
    * tests — the empty-anchors repro and the protein-first/carb-fat-last ordering case.
    */
   "tests/coach/context.test.ts": 437,
-  "lib/sync/outbox-membership.ts": 37,
+  /** +5 in W029: an applied membership op hands the server-assigned revision to the mark cache. */
+  "lib/sync/outbox-membership.ts": 42,
   /** +3 in Phase 9 slice 1: the transcript cache is filed under the account the shell was rendered
    *  for, and a write for an account that has since gone is skipped. */
   /** +3 in the 2026-10-01 audit: food-ideas taps queue onto the shell's action ledger (Undo). */
@@ -205,6 +206,9 @@ const MODULES = [
   // outbox under the house rule; it leaves its 406-line baseline for the rule itself.
   "lib/sync/outbox.ts",
   "lib/sync/outbox-conflict.ts",
+  // W026 (2026-10-11): parking and its release, and the settings replay's watermark.
+  "lib/sync/outbox-park.ts",
+  "lib/sync/settings-recovery.ts",
   "components/LogFoodSheet.styles.ts",
   "lib/server/barcode-policy.ts",
   "lib/warm-client.ts",
@@ -339,6 +343,7 @@ const MODULES = [
   "components/WeightTrend.tsx",
   "lib/api-types.ts",
   "lib/server/expenditure.ts",
+  "lib/server/expenditure-intake.ts",
   "app/api/expenditure/route.ts",
   "components/settings/ScheduleSection.tsx",
   // The new-user run, lane W1: the readiness walkthrough runner and its helper library.
@@ -496,6 +501,11 @@ const MODULES = [
   "tests/foods/signals-client.test.ts",
   "tests/jobs/signal-purge.test.ts",
   "tests/migrations/food-signal-events-db.test.ts",
+  // W029: the role delta, server-assigned membership revisions and their tests.
+  "lib/sync/role-delta.ts",
+  "tests/sync/role-delta.test.ts",
+  "tests/foods/membership-server-rev.test.ts",
+  "tests/migrations/membership-server-rev-sql.test.ts",
 ];
 
 const COMPONENTS = Object.keys(BASELINES);

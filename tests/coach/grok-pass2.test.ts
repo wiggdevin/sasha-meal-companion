@@ -71,7 +71,7 @@ describe("HIGH 2 — the deleted entry's slot comes off the wire, not off the ca
       { tz: "UTC" });
     expect(result.status === "applied" && result.token.kind === "delete_entry"
       && result.token.items).toEqual([{ foodRefId: REF, grams: 150, revisionId: 77,
-        name: "Eggs" }]);
+        name: "Eggs", qty: 150, unit: "g" }]);
   });
 
   it("falls back to the queued create op when the commit has not settled yet", async () => {

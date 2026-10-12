@@ -101,13 +101,31 @@ describe("the family write set", () => {
 });
 
 describe("marks the session client cannot see", () => {
-  it("an existing eats mark at rev 100: 200, no write, and idempotent", async () => {
+  it("an existing eats mark at rev 100 that every ref carries: 200, no write, and idempotent", async () => {
     tables.food_membership_revisions.push({ user_id: A, name_norm: "bananas", status: "eats", rev: 100 });
+    for (const id of [REF.c902, REF.c906]) tables.user_food_prefs.push({ user_id: A, food_ref_id: id, status: "eats" });
     const before = JSON.stringify(tables);
     for (let i = 0; i < 2; i += 1) {
       expect(await post("u:banana")).toEqual({ favored: true, refs: 1, skippedAvoid: 0, rulesRevision: 7 });
     }
     expect(JSON.stringify(tables)).toBe(before);
+  });
+
+  // W029 (audit 2026-10-10 A038): a ref minted after a Favor has no `eats` pref (it does not inherit
+  // a Favor mark), so the row stays favorable and the next Favor writes it, keeping the mark.
+  it("an eats mark a later-minted ref lacks: favorable, the Favor fills the ref, then nothing", async () => {
+    tables.food_membership_revisions.push({ user_id: A, name_norm: "bananas", status: "eats", rev: 100, favor_rev: 100 });
+    tables.user_food_prefs.push({ user_id: A, food_ref_id: REF.c902, status: "eats" });
+    expect(await favorable("u:banana")).toBe(true);
+    expect(await post("u:banana")).toEqual({ favored: true, refs: 1, skippedAvoid: 0, rulesRevision: 7 });
+    expect(favor.calls.map((call) => call.write.families)).toEqual([[{ name_norm: "bananas",
+      ref_ids: [REF.c902, REF.c906].sort() }]]);
+    expect(tables.user_food_prefs.filter((pref) => pref.user_id === A && pref.status === "eats"
+      && (pref.food_ref_id === REF.c902 || pref.food_ref_id === REF.c906))).toHaveLength(2);
+    expect(marks()).toEqual([{ user_id: A, name_norm: "bananas", status: "eats", rev: 100, favor_rev: 100 }]);
+    const after = JSON.stringify(tables);
+    await post("u:banana");
+    expect(JSON.stringify(tables)).toBe(after);
   });
 
   it("a second favor writes nothing", async () => {

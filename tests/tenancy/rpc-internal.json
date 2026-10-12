@@ -74,5 +74,25 @@
     "trigger": "user_settings_shopping_focus_guard",
     "definer": false,
     "reason": "Security invoker on purpose: it reads current_user to refuse a direct authenticated or anon write of the shopping-focus columns."
+  },
+  "recipe_plan_bump_state()": {
+    "class": "private_trigger",
+    "table": "user_settings",
+    "trigger": "recipe_state_settings"
+  },
+  "recipe_plan_bump_global_state()": {
+    "class": "private_trigger",
+    "table": "recipe_catalog",
+    "trigger": "recipe_state_catalog"
+  },
+  "recipe_plan_bump_allergen_evidence()": {
+    "class": "private_trigger",
+    "table": "food_allergen_evidence",
+    "trigger": "recipe_state_allergen_evidence"
+  },
+  "plan_days_record_first_mark()": {
+    "class": "private_trigger",
+    "table": "plan_days",
+    "trigger": "plan_days_record_first_mark"
   }
 }

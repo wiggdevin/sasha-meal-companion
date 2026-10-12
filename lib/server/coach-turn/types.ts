@@ -69,8 +69,8 @@ export type Turn = {
   replyDeadlineAt: number;
   saveDeadlineAt: number;
   /** Saving the turn, bounded: late, the phone gets the retryable 503 while it still waits. The
-   *  thread kind and the service-role writer come from the turn itself. */
-  save: (...args: SaveArgs) => Promise<void>;
+   *  thread kind and the service-role writer come from the turn itself. Returns the rows as saved. */
+  save: (...args: SaveArgs) => Promise<MessageRow[]>;
 };
 
 /** A turn whose setup reads answered: the thread, the next seq and the user's own row. */

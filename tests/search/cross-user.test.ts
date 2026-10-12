@@ -91,10 +91,18 @@ describe.skipIf(!RUN)("catalog_search is the caller's own view", () => {
     expect(Number(avoided?.f_eats)).toBeLessThan(Number(neutral?.f_eats));
   });
 
-  it("returns only active revisions of the active version", async () => {
+  // W059 (20261231190200): the fixture's source is 'off', a barcode source whose versions the
+  // writer never activates, so an inactive 'off' version stays searchable and the revision's own
+  // is_active is what hides a row. The inactive non-barcode version is pinned in
+  // tests/migrations/catalog-search-barcode-db.test.ts.
+  it("returns only active revisions, and keeps an inactive barcode version searchable", async () => {
+    const ids = [...fixtureRevisionIds(TAG)].join(",");
     exec(`update catalog_versions set is_active = false where version_label = '${fixtureVersion(TAG)}';`);
+    expect((await search(a)).length).toBeGreaterThan(0);
+    exec(`update catalog_food_revisions set is_active = false where id in (${ids});`);
     expect((await search(a)).length).toBe(0);
-    exec(`update catalog_versions set is_active = true where version_label = '${fixtureVersion(TAG)}';`);
+    exec(`update catalog_food_revisions set is_active = true where id in (${ids});
+      update catalog_versions set is_active = true where version_label = '${fixtureVersion(TAG)}';`);
     expect((await search(a)).length).toBeGreaterThan(0);
   });
 });

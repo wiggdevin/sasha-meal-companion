@@ -6,12 +6,14 @@
  * batch (`lib/server/target-recompute.ts`); a recompute failure is logged and never fails the op.
  * Applied `log_entries` ops are stamped with their occasion once per batch
  * (`lib/server/log-occasion.ts`, Phase 17 D1); a stamp failure is logged the same way.
+ * Queued `log_entries` writes answer with the commit's policy marks (`lib/server/sync-log-ops.ts`).
  */
 import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { stampLogOccasionsSafely } from "@/lib/server/log-occasion";
 import { recomputeDerivedTarget } from "@/lib/server/target-recompute";
+import { applyLabelFoodOp, isLabelFoodOp, withLogEntryFlags } from "@/lib/server/sync-log-ops";
 import {
   OpsRequestSchema, type OpResult, type OpsResponse, type SyncOp,
 } from "@/lib/sync/types";
@@ -30,9 +32,29 @@ const RATE_LIMIT = 60;
 const RATE_WINDOW_SECONDS = 60;
 
 /** Log it here (op id + entity, never the payload) and hand the client a result it can act on. */
-function errorResult(o: SyncOp, message: string): OpResult {
+function errorResult(o: SyncOp, message: string, retryable = false): OpResult {
   console.error(`sync: op ${o.op_id} (${o.entity} ${o.kind}) failed: ${message}`);
-  return { op_id: o.op_id, status: "error", message };
+  return retryable
+    ? { op_id: o.op_id, status: "error", message, retryable: true }
+    : { op_id: o.op_id, status: "error", message };
+}
+
+/** An RPC failure, with the code PostgREST or Postgres gave it. */
+class RpcError extends Error {
+  constructor(message: string, readonly code: string | undefined) { super(message); }
+}
+
+/**
+ * A failure the same op would not meet again a moment later (W026, audit A137): no code at all (the
+ * request never reached the database: a dropped connection, a fetch timeout), PostgREST's
+ * connection and timeout codes (PGRST000-PGRST003), and the Postgres classes for a lost
+ * connection (08), a serialization failure or deadlock (40), too many connections or out of
+ * memory (53), a cancelled or timed-out statement (57) and a lock wait that ran out (55P03).
+ * Anything else (a constraint, a malformed payload, a missing function) fails again the same way.
+ */
+function isRetryableRpcCode(code: string | undefined): boolean {
+  if (!code) return true;
+  return /^(08|40|53|57)/.test(code) || code === "55P03" || /^PGRST00[0-3]$/.test(code);
 }
 
 /** The RPC is trusted to return an OpResult, but a null or half-built row must not reach the
@@ -49,9 +71,12 @@ function asOpResult(data: unknown, o: SyncOp): OpResult {
 async function applyOp(client: Awaited<ReturnType<typeof requireUser>>["client"], userId: string,
   op: SyncOp): Promise<OpResult> {
   if (op.entity !== "food_membership") {
+    // A033/A030: a queued label commit goes through the commit path whole; every other queued log
+    // write gets the commit's policy marks on its result.
+    if (isLabelFoodOp(op)) return applyLabelFoodOp(client, userId, op);
     const { data, error } = await client.rpc("apply_sync_op", { p_user_id: userId, p_op: op });
-    if (error) throw new Error(error.message);
-    return asOpResult(data, op);
+    if (error) throw new RpcError(error.message, error.code);
+    return withLogEntryFlags(client, userId, op, asOpResult(data, op));
   }
   const { name_norm: nameNorm, status, note, rev } = op.payload;
   if (typeof nameNorm !== "string"
@@ -60,20 +85,24 @@ async function applyOp(client: Awaited<ReturnType<typeof requireUser>>["client"]
     || typeof rev !== "number" || !Number.isSafeInteger(rev) || rev < 0) {
     return errorResult(op, "malformed food membership payload");
   }
+  // W029 (audit 2026-10-10 A140): the server assigns the revision, at least the phone's `rev`
+  // hint, and records the op id, so a retry answers its first result and never writes again
+  // (migration 20261231110000). A tap is no longer refused for another device's clock.
   const { data, error } = await client.rpc("set_food_membership", {
     p_user: userId,
     p_name_norm: nameNorm,
     p_status: status,
     p_note: note,
     p_rev: rev,
+    p_op_id: op.op_id,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error.message, error.code);
   const row = data as { rev?: unknown; status?: unknown } | null;
   if (typeof row?.rev !== "number" || !Number.isSafeInteger(row.rev)
     || (row.status !== null && row.status !== "eats" && row.status !== "avoid")) {
     return errorResult(op, "malformed food membership result");
   }
-  if (row.rev !== rev || row.status !== status) {
+  if (row.rev < rev || row.status !== status) {
     return {
       op_id: op.op_id,
       status: "rejected",
@@ -113,14 +142,17 @@ export async function POST(req: Request): Promise<Response> {
         if (wire.entity === "user_settings") settingsTouched = true;
         // D1: only a log write this request applied is stamped, after the batch. A conflict, a
         // replay or an error wrote nothing here, and stamping its id could label an old row.
-        if (wire.entity === "log_entries" && result.status === "applied") {
+        // A label op's commit path stamps its own write and reports a replay as applied too, so it
+        // is left out here (a replay is never restamped).
+        if (wire.entity === "log_entries" && result.status === "applied" && !isLabelFoodOp(wire)) {
           loggedEntries.push(wire.entity_id);
         }
       } catch (e) {
         // An RPC error can arrive after the row committed (a dropped response), so a settings op
         // that reached the database still recomputes; that is a no-op when nothing changed.
         if (wire.entity === "user_settings") settingsTouched = true;
-        results.push(errorResult(wire, e instanceof Error ? e.message : "unknown"));
+        results.push(errorResult(wire, e instanceof Error ? e.message : "unknown",
+          e instanceof RpcError && isRetryableRpcCode(e.code)));
       }
     }
 
@@ -139,7 +171,9 @@ export async function POST(req: Request): Promise<Response> {
 
     if (loggedEntries.length) await stampLogOccasionsSafely(client, userId, { ids: loggedEntries });
 
-    const payload: OpsResponse = { results, server_time: new Date().toISOString() };
+    const build = process.env.VERCEL_GIT_COMMIT_SHA;
+    const payload: OpsResponse = { results, server_time: new Date().toISOString(),
+      ...(build ? { server_build: build } : {}) };
     return Response.json(payload);
   } catch (e) {
     return jsonError(e);

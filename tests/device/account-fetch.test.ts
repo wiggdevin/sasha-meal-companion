@@ -13,9 +13,12 @@ const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
  *  explicit `userId` override (documented since c087765) that let it act for an account other
  *  than the one bound on this device. That override is deleted — Phase 9 §0.5a is binding, a
  *  client acts only for the bound account — so the file now goes through `accountFetch` like
- *  every other one, and this is exactly the gate that would have caught it if it had not. */
+ *  every other one, and this is exactly the gate that would have caught it if it had not.
+ *
+ *  lib/client-error-reporter.ts (audit 2026-10-08 §5) posts an allowlisted crash report that names no
+ *  account, like the warm ping: a crash during sign-in or an account switch must still be heard. */
 const ALLOWED = new Set([
-  "lib/device/account.ts", "lib/warm-client.ts", "lib/fetch-with-deadline.ts",
+  "lib/device/account.ts", "lib/warm-client.ts", "lib/fetch-with-deadline.ts", "lib/client-error-reporter.ts",
   // W052: the sign-in screen's calls run before any account exists on the device, so there is no
   // bound account to name; the answer only sets the session cookie.
   "lib/sign-in-client.ts",

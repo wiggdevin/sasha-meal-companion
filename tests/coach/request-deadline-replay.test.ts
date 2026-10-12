@@ -113,12 +113,15 @@ describe("the attachment branch", () => {
       from: () => {
         const chain: Record<string, unknown> = {};
         Object.assign(chain, { select: () => chain, eq: () => chain, gte: () => chain,
-          order: () => chain, then: () => new Promise(() => {}) });
+          order: () => chain, maybeSingle: () => new Promise(() => {}),
+          then: () => new Promise(() => {}) });
         return chain;
       },
     } as never;
     let outcome: unknown = "pending";
-    runTurn(stalled, neverDb, "u1", { threadId: null, messageId: MESSAGE, text: "",
+    // The attachment turn's first read is its replay check (W035: the budget is reserved after
+    // it), so the stalled database is the caller's own client.
+    runTurn(neverDb, stalled, "u1", { threadId: null, messageId: MESSAGE, text: "",
       attachment: { kind: "photo", path: "u1/x.jpg" } } as never,
     { startedAt: Date.now(), newId: () => THREAD }).then(
       (value) => { outcome = { value }; }, (error) => { outcome = { error }; });

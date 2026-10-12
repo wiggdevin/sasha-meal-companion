@@ -14,6 +14,7 @@
  */
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchByKeyChunks } from "@/lib/server/paged-read";
 import type { Food } from "@/lib/foods";
 import { inferFoodRole } from "@/lib/foods/role";
 import { curatedAffinity } from "@/lib/meals/affinity";
@@ -93,16 +94,17 @@ async function snapshotFoods(client: SupabaseClient, userId: string, eligible: E
   Promise<{ id: string; food: Food; refs: HistoryFood }[]> {
   const refIds = [...eligible.eligibleRefIds].sort();
   if (!refIds.length) return [];
-  const [refsResult, rolesResult] = await Promise.all([
-    client.from("food_refs")
+  // W038: chunked by unique key, so a long Eats list never builds one oversized request; a failed
+  // chunk rejects the whole snapshot, never a shorter one.
+  const [refs, roleRows] = await Promise.all([
+    fetchByKeyChunks<string, RefRow>(refIds, (batch) => client.from("food_refs")
       .select("id,kind,catalog_food_id,user_food_id,user_foods(id,user_id,name,per_100g,catalog_food_id)")
-      .in("id", refIds),
-    client.from("user_food_prefs").select("food_ref_id,role").eq("user_id", userId).in("food_ref_id", refIds),
+      .in("id", batch)),
+    fetchByKeyChunks<string, { food_ref_id: string; role: unknown }>(refIds, (batch) =>
+      client.from("user_food_prefs").select("food_ref_id,role").eq("user_id", userId)
+        .in("food_ref_id", batch)),
   ]);
-  if (refsResult.error) throw refsResult.error;
-  if (rolesResult.error) throw rolesResult.error;
-  const refs = (refsResult.data ?? []) as unknown as RefRow[];
-  const roles = new Map(((rolesResult.data ?? []) as { food_ref_id: string; role: unknown }[])
+  const roles = new Map(roleRows
     .filter((row) => ROLES.includes(row.role as FoodRole)).map((row) => [row.food_ref_id, row.role as FoodRole]));
   const catalogRefs = new Map(refs.filter((ref) => ref.kind === "catalog" && ref.catalog_food_id !== null)
     .map((ref) => [ref.catalog_food_id as number, ref.id]));
@@ -118,10 +120,10 @@ async function snapshotFoods(client: SupabaseClient, userId: string, eligible: E
   }
   const loose = refs.filter((ref) => ref.kind === "catalog" && ref.catalog_food_id !== null && !claimed.has(ref.id));
   if (loose.length) {
-    const { data, error } = await client.from("catalog_food_revisions")
-      .select("catalog_food_id,description,catalog_food_nutrients(nutrient_code,amount_per_100g)")
-      .in("catalog_food_id", loose.map((ref) => ref.catalog_food_id as number)).eq("is_active", true);
-    if (error) throw error;
+    const data = await fetchByKeyChunks<number, Record<string, unknown>>(
+      loose.map((ref) => ref.catalog_food_id as number), (batch) => client.from("catalog_food_revisions")
+        .select("catalog_food_id,description,catalog_food_nutrients(nutrient_code,amount_per_100g)")
+        .in("catalog_food_id", batch).eq("is_active", true));
     // The active revision's own nutrition, so parts read the same as for an own food (a cooked
     // legume anchors, a mixed dish carries its starch) instead of zeros (Sol r5 WARN 3).
     const revisions = new Map(((data ?? []) as { catalog_food_id: number; description: string;

@@ -150,7 +150,8 @@ maintenance on its next profile edit or Sunday proposal with no prompt on Today 
 rate" invitation on Today or the TDEE card is the right grandfathering, best placed with E9's
 card work; (2) `target_profiles.goal_rate_bp_week` has no preset CHECK (user_settings does);
 (3) `account_minimum` is a reserved label with no writer; (4) `lib/coach/floors.ts`
-`KCAL_MIN_FLOOR = 1650`.
+`KCAL_MIN_FLOOR = 1650`. Items (3) and (4) closed by W008 (2026-10-11): the label is dropped
+(migrations `20261231150000`/`150001`) and the coach floors read the revision's own minimum.
 
 **Locked persona values** (TDEE 1,873, 72.6 kg; loss macro minimum 1,430, gain 1,374 — neither
 binds): −25 → 1,673; −50 → 1,498 (capped); −75 → 1,498 (capped); +10 → 1,953; +20 → 2,033;

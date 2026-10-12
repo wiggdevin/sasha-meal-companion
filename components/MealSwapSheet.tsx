@@ -100,7 +100,8 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       const safeFoods = Object.fromEntries(Object.entries(foods)
         .filter(([id]) => allowed.has(id)));
       setOptions(swapAlternatives({ slot: slot.slot, target, foods: safeFoods,
-        currentMealId: slot.meal?.id, clock: slot.time, date, eligible: allowed }));
+        currentMealId: slot.meal?.id, currentComponents: slot.components,
+        clock: slot.time, date, eligible: allowed }));
       let recipes: Awaited<ReturnType<typeof listRecipes>> = [];
       let rows: SavedMealRow[] = [];
       try {
@@ -114,7 +115,8 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       if (!live) return;
       setOptions(swapAlternatives({ slot: slot.slot, target, foods: safeFoods,
         refs: readPrefRefCache(account.userId), recipes,
-        savedMeals: rows, currentMealId: slot.meal?.id, clock: slot.time, date, eligible: allowed }));
+        savedMeals: rows, currentMealId: slot.meal?.id, currentComponents: slot.components,
+        clock: slot.time, date, eligible: allowed }));
     }).catch((caught: unknown) => {
       if (!live) return;
       if (caught instanceof AccountChanged) { onClose(); return; }

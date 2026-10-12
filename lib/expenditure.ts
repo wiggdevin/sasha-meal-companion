@@ -361,6 +361,19 @@ function pointOn(series: Series, endDay: number, seed: number): number | null {
   return seed + weightOn(series, endDay, lifetime) * (observed - seed);
 }
 
+/**
+ * True when some night before `endDay` had a valid observation (pointOn). Both windows need a
+ * weigh-in at most MAX_STALE_DAYS before their night, so only the nights just after a weigh-in
+ * can qualify; the scan visits those, newest first, and stops at the first valid one.
+ */
+function everObserved(series: Series, endDay: number, seed: number): boolean {
+  const nights = new Set<number>();
+  for (const day of series.weightKg.keys()) {
+    for (let k = 1; k <= MAX_STALE_DAYS; k += 1) if (day + k < endDay) nights.add(day + k);
+  }
+  return [...nights].sort((a, b) => b - a).some((night) => pointOn(series, night, seed) !== null);
+}
+
 function farFromSeed(long: Observation, seed: number): boolean {
   return long.valid && Math.abs((long.kcal as number) - seed) > FAR_FROM_SEED_PCT * seed;
 }
@@ -430,8 +443,17 @@ export function estimateExpenditure(input: ExpenditureInput): ExpenditureResult 
         proposalEligible: false, reviewFlag: null, weightTrendKg: null,
         reason: `Holding the last estimate — ${clause(short.reason ?? long.reason)}` };
     }
-    // R8: nothing valid in the lookback. An account that has earned 14 counted days holds at the
-    // seed; it is not sent back to "starting" by a long gap.
+    // E2 (audit 2026-10-10 P04): an account that has never had a valid observation is still
+    // `starting`, whatever its counted days. The seed is the profile's number, not a learned one,
+    // so it must not be shown as "Last learned" (components/TdeeLines.tsx).
+    if (!everObserved(series, today, seed)) {
+      return { ...base, status: "burn_in", phase: "starting", tdeeKcal: null,
+        ...startingRange(seed),
+        proposalEligible: false, reviewFlag: null, weightTrendKg: null,
+        reason: `Starting estimate — ${clause(short.reason ?? long.reason)}` };
+    }
+    // R8: nothing valid in the lookback. An account that has earned 14 counted days and once had
+    // a valid observation holds at the seed; it is not sent back to "starting" by a long gap.
     return { ...base, status: "held", phase: "provisional", tdeeKcal: roundKcal(seed),
       ...startingRange(seed),
       proposalEligible: false, reviewFlag: null, weightTrendKg: null,

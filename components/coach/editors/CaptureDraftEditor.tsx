@@ -14,6 +14,7 @@ import {
   type DraftEdits, type EditedItem,
 } from "@/lib/capture-client";
 import type { DraftItem, ProposeResponse } from "@/lib/capture/types";
+import { labelItemSeq } from "@/lib/capture/label-food";
 import LabelAllergenLines from "@/components/coach/editors/LabelAllergenLines";
 import type { CachedPortion, CachedRevision } from "@/lib/db/catalog-cache";
 import { projectedCaptureMacros, selectedRevision } from "@/lib/capture/preview";
@@ -165,8 +166,9 @@ export default function CaptureDraftEditor({
       ? { ...item, policy: { ...item.policy, verdict: "blocked" as const } }
       : item);
   const kept = keptItems(items);
-  const added = projectedCaptureMacros(kept, draft);
-  const ready = canSave(items) && draft.saving !== true;
+  const labelSeq = labelItemSeq(draft.proposal, edits, saveLabel);
+  const added = projectedCaptureMacros(kept, draft, { seq: labelSeq, per100g: draft.proposal.labelFood?.per100g });
+  const ready = canSave(items, labelSeq) && draft.saving !== true;
   const commitCopy = draft.commitLabel === "save"
     ? `Save ${kept.length} item${kept.length === 1 ? "" : "s"}` : "Log it";
 

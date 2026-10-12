@@ -11,22 +11,22 @@ import {
 } from "./idb";
 import { drainable, handleLogEntryResult } from "./log-entry-ops";
 import { applyFoodMembershipResult, type SyncResult } from "./outbox-membership";
-import { SyncHttpError } from "./client";
 import { encodeKey } from "./keys";
 import { type Row } from "./merge";
 import { serverTimestampOf, settleConflict, TARGETS_CHANGED_EVENT } from "./outbox-conflict";
+import { isRoleDelta } from "./role-delta";
 import { headOfLine, requeueInPlace, retryStaleRead, settleAppliedRow } from "./row-queue";
 import { projectMirroredPlanDay } from "./plan-days";
-import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, PARK_MS, selectAndFreezeSettings } from "./settings";
+import { clearPulledUserSettings, mutateSettingsRow, USER_SETTINGS_KEY, settleUserSettings, selectAndFreezeSettings } from "./settings";
 import type { OpResult, OpsResponse, SyncOp } from "./types";
 import { withSettingsProvenance } from "./user-settings";
-import { backoffMs, MAX_RETRY_MS } from "./backoff";
+import { backoffMs } from "./backoff";
+import {
+  backOffTransport, isBodyFault, parkOrRetry, releaseParkedOnNewBuild, retryParked,
+} from "./outbox-park";
 
 export { USER_SETTINGS_KEY };
-export { backoffMs };
-const MAX_ERROR_ATTEMPTS = 3;
-/** Anything further out than this is parked, not merely backing off. */
-const PARKED_FROM_MS = 24 * 60 * 60 * 1000;
+export { backoffMs, retryParked };
 
 export const MAX_OPS_PER_PUSH = 200;
 /** The routes accept a 1 MB body; leave headroom for the JSON envelope and headers. */
@@ -53,7 +53,8 @@ export type DrainResult = {
 /** `entity_id` IS the `entity_key` of contracts §4. A create or update carries the key columns in
  *  its payload, so the two must agree; a delete or restore may send an empty payload. */
 function assertKeyMatchesPayload(op: SyncOp): void {
-  if (op.kind === "delete" || op.kind === "restore") return;
+  // A role delta is keyed by entity_id alone (lib/sync/role-delta.ts).
+  if (op.kind === "delete" || op.kind === "restore" || isRoleDelta(op)) return;
   const fromPayload = encodeKey(op.entity, op.payload);
   if (fromPayload !== op.entity_id) {
     throw new TypeError(
@@ -151,55 +152,6 @@ async function onConflict(
   announceQueued();
 }
 
-/** Server errored on this op specifically (not a network failure). Retried with backoff, like a
- *  network failure, but capped at MAX_ERROR_ATTEMPTS — after that it is PARKED: left in the
- *  outbox (pendingCount() and SyncStatus still count it) with next_attempt_at pushed a year out,
- *  so drainOutbox stops selecting it on its own. Nothing here deletes a parked op; only a human
- *  action (or a future "retry parked ops" command) clears it. */
-async function parkOrRetry(h: AccountHandle, op: OutboxOp, message: string, now: () => number): Promise<void> {
-  const errorAttempts = (op.error_attempts ?? 0) + 1;
-  if (errorAttempts >= MAX_ERROR_ATTEMPTS) {
-    await putOp(h, { ...op, error_attempts: errorAttempts, next_attempt_at: now() + PARK_MS });
-    console.warn(`sync: op ${op.op_id} parked after ${errorAttempts} server errors: ${message}`);
-    return;
-  }
-  await putOp(h, {
-    ...op, error_attempts: errorAttempts, next_attempt_at: now() + backoffMs(errorAttempts),
-  });
-}
-
-/** The human action the park comment promises: "Sync now" calls this first, so a parked op gets
- *  one more chance without the user having to know what a parked op is. */
-export async function retryParked(h: AccountHandle, now: () => number = Date.now): Promise<number> {
-  const at = now();
-  let released = 0;
-  for (const op of await allOps(h)) {
-    if (op.next_attempt_at <= at + PARKED_FROM_MS) continue;
-    await putOp(h, { ...op, attempts: 0, error_attempts: 0, next_attempt_at: at });
-    released += 1;
-  }
-  return released;
-}
-
-/** Offline, or the server failed as a whole: nothing is wrong with these ops, so they keep their
- *  error budget and only wait longer. Returns the soonest retry. */
-async function backOffTransport(h: AccountHandle, ops: OutboxOp[], at: number): Promise<number> {
-  let retryAfterMs = MAX_RETRY_MS;
-  for (const op of ops) {
-    const attempts = op.attempts + 1;
-    const wait = backoffMs(attempts);
-    retryAfterMs = Math.min(retryAfterMs, wait);
-    await putOp(h, { ...op, attempts, next_attempt_at: at + wait });
-  }
-  return retryAfterMs;
-}
-
-/** A 4xx will fail identically on every retry, so it is the op that is wrong, not the network. */
-function isClientFault(e: unknown): e is SyncHttpError {
-  return e instanceof SyncHttpError
-    && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429;
-}
-
 /** An `applied` result carries no row — what applying one means depends on `op.kind`. */
 async function applyApplied(
   h: AccountHandle, result: Extract<OpResult, { status: "applied" }>, op: OutboxOp, now: () => number,
@@ -222,9 +174,11 @@ async function applyApplied(
   if (outcome !== "missing") return;
   // A restore with nothing here to un-tombstone (this device may have GC'd it already), and
   // 'applied' carries no row — only rev/seq. Roll the cursor back to just before this change so
-  // the next pullChanges() re-fetches its full `current` snapshot from sync_changes.
+  // the next pullChanges() re-fetches its full `current` snapshot from sync_changes. A row the feed
+  // never logged answers seq 0: there is nothing to re-fetch, and a cursor of -1 is one the feed
+  // refuses, which would stop every later pull (audit 2026-10-10 P09).
   const cursor = await getCursor(h);
-  if (result.seq - 1 < cursor) await setCursor(h, result.seq - 1);
+  if (result.seq > 0 && result.seq - 1 < cursor) await setCursor(h, result.seq - 1);
   await deleteOp(h, op.op_id);
 }
 
@@ -255,6 +209,12 @@ export async function applyResult(
     return dropOp(h, op);
   }
   if (result.status === "error") {
+    // A database hiccup is not the op's fault: it waits like a transport failure and keeps its
+    // error budget (audit 2026-10-10 A137).
+    if (result.retryable === true) {
+      await backOffTransport(h, [op], now());
+      return;
+    }
     await parkOrRetry(h, op, result.message, now);
     return;
   }
@@ -278,7 +238,8 @@ export async function applyResult(
  * pending until it actually lands.
  */
 async function onGone(h: AccountHandle, op: OutboxOp, now: () => number): Promise<void> {
-  if (op.kind === "delete" || op.kind === "restore") {
+  // A role delta on a pref another device removed: recreating it would bring the food back (P15).
+  if (op.kind === "delete" || op.kind === "restore" || isRoleDelta(op)) {
     await deleteRow(h, op.entity, op.entity_id);
     await deleteOp(h, op.op_id);
     return;
@@ -320,20 +281,54 @@ export async function drainOutbox(h: AccountHandle, push: PushFn, now: () => num
   };
   if (due.length === 0) return { ...empty, failed: parked > 0 };
 
-  let response: OpsResponse;
-  try {
-    response = await push(due.map(wireOp));
-  } catch (e) {
-    if (isClientFault(e)) {
-      for (const op of due) await parkOrRetry(h, op, `push rejected with ${e.status}`, now);
-      return { ...empty, failed: true, errored: due.length, retryAfterMs: null };
-    }
-    return { ...empty, failed: true, retryAfterMs: await backOffTransport(h, due, at) };
-  }
+  const out: DrainResult = { ...empty };
+  await sendInParts(h, push, due, out, at, now);
+  return out;
+}
 
+/**
+ * Send `due`, and when the route refuses a request for what it carries (`isBodyFault`), split it
+ * and send each half, down to the one op the refusal belongs to: only that op is charged (audit
+ * 2026-10-10 A076). One bad op among 200 costs about 2·log2(200) requests, once. Any other failure
+ * — offline, a 5xx, a lapsed session — backs off this part and every part still waiting, and charges
+ * none of them.
+ */
+async function sendInParts(
+  h: AccountHandle, push: PushFn, due: OutboxOp[], out: DrainResult, at: number, now: () => number,
+): Promise<void> {
+  const parts: OutboxOp[][] = [due];
+  while (parts.length > 0) {
+    const part = parts.shift()!;
+    let response: OpsResponse;
+    try {
+      response = await push(part.map(wireOp));
+    } catch (e) {
+      if (isBodyFault(e) && part.length > 1) {
+        const half = Math.ceil(part.length / 2);
+        parts.unshift(part.slice(0, half), part.slice(half));
+        continue;
+      }
+      out.failed = true;
+      if (isBodyFault(e)) {
+        await parkOrRetry(h, part[0], `push rejected with ${e.status}`, now);
+        out.errored += 1;
+        continue;
+      }
+      const wait = await backOffTransport(h, [...part, ...parts.flat()], at);
+      out.retryAfterMs = Math.min(out.retryAfterMs ?? wait, wait);
+      return;
+    }
+    await applyResponse(h, part, response, out, at, now);
+  }
+}
+
+async function applyResponse(
+  h: AccountHandle, due: OutboxOp[], response: OpsResponse, out: DrainResult, at: number,
+  now: () => number,
+): Promise<void> {
   const byId = new Map(due.map((o) => [o.op_id, o]));
   const answered = new Set<string>();
-  const out: DrainResult = { ...empty, pushed: due.length };
+  out.pushed += due.length;
   for (const result of response.results as SyncResult[]) {
     if (!result || typeof result !== "object") continue; // a malformed row must not crash the drain
     const op = byId.get(result.op_id);
@@ -353,7 +348,9 @@ export async function drainOutbox(h: AccountHandle, push: PushFn, now: () => num
   const unanswered = due.filter((o) => !answered.has(o.op_id));
   if (unanswered.length > 0) {
     out.failed = true;
-    out.retryAfterMs = await backOffTransport(h, unanswered, at);
+    const wait = await backOffTransport(h, unanswered, at);
+    out.retryAfterMs = Math.min(out.retryAfterMs ?? wait, wait);
   }
-  return out;
+  // A new deploy answered: an op it may have fixed is due again (lib/sync/outbox-park.ts).
+  if (await releaseParkedOnNewBuild(h, response.server_build, now()) > 0) announceQueued();
 }

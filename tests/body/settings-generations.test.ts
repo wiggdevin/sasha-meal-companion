@@ -266,8 +266,9 @@ describe("a T6-era phone upgrading with a queued settings op", () => {
       .toMatchObject({ pushed: 0, failed: true });
     await expect(pendingCount(h)).resolves.toBe(1);
 
+    // The replay resumes at its own watermark (W026, A082): one page, not a restart from 0.
     expect(await pullChanges(h, undefined, { fetchFn: pagedFetch, maxPages: 2 }))
-      .toMatchObject({ pages: 2, hasMore: false });
+      .toMatchObject({ pages: 1, hasMore: false });
     expect(await pushOutbox(h, { fetchFn: serverFetch(server) }))
       .toMatchObject({ applied: 1, failed: false });
     expect(server.row()).toMatchObject({ water_goal_cups_training: 10, rev: 5 });
