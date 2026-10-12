@@ -15,7 +15,7 @@ describe("dayTypeFor", () => {
     expect(dayTypeFor("2026-09-07", "rest", settings)).toBe("rest");
   });
 
-  it("never gives any account the first client's Wednesday fasted session (G6)", () => {
+  it("never gives any account the old hard-coded Wednesday fasted session (G6)", () => {
     const everyDay = { trainingWeekdays: [0, 1, 2, 3, 4, 5, 6] };
     // 2026-09-06 (Sun) through 2026-09-12 (Sat), and a year of Wednesdays.
     for (let day = 6; day <= 12; day += 1) {

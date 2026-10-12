@@ -9,7 +9,7 @@ gap brief (`~/Inbox/notes/sasha-tdee-engines-brief-2026-09-22.md`); architecture
 
 | Step | Scope | Status |
 |---|---|---|
-| A | Per-account prior and BMR into the estimator; retire the 2,130 / 1,372 / 4-day globals | **done** on `feat/ui-edits` (2026-09-22) |
+| A | Per-account prior and BMR into the estimator; retire the hard-coded prior / BMR / 4-day globals | **done** on `feat/ui-edits` (2026-09-22) |
 | B | Conservative activity table 1.20–1.70 with whole-day labels; recomp = 0 %; plan-step footer | **done** on `feat/ui-edits` (2026-09-22) |
 | C | Body-fat provenance; Mifflin-St Jeor default; Katch-McArdle only for measured values | **landed** in PR #241; migration `20261028090000` in production (checked 2026-10-04) |
 | D | Rate-based goals (% body weight / week) on top of the live TDEE | **landed** in PR #241; migration `20261029090000` in production (checked 2026-10-04); Grok + DeepSeek audit done |
@@ -174,7 +174,7 @@ the gap brief:
    `derivation_version` on the target revision; the engine reads THESE (step A already passes
    the live profile seed; this freezes it per revision). Bump `ENGINE_VERSION` here, not in A:
    Grok (2026-09-22) noted the per-account BMR clamp changes what a stored row means; the only
-   account with rows had a BMR near the old 1,372, so A left the version at `exp-2.0.0`.
+   account with rows saw almost no change in its clamp, so A left the version at `exp-2.0.0`.
 2. Days 0–13 formula only, labelled "starting estimate". From day 14 compute a provisional
    expenditure internally, no proposal.
 3. Prior fade: `dataWeight = clamp((qualifiedDays − 14) / 28, 0, 1) × intakeQuality ×

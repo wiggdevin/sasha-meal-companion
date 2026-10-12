@@ -25,8 +25,8 @@ export const DAYS_PER_WEEK = 7;
 export const MIN_PROPOSAL_MOVE_KCAL = 75;
 
 /**
- * Training days per week from the revision's own schedule. It used to be a constant 4 (the first
- * client's Mon / Wed / Thu / Fri), which weighted every other account's weekly average wrong.
+ * Training days per week from the revision's own schedule. It used to be a constant 4 (a hard-coded
+ * four-day week), which weighted every other account's weekly average wrong.
  * A revision with no stored schedule gets no proposal rather than a guessed four.
  */
 export function trainingDaysPerWeek(active: TargetProfile): number | null {
