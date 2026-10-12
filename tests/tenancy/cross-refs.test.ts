@@ -132,6 +132,11 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB)("no row points at another account's row"
             // a generic failure (or an unrelated FK) must not satisfy this canary.
             expect(outcome.error ?? "").toContain(
               'foreign key constraint "recipe_plan_selections_target_owner_fk"');
+          } else if (key === "coach_messages.thread_id") {
+            // The denormalized user_id must be the thread's owner, so B's thread trips that same-
+            // owner check first; the row is refused either way. (Server-written since W018.)
+            expect(outcome.error ?? "").toMatch(
+              /cross_account_reference: coach_messages\.(?:user_id|thread_id)\b/);
           } else {
             expect(outcome.error ?? "").toMatch(
               new RegExp(`cross_account_reference: ${table}\\.(?:[a-z_]+/)*${column}\\b`));

@@ -19,7 +19,7 @@ import { accountClock } from "@/lib/server/day-context";
 import { readPolicyProfile } from "@/lib/server/policy-profile";
 import { beforeDeadline, LATE, settle, TIMEOUT_MESSAGE, unwrap, type Settled }
   from "@/lib/server/coach-turn/deadline";
-import type { OpenTurn, StageDeps, Turn } from "@/lib/server/coach-turn/types";
+import type { OpenTurn, SaveArgs, StageDeps, Turn } from "@/lib/server/coach-turn/types";
 
 export type ThreadHistory = Awaited<ReturnType<typeof threadHistory>>;
 export type PolicyProfileRead = Awaited<ReturnType<typeof readPolicyProfile>>;
@@ -41,7 +41,7 @@ export function startTurn(
   const replyDeadlineAt = realStartedAt + (deps.replyDeadlineMs ?? TURN_REPLY_DEADLINE_MS);
   const saveDeadlineAt = replyDeadlineAt + (TURN_SAVE_DEADLINE_MS - TURN_REPLY_DEADLINE_MS);
   /** Saving the turn, bounded: late, the phone gets the retryable 503 while it still waits. */
-  const save = async (...args: Parameters<typeof persist>): Promise<MessageRow[]> => {
+  const save = async (...args: SaveArgs): Promise<MessageRow[]> => {
     const saved = await beforeDeadline(() => persist(args[0], args[1], args[2], args[3],
       args[4], threadKindFor(req.surface, req.scope), admin), saveDeadlineAt);
     if (saved === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
@@ -60,7 +60,7 @@ export async function openTurn(turn: Turn): Promise<
   { kind: "replay"; response: CoachTurnResponse }
   | { kind: "open"; turn: OpenTurn; started: Started }
 > {
-  const { client, userId, req, now, newId, replyDeadlineAt } = turn;
+  const { client, admin, userId, req, now, newId, replyDeadlineAt } = turn;
   // ---- one round of reads -------------------------------------------------------------
   // None of these needs another's answer, and one after another they were seven round trips
   // before the first model call (2026-09-23: ~9 s from request to model). Each result is still
@@ -74,7 +74,7 @@ export async function openTurn(turn: Turn): Promise<
   const historyStarted = threadHistory(client, req.threadId).catch(() => (
     { summary: null, messages: [] as ThreadHistory["messages"], pendingDraft: null }));
   const setup = await beforeDeadline(() => Promise.all([
-    settle(storedTurn(client, userId, req.messageId,
+    settle(storedTurn(client, admin, userId, req.messageId,
       { provider: "gemini", modelId: "" },
       { threadId: req.threadId, kind: threadKindFor(req.surface, req.scope) })),
     settle(resolveThread(client, userId, req.threadId, () => newThreadId as string,

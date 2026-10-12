@@ -30,7 +30,7 @@ async function aiCallLink(turn: OpenTurn, outcome: TurnOutcome): Promise<string 
 }
 
 export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<CoachTurnResponse> {
-  const { client, userId, req, deps, newId, save, threadId, seq, base, userRow } = turn;
+  const { client, admin, userId, req, deps, newId, save, threadId, seq, base, userRow } = turn;
   const id = newId();
   const provenance = outcomeProvenance(outcome);
   const linked = outcome.kind === "model"
@@ -74,10 +74,11 @@ export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<Coac
         });
         return null;
       }), turn.saveDeadlineAt).then((loaded) => loaded === LATE ? null : loaded);
+    // The write-back patches an assistant row, which only the service role may update (W018).
     const sanity = deps.sanity
-      ? deps.sanity(client, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal)
+      ? deps.sanity(admin, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal)
       : sanityDeps ? startPersistedCoachSanity(
-        client, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal, sanityDeps,
+        admin, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal, sanityDeps,
       ) : null;
     if (sanity) {
       body = { ...body, actions: sanity.actions };

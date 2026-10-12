@@ -56,7 +56,8 @@ run("coach thread management against the real database", () => {
     }).select("id").single();
     expect(callError).toBeNull();
     const aiCallId = (callRow as { id: string }).id;
-    await seedMessage(clientA, userA, threadId, 1, "I had tofu for lunch", aiCallId);
+    // A row with an ai_call_id is server-written (W018): the service role seeds it.
+    await seedMessage(admin, userA, threadId, 1, "I had tofu for lunch", aiCallId);
     await seedMessage(clientA, userA, threadId, 2, "Sounds great!");
     const patched = await admin.from("coach_threads").update({
       summary: "a running summary", last_message_at: new Date().toISOString(),

@@ -93,8 +93,13 @@ export async function assertChatCapacity(client: SupabaseClient, userId: string)
   }
 }
 
+/**
+ * The saved turn for `messageId`, read with the session client. `admin` writes only the "could not
+ * finish" reply of an abandoned turn, a `role = 'assistant'` row the user may not insert (W018),
+ * into the thread the session read just proved belongs to the caller.
+ */
 export async function storedTurn(
-  client: SupabaseClient, userId: string, messageId: string,
+  client: SupabaseClient, admin: SupabaseClient, userId: string, messageId: string,
   model: CoachTurnResponse["model"],
   scope?: { threadId: string | null; kind: "chat" | "plan" },
 ): Promise<CoachTurnResponse | null> {
@@ -147,7 +152,7 @@ export async function storedTurn(
       assistant = unsaved;
     } else {
       const saved = { ...unsaved, id: randomUUID() };
-      const { error } = await client.from("coach_messages").insert({
+      const { error } = await admin.from("coach_messages").insert({
         ...saved, thread_id: row.thread_id, user_id: userId, policy_checks: [],
         deflected: false, model_id: null, ai_call_id: null,
       });
@@ -470,15 +475,23 @@ const IN_PROGRESS = "Still working on that one. Try again in a moment.";
  * another turn on the same thread took one of them first, nothing of this turn stays saved — a
  * user row that landed is removed — and the rows are saved again after the thread's new last seq.
  * Returns the rows as saved.
+ *
+ * W018: the user's question is written with the caller's session client, so RLS proves the thread
+ * belongs to that account; every other row (the reply) is written with the service-role client,
+ * because a signed-in user may insert only `role = 'user'` rows (migration 20261231170000). A reply
+ * is saved only beside a user row of the same thread and account in the same call, and every retry
+ * after a seq conflict writes each row with that same writer.
  */
 export async function persist(
   client: SupabaseClient, threadId: string, rows: MessageRow[], newThreadTitle: string | null,
-  summary?: string | null,
-  kind: "chat" | "plan" = "chat", planAdmin?: SupabaseClient,
+  summary: string | null | undefined,
+  kind: "chat" | "plan", admin: SupabaseClient,
 ): Promise<MessageRow[]> {
+  const unanchored = rows.some((row, at) => row.role !== "user" && !rows.slice(0, at).some((user) =>
+    user.role === "user" && user.thread_id === row.thread_id && user.user_id === row.user_id));
+  if (unanchored) throw new HttpError(500, "internal", "Could not save the turn.");
   if (newThreadTitle !== null) {
-    const owner = kind === "plan" ? planAdmin : client;
-    if (!owner) throw new HttpError(500, "internal", "Could not start a plan thread.");
+    const owner = kind === "plan" ? admin : client;
     const { error } = await owner.from("coach_threads").insert({
       id: threadId, user_id: rows[0].user_id, title: newThreadTitle.slice(0, 80), kind,
     });
@@ -489,7 +502,7 @@ export async function persist(
   }
   let saved = rows;
   for (let attempt = 1; ; attempt += 1) {
-    const conflict = await insertRows(client, saved);
+    const conflict = await insertRows(client, admin, saved);
     if (!conflict) break;
     if (attempt >= SEQ_ATTEMPTS) throw new HttpError(503, "in_progress", IN_PROGRESS);
     const first = await nextSeq(client, threadId);
@@ -508,13 +521,21 @@ export async function persist(
 }
 
 /**
- * Inserts the rows in order. "seq" when another turn holds one of their seqs (any row of these
- * that already landed is removed again, so a retry starts clean); null when all are saved.
+ * Inserts the rows in order, the user's own row with the session client and every other row with
+ * the service role (W018). "seq" when another turn holds one of their seqs (any row of these that
+ * already landed is removed again, so a retry starts clean); null when all are saved.
+ *
+ * The removal runs on the session client: migration 20261231170000 keeps `delete` for a signed-in
+ * user on the caller's own rows in the caller's own threads (`coach_messages_delete`, any role),
+ * and only rows of this turn are removed, filtered by its account.
  */
-async function insertRows(client: SupabaseClient, rows: MessageRow[]): Promise<"seq" | null> {
+async function insertRows(
+  client: SupabaseClient, admin: SupabaseClient, rows: MessageRow[],
+): Promise<"seq" | null> {
   const landed: string[] = [];
   for (const row of rows) {
-    const { error } = await client.from("coach_messages").insert(row);
+    const writer = row.role === "user" ? client : admin;
+    const { error } = await writer.from("coach_messages").insert(row);
     const failure = error as { code?: string; message?: string; details?: string } | null;
     if (isSeqConflict(failure)) {
       if (landed.length > 0) {

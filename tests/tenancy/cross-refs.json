@@ -1,8 +1,8 @@
 {
   "coach_action_undos.message_id": { "writer": "service_role" },
   "coach_action_undos.thread_id": { "writer": "service_role" },
-  "coach_messages.ai_call_id": { "writer": "user" },
-  "coach_messages.thread_id": { "writer": "user" },
+  "coach_messages.ai_call_id": { "writer": "service_role" },
+  "coach_messages.thread_id": { "writer": "service_role" },
   "duplicate_group_members.entry_id": { "writer": "user" },
   "duplicate_groups.merged_into_entry_id": { "writer": "user" },
   "favorites_foods.food_ref_id": { "writer": "user" },

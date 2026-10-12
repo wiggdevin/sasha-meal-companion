@@ -59,6 +59,11 @@ describe.skipIf(!HAS_DB)("shopping focus migration (rolled back)", () => {
         end;
       end $$;`;
     expect(seeded(
+      // W018 (20261231170000) made user_settings select-only for a session; put an owner UPDATE
+      // back inside this rolled-back transaction so the column guard behind it is what refuses.
+      `grant update on public.user_settings to authenticated;
+       create policy user_settings_test_update on public.user_settings for update to authenticated
+         using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));`,
       // Control: the same session may still write its own row's other columns.
       attempt("first_opened_at", "first_opened_at"),
       attempt("shopping_focus_until", "now() + interval '400 days'"),

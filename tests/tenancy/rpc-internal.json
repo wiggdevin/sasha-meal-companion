@@ -1,4 +1,9 @@
 {
+  "_coach_chat_insert_guard()": {
+    "class": "private_trigger",
+    "table": "coach_threads",
+    "trigger": "coach_chat_insert_guard"
+  },
   "recipe_plan_bump_food_ref_state()": {
     "class": "private_trigger",
     "table": "food_refs",
