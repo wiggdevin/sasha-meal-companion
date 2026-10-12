@@ -31,7 +31,7 @@ import type { AccountHandle } from "@/lib/device/account";
 let h: AccountHandle;
 
 // 2026-09-07 is a Monday, 09-08 a Tuesday and 09-09 a Wednesday. Every weekday trains at
-// training-10 (onboarding v2 G6: the first client's Wednesday fasted session is nobody's default).
+// training-10 (onboarding v2 G6: the old hard-coded Wednesday fasted session is nobody's default).
 const MON = "2026-09-07";
 const TUE = "2026-09-08";
 const WED = "2026-09-09";

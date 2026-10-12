@@ -117,8 +117,8 @@ Each task lands on branch `feat/ai-first-companion` as one or more commits; the 
 - `lib/plan.ts` day type: when `trainingWeekdays` is set it decides training vs rest; the fixed
   Mon/Wed/Thu/Fri rule stays the fallback.
 - Tests: `lib/profile/energy.test.ts` with reference values (Mifflin-St Jeor: female 30 y, 165 cm,
-  60 kg → BMR 1320.25; male 25 y, 180 cm, 80 kg → 1805 (1780 at age 30); Katch-McArdle 46.4 kg LBM → 1372 as in
-  `analysis/targets.md`), every activity factor, every goal offset, protein by weight, fat floor 50 g,
+  60 kg → BMR 1320.25; male 25 y, 180 cm, 80 kg → 1805 (1780 at age 30); Katch-McArdle from lean body mass),
+  every activity factor, every goal offset, protein by weight, fat floor 50 g,
   carbs floor, calorie floors, week-average identity for training/rest cycling; `lib/targets.test.ts`
   proves fallback when the profile is incomplete and that `adjustCalories` still never moves
   protein; migration applies on the local Supabase (integration test extends the existing
