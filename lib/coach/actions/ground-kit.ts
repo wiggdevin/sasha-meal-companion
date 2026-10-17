@@ -15,6 +15,7 @@ import { checkItemWithMarks, allergenFacts } from "@/lib/coach/policy";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
 import type { GroundedActionItem, GroundedNamedFood } from "@/lib/coach/actions/fields";
 import type { GroundActionPorts, GroundKit, GroundOutcome } from "@/lib/coach/actions/spec";
+import { portionBand, sidePartOf } from "@/lib/coach/portion-bands";
 
 export const clarify = <A>(...text: string[]): GroundOutcome<A> => ({ clarifications: text });
 export const act = <A>(build: (actionId: string) => A): GroundOutcome<A> =>
@@ -48,17 +49,22 @@ export async function groundNamedFood(
   };
 }
 
+/** Grounding an item found no usable food: the caller asks what it is. */
+const NOT_FOUND = { notFound: true } as const;
+
 /**
  * One item of an action. `grams` may be absent for a `set_slot_meal` item: the catalog's default
- * household portion is the quantity then, and a food whose row has no portion returns null so the
- * caller asks ONE question instead of guessing (T6 §3).
+ * household portion is the quantity then, and a food whose row has no portion takes the usual
+ * serving for its kind (`usualServing`). A plan change never stops on "How much?" (live pass
+ * 2026-10-17: "Change next Tuesday's lunch to grilled chicken and rice" came back as "How much
+ * chicken breast, roasted? How much rice, white, cooked?"); the card shows the grams to correct.
  */
 async function groundItem(
   userId: string,
   item: { name: string; grams?: number },
   profile: ConstraintProfile,
   ports: GroundActionPorts,
-): Promise<GroundedActionItem | { question: string } | null> {
+): Promise<GroundedActionItem | { question: string } | typeof NOT_FOUND> {
   // With no quantity given, look past the top hit for one that HAS a household portion: half the
   // catalog's yogurt rows carry none, and taking the first of those turned "change my 4th meal to
   // beef jerky and a Chobani yogurt" into a question about grams (measured 2026-09-18).
@@ -67,14 +73,37 @@ async function groundItem(
   const hit = item.grams === undefined
     ? usable.find((row) => (row.portionGrams ?? 0) > 0) ?? usable[0]
     : usable[0];
-  if (!hit || hit.foodRefId === null) return null;
+  if (!hit || hit.foodRefId === null) return NOT_FOUND;
   const portion = hit.portionGrams ?? null;
-  const itemGrams = item.grams ?? (portion !== null && portion > 0 ? portion : null);
-  if (itemGrams === null) return null;
+  const hasPortion = portion !== null && portion > 0;
+  // A dry mix or powder with no portion has no usual serving of its own: its name's band belongs
+  // to the made-up food ("Milk, dry" is not 250 g of milk), so that one amount stays a question.
+  if (item.grams === undefined && !hasPortion && CONCENTRATE.test(hit.name)) {
+    return { question: `How much ${sanitizeText(hit.name)}?` };
+  }
+  const itemGrams = item.grams ?? (hasPortion ? portion : usualServing(hit));
   const implausible = concentrateQuestion(hit, itemGrams);
   if (implausible) return { question: implausible };
   const grounded = await groundNamedFood(userId, item.name, itemGrams, profile, ports, hit);
-  return grounded ? { ...grounded, grams: itemGrams } : null;
+  return grounded ? { ...grounded, grams: itemGrams } : NOT_FOUND;
+}
+
+/** The most energy a usual-serving guess may carry: a 150 g guess of oil or candy is not usual. */
+const USUAL_SERVING_MAX_KCAL = 400;
+
+/**
+ * The usual serving of a food whose catalog row has no household portion: the typical amount of
+ * its portion band (`lib/coach/portion-bands.ts`), read by its side role and otherwise as a main
+ * protein, capped at USUAL_SERVING_MAX_KCAL and rounded to the band's step.
+ */
+export function usualServing(hit: Pick<FoodHit, "name" | "kcalPer100g">): number {
+  const band = portionBand(hit.name, sidePartOf(hit.name) ?? "anchor");
+  const kcal = hit.kcalPer100g ?? 0;
+  const cap = kcal > 0 ? (USUAL_SERVING_MAX_KCAL * 100) / kcal : Infinity;
+  const rounded = cap < band.typical
+    ? Math.floor(cap / band.step) * band.step
+    : Math.round(band.typical / band.step) * band.step;
+  return Math.max(band.step, rounded);
 }
 
 /** A catalog row that is a dry concentrate: a drink-sized amount of it is not a drink. */
@@ -119,10 +148,6 @@ export function clarification(name: string): string {
   return `I could not find "${sanitizeText(name)}" — what should I log it as?`;
 }
 
-function quantityQuestion(name: string): string {
-  return `How much ${sanitizeText(name)}?`;
-}
-
 export function flagged(items: GroundedNamedFood[]): string[] {
   return items.filter((item) => item.verdict === "blocked").map((item) => item.name);
 }
@@ -141,10 +166,7 @@ export async function groundItems(
     return result.value;
   });
   const missing = grounded.flatMap((item, index) => {
-    if (item === null) {
-      const source = sourceItems[index];
-      return [source.grams === undefined ? quantityQuestion(source.name) : clarification(source.name)];
-    }
+    if ("notFound" in item) return [clarification(sourceItems[index].name)];
     return "question" in item ? [item.question] : [];
   });
   if (missing.length > 0) return { missing };

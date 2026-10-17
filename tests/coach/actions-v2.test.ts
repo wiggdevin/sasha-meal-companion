@@ -165,13 +165,13 @@ describe("grounding the new actions", () => {
     expect(actions[0].kind === "set_slot_meal" && actions[0].items[0].grams).toBe(28);
   });
 
-  it("asks one question when the food has no portion and she gave no grams", async () => {
+  it("takes the usual serving when the food has no portion and no grams were given", async () => {
     const { actions, clarifications } = await groundActions("u1",
       [{ kind: "set_slot_meal", date: "2026-09-16", slot: "meal-2",
         items: [{ name: "beef jerky" }] }],
       DEFAULT_PROFILE, ports(() => [hit({ portionGrams: null })]));
-    expect(actions).toEqual([]);
-    expect(clarifications).toEqual(["How much beef jerky?"]);
+    expect(clarifications).toEqual([]);
+    expect(actions[0].kind === "set_slot_meal" && actions[0].items[0].grams).toBe(30);
   });
 
   it("MARKS a blocked item and still emits the action — it never refuses", async () => {

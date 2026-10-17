@@ -394,10 +394,52 @@
       "clarifications": []
     },
     {
-      "actions": [],
-      "clarifications": [
-        "How much plainrice?"
-      ]
+      "actions": [
+        {
+          "kind": "set_slot_meal",
+          "from": "2026-09-18",
+          "slot": "meal-1",
+          "title": "Rice",
+          "items": [
+            {
+              "name": "plainrice",
+              "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+              "catalogFoodRevisionId": 77,
+              "kcalPer100g": 165,
+              "proteinPer100g": 31,
+              "carbsPer100g": 0,
+              "fatPer100g": 3.6,
+              "verdict": "unverified",
+              "marks": [
+                {
+                  "facet": "gluten",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "dairy",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "apple",
+                  "source": "floor",
+                  "outcome": "unknown"
+                }
+              ],
+              "grams": 150
+            }
+          ],
+          "through": "2026-09-18",
+          "actionId": "g1",
+          "flagged": [],
+          "date": "2026-09-18",
+          "dates": [
+            "2026-09-18"
+          ]
+        }
+      ],
+      "clarifications": []
     },
     {
       "actions": [],
@@ -886,6 +928,46 @@
       {
         "kind": "set_slot_meal",
         "from": "2026-09-18",
+        "slot": "meal-1",
+        "title": "Rice",
+        "items": [
+          {
+            "name": "plainrice",
+            "foodRefId": "3f1b1a2c-0000-4000-8000-000000000012",
+            "catalogFoodRevisionId": 77,
+            "kcalPer100g": 165,
+            "proteinPer100g": 31,
+            "carbsPer100g": 0,
+            "fatPer100g": 3.6,
+            "verdict": "unverified",
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "grams": 150
+          }
+        ],
+        "through": "2026-09-18",
+        "actionId": "g14",
+        "flagged": [],
+        "date": "2026-09-18"
+      },
+      {
+        "kind": "set_slot_meal",
+        "from": "2026-09-18",
         "through": "2026-11-30",
         "slot": "meal-1",
         "title": "Long",
@@ -902,7 +984,7 @@
             "grams": 100
           }
         ],
-        "actionId": "g14",
+        "actionId": "g15",
         "flagged": [],
         "date": "2026-09-18"
       },
@@ -925,7 +1007,7 @@
             "grams": 100
           }
         ],
-        "actionId": "g15",
+        "actionId": "g16",
         "flagged": [],
         "date": "2026-09-18"
       },
@@ -951,7 +1033,7 @@
             "grams": 100
           }
         ],
-        "actionId": "g16",
+        "actionId": "g17",
         "flagged": [],
         "date": "2026-09-18"
       },
@@ -959,7 +1041,7 @@
         "kind": "delete_entry",
         "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
         "what": "eggs at 09:00",
-        "actionId": "g17",
+        "actionId": "g18",
         "flagged": []
       },
       {
@@ -967,7 +1049,7 @@
         "entryId": "3f1b1a2c-0000-4000-8000-0000000000e1",
         "at": "13:30",
         "what": "eggs at 09:00",
-        "actionId": "g18",
+        "actionId": "g19",
         "flagged": []
       },
       {
@@ -997,7 +1079,7 @@
             "grams": 30
           }
         ],
-        "actionId": "g19",
+        "actionId": "g20",
         "flagged": [
           "cake"
         ]
@@ -1007,27 +1089,27 @@
         "date": "2026-09-18",
         "minutes": 30,
         "scope": "remaining",
-        "actionId": "g20",
+        "actionId": "g21",
         "flagged": []
       },
       {
         "kind": "log_water",
         "ml": 480,
-        "actionId": "g21",
+        "actionId": "g22",
         "flagged": []
       },
       {
         "kind": "log_weight",
         "date": "2026-09-18",
         "kg": 58.1,
-        "actionId": "g22",
+        "actionId": "g23",
         "flagged": []
       },
       {
         "kind": "update_profile",
         "birthYear": 1992,
         "sex": "female",
-        "actionId": "g23",
+        "actionId": "g24",
         "flagged": []
       },
       {
@@ -1035,7 +1117,7 @@
         "dayType": "both",
         "kcal": 2100,
         "proteinG": null,
-        "actionId": "g24",
+        "actionId": "g25",
         "flagged": []
       },
       {
@@ -1044,20 +1126,20 @@
           "eggs",
           "oat milk"
         ],
-        "actionId": "g25",
+        "actionId": "g26",
         "flagged": []
       },
       {
         "kind": "set_shopping_focus",
         "on": true,
         "days": 10,
-        "actionId": "g26",
+        "actionId": "g27",
         "flagged": []
       },
       {
         "kind": "set_shopping_focus",
         "on": false,
-        "actionId": "g27",
+        "actionId": "g28",
         "flagged": []
       }
     ],
@@ -1067,7 +1149,6 @@
       "I could not find \"nullref\" — what should I log it as?",
       "I could not find \"mystery\" — what should I log it as?",
       "I could not find \"mystery\" — what should I log it as?",
-      "How much plainrice?",
       "I could not find that entry — which one do you mean?",
       "I could not find \"mystery\" — what should I log it as?"
     ]
