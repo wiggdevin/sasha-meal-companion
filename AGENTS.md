@@ -64,14 +64,20 @@ Codex/Grok, the local proxies) and no production credentials. The section above 
 Mac; in a cloud thread these rules replace it:
 - Work on one `feat/`, `fix/` or `chore/` branch in the thread's own clone. No `git worktree`, no
   `wip/` parking: push the branch and open a **draft** PR before the thread stops.
-- Mark the PR ready only when it is done and CI is green. **Never merge**: a merge to `main`
-  deploys production. The owner (or a Mac session with zs-land) merges.
-- Run `pnpm lint`, `pnpm exec tsc --noEmit` and the targeted `vitest` specs locally. The full
-  suite, the integration tests (local Supabase) and the build run in CI; read CI, don't rerun it all.
-- Never apply a migration, touch Vercel env, or call production Supabase. A PR that needs a
-  migration in production says so in its first line; a Mac session applies it.
 - Second opinion: before marking a non-trivial PR ready, have a Claude reviewer subagent check
   the diff (BLOCK/WARN/NIT) and fix the verified findings. Say in the PR that Sol did not review it.
+- **Auto-merge** (owner decision 2026-10-17; the app is an in-house prototype): when the work is
+  done and the review has no open BLOCK, mark the PR ready and run
+  `gh pr merge <n> --auto --squash --delete-branch`. GitHub merges it once every required check
+  on `main` passes (Quality, Build, Integration, Lint and types, Unit tests 1-4). A merge to
+  `main` deploys production. If the GitHub tools cannot merge, mark the PR ready and list it for
+  the owner. A red check after merge-queueing: fix it on the same branch.
+- **Exception — production migrations and env:** a PR that adds a migration or needs a new
+  production env var says so in its first line, stays ready but is **not** auto-merged. A Mac
+  session applies the migration (or sets the env) first, then merges.
+- Run `pnpm lint`, `pnpm exec tsc --noEmit` and the targeted `vitest` specs locally. The full
+  suite, the integration tests (local Supabase) and the build run in CI; read CI, don't rerun it all.
+- Never apply a migration, touch Vercel env, or call production Supabase.
 - Parallel threads: one thread per branch, never two threads on the same files. A new migration
   takes a fresh timestamp; check open PRs for a clash first (see the `20261229090000` reuse in
   `docs/handoffs/2026-10-08-stopping-point.md`).
