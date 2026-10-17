@@ -21,7 +21,10 @@ export function applyPulledPlanDay(h: AccountHandle, change: ChangeRow): Promise
 /**
  * The plan-day replay (lib/sync/plan-replay.ts) projects a change the cursor already passed. A
  * day with a queued op is left to that op and records no hold: a hold would rewind the main pull
- * to this old change and make it read every entity again from there.
+ * to this old change and make it read every entity again from there. The day is still repaired:
+ * a plan op carries only the fields it changed, so an applied op's echo (a later feed row) holds
+ * the server's whole row and projects it, a conflict merges with that row and projects it, and a
+ * `duplicate` releases the main pull's own hold.
  */
 export function applyReplayedPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolean> {
   return serializePlanDay(change.entity_key, () => applyPlanDay(h, change, false));

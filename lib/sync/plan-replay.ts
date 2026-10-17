@@ -12,7 +12,9 @@
  * code and are not read again.
  *
  * The replay keeps its own watermark in META, so a feed longer than one pass's page budget
- * resumes where the last pass stopped. A device that had pulled nothing has nothing to replay.
+ * resumes where the last pass stopped (a few pages a pass, under the feed's rate limit). Until it
+ * finishes, a day may show an earlier page's change. A device that had pulled nothing has nothing
+ * to replay.
  */
 import { getMeta, putMeta, type AccountHandle } from "./idb";
 import type { ChangeRow } from "./types";

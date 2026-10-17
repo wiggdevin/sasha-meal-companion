@@ -56,6 +56,8 @@ export class SyncHttpError extends Error {
 
 const PAGE_LIMIT = 500;
 const DEFAULT_MAX_PAGES = 50;
+/** The plan-day replay's pages per pass: the feed route allows 60 reads a minute per account. */
+const PLAN_REPLAY_PAGES = 5;
 const SYNCED = new Set<string>(ENTITIES);
 
 export type SyncOptions = { fetchFn?: typeof fetch; maxPages?: number };
@@ -367,7 +369,7 @@ export async function pullChanges(
   // Plan days pulled before Today saw them are projected once (W096). It runs only on a normal
   // pass that read the feed to its end, with the pages that pass has left.
   if (storedCursor !== null && !hasMore && pages < maxPages) {
-    await replayPlanDays(h, storedCursor, maxPages - pages, fetchFn);
+    await replayPlanDays(h, storedCursor, Math.min(PLAN_REPLAY_PAGES, maxPages - pages), fetchFn);
   }
 
   // Direct Foods membership writes bypass the change feed. The account's canonical rows
