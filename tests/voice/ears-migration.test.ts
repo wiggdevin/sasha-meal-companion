@@ -1,16 +1,15 @@
 /**
  * Phase 14 slice 1 — 20261117090000_voice_ears.sql, the live-dictation minute ledger.
  *
- * The text half pins what a careless edit would break (service-role only, RLS forced, the per-user
- * lock before the checks). The branch half runs the real functions: one open token per user, the
- * daily cap charging every non-refused token its whole reservation (a close frees the slot but
- * never lowers the charge), the refund on refuse, and that a signed-in user cannot call them.
+ * Pins what a careless edit to the historical file would break (service-role only, RLS forced,
+ * the per-user lock before the checks). Phase 14 is retired (OD05,
+ * docs/specs/phase-14-voice-agent.md) and 20270102090000_voice_ears_cleanup.sql drops this table
+ * and its three functions, so a migrated database no longer has them and the branch half that ran
+ * the real functions is gone; tests/migrations/voice-ears-cleanup-db.test.ts runs the original
+ * and the cleanup together inside a rolled-back transaction.
  */
 import { readFileSync } from "node:fs";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { adminClient, ensureUser, HAS_BRANCH, userClient, type TestUser }
-  from "../helpers/supabase";
+import { describe, expect, it } from "vitest";
 
 const NAME = "20261117090000_voice_ears";
 const UP = readFileSync(`supabase/migrations/${NAME}.sql`, "utf8");
@@ -50,82 +49,5 @@ describe(`${NAME}.sql (text)`, () => {
     expect(DOWN).toContain("drop function if exists voice_ears_close(uuid, uuid)");
     expect(DOWN).toContain("drop function if exists voice_ears_refuse(uuid, uuid)");
     expect(DOWN).toContain("drop table if exists voice_ears");
-  });
-});
-
-describe.skipIf(!HAS_BRANCH)(`${NAME} (branch)`, () => {
-  let admin: SupabaseClient;
-  let user: TestUser;
-
-  const clear = async () => {
-    const { error } = await admin.from("voice_ears").delete().eq("user_id", user.id);
-    if (error) throw error;
-  };
-  const openRow = async (reserved = 90, cap = 1800) => {
-    const { data, error } = await admin.rpc("voice_ears_open", {
-      p_user_id: user.id, p_reserved_seconds: reserved, p_daily_cap_seconds: cap,
-    });
-    if (error) throw error;
-    return (data as { outcome: string; ears_id: string | null }[])[0];
-  };
-
-  beforeAll(async () => {
-    admin = adminClient();
-    user = await ensureUser("a");
-    await clear();
-  });
-  afterAll(async () => { await clear(); });
-
-  const close = async (id: string | null) => (await admin.rpc("voice_ears_close", {
-    p_user_id: user.id, p_ears_id: id })).data as boolean;
-
-  it("allows one open token at a time, and again once it is closed", async () => {
-    await clear();
-    const first = await openRow();
-    expect(first.outcome).toBe("ok");
-    expect((await openRow()).outcome).toBe("busy");
-    expect(await close(first.ears_id)).toBe(true);
-    expect(await close(first.ears_id)).toBe(false);
-    expect((await openRow()).outcome).toBe("ok");
-  });
-
-  it("serialises concurrent opens: exactly one of five wins", async () => {
-    await clear();
-    const outcomes = await Promise.all(Array.from({ length: 5 }, () => openRow()));
-    expect(outcomes.filter((o) => o.outcome === "ok")).toHaveLength(1);
-    expect(outcomes.filter((o) => o.outcome === "busy")).toHaveLength(4);
-  });
-
-  it("charges every token its whole reservation, closed or not; a refused one is free", async () => {
-    await clear();
-    const refused = await openRow(40, 100);
-    await admin.rpc("voice_ears_refuse", { p_user_id: user.id, p_ears_id: refused.ears_id });
-    const first = await openRow(40, 100);
-    expect(first.outcome).toBe("ok");
-    expect(await close(first.ears_id)).toBe(true);
-    const second = await openRow(40, 100);
-    expect(second.outcome).toBe("ok");
-    await close(second.ears_id);
-    // 80 charged; another 40 would reach 120 > 100, closed early or not.
-    expect((await openRow(40, 100)).outcome).toBe("exhausted");
-    expect((await openRow(20, 100)).outcome).toBe("ok");
-  });
-
-  it("does not let one user close another's token", async () => {
-    await clear();
-    const row = await openRow();
-    const other = await ensureUser("b");
-    const { data } = await admin.rpc("voice_ears_close", { p_user_id: other.id, p_ears_id: row.ears_id });
-    expect(data).toBe(false);
-    expect((await openRow()).outcome).toBe("busy");
-  });
-
-  it("refuses a signed-in user calling the functions directly", async () => {
-    const client = await userClient(user);
-    const { error } = await client.rpc("voice_ears_open", {
-      p_user_id: user.id, p_reserved_seconds: 90, p_daily_cap_seconds: 1800 });
-    expect(error).not.toBeNull();
-    const read = await client.from("voice_ears").select("id");
-    expect(read.error ?? (read.data ?? []).length === 0).toBeTruthy();
   });
 });
