@@ -14,10 +14,15 @@
  * mark can always be cleared). A day with nothing logged gets no control: a mark there teaches
  * nothing and would only switch the account onto the marked-days rule by accident.
  *
+ * W142: before the first tap that marks a day, a Jev check on the day's counts and hours (never a
+ * name or a note) may ask once, "This day may be missing a meal. Mark it fully logged anyway?". It
+ * is fetched ahead, so a tap never waits on it; any failure or a slow answer means no question. The
+ * mark stays the user's statement (R3).
+ *
  * A quiet row on the ground, not a card: it closes the day's list and must not outweigh the meal
  * cards or "Add a meal" (Kimi audit 2026-10-04, finding 11).
  */
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { Check } from "lucide-react";
 import Fold from "@/components/ui/Fold";
@@ -25,6 +30,10 @@ import Notice from "@/components/ui/Notice";
 import { useActionFeedback } from "@/components/ui/ActionFeedback";
 import { spring } from "@/lib/design/motion";
 import { currentAccountOrNull } from "@/lib/device/account";
+import {
+  DAY_NUDGE_BODY, DAY_NUDGE_TITLE, dayCompletenessState, type DayCompletenessState,
+} from "@/lib/day-completeness";
+import { fetchDayNudge } from "@/lib/day-completeness-client";
 import { saveDayComplete } from "@/lib/plan-day-mark";
 import { getDay } from "@/lib/store";
 import type { StoredDay } from "@/lib/types";
@@ -55,10 +64,16 @@ export type DayCompleteControlProps = {
   /** Seams for tests and the design gallery; the app reads the local store and sends the op. */
   readDay?: (date: string) => StoredDay | undefined;
   save?: (date: string, complete: boolean) => Promise<StoredDay>;
+  /** Seam for tests: the day-completeness nudge check. */
+  checkNudge?: (state: DayCompletenessState) => Promise<boolean>;
+  /** How long the day must sit unchanged before the check is asked (tests pass 0). */
+  nudgeSettleMs?: number;
 };
 
+const NUDGE_SETTLE_MS = 500;
+
 export default function DayCompleteControl({ date, today, readDay = getDay,
-  save = saveDayComplete }: DayCompleteControlProps) {
+  save = saveDayComplete, checkNudge = fetchDayNudge, nudgeSettleMs = NUDGE_SETTLE_MS }: DayCompleteControlProps) {
   const feedback = useActionFeedback();
   const reduce = useReducedMotionConfig();
   const id = useId().replace(/:/g, "");
@@ -72,11 +87,42 @@ export default function DayCompleteControl({ date, today, readDay = getDay,
   const complete = intent?.date === date ? intent.complete : Boolean(day?.dayCompleteAt);
   const visible = intent?.date === date || showsDayComplete(day, date, today);
   const key = `day-complete:${date}`;
+  // The day's counts as Jev sees them; the verdict is kept per date and state, so editing the log
+  // asks again and switching days never borrows another day's answer.
+  const nudgeState = dayCompletenessState(day, date, today);
+  const nudgeKey = `${date}|${JSON.stringify(nudgeState)}`;
+  const [verdict, setVerdict] = useState<{ key: string; nudge: boolean } | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
+  const checkable = visible && !complete && hasLoggedFood(day);
+  useEffect(() => {
+    if (!checkable) return;
+    let current = true;
+    // Debounced so paging through days (or editing the log) asks once it settles, not per step.
+    const timer = setTimeout(() => {
+      void Promise.resolve().then(() => checkNudge(nudgeState)).catch(() => false).then((nudge) => {
+        if (current) setVerdict({ key: nudgeKey, nudge });
+      });
+    }, nudgeSettleMs);
+    return () => { current = false; clearTimeout(timer); };
+    // The state is a pure function of `nudgeKey`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkable, nudgeKey, checkNudge, nudgeSettleMs]);
+  const asked = asking === nudgeKey && verdict?.key === nudgeKey && verdict.nudge;
+  // Moving focus to "Mark anyway" is what announces the question to a screen reader.
+  const nudgeRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (asked) nudgeRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [asked]);
   const control = feedback.controlPropsFor(key);
 
-  async function toggle() {
+  async function toggle(skipNudge = false) {
     if (control.disabled) return; // one write at a time; the control stays focusable meanwhile
     const next = !complete;
+    if (next && !skipNudge && verdict?.key === nudgeKey && verdict.nudge) {
+      setAsking(nudgeKey);
+      return;
+    }
+    setAsking(null);
     const epoch = currentAccountOrNull()?.epoch;
     setIntent({ date, complete: next });
     setFailedOn(null);
@@ -124,9 +170,17 @@ export default function DayCompleteControl({ date, today, readDay = getDay,
           </span>
         </button>
         <AnimatePresence initial={false}>
+          {asked && !complete && <Fold key="nudge">
+            <div ref={nudgeRef}><Notice tone="info" title={DAY_NUDGE_TITLE} onDismiss={() => setAsking(null)}
+              action={{ label: "Mark anyway", onClick: () => void toggle(true) }}>
+              {DAY_NUDGE_BODY}
+            </Notice></div>
+          </Fold>}
+        </AnimatePresence>
+        <AnimatePresence initial={false}>
           {failure && <Fold key="failure">
             <Notice tone="error" title={failure.message} onDismiss={feedback.dismiss}
-              action={{ label: "Try again", onClick: () => void toggle() }} />
+              action={{ label: "Try again", onClick: () => void toggle(true) }} />
           </Fold>}
         </AnimatePresence>
       </div>

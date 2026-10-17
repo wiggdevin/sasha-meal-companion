@@ -12,6 +12,9 @@ const LOGGED: StoredDay = { date: TODAY, eaten: { "meal-1": "2026-10-04T08:10:00
 
 afterEach(cleanup);
 
+/** Lets the debounced (0 ms) nudge check and its answer land. */
+const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
+
 /** An in-memory store and a writer over it, so each test owns the day it reads. */
 function harness(initial: StoredDay, fail = false) {
   let day: StoredDay = initial;
@@ -105,5 +108,71 @@ describe("day fully logged: the control", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(h.save).toHaveBeenCalledTimes(2));
     expect(h.save).toHaveBeenLastCalledWith(TODAY, true);
+  });
+});
+
+describe("day fully logged: the Jev nudge (W142)", () => {
+  it("asks once above threshold, and Mark anyway marks the day", async () => {
+    const h = harness(LOGGED);
+    const checkNudge = vi.fn().mockResolvedValue(true);
+    render(<DayCompleteControl date={TODAY} today={TODAY} readDay={h.readDay} save={h.save}
+      checkNudge={checkNudge} nudgeSettleMs={0} />);
+    await waitFor(() => expect(checkNudge).toHaveBeenCalledTimes(1));
+    // Counts only: no food name leaves the phone.
+    expect(Object.keys(checkNudge.mock.calls[0][0]).sort())
+      .toEqual(["entryCount", "isToday", "lastEntryHour", "localHour", "mealsEaten"]);
+    const box = screen.getByRole("checkbox", { name: "I logged everything I ate today" });
+    await settle();
+    fireEvent.click(box);
+    expect(await screen.findByText("A meal may not be logged yet.")).toBeTruthy();
+    expect(h.save).not.toHaveBeenCalled();
+    const anyway = screen.getByRole("button", { name: "Mark anyway" });
+    expect(document.activeElement).toBe(anyway); // focus moves there, which announces the question
+    fireEvent.click(box); // a second tap on the box while asking writes nothing
+    expect(h.save).not.toHaveBeenCalled();
+    fireEvent.click(anyway);
+    await waitFor(() => expect(h.save).toHaveBeenCalledWith(TODAY, true));
+    expect(h.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("Dismiss closes the question without marking", async () => {
+    const h = harness(LOGGED);
+    render(<DayCompleteControl date={TODAY} today={TODAY} readDay={h.readDay} save={h.save}
+      checkNudge={vi.fn().mockResolvedValue(true)} nudgeSettleMs={0} />);
+    await settle();
+    fireEvent.click(screen.getByRole("checkbox", { name: "I logged everything I ate today" }));
+    await screen.findByText("A meal may not be logged yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    await waitFor(() => expect(screen.queryByText("A meal may not be logged yet.")).toBeNull());
+    expect(h.save).not.toHaveBeenCalled();
+  });
+
+  it("ignores a verdict for another day: switching dates asks again and never borrows the answer", async () => {
+    const check = vi.fn((state: { isToday: boolean }) => Promise.resolve(state.isToday));
+    const day = (date: string): StoredDay => ({ ...LOGGED, date });
+    const save = vi.fn();
+    const { rerender } = render(<DayCompleteControl date={TODAY} today={TODAY} readDay={() => day(TODAY)}
+      save={save} checkNudge={check} nudgeSettleMs={0} />);
+    await settle();
+    rerender(<DayCompleteControl date={EARLIER} today={TODAY} readDay={() => day(EARLIER)}
+      save={save} checkNudge={check} nudgeSettleMs={0} />);
+    await settle();
+    expect(check).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("checkbox", { name: "I logged everything I ate that day" }));
+    expect(screen.queryByText("A meal may not be logged yet.")).toBeNull();
+    await waitFor(() => expect(save).toHaveBeenCalledWith(EARLIER, true));
+  });
+
+  it("marks straight away below threshold, on a Jev error, and when the answer has not arrived", async () => {
+    for (const check of [vi.fn().mockResolvedValue(false), vi.fn().mockRejectedValue(new Error("x")),
+      vi.fn(() => new Promise<boolean>(() => {}))]) {
+      const h = harness(LOGGED);
+      render(<DayCompleteControl date={TODAY} today={TODAY} readDay={h.readDay} save={h.save} checkNudge={check} nudgeSettleMs={0} />);
+      await settle();
+      fireEvent.click(screen.getByRole("checkbox", { name: "I logged everything I ate today" }));
+      await waitFor(() => expect(h.save).toHaveBeenCalledWith(TODAY, true));
+      expect(screen.queryByText("A meal may not be logged yet.")).toBeNull();
+      cleanup();
+    }
   });
 });

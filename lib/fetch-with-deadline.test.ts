@@ -25,6 +25,8 @@ describe("the deadline table", () => {
       signIn: 10_000,
       // Self-serve account deletion (lib/account-delete-client.ts), W057: past the route's 60 s.
       accountDelete: 65_000,
+      // The advisory check before "Day fully logged" (lib/day-completeness-client.ts), W142.
+      nudge: 4_000,
     });
   });
 });
