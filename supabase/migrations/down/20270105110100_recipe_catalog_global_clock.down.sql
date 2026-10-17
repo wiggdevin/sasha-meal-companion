@@ -11,12 +11,16 @@ set local statement_timeout = '30s';
 -- Expire every unaccepted preview first. Back on the account-only check, a preview stored before
 -- the up file could compare equal again after a catalog change it never saw (and a sum stored under
 -- it could match a later account rev). Accepted rows keep their expiry for idempotent replay.
--- The lock holds new previews out until this file commits, so none lands between the sweep and
--- the account-only check (the runner applies the file in one transaction; LOCK needs one, and a
--- DO block is one when a runner does not wrap the file).
+-- Both locks are taken first, NOWAIT, before anything else: the clock (recipe_store_preview reads
+-- it, then inserts a preview) and the previews (recipe_accept_preview locks a preview row, then reads
+-- the clock). Waiting on either while holding the other could deadlock with an in-flight call, so a
+-- busy lock fails the whole file at once with nothing held; rerun it. The previews lock keeps new
+-- previews out until commit, so none lands between the sweep and the account-only check. LOCK needs
+-- a transaction: the runner applies the file in one, and a DO block is one when a runner does not.
 do $sweep$
 begin
-  lock table public.recipe_plan_previews in share row exclusive mode;
+  lock table public.recipe_catalog_clock in access exclusive mode nowait;
+  lock table public.recipe_plan_previews in access exclusive mode nowait;
   update public.recipe_plan_previews set expires_at = pg_catalog.now()
    where accepted_request_id is null and expires_at > pg_catalog.now();
 end;
