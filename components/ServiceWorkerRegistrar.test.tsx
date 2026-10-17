@@ -89,6 +89,35 @@ describe("ServiceWorkerRegistrar update notice", () => {
     expect(screen.getByText("Update available")).toBeTruthy();
   });
 
+  it("offers a worker that was already installing when registration resolved", async () => {
+    const next = worker("installing");
+    registration.installing = next;
+    await mount();
+    expect(screen.queryByText("Update available")).toBeNull();
+    next.state = "installed";
+    registration.waiting = next;
+    registration.installing = null;
+    act(() => next.emit("statechange"));
+    expect(screen.getByText("Update available")).toBeTruthy();
+  });
+
+  it("offers a worker that finished installing before the update-found listener could see it", async () => {
+    await mount();
+    const next = worker("installed");
+    registration.installing = null;
+    registration.waiting = next;
+    act(() => registration.emit("updatefound"));
+    expect(screen.getByText("Update available")).toBeTruthy();
+  });
+
+  it("offers a worker that installed while the app was hidden, once the app is visible again", async () => {
+    await mount();
+    registration.waiting = worker("installed");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(registration.update).toHaveBeenCalled();
+    expect(screen.getByText("Update available")).toBeTruthy();
+  });
+
   it("dismisses for this page session only", async () => {
     const waiting = worker();
     install(waiting);
