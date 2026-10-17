@@ -30,7 +30,8 @@ import {
 import {
   candidatePhrases, hitNamesPhrase, lexiconMentions, normalizeFoodText,
 } from "@/lib/coach/reply-mentions";
-import { abortMessage, type RawSuggestion } from "@/lib/coach/turn";
+import { reaskMessage, reaskReasonCode, REPLY_CHECK_INCOMPLETE } from "@/lib/coach/reask";
+import type { RawSuggestion } from "@/lib/coach/turn";
 import type { FoodHit } from "@/lib/coach/executors";
 import type { CoachSuggestion } from "@/lib/coach/types";
 import { LANES } from "@/lib/ai/lanes";
@@ -380,9 +381,13 @@ function reask(base: ReplyCheckResult, failures: readonly ReplyFailure[]): Reply
     const rule = ruleHits.get(normalizeFoodText(s.name));
     return rule ? [{ ...s, reason: rule, verdict: "blocked" }] : [];
   });
+  // W087: the re-ask names what it held back and why, instead of the generic abort line.
+  const held = [...base.textChecks.map((c) => ({ name: c.name, reason: c.reason ?? null })), ...failures];
   return {
-    content: abortMessage("unverified_text_food"), suggestions, draft: null, actions: [],
+    content: reaskMessage(held), suggestions, draft: null, actions: [],
     draftChecks: base.draftChecks, textChecks: [...base.textChecks, ...extra],
+    replaced: { by: "reply_scan", reasons: held.map((f) => reaskReasonCode(f.reason)),
+      incomplete: failures.some((f) => f.reason === REPLY_CHECK_INCOMPLETE) },
   };
 }
 
@@ -395,6 +400,6 @@ export async function checkReplyLive(
   const result = await scanned;
   if (!result.hardRulesActive || (result.complete && result.failing.length === 0)) return base;
   const failures = result.complete ? result.failing
-    : [...result.failing, { name: "reply", reason: "reply_check_incomplete" }];
+    : [...result.failing, { name: "reply", reason: REPLY_CHECK_INCOMPLETE }];
   return reask(base, failures);
 }

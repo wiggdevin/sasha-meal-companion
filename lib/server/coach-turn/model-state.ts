@@ -52,6 +52,8 @@ export type ModelState = {
   claimCorrectionRequested: boolean;
   /** A generic refusal to a food ask was sent back once (lib/coach/refusal-guard.ts). */
   refusalCorrectionRequested: boolean;
+  /** The model's own `abort` step was sent back once (lib/coach/turn.ts ABORT_CORRECTION). */
+  abortCorrectionRequested: boolean;
   claimWithoutAction: boolean;
   /** The reply claims a write the server dropped (an unconfirmed skip, any write on the recipe
    *  widget): the clarification replaces it even when it ends in a question (re-audit r1 #2, #4). */
@@ -96,6 +98,7 @@ export function newModelState(transcript: string[], preGroundMs: number): ModelS
     logPolicyNotices: [],
     claimCorrectionRequested: false,
     refusalCorrectionRequested: false,
+    abortCorrectionRequested: false,
     claimWithoutAction: false,
     replyClaimDropped: false,
     groundingLate: false,

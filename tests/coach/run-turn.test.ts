@@ -5,6 +5,7 @@ import { runTurn } from "@/tests/coach/fixtures/run-turn";
 import { MEDICAL_DEFLECTION } from "@/lib/coach/deflect";
 import { generateStructured } from "@/lib/ai/adapter";
 import { DELIMITER_CLOSE, DELIMITER_OPEN } from "@/lib/coach/envelope";
+import { isReask } from "@/lib/coach/reask";
 import { abortMessage, TURN_LIMITS } from "@/lib/coach/turn";
 import type { FoodDetail, FoodSearchHit } from "@/lib/server/catalog";
 import type { ComposedMeal } from "@/lib/coach/compose";
@@ -691,7 +692,7 @@ describe("runTurn", () => {
     const result = await runTurn(db(RESTRICTED, writes), db(RESTRICTED, writes), "u1",
       { ...REQ, text: "move dinner and add cheese" },
       { generate: generate as never, ports: cheesePorts(), now: () => 0, newId: () => "id-1" });
-    expect(result.messages.at(-1)?.content).toMatch(/try naming the meal or food you mean/i);
+    expect(isReask(result.messages.at(-1)!.content)).toBe(true);
     expect(result.actions).toEqual([]);
     const assistant = writes.rows.filter((row) => row.table === "coach_messages").at(-1)!.row;
     expect(assistant.tool_calls).toMatchObject({ actions: [] });
@@ -867,7 +868,7 @@ describe("runTurn", () => {
       { generate: generate as never, ports: cheesePorts(), now: () => 0, newId: () => "id-1" });
     // Phase 13 §6 row 5, §9 R7: the prose names the blocked food, so the reply is a re-ask; the
     // re-ask replaces the reply, not the verdict, so the card stays on screen as blocked (Phase 7).
-    expect(res.messages.at(-1)!.content).toMatch(/try naming the meal or food you mean/i);
+    expect(isReask(res.messages.at(-1)!.content)).toBe(true);
     expect(res.suggestions).toEqual([expect.objectContaining({ name: "cheese", verdict: "blocked" })]);
     expect(policyChecks(writes).some((c) => c.verdict === "blocked"
       && /^allergen:dairy/.test(c.reason ?? ""))).toBe(true);
@@ -883,7 +884,7 @@ describe("runTurn", () => {
     const res = await runTurn(db(RESTRICTED, writes), db(RESTRICTED, writes), "u1",
       { ...REQ, text: "can I have raw onion" },
       { generate: generate as never, ports: onionPorts(), now: () => 0, newId: () => "id-1" });
-    expect(res.messages.at(-1)!.content).toMatch(/try naming the meal or food you mean/i);
+    expect(isReask(res.messages.at(-1)!.content)).toBe(true);
     expect(res.suggestions).toEqual([expect.objectContaining({
       name: "Onions, raw", verdict: "blocked", reason: "category:onion_garlic" })]);
     expect(policyChecks(writes).some((c) => c.verdict === "blocked"
@@ -900,7 +901,7 @@ describe("runTurn", () => {
       { ...REQ, text: "can I have cheese" },
       { generate: generate as never, ports: cheesePorts(), now: () => 0, newId: () => "id-1" });
     expect(res.messages.at(-1)!.content).not.toContain("Cheese is a solid snack");
-    expect(res.messages.at(-1)!.content).toMatch(/try naming the meal or food you mean/i);
+    expect(isReask(res.messages.at(-1)!.content)).toBe(true);
     expect(res.suggestions).toEqual([]);
     const checks = writes.rows.filter((w) => w.table === "coach_messages").at(-1)!
       .row.policy_checks as { verdict: string; reason: string | null }[];

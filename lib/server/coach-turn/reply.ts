@@ -9,14 +9,17 @@ import { hydrateNextActionChip } from "@/lib/coach/blocks/hydrate-next-action";
 import { accountFoodNames, nextMemory } from "@/lib/coach/memory";
 import { appendLookupSources } from "@/lib/coach/lookup-sources";
 import { nextBestAction } from "@/lib/coach/next-action";
-import { abortMessage, listMarkCapNotice, OUT_OF_TIME_GROUNDING, sanitiseReply }
-  from "@/lib/coach/turn";
+import {
+  abortMessage, listMarkCapNotice, OUT_OF_TIME_GROUNDING, sanitiseReply, TURN_STOP_REASONS,
+} from "@/lib/coach/turn";
 import { isOpenRouterModelId } from "@/lib/ai/models";
 import { mayPropose } from "@/lib/server/coach-proposals";
 import { mayProposeTaste, tasteChipsCard } from "@/lib/server/coach-taste";
 import type { TasteChipsProposal } from "@/lib/coach/taste-chips-card";
 import { FOOD_PREFERENCE_PROFILE_ID } from "@/lib/policy/profiles/food-preference-rule";
 import { hasUnloggedMeal } from "@/lib/server/coach-unlogged-meal";
+import { INVALID_ARGS_PREFIX } from "@/lib/coach/dispatch";
+import type { ReplyCheckResult } from "@/lib/coach/reply-check";
 import { checkReplyLive } from "@/lib/server/reply-check";
 import { beforeDeadline, LATE } from "@/lib/server/coach-turn/deadline";
 import type { IntentRead } from "@/lib/server/coach-turn/intent";
@@ -128,6 +131,7 @@ export async function modelReply(
     : replyScan?.text === scanText ? replyScan.scan : scanReply(turn, kit, state, scanText, named).scan;
   const checked = await checkReplyLive({ text, named, draft, actions, evidence, profile }, scan);
   const { content, suggestions, draftChecks, textChecks } = checked;
+  logFallback(state, claimWithoutAction, checked.replaced);
   draft = checked.draft;
   actions = checked.actions;
   if (content !== text) {
@@ -223,4 +227,35 @@ export async function modelReply(
       },
     },
   };
+}
+
+/**
+ * W087: one line for every turn that answers with a fallback instead of the model's reply, so the
+ * cause can be counted: the model's abort, a loop stop, a claim with no action, or the food-rule
+ * check. It carries codes and counts only: never the person's words, the reply, a food name, a
+ * tool's error text or the model's own abort reason (its length is enough to tell it was there).
+ */
+function logFallback(
+  state: ModelState, claimWithoutAction: boolean, replaced: ReplyCheckResult["replaced"],
+): void {
+  const { step } = state;
+  const cause = claimWithoutAction ? "claim_without_action"
+    : step.kind === "abort" ? (TURN_STOP_REASONS.has(step.reason) ? step.reason : "model_abort")
+    : step.kind === "tool" ? "max_tool_calls"
+    : replaced?.by ?? null;
+  if (cause === null) return;
+  console.warn("coach turn fallback", {
+    cause,
+    modelId: state.modelId,
+    toolCalls: state.toolCalls.length,
+    failedToolCalls: state.toolCalls.filter((call) => !call.ok).length,
+    // Refused before running: the model's arguments did not fit the tool's input schema.
+    invalidToolArgs: state.toolCalls.filter((call) => !call.ok
+      && (call.error ?? "").startsWith(INVALID_ARGS_PREFIX)).length,
+    tools: [...new Set(state.toolsUsed)],
+    abortCorrected: state.abortCorrectionRequested,
+    ...(cause === "model_abort" && step.kind === "abort" ? { modelReasonChars: step.reason.length } : {}),
+    ...(replaced ? { replacedBy: replaced.by, held: replaced.reasons.slice(0, 8),
+      incomplete: replaced.incomplete } : {}),
+  });
 }

@@ -11,7 +11,9 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ZodType } from "zod";
-import { callModel, parseModelJson, ProviderHttpError, SchemaRejection } from "@/lib/ai/call";
+import {
+  callModel, parseModelJson, ProviderHttpError, SchemaRejection, schemaIssueSummary,
+} from "@/lib/ai/call";
 import { acceptRefused, isFinalReply, type RefuseArg } from "@/lib/ai/refusal";
 import { toPlainJsonSchema } from "@/lib/ai/json-schema";
 import { openRouterProvenance, type OpenRouterPayload } from "@/lib/ai/openrouter-payloads";
@@ -45,6 +47,9 @@ type OpenRouterResult = {
    *  OpenRouter's price is not this app's to track (unlike lib/ai/models.ts's
    *  pinned, priced Gemini lane). Zero when the provider did not report it. */
   costUsd: number;
+  /** Why the model stopped ("stop", "length"), named in a schema refusal so a reply cut off by the
+   *  output cap reads apart from a wrong shape (W087). Null when the provider did not say. */
+  finishReason?: string | null;
 };
 
 /**
@@ -137,12 +142,12 @@ async function callOpenRouter(
   let json: unknown;
   try {
     json = await response.json();
-  } catch (e) {
-    throw new SchemaRejection(`openrouter reply is not valid JSON: ${
-      e instanceof Error ? e.message : "parse failed"}`);
+  } catch {
+    // Not the parser's message: it quotes the body, which carries the model's reply.
+    throw new SchemaRejection("openrouter reply is not valid JSON");
   }
   const body = json as {
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: string }; finish_reason?: string | null }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
   };
   const content = body.choices?.[0]?.message?.content;
@@ -152,11 +157,17 @@ async function callOpenRouter(
     inputTokens: body.usage?.prompt_tokens ?? 0,
     outputTokens: body.usage?.completion_tokens ?? 0,
     costUsd: typeof body.usage?.cost === "number" ? body.usage.cost : 0,
+    finishReason: finishReasonOf(body.choices?.[0]?.finish_reason),
   };
 }
 
+/** The provider's finish reason as a short code ("stop", "length"), or null when it sent none. */
+function finishReasonOf(value: unknown): string | null {
+  return typeof value === "string" && /^[a-z_]{1,32}$/i.test(value) ? value : null;
+}
+
 type StreamChunk = {
-  choices?: { delta?: { content?: string | null } }[];
+  choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
   error?: { code?: number | string };
 };
@@ -181,6 +192,7 @@ export async function readOpenRouterStream(
   let buffered = "";
   let text = "";
   let usage: StreamChunk["usage"];
+  let finishReason: string | null = null;
   let ended = false;
   const watch = (soFar: string) => { try { onText(soFar); } catch { /* never fails the call */ } };
   watch("");
@@ -195,6 +207,7 @@ export async function readOpenRouterStream(
       const status = Number.isInteger(code) && code >= 400 && code < 600 ? code : 502;
       throw new ProviderHttpError(status, `openrouter ${status}`);
     }
+    finishReason = finishReasonOf(chunk.choices?.[0]?.finish_reason) ?? finishReason;
     const delta = chunk.choices?.[0]?.delta?.content;
     if (typeof delta === "string" && delta !== "") {
       text += delta;
@@ -222,6 +235,7 @@ export async function readOpenRouterStream(
       inputTokens: usage?.prompt_tokens ?? 0,
       outputTokens: usage?.completion_tokens ?? 0,
       costUsd: typeof usage?.cost === "number" ? usage.cost : 0,
+      finishReason,
     };
   }
 }
@@ -389,10 +403,20 @@ export async function generateOpenRouter<T>(
         args.payload.fileDataUrl, args.payload.audioDataUrl, args.onText),
     },
     accept: (result) => {
-      const parsed = args.schema.safeParse(
-        decodeFreeForm(parseModelJson(stripJsonFence(result.text)), freeForm));
+      // W087: a refusal names the finish reason, so a reply the output cap cut off reads apart
+      // from one the model wrote whole in the wrong shape.
+      const finish = result.finishReason ? ` (finish: ${result.finishReason})` : "";
+      let decoded: unknown;
+      try {
+        decoded = decodeFreeForm(parseModelJson(stripJsonFence(result.text)), freeForm);
+      } catch (e) {
+        if (e instanceof SchemaRejection) throw new SchemaRejection(`${e.message}${finish}`);
+        throw e;
+      }
+      const parsed = args.schema.safeParse(decoded);
       if (!parsed.success) {
-        throw new SchemaRejection(`model output failed the schema: ${parsed.error.message}`);
+        throw new SchemaRejection(
+          `model output failed the schema: ${schemaIssueSummary(parsed.error)}${finish}`);
       }
       return acceptRefused(parsed.data, args.refuse);
     },

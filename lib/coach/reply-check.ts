@@ -11,7 +11,9 @@
 import { shoppingItemNames, withoutShoppingConfirmations } from "@/lib/coach/shopping-confirmation";
 import type { CoachAction } from "@/lib/coach/actions";
 import { checkDraft, checkItem, type EvidenceByName, allergenFacts } from "@/lib/coach/policy";
-import { abortMessage, type RawSuggestion } from "@/lib/coach/turn";
+import { LIST_MARK_KINDS } from "@/lib/coach/actions/food-lists";
+import { reaskMessage, reaskReasonCode } from "@/lib/coach/reask";
+import type { RawSuggestion } from "@/lib/coach/turn";
 import type { CoachDraft, CoachSuggestion } from "@/lib/coach/types";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
 
@@ -32,6 +34,11 @@ export type ReplyCheckResult = {
   actions: CoachAction[];
   draftChecks: CoachSuggestion[];
   textChecks: CoachSuggestion[];
+  /**
+   * Set when the check replaced the reply, for the turn's fallback log (W087): which check did it,
+   * the policy code of each food it held back (never a name), and whether the live scan finished.
+   */
+  replaced?: { by: "text_check" | "reply_scan"; reasons: string[]; incomplete: boolean };
 };
 
 /** The food identities an exemption (finding #6) is keyed on: by name, or by grounded foodRefId. */
@@ -58,6 +65,21 @@ export function loggedFoodIdentities(
         names.add(item.name.toLowerCase());
         refs.add(item.foodRefId);
       }
+    }
+    // W087: an Eats or Avoid mark is the person's own instruction about that food, and its
+    // grounding already says a blocked verdict is no reason to hold the mark back
+    // (lib/coach/actions/food-lists.ts). The reply confirming it ("Adding Greek yogurt to your
+    // Favored list") is not advice, so it no longer turns the turn into a re-ask that also drops
+    // the mark — the fast path already answers the same sentence with the mark.
+    if ((LIST_MARK_KINDS as readonly string[]).includes(action.kind)) {
+      const mark = action as Extract<CoachAction, { kind: (typeof LIST_MARK_KINDS)[number] }>;
+      const name = mark.name.toLowerCase();
+      names.add(name);
+      // The catalog's name is "Greek yogurt, plain"; the reply and its card say "greek yogurt".
+      const base = name.split(",")[0].trim();
+      if (base !== "") names.add(base);
+      refs.add(mark.foodRefId);
+      for (const id of mark.alsoFoodRefIds ?? []) refs.add(id);
     }
   }
   return { names, refs };
@@ -131,8 +153,10 @@ export function checkReply(input: ReplyCheckInput): ReplyCheckResult {
     }));
 
   if (textChecks.length > 0) {
-    return { content: abortMessage("unverified_text_food"), suggestions: [], draft: null,
-      actions: [], draftChecks, textChecks };
+    return { content: reaskMessage(textChecks.map((c) => ({ name: c.name, reason: c.reason ?? null }))),
+      suggestions: [], draft: null, actions: [], draftChecks, textChecks,
+      replaced: { by: "text_check", reasons: textChecks.map((c) => reaskReasonCode(c.reason ?? null)),
+        incomplete: false } };
   }
   return { content: text, suggestions, draft, actions: input.actions, draftChecks, textChecks };
 }

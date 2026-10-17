@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { abortMessage } from "@/lib/coach/turn";
+import { isReask } from "@/lib/coach/reask";
 import type { FoodHit } from "@/lib/coach/executors";
 
 const policyMock = vi.hoisted(() => ({
@@ -24,7 +24,6 @@ afterEach(() => { vi.unstubAllEnvs(); });
 const REQ = { threadId: null, messageId: "3f1b1a2c-0000-4000-8000-000000000099", text: "dinner?" };
 const FISH = [{ avoid_allergens: ["fish"], avoid_food_ref_ids: [],
   banned_categories: [], custom_rules: [] }];
-const REASK = abortMessage("unverified_text_food");
 
 type Writes = { rows: { table: string; row: unknown }[] };
 function db(tables: Record<string, unknown[]>, writes: Writes) {
@@ -84,7 +83,7 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
     });
     expect(events.indexOf("search")).toBeGreaterThanOrEqual(0);
     expect(events.indexOf("search")).toBeLessThan(events.indexOf("verify:end"));
-    expect(assistantRow(writes).content).toBe(REASK);
+    expect(isReask(assistantRow(writes).content)).toBe(true);
   });
 
   it("still scans the model's prose when a log-policy note is appended to it", async () => {
@@ -97,7 +96,7 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
       replyCheck: { searchFoods },
     });
     expect(searchFoods).toHaveBeenCalledWith("u1", "salmon", expect.any(Number));
-    expect(assistantRow(writes).content).toBe(REASK);
+    expect(isReask(assistantRow(writes).content)).toBe(true);
   });
 
   it("drops food cards from a re-asked reply", async () => {
@@ -111,7 +110,7 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
       now: () => 0, newId: () => "id-1",
     });
     const row = assistantRow(writes);
-    expect(row.content).toBe(REASK);
+    expect(isReask(row.content)).toBe(true);
     expect(row.tool_calls.blocks.filter((b) => b.kind !== "dietary_profile_proposal")).toEqual([]);
     expect(row.tool_calls.composed).toEqual([]);
   });
@@ -138,7 +137,7 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
         newId: () => "id-1", replyCheck: { searchFoods: search, profileRules: async () => null },
       });
     const row = assistantRow(writes) as unknown as { content: string; tool_calls: { actions: unknown[] } };
-    expect(row.content).not.toBe(REASK);
+    expect(isReask(row.content)).toBe(false);
     expect(row.tool_calls.actions).toHaveLength(1);
   });
 
@@ -170,7 +169,7 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
         replyCheck: { searchFoods: async () => [sourdough], profileRules: async () => null },
       });
     const row = assistantRow(writes) as unknown as { content: string; tool_calls: { actions: unknown[] } };
-    expect(row.content).toBe(REASK);
+    expect(isReask(row.content)).toBe(true);
     expect(row.tool_calls.actions).toEqual([]);
   });
 
@@ -191,7 +190,7 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
         replyCheck: { searchFoods: async () => [sourdough], profileRules: async () => null },
       });
     const row = assistantRow(writes) as unknown as { content: string; tool_calls: { actions: unknown[] } };
-    expect(row.content).not.toBe(REASK);
+    expect(isReask(row.content)).toBe(false);
     expect(row.tool_calls.actions).toHaveLength(1);
   });
 
