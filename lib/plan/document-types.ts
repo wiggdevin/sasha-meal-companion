@@ -41,7 +41,8 @@ export const documentRequestSchema = z.discriminatedUnion("kind", [
 ]);
 export type DocumentRequest = z.infer<typeof documentRequestSchema>;
 
-export type DocumentFood = { name: string; amount: string | null };
+/** `amountUnreadable`: an amount was written but cannot be read; the food is left out, never one portion. */
+export type DocumentFood = { name: string; amount: string | null; amountUnreadable?: true };
 export type DocumentMeal = { name: string; time: string | null; foods: DocumentFood[] };
 export type DocumentDay = { label: string; meals: DocumentMeal[] };
 

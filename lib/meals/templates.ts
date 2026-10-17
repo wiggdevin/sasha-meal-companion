@@ -89,11 +89,13 @@ const PART_WORD: Record<Part, string> = {
 /** "No breakfast starch or fruit fits yet — try another food"; no occasion word for an overnight or
  *  untimed slot. Favorites boost a food and never gate one, so the copy never asks the person to
  *  add a food to a list before it can be used (owner direction, onb3). */
-export function shortageReason(occasion: Occasion, missing: readonly Part[]): string {
+export function shortageReason(occasion: Occasion, missing: readonly Part[],
+  foodWorld: "open" | "closed" = "closed"): string {
   const words = [...new Set(missing.map((part) => PART_WORD[part]))];
   const what = words.length ? words.join(" or ") : "food";
   const when = occasion === "other" ? "" : `${occasion} `;
-  return `No ${when}${what} fits yet — try another food`;
+  // "Favored" is the open world's word (D13); a closed account has no such list to point at.
+  return `No ${when}${what} fits yet — try another food${foodWorld === "open" ? " or Favor one you like" : ""}`;
 }
 
 /** Proteins eaten with a soft base at breakfast: yogurt, cottage cheese, a shake. */
