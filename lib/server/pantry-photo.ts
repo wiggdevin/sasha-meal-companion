@@ -31,6 +31,7 @@ import type { IngredientIdentity, PantryItem } from "@/lib/shopping/types";
 import { putPantry } from "@/lib/shopping/repository";
 import { HttpError } from "@/lib/server/auth";
 import { fetchOwnedObject as fetchOwnedObjectImpl } from "@/lib/server/media";
+import { recordImageBytes } from "@/lib/ai/media-telemetry";
 
 /** Mirrors lib/server/plan-inspire.ts MAX_INSPIRE_PHOTO_BYTES: the only upload path to this route
  *  is `resizeImage` output (1600 px, JPEG q 0.8), well under this ceiling. */
@@ -82,6 +83,7 @@ export async function draftPantryPhoto(
   }
   let model: InspirePhotoOutput;
   try {
+    recordImageBytes("pantryPhoto", stripped);
     model = await (deps.generate ?? generateOpenRouter)({
       payload: inspirePhotoPayload({ bytes: stripped, mimeType: kind }, { as: "ingredients" }),
       userId, admin, schema: inspirePhotoSchema, modelId: planPhotoModel(),

@@ -32,6 +32,7 @@ import {
 } from "@/lib/server/plan-menu";
 import { fetchRecipePage } from "@/lib/server/recipe-url";
 import { BY_APP, byModel } from "@/lib/provenance";
+import { recordImageBytes } from "@/lib/ai/media-telemetry";
 
 const PHOTO_BUDGET_MS = 20_000;
 const PHOTO_PRIMARY_MS = 8_000;
@@ -109,6 +110,7 @@ export async function inspire(
   const started = Date.now();
   try {
     try {
+      recordImageBytes("photoToIdeas", stripped);
       model = await (deps.generate ?? generateOpenRouter)({
         payload: inspirePhotoPayload({ bytes: stripped, mimeType: kind },
           { as: req.as, targetKcal: req.targetKcal }), userId, admin, schema: inspirePhotoSchema,
@@ -118,6 +120,7 @@ export async function inspire(
     } catch (e) {
       const left = PHOTO_BUDGET_MS - (Date.now() - started);
       if (!providerFallbackWorthTrying(e) || left <= 0) throw e;
+      recordImageBytes("photoToIdeas-gemini", stripped);
       model = await (deps.generateGemini ?? generateStructured)({
         payload: inspirePhotoGeminiPayload({ bytes: stripped, mimeType: kind },
           { as: req.as, targetKcal: req.targetKcal }), userId, admin, schema: inspirePhotoSchema,
