@@ -1,0 +1,32 @@
+{
+  "stack": "http://127.0.0.1:56321",
+  "app": "http://localhost:3523",
+  "bootstrap": "/api/foods/world",
+  "requested": 200,
+  "concurrency": 20,
+  "signedUp": 200,
+  "rateLimited": 0,
+  "errors": 0,
+  "errorRate": 0,
+  "bootstrapErrors": 0,
+  "steps": [
+    {
+      "path": "signup",
+      "step": "auth",
+      "p50": 371,
+      "p95": 481,
+      "n": 200
+    },
+    {
+      "path": "signup",
+      "step": "bootstrap",
+      "p50": 10,
+      "p95": 48,
+      "n": 200
+    }
+  ],
+  "peakLoad1m": 4.41,
+  "maxLoad": 20,
+  "wallMs": 6278,
+  "errorSamples": []
+}

@@ -71,7 +71,9 @@
 #      test stack has no use for (studio, mailpit/local_smtp, logflare/analytics, edge-runtime,
 #      the supavisor pooler, realtime). imgproxy and postgres-meta have no `enabled` key in this
 #      CLI's config.toml schema, so they are excluded instead via `supabase start --exclude`.
-#   2. Starts the stack with `supabase start --workdir .supabase-test/supabase`. On a brand-new
+#   2. Starts the stack with `supabase start --workdir .supabase-test` (the project root: the CLI
+#      reads .supabase-test/supabase/config.toml; a workdir of the supabase/ folder itself makes
+#      it fall back to defaults, project "supabase" on 54322). On a brand-new
 #      project_id with fresh Docker volumes, the CLI applies every migration under
 #      supabase/migrations itself as part of bringing the database up; the explicit migration
 #      step below is what makes re-running this script pick up migrations added since.
@@ -210,7 +212,7 @@ assert_no_port_conflict() {
 
 # Gates `supabase start` itself (step 2 of the header's safety list): Docker Compose keys
 # containers off config.toml's project_id, so if the patch in write_scratch_config ever silently
-# failed to take, `supabase start --workdir $WORKDIR_SUPABASE` would attach to whatever project
+# failed to take, `supabase start --workdir $STACK_DIR` would attach to whatever project
 # that stale project_id names — possibly an already-running OTHER project's containers — instead
 # of creating fresh mc-care-test ones. This has to run, and pass, before `supabase start`;
 # checking the resulting container's name afterward (assert_db_container_identity) is too late to
@@ -318,7 +320,7 @@ prepare_scratch() {
 
 apply_migrations() {
   echo "applying supabase/migrations/* against ${PROJECT_ID}..."
-  supabase db reset --db-url "$(db_url)" --workdir "$WORKDIR_SUPABASE" --yes
+  supabase db reset --db-url "$(db_url)" --workdir "$STACK_DIR" --yes
 }
 
 apply_seed() {
@@ -334,7 +336,7 @@ apply_seed() {
 
 write_env_file() {
   local status_json api_url anon_key service_key
-  status_json="$(supabase status --workdir "$WORKDIR_SUPABASE" -o json)"
+  status_json="$(supabase status --workdir "$STACK_DIR" -o json)"
   api_url="$(jq -r '.API_URL' <<<"$status_json")"
   anon_key="$(jq -r '.ANON_KEY' <<<"$status_json")"
   service_key="$(jq -r '.SERVICE_ROLE_KEY' <<<"$status_json")"
@@ -374,7 +376,7 @@ start() {
   echo "starting ${PROJECT_ID} on API ${API_PORT} / DB ${DB_PORT} / shadow ${SHADOW_PORT}..."
   # imgproxy and postgres-meta have no `enabled` toggle in this CLI's config.toml schema, so they
   # are excluded here instead of in the scratch config.
-  supabase start --workdir "$WORKDIR_SUPABASE" --exclude imgproxy,postgres-meta
+  supabase start --workdir "$STACK_DIR" --exclude imgproxy,postgres-meta
 
   # Gate 3: refuses before the explicit migration/reset call below.
   if ! assert_db_container_identity; then
@@ -400,7 +402,7 @@ stop() {
   fi
   # --workdir scopes this to the mc-care-test project only; posture-ai's and meal-companion's
   # own dev stacks are untouched.
-  supabase stop --workdir "$WORKDIR_SUPABASE" --project-id "$PROJECT_ID"
+  supabase stop --workdir "$STACK_DIR" --project-id "$PROJECT_ID"
   echo "${PROJECT_ID} stopped."
 }
 

@@ -1,0 +1,92 @@
+{
+  "stack": "http://127.0.0.1:56321",
+  "seedMs": 16073,
+  "harness": {
+    "job": "w049-soak-44a4ffcd",
+    "accountsSeeded": 1000,
+    "listed": 1000,
+    "budgetMs": 240000,
+    "concurrency": 6,
+    "failRate": 0.03,
+    "passDone": true,
+    "passMs": 1077,
+    "runs": [
+      {
+        "phase": "listing",
+        "ms": 996,
+        "started": 1000,
+        "failed": 14,
+        "retryQueued": 31,
+        "complete": true,
+        "passDone": false
+      },
+      {
+        "phase": "retry",
+        "ms": 46,
+        "started": 31,
+        "failed": 11,
+        "retryQueued": 11,
+        "complete": true,
+        "passDone": false
+      },
+      {
+        "phase": "retry",
+        "ms": 20,
+        "started": 11,
+        "failed": 0,
+        "retryQueued": 0,
+        "complete": true,
+        "passDone": true
+      }
+    ],
+    "retryDepth": 2,
+    "attemptsHistogram": {
+      "1": 969,
+      "2": 20,
+      "3": 11
+    }
+  },
+  "routes": [
+    {
+      "route": "estimate",
+      "fires": [
+        {
+          "method": "POST",
+          "status": 200,
+          "ms": 3453,
+          "body": {
+            "ran": 1000,
+            "skipped": 0,
+            "errors": 0
+          }
+        }
+      ],
+      "passDone": true,
+      "passMs": 3455,
+      "retryQueued": 0
+    },
+    {
+      "route": "weekly-proposal",
+      "fires": [
+        {
+          "method": "POST",
+          "status": 200,
+          "ms": 4560,
+          "body": {
+            "ran": 1000,
+            "skipped": 0,
+            "errors": 0
+          }
+        }
+      ],
+      "passDone": true,
+      "passMs": 4563,
+      "retryQueued": 0
+    }
+  ],
+  "cleanup": {
+    "deleted": 1000,
+    "leftoversSwept": 0,
+    "cursorRowsDeleted": 1
+  }
+}
