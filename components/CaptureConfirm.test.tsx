@@ -51,3 +51,30 @@ describe("CaptureConfirm save feedback", () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 });
+
+describe("CaptureConfirm meal details (W125)", () => {
+  const SPEC = { defaultClock: "08:15", clockSource: "photo" as const };
+
+  it("offers an editable name, the photo's time and Save as recipe, and hands them to the save", async () => {
+    const onSave = vi.fn(async () => ({ ok: true as const }));
+    render(<CaptureConfirm draft={DRAFT} saving={false} details={SPEC} onSave={onSave} onDismiss={() => {}} />);
+    expect(screen.getByText("Eaten at · From the photo")).toBeTruthy();
+    const time = screen.getByLabelText("Eaten at") as HTMLInputElement;
+    expect(time.value).toBe("08:15");
+    fireEvent.change(screen.getByLabelText("Meal name"), { target: { value: "Banana break" } });
+    fireEvent.change(time, { target: { value: "09:40" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save as recipe" }));
+    const save = screen.getAllByRole("button").find((b) => /^Save \d/.test(b.textContent ?? ""));
+    await act(async () => { fireEvent.click(save as HTMLButtonElement); });
+    expect(onSave).toHaveBeenCalledWith({}, false, undefined,
+      { title: "Banana break", clock: "09:40", saveAsRecipe: true });
+  });
+
+  it("leaves the time untouched (null) when the user does not change it", async () => {
+    const onSave = vi.fn(async () => ({ ok: true as const }));
+    render(<CaptureConfirm draft={DRAFT} saving={false} details={SPEC} onSave={onSave} onDismiss={() => {}} />);
+    const save = screen.getAllByRole("button").find((b) => /^Save \d/.test(b.textContent ?? ""));
+    await act(async () => { fireEvent.click(save as HTMLButtonElement); });
+    expect(onSave).toHaveBeenCalledWith({}, false, undefined, { title: "", clock: null, saveAsRecipe: false });
+  });
+});

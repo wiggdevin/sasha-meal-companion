@@ -13,8 +13,11 @@
  * listing runs out or `TIME_BUDGET_MS` passes. No cursor is kept: a swept object leaves the
  * listing (its `deleted_at` is set), so the next run starts on exactly what is left. A failed
  * Storage removal leaves the row live (`deleteMedia` throws before the tombstone), so it is
- * retried next run; the in-run paging moves past it. A row linked to a log entry (`entry_id`) is
- * never swept: only unattached drafts are.
+ * retried next run; the in-run paging moves past it. A row linked to a log entry (`entry_id`) is a
+ * plate photo's kept thumbnail (W125, `linkThumbnail` in lib/server/log.ts): it stays while its
+ * entry is live and goes in the second pass once that entry has been deleted for 24 hours (the
+ * same cutoff, so an Undo of the delete keeps it). An entry removed outright sets `entry_id` null
+ * (the foreign key), which hands its thumbnail to the first pass.
  *
  * Owner binding (audit 2026-10-10 P08): the sweep deletes with the service role, so it deletes
  * only a path inside the row owner's own folder (`ownedObjectKey(path, user_id)`). Any other row
@@ -78,43 +81,57 @@ async function sweep(req: Request): Promise<Response> {
     let swept = 0;
     let failed = 0;
     let skipped = 0;
+    const work = async (row: { path: string; user_id: string }) => {
+      if (ownedObjectKey(row.path, row.user_id) === null) {
+        skipped += 1;
+        console.error("media sweep skipped a path outside its owner's folder",
+          { path: row.path, userId: row.user_id });
+        return;
+      }
+      await deleteMedia(admin, row.path);
+      swept += 1;
+    };
+    const onError = (row: { path: string }, e: unknown) => {
+      failed += 1;
+      console.error("sweep delete failed", { path: row.path, error: e });
+    };
+    const budget = { keyOf: (row: { path: string }) => row.path, concurrency: CONCURRENCY,
+      deadline: startedAt + BUDGET_MS, hardStop: startedAt + HARD_STOP_MS, work, onError };
     const pass = await runWithinBudget({
+      ...budget,
       items: keysetRows<{ path: string; user_id: string }>((last, size) => {
         let query = admin.from("media_objects").select("path, user_id")
           .is("deleted_at", null).is("entry_id", null).lt("created_at", cutoff);
         if (last !== null) query = query.gt("path", last);
         return query.order("path", { ascending: true }).range(0, size - 1);
       }, (row) => row.path),
-      keyOf: (row) => row.path,
-      concurrency: CONCURRENCY, deadline: startedAt + BUDGET_MS,
-      hardStop: startedAt + HARD_STOP_MS,
-      work: async (row) => {
-        if (ownedObjectKey(row.path, row.user_id) === null) {
-          skipped += 1;
-          console.error("media sweep skipped a path outside its owner's folder",
-            { path: row.path, userId: row.user_id });
-          return;
-        }
-        await deleteMedia(admin, row.path);
-        swept += 1;
-      },
-      onError: (row, e) => {
-        failed += 1;
-        console.error("sweep delete failed", { path: row.path, error: e });
-      },
     });
+    // Kept thumbnails whose entry was deleted at least 24 hours ago (W125).
+    const kept = pass.complete ? await runWithinBudget({
+      ...budget,
+      items: keysetRows<{ path: string; user_id: string }>((last, size) => {
+        let query = admin.from("media_objects").select("path, user_id, log_entries!inner(deleted_at)")
+          .is("deleted_at", null).not("entry_id", "is", null).lt("log_entries.deleted_at", cutoff);
+        if (last !== null) query = query.gt("path", last);
+        return query.order("path", { ascending: true }).range(0, size - 1);
+      }, (row) => row.path),
+    }) : null;
+    if (kept?.listError !== undefined) {
+      console.error("media sweep thumbnail listing stopped", { error: kept.listError });
+    }
     if (pass.listError !== undefined && pass.started === 0) {
       throw new HttpError(500, "internal", "could not list media objects");
     }
     if (pass.listError !== undefined) {
       console.error("media sweep listing stopped", { error: pass.listError });
     }
-    if (!pass.complete) {
+    const complete = pass.complete && kept !== null && kept.complete;
+    if (!complete) {
       console.warn("media sweep stopped at its budget; the next run continues", { swept, failed, skipped });
     }
     await scrubExpiredUndos(admin);
     return Response.json({ swept, failed, ...(skipped > 0 ? { skipped } : {}),
-      ...(pass.complete ? {} : { incomplete: true }) });
+      ...(complete ? {} : { incomplete: true }) });
   } catch (e) {
     return jsonError(e);
   }

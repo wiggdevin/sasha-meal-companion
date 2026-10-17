@@ -52,7 +52,8 @@ const BASELINES: Record<string, number> = {
   "components/coach/attachments/useAttachmentTurn.ts": 97,
   "components/coach/attachments/shell-state.ts": 65,
   "components/coach/editors/BarcodeDraftEditor.tsx": 276,
-  "components/coach/editors/CaptureDraftEditor.tsx": 261,
+  /** +12 in W125: the meal's name, time and Save as recipe (CaptureMealDetails) when the capture sheet asks. */
+  "components/coach/editors/CaptureDraftEditor.tsx": 273,
   "components/coach/editors/EditorPill.tsx": 27,
   "components/coach/editors/SanityNotices.tsx": 66,
   "components/coach/editors/not-verified.ts": 28,
@@ -79,8 +80,10 @@ const BASELINES: Record<string, number> = {
    * line and their two props, plus the ALREADY_UNDONE_COPY constant and its import.
    */
   "components/CoachActionCard.tsx": 135,
-  "components/ScanConfirmSheet.tsx": 98,
-  "components/CaptureConfirm.tsx": 66,
+  /** +11 in W124: the scanned food's star works with no caller wiring (starScanned). */
+  "components/ScanConfirmSheet.tsx": 109,
+  /** +5 in W125: the details spec in, and the details out to the save. */
+  "components/CaptureConfirm.tsx": 71,
   "lib/coach/use-visual-viewport.ts": 42,
   "lib/coach/use-bottom-follow.ts": 93,
   "lib/coach/thread-history.ts": 29,

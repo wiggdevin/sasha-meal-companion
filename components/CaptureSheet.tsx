@@ -7,16 +7,22 @@ import DictateMic, {
   dictationCopy, dictationStatus, MIC_UNAVAILABLE_COPY, useMicAvailable,
 } from "@/components/DictateMic";
 import type { DayProjection } from "@/components/ProjectedDayTotals";
-import PhotoCapture from "@/components/PhotoCapture";
+import PhotoCapture, { type PhotoMeta } from "@/components/PhotoCapture";
+import type { CaptureDetails, CaptureDetailsSpec } from "@/components/coach/editors/CaptureMealDetails";
 import Sheet from "@/components/Sheet";
 import VoiceCapture from "@/components/VoiceCapture";
 import WorkingLine from "@/components/WorkingLine";
 import Button from "@/components/ui/Button";
 import PhotoPrivacyNotice from "@/components/ui/PhotoPrivacyNotice";
 import {
-  captureMedia, captureText, CAPTURE_LABELS, commitDraft, slotForNow,
+  applyEdits, captureMedia, captureText, CAPTURE_LABELS, commitDraft, keptItems, slotForNow,
   type CaptureOutcome, type DraftEdits, type MediaMethod,
 } from "@/lib/capture-client";
+import { labelItemSeq } from "@/lib/capture/label-food";
+import { captureRecipe } from "@/lib/capture/save-as-recipe";
+import { uploadThumbnail } from "@/lib/capture/thumbnail";
+import { atClock, clockIn, photoEatenAt, type PhotoTimes } from "@/lib/capture/shot-time";
+import { saveRecipe } from "@/lib/recipes-client";
 import {
   captureInputKey, clearDraft, draftForInput, draftSaveWarning, DUPLICATE_NO_DRAFT, saveDraft,
 } from "@/lib/capture/drafts";
@@ -155,7 +161,7 @@ function CaptureBody({
   busy: boolean;
   onSubmitText: () => void;
   onVoiceReady: (clip: Blob) => void;
-  onPhotoReady: (photo: Blob) => void;
+  onPhotoReady: (photo: Blob, meta: PhotoMeta) => void;
   onOpenSearch: () => void;
 }) {
   if (!online) return <OfflineCapture onOpenSearch={onOpenSearch} />;
@@ -166,7 +172,7 @@ function CaptureBody({
   return (
     <>
       <PhotoCapture busy={busy} label={mode === "label" ? "Scan the label" : "Photograph the plate"}
-        onReady={onPhotoReady} />
+        withThumbnail={mode === "photo"} onReady={onPhotoReady} />
       {/* Phase 18 W12-F: present beside the control before any tap opens the camera, for both the
           plate photo and the nutrition-label photo (the notice is about medicines, prescriptions and
           labels WITH NAMES, so it does not conflict with this mode's own nutrition-panel purpose). */}
@@ -206,17 +212,49 @@ function useSlotNow(localDate: string, fixed?: SlotId): () => SlotId {
   };
 }
 
+/** What the confirm sheet adds to a save (W125): the meal's name and time, its kept thumbnail, and
+ *  whether it is also kept as a recipe. */
+type SaveExtras = { eatenAt?: Date; title?: string; thumbnailPath?: string | null; saveAsRecipe: boolean };
+
 /** The commit call plus its status→copy mapping, pulled out for the same reason as useCaptureWhen
  *  and useSlotNow above: a short standalone function instead of more lines inside the hook, which
  *  keeps room there for the brief's settle() and run(). */
 async function commitAndReport(
   draft: ProposeResponse, edits: DraftEdits, entryId: string, tz: string, slot: SlotId,
-  saveLabelAsFood: boolean, run?: TimingRun, eatenAt?: Date,
+  saveLabelAsFood: boolean, extras: SaveExtras, run?: TimingRun,
 ): Promise<SaveResult> {
+  const labelSeq = labelItemSeq(draft, edits, saveLabelAsFood);
+  const result = await commitDraft(draft, edits, { entryId, tz, slot, saveLabelAsFood, run,
+    eatenAt: extras.eatenAt, title: extras.title,
+    ...(labelSeq !== null && extras.title ? { labelName: extras.title } : {}),
+    thumbnailPath: extras.thumbnailPath ?? null });
   // One verdict, the same one the card and the log sheet read: a 2xx the client could not read,
   // and a conflict that hands back the entry, are both entries the user has — and a sheet that calls
   // either a failure sends them to Save again and puts a second meal in their log.
-  return savedFrom(await commitDraft(draft, edits, { entryId, tz, slot, saveLabelAsFood, run, eatenAt }));
+  const saved = savedFrom(result);
+  if (saved.ok && extras.saveAsRecipe) {
+    const kept = keptItems(applyEdits(draft.items, edits));
+    const { input, left } = captureRecipe(kept, result, { title: extras.title, labelSeq });
+    // Local first (lib/recipes-client.ts): the meal is logged either way, and a recipe that
+    // could not be kept is said in the console, never as a failed save.
+    if (input) await saveRecipe(input).catch((error: unknown) => {
+      console.warn("[capture] save as recipe failed", error instanceof Error ? error.name : "unknown");
+    });
+    if (left.length > 0) console.info("[capture] recipe left out foods not cleared for its rules", left.length);
+  }
+  return saved;
+}
+
+/** The time a capture's meal starts at on the confirm sheet: the photo's, else the viewed day's. */
+function detailsFor(draft: ProposeResponse, photoAt: Date | null, when: { at?: Date; tz: string }):
+  CaptureDetailsSpec {
+  const start = photoAt ?? when.at ?? null;
+  const label = draft.method === "label" && draft.labelFood ? draft.labelFood.name : undefined;
+  return {
+    ...(label ? { defaultTitle: label, nameLabel: "Food name" } : {}),
+    defaultClock: clockIn(start ?? new Date(), when.tz),
+    clockSource: photoAt ? "photo" : when.at ? "slot" : "now",
+  };
 }
 
 /**
@@ -237,6 +275,8 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
   const [saving, setSaving] = useState(false);
   /** The timing run this capture opened, held across the confirm step so the commit closes it. */
   const runRef = useRef<TimingRun | null>(null);
+  /** The plate photo's shot times and its thumbnail's upload, from the moment it was taken (W125). */
+  const photoRef = useRef<{ times: PhotoTimes; thumbnail: Promise<string | null> | null } | null>(null);
   const when = useCaptureWhen(at);
   const slotNow = useSlotNow(when.localDate, slot);
 
@@ -267,14 +307,31 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
     try { settle(await work, await inputKey); } finally { setBusy(false); }
   }
 
+  /** Remembers what the phone read off a photo, and starts its thumbnail's upload (W125). */
+  function photoTaken(mode: MediaMethod, meta: PhotoMeta): void {
+    photoRef.current = { times: meta.times,
+      thumbnail: mode === "photo" && meta.thumbnail ? uploadThumbnail(meta.thumbnail) : null };
+  }
+
+  /** The photo's shot time on this capture's day, else null. */
+  function photoAt(): Date | null {
+    const times = photoRef.current?.times;
+    return times ? photoEatenAt(times, { localDate: when.localDate, tz: when.tz, now: new Date() })?.at ?? null
+      : null;
+  }
+
   /** The verdict goes back to CaptureConfirm, whose shared feedback shows a refusal as an alert. */
   async function save(edits: DraftEdits, saveLabelAsFood: boolean,
-    onLogged: (entryId: string) => void): Promise<SaveResult | void> {
+    onLogged: (entryId: string) => void, details?: CaptureDetails): Promise<SaveResult | void> {
     if (draft === null) return;
     const entryId = crypto.randomUUID();
     setSaving(true);
-    const outcome = await commitAndReport(draft, edits, entryId, when.tz, slotNow(), saveLabelAsFood,
-      runRef.current ?? undefined, when.at);
+    const edited = details?.clock ? atClock(when.localDate, details.clock, when.tz) : null;
+    const thumbnailPath = draft.method === "photo" ? await (photoRef.current?.thumbnail ?? null) : null;
+    const outcome = await commitAndReport(draft, edits, entryId, when.tz, slotNow(), saveLabelAsFood, {
+      eatenAt: edited ?? photoAt() ?? when.at, title: details?.title.trim() || undefined,
+      thumbnailPath, saveAsRecipe: details?.saveAsRecipe === true,
+    }, runRef.current ?? undefined);
     setSaving(false);
     if (outcome.ok) {
       clearDraft(draft.draftId);
@@ -286,7 +343,8 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
   /** Dismissed without saving: this capture's own run goes, not whichever is latest on the path. */
   function discard(): void { discardRun(method, runRef.current ?? undefined); }
 
-  return { draft, message, busy, step, setStep, saving, when, slotNow, run, save, discard };
+  return { draft, message, busy, step, setStep, saving, when, slotNow, run, save, discard,
+    photoTaken, photoAt };
 }
 
 /**
@@ -325,7 +383,9 @@ export default function CaptureSheet({
     return (
       <CaptureConfirm draft={draft} saving={flow.saving} message={flow.message}
         projection={projection ?? coachProjection ?? undefined}
-        onSave={(edits, saveLabelAsFood) => flow.save(edits, saveLabelAsFood, onLogged)}
+        details={detailsFor(draft, flow.photoAt(), flow.when)}
+        onSave={(edits, saveLabelAsFood, _slot, details) =>
+          flow.save(edits, saveLabelAsFood, onLogged, details)}
         onDismiss={() => {
           // Dismissed without saving: nothing will close this run, and leaving it open would let
           // its marks land in whatever the user captures next (T0 §1).
@@ -359,9 +419,10 @@ export default function CaptureSheet({
               { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }),
             captureInputKey({ method: "voice", blob: clip }));
           }}
-          onPhotoReady={(photo) => {
+          onPhotoReady={(photo, meta) => {
             // CaptureBody only invokes this when mode is "label" or "photo" (never "text"), but
             // that runtime fact is not visible to TS at this closure's definition site.
+            flow.photoTaken(mode as MediaMethod, meta);
             void flow.run(captureMedia(mode as MediaMethod, photo,
               { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }),
             captureInputKey({ method: mode, blob: photo }));
