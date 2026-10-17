@@ -10,7 +10,8 @@ import { ouraActivityToSamples, ouraReadinessToSamples, ouraSleepToSamples } fro
 import { ouraGet } from "@/lib/oura/client";
 import { ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZone } from "@/lib/server/account-day";
 import { HttpError } from "@/lib/server/auth";
-import { openOauth, sealOauth } from "@/lib/server/crypto";
+import { sealOauth } from "@/lib/server/crypto";
+import { openOauthAnyKey as openOauth } from "@/lib/server/health-tokens";
 import { hashToken, toBytea } from "@/lib/server/tokens";
 
 export const OURA_AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize";
