@@ -212,6 +212,19 @@ describe("W137: a set held across a date change waits for the token", () => {
     expect(set.has(CHICKEN)).toBe(true);
   });
 
+  it("an older answer lands after a newer hold: the set stays held", async () => {
+    const set = await held();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const inner = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => { await gate; return inner(url); }));
+    const first = recheckHeldOpenSet(bindAccount(A), set);
+    set.markProvisional();
+    release();
+    expect(await first).toBe("provisional");
+    expect(seeds(set)).toBe(false);
+  });
+
   it("the server cannot be reached: the set stays provisional and yields nothing new", async () => {
     const set = await held();
     server.token = null;

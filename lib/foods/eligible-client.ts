@@ -65,6 +65,8 @@ export class StampedEligibleSet extends Set<string> implements VerifiedEligibleS
    */
   private provisional = false;
   private withdrawn = false;
+  /** Moves on every `markProvisional`, so an older recheck never lifts a newer hold. */
+  private holdGeneration = 0;
   /**
    * The open-world inputs while this set may still seed a suggestion: never once revoked (a local
    * rule write, or 7 days). A local Avoid mark written since is applied by the reader
@@ -75,15 +77,30 @@ export class StampedEligibleSet extends Set<string> implements VerifiedEligibleS
   }
   /** The open-world inputs this set was made with, revoked or not (the recheck's token). */
   get heldOpen(): OpenWorldInputs | undefined { return this.openInputs; }
-  /** W137: hold an open set until its token is rechecked. No effect on a closed set. */
-  markProvisional(): void {
-    if (this.openInputs && !this.withdrawn) this.provisional = true;
+  /**
+   * W137: hold an open set until its token is rechecked; answers the hold's generation. No effect
+   * on a closed set. While held the set is revoked (fail closed): it seeds no meal, and saved lines
+   * read "not checked" until the recheck or the next read answers.
+   */
+  markProvisional(): number {
+    if (this.openInputs && !this.withdrawn) {
+      this.provisional = true;
+      this.holdGeneration += 1;
+    }
+    return this.holdGeneration;
   }
-  /** W137: the recheck's verdict. `fresh` lifts the hold; `withdrawn` revokes the set for good. */
-  settleProvisional(verdict: "fresh" | "withdrawn"): void {
+  /**
+   * W137: a recheck's verdict for the hold `generation` it started under. `withdrawn` revokes the
+   * set for good whenever it lands; `fresh` lifts the hold only if no later date change held it again.
+   */
+  settleProvisional(verdict: "fresh" | "withdrawn", generation: number): void {
     if (!this.openInputs) return;
-    if (verdict === "withdrawn") this.withdrawn = true;
-    this.provisional = false;
+    if (verdict === "withdrawn") {
+      this.withdrawn = true;
+      this.provisional = false;
+    } else if (generation === this.holdGeneration) {
+      this.provisional = false;
+    }
   }
   get isProvisional(): boolean { return this.provisional; }
   get isWithdrawn(): boolean { return this.withdrawn; }
@@ -280,15 +297,15 @@ export async function recheckHeldOpenSet(account: AccountHandle, set: StampedEli
   const open = set.heldOpen;
   if (!open || set.accountId !== account.userId) return "closed";
   if (set.isWithdrawn) return "withdrawn";
-  set.markProvisional();
+  const generation = set.markProvisional();
   const current = await readRulesState(account);
   if (current === null) return "provisional";
   if (current.world !== "open" || !sameRulesToken(current.token, open.token)) {
-    set.settleProvisional("withdrawn");
+    set.settleProvisional("withdrawn", generation);
     return "withdrawn";
   }
-  set.settleProvisional("fresh");
-  return "fresh";
+  set.settleProvisional("fresh", generation);
+  return set.isProvisional ? "provisional" : "fresh";
 }
 
 /**

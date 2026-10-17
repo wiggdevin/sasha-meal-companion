@@ -339,7 +339,9 @@ export default function Today() {
   const [openVerdicts, setOpenVerdicts] = useState(0);
   if (freshnessDate !== viewedDate) {
     setFreshnessDate(viewedDate);
-    if (eligibleFoodIds instanceof StampedEligibleSet && eligibleFoodIds.heldOpen) {
+    // The mark assumes this render commits: a date change is a plain urgent update here, never a
+    // transition. If it ever becomes one, move the mark into the recheck effect.
+    if (eligibleFoodIds instanceof StampedEligibleSet && eligibleFoodIds.heldOpen && !eligibleFoodIds.isWithdrawn) {
       eligibleFoodIds.markProvisional();
       setOpenRecheck({ set: eligibleFoodIds, n: (openRecheck?.n ?? 0) + 1 });
     }
