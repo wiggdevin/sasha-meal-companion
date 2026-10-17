@@ -99,6 +99,12 @@ export const BUILDERS: Record<string, Builder> = {
       entity_key: "tenancy", rev: 1, op: "create" }, match: { user_id: owner, seq },
       touch: () => ({ rev: 2 }) };
   },
+  sync_op_receipts: async (owner) => {
+    // Written only by the change_log insert trigger; service_role inserts the receipt here as it.
+    const opId = randomUUID();
+    return { table: "sync_op_receipts", row: { op_id: opId, user_id: owner, outcome: "applied" },
+      match: { op_id: opId }, touch: () => ({ at: new Date().toISOString() }) };
+  },
   change_seq: async (owner) => ({ table: "change_seq", row: { user_id: owner, next_seq: 5 },
     match: { user_id: owner }, touch: () => ({ next_seq: 99 }) }),
   client_timings: async (owner) => {

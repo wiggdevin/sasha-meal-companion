@@ -94,5 +94,10 @@
     "class": "private_trigger",
     "table": "plan_days",
     "trigger": "plan_days_record_first_mark"
+  },
+  "_sync_op_receipt()": {
+    "class": "private_trigger",
+    "table": "change_log",
+    "trigger": "change_log_op_receipt"
   }
 }

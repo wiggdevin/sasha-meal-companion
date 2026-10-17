@@ -65,7 +65,7 @@ begin
     'food_membership_ops', 'food_membership_revisions', 'food_note_authority',
     'food_world_condition_confirmations', 'user_allergen_checks', 'user_dietary_profiles',
     'ai_spend_reservations', 'ai_spend_user_days', 'job_runs', 'media_objects', 'oauth_states',
-    'voice_ears'
+    'voice_ears', 'sync_op_receipts'
   ] loop
     if to_regclass('public.' || t) is not null then
       execute format('delete from %I where user_id = $1', t) using p_user_id;
