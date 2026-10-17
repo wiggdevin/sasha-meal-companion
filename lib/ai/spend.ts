@@ -113,7 +113,7 @@ const usd = (n: unknown): number => (typeof n === "number" ? n : Number(n));
 /**
  * Shared Gemini/OpenRouter/Jev brake (scale S2): before any provider I/O, reserve the call's
  * maximum estimated cost against BOTH the user's daily cap and the global daily ceiling, in one
- * database transaction (`ai_spend_reserve`, migration 20261218090100) that every instance shares.
+ * database transaction (`ai_spend_reserve_split`, migrations 20261218090100 and 20270103090000) that every instance shares.
  * Refused when either would be exceeded (429 `spend_cap`, the copy the clients already show).
  * A background call (`background: true`, OD01, migration 20270103090000) also has to fit the
  * background ceiling and leave the account's interactive reserve untouched (both count open holds).
@@ -143,7 +143,7 @@ export async function reserveSpend(
     reservation_id?: unknown; allowed?: unknown; reason?: unknown; user_committed_usd?: unknown;
   } | null | undefined;
   if (!row || typeof row.allowed !== "boolean") {
-    throw unavailable(userId, new Error("ai_spend_reserve returned an unexpected row"));
+    throw unavailable(userId, new Error("ai_spend_reserve_split returned an unexpected row"));
   }
   if (!row.allowed) {
     if (row.reason === "global_cap") {
@@ -164,7 +164,7 @@ export async function reserveSpend(
       `daily AI spend cap reached: $${(Number.isFinite(spent) ? spent : cap).toFixed(2)} of $${cap.toFixed(2)}`);
   }
   if (typeof row.reservation_id !== "string") {
-    throw unavailable(userId, new Error("ai_spend_reserve allowed without a reservation id"));
+    throw unavailable(userId, new Error("ai_spend_reserve_split allowed without a reservation id"));
   }
   return { id: row.reservation_id, amountUsd: amount };
 }

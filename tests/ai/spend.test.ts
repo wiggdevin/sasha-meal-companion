@@ -197,3 +197,11 @@ function sourceFiles(root: string): string[] {
     return /\.tsx?$/.test(entry.name) ? [entryPath] : [];
   });
 }
+
+describe("OD01 background purposes", () => {
+  it("are all registered purposes", async () => {
+    const { BACKGROUND_PURPOSES, CALL_REGISTRY } = await import("@/lib/ai/call-registry");
+    for (const purpose of BACKGROUND_PURPOSES) expect(Object.keys(CALL_REGISTRY)).toContain(purpose);
+    expect([...BACKGROUND_PURPOSES].sort()).toEqual(["food_facets", "weeklyReview"]);
+  });
+});

@@ -48,7 +48,8 @@ export type CallSite = {
  * reservations count against the background ceiling and never use an account's interactive
  * reserve (lib/ai/spend.ts `reserveSpend`). Every other purpose is interactive.
  */
-export const BACKGROUND_PURPOSES: ReadonlySet<string> = new Set(["weeklyReview", "food_facets"]);
+export const BACKGROUND_PURPOSES: ReadonlySet<string> =
+  new Set(["weeklyReview", "food_facets"] satisfies RegisteredPurpose[]);
 
 export const CALL_REGISTRY = {
   // ---- Jev (TypeSafe System One) --------------------------------------------------------------

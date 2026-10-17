@@ -74,3 +74,12 @@ fixtures; all four BLOCKs and four WARNs are adopted, with the exceptions named 
 
 - Review 3 asked for 21 *marked* days for every proposal. Accounts that have never marked keep
   coverage days (R3) until the UI ships the control; revisit when it has been live for 30 days.
+
+## Revisits (OD21, 2026-10-12)
+
+R3 and R9 are reviewed separately, each on its own evidence, never together:
+- **R3** is reviewed once enough day-mark evidence exists (the day-complete control live for 30
+  days, and enough marked days across accounts to compare against coverage days).
+- **R9**'s point-error bound for the cycle acceptance is reviewed against the cycle-method
+  evidence, once a validated cycle-aware method exists.
+Until then both rulings stand as written.

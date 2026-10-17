@@ -347,7 +347,10 @@ fud-ai (MIT): its Adaptive Goals are LLM-proposed from an evidence packet — do
    retuned to move the artefact backtest.
 4. **`goal_rate_bp_week` default.** `targets.md` §2 is a recomposition plan at maintenance, so 0 is the
    right default, but nothing states who may change it or whether Sasha sees the control at all. Assumed
-   Devin-only in Settings.
+   Devin-only in Settings. **Closed 2026-10-12: OD21** in `docs/decisions/2026-10-12-owner-decisions.md` —
+   superseded by self-service pace: each account picks its own pace through the checked onboarding
+   presets (`lib/profile/pace.ts` `paceChoices`; an authored write's `goalRateBpWeek` must be one of
+   them), and the server's pace holds still apply.
 5. **`kcal_min`.** §10 leaves 1,650 open for Devin to re-author before this phase. If he changes it, the
    constant moves in `lib/targets/percent.ts` and criterion 8 changes with it. **Closed 2026-09-12: ruling 5**
    — confirmed at 1650; the SQL default is unchanged.

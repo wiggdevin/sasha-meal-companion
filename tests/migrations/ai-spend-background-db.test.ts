@@ -93,6 +93,22 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20270103090000 ai_spend_background_spli
     expect((await reserve(b.id, 0.4, true, { backgroundCap: 0.8 })).allowed).toBe(true);
   });
 
+  it("a reserve at or above the account cap closes background spend for that account, even at $0", async () => {
+    clean();
+    expect(await reserve(a.id, 0, true, { interactiveReserve: 2 })).toMatchObject({
+      allowed: false, reason: "background_user_cap" });
+    expect((await reserve(a.id, 0.1, false, { interactiveReserve: 2 })).allowed).toBe(true);
+  });
+
+  it("a background hold settled above its estimate counts at its actual cost", async () => {
+    clean();
+    const held = await reserve(a.id, 0.2, true);
+    const { error } = await adminClient().rpc("ai_spend_settle", { p_reservation_id: held.reservation_id, p_actual_usd: 0.9 });
+    expect(error).toBeNull();
+    // 0.9 committed against the $1 background room: 0.2 more no longer fits.
+    expect(await reserve(a.id, 0.2, true)).toMatchObject({ allowed: false, reason: "background_user_cap" });
+  });
+
   it("the old five-argument entry point still reserves, as interactive", async () => {
     clean();
     const { data, error } = await adminClient().rpc("ai_spend_reserve", { p_user_id: a.id,

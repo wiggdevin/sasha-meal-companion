@@ -14,6 +14,10 @@
 --     as the existing checks. The account split is exact (the account's day row is locked); the
 --     global background split has the same bounded term as the global ceiling (reservations in
 --     flight on other shards at the same moment). Interactive calls are checked exactly as before.
+--   * On the day this is applied, background spend from before it (and holds opened before it)
+--     counts only toward the overall caps, not the background splits: a one-day gap.
+--   * A refused weekly review falls back to the logged-days review for that week
+--     (lib/coach/weekly-review.ts), as for any model failure.
 --
 -- ai_spend_reserve_split is the new entry point. The old five-argument ai_spend_reserve stays and
 -- now calls it as an interactive reservation, so a build from before this migration keeps working
@@ -103,7 +107,8 @@ begin
     return;
   end if;
   if p_background then
-    if v_user_background + p_amount_usd > p_user_cap_usd - p_interactive_reserve_usd then
+    if p_user_cap_usd - p_interactive_reserve_usd <= 0
+       or v_user_background + p_amount_usd > p_user_cap_usd - p_interactive_reserve_usd then
       return query select null::uuid, false, 'background_user_cap'::text, v_user, v_global;
       return;
     end if;
