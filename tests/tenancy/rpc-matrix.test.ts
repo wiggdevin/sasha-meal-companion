@@ -580,14 +580,14 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
     const step = (await seed("onboarding_events", b.id)).row;
     const before = [await rowsOf("food_signal_events", b.id), await rowsOf("onboarding_events", b.id),
       await rowsOf("food_signal_events", a.id), await rowsOf("onboarding_events", a.id)];
-    const calls = [
+    const calls: [string, Record<string, unknown>][] = [
       ["record_food_signals", { p_events: [signal] }],
       ["record_onboarding_events", { p_events: [step] }],
-      ...[a.id, b.id].flatMap((owner) => [
-        ["record_food_signals_for", { p_user_id: owner, p_events: [signal] }],
-        ["record_onboarding_events_for", { p_user_id: owner, p_events: [step] }],
-      ]),
-    ] as const;
+    ];
+    for (const owner of [a.id, b.id]) {
+      calls.push(["record_food_signals_for", { p_user_id: owner, p_events: [signal] }],
+        ["record_onboarding_events_for", { p_user_id: owner, p_events: [step] }]);
+    }
     for (const [fn, args] of calls) {
       const { data, error } = await asA.rpc(fn, args);
       expect({ fn, code: error?.code, data }).toEqual({ fn, code: "42501", data: null });
