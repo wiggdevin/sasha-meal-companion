@@ -1,5 +1,6 @@
--- Reverses 20270104090000_care_ledger_fixes.sql: drops care_balance and restores the
--- care_points_sync (20261225090100) and care_accolades_sync (20261225090300) bodies verbatim.
+-- Reverses 20270104090000_care_ledger_fixes.sql: drops care_balance and the two accolade helpers,
+-- and restores the care_points_sync (20261225090100) and care_accolades_sync (20261225090300)
+-- bodies verbatim.
 -- Roll the app back to the build that sums the ledger in JS before running this.
 set local lock_timeout = '3s';
 set local statement_timeout = '30s';
@@ -249,3 +250,7 @@ begin
 end $$;
 revoke all on function public.care_accolades_sync(uuid, date, text) from public, anon, authenticated;
 grant execute on function public.care_accolades_sync(uuid, date, text) to authenticated, service_role;
+
+-- After the restored care_accolades_sync, which no longer calls them.
+drop function if exists public._care_full_week_mondays(date);
+drop function if exists public._care_accolade_day(date, date);

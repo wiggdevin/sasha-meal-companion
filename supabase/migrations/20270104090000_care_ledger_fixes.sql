@@ -10,10 +10,12 @@
 --                         function's own comment. Every rule is otherwise unchanged.
 --   care_accolades_sync   replaced. full-week is checked for the closed week before the account's
 --                         day on any sync, and for the week ending that day on a Sunday (A107); it
---                         could only be granted by a sync on the Sunday itself. The same one-date
---                         window applies. Every other grant is unchanged.
+--                         could only be granted by a sync on the Sunday itself. Its date-gated
+--                         grants (full-week, welcome-back) read a day that is never past the stored
+--                         zone's today, through two new revoked helpers, _care_accolade_day and
+--                         _care_full_week_mondays. Every other grant is unchanged.
 --
--- Care points hold no nutrition or safety data. Live-safe: one new function, two function bodies
+-- Care points hold no nutrition or safety data. Live-safe: three new functions, two function bodies
 -- replaced with the same signatures and grants; no table changes. Apply before the code merges:
 -- the new code calls care_balance.
 -- Down: supabase/migrations/down/20270104090000_care_ledger_fixes.down.sql.
@@ -188,6 +190,26 @@ end $$;
 revoke all on function public.care_points_sync(uuid, date, text) from public, anon, authenticated;
 grant execute on function public.care_points_sync(uuid, date, text) to authenticated, service_role;
 
+-- The day care_accolades_sync's date-gated grants read (see its comment): one date behind the
+-- stored zone's today as sent, anything else clamped to that today, null stays null.
+create function public._care_accolade_day(p_local_date date, p_today date) returns date
+  language sql immutable set search_path = public as $fn$
+    select case when p_local_date is null or p_today is null then null
+                when p_local_date between p_today - 1 and p_today then p_local_date
+                else p_today end
+  $fn$;
+revoke all on function public._care_accolade_day(date, date) from public, anon, authenticated;
+
+-- The Mondays of the closed weeks full-week checks for p_day: the week before p_day's week, and
+-- p_day's own week when p_day is its Sunday. Every week ends on or before p_day.
+create function public._care_full_week_mondays(p_day date) returns date[]
+  language sql immutable set search_path = public as $fn$
+    select case when p_day is null then '{}'::date[]
+                when extract(isodow from p_day)::int = 7 then array[p_day - 13, p_day - 6]
+                else array[(p_day - extract(isodow from p_day)::int - 6)::date] end
+  $fn$;
+revoke all on function public._care_full_week_mondays(date) from public, anon, authenticated;
+
 create or replace function public.care_accolades_sync(p_user_id uuid, p_local_date date, p_zone text)
   returns jsonb
   language plpgsql security definer set search_path = public as $$
@@ -209,9 +231,13 @@ begin
   -- care_points_sync is (the account's stored zone first; 20261225090100's _care_effective_zone).
   v_today := case when p_zone is not null and char_length(p_zone) between 1 and 64
     then (now() at time zone _care_effective_zone(p_user_id, p_zone))::date else null end;
-  -- W067 (audit A108): the same one-date window care_points_sync uses; a phone day further from
-  -- the stored zone's today is clamped to it.
-  v_day := case when p_local_date between v_today - 1 and v_today + 1 then p_local_date else v_today end;
+  -- W067 (audit A108): the account's day for the two date-gated grants below. A phone day one date
+  -- behind the stored zone's today is used as sent; any other date, a day ahead included, is
+  -- clamped to that today, so neither grant ever reads a date the stored zone has not reached
+  -- (care_points_sync's window also takes a day ahead, but only for pending Seeds that settle
+  -- after a recheck; an accolade is permanent). A null p_local_date (or zone) keeps v_day null and
+  -- skips both, as before.
+  v_day := _care_accolade_day(p_local_date, v_today);
 
   if exists (select 1 from log_entries where user_id = p_user_id and deleted_at is null) then
     v_row := _care_accolade_grant(p_user_id, 'first-meal', '{}'::jsonb);
@@ -262,15 +288,12 @@ begin
 
   -- full-week (W067, audit A107): a retained meal on all seven dates of a local Monday-Sunday
   -- week that has closed. Any sync checks the week before the account's day (so a Monday-to-
-  -- Saturday sync still grants it), and on a Sunday the week ending that day, as before. Both
-  -- weeks end on or before the account's own day, which can be the stored zone's tomorrow (the
-  -- one-date window), so at most one day early, as the Sunday rule always allowed.
+  -- Saturday sync still grants it), and on a Sunday the week ending that day, as before. v_day is
+  -- never past the stored zone's today, so both weeks end on or before it: a stored Saturday with
+  -- a phone already on Sunday checks only the week before.
   if v_day is not null then
-    foreach v_monday in array array[
-      (v_day - extract(isodow from v_day)::int - 6)::date,
-      case when extract(isodow from v_day)::int = 7 then (v_day - 6)::date end]
+    foreach v_monday in array _care_full_week_mondays(v_day)
     loop
-      continue when v_monday is null;
       select count(distinct local_date) into v_week_dates from log_entries
        where user_id = p_user_id and deleted_at is null and local_date between v_monday and v_monday + 6;
       if v_week_dates = 7 then
@@ -283,7 +306,7 @@ begin
   -- welcome-back: active today, with a 7+ day silent gap right before it and at least one date
   -- before that gap. awards.ts's "at most once a month" is a weaker requirement than a grant
   -- ever earns only once (unique on user+key+version); this satisfies it without a time window.
-  -- Only for the account's own day (v_day, inside the one-date window above).
+  -- Only for the account's own day (v_day above: never past the stored zone's today).
   if v_day is not null
      and exists (select 1 from log_entries where user_id = p_user_id and local_date = v_day
                    and deleted_at is null) then

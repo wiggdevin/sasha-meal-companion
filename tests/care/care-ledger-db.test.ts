@@ -209,10 +209,55 @@ describe.skipIf(!HAS_PG)(`${NAME} on Postgres`, () => {
     expect(json(`select care_accolades_sync('${A}', ${TODAY}, 'UTC')`).granted).not.toContain("full-week");
   });
 
+  it("a stored Saturday with the phone on Sunday checks only the closed week before", () => {
+    // 2026-10-17 is a Saturday. The phone's Sunday is clamped to the stored zone's Saturday, so the
+    // week ending that Sunday (Monday 10-12) is not checked; only the week of Monday 10-05 is.
+    expect(sql(`select _care_accolade_day(date '2026-10-18', date '2026-10-17')`)).toBe("2026-10-17");
+    expect(sql(`select _care_full_week_mondays(_care_accolade_day(date '2026-10-18', date '2026-10-17'))`))
+      .toBe("{2026-10-05}");
+    // On the stored Sunday itself, the week ending that day is closed and checked too.
+    expect(sql(`select _care_full_week_mondays(_care_accolade_day(date '2026-10-18', date '2026-10-18'))`))
+      .toBe("{2026-10-05,2026-10-12}");
+    expect(sql(`select _care_accolade_day(date '2026-10-16', date '2026-10-17')`)).toBe("2026-10-16");
+    expect(sql(`select _care_accolade_day(date '2026-10-20', date '2026-10-17')`)).toBe("2026-10-17");
+  });
+
+  it("a phone a day ahead never grants full-week for a week the stored zone has not closed", () => {
+    // Every date of the stored zone's current week logged, its future ones included.
+    sql(`insert into log_entries (user_id, local_date, slot)
+         select '${A}', (${TODAY} - extract(isodow from ${TODAY})::int + 1) + g, 'm1'
+           from generate_series(0, 6) g`);
+    const granted = json(`select care_accolades_sync('${A}', ${TODAY} + 1, 'UTC')`).granted;
+    // Only when the stored today is that week's own Sunday has the week closed.
+    const todayIsSunday = sql(`select extract(isodow from ${TODAY})::int = 7`) === "t";
+    expect((granted as string[]).includes("full-week")).toBe(todayIsSunday);
+  });
+
+  it("a null phone day skips full-week, which a real day grants on the same rows", () => {
+    for (const user of [A, B]) {
+      sql(`insert into log_entries (user_id, local_date, slot)
+           select '${user}', (${TODAY} - extract(isodow from ${TODAY})::int - 6) + g, 'm1'
+             from generate_series(0, 6) g`);
+    }
+    expect(json(`select care_accolades_sync('${A}', null, 'UTC')`).granted).not.toContain("full-week");
+    expect(json(`select care_accolades_sync('${B}', ${TODAY}, 'UTC')`).granted).toContain("full-week");
+  });
+
+  it("a null phone day skips welcome-back, which a real day grants on the same rows", () => {
+    for (const user of [A, B]) {
+      sql(`insert into log_entries (user_id, local_date, slot)
+           values ('${user}', ${TODAY}, 'm1'), ('${user}', ${TODAY} - 40, 'm1')`);
+    }
+    expect(json(`select care_accolades_sync('${A}', null, 'UTC')`).granted).not.toContain("welcome-back");
+    expect(json(`select care_accolades_sync('${B}', ${TODAY}, 'UTC')`).granted).toContain("welcome-back");
+  });
+
   it("the down file restores the old bodies and the up file applies again", () => {
     runFile(DOWN_FILE);
     const r = psql(["-c", syncPoints(1)]);
     expect(r.stderr).toContain("future_date");
+    expect(sql(`select count(*) from pg_proc where proname in
+      ('care_balance', '_care_accolade_day', '_care_full_week_mondays')`)).toBe("0");
     runFile(UP_FILE);
     expect(json(syncPoints(1))).toHaveProperty("balance");
   });
