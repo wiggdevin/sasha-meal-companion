@@ -28,6 +28,6 @@ describe("bundle budget", () => {
   it("runs both gates in the Build job", () => {
     const ci = readFileSync(path.join(__dirname, "..", "..", ".github", "workflows", "ci.yml"), "utf8");
     expect(ci).toMatch(/^ {8}run: pnpm exec tsx scripts\/bundle-budget\.ts$/m);
-    expect(ci).toMatch(/^ {10}node scripts\/page-gate\.mjs http:\/\/localhost:3000$/m);
+    expect(ci).toMatch(/^ {10}node scripts\/page-gate\/gate\.mjs http:\/\/localhost:3000$/m);
   });
 });

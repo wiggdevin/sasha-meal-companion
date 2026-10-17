@@ -5,25 +5,25 @@
 //   2. Lighthouse, mobile (its default form factor and throttling): the median of `runs` runs per
 //      page meets the category scores in the budget file.
 //
-// Lighthouse is not an app dependency. CI installs it into its own folder and passes that folder
-// as LIGHTHOUSE_DIR; CHROME_PATH names the browser. Usage:
-//   LIGHTHOUSE_DIR=<dir> CHROME_PATH=<chrome> node scripts/page-gate.mjs http://localhost:3000
+// Lighthouse is not an app dependency: it has its own lockfile in this folder, installed with
+// `npm ci --prefix scripts/page-gate`. CHROME_PATH names the browser. Usage:
+//   CHROME_PATH=<chrome> node scripts/page-gate/gate.mjs http://localhost:3000
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repo = path.join(here, "..", "..");
 const budget = JSON.parse(readFileSync(path.join(repo, "scripts", "perf-budget.json"), "utf8")).pages;
 const base = process.argv[2] ?? "http://localhost:3000";
-const lhDir = process.env.LIGHTHOUSE_DIR;
 const chromePath = process.env.CHROME_PATH;
-if (!lhDir || !chromePath) {
-  console.error("page gate: set LIGHTHOUSE_DIR and CHROME_PATH");
+if (!chromePath) {
+  console.error("page gate: set CHROME_PATH");
   process.exit(2);
 }
 
-const req = createRequire(path.join(path.resolve(lhDir), "package.json"));
+const req = createRequire(path.join(here, "package.json"));
 const load = async (name) => import(pathToFileURL(req.resolve(name)).href);
 const { default: puppeteer } = await load("puppeteer-core");
 const { default: lighthouse } = await load("lighthouse");

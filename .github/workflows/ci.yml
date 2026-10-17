@@ -231,16 +231,15 @@ jobs:
       # W079: the built sign-in page loads with no CSP violation (report-only ones too) and meets
       # the Lighthouse mobile scores in scripts/perf-budget.json (median of three runs).
       - name: Install Lighthouse
-        run: npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/lighthouse" lighthouse@13.5.0
+        run: npm ci --no-audit --no-fund --prefix scripts/page-gate
 
       - name: Page gate (CSP and Lighthouse)
         timeout-minutes: 10
         run: |
           pnpm start --port 3000 > "$RUNNER_TEMP/next-start.log" 2>&1 &
           for _ in $(seq 1 60); do curl -fsS -o /dev/null http://localhost:3000/sign-in && break; sleep 1; done
-          node scripts/page-gate.mjs http://localhost:3000
+          node scripts/page-gate/gate.mjs http://localhost:3000
         env:
-          LIGHTHOUSE_DIR: ${{ runner.temp }}/lighthouse
           CHROME_PATH: /usr/bin/google-chrome
           SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: placeholder
