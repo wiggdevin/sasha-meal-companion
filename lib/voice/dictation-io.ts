@@ -33,6 +33,6 @@ export function dictationIo(): HoldIo {
   return {
     listen: (handlers) => (isStandalone() ? null : startListening(handlers)),
     record: (handlers) => openMicRecorder(handlers),
-    transcribe: (clip) => transcribeClip(clip),
+    transcribe: (clip, signal) => transcribeClip(clip, { signal }),
   };
 }

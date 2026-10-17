@@ -5,6 +5,9 @@ Production deploy id: `dpl_FrqersVYnqWhgAuCtCHDh2NgQaHH` (ready 2026-09-12T17:30
 Production URL: https://sasha-meal-companion.vercel.app
 Audit date: 2026-09-12
 
+**Stale as of 2026-10-08: every `NOUS_*` name below (the env lists around lines 104 and 379-384) was removed from Vercel production on 2026-10-08.**
+The Nous Portal transport left the codebase on 2026-10-01 (`docs/ai-data-handling.md`). This report is a point-in-time snapshot; see `docs/readiness/2026-09-19/03-env.md` for the same note.
+
 This is the lane PROD readiness sweep (`~/.claude/goal-state/sasha-ship/readiness-loop.md`, adapted
 from Loop Library #048). Every check below ran read-only against production; nothing on production
 was written, no flag or env var was changed, no purchase was made, and no owner credential

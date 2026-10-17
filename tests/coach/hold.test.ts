@@ -47,7 +47,7 @@ type Harness = {
   speechAvailable: boolean;
   /** `startListening` reports its own failure and answers null, which abandons the session. */
   listenFails: boolean;
-  transcribe: (clip: Blob) => Promise<{ ok: true; text: string; ms: number } | { ok: false; message: string }>;
+  transcribe: (clip: Blob, signal?: AbortSignal) => Promise<{ ok: true; text: string; ms: number } | { ok: false; message: string }>;
 };
 
 function harness(overrides: Partial<HoldPorts> & { speechAvailable?: boolean } = {}): Harness {
@@ -83,7 +83,7 @@ function harness(overrides: Partial<HoldPorts> & { speechAvailable?: boolean } =
         cancel: () => { recorder.cancelled += 1; },
       } as MicRecorder;
     },
-    transcribe: (clip) => h.transcribe(clip),
+    transcribe: (clip, signal) => h.transcribe(clip, signal),
     readBox: () => box.value,
     writeBox: (text) => { box.value = text; },
     publish: (view) => { views.push(view); },
@@ -307,6 +307,20 @@ describe("a continuation that outlived its session (H2)", () => {
     await flush();
     expect(h.box.value).toBe("half a sentence");
     expect(h.views.length).toBe(before);
+  });
+
+  it("aborts the in-flight transcription when the session is cancelled", async () => {
+    const h = harness({ speechAvailable: false });
+    let seen: AbortSignal | undefined;
+    h.transcribe = (_clip, signal) => { seen = signal; return new Promise(() => {}); };
+    h.hold.press();
+    await flush();
+    h.hold.release();
+    h.mic?.onClip(new Blob(["bytes"]));
+    await Promise.resolve();
+    expect(seen?.aborted).toBe(false);
+    h.hold.cancel();
+    expect(seen?.aborted).toBe(true);
   });
 
   it("throws away a recorder that opened after the session was cancelled", async () => {
