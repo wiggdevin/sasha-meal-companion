@@ -41,11 +41,6 @@ describe("food database", () => {
   it("lists gluten, dairy and apple foods with no default off-plan mark", () => {
     // The JSON's legacy `flags` were the original client's plan. No account inherits them: what a
     // food breaks for an account comes from that account's rules (server verdict, log commit).
-    for (const id of ["white-bread", "cheddar-cheese", "apple-with-skin", "greek-yogurt-plain-nonfat"]) {
-      const food = dbFood(id);
-      if (!food) continue;
-      expect(food).not.toHaveProperty("flags");
-    }
     for (const f of FOOD_DB) expect(f, f.id).not.toHaveProperty("flags");
     const hits = searchFoods("bread", {});
     expect(hits.length).toBeGreaterThan(0);

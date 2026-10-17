@@ -117,8 +117,15 @@ describe("a small slot's bar has a floor", () => {
   it("fits a miss inside 3 g or 30 kcal whatever the target", () => {
     expect(fitsTarget({ kcal: 512, protein: 40, carbs: 70, fat: 8 }, lunch)).toBe(true);
     expect(fitNote({ kcal: 512, protein: 40, carbs: 70, fat: 8 }, lunch)).toBeNull();
-    expect(fitsTarget({ kcal: 60, protein: 5, carbs: 6, fat: 2 }, { kcal: 85, protein: 7, carbs: 8, fat: 4 }))
+    expect(fitsTarget({ kcal: 60, protein: 7, carbs: 6, fat: 2 }, { kcal: 85, protein: 7, carbs: 8, fat: 4 }))
       .toBe(true);
+  });
+
+  it("never lets protein run short past 10 %", () => {
+    const snack = { kcal: 120, protein: 10, carbs: 10, fat: 4 };
+    expect(fitsTarget({ kcal: 112, protein: 7, carbs: 10, fat: 4 }, snack)).toBe(false);
+    expect(fitsTarget({ kcal: 120, protein: 9.5, carbs: 10, fat: 4 }, snack)).toBe(true);
+    expect(fitsTarget({ kcal: 130, protein: 12.5, carbs: 10, fat: 4 }, snack)).toBe(true);
   });
 
   it("still misses past the floor, and past 10 % on a big target", () => {

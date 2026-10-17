@@ -120,7 +120,7 @@ export const FIT_TOLERANCE = 0.1;
  * The smallest miss that counts. 10 % of a small slot's 10 g of fat is 1 g, which no real plate
  * hits on all four macros at once, so the Plan sheet threw away every idea for a snack-sized or
  * late slot ("No ready meal options yet", integration run 2026-10-17). A miss inside 3 g, or
- * 30 kcal, fits whatever the target.
+ * 30 kcal, fits whatever the target, except protein running short, which keeps the 10 % bar.
  */
 export const FIT_FLOOR_G = 3;
 export const FIT_FLOOR_KCAL = 30;
@@ -132,8 +132,10 @@ function withinBar(actual: number, target: number, floor: number): boolean {
 
 const floorFor = (macro: keyof MealMacros) => macro === "kcal" ? FIT_FLOOR_KCAL : FIT_FLOOR_G;
 
+// Protein never softens: a protein shortfall gets the 10 % bar only, never the floor.
 const macroFits = (totals: MealMacros, target: MealMacros, macro: keyof MealMacros) =>
-  withinBar(totals[macro], target[macro], floorFor(macro));
+  withinBar(totals[macro], target[macro],
+    macro === "protein" && totals.protein < target.protein ? 0 : floorFor(macro));
 
 /**
  * Every macro within 10 % of the per-meal target (or `FIT_FLOOR_G` / `FIT_FLOOR_KCAL`, whichever is
