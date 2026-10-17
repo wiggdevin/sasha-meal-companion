@@ -17,7 +17,7 @@ const SNACK = { kcal: 240, protein: 18, carbs: 22, fat: 8 };
 
 const SAMPLES: { title: string; data: PanelData; preview: WidgetPreview }[] = [
   { title: "Midday, on track — Sprout thrives", data: day(1020, 80, 110, 34, 4), preview: { hour: 13.5, expanded: true, index: 1 } },
-  { title: "Afternoon, behind — Sprout a little low", data: day(320, 14, 40, 10, 1), preview: { hour: 17, expanded: true, index: 0 } },
+  { title: "Afternoon, behind — Sprout still fine", data: day(320, 14, 40, 10, 1), preview: { hour: 17, expanded: true, index: 0 } },
   { title: "Evening, near target — collapsed", data: day(1850, 132, 200, 60, 7), preview: { hour: 19, expanded: false } },
   { title: "Over target — collapsed", data: day(2350, 150, 260, 82, 8), preview: { hour: 20, expanded: false, index: 0 } },
   { title: "Water panel open, content", data: day(900, 50, 100, 30, 3), preview: { hour: 15, expanded: true, index: 2 } },

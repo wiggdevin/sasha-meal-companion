@@ -7,7 +7,7 @@ import Rainbow from "@/components/today/scene/Rainbow";
 import PondWater, { type KeyRow, type PondApi } from "@/components/today/scene/PondWater";
 import { BANDS, BOX, CLOUDS, KEY, LURE, SPRITE, bandShare, castFlight, linePath, rainbowHit, rodTip,
   type Band } from "@/components/today/scene/scene-geometry";
-import { initialSulk, nextChange, poke, pose as poseOf, sulkLine, updateDay, type Pose } from "@/components/today/scene/sulk";
+import { initialSulk, nextChange, poke, pose as poseOf, sulkLine, type Pose } from "@/components/today/scene/sulk";
 import { MASCOTS, named, sceneArt } from "@/components/today/island/mascots";
 import { useMascot } from "@/components/today/island/well-pet";
 import { requestTiltPermission, useWaterTilt } from "@/components/today/useWaterTilt";
@@ -51,8 +51,8 @@ function keyRows(data: PanelData, bands: readonly Band[]): KeyRow[] {
  * foreground on a mossy rock, fishing. It casts every half minute or so; the lure lands centre right
  * and rings spread on the water. Now and then it catches a little fish; a meal logged earns a cheer
  * catch, a target reached a gold leaf. Tap the rainbow and its key appears on the water, "remaining";
- * tap again and it sinks away. When the day falls behind Sprout sits facing away; poke it and it looks
- * back with tears, and too many pokes make it annoyed (sulk.ts). Layout: scene-geometry.ts.
+ * tap again and it sinks away. A day behind never makes Sprout sulk (OD19); poke it a few times and it
+ * turns away, looks back with tears, and too many pokes make it annoyed (sulk.ts). Layout: scene-geometry.ts.
  */
 export default function PondScene({ data, pet, paused = false, cheer = 0, bands = BANDS, demo }: {
   data: PanelData; pet: PetState; paused?: boolean;
@@ -72,7 +72,7 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
   const tilt = useWaterTilt(animate_);
   const [keyOpen, setKeyOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [sulk, setSulk] = useState(() => initialSulk(pet.mood === "droopy"));
+  const [sulk, setSulk] = useState(initialSulk);
   const [action, setAction] = useState<"rest" | "cast" | "catch">("rest");
   const [caught, setCaught] = useState<Catch | null>(null);
   const [said, setSaid] = useState<string | null>(null);
@@ -111,9 +111,8 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
     return () => observer.disconnect();
   }, []);
 
-  // The day behind or recovered: the sulk follows at once.
+  // A new mood (awake, asleep) drops a reply to an earlier tap.
   useEffect(() => {
-    setSulk((s) => updateDay(s, pet.mood === "droopy"));
     setNow(Date.now());
     setSaid(null);
   }, [pet.mood]);

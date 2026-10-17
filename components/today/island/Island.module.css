@@ -192,18 +192,6 @@
   min-height: 44px;
 }
 
-/* Open, Edit is out of sight until the keyboard reaches it (owner, 2026-10-06: nothing on the
-   glass but the showcase); long-press still opens the arrange tray. */
-.footerHidden {
-  position: absolute;
-  right: 14px;
-  bottom: 8px;
-  z-index: 3;
-  opacity: 0;
-  pointer-events: none;
-}
-.footerHidden:focus-within { opacity: 1; pointer-events: auto; }
-
 /* PR #470 review R2, WARN: at the maximum panel count the dots alone need more than a narrow
    phone's width; wrapping keeps every 44px target reachable instead of clipping against Edit or
    the island's own edge (the island's measured height already grows to fit a second row). */
