@@ -4,7 +4,7 @@ Oura token pairs in `health_sources.oauth` are sealed with AES-256-GCM under `HE
 (`lib/server/crypto.ts`). To rotate the key, every stored pair must be re-sealed. This is a
 Mac-session / owner step. A cloud thread never runs it, and never against production.
 
-The script is `scripts/reseal-health-tokens.ts`. It is a dry run unless `--commit` is given, and
+The script is `scripts/reseal-health-tokens.ts`. `SUPABASE_URL` must name the target project explicitly (the guard reads only that variable). It is a dry run unless `--commit` is given, and
 `--commit` on the production project also needs `--production` (the guard shared with
 `scripts/food-membership-audit.ts`). It never prints a key or a token.
 
