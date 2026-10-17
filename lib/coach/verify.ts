@@ -18,6 +18,14 @@ export function heuristic(reply: string, actions: CoachAction[]): boolean {
   return actions.length === 0 && claimsAction(reply);
 }
 
+const CHART_CLAIM =
+  /\b(?:chart|graph|breakdown)\s+(?:below|above)\b|\b(?:see|check|look at)\s+the\s+(?:chart|graph|breakdown)\b|\bchart\s+(?:is\s+)?attached\b/i;
+
+/** Prose pointing at a chart, graph or breakdown card; unsafe only when no block came with the reply. */
+export function claimsChart(reply: string, blockCount: number): boolean {
+  return blockCount === 0 && CHART_CLAIM.test(reply);
+}
+
 function toolNames(results: ReplyToolResult[]): string[] {
   return [...new Set(results.flatMap((result) =>
     typeof result === "string" ? [result] : result.ok ? [result.name] : []))];

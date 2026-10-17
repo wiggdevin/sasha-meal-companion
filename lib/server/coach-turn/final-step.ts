@@ -13,7 +13,7 @@ import { INVALID_ARGS_PREFIX } from "@/lib/coach/dispatch";
 import { isGenericRefusal, needsRefusalCorrection, REFUSAL_CORRECTION } from "@/lib/coach/refusal-guard";
 import { loggedFoodIdentities, type LoggedIdentities } from "@/lib/coach/reply-check";
 import { OUT_OF_TIME_GROUNDING, sanitiseReply, TURN_LIMITS, type TurnStep } from "@/lib/coach/turn";
-import { heuristic, verifyReply } from "@/lib/coach/verify";
+import { claimsChart, heuristic, verifyReply } from "@/lib/coach/verify";
 import { applyGroundedActionPolicies } from "@/lib/server/coach-role-advice";
 import { beforeDeadline, LATE } from "@/lib/server/coach-turn/deadline";
 import type { TurnKit } from "@/lib/server/coach-turn/kit";
@@ -200,6 +200,16 @@ export async function settleFinalStep(
       return "retry";
     }
     state.claimWithoutAction = true;
+  }
+  // A reply that points at a chart or breakdown with no block gets one correction round, no more.
+  if (!state.claimCorrectionRequested && !recipeWidget && actions.length === 0 && state.composed.length === 0
+    && (finalStep.suggestions ?? []).length === 0 && claimsChart(reply, state.blocks.length)
+    && round < TURN_LIMITS.maxToolCalls) {
+    state.claimCorrectionRequested = true;
+    state.transcript.push(
+      "SYSTEM: Your reply refers to a chart or breakdown but no block came with it; reply again with the block, or without that reference.",
+    );
+    return "retry";
   }
   return "done";
 }
