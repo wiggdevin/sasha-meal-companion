@@ -23,7 +23,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertGeminiAttested, assertOpenRouterAttested } from "@/lib/ai/attestation";
 import {
-  CALL_REGISTRY, callRefusal, type CallProvider, type CallSite, type DataClass,
+  BACKGROUND_PURPOSES, CALL_REGISTRY, callRefusal, type CallProvider, type CallSite, type DataClass,
 } from "@/lib/ai/call-registry";
 import { aiCallRow, type AiStatus, type Billed, writeAiCall } from "@/lib/ai/call-ledger";
 import { assertCircuitClosed } from "@/lib/ai/circuit";
@@ -209,7 +209,9 @@ export async function callModel<R extends Billed, T>(call: ModelCall<R, T>): Pro
   if (ledger) await assertCircuitClosed(ledger.admin, provider, model);
 
   const reserveUsd = call.maxAttemptCostUsd(model) * Math.max(1, call.policy.attempts);
-  const reservation = ledger ? await reserveSpend(ledger.admin, ledger.userId, reserveUsd) : null;
+  const reservation = ledger
+    ? await reserveSpend(ledger.admin, ledger.userId, reserveUsd, { background: BACKGROUND_PURPOSES.has(purpose) })
+    : null;
   // The row names its reservation, so a sweep can charge this cost if the settle never lands.
   const record = (status: AiStatus, billed: Billed | null, error: string | null,
     costUsd: number, recordedModel = model): Promise<void> => (ledger

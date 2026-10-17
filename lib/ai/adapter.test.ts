@@ -276,7 +276,7 @@ describe("generateStructured", () => {
     const probe = fakeAdmin().client as unknown as { rpc: (fn: string, args: Record<string, unknown>) => unknown };
     const rpc = vi.spyOn(probe, "rpc");
     await oneCall(probe);
-    const hold = Number((rpc.mock.calls.find(([fn]) => fn === "ai_spend_reserve")?.[1] ?? {}).p_amount_usd);
+    const hold = Number((rpc.mock.calls.find(([fn]) => fn === "ai_spend_reserve_split")?.[1] ?? {}).p_amount_usd);
     expect(hold).toBeGreaterThan(0);
     const { client, calls } = fakeAdmin([2 - 1.5 * hold]);
 

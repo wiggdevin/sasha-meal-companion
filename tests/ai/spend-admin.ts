@@ -7,7 +7,7 @@ function noFailures() {
 }
 
 /**
- * `ai_spend_reserve` / `ai_spend_settle` in memory (scale S2), with the SQL's rule: refused when
+ * `ai_spend_reserve_split` / `ai_spend_settle` in memory (scale S2; the OD01 background splits are not modelled), with the SQL's rule: refused when
  * settled + live holds + the estimate would pass the user cap (`user_cap`) or the global ceiling
  * (`global_cap`). `spendFor(user)` is the user's already-settled spend.
  */
@@ -16,7 +16,7 @@ function reservations(spendFor: (userId: string) => number[], onReserve?: (userI
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   const total = () => sum([...held.values()].map((h) => h.amount));
   return async (fn: string, args: Record<string, unknown>) => {
-    if (fn === "ai_spend_reserve") {
+    if (fn === "ai_spend_reserve_split") {
       const userId = String(args.p_user_id);
       onReserve?.(userId);
       const amount = Number(args.p_amount_usd);
