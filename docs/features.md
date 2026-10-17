@@ -280,14 +280,14 @@ MCP tools on top of what Phase 4 ships.
 
 | ID | Feature | Detail | Phase | Disposition | Source | Acceptance |
 |---|---|---|---|---|---|---|
-| F-109 | Native shell (Expo + HealthKit) | A native wrapper app for direct HealthKit access instead of Shortcuts-based ingest. | 8 | deferred | brief, v2 §1, §8 | Not applicable until Phase 8 is scoped. |
-| F-110 | Garmin sync | Direct Garmin integration for activity and health data. | 8 | deferred | brief, v2 §1 | Not applicable until the Garmin developer program is off hold. |
+| F-109 | Native shell (Expo + HealthKit) | A native wrapper app for direct HealthKit access instead of Shortcuts-based ingest. Owner call: OD23 (native iOS wrapper) is deferred; Devin rules before any start. | 8 | deferred | brief, v2 §1, §8 | Not applicable until Phase 8 is scoped. |
+| F-110 | Garmin sync | Direct Garmin integration for activity and health data. Owner call: Devin approves any new vendor or cost first. | 8 | deferred | brief, v2 §1 | Not applicable until the Garmin developer program is off hold. |
 | F-111 | Fitbit / Google Health sync | Direct Fitbit or Google Health integration. | — | rejected | brief, v2 §1 | Not applicable; the Fitbit API retires 2026-09-30, matching architecture.md §1's classification. |
-| F-112 | Health Connect sync | Android Health Connect integration. | 8 | deferred | brief, v2 §1 | Not applicable until a native Android shell exists. |
-| F-113 | Withings direct scale sync | A direct Withings API integration instead of weight arriving via Apple Health. | 5, 8 | deferred | v2 §1, §10 | Not applicable while Apple Health already delivers weight. |
-| F-114 | Real web push notifications | Vercel cron + KV storing a push subscription + VAPID keys, as an alternative to the `.ics` calendar approach. | — | deferred | PRD §4 | Not applicable unless the user reports the calendar reminders are not landing. |
-| F-115 | Supplement tick (creatine) | A daily tick for a 5g creatine dose, pending confirmation the user is not already taking it. | — | deferred | PRD §9.7, §12 | Not applicable until the reviewer answers the open supplement question. |
-| F-116 | ChatGPT web connector | Wiring `/api/mcp` for ChatGPT's web connector (OAuth or no-auth) alongside the supported Codex client. | — | deferred | AGENTS.md | Not applicable; Codex remains the only supported MCP client today. |
+| F-112 | Health Connect sync | Android Health Connect integration. Owner call: Devin approves any new vendor or cost first. | 8 | deferred | brief, v2 §1 | Not applicable until a native Android shell exists. |
+| F-113 | Withings direct scale sync | A direct Withings API integration instead of weight arriving via Apple Health. Owner call: Devin approves any new vendor or cost first. | 5, 8 | deferred | v2 §1, §10 | Not applicable while Apple Health already delivers weight. |
+| F-114 | Real web push and out-of-app notifications | Vercel cron + KV storing a push subscription + VAPID keys, as an alternative to the `.ics` calendar approach; also covers any out-of-app notification (reminders, nudges, re-engagement). Owner call: Devin approves any new vendor or cost, and a privacy review comes first. Prerequisites, none built: no push handler in `public/sw.js`, no subscription store, no VAPID secret, no sender. | — | deferred | PRD §4 | Not applicable unless the user reports the calendar reminders are not landing. |
+| F-115 | Supplement tick (creatine) | A daily tick for a 5g creatine dose, pending confirmation the user is not already taking it. Owner call: Devin rules on the supplement question. | — | deferred | PRD §9.7, §12 | Not applicable until the reviewer answers the open supplement question. |
+| F-116 | ChatGPT web connector | Wiring `/api/mcp` for ChatGPT's web connector (OAuth or no-auth) alongside the supported Codex client. Owner call: a privacy review, and Devin approves any new vendor or cost. | — | deferred | AGENTS.md | Not applicable; Codex remains the only supported MCP client today. |
 
 ---
 
@@ -299,7 +299,7 @@ MCP tools on top of what Phase 4 ships.
 - **F-110 Garmin sync** — deferred because the Garmin developer program is on hold (v2 §1).
 - **F-112 Health Connect sync** — deferred because it needs a native Android shell, which is itself deferred (v2 §1).
 - **F-113 Withings direct scale sync** — deferred because weight already arrives via Apple Health; a direct integration is redundant unless the user gets a non-Apple-connected scale (v2 §1, §10).
-- **F-114 Real web push notifications** — deferred because the `.ics` calendar approach needs no server, no VAPID keys, and no cron running unattended for months; push is the fallback only if the calendar route fails in practice (PRD §4).
+- **F-114 Real web push and out-of-app notifications** — deferred because the `.ics` calendar approach needs no server, no VAPID keys, and no cron running unattended for months; push is the fallback only if the calendar route fails in practice (PRD §4).
 - **F-115 Supplement tick (creatine)** — deferred pending the reviewer's answer on whether the user is already taking it (PRD §9.7, §12).
 - **F-091 Weight trend line** — gated, not fully deferred: hidden until estimator status leaves `burn_in` and until 20 weigh-ins exist, so an early noisy trend cannot mislead the user's about the user's real TDEE (v2 §4.3, PRD §9.8).
 - **F-116 ChatGPT web connector** — deferred; Codex is the supported MCP client today, and OAuth/no-auth wiring for ChatGPT was never done (AGENTS.md).
