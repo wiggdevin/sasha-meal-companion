@@ -34,6 +34,15 @@ describe("foldTypos", () => {
     expect(foldTypos("tomatoes", ["Tomato, red, raw"])).toBeNull();
   });
 
+  it("keeps the rest of the query as typed", () => {
+    expect(foldTypos("2% chese", ["Cheese, cheddar"])).toBe("2% cheese");
+    expect(foldTypos("Jalapeño brocoli", ["Broccoli, raw"])).toBe("Jalapeño broccoli");
+  });
+
+  it("never folds a plural to its singular", () => {
+    expect(foldTypos("cookies", ["Cookie, chocolate chip"])).toBeNull();
+  });
+
   it("folds only the unknown word of a two-word query", () => {
     expect(foldTypos("frozen brocoli", ["Broccoli, frozen, chopped"])).toBe("frozen broccoli");
   });
@@ -44,7 +53,10 @@ describe("dish-marker penalty", () => {
     expect(isUnaskedDish("sweet potato", "Pie, sweet potato")).toBe(true);
     expect(isUnaskedDish("carrot", "Muffin, carrot")).toBe(true);
     expect(isUnaskedDish("salmon", "Salmon salad")).toBe(true);
-    expect(isUnaskedDish("potato", "Potatoes, french fries, frozen")).toBe(true);
+    expect(isUnaskedDish("potato", "French fries, frozen")).toBe(true);
+    expect(isUnaskedDish("oatmeal", "Cookies, oatmeal, commercially prepared, regular")).toBe(true);
+    expect(isUnaskedDish("chocolate", "Brownies, commercially prepared")).toBe(true);
+    expect(isUnaskedDish("spinach", "Quiches, spinach")).toBe(true);
   });
 
   it("keeps a dish the query names, plural or not", () => {
@@ -59,6 +71,13 @@ describe("dish-marker penalty", () => {
     expect(isUnaskedDish("carrot", "Carrots, baby, raw")).toBe(false);
   });
 
+  it("reads markers only in the description's head, where the food is named", () => {
+    expect(isUnaskedDish("olive oil", "Oil, olive, salad or cooking")).toBe(false);
+    expect(isUnaskedDish("corn tortilla", "Tortillas, ready-to-bake or -fry, corn")).toBe(false);
+    expect(isUnaskedDish("beef chuck", "Beef, chuck for stew, separable lean and fat, raw")).toBe(false);
+    expect(isUnaskedDish("flour", "Wheat flour, white, bread, enriched")).toBe(false);
+  });
+
   it("lets the plain ingredient row beat the dish row on a short query", () => {
     const ranked = penalizeDishes("sweet potato", [
       row("Pie, sweet potato", 0.42),
@@ -70,7 +89,9 @@ describe("dish-marker penalty", () => {
       "Sweet potato, cooked, baked in skin",
       "Pie, sweet potato",
     ]);
-    expect(ranked[2].score).toBeCloseTo(0.42 - DISH_MARKER_PENALTY, 6);
+    // The SQL score is kept for auto-resolve; only the order moves.
+    expect(ranked[2].score).toBe(0.42);
+    expect(DISH_MARKER_PENALTY).toBe(0.1);
   });
 
   it("keeps an explicit dish name first", () => {
@@ -95,7 +116,7 @@ describe("dish-marker penalty", () => {
     expect(penalizeDishes("sweet potato baked", rows)).toEqual(rows);
   });
 
-  it("is stable on ties and never goes below zero", () => {
+  it("is stable on ties", () => {
     const ranked = penalizeDishes("rice", [
       row("Rice, white, long-grain, raw", 0.3),
       row("Rice, brown, long-grain, raw", 0.3),
@@ -104,7 +125,6 @@ describe("dish-marker penalty", () => {
     expect(ranked.map((r) => r.description)).toEqual([
       "Rice, white, long-grain, raw", "Rice, brown, long-grain, raw", "Pudding, rice",
     ]);
-    expect(ranked[2].score).toBe(0);
   });
 });
 

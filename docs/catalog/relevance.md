@@ -338,10 +338,12 @@ questions 1 and 2. Both steps live in `lib/search/rerank.ts` and run in TypeScri
 `catalog_search`, so the SQL score, its feature columns and `tests/search/score-parity.test.ts`
 are unchanged and no migration is needed.
 
-- **Dish-marker penalty.** On a one- or two-word query, a row whose description carries a
-  prepared-dish word the query did not ask for (`DISH_MARKERS`: pie, muffin, salad, soup, juice,
-  fries …) loses `DISH_MARKER_PENALTY` = 0.10 of score, so "Sweet potato, raw" beats "Pie, sweet
-  potato". A query that names the dish keeps it ("carrot cake"), and a row whose words are the
+- **Dish-marker penalty.** On a one- or two-word query, a row whose description head (its first
+  comma segment, where USDA names the food) carries a prepared-dish word the query did not ask for
+  (`DISH_MARKERS`: pie, muffin, salad, soup, juice, fries …) ranks as if it had 0.10 less score,
+  so "Sweet potato, raw" beats "Pie, sweet potato". A marker later in the description is a form
+  ("Oil, olive, salad or cooking", "Beef, chuck for stew") and is ignored. Each hit keeps its SQL
+  score, so auto-resolve never gains a margin from the penalty. A query that names the dish keeps it ("carrot cake"), and a row whose words are the
   query's is never marked. Form words that are not dishes (patty, hot chili peppers, baby carrots)
   are left out of the list on purpose.
 - **Typo fold.** A query word of four or more letters that no candidate description spells is
@@ -351,7 +353,8 @@ are unchanged and no migration is needed.
   `synonyms.csv` still apply first, inside SQL.
 
 **Gate.** Both are off until `CATALOG_SEARCH_RERANK=1` is set on the server (ruling R1). Before
-turning it on, a Mac session runs `pnpm exec tsx scripts/search-eval.ts --rerank --dry-run`
+turning it on, a Mac session runs `pnpm exec tsx scripts/search-eval.ts --rerank --dry-run` (the
+script refuses `--rerank` without `--dry-run`)
 against production and confirms top-1 ≥ 82 % and top-3 ≥ 95 %; it was not measured from the cloud
 thread that built it (no catalog there). Rollback is unsetting the variable. The regression cases
 (explicit dish names and exact matches still win, plain rows beat dish rows, plurals and short

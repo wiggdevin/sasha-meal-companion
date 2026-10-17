@@ -135,6 +135,8 @@ async function main(): Promise<void> {
   const limitAt = argv.indexOf("--limit");
   const limit = limitAt >= 0 ? Number(argv[limitAt + 1]) : 25;
   const rerank = argv.includes("--rerank");
+  // The thresholds file serves production, which runs with the flag off until the gate passes.
+  if (rerank && !dryRun) throw new Error("--rerank needs --dry-run: it must not rewrite lib/search/thresholds.ts");
 
   const raw = readLabels();
   const client = await signIn();

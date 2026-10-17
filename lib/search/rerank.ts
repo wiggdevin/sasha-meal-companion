@@ -50,11 +50,13 @@ export function searchWords(text: string): string[] {
     .filter((w) => w.length > 0);
 }
 
-function singular(word: string): string {
-  if (word.length > 4 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
-  if (word.length > 4 && /(?:ch|sh|x|z|o)es$/.test(word)) return word.slice(0, -2);
-  if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
-  return word;
+/** The word and its possible singulars: "cookies" → cookies, cooky, cookie; "fries" → fry. */
+function forms(word: string): string[] {
+  const out = [word];
+  if (word.length > 4 && word.endsWith("ies")) out.push(`${word.slice(0, -3)}y`);
+  if (word.length > 4 && word.endsWith("es")) out.push(word.slice(0, -2));
+  if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) out.push(word.slice(0, -1));
+  return out;
 }
 
 function trigrams(word: string): Set<string> {
@@ -64,7 +66,7 @@ function trigrams(word: string): Set<string> {
   return out;
 }
 
-/** pg_trgm `similarity` for two single words. */
+/** pg_trgm `similarity` for two single lowercase a-z0-9 words (the output of `searchWords`). */
 export function trigramSimilarity(a: string, b: string): number {
   const ta = trigrams(a);
   const tb = trigrams(b);
@@ -86,31 +88,43 @@ export function foldTypos(raw: string, descriptions: readonly string[]): string 
     for (const w of searchWords(d)) if (w.length >= 3 && !/\d/.test(w)) vocabulary.add(w);
   }
   const words = searchWords(raw);
-  let changed = false;
   const folded = words.map((word) => {
     if (word.length < FOLD_MIN_LENGTH || /\d/.test(word) || vocabulary.has(word)) return word;
     let best: { word: string; sim: number } | null = null;
     for (const candidate of vocabulary) {
-      if (singular(word) === candidate || singular(candidate) === word) continue;
+      if (forms(word).includes(candidate) || forms(candidate).includes(word)) continue;
       const sim = trigramSimilarity(word, candidate);
       if (sim < TYPO_FOLD_SIMILARITY) continue;
       if (!best || sim > best.sim || (sim === best.sim && candidate < best.word)) {
         best = { word: candidate, sim };
       }
     }
-    if (!best) return word;
-    changed = true;
-    return best.word;
+    return best ? best.word : word;
   });
-  return changed ? folded.join(" ") : null;
+  const replacements = new Map<string, string>();
+  words.forEach((word, i) => {
+    if (folded[i] !== word) replacements.set(word, folded[i]);
+  });
+  if (replacements.size === 0) return null;
+  // Only the folded words change; the caller's punctuation, quotes and accents stay as typed.
+  return raw.replace(/[\p{L}\p{M}\p{N}]+/gu, (m) => {
+    const w = searchWords(m);
+    return w.length === 1 ? replacements.get(w[0]) ?? m : m;
+  });
 }
 
-/** True when the description carries a dish word the query does not ask for. */
+/**
+ * True when the description's head (its first comma segment, where FNDDS and SR Legacy name the
+ * food: "Pie, sweet potato", "Salmon salad", "Cookies, oatmeal") carries a dish word the query
+ * does not ask for. A marker later in the description is a form, not the food ("Oil, olive, salad
+ * or cooking", "Beef, chuck for stew", "Tortillas, ready-to-bake or -fry, corn").
+ */
 export function isUnaskedDish(raw: string, description: string): boolean {
-  const asked = new Set(searchWords(raw).map(singular));
-  return searchWords(description).some((w) => {
-    const s = singular(w);
-    return DISH_MARKERS.has(s) && !asked.has(s);
+  const asked = new Set(searchWords(raw).flatMap(forms));
+  const head = (description ?? "").split(",")[0];
+  return searchWords(head).some((w) => {
+    const marker = forms(w).some((f) => DISH_MARKERS.has(f));
+    return marker && !forms(w).some((f) => asked.has(f));
   });
 }
 
@@ -118,8 +132,9 @@ type Scored = { description: string; score: number | string };
 
 /**
  * Applies the dish-marker penalty and reorders by the adjusted score (stable on ties, so the
- * RPC's own `revision_id` tie-break holds). Rows come back with `score` replaced by the adjusted
- * number; a query longer than two words returns the rows unchanged.
+ * RPC's own `revision_id` tie-break holds). Each row keeps its SQL `score`, so auto-resolve never
+ * sees a margin the penalty made: a demoted row left above the new first row only makes
+ * `shouldAutoResolve` stricter. A query longer than two words returns the rows unchanged.
  */
 export function penalizeDishes<T extends Scored>(raw: string, rows: readonly T[]): T[] {
   const tokens = searchWords(raw);
@@ -127,12 +142,10 @@ export function penalizeDishes<T extends Scored>(raw: string, rows: readonly T[]
   return rows
     .map((row, index) => {
       const score = Number(row.score);
-      const adjusted = isUnaskedDish(raw, row.description)
-        ? Math.max(0, Number((score - DISH_MARKER_PENALTY).toFixed(6)))
-        : score;
-      return { row: { ...row, score: adjusted }, index };
+      const adjusted = isUnaskedDish(raw, row.description) ? score - DISH_MARKER_PENALTY : score;
+      return { row, adjusted, index };
     })
-    .sort((a, b) => Number(b.row.score) - Number(a.row.score) || a.index - b.index)
+    .sort((a, b) => b.adjusted - a.adjusted || a.index - b.index)
     .map((x) => x.row);
 }
 
