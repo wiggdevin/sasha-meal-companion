@@ -1,6 +1,6 @@
 "use client";
 
-import { currentAccountOrNull, isAccountClosing, isCurrent, onAccountGone,
+import { AccountChanged, currentAccountOrNull, isAccountClosing, isCurrent, onAccountGone,
   type AccountHandle } from "@/lib/device/account";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { saveExtraNote } from "@/lib/log-note-client";
@@ -82,6 +82,8 @@ import PlanSheet from "@/components/PlanSheet";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import DayCompleteControl from "@/components/today/DayCompleteControl";
 import { outcomeFor } from "@/lib/log/outcome";
+import { logAgain } from "@/lib/log/log-again";
+import { canLogAgain } from "@/lib/log/recent-meals";
 import { COUNT_LOG_FAILURE } from "@/lib/today/count-log-once";
 import { countLogged as countLoggedOnce } from "@/components/today/count-logged";
 import { addedMealTime, clearMeal, nextMealSlot, removeMeal, restoreAddedMeal } from "@/lib/today/meal-actions";
@@ -604,6 +606,28 @@ export default function Today() {
     void forgetLoggedEntry(viewedDate, id);
     setOpenEntry(null);
     refresh();
+  }
+
+  /** "Log again" on an entry (W123): a new entry now, on today, through the commit path. */
+  async function logEntryAgain(entry: LoggedFood) {
+    setOpenEntry(null);
+    try {
+      const done = await logAgain(entry);
+      if (!done) return;
+      const outcome = outcomeFor(done.result);
+      if (!outcome.keep) {
+        todayFeedback.notify({ tone: "error", message: outcome.message ?? "That did not log. Try again." });
+        return;
+      }
+      // The commit already put the card on that day and settled it; nothing to add here.
+      refresh();
+      if (outcome.message) todayFeedback.notify({ tone: "error", message: outcome.message });
+      else confirmLogged(done.date === todayIso ? "Logged again for today." : "Logged again.");
+    } catch (e) {
+      if (!(e instanceof AccountChanged)) {
+        todayFeedback.notify({ tone: "error", message: "That did not log. Try again." });
+      }
+    }
   }
 
   const noteOf = (date: string, id: string) => getDay(date)?.extras?.find((extra) => extra.id === id)?.note ?? "";
@@ -1192,6 +1216,7 @@ export default function Today() {
                 onSave={(n) => noteEntry(openEntry, n)}
                 onSaved={(before, after) => noteSaved(openEntry, before, after)}
                 onRemove={() => unlogFood(openEntry)}
+                onLogAgain={canLogAgain(e) ? () => { void logEntryAgain(e); } : undefined}
                 onClose={() => setOpenEntry(null)}
               />
             ) : null;

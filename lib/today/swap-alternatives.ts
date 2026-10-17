@@ -13,7 +13,7 @@ import type { FoodComponent, Macros, SlotId } from "@/lib/types";
 
 export type SavedMealRow = { id: string; name: string; items?: Record<string, unknown>[] };
 export type SwapAlternative = {
-  id: string; name: string; source: "Your foods" | "Your recipe" | "Saved meal";
+  id: string; name: string; source: "Your foods" | "Your recipe" | "Saved meal" | "Recent meal";
   components: FoodComponent[]; macros: Macros; proteinKey: string;
   foodIds: string[];
   /**
@@ -78,6 +78,33 @@ function savedAlternative(
   return { id, name, source, components, macros,
     foodIds: ingredients.map(({ food }) => food.id),
     proteinKey: ingredients.find(({ food }) => food.role === "protein")?.food.id ?? id };
+}
+
+/**
+ * W123 (T5): meals this account logged before, offered as `logged:<entryId>` rows sized to the
+ * slot. The same rule as a saved meal: every food must be one of the account's current Eats under
+ * the verified set, so an old meal never brings back a food a rule now keeps off the plan. One row
+ * per set of foods, never the meal already on the card.
+ */
+export function recentSwapAlternatives(input: {
+  target: Macros; foods: Record<string, Food>; refs?: FoodPrefRefCache;
+  recent: { id: string; name: string; items: Record<string, unknown>[] }[];
+  currentComponents?: readonly FoodComponent[]; limit?: number;
+}): SwapAlternative[] {
+  const refs = refFoods(input.foods, input.refs ?? {});
+  const current = input.currentComponents?.length ? foodsKey(input.currentComponents) : null;
+  const seen = new Set<string>();
+  const out: SwapAlternative[] = [];
+  for (const row of input.recent) {
+    const option = savedAlternative(`logged:${row.id}`, row.name, "Recent meal", row.items, 1, input.target, refs);
+    if (option === null) continue;
+    const key = foodsKey(option.components);
+    if (key === current || seen.has(key)) continue;
+    seen.add(key);
+    out.push(option);
+    if (out.length >= (input.limit ?? 6)) break;
+  }
+  return out;
 }
 
 /** Generated rows ranked when no date is given (the sheet's rotation is then fixed). */
