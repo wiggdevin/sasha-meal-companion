@@ -205,10 +205,10 @@ describe("the nutrients card", () => {
     expect(under).not.toContain("Under your");
     expect(under).toContain("At least 12.0 g counted");
     // A lower bound that already reaches the band, or passes it, establishes the verdict.
-    expect(renderToStaticMarkup(<DayNutrients day={fibreDay(22, true)} />)).toContain("In your 20–25 g band");
-    expect(renderToStaticMarkup(<DayNutrients day={fibreDay(40, true)} />)).toContain("Over your 20–25 g band");
+    expect(renderToStaticMarkup(<DayNutrients day={fibreDay(22, true)} />)).toContain("In the 20–25 g reference range");
+    expect(renderToStaticMarkup(<DayNutrients day={fibreDay(40, true)} />)).toContain("Over the 20–25 g reference range");
     // A whole day keeps its verdict.
-    expect(renderToStaticMarkup(<DayNutrients day={fibreDay(12, false)} />)).toContain("Under your 20–25 g band");
+    expect(renderToStaticMarkup(<DayNutrients day={fibreDay(12, false)} />)).toContain("Under the 20–25 g reference range");
   });
 
   it("adds one line when the day includes a partly measured recipe, and none otherwise", () => {
