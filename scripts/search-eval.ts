@@ -6,7 +6,11 @@
  * The gate is TOP1_GATE / TOP3_GATE from lib/search/eval.ts — top-1 ≥ 82 %, top-3 ≥ 95 %
  * (ruling R1, Devin, 2026-09-12; see docs/decisions/2026-09-12-session-rulings.md).
  *
- *   pnpm exec tsx scripts/search-eval.ts [--dry-run] [--limit 25]
+ *   pnpm exec tsx scripts/search-eval.ts [--dry-run] [--limit 25] [--rerank]
+ *
+ * `--rerank` measures the OD08 typo fold and dish-marker penalty (lib/search/rerank.ts) exactly as
+ * the route applies them under CATALOG_SEARCH_RERANK=1. Turn the flag on only after this run
+ * passes the gate; always pair it with `--dry-run` so the thresholds file is not rewritten.
  *
  * Env: SUPABASE_TEST_URL, SUPABASE_TEST_ANON_KEY, SEARCH_EVAL_EMAIL, SEARCH_EVAL_PASSWORD.
  * CI never runs this: CI has no catalog database (Phase 1 spec, Open question 4).
@@ -25,6 +29,7 @@ import {
   type Runs,
 } from "@/lib/search/eval";
 import { parseQuery } from "@/lib/search/query";
+import { rerankedSearch } from "@/lib/search/rerank";
 import type { FoodSearchHit } from "@/lib/server/catalog";
 
 const LABELS_PATH = "docs/catalog/labelled-queries.jsonl";
@@ -70,16 +75,21 @@ async function externalIdMap(
   return new Map(rows.map((r) => [`${r.source}:${r.source_id}`, r.id]));
 }
 
-async function run(client: SupabaseClient, labels: LabelledQuery[], limit: number): Promise<Runs> {
+async function run(
+  client: SupabaseClient, labels: LabelledQuery[], limit: number, rerank: boolean
+): Promise<Runs> {
   const runs: Runs = [];
   for (const l of labels) {
     const p = parseQuery(l.q);
-    const { data, error } = await client.rpc("catalog_search", {
-      p_q: p.raw, p_brand: p.brand, p_prep: p.prep, p_limit: limit,
-    });
-    if (error) throw new Error(`catalog_search failed on "${l.q}": ${error.message}`);
+    const { rows } = await rerankedSearch(p.raw, async (q) => {
+      const { data, error } = await client.rpc("catalog_search", {
+        p_q: q, p_brand: p.brand, p_prep: p.prep, p_limit: limit,
+      });
+      if (error) throw new Error(`catalog_search failed on "${l.q}": ${error.message}`);
+      return (data ?? []) as (Record<string, unknown> & { description: string; score: number })[];
+    }, rerank);
     runs.push(
-      ((data ?? []) as Record<string, unknown>[]).map(
+      rows.map(
         (r) =>
           ({
             catalogFoodId: r.catalog_food_id, revisionId: r.revision_id, description: r.description,
@@ -124,12 +134,14 @@ async function main(): Promise<void> {
   const dryRun = argv.includes("--dry-run");
   const limitAt = argv.indexOf("--limit");
   const limit = limitAt >= 0 ? Number(argv[limitAt + 1]) : 25;
+  const rerank = argv.includes("--rerank");
 
   const raw = readLabels();
   const client = await signIn();
   const labels = resolveLabels(raw, await externalIdMap(client, raw));
   const unresolved = labels.filter((l) => l.sourceId.length === 0);
-  const runs = await run(client, labels, limit);
+  const runs = await run(client, labels, limit, rerank);
+  if (rerank) console.log("rerank           : on (OD08 typo fold + dish-marker penalty)");
   const m = relevanceMetrics(labels, runs);
 
   console.log(`labelled queries : ${raw.length} (resolved ${m.n}, unresolved ${unresolved.length})`);
