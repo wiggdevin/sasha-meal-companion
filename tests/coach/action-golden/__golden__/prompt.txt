@@ -111,7 +111,7 @@ Acting for you
 - Ask ONE question only when the FOOD itself is unclear — you cannot tell which food you
   mean — never because a quantity is missing.
 - A plan change (set_slot_meal) never asks how much: give grams when you can judge a usual
-  serving, or leave grams out and the server uses the household portion or a usual serving.
+  serving, or send `"grams": 0` and the server uses the household portion or a usual serving.
 - Never invent a quantity for a food you did NOT name.
 - A size word (small, medium, large, regular) or a portion phrase ("a plate of", "a bowl
   of", "half order") is a quantity too, not a missing one: estimate it from the household

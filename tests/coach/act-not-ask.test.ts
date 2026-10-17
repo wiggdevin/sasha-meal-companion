@@ -72,6 +72,19 @@ describe("a plan change with no grams and no catalog portion acts", () => {
   });
 });
 
+describe("a dry mix with no portion", () => {
+  it("still asks how much instead of guessing", async () => {
+    const mix = { foodRefId: REF(5), name: "Cocoa mix, powder", brand: null, kcalPer100g: 398,
+      prefStatus: null, portionGrams: null } as FoodHit;
+    const { actions, clarifications } = await groundActions("u1", [{
+      kind: "set_slot_meal", from: "2026-10-20", slot: "meal-4", title: "Hot cocoa",
+      items: [{ name: "hot cocoa" }],
+    }], TEST_PROFILE, { searchFoods: vi.fn(async () => [mix]), newActionId: () => "a" });
+    expect(actions).toEqual([]);
+    expect(clarifications).toEqual(["How much Cocoa mix, powder?"]);
+  });
+});
+
 describe("usualServing", () => {
   it("reads the portion band by kind", () => {
     expect(usualServing({ name: "Chicken breast, roasted", kcalPer100g: 165 })).toBe(150);
@@ -80,7 +93,7 @@ describe("usualServing", () => {
   });
 
   it("caps an energy-dense guess and never returns zero", () => {
-    expect(usualServing({ name: "Candy, gummy", kcalPer100g: 350 })).toBe(115);
+    expect(usualServing({ name: "Candy, gummy", kcalPer100g: 350 })).toBe(110);
     expect(usualServing({ name: "Olive oil", kcalPer100g: 884 })).toBe(10);
     expect(usualServing({ name: "Mystery", kcalPer100g: null })).toBe(150);
     expect(usualServing({ name: "Lard", kcalPer100g: 100_000 })).toBe(5);

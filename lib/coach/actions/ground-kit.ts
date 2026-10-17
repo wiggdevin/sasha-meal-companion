@@ -75,7 +75,13 @@ async function groundItem(
     : usable[0];
   if (!hit || hit.foodRefId === null) return NOT_FOUND;
   const portion = hit.portionGrams ?? null;
-  const itemGrams = item.grams ?? (portion !== null && portion > 0 ? portion : usualServing(hit));
+  const hasPortion = portion !== null && portion > 0;
+  // A dry mix or powder with no portion has no usual serving of its own: its name's band belongs
+  // to the made-up food ("Milk, dry" is not 250 g of milk), so that one amount stays a question.
+  if (item.grams === undefined && !hasPortion && CONCENTRATE.test(hit.name)) {
+    return { question: `How much ${sanitizeText(hit.name)}?` };
+  }
+  const itemGrams = item.grams ?? (hasPortion ? portion : usualServing(hit));
   const implausible = concentrateQuestion(hit, itemGrams);
   if (implausible) return { question: implausible };
   const grounded = await groundNamedFood(userId, item.name, itemGrams, profile, ports, hit);
@@ -94,8 +100,10 @@ export function usualServing(hit: Pick<FoodHit, "name" | "kcalPer100g">): number
   const band = portionBand(hit.name, sidePartOf(hit.name) ?? "anchor");
   const kcal = hit.kcalPer100g ?? 0;
   const cap = kcal > 0 ? (USUAL_SERVING_MAX_KCAL * 100) / kcal : Infinity;
-  const grams = Math.min(band.typical, cap);
-  return Math.max(band.step, Math.round(grams / band.step) * band.step);
+  const rounded = cap < band.typical
+    ? Math.floor(cap / band.step) * band.step
+    : Math.round(band.typical / band.step) * band.step;
+  return Math.max(band.step, rounded);
 }
 
 /** A catalog row that is a dry concentrate: a drink-sized amount of it is not a drink. */

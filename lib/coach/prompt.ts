@@ -235,7 +235,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     // Live pass 2026-10-17: "Set my breakfast to oatmeal with blueberries every weekday for the
     // next two weeks" came back as "How much oatmeal? How much blueberries?".
     "- A plan change (set_slot_meal) never asks how much: give grams when you can judge a usual",
-    "  serving, or leave grams out and the server uses the household portion or a usual serving.",
+    "  serving, or send `\"grams\": 0` and the server uses the household portion or a usual serving.",
     "- Never invent a quantity for a food you did NOT name.",
     // Production (2026-09-16..24): "I don't know how many grams it was, just a medium size
     // fillet" and "One medium plate of spaghetti bolognese" each drew three straight requests for
