@@ -116,20 +116,35 @@ export const MAIN_FLOOR = 0.5;
 
 export const FIT_TOLERANCE = 0.1;
 
-function within10pc(actual: number, target: number): boolean {
+/**
+ * The smallest miss that counts. 10 % of a small slot's 10 g of fat is 1 g, which no real plate
+ * hits on all four macros at once, so the Plan sheet threw away every idea for a snack-sized or
+ * late slot ("No ready meal options yet", integration run 2026-10-17). A miss inside 3 g, or
+ * 30 kcal, fits whatever the target.
+ */
+export const FIT_FLOOR_G = 3;
+export const FIT_FLOOR_KCAL = 30;
+
+function withinBar(actual: number, target: number, floor: number): boolean {
   if (target <= 0) return true;
-  return Math.abs(actual - target) <= target * FIT_TOLERANCE;
+  return Math.abs(actual - target) <= Math.max(target * FIT_TOLERANCE, floor);
 }
 
+const floorFor = (macro: keyof MealMacros) => macro === "kcal" ? FIT_FLOOR_KCAL : FIT_FLOOR_G;
+
+const macroFits = (totals: MealMacros, target: MealMacros, macro: keyof MealMacros) =>
+  withinBar(totals[macro], target[macro], floorFor(macro));
+
 /**
- * Every macro within 10 % of the per-meal target, protein checked FIRST (ruling 2026-09-18).
+ * Every macro within 10 % of the per-meal target (or `FIT_FLOOR_G` / `FIT_FLOOR_KCAL`, whichever is
+ * wider), protein checked FIRST (ruling 2026-09-18).
  * Protein is the number that never moves (PRD §7.5), so it is the one whose miss decides the
  * answer, and the order here is the order the sizing pass aims at them.
  */
 export function fitsTarget(
   totals: MealMacros, target: MealMacros,
 ): boolean {
-  return FIT_ORDER.every((macro) => within10pc(totals[macro], target[macro]));
+  return FIT_ORDER.every((macro) => macroFits(totals, target, macro));
 }
 
 const FIT_ORDER = ["protein", "kcal", "carbs", "fat"] as const;
@@ -143,7 +158,7 @@ const FIT_ORDER = ["protein", "kcal", "carbs", "fat"] as const;
 export function fitNote(totals: MealMacros, target: MealMacros): string | null {
   const misses: string[] = [];
   for (const macro of FIT_ORDER) {
-    if (within10pc(totals[macro], target[macro])) continue;
+    if (macroFits(totals, target, macro)) continue;
     const by = Math.round(Math.abs(totals[macro] - target[macro]));
     // A miss that rounds to nothing is not worth a word: "by 0 g" reads like a bug, not a warning.
     if (by < 1) continue;
