@@ -75,7 +75,7 @@ import OnboardingInvite from "@/components/Onboarding/OnboardingInvite";
 import TodayTour from "@/components/tour/TodayTour";
 import ActivityMismatchPrompt from "@/components/ActivityMismatchPrompt";
 import { refreshStarterGate, type StarterGate } from "@/lib/foods/today-starter";
-import { loadEligibleLocalFoodIds, needsConnection } from "@/lib/foods/eligible-client";
+import { loadEligibleLocalFoodIds, needsConnection, recheckHeldOpenSet, StampedEligibleSet } from "@/lib/foods/eligible-client";
 import { SUGGESTIONS_NEED_CONNECTION } from "@/lib/meals/snapshot";
 import { proteinShortfall, slotNote } from "@/lib/today/slot-notes";
 import PlanSheet from "@/components/PlanSheet";
@@ -329,6 +329,34 @@ export default function Today() {
     void readEligibleRef.current();
   }, [debouncedViewedDate]);
   /**
+   * W137: an open food-world set held across a date change seeds nothing on the new date until the
+   * server's token is read again. It is marked provisional in the render that sees the new date
+   * (so no committed render plans from it), then rechecked without blocking Today; the debounced
+   * read above replaces it either way. A closed account's set is never marked and asks nothing.
+   */
+  const [freshnessDate, setFreshnessDate] = useState(viewedDate);
+  const [openRecheck, setOpenRecheck] = useState<{ set: StampedEligibleSet; n: number } | null>(null);
+  const [openVerdicts, setOpenVerdicts] = useState(0);
+  if (freshnessDate !== viewedDate) {
+    setFreshnessDate(viewedDate);
+    // The mark assumes this render commits: a date change is a plain urgent update here, never a
+    // transition. If it ever becomes one, move the mark into the recheck effect.
+    if (eligibleFoodIds instanceof StampedEligibleSet && eligibleFoodIds.heldOpen && !eligibleFoodIds.isWithdrawn) {
+      eligibleFoodIds.markProvisional();
+      setOpenRecheck({ set: eligibleFoodIds, n: (openRecheck?.n ?? 0) + 1 });
+    }
+  }
+  useEffect(() => {
+    if (!openRecheck) return;
+    const account = currentAccountOrNull();
+    if (!account) return;
+    let live = true;
+    void recheckHeldOpenSet(account, openRecheck.set).then((verdict) => {
+      if (live && verdict !== "provisional") setOpenVerdicts((value) => value + 1);
+    });
+    return () => { live = false; };
+  }, [openRecheck]);
+  /**
    * The one owner of Today's writes (FluidVoice F01-F09): eaten marks, meal clears and deletes, an
    * added meal, a retried log and a log a closed sheet confirmed. Keys light only the control that
    * started a write; every run queues behind the one in flight, so no write joins another.
@@ -441,7 +469,9 @@ export default function Today() {
   // a plain object literal here was a fresh reference every render, so that cache never hit.
   const live: TodayLive = useMemo(() => ({ eligibleFoodIds: eligibleFoodIds ?? undefined, accepted,
     recipeAccessEnabled: recipeAccess.enabled, ruleReviewReady: starterGate === "ready" }),
-    [eligibleFoodIds, accepted, recipeAccess.enabled, starterGate]);
+    // `openRecheck`/`openVerdicts` (W137): the held set changed state in place, so derived caches recompute.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [eligibleFoodIds, accepted, recipeAccess.enabled, starterGate, openRecheck, openVerdicts]);
   // Read-only, gated off by default: hidden pre-mount (useRebalancePanel starts with enabled: false)
   // and on every date but the device's local today (classifyDay's hidden row).
   const rebalancePanel = useRebalancePanel(viewedDate, live);
