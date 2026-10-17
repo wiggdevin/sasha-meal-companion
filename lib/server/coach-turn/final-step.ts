@@ -202,7 +202,8 @@ export async function settleFinalStep(
     state.claimWithoutAction = true;
   }
   // A reply that points at a chart or breakdown with no block gets one correction round, no more.
-  if (!state.claimCorrectionRequested && !recipeWidget && claimsChart(reply, state.blocks.length)
+  if (!state.claimCorrectionRequested && !recipeWidget && actions.length === 0 && state.composed.length === 0
+    && (finalStep.suggestions ?? []).length === 0 && claimsChart(reply, state.blocks.length)
     && round < TURN_LIMITS.maxToolCalls) {
     state.claimCorrectionRequested = true;
     state.transcript.push(

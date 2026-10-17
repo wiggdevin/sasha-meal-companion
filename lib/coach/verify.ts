@@ -19,7 +19,7 @@ export function heuristic(reply: string, actions: CoachAction[]): boolean {
 }
 
 const CHART_CLAIM =
-  /\b(?:(?:see|in|check|here(?:'s| is)|shown|attached)\b[^.!?\n]{0,30}\b(?:chart|graph|breakdown|card)\b|(?:chart|graph|breakdown|card)\s+(?:below|above)\b)/i;
+  /\b(?:chart|graph|breakdown)\s+(?:below|above)\b|\b(?:see|check|look at)\s+the\s+(?:chart|graph|breakdown)\b|\bchart\s+(?:is\s+)?attached\b/i;
 
 /** Prose pointing at a chart, graph or breakdown card; unsafe only when no block came with the reply. */
 export function claimsChart(reply: string, blockCount: number): boolean {
