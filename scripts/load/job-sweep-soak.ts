@@ -18,7 +18,8 @@
  *    test stack's sessions; after the first fire, the pass row must exist in the test stack's
  *    `job_cursors`, else the run stops (the app is on another database).
  * Records pass time, runs, retry depth and the retry queue per run. Deletes every seeded account and
- * its own `job_cursors` rows in `finally`, then sweeps any leftover by email prefix.
+ * the harness's `job_cursors` row in `finally`, then sweeps any leftover by email prefix. The
+ * route jobs' own cursor rows stay; their next POST starts a fresh pass.
  *
  *   scripts/test-stack.sh start && set -a && . .supabase-test/.env && set +a
  *   pnpm exec tsx scripts/load/job-sweep-soak.ts --accounts 1000 --budget-ms 20000
@@ -33,7 +34,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { BUDGET_MS, HARD_STOP_MS, listOf, sweep, utcDate } from "@/lib/server/job-cursor";
 import { accountIds } from "@/lib/server/jobs";
 import {
-  assertLocalApp, assertLocalStack, cookieSessionClient, sweepLoadAccounts,
+  assertLocalApp, assertLocalStack, cookieSessionClient, sweepLoadAccounts, type Env,
 } from "./signup-load";
 
 export const SOAK_EMAIL_PREFIX = "w049-soak-";
@@ -130,6 +131,9 @@ export type RouteReport = {
   passDone: boolean;
   passMs: number;
   retryQueued: number | null;
+  /** Why the pass stopped short: a non-OK answer (429 at the hourly cron limit, 503 with the
+   *  job's flag off) or the fire limit. */
+  error?: string;
 };
 
 export type SoakReport = {
@@ -142,20 +146,27 @@ export type SoakReport = {
 
 type Admin = Parameters<typeof sweep>[0];
 
-async function seed(admin: SupabaseClient, prefix: string, tag: string, n: number): Promise<string[]> {
-  const ids: string[] = [];
+/** Pushes each created id into `ids` as it lands, so cleanup sees a partial seed too. */
+async function seed(admin: SupabaseClient, prefix: string, tag: string, n: number,
+  ids: string[]): Promise<void> {
   for (let i = 0; i < n; i += 25) {
-    const batch = await Promise.all(Array.from({ length: Math.min(25, n - i) }, (_, k) =>
+    const batch = await Promise.allSettled(Array.from({ length: Math.min(25, n - i) }, (_, k) =>
       admin.auth.admin.createUser({
         email: `${prefix}${i + k}@load.invalid`,
         password: randomBytes(18).toString("base64url"),
         email_confirm: true,
         user_metadata: { load_run: tag },
       })));
-    for (const { data, error } of batch) {
-      if (error || !data.user) throw new Error(`createUser: ${error?.message ?? "no user"}`);
-      ids.push(data.user.id);
+    let failure: string | null = null;
+    for (const result of batch) {
+      if (result.status === "fulfilled" && result.value.data.user && !result.value.error) {
+        ids.push(result.value.data.user.id);
+      } else {
+        failure ??= result.status === "rejected" ? String(result.reason)
+          : result.value.error?.message ?? "no user";
+      }
     }
+    if (failure) throw new Error(`createUser: ${failure}`);
   }
   const now = new Date().toISOString();
   for (let i = 0; i < ids.length; i += 500) {
@@ -164,7 +175,6 @@ async function seed(admin: SupabaseClient, prefix: string, tag: string, n: numbe
         { onConflict: "user_id" });
     if (error) throw new Error(`user_settings: ${error.message}`);
   }
-  return ids;
 }
 
 async function harnessPass(admin: SupabaseClient, args: SoakArgs, job: string,
@@ -242,6 +252,7 @@ async function probeApp(admin: SupabaseClient, stack: URL, anon: string, app: UR
       throw new Error(`refusing: ${app.origin} rejects the test stack's sessions, so it is not `
         + "running against the test stack");
     }
+    if (!res.ok) throw new Error(`refusing: the app probe answered ${res.status}, not 200`);
   } finally {
     await admin.auth.admin.deleteUser(data.user.id);
   }
@@ -254,16 +265,23 @@ async function routePass(admin: SupabaseClient, app: URL, route: string,
   const start = performance.now();
   const firstAt = new Date();
   let passDone = false;
+  let restarted = false;
+  let error: string | undefined;
   for (let n = 0; n < MAX_FIRES && !passDone; n += 1) {
-    const method = n === 0 ? "POST" : "GET";
+    // POST (a fresh pass) until one is not answered busy, then GETs resume it.
+    const method = restarted ? "GET" : "POST";
     const t0 = performance.now();
     const res = await fetch(new URL(`/api/jobs/${route}`, app), {
       method, headers: { authorization: `Bearer ${cronSecret}` } });
     const body = await res.json().catch(() => null) as
-      { incomplete?: boolean; busy?: boolean } | null;
+      { incomplete?: boolean; busy?: boolean; error?: unknown } | null;
     fires.push({ method, status: res.status, ms: Math.round(performance.now() - t0), body });
-    if (!res.ok) break;
-    if (n === 0) {
+    if (!res.ok) {
+      error = `HTTP ${res.status}${res.status === 429 ? " (hourly cron limit)" : ""}`;
+      break;
+    }
+    if (body?.busy) { await new Promise((r) => setTimeout(r, 5_000)); continue; }
+    if (!restarted) {
       const { data } = await admin.from("job_cursors").select("pass_started_at")
         .eq("job", route).eq("period", period).maybeSingle();
       const at = (data as { pass_started_at: string } | null)?.pass_started_at;
@@ -271,17 +289,18 @@ async function routePass(admin: SupabaseClient, app: URL, route: string,
         throw new Error(`refusing to continue: ${route}'s pass did not appear in the test stack's `
           + "job_cursors, so the app server is on another database");
       }
+      restarted = true;
     }
-    if (body?.busy) { await new Promise((r) => setTimeout(r, 5_000)); continue; }
     passDone = !body?.incomplete;
   }
+  if (!passDone && error === undefined) error = `not done after ${MAX_FIRES} fires`;
   const { data } = await admin.from("job_cursors").select("retry_keys")
     .eq("job", route).eq("period", period).maybeSingle();
   return { route, fires, passDone, passMs: Math.round(performance.now() - start),
-    retryQueued: (data as { retry_keys: string[] } | null)?.retry_keys.length ?? null };
+    retryQueued: (data as { retry_keys: string[] } | null)?.retry_keys.length ?? null, error };
 }
 
-export async function runSoak(args: SoakArgs, env: NodeJS.ProcessEnv): Promise<SoakReport> {
+export async function runSoak(args: SoakArgs, env: Env): Promise<SoakReport> {
   const stack = assertLocalStack(env.SUPABASE_TEST_URL);
   const app = args.app === null ? null : assertLocalApp(args.app);
   const service = env.SUPABASE_TEST_SERVICE_ROLE_KEY;
@@ -295,11 +314,11 @@ export async function runSoak(args: SoakArgs, env: NodeJS.ProcessEnv): Promise<S
   const tag = randomUUID().slice(0, 8);
   const prefix = `${SOAK_EMAIL_PREFIX}${tag}-`;
   const job = `w049-soak-${tag}`;
-  let ids: string[] = [];
+  const ids: string[] = [];
   const cleanup = { deleted: 0, leftoversSwept: 0, cursorRowsDeleted: 0 };
   try {
     const t0 = performance.now();
-    ids = await seed(admin, prefix, tag, args.accounts);
+    await seed(admin, prefix, tag, args.accounts, ids);
     const seedMs = Math.round(performance.now() - t0);
     const harness = await harnessPass(admin, args, job, new Set(ids));
     const routes: RouteReport[] = [];
@@ -309,18 +328,31 @@ export async function runSoak(args: SoakArgs, env: NodeJS.ProcessEnv): Promise<S
     }
     return { stack: stack.origin, seedMs, harness, routes, cleanup };
   } finally {
-    for (let i = 0; i < ids.length; i += 25) {
-      const results = await Promise.all(ids.slice(i, i + 25)
-        .map((id) => admin.auth.admin.deleteUser(id)));
-      cleanup.deleted += results.filter((r) => !r.error).length;
+    // Each step on its own, so a cleanup failure never hides the run's own error.
+    try {
+      for (let i = 0; i < ids.length; i += 25) {
+        const results = await Promise.all(ids.slice(i, i + 25)
+          .map((id) => admin.auth.admin.deleteUser(id)));
+        cleanup.deleted += results.filter((r) => !r.error).length;
+      }
+    } catch (e) {
+      console.error("cleanup: deleting seeded accounts failed", e);
     }
-    cleanup.leftoversSwept = await sweepLoadAccounts(admin, prefix);
-    const { count } = await admin.from("job_cursors").delete({ count: "exact" }).eq("job", job);
-    cleanup.cursorRowsDeleted = count ?? 0;
+    try {
+      cleanup.leftoversSwept = await sweepLoadAccounts(admin, prefix);
+    } catch (e) {
+      console.error(`cleanup: sweep failed; delete accounts starting ${prefix} by hand`, e);
+    }
+    try {
+      const { count } = await admin.from("job_cursors").delete({ count: "exact" }).eq("job", job);
+      cleanup.cursorRowsDeleted = count ?? 0;
+    } catch (e) {
+      console.error(`cleanup: delete job_cursors row ${job} by hand`, e);
+    }
   }
 }
 
-export function soakPlan(args: SoakArgs, env: NodeJS.ProcessEnv): string[] {
+export function soakPlan(args: SoakArgs, env: Env): string[] {
   const stack = assertLocalStack(env.SUPABASE_TEST_URL);
   const app = args.app === null ? null : assertLocalApp(args.app);
   return [

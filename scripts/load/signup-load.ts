@@ -28,6 +28,9 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { summarize, type StepSummary } from "@/lib/timing";
 
+/** The environment the scripts read (`process.env`, or a fixture in tests). */
+export type Env = Record<string, string | undefined>;
+
 /** The isolated test stack's API port (scripts/test-stack.sh). Nothing else is ever accepted. */
 export const TEST_STACK_API_PORT = "56321";
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
@@ -172,7 +175,7 @@ export async function sweepLoadAccounts(admin: SupabaseClient, prefix: string): 
   return found.length;
 }
 
-export async function runSignupLoad(args: SignupArgs, env: NodeJS.ProcessEnv): Promise<SignupReport> {
+export async function runSignupLoad(args: SignupArgs, env: Env): Promise<SignupReport> {
   const stack = assertLocalStack(env.SUPABASE_TEST_URL);
   const app = args.app === null ? null : assertLocalApp(args.app);
   const anon = env.SUPABASE_TEST_ANON_KEY;
@@ -238,7 +241,13 @@ export async function runSignupLoad(args: SignupArgs, env: NodeJS.ProcessEnv): P
         await waitForLoad(args.maxLoad, peak);
         const i = next;
         next += 1;
-        await one(i);
+        try {
+          await one(i);
+        } catch (e) {
+          // A lane never throws: cleanup must not start while other lanes still create accounts.
+          errors += 1;
+          sample(`signup threw: ${e instanceof Error ? e.message : String(e)}`);
+        }
       }
     };
     const sampler = setInterval(() => { peak.value = Math.max(peak.value, loadavg()[0]); }, 1_000);
@@ -248,9 +257,18 @@ export async function runSignupLoad(args: SignupArgs, env: NodeJS.ProcessEnv): P
       clearInterval(sampler);
     }
   } finally {
-    const failed = await deleteAccounts(admin, created);
-    const leftovers = await sweepLoadAccounts(admin, prefix);
-    if (failed > 0 && leftovers === 0) console.warn(`${failed} delete(s) failed, then swept`);
+    // Each step on its own, so a cleanup failure never hides the run's own error.
+    try {
+      const failed = await deleteAccounts(admin, created);
+      if (failed > 0) console.warn(`${failed} delete(s) failed; sweeping by prefix`);
+    } catch (e) {
+      console.error("cleanup: deleting load accounts failed", e);
+    }
+    try {
+      await sweepLoadAccounts(admin, prefix);
+    } catch (e) {
+      console.error(`cleanup: sweep failed; delete accounts starting ${prefix} by hand`, e);
+    }
   }
 
   return {
@@ -273,7 +291,7 @@ export async function runSignupLoad(args: SignupArgs, env: NodeJS.ProcessEnv): P
 }
 
 /** What a run would do, with no network: the checks have passed by the time this prints. */
-export function signupPlan(args: SignupArgs, env: NodeJS.ProcessEnv): string[] {
+export function signupPlan(args: SignupArgs, env: Env): string[] {
   const stack = assertLocalStack(env.SUPABASE_TEST_URL);
   const app = args.app === null ? null : assertLocalApp(args.app);
   return [

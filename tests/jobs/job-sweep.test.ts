@@ -5,7 +5,7 @@
  * failure never stopping another. The pass across runs is tests/jobs/job-cursor.test.ts.
  */
 import { describe, expect, it, vi } from "vitest";
-import { keysetRows, runWithinBudget } from "@/lib/server/job-sweep";
+import { keysetRows, runWithinBudget, type RunOutcome } from "@/lib/server/job-sweep";
 import { accountIds, accountZones } from "@/lib/server/jobs";
 import { listOf } from "@/lib/server/job-cursor";
 import {
@@ -217,7 +217,7 @@ describe("soak shape (W049): many keys, injected retries, cursor resume", () => 
     let listingRuns = 0;
     for (;;) {
       listingRuns += 1;
-      const out = await runWithinBudget({
+      const out: RunOutcome = await runWithinBudget({
         items: keysetRows(page, (k) => k, after), keyOf: (k) => k,
         concurrency: 6, deadline: clock + 700, now: () => clock, work,
       });
