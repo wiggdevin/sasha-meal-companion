@@ -60,6 +60,42 @@ One pass runs per UTC date, held in `job_cursors` (migration `20261217120300`, a
 - A part upload, the manifest or a bookkeeping write still running at 285 s is abandoned; the run records `error` in `backup_runs` and releases the lease before the platform kill, and the cursor keeps every part already written. An abandoned upload that lands later does so at its own run's path, which no manifest names; such stray objects can be removed by hand.
 - A cursor save that is not confirmed (database error or a lost lease) fails the run with 500, so `done` and `incomplete` always mean the progress was saved. After the pass is done, later fires answer `200 { alreadyDone: true }`.
 
+## Hosted encrypted backup (OD03)
+
+`.github/workflows/hosted-backup.yml` runs `scripts/backup-hosted.py backup` every night at 08:30 UTC, independent of the Mac. It takes the SQL dump with the same `scripts/lib/database_backup.py` code (PostgreSQL 17 client from the PGDG apt repository) and the media copy with `scripts/backup-storage.py`, gzips each and encrypts each with [age](https://age-encryption.org) to a public key. It uploads `hosted/<stamp>/db.sql.gz.age`, `hosted/<stamp>/media.tar.gz.age` and then `hosted/<stamp>/receipt.json` (byte counts and SHA-256 of the plaintext and the ciphertext; no host, no database name, no row) to the private `backups` bucket. A folder without a receipt is not a backup. Fourteen complete backups are kept; a receipt-less folder older than the newest backup (a failed run) is removed, and nothing else under `hosted/` is touched. Nothing is uploaded as a workflow artifact, because the repository is public, and plaintext exists only in the runner's private temp directory for the length of the job. The Mac job continues unchanged; PITR waits for the next plan upgrade.
+
+The backup lives with the same provider as the database, so it protects against a bad migration, a bad write or a lost Mac, not against losing the Supabase project; the Mac copy still covers that.
+
+One-time setup (the owner, outside this repo):
+
+1. `age-keygen -o smc-backup.key` on a trusted machine. Store the key file in ZS Vault; it never goes to GitHub. Its `# public key: age1…` line is the recipient.
+2. Repository variable `BACKUP_AGE_RECIPIENT` = that `age1…` public key.
+3. Repository secret `SUPABASE_DB_URL` = the project's **session pooler** URI on port 5432, copied from the dashboard's Connect panel (`postgresql://postgres.<ref>:<password>@<region>.pooler.supabase.com:5432/postgres`). GitHub runners have no IPv6, so the direct `db.<ref>.supabase.co` host does not work there.
+4. Repository secret `SUPABASE_ACCESS_TOKEN`, the same Management API token `migration-drift.yml` reads; Storage resolves the service key from it in process memory.
+
+Until the variable and both secrets exist the job logs a skip and exits 0. Each encrypted object must fit the bucket's per-object upload limit (50 MB by default); a larger one fails the run before anything is uploaded.
+
+Drill (on a fresh branch, never production): list `hosted/` in the `backups` bucket, then
+
+```bash
+python3 scripts/backup-hosted.py fetch <stamp> --identity smc-backup.key --dest <private-drill-directory>
+scripts/restore-to-branch.sh <private-drill-directory>/<dump>.sql --confirm <branch-ref>
+python3 scripts/backup-storage.py --verify <private-drill-directory>/<stamp>-media
+```
+
+`fetch` checks the ciphertext hashes, decrypts, checks the plaintext hash and writes the `.sql.json` receipt the restore helper requires. Record the receipt the same way as the September drills below.
+
+## Alerts (OD02)
+
+`.github/workflows/ops-check.yml` runs `scripts/ops-check.py` every 15 minutes (standard library only, no install). Each problem is one GitHub issue labelled `ops-alert`: opened when it starts, its body updated while it lasts, closed with a comment when it clears; one closed in the last two hours is reopened rather than filing another. Bodies carry status codes, job names, dates and ages only.
+
+- **Health:** `GET /api/health` failing three attempts 20 s apart. `HEALTH_URL` (repository variable) overrides the production URL.
+- **JSON backup stale:** no `backup_runs` row with status ok in the last 36 hours.
+- **Hosted backup stale:** the newest `hosted/*/receipt.json` older than 36 hours (quiet until the first hosted backup exists).
+- **Job pass unfinished:** a job whose newest `job_cursors` pass of the last 7 days started over 12 hours ago and is not done.
+
+The database checks are one read-only select through the Management API with `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` (the pair `migration-drift.yml` reads); without them only the health check runs. GitHub emails issue activity to repository watchers. GitHub disables scheduled workflows after 60 days with no repository activity; re-enable both from the Actions tab if that happens. Crash reports (W053, `[client-error]` in Vercel runtime logs) and Vercel's own runtime logs stay the error trail; there is no third-party tracker.
+
 ## Evidence and limits
 
 The deterministic script tests use fake PostgreSQL executables and temporary directories. They cover credential-free argv, private/unique publication, failed-dump preservation, completion validation, retention, concurrency exclusion, version mismatch, branch guards, checksum rejection and transactional restore invocation. They never read production data. Route tests (`tests/export/backup-route.test.ts`) cover keyset paging under concurrent inserts and deletes, composite keys with quoted text, the UTF-8 part cap, the time budget across runs, the hard stop on a part and on the manifest, a late stale upload, failed reads, failed and lost cursor saves, the fail-closed claim and auth.

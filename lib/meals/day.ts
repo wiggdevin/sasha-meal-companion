@@ -271,7 +271,7 @@ export function planDay(date: string, slots: readonly DaySlot[],
     const occasion = slot.occasion ?? occasionAt(slot.clock, { slot: slot.id, overrides });
     return { date, slot: slot.id, occasion, untimed: isUntimed(occasion, slot.clock), target: slot.target,
       foods: pool, ...(evidence ? { evidence } : {}), ...(hasTasteValues(taste) ? { taste } : {}),
-      ...(open ? { open } : {}), ...(focus ? { focus } : {}), ...(cuisine ? { cuisine } : {}) };
+      ...(open ? { open, foodWorld: "open" as const } : {}), ...(focus ? { focus } : {}), ...(cuisine ? { cuisine } : {}) };
   });
   const rankings = inputs.map((input) => rankPlates(input));
   const choices: Choice[] = rankings.map((ranking) => new Map(bestPerAnchor(ranking.plates)

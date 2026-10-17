@@ -20,7 +20,7 @@ import { APP_CALENDAR_NAME, APP_NAME } from "@/lib/brand";
 
 type SlotDefinition = {
   slot: SlotId;
-  /** Base time-of-day, "HH:MM", 24h. Overridden per §7.5 before shifting. */
+  /** Final time-of-day, "HH:MM", 24h: the app's own clamped slot resolution. */
   time: string;
   summary: string;
   description: string;
@@ -63,25 +63,10 @@ function parseTime(time: string): number {
   return h * 60 + m;
 }
 
-function formatTime(totalMinutes: number): { hh: string; mm: string } {
-  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
-  const h = Math.floor(wrapped / 60);
-  const m = wrapped % 60;
+function formatTime(minutesOfDay: number): { hh: string; mm: string } {
+  const h = Math.floor(minutesOfDay / 60);
+  const m = minutesOfDay % 60;
   return { hh: String(h).padStart(2, "0"), mm: String(m).padStart(2, "0") };
-}
-
-/**
- * Effective time-of-day for a slot: its per-slot override (if any) replaces
- * the base time, then shiftMinutes is added on top — matching the Settings
- * comment "shiftMinutes ... applied on top of slotTimes".
- */
-function effectiveMinutes(
-  slot: SlotDefinition,
-  slotTimes: Partial<Record<SlotId, string>>,
-  shiftMinutes: number,
-): number {
-  const base = slotTimes[slot.slot] ?? slot.time;
-  return parseTime(base) + shiftMinutes;
 }
 
 /** Date of the next occurrence of `byday` on/after `anchor` (both UTC dates). */
@@ -109,10 +94,16 @@ function dateStamp(d: Date): string {
   return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`;
 }
 
-/** Floating local date-time, e.g. "20260101T083000" — no TZID, no Z. */
-function floatingDateTime(d: Date, minutesOfDay: number): string {
-  const { hh, mm } = formatTime(minutesOfDay);
-  return `${dateStamp(d)}T${hh}${mm}00`;
+/**
+ * Floating local date-time, e.g. "20260101T083000" — no TZID, no Z. Minutes past the end of the
+ * day roll onto the next date, so an event that starts at 23:55 ends at 00:10 the day after,
+ * never before it starts (audit A100).
+ */
+function floatingDateTime(d: Date, minutes: number): string {
+  const day = new Date(d);
+  day.setUTCDate(day.getUTCDate() + Math.floor(minutes / 1440));
+  const { hh, mm } = formatTime(((minutes % 1440) + 1440) % 1440);
+  return `${dateStamp(day)}T${hh}${mm}00`;
 }
 
 /** UTC date-time with trailing Z, for DTSTAMP. */
@@ -186,8 +177,10 @@ export function generateMealPlanIcs(options: IcsGenerationOptions = {}): string 
 
   const byday = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
   const anchor = anchorDateFor(byday);
+  // The same resolution Today shows: per-slot times, then the whole-day shift, clamped to the day
+  // (lib/plan.ts `shiftTime`), never wrapped past midnight (audit A090, A100).
   const slots: SlotDefinition[] = resolveSlotTimes("rest", {
-    slotTimes: {}, shiftMinutes: 0,
+    slotTimes, shiftMinutes,
     mealsPerDay: options.mealsPerDay,
     activeTargetProfile: options.activeTargetProfile,
   }).map(({ slot, time }, index) => ({
@@ -195,7 +188,7 @@ export function generateMealPlanIcs(options: IcsGenerationOptions = {}): string 
     description: "A meal from your personal plan.",
   }));
   for (const slotDef of slots) {
-    const startMinutes = effectiveMinutes(slotDef, slotTimes, shiftMinutes);
+    const startMinutes = parseTime(slotDef.time);
     const endMinutes = startMinutes + EVENT_DURATION_MINUTES;
     const uid = `${slotDef.slot}@meal-companion.local`;
     const summary = escapeText(slotDef.summary);

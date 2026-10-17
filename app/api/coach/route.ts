@@ -18,6 +18,8 @@ import { runTurn } from "@/lib/server/coach-turn";
 import { COACH_RESPONSE_DEADLINE_MS } from "@/lib/coach/turn";
 import { ASSISTANT_NAME } from "@/lib/brand";
 import { coachEnabled } from "@/lib/capabilities";
+import { acceptsCoachStream } from "@/lib/coach/stream-events";
+import { streamTurn } from "@/lib/server/coach-stream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +32,11 @@ export const maxDuration = 60;
 
 const MAX_BODY_BYTES = 16 * 1024;
 
+const TIMED_OUT_BODY = { error: "timeout", message: `${ASSISTANT_NAME} did not answer in time. Try again.` };
+
 /** The copy the phone already shows for its own deadline, as the retryable 503 it renders. */
 function timedOut(): Response {
-  return Response.json(
-    { error: "timeout", message: `${ASSISTANT_NAME} did not answer in time. Try again.` }, { status: 503 });
+  return Response.json(TIMED_OUT_BODY, { status: 503 });
 }
 
 /**
@@ -69,17 +72,38 @@ async function handle(req: Request, arrivedAt: number): Promise<Response> {
     await enforceRateLimit(`coach:pre:ip:${requestIp(req)}`, 120, 60);
     const { userId, client } = await requireUser(req);
     const body = await readJson(req, coachTurnRequestSchema, MAX_BODY_BYTES);
-    const turn = await runTurn(client, adminClient(), userId, body, { startedAt: arrivedAt });
     // Scoped AI input: echo the scope so the reply can show where it was asked.
-    return Response.json(body.scope ? { ...turn, scope: body.scope } : turn);
-  } catch (e) {
-    if (e instanceof CoachRateLimited) {
-      return new Response(
-        JSON.stringify({ error: e.code, message: e.message, retryAfterSeconds: e.retryAfterSeconds }),
-        { status: 429, headers: {
-          "content-type": "application/json", "retry-after": String(e.retryAfterSeconds) } },
-      );
+    const answer = async (draft?: (text: string) => void) => {
+      const turn = await runTurn(client, adminClient(), userId, body,
+        { startedAt: arrivedAt, ...(draft ? { draft } : {}) });
+      return body.scope ? { ...turn, scope: body.scope } : turn;
+    };
+    // OD06 / W091: a phone that asks for the stream gets the reply's draft as it is written, then
+    // the same turn body (lib/coach/stream-events.ts). Everything above still answers plainly.
+    if (acceptsCoachStream(req.headers.get("accept"))) {
+      return streamTurn({
+        run: answer,
+        toError: async (e) => {
+          const res = errorResponse(e);
+          return { status: res.status, body: await res.json() };
+        },
+        deadlineAt: arrivedAt + COACH_RESPONSE_DEADLINE_MS,
+        timedOut: () => ({ status: 503, body: TIMED_OUT_BODY }),
+      });
     }
-    return jsonError(e);
+    return Response.json(await answer());
+  } catch (e) {
+    return errorResponse(e);
   }
+}
+
+function errorResponse(e: unknown): Response {
+  if (e instanceof CoachRateLimited) {
+    return new Response(
+      JSON.stringify({ error: e.code, message: e.message, retryAfterSeconds: e.retryAfterSeconds }),
+      { status: 429, headers: {
+        "content-type": "application/json", "retry-after": String(e.retryAfterSeconds) } },
+    );
+  }
+  return jsonError(e);
 }

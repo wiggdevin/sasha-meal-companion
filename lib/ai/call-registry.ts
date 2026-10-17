@@ -13,7 +13,9 @@
  * A call site declares the HIGHEST class its payload can carry. Free text or audio from the user
  * may carry incidental D2 (spec §2, "Incidental D2"); it is declared D2 when it goes to Gemini. The
  * Jev paths that carry the user's own words are D1: incidental D2 there is the residual the owner
- * accepted on 2026-09-23 ("not too guarded"), and §8 item 1 asks TypeSafe to close it.
+ * accepted on 2026-09-23 ("not too guarded"). OD12's gate (lib/ai/jev-health.ts, `JEV_HEALTH_GATE=1`,
+ * off for in-house testing) keeps free text the local check does not clear, and every coach reply,
+ * off Jev.
  */
 
 export type DataClass = "D0" | "D1" | "D2";

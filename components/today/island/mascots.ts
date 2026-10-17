@@ -6,7 +6,7 @@ import type { PetMood } from "@/lib/today/pet-mood";
  * choice is stored as `user_settings.mascot` (free text, default "sprout") once the care backend
  * lands; until then the picker plays on samples. The names are working names.
  */
-export type MascotPose = PetMood | "wave" | "listening" | "thinking" | "pointing";
+export type MascotPose = PetMood | "droopy" | "wave" | "listening" | "thinking" | "pointing";
 export type MascotKey = "sprout" | "blueberry" | "mushroom" | "peapod";
 
 export type Mascot = {

@@ -868,6 +868,13 @@ describe("OnboardingFlow", () => {
     expect(isNextDisabled(0, false, false, isBodyStepComplete(complete))).toBe(false);
   });
 
+  it("holds Next on the activity and goal steps until each is answered", () => {
+    expect(isNextDisabled(1, false, false, true, { activity: false, goal: false })).toBe(true);
+    expect(isNextDisabled(1, false, false, true, { activity: true, goal: false })).toBe(false);
+    expect(isNextDisabled(2, false, false, true, { activity: true, goal: false })).toBe(true);
+    expect(isNextDisabled(2, false, false, true, { activity: true, goal: true })).toBe(false);
+  });
+
   /** The attributes of the system button whose label is `label` (components/ui/Button markup). */
   const buttonAttributes = (markup: string, label: string) =>
     new RegExp(`<button([^>]*)><span class="btn-stack"><span class="btn-label">${label}</span>`).exec(markup)?.[1] ?? "";

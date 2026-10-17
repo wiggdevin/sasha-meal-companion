@@ -1,16 +1,15 @@
 /**
- * Sprout's sulk at the pond (owner, 2026-10-07: "Sprout should sulk when the day falls behind or when
- * you poke it"; rules from GPT-6 Astra's spec §F). Pure: the scene passes the time and whether the
- * day is behind (lib/today/pet-mood.ts `droopy`, never re-scored here), and reads back a pose and a
- * line. The words observe; they never blame and never tell anyone to eat.
+ * Sprout's sulk at the pond (rules from GPT-6 Astra's spec §F). Pure: the scene passes the time and
+ * reads back a pose and a line. The words observe; they never blame and never tell anyone to eat.
  *
- * - The day behind → Sprout sits facing away ("day" sulk). It lifts the moment the day recovers.
+ * - Sprout sulks only when poked, never because the day is behind on food or water (owner decision
+ *   OD19, docs/decisions/2026-10-12-owner-decisions.md, replacing the 2026-10-07 "day" sulk).
  * - Pokes are counted over 8 s. Not sulking, the first two are greetings; the third starts a short
  *   poke sulk (6 s). Poking a sulk makes Sprout look back with tears, then turn away again.
  * - A fourth poke inside the window makes Sprout annoyed for 3 s; more pokes do not extend it.
  */
 
-export type SulkMode = "none" | "poke" | "day";
+export type SulkMode = "none" | "poke";
 export type Pose = "fishing" | "sulk" | "lookback" | "annoyed";
 export type Reaction = "greet" | "lookBack" | "annoyed" | "ignored";
 
@@ -23,8 +22,6 @@ export type SulkState = {
   annoyedUntil: number;
   /** Times of recent pokes, ms, newest last. */
   pokes: number[];
-  /** Whether the day was behind at the last update, to notice its recovery. */
-  dayBehind: boolean;
 };
 
 export const POKE_WINDOW_MS = 8000;
@@ -33,23 +30,13 @@ export const LOOK_BACK_MS = 1850;
 export const ANNOYED_MS = 3000;
 
 export const SULK_LINES = {
-  day: "Sprout is waiting for you.",
   poke: "Sprout takes a moment.",
   annoyed: "Sprout wants a little space.",
-  recovered: "Sprout is here with you.",
 } as const;
 
-export const initialSulk = (dayBehind = false): SulkState =>
-  ({ pokeUntil: 0, lookUntil: 0, annoyedUntil: 0, pokes: [], dayBehind });
-
-/** The day's state changed: recovering clears every sulk, tear, annoyance and count at once. */
-export function updateDay(state: SulkState, dayBehind: boolean): SulkState {
-  if (state.dayBehind && !dayBehind) return initialSulk(false);
-  return state.dayBehind === dayBehind ? state : { ...state, dayBehind };
-}
+export const initialSulk = (): SulkState => ({ pokeUntil: 0, lookUntil: 0, annoyedUntil: 0, pokes: [] });
 
 export function sulkMode(state: SulkState, now: number): SulkMode {
-  if (state.dayBehind) return "day";
   return now < state.pokeUntil ? "poke" : "none";
 }
 
@@ -80,8 +67,7 @@ export function pose(state: SulkState, now: number): Pose {
 /** The line under the scene for this moment, or null to keep the pet's own mood line. */
 export function sulkLine(state: SulkState, now: number): string | null {
   if (now < state.annoyedUntil) return SULK_LINES.annoyed;
-  const mode = sulkMode(state, now);
-  return mode === "day" ? SULK_LINES.day : mode === "poke" ? SULK_LINES.poke : null;
+  return sulkMode(state, now) === "poke" ? SULK_LINES.poke : null;
 }
 
 /** The next moment the pose can change on its own (a timer to wake for), or null. */

@@ -30,6 +30,10 @@ import { parseFoodKey } from "@/lib/meals/food-key";
 import { Resolver, resolveRowIdentity, type RowResolution } from "@/lib/server/taste-resolve";
 import { readByDateChunks, readByIdBatches } from "@/lib/server/date-chunks";
 import { fetchAllRows } from "@/lib/server/paged-read";
+import {
+  ACCOUNT_DAY_LAST_RESORT_ZONE, addIsoDays, isoDateIn, readAccountZone,
+} from "@/lib/server/account-day";
+import { isIanaTimeZone } from "@/lib/health/contract";
 
 type Row = Record<string, unknown>;
 
@@ -102,6 +106,9 @@ export async function readTasteHistory(
 ): Promise<TasteHistory> {
   const start = tasteWindowStart(today);
   const owned = (table: string, columns: string) => client.from(table).select(columns).eq("user_id", userId);
+  // A manual line carries only an instant; it is dated by the account's stored zone (UTC as the last
+  // resort), like every other row here, never by the instant's UTC date (audit A072).
+  const zone = readAccountZone(client, userId);
   const [entries, days, selections, shopping, favoredPrefs] = await Promise.all([
     readByDateChunks(start, today, (from, to) => select<{ id: string; local_date: string; slot: string }>(
       owned("log_entries", "id,local_date,slot").is("deleted_at", null)
@@ -113,7 +120,8 @@ export async function readTasteHistory(
       recipe_revision_id: string; serving_fraction: unknown; ingredient_snapshot: unknown }>(
       owned("recipe_plan_selections", "local_date,slot_id,recipe_revision_id,serving_fraction,ingredient_snapshot")
         .gte("local_date", from).lte("local_date", to))),
-    readByDateChunks(start, today, (from, to) => select<{ name: string; identity: unknown; updated_at: string;
+    // One UTC day wider on each side covers every zone's day; the local date filters it below.
+    readByDateChunks(addIsoDays(start, -1), addIsoDays(today, 1), (from, to) => select<{ name: string; identity: unknown; updated_at: string;
       rev: unknown }>(owned("shopping_lines", "name,identity,updated_at,rev").eq("origin", "manual").is("deleted_at", null)
         .gte("updated_at", `${from}T00:00:00Z`).lte("updated_at", `${to}T23:59:59.999Z`))),
     fetchAllRows<{ food_ref_id: string }>((from, to) => client.from("user_food_prefs").select("food_ref_id")
@@ -228,12 +236,15 @@ export async function readTasteHistory(
       }
     }
   }
+  const stored = await zone;
+  const lineZone = isIanaTimeZone(stored) ? stored : ACCOUNT_DAY_LAST_RESORT_ZONE;
   for (const line of shopping) {
     // A choice is dated by its creation. A line never edited (rev 1) still has its creation time in
     // `updated_at`; an edited one has no stored creation time (shopping_lines has no created_at),
     // so it is not counted rather than revived by the edit (W3 r1).
-    const date = str(line.updated_at)?.slice(0, 10);
-    if (num(line.rev) !== 1 || !date) continue;
+    const at = Date.parse(str(line.updated_at) ?? "");
+    const date = Number.isFinite(at) ? isoDateIn(lineZone, new Date(at)) : null;
+    if (num(line.rev) !== 1 || !date || date < start || date > today) continue;
     const hit = resolveRowIdentity({ source: "shopping", row: { ...record(line.identity), name: line.name } }, resolver);
     if (hit.kind === "unreadable") continue;
     vouch(hit, [line.name]);

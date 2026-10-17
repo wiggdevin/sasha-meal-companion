@@ -11,7 +11,7 @@ import { currentAccountOrNull } from "@/lib/device/account";
 import { currentRevisionAndIdentityFor, type ProductIdentity } from "@/lib/foods/food-revision-client";
 import { markFoodLabelChecked } from "@/lib/foods/label-check-client";
 import { readPrefRefCache } from "@/lib/foods/prefs-client";
-import { HELD_ALLERGEN_TEXT } from "@/lib/policy/allergen-holds";
+import { heldAllergenLine } from "@/lib/policy/held-allergens";
 import { allergenKey, CROSS_CONTACT_NOTE } from "@/lib/policy/allergens";
 import { ruleLabel } from "@/lib/reference";
 import Button from "@/components/ui/Button";
@@ -327,7 +327,7 @@ export function LabelCheck({ food }: { food: Food }) {
         <div className="flex flex-col gap-1">
           {heldKeys.map((key) => (
             <p key={key} role="status" className={`m-0 ${CAPTION}`}>
-              {`${ruleLabel(key)}: ${HELD_ALLERGEN_TEXT}`}
+              {heldAllergenLine(ruleLabel(key))}
             </p>
           ))}
         </div>

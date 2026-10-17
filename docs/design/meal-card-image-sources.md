@@ -29,7 +29,7 @@ never shifts the pet. It is not modelled on any existing character.
 | `public/pet/sprout-content.webp` | content: doing fine |
 | `public/pet/sprout-joyful.webp` | joyful: on pace for the hour |
 | `public/pet/sprout-sleepy.webp` | sleepy: night, 21:00–06:00 |
-| `public/pet/sprout-droopy.webp` | droopy: the day has fallen behind |
+| `public/pet/sprout-droopy.webp` | droopy: unused by the mood since OD19 (a shortfall never makes the pet sad); kept for history |
 
 Hero-size art (768 px, 2026-10-07, for onboarding v2's guide through `SproutFigure`): the same four
 renders, cut again with rembg (BiRefNet) from their 2k Higgsfield masters, plus a fifth pose made the

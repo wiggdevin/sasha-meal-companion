@@ -35,6 +35,9 @@ import {
 import { evaluatePolicy, type ConstraintProfile, type PolicyVerdict } from "@/lib/policy/constraints";
 import { pregnancyTunaFinding } from "@/lib/policy/pregnancy-tuna";
 import { readAllergenChecks, readAllergenEvidence } from "@/lib/server/allergen-evidence";
+import {
+  ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZone, resolveAccountDay,
+} from "@/lib/server/account-day";
 import { HttpError } from "@/lib/server/auth";
 import { adviseDraftFoodRoles } from "@/lib/server/food-role-advice";
 import type { MealComponentRoleAdvice } from "@/lib/coach/role-advice";
@@ -186,11 +189,19 @@ async function assertNotDuplicate(
   if (priorCall.data) throw new DuplicateRequest((priorCall.data as { id: string }).id);
 }
 
-/** Writes one `blocked` ai_calls row and refuses at the hard cap; the soft cap only warns. */
+/**
+ * Writes one `blocked` ai_calls row and refuses at the hard cap; the soft cap only warns. The day
+ * the cap counts is the account's stored zone (UTC as the logged last resort), never the zone the
+ * request names: a caller could otherwise pick a zone whose midnight just passed and reset the
+ * count (audit A143).
+ */
 async function assertUnderCaps(
-  admin: SupabaseClient, userId: string, tz: string, purpose: CapturePurpose, inputHash: string
+  admin: SupabaseClient, userId: string, purpose: CapturePurpose, inputHash: string
 ): Promise<{ usedToday: number; soft: number; state: CapState }> {
-  const used = await admin.rpc("ai_calls_today", { p_user_id: userId, p_tz: tz });
+  const { zone } = resolveAccountDay({ purpose: "capture cap",
+    storedZone: await readAccountZone(admin, userId) });
+  const used = await admin.rpc("ai_calls_today",
+    { p_user_id: userId, p_tz: zone ?? ACCOUNT_DAY_LAST_RESORT_ZONE });
   if (used.error) {
     console.error("ai_calls_today failed", { userId, error: used.error });
     throw new HttpError(503, "provider_unavailable", "Capture is unavailable right now.");
@@ -549,7 +560,7 @@ export async function proposeDraft(
 
   const since = new Date(now() - DUPLICATE_WINDOW_MS).toISOString();
   await assertNotDuplicate(client, userId, purpose, inputHash, since);
-  const { usedToday, soft, state } = await assertUnderCaps(admin, userId, req.tz, purpose, inputHash);
+  const { usedToday, soft, state } = await assertUnderCaps(admin, userId, purpose, inputHash);
 
   // Owner request 2026-10-02: text, photo and label ask OpenRouter first (lib/ai/capture.ts), the
   // Gemini payload above stays the fallback.

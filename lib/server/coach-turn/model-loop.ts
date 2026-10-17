@@ -15,6 +15,7 @@ import { ASSISTANT_NAME } from "@/lib/brand";
 import { planTurn, TURN_LIMITS, type TurnStep } from "@/lib/coach/turn";
 import { HttpError } from "@/lib/server/auth";
 import { withWallClock } from "@/lib/server/coach-turn/deadline";
+import { draftStream, type DraftStream } from "@/lib/server/coach-turn/draft";
 import { settleFinalStep } from "@/lib/server/coach-turn/final-step";
 import type { TurnKit } from "@/lib/server/coach-turn/kit";
 import type { ModelEnv, ModelState } from "@/lib/server/coach-turn/model-state";
@@ -26,17 +27,23 @@ export async function runModelLoop(
 ): Promise<void> {
   const { now } = turn;
   const { startedAt } = kit;
-  for (let round = 0; round <= TURN_LIMITS.maxToolCalls; round += 1) {
-    const output = await nextStep(turn, kit, state, model);
-    const step = planTurn({ toolCallsUsed: state.used, startedAt, now: now(), limits: TURN_LIMITS },
-      output);
-    state.step = step;
-    if (step.kind === "final") {
-      if (await settleFinalStep(turn, kit, env, state, step, round) === "retry") continue;
-      break;
+  // OD06: the final step's text streams as a draft while the model writes it (draft.ts).
+  const draft = draftStream(turn.deps.draft, kit.profile, () => state.evidence);
+  try {
+    for (let round = 0; round <= TURN_LIMITS.maxToolCalls; round += 1) {
+      const output = await nextStep(turn, kit, state, model, draft);
+      const step = planTurn({ toolCallsUsed: state.used, startedAt, now: now(), limits: TURN_LIMITS },
+        output);
+      state.step = step;
+      if (step.kind === "final") {
+        if (await settleFinalStep(turn, kit, env, state, step, round) === "retry") continue;
+        break;
+      }
+      if (step.kind !== "tool") break;
+      if (await runToolBatch(turn, kit, env, state, step.calls) === "late") break;
     }
-    if (step.kind !== "tool") break;
-    if (await runToolBatch(turn, kit, env, state, step.calls) === "late") break;
+  } finally {
+    draft.close();
   }
 }
 
@@ -98,7 +105,7 @@ const stalledWithTime = (e: unknown, remainingMs: number, turnAborted: boolean) 
 /** One model step, with the T6 §5 capacity fallback (and, past it, T8's cross-provider retry);
  *  any other failure is 503 coach_unavailable. */
 async function nextStep(
-  turn: OpenTurn, kit: TurnKit, state: ModelState, model: CoachModel,
+  turn: OpenTurn, kit: TurnKit, state: ModelState, model: CoachModel, draft: DraftStream,
 ): Promise<TurnStep> {
   const { realStartedAt } = turn;
   const { wallClockBudgetMs } = kit;
@@ -107,8 +114,12 @@ async function nextStep(
     // Read at each call, so a fallback model gets what the first one left, not a fresh budget.
     const remaining = () => wallClockBudgetMs - (Date.now() - realStartedAt);
     const stalled = (e: unknown) => stalledWithTime(e, remaining(), kit.turnAbort.signal.aborted);
-    const call = (modelId: string, remainingMs = remaining()) => withWallClock(
-      () => model.step(modelId, state.transcript, remainingMs), remainingMs);
+    // A new step (a correction round, or another model after a failure) replaces the draft shown.
+    const call = (modelId: string, remainingMs = remaining()) => {
+      draft.reset();
+      return withWallClock(
+        () => model.step(modelId, state.transcript, remainingMs, draft.onText), remainingMs);
+    };
     let generated: unknown;
     try {
       generated = await call(state.modelId);
@@ -164,6 +175,7 @@ async function nextStep(
       }
     }
     state.modelMs += Date.now() - generateStarted;
+    draft.flush();
     return model.responseSchema.parse(generated);
   } catch (e) {
     // Every option this turn had (the pin, its same-key fallback, and — when configured — the

@@ -69,7 +69,8 @@ describe("only whole-unit bands are held (r2 #7)", () => {
   });
 
   it("moves a named meal's milk off its composed grams to fit", () => {
-    const target = { kcal: 110, protein: 7.3, carbs: 10.6, fat: 4.4 };
+    // Smaller than 250 ml so the milk still has to move under the 3 g / 30 kcal fit floor.
+    const target = { kcal: 80, protein: 5.3, carbs: 7.7, fat: 3.2 };
     const fitted = fitNamedMealPortions(meal([item(milk, 250)], target));
     expect(fitted.fitsTarget).toBe(true);
     expect(fitted.items[0].grams).toBeLessThan(250);

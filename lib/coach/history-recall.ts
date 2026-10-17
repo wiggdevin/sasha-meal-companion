@@ -38,18 +38,28 @@ export function historyExcerpt(content: string, terms: readonly string[] = []): 
   return `${start > 0 ? "…" : ""}${fragment}${start + 300 < clean.length ? "…" : ""}`;
 }
 
-function dateLabel(value: string): string {
+/** The calendar day the message was written on in `timeZone`: the account's zone, so the reply
+ *  names the same day as the source card beside it, never the UTC day (audit A142). */
+function dateLabel(value: string, timeZone: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Saved message" : new Intl.DateTimeFormat("en-US", {
-    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+  if (Number.isNaN(date.getTime())) return "Saved message";
+  const format = (zone: string) => new Intl.DateTimeFormat("en-US", {
+    month: "short", day: "numeric", year: "numeric", timeZone: zone,
   }).format(date);
+  try {
+    return format(timeZone);
+  } catch {
+    return format("UTC");
+  }
 }
 
 /** Quotes rather than a generated synthesis; every line has a saved-message citation. */
-export function historyAnswer(title: string, sources: readonly HistorySource[], question = ""): string {
+export function historyAnswer(
+  title: string, sources: readonly HistorySource[], question = "", timeZone = "UTC",
+): string {
   if (!sources.length) return `I could not find matching saved messages in “${title}”. Try a more specific topic or choose another chat.`;
   const terms = historySearchTerms(question)?.split(" OR ") ?? [];
   const lines = sources.map((source, index) =>
-    `[${index + 1}] ${dateLabel(source.createdAt)} · ${source.role === "user" ? "You" : "Coach"}: “${historyExcerpt(source.content, terms)}”`);
+    `[${index + 1}] ${dateLabel(source.createdAt, timeZone)} · ${source.role === "user" ? "You" : "Coach"}: “${historyExcerpt(source.content, terms)}”`);
   return `I found these saved excerpts in “${title}” (not a full summary):\n\n${lines.join("\n\n")}`;
 }

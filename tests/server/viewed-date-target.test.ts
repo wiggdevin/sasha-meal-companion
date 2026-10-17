@@ -3,11 +3,11 @@
  * sends `now: new Date(`${date}T12:00:00`)`; accountClock turns that into the turn's date, and
  * every slot target is read from that date's plan, logs and day type (training or rest).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { accountClock, buildDayContext } from "@/lib/server/day-context";
 import { suggestionTarget } from "@/lib/server/coach-ports";
 import type { CoachTurnRequest } from "@/lib/coach/types";
-import { MONDAY, seeded, withTargets } from "../coach/context-fixtures";
+import { MONDAY, REVISION_ROW, seeded, withTargets } from "../coach/context-fixtures";
 
 const TZ = "America/Denver";
 /** REVISION_ROW trains on Mon/Wed/Fri; the 15th is a Tuesday, a rest day. */
@@ -65,5 +65,25 @@ describe("the Plan sheet's viewed date", () => {
     const day = withTargets(await buildDayContext(seeded(), "u1", TUESDAY, TZ, "meal-3"));
     const open = day.slots.filter((slot) => slot.slot.startsWith("meal-") && slot.state !== "eaten");
     expect(day.planningTarget!.kcal * open.length).toBeCloseTo(day.remaining.kcal, 0);
+  });
+});
+
+// Audit A167: the server's UTC date is still the day before for an Auckland morning. A revision
+// dated the account's today must still give that day its own meal count and slot clocks.
+describe("the viewed date's revision, east of UTC", () => {
+  it("keeps the revision's 4-meal layout while the server's UTC date is the day before", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-10T20:00:00.000Z")); // 09:00 Oct 11 in Auckland
+      const admin = seeded({ target_profiles: [{ ...REVISION_ROW, effective_from: "2026-10-11" }],
+        plan_days: [], log_entries: [] });
+      const day = withTargets(await buildDayContext(admin, "u1", "2026-10-11", "Pacific/Auckland"));
+      const meals = day.slots.filter((slot) => slot.slot.startsWith("meal-"));
+      // REVISION_ROW trains at 2200 kcal: four meals, the last at 18:30.
+      expect(meals.map((slot) => slot.slot)).toEqual(["meal-1", "meal-2", "meal-3", "meal-4"]);
+      expect(meals.map((slot) => slot.time)).toEqual(["08:00", "11:30", "15:00", "18:30"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

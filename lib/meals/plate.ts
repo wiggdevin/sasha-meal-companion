@@ -102,6 +102,8 @@ export type PlateInput = {
   evidence?: MealEvidence;
   /** The account's quantized taste values (pref-2, D8). Absent or empty: no taste term (pref-0). */
   taste?: TasteValues;
+  /** The account's food world, for the shortage copy only (W102); absent reads as closed. */
+  foodWorld?: "open" | "closed";
   /** The open food-world search (W8). Absent: the Phase 17 search. */
   open?: OpenRanking;
   /**
@@ -343,7 +345,7 @@ export const byFocus = (a: Plate, b: Plate) =>
 /** Why no plate could be built: the parts the best-suited anchor still lacks. */
 function shortageFor(anchors: readonly Food[], pool: PartPools, input: PlateInput,
   day: number): Shortage {
-  if (!anchors.length) return { missing: ["anchor"], reason: shortageReason(input.occasion, ["anchor"]) };
+  if (!anchors.length) return { missing: ["anchor"], reason: shortageReason(input.occasion, ["anchor"], input.foodWorld) };
   const best = [...anchors].sort((a, b) => affinity(b, input.occasion, input.untimed, input.evidence).score
     - affinity(a, input.occasion, input.untimed, input.evidence).score || byCode(foodKey(a), foodKey(b)))[0];
   const key = templateFor(input.occasion, input.untimed, mealFamily(best.name)?.usual ?? []);
@@ -354,7 +356,7 @@ function shortageFor(anchors: readonly Food[], pool: PartPools, input: PlateInpu
     anchorCarriesStarch: partsOf(best).includes("starch"),
   });
   const missing = [...new Set(unmet.flat())];
-  if (missing.length) return { missing, reason: shortageReason(input.occasion, missing) };
+  if (missing.length) return { missing, reason: shortageReason(input.occasion, missing, input.foodWorld) };
   // The parts are there but none goes together at breakfast (yogurt beside rice only): name the
   // base it needs rather than a portion problem (GPT-6 Sol O1 round 2, finding 13).
   if ((key === "breakfast" || key === "snack") && present.includes("starch")) {

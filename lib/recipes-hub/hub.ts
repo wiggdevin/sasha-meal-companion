@@ -125,7 +125,7 @@ export type Fit = { kind: "fits" } | { kind: "over"; by: number; macro: FitMacro
 /**
  * Whether one serving fits what is left today: its kcal, fat and carbs each within what is left
  * (2026-10-04 audit, MINOR 9: a serving inside the kcal and far over the fat read "Fits today").
- * Any known value over says so, kcal first. An unknown value never reads as a fit.
+ * Any known value over says so, kcal first. An unknown value, protein included, never reads as a fit.
  */
 export function fitToday(facts: ServingFacts, left: Macros | null): Fit {
   if (!left || facts.kcal === null) return { kind: "unknown" };
@@ -135,7 +135,9 @@ export function fitToday(facts: ServingFacts, left: Macros | null): Fit {
     const over = value === null || value === undefined ? 0 : Math.round(value - left[macro]);
     if (over > 0) return { kind: "over", by: over, macro };
   }
-  return limits.every((macro) => typeof facts[macro] === "number") ? { kind: "fits" } : { kind: "unknown" };
+  // Protein is a floor, never a cap, but a serving whose protein is unknown cannot be called a fit.
+  return limits.every((macro) => typeof facts[macro] === "number") && facts.protein !== null
+    ? { kind: "fits" } : { kind: "unknown" };
 }
 
 export function fitLabel(fit: Fit): string | null {

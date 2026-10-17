@@ -163,6 +163,13 @@ export function filterPlates(plates: readonly Plate[], input: SuggestInput, targ
   return kept;
 }
 
+/** A stable 0..1 value for a string (FNV-1a), so a seeded shuffle is repeatable. */
+function seededUnit(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
 /** The chip's own order, as a multiplier on each (already per-anchor) plate's card fit. */
 export function weighPlates(plates: readonly Plate[], input: SuggestInput, filter: PlateFilter,
   context: { occasion: Occasion; evidence?: MealEvidence; taste?: TasteValues }):
@@ -174,7 +181,12 @@ export function weighPlates(plates: readonly Plate[], input: SuggestInput, filte
       const share = (plate.macros.protein * 4) / plate.macros.kcal;
       weight *= 0.75 + Math.min(0.45, Math.max(0, share));
     }
-    if (input.novelty) weight *= 1 - 0.5 * familiarity(plate, context.occasion, context.evidence, context.taste);
+    if (input.novelty) {
+      weight *= 1 - 0.5 * familiarity(plate, context.occasion, context.evidence, context.taste);
+      // With no history every plate is equally unfamiliar, so "surprise" would match "choose":
+      // a date-seeded shuffle of ±25 % tells them apart without making a repeat tap unstable.
+      weight *= 0.75 + 0.5 * seededUnit(`${input.date ?? ""}|${plate.key}`);
+    }
     return { plate, weight };
   });
 }

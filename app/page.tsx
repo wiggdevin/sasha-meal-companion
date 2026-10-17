@@ -38,6 +38,7 @@ import type { FoodComponent, LoggedFood, SlotId, SlotOverride } from "@/lib/type
 import { AnimatePresence, MotionConfig } from "motion/react";
 import TodayDayStrip from "@/components/TodayDayStrip";
 import DayCard from "@/components/today/DayCard";
+import DuplicateEntryCard from "@/components/today/DuplicateEntryCard";
 import { DAY_CARD_EXPLAINER } from "@/components/today/ExplainerPlayer";
 import { boardTips, nextMeal } from "@/lib/today/board";
 import DayNutrients from "@/components/DayNutrients";
@@ -958,18 +959,14 @@ export default function Today() {
             explainers: [DAY_CARD_EXPLAINER],
           }} />
 
+        <DuplicateEntryCard date={viewedDate} extras={resolved.extras} />
+
         <DayNutrients day={resolved} accountId={currentAccountOrNull()?.userId ?? null} />
 
         <OnboardingInvite localState={{
           firstOpenedAt: store.firstOpenedAt,
           onboardedAt: store.settings.onboardedAt,
         }} now={now} />
-
-        {/* Owner feedback, 2026-10-08: never a fixed overlay over a meal card's own actions — an
-            inline card in the Today flow instead, and only after a meaningful moment (a logged
-            meal, else the second app open), never during onboarding or sign-in (neither route
-            mounts this page). */}
-        {isToday && <InstallPrompt store={store} />}
 
         {/* The app overview: once after onboarding, and whenever the companion is tapped. */}
         <TodayTour onboardedAt={store.settings.onboardedAt} />
@@ -1102,6 +1099,12 @@ export default function Today() {
             );
           })}
         </section>
+
+        {/* Owner feedback, 2026-10-08: never a fixed overlay over a meal card's own actions — an
+            inline card in the Today flow instead, and only after a meaningful moment (a logged
+            meal, else the second app open), never during onboarding or sign-in (neither route
+            mounts this page). After the plan, so its late arrival never moves a meal card. */}
+        {isToday && <InstallPrompt store={store} />}
 
         {nextMealSlot(store, viewedDate, resolved.dayType) && (
           <button type="button" onClick={() => void addMeal()} {...todayFeedback.controlPropsFor("meal:add")}

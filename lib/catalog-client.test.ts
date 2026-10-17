@@ -6,7 +6,6 @@ import {
   cacheDetail,
   createSearchController,
   getFoodDetail,
-  offPlanFlags,
   searchFoods,
   SEARCH_DEBOUNCE_MS,
   toCachedRevision,
@@ -88,25 +87,6 @@ describe("searchFoods", () => {
   });
 });
 
-describe("offPlanFlags", () => {
-  it.each([
-    ["Chicken, breast, roasted", []],
-    ["Cheese, cheddar", ["dairy"]],
-    ["Almond milk, unsweetened", []],
-    ["Bread, whole-wheat", ["gluten"]],
-    ["Rice noodles, cooked", []],
-    ["Applesauce, unsweetened", ["apple"]],
-    ["Pizza, cheese", ["gluten", "dairy"]],
-    ["Wheat Thins Original", ["gluten"]],
-    ["Wheat germ", ["gluten"]],
-    ["Rye crisp crackers", ["gluten"]],
-    ["Semolina flour", ["gluten"]],
-    ["Malt-O-Meal", ["gluten"]],
-  ])("reads %s as %j", (name, expected) => {
-    expect(offPlanFlags(name)).toEqual(expected);
-  });
-});
-
 describe("toRows", () => {
   it("maps an online hit to a USDA tile and keeps the score order the server sent", () => {
     const rows = toRows({
@@ -131,8 +111,8 @@ describe("toRows", () => {
     const rows = toRows({
       kind: "offline", reason: "network",
       hits: [
-        { id: "chicken-breast", name: "Chicken breast", source: "db", flags: [], score: 900, ...serving },
-        { id: "my-shake", name: "Her shake", source: "mine", flags: [], score: 950, ...serving },
+        { id: "chicken-breast", name: "Chicken breast", source: "db", score: 900, ...serving },
+        { id: "my-shake", name: "Her shake", source: "mine", score: 950, ...serving },
       ],
     });
     expect(rows.every((r) => r.offline)).toBe(true);
@@ -140,12 +120,12 @@ describe("toRows", () => {
     expect(rows[1].offlineFoodId).toBe("my-shake");
   });
 
-  it("marks an off-plan description on the row", () => {
+  it("marks nothing off-plan from the name alone: an account with no rules sees no default mark", () => {
     const rows = toRows({
       kind: "online", queryClass: "generic", autoResolve: null, catalogVersion: "2026-04",
       hits: [{ ...HIT, description: "Pizza, cheese" } as never],
     });
-    expect(rows[0].offPlan).toEqual(["gluten", "dairy"]);
+    expect(rows[0].offPlan).toEqual([]);
   });
 
   it("carries the server's ingredient-based policy verdict through, even when the name itself doesn't say so", () => {

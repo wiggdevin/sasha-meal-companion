@@ -77,6 +77,12 @@ describe("fetchRecipePage", () => {
     }
   });
 
+  it("answers a Location that is not a URL with a typed 422, not a crash", async () => {
+    const { deps } = fakeHttps(PUBLIC, { "https://recipes.example/go": { status: 302, location: "https://[bad" } });
+    await expect(fetchRecipePage("https://recipes.example/go", deps))
+      .rejects.toMatchObject({ status: 422, code: "bad_redirect" });
+  });
+
   it("refuses a redirect to a hostname that resolves to a private address", async () => {
     const { deps, hits, resolved } = fakeHttps({ ...PUBLIC, "metadata.example": ["169.254.169.254"],
       "inside.example": ["93.184.216.34", "10.0.0.5"] }, {

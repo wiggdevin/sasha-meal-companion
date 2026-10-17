@@ -1,6 +1,7 @@
 "use client";
 
 import { HELD_ALLERGEN_TEXT } from "@/lib/policy/allergen-holds";
+import { heldAllergenLine } from "@/lib/policy/held-allergens";
 import { CROSS_CONTACT_NOTE } from "@/lib/policy/allergens";
 import { ruleLabel } from "@/lib/reference";
 
@@ -22,7 +23,7 @@ type FindingLine = { allergen: string; outcome: "present" | "absent" | "unknown"
  */
 function lineText(finding: FindingLine): string {
   return finding.text === HELD_ALLERGEN_TEXT
-    ? `${ruleLabel(finding.allergen)}: ${finding.text}` : finding.text;
+    ? heldAllergenLine(ruleLabel(finding.allergen)) : finding.text;
 }
 
 /**

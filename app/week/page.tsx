@@ -102,8 +102,23 @@ function CloseIcon() {
 // ------------------------------------------------------------------ page
 
 export default function WeekPage() {
-  const today = useMemo(() => todayISO(), []);
+  const [today, setToday] = useState(todayISO);
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // "Today" follows local midnight while the page stays open, as Today's own clock does: a check
+  // each minute and on every return to the tab (audit A070). The same string never re-renders.
+  useEffect(() => {
+    const roll = () => setToday(todayISO());
+    const onVisible = () => { if (document.visibilityState === "visible") roll(); };
+    const interval = window.setInterval(roll, 60_000);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, []);
   const [store, setStore] = useState<Store | null>(null);
 
   // localStorage never runs during SSR (store.ts is SSR-safe by returning a
@@ -234,6 +249,12 @@ export default function WeekPage() {
           </div>
         </div>
       </div>
+
+      {weekHasTargets && stats.overTargetDays.length > 0 && (
+        <p className={`m-0 px-1 ${STAT_CAPTION}`}>
+          Above calorie target: {stats.overTargetDays.join(", ")}
+        </p>
+      )}
 
       {(stats.gut || stats.weight) && (
         <div className="flex flex-wrap gap-2 px-1">

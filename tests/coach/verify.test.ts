@@ -33,6 +33,14 @@ describe("coach reply verification", () => {
   });
   afterEach(() => vi.unstubAllEnvs());
 
+  it("uses the deterministic check, with no Jev call, while JEV_HEALTH_GATE is 1 (OD12)", async () => {
+    vi.stubEnv("JEV_HEALTH_GATE", "1");
+    await expect(verifyReply({
+      reply: "Logged your lunch — 620 kcal.", actions: [], toolResults: [],
+    }, { userId: "u1" })).resolves.toEqual({ flagged: true, p: null });
+    expect(systemOneMock).not.toHaveBeenCalled();
+  });
+
   it("flags a claimed log with no covering action", async () => {
     systemOneMock.mockResolvedValue(answer(0.94));
 

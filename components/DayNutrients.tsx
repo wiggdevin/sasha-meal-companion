@@ -24,9 +24,9 @@ function writeDismissed(key: string): void {
 }
 
 const BAND_COPY = {
-  under: `Under your ${FIBER_BAND_G.min}–${FIBER_BAND_G.max} g band`,
-  "in-band": `In your ${FIBER_BAND_G.min}–${FIBER_BAND_G.max} g band`,
-  over: `Over your ${FIBER_BAND_G.min}–${FIBER_BAND_G.max} g band`,
+  under: `Under the ${FIBER_BAND_G.min}–${FIBER_BAND_G.max} g reference range`,
+  "in-band": `In the ${FIBER_BAND_G.min}–${FIBER_BAND_G.max} g reference range`,
+  over: `Over the ${FIBER_BAND_G.min}–${FIBER_BAND_G.max} g reference range`,
   unknown: "No fibre logged yet",
 } as const;
 
@@ -56,7 +56,7 @@ function MicroList({ totals }: { totals: Map<NutrientCode, NutrientTotal> }) {
             <dd className="shrink-0 text-caption tabular-nums text-charcoal ">
               {formatAmount(code, measured ? total.amount : null, total?.unit ?? "")}
               {pct !== null && measured && (
-                <span className="pl-2 font-normal text-text-faint">{Math.round(pct)}% DRI</span>
+                <span className="pl-2 font-normal text-text-faint">{Math.round(pct)}% of reference</span>
               )}
             </dd>
           </div>

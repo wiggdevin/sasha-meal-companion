@@ -19,6 +19,7 @@ import { CAPTION, CARD_TITLE } from "@/components/settings/settings-styles";
 import TargetsSection from "@/components/settings/TargetsSection";
 import CuisinesSection from "@/components/settings/CuisinesSection";
 import CompanionSection from "@/components/settings/CompanionSection";
+import ProcessorsSection from "@/components/settings/ProcessorsSection";
 import WaterSection from "@/components/settings/WaterSection";
 import HowSashaWorksCard from "@/components/tour/HowSashaWorksCard";
 import { useSettingsController } from "@/components/settings/use-settings-controller";
@@ -144,6 +145,8 @@ export default function SettingsPage() {
         <SyncStatus />
         <SignOutCard />
       </DataAccountSection>
+
+      <ProcessorsSection />
     </main>
   );
 }

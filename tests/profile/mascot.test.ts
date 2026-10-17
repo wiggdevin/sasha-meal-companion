@@ -68,14 +68,14 @@ describe("petState takes the chosen mascot without changing an unmodified caller
     expect(PET_NAME).toBe("Sprout");
     expect(petState(day(0, 0, 0), 8).line).toBe("Sprout is thriving today.");
     expect(petState(day(0, 0), 10, "future").line).toBe("Sprout is waiting for this day.");
-    expect(petState(day(300, 20, 1), 23, "past").line).toBe("A quieter day for Sprout.");
-    expect(Object.keys(PET_ART).sort()).toEqual(["content", "droopy", "joyful", "sleepy"]);
+    expect(petState(day(300, 20, 1), 23, "past").line).toBe("A steady day.");
+    expect(Object.keys(PET_ART).sort()).toEqual(["content", "joyful", "sleepy"]);
   });
 
-  it("names the chosen companion in every line kind, including the past-droopy one", () => {
+  it("names the chosen companion in every line kind", () => {
     expect(petState(day(0, 0, 0), 8, "today", "blueberry").line).toBe("Blu is thriving today.");
     expect(petState(day(0, 0), 10, "future", "mushroom").line).toBe("Button is waiting for this day.");
-    expect(petState(day(300, 20, 1), 23, "past", "peapod").line).toBe("A quieter day for Pod.");
+    expect(petState(day(300, 20, 1), 17, "today", "peapod").line).toBe("Pod is doing fine.");
     expect(petState(day(2000, 150, 8), 22, "today", "blueberry").line).toBe("Blu is asleep. Rest well.");
   });
 

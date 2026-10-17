@@ -140,11 +140,35 @@ be wrong. The integration sends only the data needed for the question being aske
   or any model; the dietary field's raw text is still saved to the user's own account
   (`diet_prefs.text`), as on main — sent as typed with the food family names it contains and
   nothing else; and
-- reply text, action summaries and successful tool names for claim-without-action verification.
+- reply text, action summaries and successful tool names for claim-without-action verification
+  (not while `JEV_HEALTH_GATE=1`; see "Health gate" below).
 
 Application-held identity, email, health conditions, gut data and stored notes are never attached to
-a Jev request. A person can still type sensitive information into coach or dietary-preference free
-text; that text is the input being classified, so it is sent as written.
+a Jev request.
+
+### Health gate (OD12, 2026-10-17)
+
+TypeSafe's policy above names no health-data terms and no retention period. The gate
+(`lib/ai/jev-health.ts`) keeps text that may carry health context off Jev when
+`JEV_HEALTH_GATE=1` (manual, never inferred). It is **off** by default: the owner keeps Jev on
+every text path while the app is tested in-house (2026-10-17). Turn it on before anyone outside
+in-house testing uses the app, unless TypeSafe's terms are recorded here by then.
+
+Text counts as health text unless the local check (`mayReachJev`, `lib/profile/taste-safety.ts`)
+clears it as plain likes, dislikes or a whole app command. With the gate on:
+
+- coach intent, dietary text and taste text reach Jev only when cleared (unchanged since W5b;
+  those checks run whether or not the gate is on);
+- a suggestion wish the check does not clear is left out of the ranking payload (`wish: null`);
+- reply verification never reaches Jev (a coach reply is always health-bearing) and uses the
+  deterministic heuristic;
+- food names, brands and ingredient text (role advice, log sanity, facet warming) are food data
+  and are not gated; a custom food name that spells out a condition is the accepted residual;
+- the adapter (`lib/ai/typesafe.ts`) refuses any payload a builder marked health-bearing before a
+  request is made, with no `ai_calls` row. Tests: `tests/ai/jev-health-gate.test.ts`.
+
+Settings lists every third-party processor under "Who handles your data"
+(`components/settings/ProcessorsSection.tsx`); keep it in step with this file.
 
 Retention was checked on 2026-09-19 against TypeSafe's [privacy policy](https://typesafe.ai/legal/privacy-policy),
 last updated 2025-11-19. The page says TypeSafe collects API prompts and other input, does not train

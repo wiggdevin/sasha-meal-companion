@@ -185,6 +185,7 @@ describe("computeWeekStats — graceful omission", () => {
   it("zero floor days still reports the line's data (count 0, no day list)", () => {
     const stats = computeWeekStats([eatenDay("2026-09-14")], "2026-09-15");
     expect(stats.floorDays).toEqual({ count: 0, days: [] });
+    expect(stats.overTargetDays).toEqual([]);
   });
 
   it("floor days are named by weekday", () => {

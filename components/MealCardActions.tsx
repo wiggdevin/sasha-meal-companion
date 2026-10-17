@@ -94,7 +94,7 @@ export default function MealCardActions({ label, revealed, settle, onClear, onDe
     {onToggle && <button ref={moreRef} type="button" aria-expanded={clearOut}
       aria-label={`More for ${label}`}
       onClick={() => { focusClear.current = !deleteOut; onToggle(); }}
-      className="tap sr-only focus:not-sr-only focus:!absolute focus:!left-3 focus:!top-3 focus:!z-20 focus:!rounded-full focus:!bg-primary focus:!px-4 focus:!py-2 focus:!text-caption focus:!text-on-primary">
+      className="tap sr-only focus-visible:not-sr-only focus-visible:!absolute focus-visible:!left-3 focus-visible:!top-3 focus-visible:!z-20 focus-visible:!rounded-full focus-visible:!bg-primary focus-visible:!px-4 focus-visible:!py-2 focus-visible:!text-caption focus-visible:!text-on-primary">
       More
     </button>}
   </div>;

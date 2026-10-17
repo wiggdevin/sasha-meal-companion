@@ -96,7 +96,7 @@ describe("MealCardActions rail", () => {
     // audit (Grok MINOR), not just un-clipped.
     for (const utility of ["absolute", "left-3", "top-3", "z-20", "rounded-full", "bg-primary",
       "px-4", "py-2", "text-caption", "text-on-primary"]) {
-      expect(more.className).toMatch(new RegExp(`focus:!${utility}(?:\\s|$)`));
+      expect(more.className).toMatch(new RegExp(`focus-visible:!${utility}(?:\\s|$)`));
     }
   });
 

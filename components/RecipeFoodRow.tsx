@@ -19,9 +19,6 @@ export default function RecipeFoodRow({ hit, onPick }: {
           <span className=" truncate text-caption font-normal text-charcoal">{hit.name}</span>
           <span className="truncate text-tiny font-normal text-muted">
             {hit.source === "mine" ? "Your food" : "Built in"}
-            {hit.flags.length > 0 && (
-              <span className="text-alert"> · off-plan: {hit.flags.join(", ")}</span>
-            )}
           </span>
         </span>
       </span>

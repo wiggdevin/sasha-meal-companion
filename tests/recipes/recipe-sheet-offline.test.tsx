@@ -170,28 +170,28 @@ describe("a bundled food as a recipe ingredient", () => {
     expect(unknown).toEqual({ items: [], notice: ADD_FAILED_COPY });
   });
 
-  it("says which flags refused the tap, in both tiers, for apple, gluten and dairy (R6)", async () => {
-    // A recipe is a meal the user plans, so the domain rule binds it: the row stays visible and
-    // marked, and tapping it shows the line instead of adding. Logging stays permissive.
+  it("refuses a row the account's own rules mark off-plan, and never a bundled food by its name (R6)", async () => {
+    // A recipe is a meal the user plans, so the account's rules bind it: a row the server verdict
+    // marked stays visible and marked, and tapping it shows the line instead of adding. A bundled
+    // food carries no default mark: bread, cheese or an apple is no account's rule by itself.
     expect(offPlanCopy(["gluten"])).toBe("Not on their plan (gluten)");
     expect(offPlanCopy(["gluten", "dairy"])).toBe("Not on their plan (gluten and dairy)");
     expect(offPlanCopy(["apple", "gluten", "dairy"])).toBe("Not on their plan (apple, gluten and dairy)");
 
     const before: SheetState = { items: [], notice: null };
     for (const { flag, bundledId } of OFF_PLAN) {
-      // The bundled list's own flag — the catalog-off tier.
-      expect(dbFood(bundledId)!.flags).toContain(flag);
+      expect(dbFood(bundledId)).not.toHaveProperty("flags");
       let adoptions = 0;
       const bundled = await addIngredient(before, { source: "bundled", bundledId },
         deps({ adopt: async (id) => {
           adoptions += 1;
           return { foodRefId: `ref-${id}`, per100g: per100gFromBundled(dbFood(id)!) };
         } }));
-      // Nothing adopted and nothing added: the flags refuse the tap before the row is written.
-      expect(adoptions).toBe(0);
-      expect(bundled).toEqual({ items: [], notice: `Not on their plan (${flag})` });
+      expect(adoptions).toBe(1);
+      expect(bundled.items).toHaveLength(1);
+      expect(bundled.notice).toBeNull();
 
-      // The offline tier of the catalog picker, refused server-side before its ref resolves.
+      // A row the account's rules blocked (the verdict's tag on `offPlan`) is still refused.
       const row: CatalogRow = { ...offlineRow, key: `offline:db:${bundledId}`,
         description: dbFood(bundledId)!.name, offlineFoodId: bundledId, offPlan: [flag] };
       const catalog = await addIngredient(before, pickFromCatalogRow(row), deps());
@@ -223,7 +223,6 @@ describe("a bundled food as a recipe ingredient", () => {
   it("leaves an on-plan pick alone — the rule refuses the flagged one, not the list", async () => {
     const state = await addIngredient({ items: [], notice: null },
       { source: "bundled", bundledId: CHICKEN }, deps());
-    expect(dbFood(CHICKEN)!.flags).toEqual([]);
     expect(state.items).toHaveLength(1);
     expect(state.notice).toBeNull();
   });
@@ -313,10 +312,9 @@ describe("a bundled food as a recipe ingredient", () => {
       <RecipeFoodSearch query="chicken" mine={{}} onQuery={() => {}} onPick={() => {}} />);
     expect(hits).toHaveLength(12);
     expect(markup).toContain(`>${hits[0].name}<`);
-    // Marked, not hidden: a gluten-flagged bundled food still renders, with its flag said out
-    // loud. The tap is what R6 refuses, and the transition tests below cover that.
+    // A bundled food carries no default mark: nuggets are no account's rule by themselves.
     expect(markup).toContain("Chicken nuggets");
-    expect(markup).toContain("off-plan: gluten");
+    expect(markup).not.toContain("off-plan");
     // One button per hit, plus the lookup field's own clear button once it holds a query.
     expect((markup.match(/<button/g) ?? []).length).toBe(hits.length + 1);
     expect(markup).toContain('aria-label="Clear search foods"');

@@ -12,7 +12,6 @@
   padding: 4px 8px 0 4px;
 }
 .stage[data-mood="joyful"], .mini[data-mood="joyful"] { --pet-tint: var(--color-gauge-carbs); }
-.stage[data-mood="droopy"], .mini[data-mood="droopy"] { --pet-tint: var(--color-gauge-calories); }
 .stage[data-mood="sleepy"], .mini[data-mood="sleepy"] { --pet-tint: var(--color-gauge-protein); }
 
 /* ----------------------------------------------------------------------------------- the pet */
@@ -117,9 +116,6 @@
   -webkit-mask-image: linear-gradient(to top, black 0%, transparent 60%);
   pointer-events: none;
 }
-
-/* Low: the pool's hot core already lights the floor under the paws; a full reflection on it muddies. */
-.stage[data-mood="droopy"] .reflection { opacity: 0.26; }
 
 .breath[data-still],
 .shadow[data-still] { animation: none; }

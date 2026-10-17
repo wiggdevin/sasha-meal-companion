@@ -76,31 +76,6 @@ export type CatalogRow = {
   defaultPortion?: Portion | null;
 };
 
-/**
- * Off-plan markers for a catalog description — a faithful port of `flags()` in
- * scripts/build-food-db.py (the DAIRY / DAIRY_OK / GLUTEN / GLUTEN_OK / APPLE classes), so a
- * catalog row and a bundled row mark the same food the same way. The `_OK` class excludes a match.
- * Marking, never hiding: an honest log is worth more than a tidy one.
- */
-const DAIRY =
-  /\b(milk|cheese|yogurt|butter|cream|whey|ghee|ice cream|cheesecake|latte|cappuccino|alfredo|ricotta|feta|brie|mozzarella|parmesan|cheddar|provolone|swiss|pudding|frozen yogurt|hot chocolate|chocolate milk)\b/i;
-// Phrases that read as dairy but are not; each is removed before DAIRY runs, so a name that
-// also names real dairy ("sesame butter, whey") still flags. Global: used with replace only.
-const DAIRY_OK =
-  /\b((?:almond|oat|soy|coconut) milk (?:latte|cappuccino)|almond milk|oat milk|soy milk|coconut milk|coconut water|peanut butter|almond butter|cashew butter|sesame butter|sunflower seed butter|cocoa butter|butternut|buttercup)\b/gi;
-const GLUTEN =
-  /\b(bread|bagel|muffin|croissant|bun|roll|pita|naan|flour tortilla|pancake|waffle|french toast|spaghetti|pasta|noodle|couscous|barley|farro|spelt|wheat|rye|semolina|malt|bulgur|cracker|pretzel|cookie|brownie|cake|donut|pie|cinnamon|pop-tart|ramen|lo mein|dumpling|pierogi|sandwich|burger|pizza|burrito|quesadilla|enchilada|egg roll|spring roll|corn dog|mac|macaroni|lasagna|ziti|gnocchi|biscuit|cornbread|granola|cheerios|corn flakes|cream of wheat|beer|soy sauce|teriyaki|fish sticks|breaded|fried chicken|chicken nuggets|chicken tenders|onion rings|mozzarella sticks|crab cake|meatball|meatloaf|pot pie|gyro|sub |toast|graham|goldfish|rice krispies|oatmeal cookie|oreo|kit kat|falafel|shepherd)\b/i;
-const GLUTEN_OK = /\b(rice noodles|corn tortilla|rice cake|buckwheat|quinoa|gluten-free)\b/i;
-const APPLE = /\bapple/i;
-
-export function offPlanFlags(name: string): string[] {
-  const out: string[] = [];
-  if (GLUTEN.test(name) && !GLUTEN_OK.test(name)) out.push("gluten");
-  if (DAIRY.test(name.replace(DAIRY_OK, " "))) out.push("dairy");
-  if (APPLE.test(name)) out.push("apple");
-  return out;
-}
-
 /** `evaluatePolicy`'s reason string (`allergen:X`, `category:X`, or the bare `avoid_list`) → the
  *  short tag `offPlan` renders. Every blocked reason gets a tag — not only allergens — so a
  *  banned category or a personal avoid-list match reaches the row the same way. */
@@ -111,20 +86,16 @@ function tagForBlockedReason(reason: string): string {
 }
 
 /**
- * A search hit's off-plan markers: the name-only regex, plus whatever the server's real
- * policy verdict (`evaluatePolicy`) already found blocked — allergen, banned category, or them
- * own avoid list. The server verdict is the more trustworthy signal — it reads actual ingredients
- * and their real preferences, not just the product name — so a hit it blocked on anything the name
- * never mentions still has to show up here, never silently dropped.
+ * A search hit's off-plan markers: what the server's policy verdict (`evaluatePolicy`) blocked for
+ * THIS account — an allergen, a banned category or its own avoid list. There is no name-based list:
+ * a food is off-plan only under the account's own rules, never a default one.
  */
 export function offPlanFor(item: {
-  description: string; brand?: string | null;
+  description?: string; brand?: string | null;
   policy?: { verdict: string; reason?: string } | null;
 }): string[] {
-  const nameFlags = offPlanFlags(`${item.description} ${item.brand ?? ""}`);
   const reason = item.policy?.verdict === "blocked" ? item.policy.reason : undefined;
-  const verdictTag = reason ? tagForBlockedReason(reason) : null;
-  return verdictTag && !nameFlags.includes(verdictTag) ? [...nameFlags, verdictTag] : nameFlags;
+  return reason ? [tagForBlockedReason(reason)] : [];
 }
 
 const offPlanForHit = (h: FoodSearchHit): string[] => offPlanFor(h);
@@ -254,8 +225,8 @@ export function toRows(result: SearchResult): CatalogRow[] {
       key: `offline:${h.source}:${h.id}`,
       catalogFoodId: null, revisionId: null, description: h.name, brand: null,
       sourceTile: h.source === "mine" ? "MINE" : "USDA",
-      qualityFlags: h.flags, prefStatus: null, score: h.score,
-      offPlan: h.flags,
+      qualityFlags: [], prefStatus: null, score: h.score,
+      offPlan: [],
       offline: true, offlineFoodId: h.id, offlineSource: h.source,
       kcalPer100g: h.kcalPer100g, per100g: h.per100g, portions: h.portions, defaultPortion: h.defaultPortion,
     }));

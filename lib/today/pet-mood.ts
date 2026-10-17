@@ -8,9 +8,10 @@
  * - Only what is known counts: a target of 0 and a missing water reading are left out, never scored.
  * - Today is judged against where the day should be by now, with a grace window after waking. A past
  *   day is judged whole; a future day is not judged.
- * - A partly measured day (a recipe serving of unknown size) is never called low, and its totals,
- *   being lower bounds, count only once they already keep pace.
- * - A day that has reached its calories is never called low.
+ * - A partly measured day's totals, being lower bounds, count only once they already keep pace.
+ * - A shortfall never makes the pet sad (owner decision OD19, docs/decisions/2026-10-12-owner-decisions.md):
+ *   a day behind on food or water reads as content, never low. The pet reacts negatively only when
+ *   poked (components/today/scene/sulk.ts).
  * - The words observe; they never shame and never tell anyone to eat.
  *
  * Pure: the hour and the day's place in time are passed in, so a test can hold the clock.
@@ -27,7 +28,7 @@
 import type { Macros } from "@/lib/types";
 import { MASCOT_NAMES, mascotKeyOf, type MascotKey } from "@/lib/profile/mascot";
 
-export type PetMood = "content" | "joyful" | "sleepy" | "droopy";
+export type PetMood = "content" | "joyful" | "sleepy";
 export type PetWhen = "today" | "past" | "future";
 
 export type PetDay = {
@@ -51,8 +52,6 @@ export const PET_NAME = "Sprout";
 /** Nothing is expected before 09:00 (breakfast is the user's own time); the whole day by 20:00. */
 const PACE_START = 9;
 const PACE_END = 20;
-/** Before this hour the day is too young to call low. */
-const LOW_FROM = 14;
 const NIGHT_FROM = 21;
 const NIGHT_UNTIL = 6;
 
@@ -81,9 +80,7 @@ export function petState(day: PetDay, hour: number, when: PetWhen = "today", mas
   if (when === "future") return { mood: "content", vitality: null, line: `${name} is waiting for this day.` };
 
   const expected = when === "past" ? 1 : expectedShare(hour);
-  const kcalShare = day.targets.kcal > 0 ? day.consumed.kcal / day.targets.kcal : 0;
-  const reached = kcalShare >= 1;
-  const over = kcalShare > 1.15;
+  const over = day.targets.kcal > 0 && day.consumed.kcal / day.targets.kcal > 1.15;
   const fuel = part(day.consumed.kcal, day.targets.kcal, expected, 0.4, day.partial);
   const parts = [
     fuel && over ? { ...fuel, score: 0.6 } : fuel,
@@ -102,12 +99,8 @@ export function petState(day: PetDay, hour: number, when: PetWhen = "today", mas
   if (vitality >= 0.85 && !over) {
     return { mood: "joyful", vitality, line: past ? "A well cared-for day." : `${name} is thriving today.` };
   }
-  // A young day, an unmeasured serving or a day that has reached its calories is never called low.
-  const mayBeLow = !day.partial && !reached && (past || hour >= LOW_FROM);
-  if (vitality >= 0.5 || !mayBeLow) {
-    return { mood: "content", vitality, line: past ? "A steady day." : `${name} is doing fine.` };
-  }
-  return { mood: "droopy", vitality, line: past ? `A quieter day for ${name}.` : `${name} is feeling a little low.` };
+  // A shortfall is never a sad pet (OD19): anything short of thriving is content.
+  return { mood: "content", vitality, line: past ? "A steady day." : `${name} is doing fine.` };
 }
 
 /** The image for each mood (public/pet, recorded in docs/design/meal-card-image-sources.md). */
@@ -115,5 +108,4 @@ export const PET_ART: Record<PetMood, string> = {
   content: "/pet/sprout-content.webp",
   joyful: "/pet/sprout-joyful.webp",
   sleepy: "/pet/sprout-sleepy.webp",
-  droopy: "/pet/sprout-droopy.webp",
 };

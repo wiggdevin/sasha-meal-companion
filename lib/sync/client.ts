@@ -16,7 +16,8 @@ import {
 import { foodsFromSyncRows, loadStore, saveStoreFor } from "../store";
 import { normalizeFoodName } from "@/lib/foods/normalize";
 import { loadAccountFoodSnapshot } from "./food-refs";
-import { applyPulledPlanDay } from "./plan-days";
+import { applyPulledPlanDay, applyReplayedPlanDay } from "./plan-days";
+import { newestPlanDays, pendingPlanReplay, savePlanReplay } from "./plan-replay";
 import { putPulledRow, releasePullHolds } from "./row-queue";
 import { projectPulledEntry } from "@/lib/log/pulled-entry";
 import { isCommitting } from "@/lib/log/live-commits";
@@ -55,6 +56,8 @@ export class SyncHttpError extends Error {
 
 const PAGE_LIMIT = 500;
 const DEFAULT_MAX_PAGES = 50;
+/** The plan-day replay's pages per pass: the feed route allows 60 reads a minute per account. */
+const PLAN_REPLAY_PAGES = 5;
 const SYNCED = new Set<string>(ENTITIES);
 
 export type SyncOptions = { fetchFn?: typeof fetch; maxPages?: number };
@@ -274,7 +277,8 @@ export async function pullChanges(
   const fetchFn = options.fetchFn ?? globalThis.fetch;
   const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
   // A change held back for a queued op is read again once that row's queue is empty (A168).
-  let cursor = since ?? await releasePullHolds(h, await getCursor(h));
+  const storedCursor = since === undefined ? await getCursor(h) : null;
+  let cursor = since ?? await releasePullHolds(h, storedCursor ?? 0);
   let applied = 0;
   let skipped = 0;
   let pages = 0;
@@ -362,6 +366,12 @@ export async function pullChanges(
     await dropSettingsRecovery(h);
   }
 
+  // Plan days pulled before Today saw them are projected once (W096). It runs only on a normal
+  // pass that read the feed to its end, with the pages that pass has left.
+  if (storedCursor !== null && !hasMore && pages < maxPages) {
+    await replayPlanDays(h, storedCursor, Math.min(PLAN_REPLAY_PAGES, maxPages - pages), fetchFn);
+  }
+
   // Direct Foods membership writes bypass the change feed. The account's canonical rows
   // must refresh on every sync pass, including one with an already-consumed cursor. They are
   // projections of what was pulled, not the pull: a failed read here must not keep the outbox
@@ -370,6 +380,35 @@ export async function pullChanges(
 
   return { applied, skipped, cursor, hasMore, pages,
     ...(projectionError === null ? {} : { projectionError }) };
+}
+
+/**
+ * One budgeted step of the plan-day replay (lib/sync/plan-replay.ts). It is a repair of what an
+ * older build left behind, not the pull: a failed page is logged and tried again next pass, and
+ * never keeps the outbox from pushing.
+ */
+async function replayPlanDays(
+  h: AccountHandle, storedCursor: number, pageBudget: number, fetchFn: typeof fetch,
+): Promise<void> {
+  try {
+    let replay = await pendingPlanReplay(h, storedCursor);
+    let pages = 0;
+    while (replay && replay.cursor < replay.through && pages < pageBudget) {
+      const page = await getJson<ChangesResponse>(
+        h, `/api/sync/changes?since=${replay.cursor}&limit=${PAGE_LIMIT}`, fetchFn,
+      );
+      for (const change of newestPlanDays(page.changes, replay.through)) {
+        if (!addressable(change.entity, change.entity_key, change.seq)) continue;
+        await applyReplayedPlanDay(h, change);
+      }
+      replay = { ...replay, cursor: page.has_more ? page.next_cursor : replay.through };
+      await savePlanReplay(h, replay);
+      pages += 1;
+    }
+  } catch (e) {
+    if (e instanceof AccountChanged || !isCurrent(h)) throw e;
+    console.warn(`sync: plan day replay paused: ${shortMessage(e)}`);
+  }
 }
 
 /** Both post-pull projections, each on its own; the first failure's line, or null. */

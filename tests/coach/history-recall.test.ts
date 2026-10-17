@@ -40,4 +40,13 @@ describe("explicit history recall", () => {
     expect(answer).toContain("Sep 25, 2026");
     expect(answer).toContain("saved excerpts");
   });
+
+  // Audit A142: the reply names the day in the account's zone, as the source card does.
+  it("dates each excerpt by the account's zone, not by UTC", () => {
+    const source = { id: "m1", threadId: "t1", seq: 91, role: "user" as const,
+      content: "I prefer tofu at lunch.", createdAt: "2026-10-11T03:30:00Z" };
+    expect(historyAnswer("Food ideas", [source], "", "America/Denver")).toContain("Oct 10, 2026");
+    expect(historyAnswer("Food ideas", [source])).toContain("Oct 11, 2026");
+    expect(historyAnswer("Food ideas", [source], "", "Not/AZone")).toContain("Oct 11, 2026");
+  });
 });

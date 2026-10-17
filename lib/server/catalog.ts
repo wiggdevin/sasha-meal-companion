@@ -16,6 +16,7 @@ import { completenessText, type CatalogIngredientRow } from "@/lib/foods/catalog
 import { buildPortions, type Portion, type RealPortionInput } from "@/lib/foods/portions";
 import type { QualityClass } from "@/lib/search/features";
 import { classifyQuery, parseQuery, type PrepState } from "@/lib/search/query";
+import { rerankedSearch, searchRerankEnabled } from "@/lib/search/rerank";
 import { shouldAutoResolve } from "@/lib/search/thresholds";
 import { HttpError } from "@/lib/server/auth";
 import { namedAllergenHints, type StoredAllergenEvidence } from "@/lib/policy/allergens";
@@ -476,18 +477,24 @@ export async function searchFoods(
   const limit = Math.min(25, Math.max(1, req.limit ?? 25));
   // The version label and the search need nothing from each other, so they share one round trip.
   // A missing catalog still answers first, exactly as it did when the label was read first.
-  const [version, { data, error }] = await Promise.all([
-    settle(activeVersionLabel(client)),
-    client.rpc("catalog_search", {
-      p_q: parsed.raw,
+  // OD08: the typo fold and the dish-marker penalty (lib/search/rerank.ts), off until
+  // CATALOG_SEARCH_RERANK=1; off, this is the one RPC call it always was.
+  const runSearch = async (q: string): Promise<SearchRow[]> => {
+    const { data, error } = await client.rpc("catalog_search", {
+      p_q: q,
       p_brand: brand ?? null,
       p_prep: prep ?? null,
       p_limit: limit,
-    }),
+    });
+    if (error) throw new HttpError(500, "search_failed", "Search is unavailable right now.");
+    return (data ?? []) as SearchRow[];
+  };
+  const [version, searched] = await Promise.all([
+    settle(activeVersionLabel(client)),
+    settle(rerankedSearch(parsed.raw, runSearch, searchRerankEnabled())),
   ]);
   const catalogVersion = unwrap(version);
-  if (error) throw new HttpError(500, "search_failed", "Search is unavailable right now.");
-  const hits = ((data ?? []) as SearchRow[]).map(toHit);
+  const hits = unwrap(searched).rows.map(toHit);
   const revisionKeys = hits.map((h) => `catalog_revision:${h.revisionId}`);
   // Review round 2 (sol/FIX): this stage is a genuinely sequential round trip after the
   // catalog_search RPC above — it needs `hits` first — so it is real added latency versus

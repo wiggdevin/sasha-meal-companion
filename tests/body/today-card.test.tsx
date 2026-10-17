@@ -102,6 +102,13 @@ describe("todayCardRows", () => {
     expect(rows[3].source).toBe("Typed in");
   });
 
+  it("shows weight in the account's unit (OD20)", async () => {
+    const { todayCardRows } = await import("@/components/BodyTodayCard");
+    const kg = todayCardRows(DAY, "kg").find((r) => r.key === "body_mass");
+    expect(kg?.value).toMatch(/ kg$/);
+    expect(kg?.value).not.toMatch(/lb/);
+  });
+
   it("omits missing steps and device energy instead of substituting trend copy", async () => {
     const { todayCardRows } = await import("@/components/BodyTodayCard");
     const rows = todayCardRows({ ...DAY, steps: null, active_kcal: null });

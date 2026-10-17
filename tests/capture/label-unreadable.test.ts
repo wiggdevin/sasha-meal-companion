@@ -43,6 +43,8 @@ function fakeDb() {
     chain.in = table === "ai_calls" ? vi.fn(() => chain) : vi.fn(async () => ({ data: [], error: null }));
     chain.maybeSingle = vi.fn(async () => (table === "media_objects"
       ? { data: { path: REQ.mediaPath, user_id: "u1", deleted_at: null }, error: null }
+      // The account's stored zone dates the capture cap (no last-resort warning).
+      : table === "user_settings" ? { data: { time_zone: REQ.tz }, error: null }
       : { data: null, error: null }));
     chain.insert = vi.fn(async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; });
     return chain;

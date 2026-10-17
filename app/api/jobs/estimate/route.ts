@@ -22,7 +22,7 @@ import {
   BUDGET_MS, HARD_STOP_MS, listOf, markPass, sweep, utcDate,
 } from "@/lib/server/job-cursor";
 import {
-  ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZone, resolveAccountDay,
+  ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZoneStrict, resolveAccountDay,
 } from "@/lib/server/account-day";
 import { adminClient } from "@/lib/server/admin";
 import { HttpError } from "@/lib/server/auth";
@@ -60,7 +60,7 @@ export async function POST(req: Request): Promise<Response> {
         // the deployment-wide HEALTH_TZ. The seed's target lookup (runEstimate → seedFor) and the
         // activity summary use the same day and zone.
         const day = resolveAccountDay({ purpose: "estimate job", now: passStartedAt,
-          storedZone: await readAccountZone(admin, userId) });
+          storedZone: await readAccountZoneStrict(admin, userId) });
         asOf = day.date;
         const lock = await claimLock(admin, JOB_NAME, userId, asOf);
         if (lock !== "taken") {
