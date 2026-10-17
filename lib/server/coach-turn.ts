@@ -76,7 +76,7 @@ function coachModel(turn: Turn, deps: TurnDeps): CoachModel {
         timeoutMs: 10_000, attemptTimeoutMs: COACH_ATTEMPT_TIMEOUT_MS,
         maxOutputTokens: 700, temperature: 0,
       }),
-    step: (modelId, transcript, remainingMs) => isOpenRouterModelId(modelId)
+    step: (modelId, transcript, remainingMs, onText) => isOpenRouterModelId(modelId)
       ? generateOR({
         userId, admin, modelId, schema: responseSchema, providerSchema: turnStepProviderSchema,
         payload: coachOpenRouterPayload(transcript),
@@ -88,6 +88,7 @@ function coachModel(turn: Turn, deps: TurnDeps): CoachModel {
         // first capacity failure is abandoned at once rather than spending RETRIES's own retry on
         // a model already known to be out of capacity.
         abandonOnCapacity: modelId === COACH_MODEL_ID,
+        onText,
       })
       : generate({
         userId, schema: responseSchema, providerSchema: turnStepProviderSchema, admin,
@@ -102,6 +103,7 @@ function coachModel(turn: Turn, deps: TurnDeps): CoachModel {
         // T6 §5: a model with no capacity is abandoned on its FIRST answer, not after its whole
         // retry budget, because there is a second model to spend the rest of the turn on.
         abandonOnCapacity: modelId === COACH_MODEL_ID,
+        onText,
       }),
   };
 }
