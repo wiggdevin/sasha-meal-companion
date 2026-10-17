@@ -27,8 +27,8 @@
  * a repeat tap) or simply holding nothing left to remove (`removed` empty on its first real call,
  * because the keys left the row some other way) — two different facts, worded differently.
  *
- * The card also re-reads the account's pulled settings (`diet_prefs.taste.dislikes`, `cuisines`, the
- * mirror `applyServerUserSettings` writes) on every `SYNCED_EVENT` (W103). An idle card with nothing
+ * The card also re-reads the account's pulled settings (the confirmed taste dislikes and cuisines in
+ * the mirror `applyServerUserSettings` writes, read by `savedTasteKeys`) on every `SYNCED_EVENT` (W103). An idle card with nothing
  * in flight shows a chip another device (or Settings) already saved as saved, never as a pick; when
  * every chip is saved it rests as "Already in your taste preferences" with nothing to send. An
  * applied card whose added keys this mount saw in the mirror and that have all since left it (another
@@ -49,7 +49,7 @@ import { confirmHaptic } from "@/lib/haptics";
 import { AccountChanged, currentAccountOrNull } from "@/lib/device/account";
 import { coachConfirmRequest, type TasteChipsProposal } from "@/lib/coach/taste-chips-card";
 import { loadStore } from "@/lib/store";
-import { dietPrefsTaste } from "@/lib/sync/user-settings";
+import { savedTasteKeys } from "@/lib/sync/user-settings";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 import {
   confirmTasteChips, newTasteActionId, undoTasteChips, type TasteWriteOutcome,
@@ -78,11 +78,8 @@ const mergeKeys = (a: Picks, b: Picks): Picks => ({
 /** The prefixed keys the account's pulled settings hold now; empty when they cannot be read. */
 function savedPicks(): Set<string> {
   try {
-    const settings = loadStore().settings;
-    return new Set([
-      ...(dietPrefsTaste(settings.dietPrefs).taste?.dislikes ?? []).map((key) => pick("d", key)),
-      ...(settings.cuisines ?? []).map((key) => pick("c", key)),
-    ]);
+    const keys = savedTasteKeys(loadStore().settings);
+    return new Set([...keys.dislikes.map((key) => pick("d", key)), ...keys.cuisines.map((key) => pick("c", key))]);
   } catch {
     return new Set();
   }

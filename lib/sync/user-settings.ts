@@ -113,6 +113,16 @@ export function settingsWithCookingEffort<T extends ProfileSettings>(
   };
 }
 
+/** The confirmed taste dislikes and cuisines a settings mirror holds (the coach taste card, W103). */
+export function savedTasteKeys(settings: Pick<Settings, "dietPrefs" | "cuisines">): {
+  dislikes: string[]; cuisines: string[];
+} {
+  return {
+    dislikes: [...(dietPrefsTaste(settings.dietPrefs).taste?.dislikes ?? [])],
+    cuisines: [...(settings.cuisines ?? [])],
+  };
+}
+
 /** `{ taste }` for a spread, copied and cleaned, or `{}` when there is none to keep. */
 export function dietPrefsTaste(dietPrefs: ProfileDietPrefs | null | undefined): { taste?: TastePrefs } {
   const taste = tasteToStore(dietPrefs?.taste);
