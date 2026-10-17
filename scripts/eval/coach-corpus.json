@@ -420,7 +420,7 @@
   {
     "id": "block-search-greek-yogurt-eats",
     "category": "block",
-    "sentence": "find greek yogurt and put it on my avoid list",
+    "sentence": "show me greek yogurt in the catalog so I can decide whether to avoid it",
     "note": "The seed profile avoids dairy, so yogurt belongs on Avoid, never Eats",
     "expected_path": "either",
     "expected_action_kinds": [],
