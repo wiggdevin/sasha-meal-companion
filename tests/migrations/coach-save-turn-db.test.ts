@@ -57,7 +57,8 @@ create function auth.uid() returns uuid language sql stable as
   $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 create table public.coach_threads (id uuid primary key default gen_random_uuid(), title text,
   user_id uuid not null, kind text not null default 'chat', rev int not null default 1,
-  last_message_at timestamptz, deleted_at timestamptz, summary text,
+  last_message_at timestamptz, deleted_at timestamptz,
+  summary text constraint coach_threads_summary_len check (summary is null or length(summary) <= 600),
   created_at timestamptz not null default now());
 create table public.coach_messages (id uuid primary key default gen_random_uuid(),
   thread_id uuid not null references public.coach_threads(id) on delete cascade,
@@ -142,6 +143,11 @@ describe.skipIf(!HAS_PG)("coach_save_turn on Postgres (W088)", () => {
     expect(count("coach_messages")).toBe(0);
   });
 
+  it("clamps a summary past the column's 600 characters instead of failing the turn", () => {
+    expect(save({ rows: [rowJson(Q, "user", 1)], summary: "s".repeat(700) }).err).toBe("");
+    expect(must("select length(summary) from public.coach_threads")).toBe("600");
+  });
+
   it("leaves nothing when the chat cap refuses the new thread", () => {
     must(`insert into public.coach_threads (user_id, kind) select '${A}', 'chat' from generate_series(1, 8)`);
     const r = save({ rows: [rowJson(Q, "user", 1)] });
@@ -193,6 +199,7 @@ describe.skipIf(!HAS_PG)("coach_save_turn on Postgres (W088)", () => {
       [rowJson(Q, "user", 1, {}, A, T2)],
       [rowJson(Q, "user", 1, { model_id: "m" })],
       [rowJson(Q, "user", 1, { tool_calls: { actions: [] } })],
+      [rowJson(Q, "user", 1), { ...rowJson(R, "assistant", 2), role: undefined }],
     ];
     for (const rows of bad) expect(save({ rows }).err).toContain("coach_turn_invalid");
     expect(count("coach_threads")).toBe(0);

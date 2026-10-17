@@ -3,8 +3,13 @@
  *
  * Before migration 20270104120000 a coach turn inserted its new thread, then its messages, as
  * separate calls, so a failure in between left an empty thread behind (it still counts against the
- * eight-chat cap). `coach_save_turn` now saves both in one transaction, so no new ones appear; this
- * report finds the old ones for the owner to review and delete by hand. It never writes.
+ * eight-chat cap). `coach_save_turn` now saves both in one transaction, so a turn no longer leaves
+ * one. This report lists candidates for the owner to REVIEW; it never writes.
+ *
+ * Not every empty thread is a leftover: "Clear chat" keeps an emptied thread on purpose, and
+ * `POST /api/coach/threads` creates an empty chat. Neither can be told apart from a failed save by
+ * the stored rows, so check with the account before deleting anything. Weekly-review threads are
+ * left out (the review job creates the thread before its message).
  *
  *   pnpm exec tsx scripts/coach-empty-threads.ts [--older-than-days N] [--production]
  *
@@ -59,7 +64,7 @@ export async function emptyThreads(ports: EmptyThreadPorts, before: string): Pro
 export function reportLines(rows: readonly ThreadRow[]): string[] {
   const account = (id: string) => hash("sha256", id).slice(0, 12);
   return [...rows.map((row) => `${row.id}\t${account(row.user_id)}\t${row.kind}\t${row.created_at}`),
-    `${rows.length} empty thread${rows.length === 1 ? "" : "s"}`];
+    `${rows.length} empty thread${rows.length === 1 ? "" : "s"} (review each; a cleared chat looks the same)`];
 }
 
 export function databasePorts(db: SupabaseClient): EmptyThreadPorts {
@@ -67,7 +72,8 @@ export function databasePorts(db: SupabaseClient): EmptyThreadPorts {
     threads: async (before) => {
       const { fetchAllRows } = await import("@/lib/server/paged-read");
       return fetchAllRows<ThreadRow>((from, to) => db.from("coach_threads")
-        .select("id, user_id, kind, created_at").is("deleted_at", null).lt("created_at", before)
+        .select("id, user_id, kind, created_at").is("deleted_at", null).neq("kind", "weekly_review")
+        .lt("created_at", before)
         .order("id").range(from, to));
     },
     hasMessage: async (threadId) => {

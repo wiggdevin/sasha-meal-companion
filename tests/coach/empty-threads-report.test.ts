@@ -19,7 +19,7 @@ describe("coach-empty-threads", () => {
     const lines = reportLines([thread("a")]);
     expect(lines[0]).toMatch(/^a\t[0-9a-f]{12}\tchat\t2026-10-01T00:00:00Z$/);
     expect(lines.join("\n")).not.toContain("u1");
-    expect(lines.at(-1)).toBe("1 empty thread");
+    expect(lines.at(-1)).toMatch(/^1 empty thread \(review each/);
   });
 
   it("takes only its two read-only flags", () => {

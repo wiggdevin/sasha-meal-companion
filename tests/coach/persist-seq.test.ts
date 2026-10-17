@@ -56,9 +56,12 @@ describe("persist through coach_save_turn (W088)", () => {
   });
 
   it("answers 500 when the thread cannot be started or the turn cannot be saved", async () => {
+    const taken = admin({ error: { code: "P0001", message: "coach_thread_exists" } });
+    await expect(persist(session, "t1", [row("mine", "user", 1)], "hi", undefined, "chat", taken.client))
+      .rejects.toMatchObject({ status: 500, message: "Could not start a thread." });
     const failed = admin({ error: { code: "XX000", message: "boom" } });
     await expect(persist(session, "t1", [row("mine", "user", 1)], "hi", undefined, "chat", failed.client))
-      .rejects.toMatchObject({ status: 500, message: "Could not start a thread." });
+      .rejects.toMatchObject({ status: 500, message: "Could not save the turn." });
     await expect(persist(session, "t1", [row("mine", "user", 1)], null, undefined, "chat", failed.client))
       .rejects.toMatchObject({ status: 500, message: "Could not save the turn." });
   });

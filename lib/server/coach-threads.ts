@@ -506,6 +506,8 @@ function saveError(error: { message?: string }, newThread: boolean): HttpError {
   if (message.includes("coach_message_exists") || message.includes("coach_seq_busy")) {
     return new HttpError(503, "in_progress", IN_PROGRESS);
   }
-  if (newThread) return new HttpError(500, "internal", "Could not start a thread.");
+  if (newThread && message.includes("coach_thread_exists")) {
+    return new HttpError(500, "internal", "Could not start a thread.");
+  }
   return new HttpError(500, "internal", "Could not save the turn.");
 }

@@ -8,8 +8,9 @@
 -- `coach_save_turn` creates the thread when asked, appends the turn's rows at consecutive seqs and
 -- touches the thread (last_message_at, and the summary when given), all or nothing. The thread row
 -- is locked FOR UPDATE, so two saves on one thread run one after the other; a seq still taken by a
--- writer that does not take that lock (the weekly review, the abandoned-turn reply) is retried
--- inside the function after the thread's new last seq.
+-- writer that read its seq before this save (the weekly review, the abandoned-turn reply) is
+-- retried inside the function after the thread's new last seq. The summary is clamped to the
+-- column's 600-character check, so a long summary never costs the turn.
 --
 -- Service role only, called with the session-verified user id (lib/server/coach-threads.ts). The
 -- checks the session client's RLS used to make on the user's own row are made here explicitly:
@@ -60,7 +61,7 @@ begin
        or (v_row->>'id') is null
        or (v_row->>'user_id')::uuid is distinct from p_user_id
        or (v_row->>'thread_id')::uuid is distinct from p_thread_id
-       or (v_row->>'role') not in ('user', 'assistant')
+       or coalesce(v_row->>'role', '') not in ('user', 'assistant')
        or (v_row->>'seq') is null then
       raise exception 'coach_turn_invalid' using errcode = 'P0001';
     end if;
@@ -125,7 +126,7 @@ begin
 
   update public.coach_threads
      set last_message_at = pg_catalog.now(),
-         summary = coalesce(p_summary, summary)
+         summary = coalesce(left(p_summary, 600), summary)
    where id = p_thread_id;
 
   select jsonb_agg(jsonb_build_object('id', r.value->>'id',
