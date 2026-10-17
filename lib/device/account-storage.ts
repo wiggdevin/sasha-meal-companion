@@ -30,12 +30,17 @@ export function readAccountItem(h: AccountHandle, name: string): string | null {
   }
 }
 
-export function writeAccountItem(h: AccountHandle, name: string, value: string): void {
+/** True when the value was stored; false when storage is missing, blocked or full (the value is lost). */
+export function writeAccountItem(h: AccountHandle, name: string, value: string): boolean {
   assertCurrent(h);
   try {
-    storage()?.setItem(accountKey(h, name), value);
+    const store = storage();
+    if (!store) return false;
+    store.setItem(accountKey(h, name), value);
+    return true;
   } catch {
     // Full or disabled storage: the value is lost, the caller's work is not.
+    return false;
   }
 }
 

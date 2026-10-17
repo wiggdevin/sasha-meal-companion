@@ -3,6 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion, useAnimationControls, useReducedMotionConfig, type PanInfo } from "motion/react";
 import Button from "@/components/ui/Button";
+import Notice from "@/components/ui/Notice";
 import WidgetEditTray from "@/components/today/WidgetEditTray";
 import SproutStage, { SproutBand, SproutMini, type Glance } from "@/components/today/island/Sprout";
 import CareLayer from "@/components/today/care/CareLayer";
@@ -80,6 +81,8 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
     ? { ...DEFAULT_PREFS, panels: preview.panels ?? DEFAULT_PREFS.panels, expanded: preview.expanded ?? false,
       index: preview.index ?? 0 } : DEFAULT_PREFS);
   const [editing, setEditing] = useState(false);
+  // True after a layout write storage refused (full or blocked): the choice stays on screen (W117).
+  const [saveFailed, setSaveFailed] = useState(false);
   const [direction, setDirection] = useState<1 | -1>(1);
   const [width, setWidth] = useState(0);
   // The first measured layout snaps into place; only later changes spring (no grow-from-nothing on load).
@@ -159,7 +162,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
   const update = (next: WidgetPrefs) => {
     const shown = effectiveWidgetPrefs(next, show);
     setPrefs(shown);
-    if (fixedHour === undefined) saveWidgetPrefs(account, shown, show);
+    if (fixedHour === undefined && account) setSaveFailed(!saveWidgetPrefs(account, shown, show));
   };
   // A design-gallery preview (PR #470 review R3, NIT) passes no account at all: it never persists,
   // and a real read here could seed this tab's per-account session cache (lib/today/widget-prefs.ts)
@@ -393,6 +396,9 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
     <AnimatePresence initial={false}>
       {editing && <WidgetEditTray key="tray" prefs={effective} onChange={update} onDone={closeTray} />}
     </AnimatePresence>
+    {saveFailed && <Notice tone="attention" title="Couldn't save layout" onDismiss={() => setSaveFailed(false)}>
+      Your change is showing, but it will reset when you reload.
+    </Notice>}
   </div>;
 }
 

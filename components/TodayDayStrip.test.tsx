@@ -123,6 +123,19 @@ describe("TodayDayStrip calendar navigation", () => {
   });
 });
 
+describe("TodayDayStrip: narrow phones (W157)", () => {
+  it("keeps every day a 44 px target in a snap scroller, so a 320 px screen scrolls instead of clipping", () => {
+    const markup = renderToStaticMarkup(<TodayDayStrip date="2026-09-14" today="2026-09-15" store={store}
+      onSelect={() => {}} />);
+    // basis max(44px, 1/7): 7 x 44 = 308 px fits 320 px; below that the row scrolls, each day reachable.
+    expect(markup).toContain("basis-[max(44px,100%/7)]");
+    expect(markup).toContain("shrink-0");
+    expect(markup).toContain("snap-x");
+    expect(markup).toContain("overflow-x-auto");
+    expect(markup).toContain("snap-center");
+  });
+});
+
 describe("TodayDayStrip month calendar", () => {
   beforeEach(() => {
     // jsdom has no layout: the strip's recentring and resize observer become no-ops.

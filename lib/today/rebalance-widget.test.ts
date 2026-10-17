@@ -57,13 +57,13 @@ function useHarness(account: AccountHandle | null, initialPanel: RebalancePanel 
 describe("useRebalanceWidgetSync", () => {
   beforeEach(() => { localStorage.clear(); });
 
-  it("PR #470 review R1, P1: opens the widget, not just selects the panel, the instant it nudges", async () => {
+  it("W116: a fresh nudge selects the rebalance panel but never expands the widget", async () => {
     const handle = await resetTestAccount();
     const { result } = renderHook(() => useHarness(handle, { ...NUDGE, show: false }));
     act(() => { result.current.setPanel(NUDGE); });
     await waitFor(() => expect(result.current.live.panels).toContain("rebalance"));
     expect(result.current.live.index).toBe(result.current.live.panels.indexOf("rebalance"));
-    expect(result.current.live.expanded).toBe(true);
+    expect(result.current.live.expanded).toBe(false);
   });
 
   it("PR #470 review R1/R2, WARN: an in-memory edit storage never kept survives a later gate change", async () => {
