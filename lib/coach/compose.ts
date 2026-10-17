@@ -20,7 +20,7 @@ import type { ConstraintProfile } from "@/lib/policy/constraints";
 import type { Provenance } from "@/lib/types";
 import type { MealType } from "@/lib/coach/meal-type";
 import type { Part } from "@/lib/coach/portion-bands";
-import { splitWish } from "@/lib/coach/wish-negation";
+import { wishTerms, wishTermsOverCap } from "@/lib/coach/compose-terms";
 import { isFoodKey } from "@/lib/meals/food-key";
 import type { Food } from "@/lib/foods";
 import { parseOccasionPhrase } from "@/lib/meals/occasion-phrase";
@@ -168,23 +168,6 @@ export type ComposePorts = {
 // existing `@/lib/coach/compose` import keeps working unchanged.
 export { clampMealTarget, NOTHING_LEFT, snackTarget } from "@/lib/coach/compose-size";
 
-/**
- * Words that are not foods. A wish is a short phrase, so a small stop list beats a parser: what
- * is left is searched, and a term the catalog does not know simply contributes nothing.
- */
-const STOP_WORDS = new Set([
-  "a", "an", "and", "the", "with", "for", "of", "some", "my", "me", "give", "make", "build",
-  "please", "that", "fits", "fit", "daily", "macros", "macro", "target", "targets", "recipe",
-  "meal", "lunch", "dinner", "breakfast", "snack", "something", "want", "would", "like", "to",
-  "in", "on", "it", "is", "can", "you", "i", "have", "has", "plus", "or", "into", "up",
-  // How the meal should be, not what is in it: "High protein" searched "high" and "protein" as foods.
-  "high", "low", "protein", "carb", "carbs", "fat", "fats", "healthy", "quick", "easy", "light",
-  "filling", "big", "small", "kcal", "calories", "calorie", "idea", "ideas", "option",
-  "options", "today", "tonight", "now", "morning", "evening", "afternoon", "night",
-]);
-
-export const MAX_TERMS = 4;
-
 /** A pouch is never composed: the apple filler in fruit pouches is a confirmed trigger. */
 export const POUCH = /\bpouch(es)?\b/i;
 
@@ -218,22 +201,6 @@ export function eatsMatch(term: string, eats: string[]): string | null {
   return hits.sort((a, b) => b.length - a.length)[0];
 }
 
-/** The foods a wish asks for. A refused food ("no banana", "without chicken") is not one of them. */
-export function wishTerms(wish: string): string[] {
-  return allWishTerms(wish).slice(0, MAX_TERMS);
-}
-
-function allWishTerms(wish: string): string[] {
-  const words = splitWish(wish).positive.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/)
-    .filter((word) => word.length > 2 && !STOP_WORDS.has(word));
-  return [...new Set(words)];
-}
-
-/** Foods the wish named past the four-term cap (OD26): they are not searched, so the card says so. */
-export function wishTermsOverCap(wish: string): string[] {
-  return allWishTerms(wish).slice(MAX_TERMS);
-}
-
 export function sum(items: ComposedItem[]): MealMacros {
   return items.reduce((total, item) => ({
     kcal: total.kcal + item.macros.kcal,
@@ -255,6 +222,7 @@ export function isEatsRow(hit: FoodHit, name: string): boolean {
   return hit.prefStatus === "eats" && sameName(hit.name, name);
 }
 
+export { MAX_TERMS, wishTerms, wishTermsOverCap } from "@/lib/coach/compose-terms";
 export { COMPLEMENT_TRIES, complementOrder, fillsRole, pickComplement } from "@/lib/coach/compose-complement";
 import { pickComplement } from "@/lib/coach/compose-complement";
 import { composeDirectPlate } from "@/lib/coach/compose-pinned";
