@@ -121,6 +121,40 @@ export type MealSnapshotV3 = {
 /** The largest body the server may send (D11): 250 KB of uncompressed JSON. */
 export const SNAPSHOT_V3_MAX_BYTES = 250 * 1024;
 
+/** The body's sections a size log names (W107). */
+export const SNAPSHOT_V3_SECTIONS = ["foods", "admittedUniverseIds", "admittedRefIds", "excluded", "eligible"] as const;
+export type SnapshotV3Section = (typeof SNAPSHOT_V3_SECTIONS)[number];
+
+export type SnapshotV3Size = {
+  /** The whole body as UTF-8 JSON bytes, the number the 250 KB ceiling reads. */
+  bytes: number;
+  /** Each section's own UTF-8 JSON bytes; the rest of the body is the header fields. */
+  sections: Record<SnapshotV3Section, number>;
+  /** Entry counts, never an id or a food name. */
+  counts: { foods: number; favored: number; universe: number; excluded: number };
+};
+
+/**
+ * The body's size by section (W107). Counts and byte lengths only, so a log line built from it
+ * holds no food name, id or account data.
+ */
+export function snapshotV3Size(body: MealSnapshotV3): SnapshotV3Size {
+  const bytesOf = (value: unknown) => utf8Bytes(JSON.stringify(value));
+  const entries = Object.values(body.foods);
+  return {
+    bytes: bytesOf(body),
+    sections: Object.fromEntries(SNAPSHOT_V3_SECTIONS.map((name) => [name, bytesOf(body[name])])) as
+      Record<SnapshotV3Section, number>,
+    counts: { foods: entries.length, favored: entries.filter((entry) => entry.source === "favored").length,
+      universe: entries.filter((entry) => entry.source === "universe").length, excluded: body.excluded.length },
+  };
+}
+
+/** UTF-8 byte length without `Buffer`, so the phone can read it too. */
+function utf8Bytes(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
 const REASONS: readonly PreferenceReasonCode[] = ["favored", "disliked", "eaten", "chosen", "not_this",
   "on_list", "in_pantry", "like_liked", "like_disliked", "cuisine", "popular", "less_common", "soft_rule"];
 const OUTCOMES: readonly FacetOutcome[] = ["present", "absent", "unknown"];
