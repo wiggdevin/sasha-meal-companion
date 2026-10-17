@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { liquidPath, sloshEnergy, smoothToward, type Wave } from "@/lib/today/water-liquid";
+import { runFrames } from "@/components/today/frame-loop";
+import { subscribeTilt } from "@/components/today/useWaterTilt";
 import styles from "@/components/today/WaterTile.module.css";
 
 /**
@@ -24,6 +26,8 @@ const BUBBLES = [
 const STIFFNESS = 110;
 const DAMPING = 11.5;
 const DEFAULT_SIZE = { w: 200, h: 160 };
+/** Seconds of calm before the frame loop sleeps (battery); a new level or a tilt wakes it. */
+const SETTLE_S = 3;
 
 function backWave(w: number, t: number, energy: number): Wave {
   return { amplitude: (1.8 + 3.2 * energy) * 0.8, wavelength: w * 0.92, phase: t * 1.5 + 1.2 };
@@ -45,6 +49,7 @@ export default function WaterLiquid({ level, tilt, animate }: {
   const back = useRef<SVGPathElement>(null);
   const front = useRef<SVGPathElement>(null);
   const bubbles = useRef<(SVGCircleElement | null)[]>([]);
+  const wake = useRef<() => void>(() => {});
   const sim = useRef({ y: level, v: 0, target: level, changedAt: -Infinity, size: DEFAULT_SIZE });
   // The first frame's paths, fixed for the element's life so a re-render never fights the loop.
   const [initial] = useState(() => {
@@ -73,6 +78,7 @@ export default function WaterLiquid({ level, tilt, animate }: {
     if (s.target !== level) {
       s.target = level;
       s.changedAt = typeof performance !== "undefined" ? performance.now() : 0;
+      wake.current();
     }
     if (animate) return;
     // Still water: the new level at once, flat and level, no bubbles.
@@ -88,11 +94,13 @@ export default function WaterLiquid({ level, tilt, animate }: {
   useEffect(() => {
     if (!animate || typeof requestAnimationFrame === "undefined") return;
     const s = sim.current;
-    let frame = 0;
     let last = performance.now();
     let t = 0;
     let lean = 0;
-    const draw = (now: number) => {
+    // Settled: the level has landed, the slosh has died and the lean has caught the phone. The loop
+    // sleeps a moment after that, so the bubbles finish a lap, and wakes on a new level or a tilt.
+    let quiet = 0;
+    const draw = (now: number): boolean => {
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
       t += dt;
@@ -117,10 +125,15 @@ export default function WaterLiquid({ level, tilt, animate }: {
         // Bubbles fade out as they near the surface, and stay away in a near-empty glass.
         el.setAttribute("opacity", depth < 16 ? "0" : (0.6 * (1 - risen / travel)).toFixed(2));
       });
-      frame = requestAnimationFrame(draw);
+      const calm = energy <= 0.001 && Math.abs(s.target - s.y) < 0.002 && Math.abs(s.v) < 0.01
+        && Math.abs(lean - (tilt.current ?? 0)) < 0.05;
+      quiet = calm ? quiet + dt : 0;
+      return quiet < SETTLE_S;
     };
-    frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
+    const loop = runFrames(draw);
+    wake.current = () => { quiet = 0; loop.wake(); };
+    const unsubscribe = subscribeTilt(() => wake.current());
+    return () => { unsubscribe(); wake.current = () => {}; loop.stop(); };
   }, [animate, tilt]);
 
   return (
