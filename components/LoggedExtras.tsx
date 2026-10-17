@@ -6,7 +6,7 @@ import styles from "./MealTimeline.module.css";
 import dark from "./AfterDarkCards.module.css";
 import { useMealReschedule } from "./useMealReschedule";
 import { Fragment, useEffect, useState } from "react";
-import { CaptureGlyph } from "@/components/CaptureSheet";
+import { CaptureGlyph } from "@/components/CaptureGlyph";
 import { captureMetaFrom, type CaptureMeta } from "@/lib/capture-client";
 import { entryMacros } from "@/lib/resolve";
 import { illustrativeMealImage } from "@/lib/today/meal-art";

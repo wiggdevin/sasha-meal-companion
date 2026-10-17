@@ -1,5 +1,6 @@
 "use client";
 
+import ReasonChips from "@/components/meals/ReasonChips";
 import Button from "@/components/ui/Button";
 import MealTimeline from "./MealTimeline";
 import styles from "./MealTimeline.module.css";
@@ -383,6 +384,8 @@ export default function SlotCard({
               {attached ? flowFace(dark.flowFace) : <TrayFace key="detail" className={dark.detailFace}>
                 {/* Saved content against the current food rules: on the beige tray, never on the hero. */}
                 <SlotRuleMarkLine mark={meal.ruleMark} />
+                {/* Why a generated plate was offered (W099); an eaten meal is history, not an offer. */}
+                {!slot.eaten && <ReasonChips reasons={slot.meal.reasons} className="self-start" />}
                 {missLine}
                 <AnimatePresence initial={false}>{meal.detail}</AnimatePresence>
                 {meal.footer}

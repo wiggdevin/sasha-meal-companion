@@ -336,7 +336,10 @@ export async function groundItem(
     alternativeHits.forEach((hit, i) => {
       const refId = altRefs[i];
       if (refId) alternatives.push({ foodRefId: refId, catalogFoodRevisionId: hit.revisionId,
-        label: hit.description, score: hit.score });
+        label: hit.description, score: hit.score,
+        // W139: the search verdict reads the catalog row only; a scanned label's own text can
+        // name more, so a label draft's alternatives stay unverified until the commit rechecks.
+        ...(hit.policy && !label ? { policy: hit.policy } : {}) });
     });
   }
 

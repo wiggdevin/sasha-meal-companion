@@ -17,6 +17,7 @@ import { accountUnitGrams } from "@/lib/foods/unit-grams";
 import { macroKcal } from "@/lib/scaling";
 import { rankPinnedPlates, SMALL_SNACK_KCAL, type PlateInput } from "@/lib/meals/plate";
 import { partsOf } from "@/lib/meals/parts";
+import { shownReasonChips, type MealReasonChip } from "@/lib/meals/reason-chips";
 import { isUntimed, occasionAt, type Occasion } from "@/lib/meals/occasion";
 import type { parseOccasionPhrase } from "@/lib/meals/occasion-phrase";
 
@@ -148,6 +149,11 @@ export async function composeDirectPlate(
     ...(focus ? { focus } : {}),
   };
   const ranking = rankPinnedPlates(input, pinned);
+  // W099: the same reason chips the daily layout and swap rows carry, from the open snapshot only.
+  const reasonsOf = (ids: string[]): { reasons?: MealReasonChip[] } => {
+    const reasons = open ? shownReasonChips(ids.flatMap((id) => open.chips[id] ?? [])) : [];
+    return reasons.length ? { reasons } : {};
+  };
   const best = ranking.plates[0];
 
   // Open pool rows that are universe items need the account's catalog ref before any card can log
@@ -173,6 +179,7 @@ export async function composeDirectPlate(
       fitsTarget: false, fitNote: null,
       incomplete: { reason: !best ? ranking.shortage?.reason ?? "No coherent plate holds every named food"
         : `I couldn't look up ${best.rows.find((row) => row.food.id === unresolved)?.food.name ?? "one of the foods"} right now. Try again in a moment` },
+      ...reasonsOf(pinned.map((food) => food.id)),
     };
   }
 
@@ -211,5 +218,6 @@ export async function composeDirectPlate(
     flagged: items.filter((item) => item.verdict === "blocked").map((item) => item.name),
     fitsTarget: fits, fitNote: fits ? null : fitNote(totals, args.target),
     mealType: occasion, mealClock: args.slotClock ?? null,
+    ...reasonsOf(best.rows.map((row) => row.food.id)),
   };
 }

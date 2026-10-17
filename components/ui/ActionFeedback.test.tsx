@@ -183,6 +183,56 @@ describe("queued writes", () => {
     expect(result.current.notice).toMatchObject({ tone: "error", message: "First did not save." });
   });
 
+  it("offers a queued success's Undo beside a standing error, then leaves the error alone", async () => {
+    const { result } = renderHook(() => useActionFeedback());
+    const undo = vi.fn();
+    let firstRun!: Promise<unknown>;
+    let secondRun!: Promise<unknown>;
+    act(() => {
+      firstRun = result.current.run(async () => { throw new Error("offline"); },
+        { kind: "commit", queue: true, failureMessage: "First did not save." });
+      secondRun = result.current.run(async () => "ok",
+        { kind: "commit", queue: true, successMessage: "Second saved.", undo: { action: undo } });
+    });
+    await act(async () => { await firstRun; await secondRun; });
+    expect(result.current.notice).toMatchObject({ tone: "error", message: "First did not save. Second saved.",
+      action: { label: "Undo" } });
+    act(() => { result.current.notice?.action?.action(); });
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(result.current.notice).toEqual({ tone: "error", message: "First did not save." });
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(result.current.notice).toEqual({ tone: "error", message: "First did not save." });
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(result.current.notice).toEqual({ tone: "error", message: "First did not save." });
+  });
+
+  it("keeps the error through the toast's own Undo tap, and offers a later queued Undo too", async () => {
+    const undo = vi.fn();
+    function Host() {
+      const feedback = useActionFeedback();
+      return <>
+        <button type="button" onClick={() => {
+          void feedback.run(async () => { throw new Error("offline"); },
+            { kind: "commit", queue: true, failureMessage: "First did not save." });
+          void feedback.run(async () => "ok", { kind: "commit", queue: true, successMessage: "Second saved.",
+            undo: { action: undo } });
+        }}>go</button>
+        <button type="button" onClick={() => {
+          void feedback.run(async () => "ok", { kind: "commit", queue: true, successMessage: "Third saved.",
+            undo: { action: undo } });
+        }}>again</button>
+        <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
+      </>;
+    }
+    render(<Host />);
+    await act(async () => { fireEvent.click(screen.getByText("go")); for (let i = 0; i < 10; i++) await Promise.resolve(); });
+    await act(async () => { fireEvent.click(screen.getByText("again")); for (let i = 0; i < 10; i++) await Promise.resolve(); });
+    expect(screen.getByText("First did not save. Third saved.")).toBeTruthy();
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Undo" })); });
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("First did not save.")).toBeTruthy();
+  });
+
   it("still replaces an earlier success notice when the next write starts", async () => {
     const { result } = renderHook(() => useActionFeedback());
     await act(async () => {

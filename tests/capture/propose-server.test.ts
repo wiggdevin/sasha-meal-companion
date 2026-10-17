@@ -232,7 +232,7 @@ describe("proposeDraft", () => {
     expect(out.items[0].catalogFoodRevisionId).toBeNull();
     expect(out.items[0].autoResolved).toBe(false);
     expect(out.items[0].alternatives).toEqual([{ foodRefId: "ref-70", catalogFoodRevisionId: 70,
-      label: "Egg, whole, raw", score: 0.9 }]);
+      label: "Egg, whole, raw", score: 0.9, policy: { verdict: "allowed" } }]);
   });
 
   it("keeps the model's grams for a count with no matching portion row, never 100 g a piece (A007, A044)", async () => {

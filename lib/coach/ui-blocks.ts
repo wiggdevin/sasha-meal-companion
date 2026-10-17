@@ -1,4 +1,5 @@
 import { isFoodKey } from "@/lib/meals/food-key";
+import { shownReasonChips } from "@/lib/meals/reason-chips";
 import { z } from "zod";
 import type {
   SanityAnnotation, SanityWarning, TypicalServing,
@@ -122,6 +123,8 @@ const draftItemSchema = z.object({
     catalogFoodRevisionId: z.number().int().positive().optional(),
     label: z.string().min(1).max(160),
     score: z.number(),
+    // W139: the search verdict for this choice; a malformed one drops, the swap then reads unverified.
+    policy: policyVerdictSchema.optional().catch(undefined),
   })).max(3),
   autoResolved: z.boolean(),
   /** A new food's macro-group advice from /api/log/propose (task t2c); never persisted here. */
@@ -245,6 +248,8 @@ export const composedMealSchema = z.object({
   // Phase 18 W9 (D12): an incoherent named combination's reason. The card shows it instead of a
   // fit line (fitNote stays null); a malformed shape never carries, it just drops the field.
   incomplete: z.object({ reason: z.string() }).optional(),
+  // W099: reason chips. An unknown chip is dropped, a malformed shape drops the field.
+  reasons: z.array(z.string()).transform((chips) => shownReasonChips(chips)).optional().catch(undefined),
   // OD26: foods the user named that the meal does not hold. A malformed shape just drops the field.
   leftOut: z.array(z.object({ term: z.string(), why: z.enum(["over_limit", "not_found"]) })).optional().catch(undefined),
   rankNote: z.string().nullable().optional(),
