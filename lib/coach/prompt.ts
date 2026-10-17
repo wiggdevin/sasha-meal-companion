@@ -176,6 +176,11 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     "- When YOUR reply asks a question that has a few clear answers (which meal, move it or",
     "  swap it or skip it, this food or that one), call quick_replies in the SAME step with those",
     "  2–4 short choices. Never ask such a question without the choices; they are proposals only.",
+    // Live pass 2026-10-17: "can you change my breakfast?" came back as a bare "What would you
+    // like to change your breakfast to?" with no choices.
+    "- A request to change a meal that names no new food (\"can you change my breakfast?\") is",
+    "  such a question: ask what should change and call quick_replies with 2–4 directions, for",
+    "  example \"More protein\", \"More fibre\", \"Something lighter\", \"A different meal\".",
     "- For a user-facing food search, call search_foods with intent browse, eats, or avoid.",
     "  For an internal portion lookup used to log food, omit intent or use intent lookup.",
     "- For a recipe search, call suggest_options with kind recipe and a short dish/cuisine wish.",
@@ -227,6 +232,10 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     "  food whose serving you cannot judge and the catalogue's own household portion is used.",
     "- Ask ONE question only when the FOOD itself is unclear — you cannot tell which food you",
     "  mean — never because a quantity is missing.",
+    // Live pass 2026-10-17: "Set my breakfast to oatmeal with blueberries every weekday for the
+    // next two weeks" came back as "How much oatmeal? How much blueberries?".
+    "- A plan change (set_slot_meal) never asks how much: give grams when you can judge a usual",
+    "  serving, or leave grams out and the server uses the household portion or a usual serving.",
     "- Never invent a quantity for a food you did NOT name.",
     // Production (2026-09-16..24): "I don't know how many grams it was, just a medium size
     // fillet" and "One medium plate of spaghetti bolognese" each drew three straight requests for
@@ -263,6 +272,12 @@ export function buildSystemPrompt(ctx: PromptContext): string {
       + "requested, and `wish` for a named recipe dish or preference. Do not call `compose_meal` for "
       + "a multi-option request. Your text says how many policy-clean cards were returned when it "
       + "is fewer than you asked for; emit no action because each card has its own buttons.",
+    // Live pass 2026-10-17: "make me 5 suggestions from my eats list" came back as "I need to
+    // know what kind of meal you are looking for" instead of five cards.
+    "- A number of suggestions, ideas or options is enough to act on, even with no meal named",
+    "  (\"make me 5 suggestions from my eats list\"): call suggest_options at once with that count",
+    "  and kind meal (snack or recipe only when named). The cards already come from the Favorites",
+    "  and the account's rules. Never ask what kind of meal first.",
     // T6 §4: a wish gets a card, never a paragraph.
     "- When you ask for something to eat — \"a chicken wrap that fits my daily macros\", \"what",
     "  should I have for lunch\" — call compose_meal with your wish in your own words, and name the",

@@ -1,7 +1,7 @@
 /**
  * `set_slot_meal`: the WHOLE slot becomes these items on each selected date — one date, a range of
  * up to 31 calendar days, or chosen weekdays in it. A missing quantity takes the catalog's
- * household portion; only a food with no portion either becomes one question (T6 §3).
+ * household portion, or the usual serving for its kind when the row has none (`usualServing`).
  */
 
 import { z } from "zod";
@@ -25,7 +25,7 @@ const input = z.object({
   slot: z.enum(SLOT_IDS),
   title: mealTitle.optional(),
   // grams is OPTIONAL here and only here: a missing quantity falls back to the catalog's
-  // household portion, and only a food with no portion either becomes one question (T6 §3).
+  // household portion, else the usual serving for its kind (`usualServing`, ground-kit.ts).
   items: z.array(z.object({ name: foodName, grams: grams.optional() })).min(1).max(8),
 });
 type Input = z.infer<typeof input>;
@@ -113,7 +113,7 @@ export const setSlotMeal: ActionSpec<{
     "    these items on each selected date. `through` is inclusive and defaults to `from`; at most",
     "    31 calendar days. weekdays uses 0=Sunday through 6=Saturday after expansion.",
     "    The server fills `dates`; never write `dates`. Give grams when you do; otherwise use the catalog's",
-    "    household portion.",
+    "    household portion, or a usual serving when it has none. Never ask how much.",
   ] },
   example: { rank: 90, lines: (ctx) => {
     const monthThrough = shiftCalendarDate(ctx.today, 30);
