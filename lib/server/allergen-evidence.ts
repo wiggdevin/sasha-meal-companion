@@ -224,6 +224,10 @@ export async function recordAllergenEvidence(
       : requireKeys.every(covered);
     if (informative) withEvidence += 1;
   }
+  // W072 lock order: shared (catalog) rows first. Their trigger moves the global catalog clock
+  // (step 3) and an account row moves that account's recipe_plan_state (step 4); row triggers fire
+  // in row order, so an account row first would take the two the other way round.
+  rows.sort((x, y) => Number(x.user_id != null) - Number(y.user_id != null));
   const { error } = await writer.from("food_allergen_evidence")
     .upsert(rows, { onConflict: "food_key,allergen" });
   if (error) {

@@ -1,7 +1,8 @@
 /**
- * W034 (audit 2026-10-10 F23: A096, A162, A163): one lock order for the three clock rows,
+ * W034 (audit 2026-10-10 F23: A096, A162, A163): one lock order for the clock rows,
  * evidence_clock, then account_rules_clock, then recipe_plan_state (migration 20261231200000), on
- * the real migrated schema (SUPABASE_TEST_DB_URL).
+ * the real migrated schema (SUPABASE_TEST_DB_URL). W072 (20270105110100) puts the global
+ * recipe_catalog_clock third, between account_rules_clock and recipe_plan_state.
  *
  * Each case runs one audited deadlock pair on two connections. A third "gate" connection holds one
  * clock row for 1.5 s, so the pair interleaves the way the audit described it: under the old order
@@ -154,6 +155,55 @@ describe.skipIf(!HAS_DB)("one clock lock order (W034): the audited deadlock pair
     const source = runSql(`select prosrc from pg_proc where oid = 'public.recipe_plan_bump_state()'::regprocedure`);
     const listed = [.../tg_table_name in \(([^)]*)\)/.exec(source)![1].matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
     expect(listed).toEqual(both);
+  });
+
+  // W072: previews never lock the catalog clock; they lock their state row and read the committed
+  // catalog rev. So a writer that holds an account's state row and then moves the clock (an
+  // account's allergen evidence row, then a shared one, in one transaction) never meets a preview
+  // that holds the clock: the preview waits for the state row and then sees the bump (review r1).
+  it("W072: an account's evidence then shared evidence, and the same account's recipe preview", async () => {
+    const a = account();
+    const food = userFood(a, "W072 granola");
+    const shared = catalogFood("W072 Plum");
+    const revision = runSql(`select id from public.catalog_food_revisions where catalog_food_id = ${shared}`);
+    drops.unshift(() => runSql(`delete from public.food_allergen_evidence
+      where food_key in ('user_food:${food.foodId}:1', 'catalog_revision:${revision}')`));
+    runSql(`insert into public.recipe_plan_state (user_id, rev) values ('${a}', 1) on conflict (user_id) do nothing`);
+    const sum = Number(runSql(`select (select rev from public.recipe_plan_state where user_id = '${a}')
+      + (select rev from public.recipe_catalog_clock where id = 1)`));
+    const writer = background(`begin;
+      insert into public.food_allergen_evidence (food_key, allergen, level, source, user_id)
+        values ('user_food:${food.foodId}:1', 'peanut', 'no_evidence', 'ingredients', '${a}');
+      select pg_sleep(${HOLD_S});
+      insert into public.food_allergen_evidence (food_key, allergen, level, source)
+        values ('catalog_revision:${revision}', 'peanut', 'no_evidence', 'ingredients');
+      commit;`);
+    await sleep(300);
+    const preview = background(`begin; set local request.jwt.claim.role = 'service_role';
+      set local request.jwt.claims = '{"role": "service_role"}';
+      select public.recipe_store_preview('${a}', 'recipe', '{"choices": [], "blockingIssues": []}'::jsonb,
+        ${sum}, now() + interval '10 minutes'); commit;`);
+    const [w, p] = await Promise.all([writer, preview]);
+    expect(w.err).not.toMatch(/deadlock/i);
+    expect(w.code).toBe(0);
+    expect(p.err).not.toMatch(/deadlock/i);
+    expect(p.err).toMatch(/stale preview/);
+  });
+
+  it("W072: the catalog triggers bump one clock row; the previews read it and never lock it", () => {
+    for (const fn of ["recipe_plan_bump_global_state", "recipe_plan_bump_food_ref_state",
+      "recipe_plan_bump_allergen_evidence"]) {
+      const source = runSql(`select prosrc from pg_proc where oid = 'public.${fn}()'::regprocedure`);
+      expect(source, fn).toContain("_recipe_catalog_bump()");
+      expect(source, fn).not.toMatch(/update public\.recipe_plan_state set rev = rev \+ 1 where user_id is not null/);
+      expect(source.indexOf("_clock_lock_evidence()"), fn).toBeLessThan(source.indexOf("_recipe_catalog_bump()"));
+    }
+    for (const fn of ["recipe_store_preview(uuid,text,jsonb,bigint,timestamptz)",
+      "recipe_accept_preview(uuid,uuid,boolean)"]) {
+      const source = runSql(`select prosrc from pg_proc where oid = 'public.${fn}'::regprocedure`);
+      expect(source, fn).toMatch(/recipe_catalog_clock c? ?where (c\.)?id = 1/);
+      expect(source, fn).not.toMatch(/recipe_catalog_clock[^;]*for (share|update|no key update)/i);
+    }
   });
 
   // Not an audited pair: Favor now takes evidence_clock first, so a recipe's first save (its account

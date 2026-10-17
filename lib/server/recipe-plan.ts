@@ -42,11 +42,19 @@ function dbError(error: { code?: string; message: string } | null): void {
   }
   throw new HttpError(503, "recipe_plan_unavailable", "Recipe planning is unavailable.", { cause: error });
 }
+/**
+ * The preview's freshness: this account's recipe_plan_state rev plus the global catalog rev
+ * (W072, migration 20270105110100). Both only grow, so the sum moves when either does;
+ * recipe_store_preview and recipe_accept_preview compare the same sum under their locks.
+ */
 async function stateRevision(client: SupabaseClient, userId: string): Promise<number> {
-  const row = await client.from("recipe_plan_state").select("rev")
-    .eq("user_id", userId).maybeSingle();
+  const [row, catalog] = await Promise.all([
+    client.from("recipe_plan_state").select("rev").eq("user_id", userId).maybeSingle(),
+    client.from("recipe_catalog_clock").select("rev").eq("id", 1).maybeSingle(),
+  ]);
   dbError(row.error);
-  return Number(row.data?.rev ?? 0);
+  dbError(catalog.error);
+  return Number(row.data?.rev ?? 0) + Number(catalog.data?.rev ?? 0);
 }
 async function target(client: SupabaseClient, userId: string, date: string) {
   const row = await activeProfile(client, userId, date);
