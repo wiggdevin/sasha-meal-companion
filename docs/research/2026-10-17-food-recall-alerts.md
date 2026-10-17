@@ -8,11 +8,13 @@ openFDA food enforcement (`https://api.fda.gov/food/enforcement.json`), free, no
 `report_date`. There is no structured barcode field; UPCs only appear inside the two free-text fields.
 
 ## UPC coverage share
-**Not measured yet.** The sandbox that built this spike could not reach api.fda.gov (proxy 403), so no
-live snapshot was pulled. `pnpm exec tsx scripts/research/recall-spike.ts` pulls 20 recent records into
-`tests/fixtures/recalls/snapshot.json` and prints the share with a valid GTIN. Run it once on a machine
-with network access and paste the number here before deciding whether the feature is worth building. The
-tests use `synthetic-sample.json`, which is hand-written and not real recall data.
+**49 % (49 of 100).** Measured on 2026-10-17 from the Mac session with
+`pnpm exec tsx scripts/research/recall-spike.ts --limit 100`: the 100 most recent openFDA food
+enforcement records (report dates 2026-09-02 to 2026-10-07). 49 carry at least one UPC/GTIN that
+passes the label rule and the GS1 check digit below. The raw records are in
+`tests/fixtures/recalls/snapshot.json` (public data). So about half of recent recalls can alert on an
+exact barcode match; the rest could only be brand + name notes for review. The tests still use
+`synthetic-sample.json`, which is hand-written and not real recall data.
 
 ## Match rules
 - Alert only on exact GTIN-14 equality. UPCs found in text are read only after a UPC/GTIN/EAN label (a bare
