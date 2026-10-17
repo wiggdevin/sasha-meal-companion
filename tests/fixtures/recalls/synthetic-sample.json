@@ -1,0 +1,14 @@
+{
+  "_note": "SYNTHETIC records in the openFDA food enforcement shape, written for tests. Not real recalls. The live snapshot is written by scripts/research/recall-spike.ts to snapshot.json.",
+  "results": [
+    { "recall_number": "F-0001-2026", "recalling_firm": "Acme Foods", "classification": "Class II", "report_date": "20261001",
+      "product_description": "Acme Crunchy Peanut Butter 16 oz jar, UPC 0 12345 67890 5",
+      "code_info": "Lot 24A12, Best By 06/2027", "reason_for_recall": "Undeclared tree nuts" },
+    { "recall_number": "F-0002-2026", "recalling_firm": "Kindred Dairy", "classification": "Class I", "report_date": "20261002",
+      "product_description": "Kindred Whole Milk Yogurt 32 oz tub",
+      "code_info": "UPC 036000291452; lots 1103 through 1110", "reason_for_recall": "Listeria" },
+    { "recall_number": "F-0003-2026", "recalling_firm": "Harbor Seafood", "classification": "Class II", "report_date": "20261003",
+      "product_description": "Harbor Smoked Salmon 4 oz",
+      "code_info": "Lot 20261101 exp 20270301", "reason_for_recall": "Mislabeled" }
+  ]
+}

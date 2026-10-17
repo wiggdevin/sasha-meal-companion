@@ -1,0 +1,41 @@
+# Food recall alerts (W159 spike)
+
+Status: research note. Nothing here ships to users yet.
+
+## Source
+openFDA food enforcement (`https://api.fda.gov/food/enforcement.json`), free, no key. Each record has
+`product_description`, `code_info`, `recalling_firm`, `classification`, `reason_for_recall` and
+`report_date`. There is no structured barcode field; UPCs only appear inside the two free-text fields.
+
+## UPC coverage share
+**Not measured yet.** The sandbox that built this spike could not reach api.fda.gov (proxy 403), so no
+live snapshot was pulled. `pnpm exec tsx scripts/research/recall-spike.ts` pulls 20 recent records into
+`tests/fixtures/recalls/snapshot.json` and prints the share with a valid GTIN. Run it once on a machine
+with network access and paste the number here before deciding whether the feature is worth building. The
+tests use `synthetic-sample.json`, which is hand-written and not real recall data.
+
+## Match rules
+- Alert only on exact GTIN-14 equality. UPCs found in text are read after a UPC/GTIN/EAN label or as a bare
+  12-14 digit run, and kept only with a valid GS1 check digit (`lib/search/gtin.ts`, reused), then padded to
+  GTIN-14, so UPC-A and EAN-13 forms agree.
+- A brand + name match is recorded as a note for review and never alerts. Brand matches are whole-word, so
+  "Kind" does not match "Kindred".
+- An item with no valid code never alerts.
+
+Implementation: `lib/shopping/recall-match.ts` (pure), tests in `tests/shopping/recall-match.test.ts`.
+
+## Alert surface
+A dismissible card on Today and on the shopping list for a purchased or pantry item whose GTIN matches an
+open recall: the product, the reason, the classification, and a link to the FDA notice. Wording states the
+facts and says to check the product; it gives no medical advice. A note-only (brand + name) match shows
+nowhere.
+
+## Cadence
+A daily job fetches records with `report_date` since the last run. Daily is enough: openFDA itself updates
+weekly.
+
+## Later follow-up
+A shared `food_recalls` table (recall number, indexed GTINs, fields above, fetched at) filled by a cron
+route that follows the existing job pattern (cron secret before limiter, bounded passes), and an
+owner-scoped read that matches each account's purchased and pantry GTINs on the server. That needs a
+migration and a cron entry, so it is a separate PR and a Mac apply.
