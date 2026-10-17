@@ -38,9 +38,9 @@ export const CHIP_CARD_COUNT = 3;
 export const MAX_EXCLUDE_IDS = 40;
 export const MAX_STATED_FOODS = 15;
 /** The ideas route reads at most 2 KB; the ids leave room for the rest of the body. */
-const EXCLUDE_ID_BYTES = 1200;
+const EXCLUDE_ID_BYTES = 600;
 
-/** The newest "Not this" ids that fit the request body: at most 40 and 1,200 bytes together. */
+/** The newest "Not this" ids that fit the request body: at most 40 and 600 bytes together, leaving room for 15 stated foods. */
 export function capExcludeIds(ids: readonly string[]): string[] {
   const kept: string[] = [];
   let bytes = 0;

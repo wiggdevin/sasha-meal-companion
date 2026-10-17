@@ -34,3 +34,9 @@ describe("Not-this list cap (W036)", () => {
     expect(Buffer.byteLength(body)).toBeLessThan(2048);
   });
 });
+
+describe("package sizes that cannot be read (W036 review)", () => {
+  it("returns null, never one portion", () => {
+    for (const text of ["1 (400 ml) can", "1 (12 fl oz) can", "500 (500 g) cans"]) expect(parseAmount(text), text).toBeNull();
+  });
+});

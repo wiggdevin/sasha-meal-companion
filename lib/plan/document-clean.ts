@@ -164,11 +164,14 @@ export function parseAmount(amount: string | null): ParsedAmount | null {
   const lead = leadingNumber(text);
   if (!lead || lead.value <= 0) return null;
   // "1 (15 oz) can": a count of packages, each of a stated weight.
-  const can = lead.rest.match(/^\(?\s*(\d+(?:\.\d+)?)\s*(oz|ounces?|g|grams?|lbs?|pounds?|kg|ml)\.?\s*\)?\s*(cans?|tins?|jars?|packages?|pkgs?|bottles?)?$/);
+  const can = lead.rest.match(/^\(?\s*(\d+(?:\.\d+)?)\s*(oz|ounces?|g|grams?|lbs?|pounds?|kg)\.?\s*\)?\s*(cans?|tins?|jars?|packages?|pkgs?|bottles?)?$/);
   if (can && (lead.rest.startsWith("(") || can[3])) {
     const per = WEIGHTS.find(([words]) => whole(words).test(can[2]));
-    if (per) return { grams: Math.round(lead.value * Number(can[1]) * per[1]) };
+    const grams = per ? Math.round(lead.value * Number(can[1]) * per[1]) : 0;
+    return grams > 0 && grams <= 20000 ? { grams } : null;
   }
+  // Any other parenthesised size ("(12 fl oz)", "(400 ml)") is unreadable, never one portion.
+  if (lead.rest.startsWith("(")) return null;
   const unit = lead.rest.split(" ")[0] ?? "";
   const weight = WEIGHTS.find(([words]) => whole(words).test(unit));
   if (weight) return { grams: Math.round(lead.value * weight[1]) };
