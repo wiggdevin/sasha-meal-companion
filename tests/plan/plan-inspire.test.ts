@@ -104,6 +104,24 @@ describe("plan inspire", () => {
     expect(generateGemini.mock.calls[0][0].route?.modelId).toBe(LANES.plan.fallback);
   });
 
+  it("records only the stripped image's byte size for each attempt (W155)", async () => {
+    vi.stubEnv("OPENROUTER_ATTESTED", "1");
+    vi.stubEnv("HEALTH_CONTEXT_PROVIDER", "gemini");
+    vi.stubEnv("GEMINI_BILLING_ATTESTED", "1");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const generate = vi.fn().mockRejectedValue(new ProviderHttpError(503, "openrouter 503"));
+    const generateGemini = vi.fn().mockResolvedValue({ kind: "ingredients", title: null, ingredients: [] });
+    await inspire(admin, client, "u", photo, { generate, generateGemini,
+      fetchObject: async () => ({ bytes: JPEG, mimeType: "image/jpeg" }) });
+    const sent = Buffer.from(generate.mock.calls[0][0].payload.imageDataUrl.split(",")[1], "base64").byteLength;
+    const lines = info.mock.calls.filter((c) => c[0] === "[media-telemetry]").map((c) => c[1]);
+    info.mockRestore();
+    expect(lines).toEqual([
+      { purpose: "photoToIdeas", image_bytes: sent },
+      { purpose: "photoToIdeas-gemini", image_bytes: sent },
+    ]);
+  });
+
   it("does not fall back on a rejected reply or governance refusal", async () => {
     vi.stubEnv("OPENROUTER_ATTESTED", "1");
     const generate = vi.fn();

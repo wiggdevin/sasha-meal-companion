@@ -48,6 +48,19 @@ describe("draftPantryPhoto", () => {
     expect(call.payload.imageDataUrl).toMatch(/^data:image\/jpeg;base64,/);
   });
 
+  it("records only the stripped image's byte size (W155)", async () => {
+    vi.stubEnv("OPENROUTER_ATTESTED", "1");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const generate = vi.fn().mockResolvedValue({ kind: "ingredients", title: null, ingredients: [] });
+    await draftPantryPhoto(admin, "u1", PATH, {
+      generate, fetchObject: async () => ({ bytes: syntheticJpegWithExif(), mimeType: "image/jpeg" }),
+    });
+    const sent = Buffer.from(generate.mock.calls[0][0].payload.imageDataUrl.split(",")[1], "base64").byteLength;
+    const lines = info.mock.calls.filter((c) => c[0] === "[media-telemetry]").map((c) => c[1]);
+    info.mockRestore();
+    expect(lines).toEqual([{ purpose: "photoToIdeas", image_bytes: sent }]);
+  });
+
   it("strips EXIF/GPS metadata server-side before the payload is built (acceptance 5)", async () => {
     vi.stubEnv("OPENROUTER_ATTESTED", "1");
     const generate = vi.fn().mockResolvedValue({ kind: "ingredients", title: null, ingredients: [] });
