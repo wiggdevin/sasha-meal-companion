@@ -169,10 +169,20 @@ describe.skipIf(!HAS_PG)(`${NAME} on Postgres`, () => {
     expect(dayRecorded()).toBe("1:pending");
   });
 
-  it("a phone day one date behind mints for that day, and it settles at once", () => {
+  it("a phone day one date behind mints for that day, and it settles only on a later sync", () => {
     sql(twoMeals(-1));
-    expect(json(syncPoints(-1))).toMatchObject({ balance: 2, pending: 0 });
+    expect(json(syncPoints(-1))).toMatchObject({ balance: 0, pending: 2 });
+    expect(dayRecorded()).toBe("-1:pending");
+    expect(json(syncPoints(0))).toMatchObject({ balance: 2, pending: 0 });
     expect(dayRecorded()).toBe("-1:settled");
+  });
+
+  it("a day-behind award whose evidence is gone by the next sync is dropped, never settled", () => {
+    sql(twoMeals(-1));
+    json(syncPoints(-1));
+    sql(`update log_entries set deleted_at = now() where user_id = '${A}'`);
+    expect(json(syncPoints(0))).toMatchObject({ balance: 0, pending: 0 });
+    expect(dayRecorded()).toBe("");
   });
 
   it("a date further out is clamped to the stored zone's today, never refused", () => {

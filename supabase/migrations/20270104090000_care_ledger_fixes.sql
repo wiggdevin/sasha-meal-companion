@@ -73,15 +73,17 @@ begin
   -- a zone stored before a move). Within that one-date window it is used as sent; anything
   -- further is clamped to the stored zone's today. It never raises: the old 22023 future_date
   -- failed every Seeds and shop read for a phone one day ahead, and a phone one day behind
-  -- minted nothing. A day ahead only ever mints pending rows, which settle once that date has
-  -- closed in the stored zone, re-checked against the real rows (_care_points_settle).
+  -- minted nothing. Rows minted for v_day stay pending until v_day itself has closed: settlement
+  -- below runs up to the earlier of v_day and the stored zone's today, so a day-behind phone's
+  -- in-progress day is rechecked against the real rows on a later sync (_care_points_settle),
+  -- never settled in the call that minted it.
   v_day := case when p_local_date between v_today - 1 and v_today + 1 then p_local_date else v_today end;
 
   perform pg_advisory_xact_lock(hashtextextended(p_user_id::text || ':care_points', 0));
 
   -- Backfill never mints past the one-date window above: a brand-new award is only ever computed
-  -- for the account's own current local day (v_day). A date further back that was never synced on
-  -- its own day earns nothing retroactively -- the settle call below still promotes whatever that
+  -- for the account's own current local day (v_day). A date more than one day back that was never
+  -- synced on its own day earns nothing retroactively -- the settle call below still promotes whatever that
   -- day DID earn (synced while it was still today) from pending to settled.
   begin
     -- day_recorded: meals on 2+ occasions (distinct slot) that day.
@@ -175,7 +177,7 @@ begin
     end if;
   end;
 
-  perform _care_points_settle(p_user_id, v_today);
+  perform _care_points_settle(p_user_id, least(v_today, v_day));
 
   select coalesce(sum(delta) filter (where status = 'settled'), 0),
          coalesce(sum(delta) filter (where status = 'pending'), 0)
@@ -261,7 +263,8 @@ begin
   -- full-week (W067, audit A107): a retained meal on all seven dates of a local Monday-Sunday
   -- week that has closed. Any sync checks the week before the account's day (so a Monday-to-
   -- Saturday sync still grants it), and on a Sunday the week ending that day, as before. Both
-  -- weeks end on or before the account's own day, so no future date can grant it.
+  -- weeks end on or before the account's own day, which can be the stored zone's tomorrow (the
+  -- one-date window), so at most one day early, as the Sunday rule always allowed.
   if v_day is not null then
     foreach v_monday in array array[
       (v_day - extract(isodow from v_day)::int - 6)::date,
