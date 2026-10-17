@@ -328,4 +328,10 @@ describe("OD26: foods left out are named", () => {
       portsFor({ paneer: [paneer], rice: [rice] }));
     expect(full.leftOut).toBeUndefined();
   });
+
+  it("leaves leftOut off for a suggestion filler", async () => {
+    const meal = await composeMeal("u1", { wish: "chicken rice apple banana yogurt zzzfood", target: TARGET,
+      anchorProtein: "chicken" }, OPEN_PROFILE, portsFor({ chicken: [chicken], rice: [rice] }));
+    expect(meal.leftOut).toBeUndefined();
+  });
 });

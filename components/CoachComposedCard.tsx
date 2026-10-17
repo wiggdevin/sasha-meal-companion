@@ -14,6 +14,7 @@ import { useState } from "react";
 import type { CoachAction, GroundedActionItem } from "@/lib/coach/actions";
 import { clockNow, localDate } from "@/lib/coach/chat-state";
 import type { ComposedMeal } from "@/lib/coach/compose";
+import { MAX_TERMS } from "@/lib/coach/compose-terms";
 import { mealProvenance } from "@/lib/coach/message-view";
 import type { SlotId } from "@/lib/types";
 import { MacroLine } from "@/components/nutrition/MacroText";
@@ -100,7 +101,7 @@ export function leftOutLine(meal: Pick<ComposedMeal, "leftOut">): string | null 
   const over = named("over_limit");
   const missing = named("not_found");
   const parts = [
-    over && `Left out ${over}: I use up to 4 foods per meal.`,
+    over && `Left out ${over}: I use up to ${MAX_TERMS} foods per meal.`,
     missing && `Left out ${missing}: no match you can eat.`,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" ") : null;
@@ -135,6 +136,7 @@ export default function CoachComposedCard({
   rankingVersion?: string;
 }) {
   const offered = meal.pendingSlots ?? [];
+  const leftOut = leftOutLine(meal);
   const [slot, setSlot] = useState<string | null>(defaultSlot(meal));
   if (meal.items.length === 0) return null;
   const incomplete = isIncompleteDraft(meal);
@@ -207,9 +209,7 @@ export default function CoachComposedCard({
           </p>
         )}
 
-        {leftOutLine(meal) && (
-          <p className="m-0 text-tiny font-normal text-warning">{leftOutLine(meal)}</p>
-        )}
+        {leftOut && <p className="m-0 text-tiny font-normal text-warning">{leftOut}</p>}
 
         {/* The card's one AI label sits in its tag slot, beside the rank note it explains. */}
         {(meal.rankNote || madeBy?.ai) && (
