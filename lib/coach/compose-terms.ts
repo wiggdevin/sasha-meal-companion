@@ -12,7 +12,6 @@ const STOP_WORDS = new Set([
   // How the meal should be, not what is in it: "High protein" searched "high" and "protein" as foods.
   "high", "low", "protein", "carb", "carbs", "fat", "fats", "healthy", "quick", "easy", "light",
   "filling", "big", "small", "kcal", "calories", "calorie", "idea", "ideas", "option",
-  "grilled", "roasted", "baked", "fried", "cooked", "fresh", "spicy", "crispy", "hearty", "warm", "cold", "hot",
   "options", "today", "tonight", "now", "morning", "evening", "afternoon", "night",
 ]);
 
