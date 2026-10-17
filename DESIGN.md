@@ -355,6 +355,13 @@ over a charcoal scrim at 45 %. The dock is matte charcoal at 94 % with a light b
 ### Techniques
 - **Ground:** `.harvest-ground`, pure CSS and still: oat with a soft lighter wash at the top and a
   3 % fractal-noise grain (`--grain`, an inline SVG). No video, no WebGL.
+- **Grounds (selectable):** Settings › Background offers four, Oat (default), Sage, Clay and Mist
+  (`lib/design/grounds.ts`; the same values are written in `app/globals.css` as `html[data-ground]`).
+  A ground moves only the bare page: its base (`--color-paper`, `--color-background`), the top wash and
+  the lower-corner shade. Cards, the matte meal card, the dock and every text role stay as they are.
+  The choice is kept on the phone for the account and sets `<html data-ground>` and the browser
+  chrome colour (`themeColorFor`). Each ground passes the same contrast table as Oat
+  (`tests/design/grounds.test.ts`); a new ground must too.
 - **Matte grain:** the same grain at 3 % over the meal card and the dock (`.matte::before`).
 - **Gauge:** the arc alone on an ink-6 % track, gradient arc with round caps, no glow.
 - **Today calendar:** the Day card's calendar face: a seven-day strip under the day's heading, then the

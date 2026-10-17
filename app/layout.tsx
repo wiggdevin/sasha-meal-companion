@@ -9,6 +9,7 @@ import InstallPromptCapture from "@/components/InstallPromptCapture";
 import SyncBootstrap from "@/components/SyncBootstrap";
 import AuthGate from "@/components/AuthGate";
 import DevFreshnessBanner from "@/components/DevFreshnessBanner";
+import GroundTheme from "@/components/GroundTheme";
 import { THEME_COLOR } from "@/lib/design/theme-color";
 import { readAppCapabilities } from "@/lib/capabilities";
 import SectionHue from "@/components/SectionHue";
@@ -73,6 +74,7 @@ export default function RootLayout({
           {/* The Harvest ground (DESIGN.md §Techniques): still, pure CSS, oat with a matte grain. */}
           <div className="harvest-ground" aria-hidden="true" />
           <SectionHue />
+          <GroundTheme />
           <ServiceWorkerRegistrar />
           <SyncBootstrap />
           {/* The visible install card is inline on the Today page (owner feedback, 2026-10-08: it
