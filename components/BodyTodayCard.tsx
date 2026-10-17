@@ -10,7 +10,7 @@ import { sourceLabel } from "@/lib/health/today-card";
 import SourceGlyph from "@/components/BodySourceGlyph";
 import { lastSeen } from "@/components/BodyDashboard";
 import type { DailyHealthRow } from "@/lib/health/contract";
-import { LB_PER_KG } from "@/lib/health/units";
+import { formatWeight, type WeightUnit } from "@/lib/health/units";
 
 export type TodayCardRow = { key: string; label: string; value: string; source: string;
   asOf: string | null; meta: string | null };
@@ -44,7 +44,7 @@ function provenanceOf(day: DailyHealthRow | null): DailyHealthRow["provenance"] 
 }
 
 /** Viewed-day steps first, then device energy, sleep and weight. Missing observations are omitted. */
-export function todayCardRows(day: DailyHealthRow | null): TodayCardRow[] {
+export function todayCardRows(day: DailyHealthRow | null, weightUnit: WeightUnit = "lb"): TodayCardRow[] {
   const metrics: Array<[string, string, string | null, string | null]> = [
     ["step_count", "Steps", day?.steps == null ? null : `${int(day.steps)} steps`, null],
     ["active_energy", "Device active energy",
@@ -53,7 +53,7 @@ export function todayCardRows(day: DailyHealthRow | null): TodayCardRow[] {
     ["sleep_asleep", "Sleep",
       day?.sleep_minutes == null ? null : sleepText(day.sleep_minutes), null],
     ["body_mass", "Weight", day?.body_mass_kg == null ? null
-      : `${(Math.round(day.body_mass_kg * LB_PER_KG * 10) / 10).toLocaleString("en-US")} lb`, null],
+      : formatWeight(day.body_mass_kg, weightUnit), null],
   ];
   return metrics.flatMap(([key, label, value, meta]) => {
     if (value === null) return [];
@@ -65,7 +65,9 @@ export function todayCardRows(day: DailyHealthRow | null): TodayCardRow[] {
 
 export default function BodyTodayCardView({ day, tdeeKcal = null, tdeeLine = null,
   profileError = false, offline = false, fetchedAt = null, stale = false,
-  loading = false }: {
+  loading = false, weightUnit = "lb" }: {
+  /** The account's `user_settings.weight_unit` (OD20); storage stays kilograms. */
+  weightUnit?: WeightUnit;
   day: DailyHealthRow | null; tdeeKcal?: number | null; tdeeLine?: TdeeLine | null;
   /** The profile read failed (T11b finding 6): this card says so instead of "still learning". */
   profileError?: boolean;
@@ -80,7 +82,7 @@ export default function BodyTodayCardView({ day, tdeeKcal = null, tdeeLine = nul
    *  case. */
   loading?: boolean;
 }) {
-  const rows = todayCardRows(day);
+  const rows = todayCardRows(day, weightUnit);
   const showsStaleData = offline || stale;
 
   return (
