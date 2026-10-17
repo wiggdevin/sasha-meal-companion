@@ -355,7 +355,7 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
                 </AnimatePresence>
                 <CareLayer active={expanded && when === "today" && !preview} />
                 {/* Edit is always visible when open (OD19); long-press stays as a shortcut. */}
-                {expanded && <div className={styles.footer}>
+                {expanded && <div className={styles.editCorner}>
                   <Button variant="ghost" size="sm" className={styles.edit} onClick={() => setEditing(true)}
                     aria-expanded={editing}>Edit</Button>
                 </div>}

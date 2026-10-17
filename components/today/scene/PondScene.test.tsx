@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
  * Sprout's pond (owner, 2026-10-07): the rings become a rainbow over a lake; tapping it shows a
- * "remaining" key on the water without "left"; a day behind never makes Sprout sulk (OD19), only pokes do. jsdom has no WebGL: the painted lake stands in, and everything else works.
+ * "remaining" key on the water without "left"; a day behind never makes Sprout sulk (OD19), only
+ * pokes do. jsdom has no WebGL: the painted lake stands in, and everything else works.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";

@@ -144,7 +144,7 @@
     color-mix(in oklab, var(--color-on-olive) 22%, transparent));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 1px 2px rgb(0 0 0 / 0.5);
 }
-.toggle[data-open] + .panel { padding-bottom: 36px; }
+.toggle[data-open] + .panel { padding-bottom: 44px; }
 .toggle[data-open] .toggleBody { display: none; }
 .toggle:focus-visible {
   outline: 2px solid var(--color-gauge-calories);
@@ -181,6 +181,15 @@
 
 .slide {
   min-width: 0;
+}
+
+/* Open, Edit sits in the bottom gutter beside the grabber, always visible (OD19); long-press still
+   opens the arrange tray. The gutter is 44px so the button never covers the view. */
+.editCorner {
+  position: absolute;
+  right: 14px;
+  bottom: 0;
+  z-index: 3;
 }
 
 .footer {

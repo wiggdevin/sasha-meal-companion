@@ -86,7 +86,7 @@ export default function PondScene({ data, pet, paused = false, cheer = 0, bands 
   const hit = useMemo(() => rainbowHit(bands.length), [bands.length]);
   const sleepy = pet.mood === "sleepy";
   const current = poseOf(sulk, now);
-  // Sprout's own moments (moments.ts): only while it fishes calmly, the day is fine and nothing else runs.
+  // Sprout's own moments (moments.ts): only while it fishes calmly and nothing else runs.
   const moments = usePondMoments({ mascot, enabled: animate_ && current === "fishing" && action === "rest" && !caught && !sleepy && !keyOpen,
     splash: (x, y, strength) => water.current?.splash(x, y, strength) });
   const sprite: Sprite = current !== "fishing" ? current : moments.pose ?? (action === "cast" ? "cast"
