@@ -1,0 +1,2564 @@
+{
+  "version": 1,
+  "seed": "20260919",
+  "branch": "coach-eval",
+  "category": null,
+  "startedAt": "2026-10-17T11:20:40.786Z",
+  "updatedAt": "2026-10-17T11:33:09.660Z",
+  "status": "exhausted",
+  "streak": 1,
+  "totalTurns": 40,
+  "turns": [
+    {
+      "turn": 1,
+      "caseId": "list-remove-watermelon-avoid",
+      "sentence": "remove watermelon from avoid",
+      "path": "llm",
+      "elapsedMs": 3811,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "list_edit",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [remove_from_avoid]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3811 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.1"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I couldn’t check watermelon against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-001-list-remove-watermelon-avoid.json",
+      "threadId": "6b1d6af6-9a34-4b37-8084-f45638085094"
+    },
+    {
+      "turn": 2,
+      "caseId": "activity-device-kcal-no-allowance",
+      "sentence": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+      "path": "llm",
+      "elapsedMs": 3520,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "activity",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3520 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.14"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "C13 activity context present",
+          "passed": true,
+          "detail": "packed today.activity present"
+        },
+        {
+          "name": "C13 device estimate wording",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+        },
+        {
+          "name": "C13 forbidden allowance wording",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+        },
+        {
+          "name": "C13 no numeric food allowance",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+        },
+        {
+          "name": "C13 no target mutation",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+        },
+        {
+          "name": "C13 logs-and-weight weekly proposal",
+          "passed": true,
+          "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-002-activity-device-kcal-no-allowance.json",
+      "threadId": "589e6753-371d-43f6-a03c-1a2667472e3d"
+    },
+    {
+      "turn": 3,
+      "caseId": "list-remove-chicken-eats",
+      "sentence": "take chicken off my eats list",
+      "path": "fast",
+      "elapsedMs": 1067,
+      "actions": [
+        "remove_from_eats"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "list_edit",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [remove_from_eats]; got [remove_from_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1067 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Chicken breast, roasted is no longer favored.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-003-list-remove-chicken-eats.json",
+      "threadId": "36a478b9-5b65-4424-a690-f7ca057e762f"
+    },
+    {
+      "turn": 4,
+      "caseId": "suggest-small-snack-wish",
+      "sentence": "a small snack",
+      "path": "llm",
+      "elapsedMs": 7096,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "suggestion",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 1-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7096 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-004-suggest-small-snack-wish.json",
+      "threadId": "651a69cd-2fd8-462b-bd38-cfdfcea70e79"
+    },
+    {
+      "turn": 5,
+      "caseId": "block-search-greek-yogurt-eats",
+      "sentence": "find greek yogurt and put it on my eats",
+      "path": "llm",
+      "elapsedMs": 6336,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [add_to_eats]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6336 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Greek yogurt, plain has dairy, which your rules exclude. Ask me for something else and I’ll check it first.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [food_search]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": false,
+          "detail": "expected eats; got []"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-005-block-search-greek-yogurt-eats.json",
+      "threadId": "68d0ac6e-5d8d-44d1-94bd-94fadb9e7586"
+    },
+    {
+      "turn": 6,
+      "caseId": "devin-five-eats-suggestions",
+      "sentence": "make me 5 suggestions from my eats list",
+      "path": "llm",
+      "elapsedMs": 7993,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "devin",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 5-5; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7993 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+        },
+        {
+          "name": "C11 distinct protein anchors",
+          "passed": false,
+          "detail": "[]"
+        },
+        {
+          "name": "C11 policy-clean cards",
+          "passed": true,
+          "detail": "[]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-006-devin-five-eats-suggestions.json",
+      "threadId": "8a080eb0-29c6-4516-a45f-9b94b9965efb"
+    },
+    {
+      "turn": 7,
+      "caseId": "devin-remaining-snack",
+      "sentence": "suggest a snack that fits my remaining macros",
+      "path": "llm",
+      "elapsedMs": 7448,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "devin",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 1-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7448 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+        },
+        {
+          "name": "C11 snack <= 300 kcal",
+          "passed": true,
+          "detail": "[]"
+        },
+        {
+          "name": "C11 snack within remaining macros",
+          "passed": true,
+          "detail": "{\"remaining\":{\"kcal\":1473,\"protein\":112,\"carbs\":93,\"fat\":61},\"totals\":[]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-007-devin-remaining-snack.json",
+      "threadId": "5a1c9ea4-5587-4745-9ecc-a3f382813c92"
+    },
+    {
+      "turn": 8,
+      "caseId": "devin-shift-late-30",
+      "sentence": "I woke up late, can you move all my meals by 30 minutes?",
+      "path": "llm",
+      "elapsedMs": 3911,
+      "actions": [
+        "shift_schedule"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "devin",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [shift_schedule]; got [shift_schedule]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3911 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.12"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Moved all your meals 30 minutes later. They are now at 08:30, 12:00, 15:30 and 19:00.\""
+        },
+        {
+          "name": "C11 +30 remaining shift",
+          "passed": false,
+          "detail": "{\"kind\":\"shift_schedule\",\"date\":\"2026-10-17\",\"minutes\":30,\"scope\":\"all\",\"actionId\":\"fc2e82ac-d8b9-4f66-8180-e59173724077\",\"flagged\":[]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-008-devin-shift-late-30.json",
+      "threadId": "f93843d6-aa36-43d0-8f05-d55b4a321968"
+    },
+    {
+      "turn": 9,
+      "caseId": "block-weight-trend",
+      "sentence": "how's my weight trending?",
+      "path": "llm",
+      "elapsedMs": 4953,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4953 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"No weigh-ins yet.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [chart]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": false,
+          "detail": "expected weight_trend; got []"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-009-block-weight-trend.json",
+      "threadId": "fb6e25ea-2e99-4b0e-9c0b-c88a23bb24ef"
+    },
+    {
+      "turn": 10,
+      "caseId": "block-three-dinner-ideas",
+      "sentence": "three dinner ideas",
+      "path": "llm",
+      "elapsedMs": 6813,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 1-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6813 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [food_ideas]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-010-block-three-dinner-ideas.json",
+      "threadId": "3479898d-a7b9-47e4-a018-4df19c82c7a0"
+    },
+    {
+      "turn": 11,
+      "caseId": "meals-p4-spaghetti-snack",
+      "sentence": "I just ate spaghetti bolognese as a snack.",
+      "path": "llm",
+      "elapsedMs": 7796,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [log_meal]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7796 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.14"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I couldn’t check spaghetti against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": false,
+          "detail": "{\"expected\":\"log_meal\",\"actual\":null}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": false,
+          "detail": "{\"expected\":\"snack\",\"actual\":null}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": false,
+          "detail": "{\"expected\":\"Spaghetti bolognese\",\"actual\":\"\"}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": false,
+          "detail": "{\"expected\":{\"min\":350,\"max\":600},\"actual\":null}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-011-meals-p4-spaghetti-snack.json",
+      "threadId": "aaebabf0-07ef-417f-a366-2e31441a964c"
+    },
+    {
+      "turn": 12,
+      "caseId": "block-protein-or-fibre",
+      "sentence": "can you change my breakfast?",
+      "path": "llm",
+      "elapsedMs": 5208,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5208 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"What would you like to change your breakfast to?\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [quick_replies]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected quick-reply count",
+          "passed": false,
+          "detail": "expected 2-4; got []"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-012-block-protein-or-fibre.json",
+      "threadId": "1cab39cb-2b04-4686-8042-8f62df1958a0"
+    },
+    {
+      "turn": 13,
+      "caseId": "block-week-review",
+      "sentence": "how did this week go?",
+      "path": "llm",
+      "elapsedMs": 13123,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 13123 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I can show you a chart of your calories over the week. Would you like to see that?\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [chart]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "expected chart subtype",
+          "passed": false,
+          "detail": "expected kcal_week; got []"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-013-block-week-review.json",
+      "threadId": "d8a73d9f-e01e-4de0-aa1b-a16c7e181c09"
+    },
+    {
+      "turn": 14,
+      "caseId": "list-restore-salmon-eats",
+      "sentence": "put salmon back on eats",
+      "path": "llm",
+      "elapsedMs": 4085,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "list_edit",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [add_to_eats]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4085 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.13"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I couldn’t check Salmon, cooked against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-014-list-restore-salmon-eats.json",
+      "threadId": "cabd2225-eaf2-485f-a323-25e40f12976e"
+    },
+    {
+      "turn": 15,
+      "caseId": "suggest-chicken-wrap-wish",
+      "sentence": "a chicken wrap that fits my macros",
+      "path": "llm",
+      "elapsedMs": 7477,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "suggestion",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 1-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7477 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.2"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I couldn’t check chicken against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-015-suggest-chicken-wrap-wish.json",
+      "threadId": "e2f9e7df-29f0-47ad-81c5-2dbbafb80229"
+    },
+    {
+      "turn": 16,
+      "caseId": "schedule-push-hour",
+      "sentence": "push everything back an hour",
+      "path": "llm",
+      "elapsedMs": 3688,
+      "actions": [
+        "shift_schedule"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "schedule_body",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [shift_schedule]; got [shift_schedule]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3688 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.09"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Moved all your meals 60 minutes later. They are now at 09:00, 12:30, 16:00 and 19:30.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-016-schedule-push-hour.json",
+      "threadId": "9f5610e4-30dd-43d6-9642-35232095f849"
+    },
+    {
+      "turn": 17,
+      "caseId": "jev-three-dinner-ideas",
+      "sentence": "give me three dinner ideas that fit my preferences",
+      "path": "llm",
+      "elapsedMs": 6990,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 3-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 6990 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [food_ideas]; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev exactly one persisted ranking call",
+          "passed": false,
+          "detail": "[\"coach-openrouter\",\"coach-openrouter\",\"coach-verify\"]"
+        },
+        {
+          "name": "Jev persisted cards are policy-clean",
+          "passed": false,
+          "detail": "{\"ideas\":0,\"verdicts\":[]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-017-jev-three-dinner-ideas.json",
+      "threadId": "3d0901cd-a322-49dd-8e8c-a9fb801b9881"
+    },
+    {
+      "turn": 18,
+      "caseId": "block-search-watermelon-avoid",
+      "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+      "path": "llm",
+      "elapsedMs": 5845,
+      "actions": [],
+      "blocks": [
+        "food_search",
+        "next_action_chip"
+      ],
+      "cards": 0,
+      "category": "block",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5845 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Watermelon, raw is in the catalog.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected [food_search]; got [food_search, next_action_chip]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1,1]"
+        },
+        {
+          "name": "expected food-search intent",
+          "passed": false,
+          "detail": "expected avoid; got [\"log\"]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-018-block-search-watermelon-avoid.json",
+      "threadId": "8a05a2a0-121c-41df-9cb0-eda76c88cdd0"
+    },
+    {
+      "turn": 19,
+      "caseId": "jev-tiny-rice-log",
+      "sentence": "log 1 g of rice",
+      "path": "llm",
+      "elapsedMs": 4241,
+      "actions": [
+        "log_meal"
+      ],
+      "blocks": [
+        "next_action_chip"
+      ],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_meal]; got [log_meal]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4241 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.06"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 1 g of rice for Meal 2.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected []; got [next_action_chip]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "Jev persisted tiny-portion warning",
+          "passed": true,
+          "detail": "{\"name\":\"rice\",\"grams\":1,\"marks\":[{\"facet\":\"gluten\",\"source\":\"floor\",\"outcome\":\"unknown\"},{\"facet\":\"dairy\",\"source\":\"floor\",\"outcome\":\"unknown\"},{\"facet\":\"apple\",\"source\":\"floor\",\"outcome\":\"unknown\"}],\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"55f2267d-afc2-42ce-8306-828433682f0e:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"unverified\",\"foodRefId\":\"067ea2d7-0597-4847-a380-d8841b799bf1\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":13}"
+        },
+        {
+          "name": "Jev tiny log committed",
+          "passed": true,
+          "detail": "{\"status\":\"ok\",\"entry_id\":\"0a7d0cf9-de2a-444a-bffa-aaa36cafca33\",\"rev\":1,\"items\":[{\"id\":\"539aeeb3-0fa4-4bd2-9493-10f554949053\",\"entry_id\":\"0a7d0cf9-de2a-444a-bffa-aaa36cafca33\",\"seq\":1,\"food_ref_id\":\"067ea2d7-0597-4847-a380-d8841b799bf1\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":13,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"}},\"nutrition_partial\":null}],\"totals\":{\"local_date\":\"2026-10-17\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":421.3,\"unit\":\"kcal\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0},\"flagged\":[{\"path\":\"items.0\",\"message\":\"unverified:allergen:gluten\"},{\"path\":\"items.0\",\"message\":\"unverified:allergen:dairy\"},{\"path\":\"items.0\",\"message\":\"unverified:allergen:apple\"}]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-019-jev-tiny-rice-log.json",
+      "threadId": "b4496b98-309d-4114-9fbb-1daeb2152dcd"
+    },
+    {
+      "turn": 20,
+      "caseId": "weight-127-pounds",
+      "sentence": "I weigh 127 pounds this morning",
+      "path": "fast",
+      "elapsedMs": 1153,
+      "actions": [
+        "log_weight"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "schedule_body",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected fast; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_weight]; got [log_weight]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1153 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.07"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logging 57.6 kg.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-020-weight-127-pounds.json",
+      "threadId": "a238e7ec-177b-4c58-81db-60fd6c6ab58c"
+    },
+    {
+      "turn": 21,
+      "caseId": "jev-low-fodmap-unverified",
+      "sentence": "make a recipe from mystery broth, rice, and chicken",
+      "path": "llm",
+      "elapsedMs": 5346,
+      "actions": [],
+      "blocks": [
+        "recipe_results"
+      ],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [save_recipe]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5346 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I cannot make a recipe from those ingredients.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": false,
+          "detail": "expected []; got [recipe_results]"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got [1]"
+        },
+        {
+          "name": "Jev persisted recipe excludes unverified food",
+          "passed": false,
+          "detail": "null"
+        },
+        {
+          "name": "Jev persisted Not verified low-FODMAP copy",
+          "passed": false,
+          "detail": "I cannot make a recipe from those ingredients."
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-021-jev-low-fodmap-unverified.json",
+      "threadId": "b2c09a9e-a50d-407b-af0b-037d22416c9b"
+    },
+    {
+      "turn": 22,
+      "caseId": "jev-log-soy-mark",
+      "sentence": "log 100 g of smoked tofu for lunch",
+      "path": "llm",
+      "elapsedMs": 3454,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [log_meal]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3454 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Tofu does not fit your food rules. Ask me for something else and I’ll check it first.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted soy verdict",
+          "passed": false,
+          "detail": "null"
+        },
+        {
+          "name": "Jev persisted soy reply mark",
+          "passed": false,
+          "detail": "Tofu does not fit your food rules. Ask me for something else and I’ll check it first."
+        },
+        {
+          "name": "Jev soy log committed",
+          "passed": false,
+          "detail": "null"
+        },
+        {
+          "name": "Jev commit carries soy facet mark",
+          "passed": false,
+          "detail": "[]"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-022-jev-log-soy-mark.json",
+      "threadId": "4d7eeade-b915-4db1-b39e-93b34f4ccbcf"
+    },
+    {
+      "turn": 23,
+      "caseId": "list-eggs-cant-do",
+      "sentence": "I can't do eggs anymore",
+      "path": "llm",
+      "elapsedMs": 3353,
+      "actions": [
+        "add_to_avoid"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "list_edit",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_avoid]; got [add_to_avoid]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3353 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Eggs are now on your avoid list.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-023-list-eggs-cant-do.json",
+      "threadId": "a79457e5-ff6b-4073-a65f-b0f3771c2bd5"
+    },
+    {
+      "turn": 24,
+      "caseId": "suggest-no-cook-recipes-wish",
+      "sentence": "recipes I can make without cooking",
+      "path": "llm",
+      "elapsedMs": 7623,
+      "actions": [],
+      "blocks": [
+        "recipe_results"
+      ],
+      "cards": 0,
+      "category": "suggestion",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 1-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 7623 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I can't find any recipes that match your request for \\\"no cooking\\\" recipes. Shared recipe discovery is not available for this account yet.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-024-suggest-no-cook-recipes-wish.json",
+      "threadId": "5ef6002a-dbee-46ad-92ae-fbb9f8235e76"
+    },
+    {
+      "turn": 25,
+      "caseId": "jev-recipe-excludes-soy",
+      "sentence": "make a recipe from smoked tofu, rice, and avocado",
+      "path": "llm",
+      "elapsedMs": 8270,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [save_recipe]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8270 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.06"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Tofu does not fit your food rules. I couldn’t check smoked tofu, rice and avocado against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted recipe excludes soy",
+          "passed": false,
+          "detail": "null"
+        },
+        {
+          "name": "Jev persisted recipe names facet and preference",
+          "passed": false,
+          "detail": "Tofu does not fit your food rules. I couldn’t check smoked tofu, rice and avocado against your food rules yet, so I left them out. Ask me for something else and I’ll check it first."
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-025-jev-recipe-excludes-soy.json",
+      "threadId": "7a781129-c3b6-4041-ab9c-02140e779e9f"
+    },
+    {
+      "turn": 26,
+      "caseId": "meals-p2-future-breakfast",
+      "sentence": "What's my breakfast on 2026-10-05?",
+      "path": "llm",
+      "elapsedMs": 5309,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5309 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"On 2026-10-05, you had no meal planned for Meal 1.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 future plan materialized",
+          "passed": false,
+          "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":null}"
+        },
+        {
+          "name": "C9 future plan reported",
+          "passed": false,
+          "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"On 2026-10-05, you had no meal planned for Meal 1.\"}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-026-meals-p2-future-breakfast.json",
+      "threadId": "3d6d423c-587c-439c-a56a-594342f8f3ae"
+    },
+    {
+      "turn": 27,
+      "caseId": "meals-p6-weekday-oatmeal",
+      "sentence": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+      "path": "llm",
+      "elapsedMs": 5417,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [set_slot_meal]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 5417 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"How much oatmeal? How much blueberries?\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": false,
+          "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": false,
+          "detail": "{\"expected\":\"meal-1\",\"actual\":null}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": false,
+          "detail": "{\"expected\":\"Oatmeal with blueberries\",\"actual\":\"\"}"
+        },
+        {
+          "name": "C9 selected dates",
+          "passed": false,
+          "detail": "{\"expected\":[\"2026-10-19\",\"2026-10-20\",\"2026-10-21\",\"2026-10-22\",\"2026-10-23\",\"2026-10-26\",\"2026-10-27\",\"2026-10-28\",\"2026-10-29\",\"2026-10-30\"],\"actual\":null}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": false,
+          "detail": "{\"expected\":{\"min\":150,\"max\":400},\"actual\":null}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-027-meals-p6-weekday-oatmeal.json",
+      "threadId": "737d0b41-9bda-47fc-ab44-3648fc735be3"
+    },
+    {
+      "turn": 28,
+      "caseId": "list-add-tofu-eats",
+      "sentence": "add tofu to the foods I eat",
+      "path": "llm",
+      "elapsedMs": 4234,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "list_edit",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4234 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.5"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Tofu is on your Favored list.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-028-list-add-tofu-eats.json",
+      "threadId": "0b99fb41-873e-4fef-9895-2e8899a9e30e"
+    },
+    {
+      "turn": 29,
+      "caseId": "suggest-three-dinners",
+      "sentence": "three dinner ideas",
+      "path": "llm",
+      "elapsedMs": 8065,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "suggestion",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": false,
+          "detail": "expected 1-3; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 8065 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-029-suggest-three-dinners.json",
+      "threadId": "4afc7c70-9cd4-421a-a2c5-e88337644e89"
+    },
+    {
+      "turn": 30,
+      "caseId": "meals-p1-month-breakfast",
+      "sentence": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+      "path": "llm",
+      "elapsedMs": 3257,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [set_slot_meal]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3257 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.11"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I couldn’t check sourdough toast, bacon and eggs against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": false,
+          "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": false,
+          "detail": "{\"expected\":\"meal-1\",\"actual\":null}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": false,
+          "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"\"}"
+        },
+        {
+          "name": "C9 selected dates",
+          "passed": false,
+          "detail": "{\"expected\":[\"2026-10-17\",\"2026-10-18\",\"2026-10-19\",\"2026-10-20\",\"2026-10-21\",\"2026-10-22\",\"2026-10-23\",\"2026-10-24\",\"2026-10-25\",\"2026-10-26\",\"2026-10-27\",\"2026-10-28\",\"2026-10-29\",\"2026-10-30\",\"2026-10-31\",\"2026-11-01\",\"2026-11-02\",\"2026-11-03\",\"2026-11-04\",\"2026-11-05\",\"2026-11-06\",\"2026-11-07\",\"2026-11-08\",\"2026-11-09\",\"2026-11-10\",\"2026-11-11\",\"2026-11-12\",\"2026-11-13\",\"2026-11-14\",\"2026-11-15\",\"2026-11-16\"],\"actual\":null}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": false,
+          "detail": "{\"expected\":{\"min\":570,\"max\":700},\"actual\":null}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-030-meals-p1-month-breakfast.json",
+      "threadId": "10460174-e68d-463e-9aad-7bb3048d2d3f"
+    },
+    {
+      "turn": 31,
+      "caseId": "question-colitis-deflection",
+      "sentence": "do I have colitis?",
+      "path": "fast",
+      "elapsedMs": 438,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "no_action",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected fast; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 438 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.05"
+        },
+        {
+          "name": "expected medical deflection",
+          "passed": true,
+          "detail": "deflected=true; reply=\"That is a question for your doctor, not for me. I can help with what you eat — targets, portions, the foods you like — but I do not read symptoms, medication or test results. Write it down and bring it to your next appointment, and call your doctor sooner if it is getting worse.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-031-question-colitis-deflection.json",
+      "threadId": "a9bcb882-4995-4415-8e10-a846c866bcf7"
+    },
+    {
+      "turn": 32,
+      "caseId": "meals-p3-next-tuesday-lunch",
+      "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+      "path": "llm",
+      "elapsedMs": 4863,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "meals",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [set_slot_meal]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 4863 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.03"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"How much chicken breast, roasted? How much rice, white, cooked?\""
+        },
+        {
+          "name": "C9 server turn kept user state read-only",
+          "passed": true,
+          "detail": "unchanged"
+        },
+        {
+          "name": "C9 meal action",
+          "passed": false,
+          "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+        },
+        {
+          "name": "C9 meal slot",
+          "passed": false,
+          "detail": "{\"expected\":\"meal-2\",\"actual\":null}"
+        },
+        {
+          "name": "C9 dish title",
+          "passed": false,
+          "detail": "{\"expected\":\"Grilled chicken & rice\",\"actual\":\"\"}"
+        },
+        {
+          "name": "C9 selected dates",
+          "passed": false,
+          "detail": "{\"expected\":[\"2026-10-20\"],\"actual\":null}"
+        },
+        {
+          "name": "C9 calorie range",
+          "passed": false,
+          "detail": "{\"expected\":{\"min\":250,\"max\":450},\"actual\":null}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-032-meals-p3-next-tuesday-lunch.json",
+      "threadId": "b5f0b30f-7c00-4fb9-a0ba-45ea1359a720"
+    },
+    {
+      "turn": 33,
+      "caseId": "schedule-earlier-15",
+      "sentence": "move my meals earlier by 15 minutes",
+      "path": "llm",
+      "elapsedMs": 3875,
+      "actions": [
+        "shift_schedule"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "schedule_body",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [shift_schedule]; got [shift_schedule]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3875 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Moved all your meals 15 minutes earlier. They are now at 07:45, 11:15, 14:45 and 18:15.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-033-schedule-earlier-15.json",
+      "threadId": "2d84e2fb-a739-4793-b1a6-f678cb62ff11"
+    },
+    {
+      "turn": 34,
+      "caseId": "jev-role-advice-unconfirmed",
+      "sentence": "add blue pea crunch to my Eats list",
+      "path": "llm",
+      "elapsedMs": 3575,
+      "actions": [
+        "add_to_eats"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "jev",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_eats]; got [add_to_eats]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3575 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.32"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Blue pea crunch is on your Favored list.\""
+        },
+        {
+          "name": "expected block-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected block version",
+          "passed": true,
+          "detail": "expected every persisted block at v1; got []"
+        },
+        {
+          "name": "Jev persisted role advice requires confirmation",
+          "passed": true,
+          "detail": "{\"kind\":\"add_to_eats\",\"name\":\"Blue pea crunch\",\"flagged\":[\"blue pea crunch\"],\"verdict\":\"blocked\",\"actionId\":\"264a7f39-cc8f-4d5f-a5a0-9af269012f67\",\"foodRefId\":\"f7380c24-a126-4df6-a697-5df98fe2ee82\",\"fatPer100g\":3,\"roleAdvice\":{\"reason\":\"The food is chiefly the meal's protein anchor.\",\"foodRefId\":\"f7380c24-a126-4df6-a697-5df98fe2ee82\",\"confidence\":0.92,\"currentRole\":null,\"proposedRole\":\"protein\",\"suggestedRole\":\"protein_anchor\",\"requiresConfirmation\":true},\"kcalPer100g\":167,\"carbsPer100g\":5,\"alsoFoodRefIds\":[],\"proteinPer100g\":30,\"catalogFoodRevisionId\":null}"
+        },
+        {
+          "name": "Jev role unchanged before confirmation",
+          "passed": true,
+          "detail": "{\"before\":{\"status\":\"avoid\",\"role\":null},\"after\":{\"status\":\"avoid\",\"role\":null}}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-034-jev-role-advice-unconfirmed.json",
+      "threadId": "44c83067-3e58-4d9e-b72d-6b48d8a0df64"
+    },
+    {
+      "turn": 35,
+      "caseId": "devin-watermelon-avoid",
+      "sentence": "add watermelon to my avoid list",
+      "path": "fast",
+      "elapsedMs": 1320,
+      "actions": [
+        "add_to_avoid"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "devin",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got fast"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [add_to_avoid]; got [add_to_avoid]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 2000 ms; got 1320 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.05"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Adding Watermelon, raw to your Avoid list.\""
+        },
+        {
+          "name": "C11 all same-name watermelon refs",
+          "passed": true,
+          "detail": "{\"expected\":[\"9893c68e-695c-4bf9-a485-3f8597142ce8\",\"65b8f14a-935d-4c9d-b496-7a4b74f015b8\"],\"actual\":[\"9893c68e-695c-4bf9-a485-3f8597142ce8\",\"65b8f14a-935d-4c9d-b496-7a4b74f015b8\"]}"
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-035-devin-watermelon-avoid.json",
+      "threadId": "ce1147db-7d3e-45f8-a86b-8cb9fe622c2b"
+    },
+    {
+      "turn": 36,
+      "caseId": "question-food-left",
+      "sentence": "what do I have left to eat today?",
+      "path": "llm",
+      "elapsedMs": 3124,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "no_action",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3124 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"You have 1473 kcal left, with 112 g protein, 93 g carbs, and 61 g fat.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-036-question-food-left.json",
+      "threadId": "8d14aa34-89a9-4d6e-ad50-5d2eaf509dd6"
+    },
+    {
+      "turn": 37,
+      "caseId": "question-protein-high",
+      "sentence": "why is my protein so high?",
+      "path": "llm",
+      "elapsedMs": 3331,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "no_action",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected []; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3331 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.08"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Your protein target for today is 130g. You have eaten 18g so far and have 112g remaining.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-037-question-protein-high.json",
+      "threadId": "f3fc1d3f-b699-45d7-8563-1361b874b911"
+    },
+    {
+      "turn": 38,
+      "caseId": "water-two-cups",
+      "sentence": "log two cups of water",
+      "path": "llm",
+      "elapsedMs": 3332,
+      "actions": [
+        "log_water"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "schedule_body",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected llm; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [log_water]; got [log_water]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3332 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.04"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Logged 2 cups (16 oz) of water.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-038-water-two-cups.json",
+      "threadId": "4b5b5762-9c0f-4237-a9f9-8aa13a67c76e"
+    },
+    {
+      "turn": 39,
+      "caseId": "list-remove-watermelon-avoid",
+      "sentence": "remove watermelon from avoid",
+      "path": "llm",
+      "elapsedMs": 2912,
+      "actions": [],
+      "blocks": [],
+      "cards": 0,
+      "category": "list_edit",
+      "passed": false,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": false,
+          "detail": "expected [remove_from_avoid]; got []"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 2912 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.09"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"I couldn’t check watermelon against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-039-list-remove-watermelon-avoid.json",
+      "threadId": "b25adfc4-d1ef-4a05-bc4b-f05454c2664a"
+    },
+    {
+      "turn": 40,
+      "caseId": "schedule-push-hour",
+      "sentence": "push everything back an hour",
+      "path": "llm",
+      "elapsedMs": 3894,
+      "actions": [
+        "shift_schedule"
+      ],
+      "blocks": [],
+      "cards": 0,
+      "category": "schedule_body",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "expected path",
+          "passed": true,
+          "detail": "expected either; got llm"
+        },
+        {
+          "name": "expected action-kind set",
+          "passed": true,
+          "detail": "expected [shift_schedule]; got [shift_schedule]"
+        },
+        {
+          "name": "expected card-count range",
+          "passed": true,
+          "detail": "expected 0-0; got 0"
+        },
+        {
+          "name": "latency bound",
+          "passed": true,
+          "detail": "expected < 15000 ms; got 3894 ms"
+        },
+        {
+          "name": "no unsupported action claim",
+          "passed": true,
+          "detail": "verifier flagged=false; p=0.1"
+        },
+        {
+          "name": "not medically deflected",
+          "passed": true,
+          "detail": "deflected=false; reply=\"Moved all your meals 60 minutes later. They are now at 09:00, 12:30, 16:00 and 19:30.\""
+        }
+      ],
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-040-schedule-push-hour.json",
+      "threadId": "53f24405-c32a-4717-9678-1f89eb4fc016"
+    }
+  ],
+  "failures": [
+    {
+      "id": "F001",
+      "turn": 1,
+      "caseId": "list-remove-watermelon-avoid",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-001-list-remove-watermelon-avoid.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F002",
+      "turn": 4,
+      "caseId": "suggest-small-snack-wish",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-004-suggest-small-snack-wish.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F003",
+      "turn": 5,
+      "caseId": "block-search-greek-yogurt-eats",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-005-block-search-greek-yogurt-eats.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F004",
+      "turn": 6,
+      "caseId": "devin-five-eats-suggestions",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-006-devin-five-eats-suggestions.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F005",
+      "turn": 7,
+      "caseId": "devin-remaining-snack",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-007-devin-remaining-snack.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F006",
+      "turn": 8,
+      "caseId": "devin-shift-late-30",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-008-devin-shift-late-30.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F007",
+      "turn": 9,
+      "caseId": "block-weight-trend",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-009-block-weight-trend.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F008",
+      "turn": 10,
+      "caseId": "block-three-dinner-ideas",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-010-block-three-dinner-ideas.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F009",
+      "turn": 11,
+      "caseId": "meals-p4-spaghetti-snack",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-011-meals-p4-spaghetti-snack.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F010",
+      "turn": 12,
+      "caseId": "block-protein-or-fibre",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-012-block-protein-or-fibre.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F011",
+      "turn": 13,
+      "caseId": "block-week-review",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-013-block-week-review.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F012",
+      "turn": 14,
+      "caseId": "list-restore-salmon-eats",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-014-list-restore-salmon-eats.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F013",
+      "turn": 15,
+      "caseId": "suggest-chicken-wrap-wish",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-015-suggest-chicken-wrap-wish.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F014",
+      "turn": 17,
+      "caseId": "jev-three-dinner-ideas",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-017-jev-three-dinner-ideas.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F015",
+      "turn": 18,
+      "caseId": "block-search-watermelon-avoid",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-018-block-search-watermelon-avoid.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F016",
+      "turn": 19,
+      "caseId": "jev-tiny-rice-log",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-019-jev-tiny-rice-log.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F017",
+      "turn": 21,
+      "caseId": "jev-low-fodmap-unverified",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-021-jev-low-fodmap-unverified.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F018",
+      "turn": 22,
+      "caseId": "jev-log-soy-mark",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-022-jev-log-soy-mark.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F019",
+      "turn": 24,
+      "caseId": "suggest-no-cook-recipes-wish",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-024-suggest-no-cook-recipes-wish.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F020",
+      "turn": 25,
+      "caseId": "jev-recipe-excludes-soy",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-025-jev-recipe-excludes-soy.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F021",
+      "turn": 26,
+      "caseId": "meals-p2-future-breakfast",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-026-meals-p2-future-breakfast.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F022",
+      "turn": 27,
+      "caseId": "meals-p6-weekday-oatmeal",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-027-meals-p6-weekday-oatmeal.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F023",
+      "turn": 29,
+      "caseId": "suggest-three-dinners",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-029-suggest-three-dinners.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F024",
+      "turn": 30,
+      "caseId": "meals-p1-month-breakfast",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-030-meals-p1-month-breakfast.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F025",
+      "turn": 32,
+      "caseId": "meals-p3-next-tuesday-lunch",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-032-meals-p3-next-tuesday-lunch.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    },
+    {
+      "id": "F026",
+      "turn": 39,
+      "caseId": "list-remove-watermelon-avoid",
+      "proofPath": "docs/evals/2026-10-18-coach-streak-turns/turn-039-list-remove-watermelon-avoid.json",
+      "status": "resolved",
+      "diagnosis": "model behaviour",
+      "resolution": "W087 rerun auto-filed; cause recorded in docs/evals/2026-10-18-coach-live-pass-rerun.md",
+      "regressionTest": null
+    }
+  ],
+  "blockers": []
+}
