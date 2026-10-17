@@ -225,6 +225,7 @@ describe("log_draft block", () => {
     });
   });
 
+  // W017 A034: logging marks, never refuses — a blocked line can be logged with its mark, or removed.
   it("lets a blocked capture line be removed and logs the rest", async () => {
     const blockedRef = captureProposal.items[0].foodRefId as string;
     const proposal = {
@@ -243,7 +244,7 @@ describe("log_draft block", () => {
       draft: proposal, policy: { blocked: true, blockedItemIds: [blockedRef] } }}
       ctx={context({ commitCapture })} />);
 
-    expect((screen.getByRole("button", { name: "Log it" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Log it" }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Log it" }));
 

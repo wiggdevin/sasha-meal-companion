@@ -61,7 +61,7 @@ export default function ExportCard() {
     <section aria-label="Export" className="flex flex-col gap-3 p-4">
       <h3 className="m-0 text-heading-sm text-charcoal">Export</h3>
       <p className="m-0 text-caption font-normal text-graphite">
-        Everything you have logged, as a spreadsheet. Leave the dates empty for the whole log.
+        Your logged meals and your daily totals, as spreadsheets. Leave the dates empty for the whole log.
       </p>
 
       <div className="flex gap-2">

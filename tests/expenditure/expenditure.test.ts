@@ -102,6 +102,36 @@ describe("estimateExpenditure — held (R8, a gap with no valid window)", () => 
   });
 });
 
+describe("estimateExpenditure — starting until a first valid observation (E2, audit P04)", () => {
+  it("stays starting with no number when 20 complete days carry no weigh-in", () => {
+    const r = estimateExpenditure(input({ weighIns: [], intake: intake(20) }));
+    expect(r.status).toBe("burn_in");
+    expect(r.phase).toBe("starting");
+    expect(r.tdeeKcal).toBeNull();
+    expect({ tdeeLowKcal: r.tdeeLowKcal, tdeeHighKcal: r.tdeeHighKcal }).toEqual(startingRange(PRIOR_KCAL));
+    expect(r.proposalEligible).toBe(false);
+    expect(r.reason).toBe("Starting estimate — 0 of 6 weigh-in days in the last 14");
+  });
+
+  it("stays starting when weigh-ins exist but never once made a valid window", () => {
+    // One reading a week: never 6 in 14 days, never 12 in 28.
+    const weekly = weighIns(40).filter((w) => (toDayNumber(AS_OF) - toDayNumber(w.date)) % 7 === 0);
+    const r = estimateExpenditure(input({ weighIns: weekly }));
+    expect(r.status).toBe("burn_in");
+    expect(r.tdeeKcal).toBeNull();
+  });
+
+  it("holds at the seed once a valid observation has existed, past the lookback", () => {
+    // Valid windows 60–90 days back, then no weigh-in for two months.
+    const old = weighIns(90).filter((w) => toDayNumber(AS_OF) - toDayNumber(w.date) > 60);
+    const r = estimateExpenditure(input({ weighIns: old, intake: intake(90) }));
+    expect(r.status).toBe("held");
+    expect(r.phase).toBe("provisional");
+    expect(r.tdeeKcal).not.toBeNull();
+    expect(r.reason).toMatch(/^Holding the starting estimate/);
+  });
+});
+
 describe("estimateExpenditure — estimating / adaptive", () => {
   it("reports a rounded TDEE, the trend and the completeness fractions on 40 days of full history", () => {
     const r = estimateExpenditure(input());

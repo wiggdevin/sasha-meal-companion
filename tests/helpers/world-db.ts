@@ -32,6 +32,21 @@ export function asUser(user: string, sql: string): string {
     ${sql}; commit;`);
 }
 
+/**
+ * As `asUser`, with an owner UPDATE on user_settings put back inside a rolled-back transaction.
+ * W018 (20261231170000) took the grant and the policy away, so a signed-in write is refused before
+ * any trigger runs; this reaches the server-written column guards behind it (defence in depth).
+ */
+export function asUserWithSettingsGrant(user: string, sql: string): string {
+  return runSql(`begin; grant update on public.user_settings to authenticated;
+    create policy user_settings_test_update on public.user_settings for update to authenticated
+      using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+    set local role authenticated;
+    set local request.jwt.claim.sub = '${user}';
+    set local request.jwt.claims = '{"sub": "${user}", "role": "authenticated"}';
+    ${sql}; rollback;`);
+}
+
 export const rules = (user: string) =>
   Number(runSql(`select coalesce((select rules_rev from public.account_rules_clock where user_id = '${user}'), 0)`));
 export const evidence = () => Number(runSql(`select evidence_rev from public.evidence_clock where id = 1`));

@@ -94,4 +94,28 @@ describe("withTokenUser", () => {
     });
     expect(fn).not.toHaveBeenCalled();
   });
+
+  // W037 (audit A059): the MCP route names its scopes after the token is known; every one counts.
+  it("checks every scope a resolver names, after the token lookup", async () => {
+    rpc.mockResolvedValue({ data: [{ id: "tok-1", user_id: USER_A, scopes: ["constraints:write"] }],
+      error: null });
+    const resolver = vi.fn().mockResolvedValue(["constraints:write", "read"]);
+    const fn = vi.fn();
+    await expect(withTokenUser(req(`Bearer ${TOKEN_A}`), resolver, fn))
+      .rejects.toMatchObject({ status: 403, message: 'Token lacks the "read" scope.' });
+    expect(resolver).toHaveBeenCalledWith({ userId: USER_A, tokenId: "tok-1",
+      scopes: ["constraints:write"] });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("requires read when a resolver names nothing, and never runs it without a token", async () => {
+    rpc.mockResolvedValue({ data: [{ id: "tok-1", user_id: USER_A, scopes: ["log:write"] }],
+      error: null });
+    await expect(withTokenUser(req(`Bearer ${TOKEN_A}`), async () => [], vi.fn()))
+      .rejects.toMatchObject({ status: 403 });
+    const resolver = vi.fn();
+    await expect(withTokenUser(req(), resolver, vi.fn())).rejects.toMatchObject({ status: 401 });
+    expect(resolver).not.toHaveBeenCalled();
+  });
 });
+

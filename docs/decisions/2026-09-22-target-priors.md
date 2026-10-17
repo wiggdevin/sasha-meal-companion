@@ -6,16 +6,15 @@ Grok 4.6 and DeepSeek audited the diff. Evidence: `~/Inbox/notes/sasha-tdee-form
 
 ## What was wrong
 
-The first client's measured numbers had become every account's defaults. This is a
+Numbers fitted to one early account had become every account's defaults. This is a
 **specification defect**, not an implementation bug: the code did exactly what plan row D2 said,
-and D2 was tuned to one person (`analysis/targets.md` §1 — 127 lb, 19.5 % body fat by InBody,
-on her feet all day, four lifting sessions → activity factor 1.55). Three instances:
+and D2 was tuned to one person (activity factor 1.55). Three instances:
 
 1. `lib/profile/energy.ts` mapped "moderate" to 1.55 for everyone. For a 58-year-old, 160 lb
    woman with typed 32 % body fat that produced 2,215 / 1,983 kcal (2,115 average).
 2. `lib/server/expenditure.ts` seeded every account's expenditure walk at `PRIOR_KCAL = 2130`
-   and clamped every estimate to a band around `BMR_KCAL = 1372` — one person's physiology
-   clamping everyone's learned TDEE.
+   and clamped every estimate to a band around `BMR_KCAL = 1372` — two hard-coded
+   constants clamping everyone's learned TDEE.
 3. "Recomp" was an undisclosed −5 % deficit while its copy promised weight maintenance.
 
 ## Rulings

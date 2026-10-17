@@ -17,7 +17,9 @@ import {
   captureMedia, captureText, CAPTURE_LABELS, commitDraft, slotForNow,
   type CaptureOutcome, type DraftEdits, type MediaMethod,
 } from "@/lib/capture-client";
-import { clearDraft, draftSaveWarning, latestDraft, saveDraft } from "@/lib/capture/drafts";
+import {
+  captureInputKey, clearDraft, draftForInput, draftSaveWarning, DUPLICATE_NO_DRAFT, saveDraft,
+} from "@/lib/capture/drafts";
 import { savedFrom, type SaveResult } from "@/lib/log/outcome";
 import type { CaptureMethod } from "@/lib/capture/flags";
 import type { HoldView } from "@/lib/coach/hold";
@@ -256,28 +258,31 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
   const when = useCaptureWhen(at);
   const slotNow = useSlotNow(when.localDate, slot);
 
-  function settle(outcome: CaptureOutcome) {
+  function settle(outcome: CaptureOutcome, inputKey: string | null) {
     if (outcome.kind === "draft") {
       // Closes the propose hop and opens the one the user is actually looking at (T0 §1). The run the
       // capture opened is held so the commit closes THAT one, not whichever is latest on the path.
       mark(method, "confirm-shown", outcome.run);
       runRef.current = outcome.run ?? null;
-      const saved = saveDraft(outcome.draft);
+      const saved = saveDraft(outcome.draft, undefined, undefined, inputKey ?? undefined);
       setDraft(outcome.draft);
       setMessage(draftSaveWarning(saved));
       return;
     }
     if (outcome.kind === "duplicate") {
-      const held = latestDraft();
+      // A032: only this same input's draft, never another capture's; none means it was saved.
+      const held = draftForInput(inputKey);
       if (held !== null) { setDraft(held); setMessage(outcome.message); return; }
+      setMessage(DUPLICATE_NO_DRAFT);
+      return;
     }
     if (outcome.kind === "empty") setDraft(EMPTY_DRAFT(method));
     setMessage(outcome.message);
   }
 
-  async function run(work: Promise<CaptureOutcome>) {
+  async function run(work: Promise<CaptureOutcome>, inputKey: Promise<string | null>) {
     setBusy(true);
-    try { settle(await work); } finally { setBusy(false); }
+    try { settle(await work, await inputKey); } finally { setBusy(false); }
   }
 
   /** The verdict goes back to CaptureConfirm, whose shared feedback shows a refusal as an alert. */
@@ -364,17 +369,20 @@ export default function CaptureSheet({
           busy={flow.busy}
           onSubmitText={() => {
             void flow.run(captureText(text,
-              { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }));
+              { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }),
+            captureInputKey({ method: "text", text }));
           }}
           onVoiceReady={(clip) => {
             void flow.run(captureMedia("voice", clip,
-              { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }));
+              { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }),
+            captureInputKey({ method: "voice", blob: clip }));
           }}
           onPhotoReady={(photo) => {
             // CaptureBody only invokes this when mode is "label" or "photo" (never "text"), but
             // that runtime fact is not visible to TS at this closure's definition site.
             void flow.run(captureMedia(mode as MediaMethod, photo,
-              { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }));
+              { ...flow.when, slot: flow.slotNow(), onStep: flow.setStep }),
+            captureInputKey({ method: mode, blob: photo }));
           }}
           onOpenSearch={onOpenSearch}
         />

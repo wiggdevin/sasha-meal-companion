@@ -1,0 +1,19 @@
+client_timings — last 7 days (ms)
+
+path              step            p50    p95    n
+text              propose         33380  38750  2
+text              model           1861   1936   2
+text              ground          676    774    2
+text              commit          1375   1500   2
+text              card-visible    6      7      2
+coach-turn        model           0      6784   75
+coach-turn        ground          2498   6184   75
+coach-turn        attach          618    618    1
+coach-turn        sent            4987   12734  73
+coach-turn        first-text      5197   12993  75
+coach-turn        reply-done      5197   12993  75
+coach-action      action-applied  8      317    4
+coach-action      action-undone   343    343    1
+plan-chip:choose  card-visible    7      7      1
+plan-chip:choose  sent            1434   1434   1
+plan-chip:choose  server          817    817    1

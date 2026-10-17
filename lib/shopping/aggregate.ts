@@ -37,15 +37,35 @@ export type AggregateOptions = {
   categoryFor?: (ingredient: RecipeIngredient) => ShoppingLine["category"];
 };
 
+/**
+ * One purchase identity as a map key. An identity with neither a food ref nor a FoodDB id (a pantry
+ * photo item the catalog search never resolved, `lib/server/pantry-photo.ts`) gets a key of its own
+ * by name: it is never equal to a ref-backed key, so it never counts as stock for a recipe line.
+ */
 export function identityKey(identity: IngredientIdentity): string {
   if (!identity.foodRefId && !identity.foodDbId) {
-    throw new Error("Shopping identity needs a food ref or bundled FoodDB ID");
+    return JSON.stringify(["text", identity.purchaseState, identity.variantKey]);
   }
   return JSON.stringify([identity.foodRefId, identity.foodDbId ?? null,
     identity.catalogFoodRevisionId,
     identity.purchaseState, identity.variantKey]);
 }
 const round = (value: number) => Math.round(value * 10_000) / 10_000;
+/**
+ * Whole packages that cover `grams` (audit A018). Both inputs are decimal grams, so an exact
+ * multiple can divide to k + 1e-15, and a bought mass is rounded to 4 decimals (up to 0.00005 g
+ * off). A remainder under 1 mg is that rounding, never a reason to buy another package.
+ */
+export function packageCount(grams: number, packageGrams: number): number {
+  const ratio = grams / packageGrams;
+  const nearest = Math.round(ratio);
+  return Math.abs(grams - nearest * packageGrams) < 0.001 ? nearest : Math.ceil(ratio);
+}
+/** Grams bought as whole packages, or null with no package size. */
+export function packageBuyGrams(net: number, packageGrams: number | null): number | null {
+  if (net === 0) return 0;
+  return packageGrams ? round(packageCount(net, packageGrams) * packageGrams) : null;
+}
 const conversionRank = { known: 0, estimated: 1, unknown: 2 } as const;
 /** Preview-only ID. Persistence assigns a UUID; later previews preserve that UUID by identity. */
 const stableLineId = (periodId: string, key: string) => `preview:${periodId}:${key}`;
@@ -152,8 +172,7 @@ export function aggregateShopping(
       identityKey(quote.identity) === key && quote.packageGrams > 0
       && quote.currency === period.currency && quote.locale === period.locale)?.packageGrams : null;
     line.packageGrams = key ? packageByKey.get(key) ?? pricedPackage ?? null : null;
-    line.buyGrams = net === null ? null : net === 0 ? 0 : line.packageGrams
-      ? Math.ceil(net / line.packageGrams) * line.packageGrams : null;
+    line.buyGrams = net === null ? null : packageBuyGrams(net, line.packageGrams);
     const old = prior.get(line.id);
     if (old) {
       const additionalNeedGrams = old.needGrams === null || line.needGrams === null
@@ -189,7 +208,7 @@ export function aggregateShopping(
       priceUnknown.push(`No sourced local price for ${line.name}.`);
       continue;
     }
-    amount += Math.ceil(line.buyGrams / quote.packageGrams) * quote.amount;
+    amount += packageCount(line.buyGrams, quote.packageGrams) * quote.amount;
     pricedLines++;
   }
   const complete = priceUnknown.length === 0 && period.currency !== null;

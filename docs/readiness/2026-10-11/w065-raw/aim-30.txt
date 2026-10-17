@@ -1,0 +1,37 @@
+ai_calls.latency_ms — last 30 days (ms, provider round trip only)
+
+purpose                                                    status          p50    p95    n
+coach google/gemini-3.6-flash                              error           23695  23695  1
+coach google/gemini-3.6-flash                              ok              2813   11841  152
+coach google/gemini-3.6-flash                              provider_error  2759   21547  16
+coach google/gemini-3.6-flash                              timeout         20093  28102  5
+coach google/gemini-3.8-flash                              ok              11094  18434  4
+coach google/gemini-3.8-flash                              provider_error  17704  51726  6
+coach google/gemini-3.8-flash                              timeout         12890  12890  1
+coach-intent typesafe/jev-1.13.0                           ok              364    675    108
+coach-openrouter openrouter/anthropic/claude-haiku-4.5     provider_error  1211   1211   1
+coach-openrouter openrouter/anthropic/claude-haiku-4.5     schema_invalid  3090   3090   1
+coach-openrouter openrouter/google/gemini-2.5-flash        ok              2384   3183   122
+coach-openrouter openrouter/google/gemini-2.5-flash        schema_invalid  2422   3030   3
+coach-openrouter openrouter/google/gemini-3-flash-preview  ok              3147   3622   3
+coach-openrouter openrouter/google/gemini-3-flash-preview  provider_error  1521   1521   1
+coach-openrouter openrouter/google/gemini-3-flash-preview  timeout         15113  15113  1
+coach-verify typesafe/jev-1.13.0                           ok              328    1029   61
+food_facets typesafe/jev-1.13.0                            ok              402    764    117
+food_facets typesafe/jev-latest                            provider_error  189    193    2
+labelToNutrients google/gemini-3.8-flash                   ok              4781   4781   1
+labelToNutrients google/gemini-3.8-flash                   timeout         19737  19745  2
+log_sanity typesafe/jev-1.13.0                             ok              313    328    6
+meal-component-role typesafe/jev-1.13.0                    ok              304    354    4
+photoToIdeas openrouter/google/gemini-3-flash-preview      ok              2305   2305   1
+photoToItems google/gemini-3.6-flash                       ok              2016   2016   1
+photoToItems google/gemini-3.8-flash                       ok              2826   2826   1
+photoToItems google/gemini-3.8-flash                       provider_error  6842   9291   2
+profile-prefs typesafe/jev-1.13.0                          ok              302    524    6
+suggest-options typesafe/jev-1.13.0                        ok              324    472    49
+suggest-options typesafe/jev-latest                        timeout         113    132    3
+textToItems google/gemini-3.6-flash                        ok              1648   1648   1
+textToItems google/gemini-3.8-flash                        ok              1834   1915   3
+textToItems google/gemini-3.8-flash                        timeout         19263  19338  3
+textToItems-openrouter openrouter/google/gemini-2.5-flash  ok              1645   1798   6
+weeklyReview google/gemini-3.6-flash                       ok              1205   4066   7

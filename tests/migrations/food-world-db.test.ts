@@ -13,7 +13,8 @@
 import "../tenancy/local-only";
 import { afterAll, describe, expect, it } from "vitest";
 import { HAS_DB, runSql } from "../helpers/supabase";
-import { account, asUser, dropAccounts, marker, world } from "../helpers/world-db";
+import { account, asUser, asUserWithSettingsGrant, dropAccounts, marker, world }
+  from "../helpers/world-db";
 
 describe.skipIf(!HAS_DB)("food world on the migrated schema (W2b)", () => {
   afterAll(dropAccounts);
@@ -21,6 +22,9 @@ describe.skipIf(!HAS_DB)("food world on the migrated schema (W2b)", () => {
   it("only the server writes food_world", () => {
     const a = account();
     expect(() => asUser(a, `update public.user_settings set food_world = 'open' where user_id = '${a}'`))
+      .toThrow(/permission denied for table user_settings/);
+    expect(() => asUserWithSettingsGrant(a,
+      `update public.user_settings set food_world = 'open' where user_id = '${a}'`))
       .toThrow(/food_world is server-written/);
     expect(world(a)).toBe("closed");
   });

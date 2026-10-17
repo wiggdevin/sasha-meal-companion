@@ -20,20 +20,21 @@ describe("profileSeedFor — the account's own prior and BMR (Devin, 2026-09-22)
   });
 
   it("uses Katch-McArdle for a recent measured body fat", async () => {
-    const seed = await profileSeedFor(clientWith({ ...COMPLETE, weight_kg: 57.64,
-      body_fat_pct: 19.5, body_fat_source: "inbody", body_fat_measured_on: "2026-08-01" }),
+    const seed = await profileSeedFor(clientWith({ ...COMPLETE,
+      body_fat_pct: 25, body_fat_source: "inbody", body_fat_measured_on: "2026-08-01" }),
     "u1", "2026-09-19");
-    expect(seed?.bmrKcal).toBe(1372);
-    expect(seed?.tdeeKcal).toBe(Math.round(1372.3 * 1.4));
+    expect(seed?.bmrKcal).toBe(1342);
+    // Made-up inputs: 60 kg at 25 % body fat is 45 kg lean mass; 370 + 21.6 × 45 = 1342.
+    expect(seed?.tdeeKcal).toBe(Math.round(1342 * 1.4));
   });
 
   it("uses Mifflin-St Jeor for a typed body fat, or a source it does not know", async () => {
-    // Mifflin for 57.64 kg, 165 cm, age 30: 576.4 + 1031.25 - 150 - 161 = 1296.65.
+    // Mifflin for 60 kg, 165 cm, age 30: 600 + 1031.25 - 150 - 161 = 1320.25.
     for (const provenance of [{}, { body_fat_source: "typed_unknown" },
       { body_fat_source: "guess", body_fat_measured_on: "2026-08-01" }]) {
-      const seed = await profileSeedFor(clientWith({ ...COMPLETE, weight_kg: 57.64,
-        body_fat_pct: 19.5, ...provenance }), "u1", "2026-09-19");
-      expect(seed?.bmrKcal).toBe(1297);
+      const seed = await profileSeedFor(clientWith({ ...COMPLETE,
+        body_fat_pct: 25, ...provenance }), "u1", "2026-09-19");
+      expect(seed?.bmrKcal).toBe(1320);
     }
   });
 

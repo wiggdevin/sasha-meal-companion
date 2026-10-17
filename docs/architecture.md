@@ -655,8 +655,8 @@ two hops only the server can time — which the client files into the same `clie
 
 `lib/expenditure.ts`, pure functions, versioned via `engine_version`. Not a MacroFactor clone: its filter and coefficients are unpublished
 (the retained adaptive-TDEE research note). `7700 kcal/kg` is an explicit modelling approximation, not a
-physical constant. **Seed:** `prior = 2130 kcal`, the user's trained maintenance working number in `targets.md`; `BMR = 1372 kcal` (Katch-McArdle
-from the InBody lean mass of 46.4 kg). The absolute bounds below use this measured BMR, not a Mifflin-St Jeor estimate.
+physical constant. **Seed:** the account's own formula TDEE is the prior and its own BMR bounds the estimate
+(`lib/server/profile-tdee.ts`; until 2026-09-22 both were hard-coded constants). The absolute bounds below use that BMR.
 
 ```
 qualified day         = a local date whose intake completeness is 'complete'
@@ -1048,7 +1048,7 @@ Each entry names the finding it answers in the retained 2026-09-10 GPT-5.6 v2 au
 | 10 | §6 pins `gemini-3.8-flash` and `@google/genai` major 2, requires a billing-enabled Gemini project, provider storage and logging disabled where exposed, provider file deletion after every call, and a recorded Nous retention decision before the user's data is sent. | BLOCK §0/§6 |
 | 11 | §4.2 re-checks that the media object path belongs to `auth.uid()`, fetches bytes server-side, and sends bounded inline bytes (< 4 MB) or a Gemini Files API upload with explicit deletion. The zod schema converts to the supported JSON-Schema subset and the response is re-validated after the call. | WARN §4.2/§6; §3 "Gemini audio and structured output" |
 | 12 | §4.1 gives the exact SQL, uses `ts_rank` normalization flag 32, maps all features explicitly to [0,1] with weights summing to 1.00, makes GTIN a separate deterministic path, and marks the 0.80/0.15 thresholds as calibrated on the labelled set. | §3 "Normalised search score"; v1 finding 11 |
-| 13 | §4.3 seeds `prior = 2130 kcal` from `targets.md` maintenance and bounds on the measured BMR of 1,372 kcal; burn-in ends only on ≥ 21 qualified days, ≥ 12 weigh-ins, ≥ 15 complete intake days **and** a defined `t−14` trend point; status holds when either trend endpoint is missing; the clamp order is numbered. | WARN §4.3 |
+| 13 | §4.3 seeds the prior from the account's own TDEE and bounds on its BMR; burn-in ends only on ≥ 21 qualified days, ≥ 12 weigh-ins, ≥ 15 complete intake days **and** a defined `t−14` trend point; status holds when either trend endpoint is missing; the clamp order is numbered. | WARN §4.3 |
 | 14 | §4.3 and §3.4 apply `kcal_min` and `protein_g_min` and define the floor-conflict rule: raise calories, never cut protein or fat below its floor; a raise above the weekly step cap sets status `blocked` for the reviewer. | v1 finding 6 |
 | 15 | §4.3 replaces "training start must not move TDEE by more than 5 %" with three separate claims: artifacts bounded, under-logging holds, real sustained change detected within a stated lag and error. | §3 "Estimator" |
 | 16 | §3.4 gives percent mode a full contract: stored `protein_pct`/`fat_pct`/`carb_pct` summing to 100, conversion at kcal × pct ÷ 4\|9\|4 per day type, carbs as the remainder, floors applied in grams afterwards, check constraints and rejection rules. | v1 finding 20 |

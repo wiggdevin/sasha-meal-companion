@@ -1,6 +1,6 @@
 import { withSpendRpc } from "@/tests/ai/spend-admin";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CoachRateLimited, mapCatalogFoodHit } from "@/lib/server/coach";
+import { mapCatalogFoodHit } from "@/lib/server/coach";
 import { runTurn } from "@/tests/coach/fixtures/run-turn";
 import { MEDICAL_DEFLECTION } from "@/lib/coach/deflect";
 import { generateStructured } from "@/lib/ai/adapter";
@@ -1049,18 +1049,7 @@ describe("runTurn", () => {
     // and the coach never invents a substitute.
     expect(await getTargetsPayload({ user_settings: [{}], target_profiles: [] })).toBeNull();
   });
-
-  it("throws CoachRateLimited with retryAfterSeconds on the eleventh turn in an hour", async () => {
-    const at = (minutesAgo: number) =>
-      ({ created_at: new Date(3_600_000 - minutesAgo * 60_000).toISOString() });
-    const tables = { ai_calls: Array.from({ length: 10 }, (_, i) => at(i * 5)) };
-    const error = await runTurn(db(tables, { rows: [] }), db(tables, { rows: [] }), "u1",
-      { ...REQ, text: "what should I eat" },
-      { generate: vi.fn() as never, ports, now: () => 3_600_000, newId: () => "id-1" })
-      .catch((e) => e);
-    expect(error).toBeInstanceOf(CoachRateLimited);
-    expect(error.retryAfterSeconds).toBeGreaterThan(0);
-  });
+  // The turn budget (W035) is proven in tests/coach/turn-budget.test.ts.
 });
 
 

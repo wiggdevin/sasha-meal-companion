@@ -41,10 +41,9 @@ type CompleteProfileSettings = Settings & {
 
 /**
  * Conservative starting factors (ruling 2026-09-22, docs/decisions/2026-09-22-target-priors.md).
- * The classic 1.2 / 1.375 / 1.55 / 1.725 / 1.9 table stayed until 2026-09-22 because 1.55 was
- * the first client's MEASURED trained maintenance (analysis/targets.md §1: 127 lb, 19.5 % BF by
- * InBody, on the client's feet all day, four lifting sessions); it over-estimated everyone else
- * by ~200 kcal/day at "moderate".
+ * The classic 1.2 / 1.375 / 1.55 / 1.725 / 1.9 table stayed until 2026-09-22 because it had been
+ * fitted to a single early account; it over-estimated everyone else by ~200 kcal/day at
+ * "moderate".
  * These are priors the expenditure engine is meant to replace, so they err low, never high.
  */
 const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
@@ -183,8 +182,8 @@ function cycledCarbs(baseCarbs: number, trainingDays: number): {
   return best;
 }
 
-/** `trainingDays` is required: a silent four-day default was the first client's week, not a
- *  neutral one (ruling 2026-09-22). derive.ts passes the account's explicit weekdays. */
+/** `trainingDays` is required: a silent four-day default was one early account's schedule, not
+ *  a neutral one (ruling 2026-09-22). derive.ts passes the account's explicit weekdays. */
 export function deriveTargets(
   profile: EnergyProfile,
   today: Date,

@@ -1,0 +1,14 @@
+ai_calls.latency_ms — last 7 days (ms, provider round trip only)
+
+purpose                 status          p50   p95   n
+coach-intent            ok              443   650   30
+coach-openrouter        ok              2415  3413  58
+coach-openrouter        schema_invalid  3097  3097  1
+coach-verify            ok              307   472   22
+food_facets             ok              381   750   73
+food_facets             provider_error  189   193   2
+log_sanity              ok              329   329   1
+meal-component-role     ok              342   357   2
+suggest-options         ok              359   485   26
+textToItems-openrouter  ok              1645  1798  6
+weeklyReview            ok              1603  4769  3

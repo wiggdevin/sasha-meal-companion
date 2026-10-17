@@ -15,6 +15,7 @@ import type { generateStructured } from "@/lib/ai/adapter";
 import { registerCoachTools } from "@/lib/mcp/coach-tools";
 import { resetRateLimits } from "@/lib/server/ratelimit";
 import { runTurn } from "@/lib/server/coach-turn";
+import { reserveTurn } from "@/lib/server/coach";
 import { mintToken, toBytea } from "@/lib/server/tokens";
 import { withTokenUser } from "@/lib/server/privileged";
 import { cookieJar, createRequestClient } from "@/lib/supabase/server";
@@ -267,13 +268,8 @@ when("Phase 7 on a Supabase branch", () => {
 
   it("7. the eleventh turn in an hour is 429 with retryAfterSeconds", async () => {
     await resetUser(aId);
-    const seeded = await users.admin.from("ai_calls").insert(Array.from({ length: 10 }, (_, i) => ({
-      user_id: aId, purpose: "coach", provider: "google", model_id: "gemini-3.8-flash",
-      sdk_version: "test", input_tokens: 1, output_tokens: 1, latency_ms: 1,
-      input_hash: "\\x00", cost_estimate: 0, status: "ok",
-      created_at: new Date(Date.now() - i * 60_000).toISOString(),
-    })));
-    expect(seeded.error).toBeNull();
+    // W035: the budget is the turn limiter, not a count of ai_calls rows; ten turns spent it.
+    for (let i = 0; i < 10; i += 1) await reserveTurn(aId);
 
     const before = await rows("coach_messages", "user_id", aId);
     const res = await coachPOST(postTurn(

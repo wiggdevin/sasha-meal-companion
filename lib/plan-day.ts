@@ -34,9 +34,9 @@ const TYPE_NOTE: Record<DayType, string> = {
 };
 
 /**
- * The training day a row offers: always `training-10`. Wednesday's fasted 7am variant was the
- * first client's week (onboarding v2 G6); no account is offered it by weekday. `date` stays in
- * the signature for the callers.
+ * The training day a row offers: always `training-10`. Wednesday's fasted 7am variant was a
+ * hard-coded schedule from an early build (onboarding v2 G6); no account is offered it by
+ * weekday. `date` stays in the signature for the callers.
  */
 export function trainingDayTypeFor(date: string): DayType {
   void date;

@@ -11,7 +11,7 @@ import type { CoachTurnResponse } from "@/lib/coach/types";
 import { deterministicSanity } from "@/lib/log/sanity-deterministic";
 import { attachDeterministicCoachSanity, hasCoachSanityTargets, startPersistedCoachSanity }
   from "@/lib/server/coach-sanity";
-import { coachPurpose } from "@/lib/server/coach";
+import { COACH_TURN_PURPOSES } from "@/lib/server/coach";
 import { lastAiCallId, view, type MessageRow } from "@/lib/server/coach-threads";
 import { AI_CALL_LOOKUP_GRACE_MS, beforeDeadline, LATE } from "@/lib/server/coach-turn/deadline";
 import { outcomeProvenance, stampProvenance, type TurnOutcome } from "@/lib/server/coach-turn/outcome";
@@ -23,14 +23,14 @@ async function aiCallLink(turn: OpenTurn, outcome: TurnOutcome): Promise<string 
   if (outcome.kind === "model") {
     // A lookup, not the turn: late, the row is saved without its ai_calls link.
     return beforeDeadline(
-      () => lastAiCallId(admin, userId, coachPurpose()), replyDeadlineAt + AI_CALL_LOOKUP_GRACE_MS,
+      () => lastAiCallId(admin, userId, COACH_TURN_PURPOSES), replyDeadlineAt + AI_CALL_LOOKUP_GRACE_MS,
     ).then((id) => id === LATE ? null : id);
   }
-  return lastAiCallId(admin, userId, coachPurpose());
+  return lastAiCallId(admin, userId, COACH_TURN_PURPOSES);
 }
 
 export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<CoachTurnResponse> {
-  const { client, userId, req, deps, newId, save, threadId, seq, base, userRow } = turn;
+  const { client, admin, userId, req, deps, newId, save, threadId, seq, base, userRow } = turn;
   const id = newId();
   const provenance = outcomeProvenance(outcome);
   const linked = outcome.kind === "model"
@@ -53,8 +53,10 @@ export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<Coac
       assistantRow.tool_calls, { deterministic: deterministicSanity },
     ) };
   }
-  await save(client, threadId, [userRow, assistantRow],
+  // The rows as saved: a seq another turn took first moves both (W035, audit A151).
+  const [savedUser, savedAssistant] = await save(client, threadId, [userRow, assistantRow],
     req.threadId === null ? req.text : null, outcome.kind === "model" ? outcome.memory : undefined);
+  assistantRow = { ...assistantRow, seq: savedAssistant.seq };
   let body = outcome.body;
   if (hasSanity) {
     const sanitySignal = AbortSignal.timeout(
@@ -72,10 +74,11 @@ export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<Coac
         });
         return null;
       }), turn.saveDeadlineAt).then((loaded) => loaded === LATE ? null : loaded);
+    // The write-back patches an assistant row, which only the service role may update (W018).
     const sanity = deps.sanity
-      ? deps.sanity(client, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal)
+      ? deps.sanity(admin, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal)
       : sanityDeps ? startPersistedCoachSanity(
-        client, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal, sanityDeps,
+        admin, userId, assistantRow.id, assistantRow.tool_calls, sanitySignal, sanityDeps,
       ) : null;
     if (sanity) {
       body = { ...body, actions: sanity.actions };
@@ -86,6 +89,6 @@ export async function finish(turn: OpenTurn, outcome: TurnOutcome): Promise<Coac
     || (outcome.kind === "fast_path" && outcome.messages === "plain");
   return {
     threadId, ...body, provenance,
-    messages: plain ? [userRow, assistantRow].map(view) : [userRow, assistantRow].map(toMessageView),
+    messages: plain ? [savedUser, assistantRow].map(view) : [savedUser, assistantRow].map(toMessageView),
   };
 }

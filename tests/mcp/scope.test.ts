@@ -3,12 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withTokenUser } from "@/lib/server/privileged";
 import { resetRateLimits } from "@/lib/server/ratelimit";
 import { HttpError } from "@/lib/server/auth";
+import { emulateTokenUser, type ScopeLog } from "@/tests/helpers/token-user-mock";
 
 vi.mock("@/lib/server/privileged", () => ({ withTokenUser: vi.fn() }));
 
 const { POST } = await import("@/app/api/mcp/route");
 const mockedWith = vi.mocked(withTokenUser);
 const USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+let log: ScopeLog = { required: [] };
+
+function tokenWith(scopes: string[], userId = USER_ID, tokenId = "tok-1") {
+  mockedWith.mockImplementation(emulateTokenUser({ userId, tokenId, scopes }, log) as never);
+}
 
 const RETIRED_TOOLS = [
   "list_foods", "add_food", "set_food_status", "get_day",
@@ -53,9 +59,8 @@ describe("the MCP scope gate", () => {
   beforeEach(() => {
     mockedWith.mockReset();
     resetRateLimits();
-    mockedWith.mockImplementation(async (_req, _scope, fn) =>
-      fn({ userId: USER_ID, tokenId: "tok-1", scopes: ["read", "constraints:write"] }, {} as never),
-    );
+    log = { required: [] };
+    tokenWith(["read", "constraints:write"]);
   });
 
   afterEach(() => vi.unstubAllEnvs());
@@ -82,24 +87,22 @@ describe("the MCP scope gate", () => {
 
   it("asks for read on every read tool and on tool listing", async () => {
     for (const tool of ACTIVE_TOOLS.filter((name) => name !== "set_constraints")) {
-      mockedWith.mockClear();
+      log.required = [];
       await POST(post(rpc("tools/call", tool)));
-      expect(mockedWith.mock.calls[0][1], tool).toBe("read");
+      expect(log.required[0], tool).toEqual(["read"]);
     }
-    mockedWith.mockClear();
+    log.required = [];
     await POST(post(rpc("tools/list")));
-    expect(mockedWith.mock.calls[0][1]).toBe("read");
+    expect(log.required[0]).toEqual(["read"]);
   });
 
   it("asks for constraints:write on set_constraints", async () => {
     await POST(post(rpc("tools/call", "set_constraints")));
-    expect(mockedWith.mock.calls[0][1]).toBe("constraints:write");
+    expect(log.required[0]).toEqual(["constraints:write"]);
   });
 
   it("lets any token owner reach the user-scoped tools", async () => {
-    mockedWith.mockImplementation(async (_req, _scope, fn) =>
-      fn({ userId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", tokenId: "tok-2", scopes: ["read"] }, {} as never),
-    );
+    tokenWith(["read"], "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "tok-2");
     for (const tool of ACTIVE_TOOLS.filter((name) => name !== "set_constraints")) {
       const res = await POST(post(rpc("tools/call", tool)));
       expect(res.status, tool).not.toBe(404);
@@ -111,11 +114,9 @@ describe("the MCP scope gate", () => {
       { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "set_constraints", arguments: {} } },
       { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_targets", arguments: {} } },
     ]);
-    mockedWith.mockImplementation(async (_req, _scope, fn) =>
-      fn({ userId: USER_ID, tokenId: "tok-1", scopes: ["read"] }, {} as never),
-    );
+    tokenWith(["read"]);
     const res = await POST(post(batch));
-    expect(mockedWith.mock.calls[0][1]).toBe("constraints:write");
+    expect(log.required[0]).toEqual(["constraints:write", "read"]);
     expect(res.status).toBe(403);
   });
 
@@ -133,14 +134,14 @@ describe("the MCP scope gate", () => {
     expect(unauthorized.headers.get("www-authenticate")).toBe("Bearer");
   });
 
-  it("rejects an oversized or malformed body at the correct boundary", async () => {
+  it("rejects an oversized or malformed body after authentication", async () => {
     const oversized = await POST(post(JSON.stringify({ pad: "x".repeat(70_000) })));
     expect(oversized.status).toBe(413);
-    expect(mockedWith).not.toHaveBeenCalled();
+    expect(mockedWith).toHaveBeenCalledTimes(1);
 
     const malformed = await POST(post("not json"));
     expect(malformed.status).toBe(400);
-    expect(mockedWith).toHaveBeenCalledTimes(1);
+    expect(mockedWith).toHaveBeenCalledTimes(2);
   });
 
   it("throttles repeated and distinct fabricated tokens before identity", async () => {

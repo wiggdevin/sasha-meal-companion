@@ -289,14 +289,15 @@ export function hasCoachSanityTargets(value: unknown): boolean {
     || toolCalls.blocks?.some((block) => block.kind === "log_draft") === true;
 }
 
+/** The patch goes through the service role: a signed-in user may not update coach rows (W018). */
 async function writeBack(
-  client: SupabaseClient,
+  admin: SupabaseClient,
   userId: string,
   messageId: string,
   toolCalls: ToolCalls,
 ): Promise<void> {
   try {
-    const { error } = await client.from("coach_messages").update({ tool_calls: toolCalls })
+    const { error } = await admin.from("coach_messages").update({ tool_calls: toolCalls })
       .eq("id", messageId).eq("user_id", userId);
     if (error) console.error("coach sanity write-back failed", { error: error.message.slice(0, 200) });
   } catch (error) {
@@ -331,7 +332,7 @@ function afterResponse<T>(task: () => Promise<T>, schedule?: SanityDeps["schedul
  * Provider work and its row patch are fail-open and never sit on the logging/apply path.
  */
 export function startPersistedCoachSanity(
-  client: SupabaseClient,
+  admin: SupabaseClient,
   userId: string,
   messageId: string,
   value: unknown,
@@ -345,7 +346,7 @@ export function startPersistedCoachSanity(
   }
   const settle = async () => {
     const checked = await checkedToolCalls(toolCalls, deps.check, { signal, userId });
-    await writeBack(client, userId, messageId, checked);
+    await writeBack(admin, userId, messageId, checked);
     return checked;
   };
   const settled = afterResponse(settle, deps.schedule).catch((error: unknown) => {
