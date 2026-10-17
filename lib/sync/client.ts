@@ -261,6 +261,14 @@ async function refreshFoodProjection(h: AccountHandle): Promise<void> {
     foods[id] = food;
   }
   const foodIdByRef = new Map(snapshot.refs.map((ref) => [ref.id, ref.user_food_id]));
+  // A food hidden on this phone (W148) stays hidden while its delete waits to be sent; a later queued
+  // restore (Undo) wins because the ops are replayed in queue order.
+  for (const op of pending) {
+    if (op.entity === "user_foods") {
+      if (op.kind === "delete") delete foods[op.entity_id];
+      else if (op.kind === "restore" && store.foods[op.entity_id]) foods[op.entity_id] = store.foods[op.entity_id];
+    }
+  }
   for (const op of pending) {
     const id = op.entity === "user_foods" ? op.entity_id
       : op.entity === "user_food_prefs" ? foodIdByRef.get(op.entity_id) : undefined;

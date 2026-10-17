@@ -483,7 +483,9 @@ export default function EatsFoods() {
     void canHideFood(food).then(async (hideable) => {
       if (!isCurrent(h)) return;
       if (!hideable) { membership.change(id, "neutral"); return; }
-      const outcome = await membership.feedback.run(() => hideFood(food), {
+      const outcome = await membership.feedback.run(async () => {
+        if (!await hideFood(food)) throw new Error("not hidden");
+      }, {
         kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h),
         successMessage: `${food.name} removed from Other foods.`,
         failureMessage: () => `Couldn't remove ${food.name}. Try again.`,
