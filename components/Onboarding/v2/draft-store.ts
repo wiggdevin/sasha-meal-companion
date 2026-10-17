@@ -92,10 +92,16 @@ export async function saveOnboardingDraft(draft: Omit<OnboardingDraft, "savedAt"
   }
 }
 
-/** `null` on any failure or an empty store — never thrown, same fail-soft contract as the save. */
-export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
-  const key = draftKey();
-  if (key === null) return null;
+/** A draft older than this is treated as missing (W150): the setup it describes is long cold. */
+export const DRAFT_MAX_AGE_MS = 21 * 24 * 60 * 60 * 1000;
+
+function isStale(draft: OnboardingDraft, now = Date.now()): boolean {
+  const savedAt = Date.parse(draft.savedAt);
+  return !Number.isFinite(savedAt) || now - savedAt > DRAFT_MAX_AGE_MS;
+}
+
+/** The stored record as it is, whatever its age. `null` on any failure or an empty store. */
+async function readDraft(key: string): Promise<OnboardingDraft | null> {
   try {
     const db = await openDb();
     try {
@@ -104,6 +110,44 @@ export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
         const request = tx.objectStore(STORE).get(key);
         request.onsuccess = () => resolve((request.result as OnboardingDraft | undefined) ?? null);
         request.onerror = () => reject(request.error ?? new Error("indexedDB read failed"));
+      });
+    } finally {
+      db.close();
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `null` on any failure, an empty store or a draft older than 21 days — never thrown, same
+ * fail-soft contract as the save. A stale draft is deleted, except that a pending `targetRequest`
+ * is kept on its own (no beat, no answers), so a lost "Use this plan" save is not posted twice.
+ * The age check and the delete are one readwrite transaction, so an autosave landing between them
+ * is never overwritten.
+ */
+export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
+  const key = draftKey();
+  if (key === null) return null;
+  try {
+    const db = await openDb();
+    try {
+      return await new Promise<OnboardingDraft | null>((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
+        const request = store.get(key);
+        let result: OnboardingDraft | null = null;
+        request.onsuccess = () => {
+          const draft = (request.result as OnboardingDraft | undefined) ?? null;
+          if (draft === null) return;
+          if (!isStale(draft)) { result = draft; return; }
+          if (draft.targetRequest) {
+            store.put({ beat: "", settings: {}, targetRequest: draft.targetRequest, savedAt: draft.savedAt }, key);
+          } else store.delete(key);
+        };
+        tx.oncomplete = () => resolve(result);
+        tx.onerror = () => reject(tx.error ?? new Error("indexedDB read failed"));
+        tx.onabort = () => reject(tx.error ?? new Error("indexedDB read aborted"));
       });
     } finally {
       db.close();
@@ -134,9 +178,11 @@ export async function onboardingTargetRequestId(requestKey: string): Promise<str
   const held = account === null ? undefined : heldTargetRequests.get(account);
   if (held?.key === requestKey) return held.id;
   const draft = await loadOnboardingDraft();
-  if (draft?.targetRequest?.key === requestKey) {
-    if (account !== null) heldTargetRequests.set(account, draft.targetRequest);
-    return draft.targetRequest.id;
+  // A stale draft reads as missing, but its pending request id still counts.
+  const stored = draft?.targetRequest ?? (account === null ? undefined : (await readDraft(account))?.targetRequest);
+  if (stored?.key === requestKey) {
+    if (account !== null) heldTargetRequests.set(account, stored);
+    return stored.id;
   }
   const targetRequest = { id: crypto.randomUUID(), key: requestKey };
   if (account !== null) heldTargetRequests.set(account, targetRequest);
