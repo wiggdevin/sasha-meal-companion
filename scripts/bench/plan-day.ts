@@ -68,7 +68,7 @@ type EsbuildLike = { build(options: Record<string, unknown>): Promise<{ outputFi
 /** The workload as one browser script that defines `globalThis.__planDayBench`. */
 async function bundleWorkload(): Promise<string> {
   // esbuild ships with tsx; resolve it from there rather than adding a dependency.
-  const esbuild = createRequire(require.resolve("tsx/package.json"))("esbuild") as EsbuildLike;
+  const esbuild = createRequire(require.resolve(path.join("tsx", "package.json")))("esbuild") as EsbuildLike;
   const result = await esbuild.build({
     stdin: { contents: `import { runBench } from "./scripts/bench/plan-day-workload";\nglobalThis.__planDayBench = runBench;`,
       resolveDir: ROOT, loader: "ts" },
