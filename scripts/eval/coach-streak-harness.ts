@@ -8,6 +8,7 @@ import type { Assertion } from "./coach-streak-state";
 import {
   LEGACY_STREAK_SOURCE, STREAK_FOODS, STREAK_PREFIX, STREAK_RULES, STREAK_SOURCE,
 } from "./coach-streak-foods";
+import { seedRecipes } from "./coach-streak-recipes";
 import { targetRevisionFixture } from "./coach-streak-target-fixture";
 import type { Fixture } from "@/tests/log/fixtures";
 
@@ -236,6 +237,8 @@ async function seedRehearsal(
     tz: TIMEZONE,
     vendor_sample_id: `coach-streak-weight-${index}`,
   })))).error);
+
+  await seedRecipes(db, userId, fixtures);
 
   const rice = fixtures.get("streak-rice");
   if (!rice) throw new Error("Data setup failed: rice fixture is missing.");

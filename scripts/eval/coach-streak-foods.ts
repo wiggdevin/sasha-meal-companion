@@ -128,9 +128,10 @@ export const STREAK_FOODS: StreakFood[] = [
   { sourceId: "streak-pizza", description: "Pizza, cheese", role: "carb",
     per100g: m(266, 11.4, 33, 9.7),
     ingredients: "Wheat flour, water, mozzarella cheese (milk), tomato, olive oil, yeast, salt." },
-  // Two same-name rows: the C11 watermelon case marks every one of them.
+  // Two same-name rows: the C11 watermelon case marks every one of them. Row a starts on Avoid so
+  // "remove watermelon from avoid" has something to remove; row b is not, so the add still has work.
   { sourceId: "streak-watermelon-a", description: "Watermelon, raw", role: "carb",
-    per100g: m(30, 0.6, 7.6, 0.2) },
+    per100g: m(30, 0.6, 7.6, 0.2), list: "avoid" },
   { sourceId: "streak-watermelon-b", description: "Watermelon, raw", role: "carb",
     per100g: m(30, 0.6, 7.6, 0.2) },
 ];
