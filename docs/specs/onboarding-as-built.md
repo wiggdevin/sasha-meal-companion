@@ -54,12 +54,12 @@ OnboardingDock.tsx`) — no page transitions between beats. The beat sequence
   account (`lib/profile/onboarding-client.ts`'s `persistCompletedOnboarding`) and routes to Today.
 
 A draft of in-progress answers is saved locally (`components/Onboarding/v2/draft-store.ts`) so a
-reload resumes mid-flow.
+reload resumes mid-flow. A draft older than 21 days is treated as missing and deleted on load (W150);
+only a pending "Use this plan" target request id outlives it, so a lost save is not posted twice.
 
-## The onb3 rework — open PRs, not yet in `main`, as of 2026-10-08
+## The onb3 rework — merged
 
-Three branches extend the chat shell above. None is merged; cite the branch, not production,
-until the PR lands:
+Three branches extend the chat shell above. PRs #36, #37 and #39 are all merged to `main`:
 
 - **PR #36 `fix/onb3-inputs-foods`** ("typed age, height and weight; slower food pile with a
   pick-from-list grid"): replaces stepper inputs with one free-typed text box per fact, parsed by
@@ -86,3 +86,13 @@ a structurally different system: `onboarding_drafts` rows with a live `coach_thr
 an invite-gated signup this shell never required. None of that shipped — see the supersession note
 at the top of that file. Treat this document, not the Phase 10 draft, as the behavioral reference
 for what a real account experiences.
+
+## Phase 10 "Later" — status
+
+| Later item | Status |
+|---|---|
+| Onboarding offline (queued turns) | Done |
+| Expiry of abandoned drafts and builds | Local resume draft expires after 21 days (W150); no server draft exists |
+| User-controlled delete of the onboarding thread | Dropped |
+| Prefilled "Add from onboarding" route into Foods | Superseded by the reviewed Foods step and the open food world |
+| Gaps G10-G12 | Undefined; not built |

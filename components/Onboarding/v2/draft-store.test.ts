@@ -3,7 +3,7 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
-import { clearOnboardingDraft, loadOnboardingDraft, saveOnboardingDraft } from "./draft-store";
+import { clearOnboardingDraft, loadOnboardingDraft, onboardingTargetRequestId, saveOnboardingDraft } from "./draft-store";
 
 beforeEach(() => {
   (globalThis as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
@@ -74,6 +74,38 @@ describe("onboarding draft store", () => {
 
 // GPT-6 Sol BLOCK (onb2-p0): the save's one target request id survives a failed attempt, a
 // reload and the beat autosave, and a changed request gets a new one.
+describe("draft expiry (W150)", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("treats a draft older than 21 days as missing and deletes it", async () => {
+    await saveOnboardingDraft({ beat: "facts", settings: { goal: "recomp" } });
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 22 * DAY);
+    expect(await loadOnboardingDraft()).toBeNull();
+    vi.restoreAllMocks();
+    expect(await loadOnboardingDraft()).toBeNull();
+  });
+
+  it("keeps a draft just inside 21 days", async () => {
+    await saveOnboardingDraft({ beat: "facts", settings: {} });
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 20 * DAY);
+    expect((await loadOnboardingDraft())?.beat).toBe("facts");
+  });
+
+  it("keeps a pending target request id through expiry, without the beat or answers", async () => {
+    const id = await onboardingTargetRequestId("k1");
+    await saveOnboardingDraft({ beat: "reward", settings: { goal: "recomp" } });
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 30 * DAY);
+    expect(await loadOnboardingDraft()).toBeNull();
+    vi.restoreAllMocks();
+    // A reload (nothing held in memory) still gets the same id for the same request.
+    vi.resetModules();
+    (await import("@/lib/device/account")).bindAccount("11111111-1111-4111-8111-111111111111");
+    const reloaded = await import("./draft-store");
+    expect(await reloaded.onboardingTargetRequestId("k1")).toBe(id);
+  });
+});
+
 describe("the onboarding save's target request id", () => {
   it("is the same id for the same request, after a reload and an autosave", async () => {
     const { onboardingTargetRequestId } = await import("./draft-store");

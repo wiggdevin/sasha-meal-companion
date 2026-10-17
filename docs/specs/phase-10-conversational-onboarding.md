@@ -1574,6 +1574,8 @@ migration is merged.
 
 ## Later (cut from Phase 10)
 
+Status of these items as built: the table "Phase 10 \"Later\" — status" in `onboarding-as-built.md`.
+
 - Template editing after onboarding (client, coach, or onboarding re-run), a second template for
   training days, the grant of `replace_day_template` to `authenticated`, and everything Phase 9's
   "Later" lists for editing.
