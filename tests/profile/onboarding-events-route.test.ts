@@ -13,10 +13,13 @@ vi.mock("@/lib/server/auth", async (original) => ({
   requireUser: vi.fn(),
 }));
 
+// W070: the store writes with the admin client and the session's user id, never the session client.
+const { rpc, sessionRpc } = vi.hoisted(() => ({ rpc: vi.fn(), sessionRpc: vi.fn() }));
+vi.mock("@/lib/server/admin", () => ({ adminClient: () => ({ rpc }) }));
+
 const { requireUser } = await import("@/lib/server/auth");
 const { POST } = await import("@/app/api/onboarding/events/route");
 
-const rpc = vi.fn();
 const USER = "6f1d0c1e-4a52-4c39-9a8e-3b2c1d0e9f11";
 
 function stepEntered(over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -34,7 +37,7 @@ beforeEach(() => {
   resetRateLimits();
   rpc.mockReset();
   rpc.mockResolvedValue({ data: { inserted: 1, duplicates: 0, rejected: 0 }, error: null });
-  vi.mocked(requireUser).mockResolvedValue({ userId: USER, client: { rpc } as never });
+  vi.mocked(requireUser).mockResolvedValue({ userId: USER, client: { rpc: sessionRpc } as never });
 });
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -65,7 +68,7 @@ describe("the fixed vocabulary", () => {
     const response = await POST(post({ events: [{ clientEventId: crypto.randomUUID(),
       at: new Date().toISOString(), flowVersion: "onboarding_v2", kind: "pilot_arm_assigned", pilotArm: "treatment" }] }));
     expect(response.status).toBe(202);
-    expect(rpc).toHaveBeenCalledWith("record_onboarding_events", { p_events: [expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith("record_onboarding_events_for", { p_user_id: USER, p_events: [expect.objectContaining({
       kind: "pilot_arm_assigned", pilot_arm: "treatment", step: null, question: null, duration_ms: null })] });
   });
 
@@ -74,7 +77,7 @@ describe("the fixed vocabulary", () => {
       at: new Date().toISOString(), flowVersion: "onboarding_v2", kind: "question_left", question: "goal",
       durationMs: 4200 }] }));
     expect(response.status).toBe(202);
-    expect(rpc).toHaveBeenCalledWith("record_onboarding_events", { p_events: [expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith("record_onboarding_events_for", { p_user_id: USER, p_events: [expect.objectContaining({
       kind: "question_left", question: "goal", duration_ms: 4200, step: null, pilot_arm: null })] });
   });
 });

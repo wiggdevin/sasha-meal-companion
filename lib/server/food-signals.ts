@@ -1,12 +1,16 @@
+import "server-only";
+
 /**
- * The store behind `POST /api/foods/signals` (Phase 18 W6). One call of `record_food_signals`
- * (migration 20261219090000) with the caller's own session client: security invoker, so RLS stores
- * every row under `auth.uid()` and nothing else. The function skips an event outside its slate or
- * its clock window (rejected) and a repeated `client_event_id` (duplicate), so a retry never
- * double-inserts.
+ * The store behind `POST /api/foods/signals` (Phase 18 W6). One call of `record_food_signals_for`
+ * (migration 20270105140000, W070) with the admin client and the session-verified user id:
+ * `authenticated` can no longer insert into `food_signal_events` or call the invoker RPC
+ * (20270105140300), so the route's rate limit is the only way in. The function skips an event
+ * outside its slate or its clock window (rejected) and a repeated `client_event_id` (duplicate),
+ * so a retry never double-inserts. The owner check still reads with the caller's session client.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { adminClient } from "@/lib/server/admin";
 import { dbFood } from "@/lib/food-db";
 import { SIGNAL_EVENTS_MAX, SIGNAL_SLATE_MAX, signalRow, type FoodSignalEvent } from "@/lib/foods/signals";
 import { readByIdBatches } from "@/lib/server/date-chunks";
@@ -85,9 +89,10 @@ export class SignalStoreError extends Error {
 }
 
 export async function recordFoodSignals(
-  client: SupabaseClient, events: readonly FoodSignalEvent[],
+  userId: string, events: readonly FoodSignalEvent[],
 ): Promise<SignalStoreResult> {
-  const { data, error } = await client.rpc("record_food_signals", { p_events: events.map(signalRow) });
+  const { data, error } = await adminClient().rpc("record_food_signals_for",
+    { p_user_id: userId, p_events: events.map(signalRow) });
   if (error) throw new SignalStoreError(error.code ?? "unknown");
   const row = (Array.isArray(data) ? data[0] : data) as Partial<SignalStoreResult> | null;
   const n = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null);

@@ -1,7 +1,8 @@
 /**
- * T0 §1 — POST /api/timings. JWT, 8 KB, 60/min, and nothing privileged: the rows are inserted
- * with HER client, so `client_timings`' insert policy is what keeps one account's marks out of
- * another's, not a check in this file.
+ * T0 §1 — POST /api/timings. JWT, 8 KB, 60/min. Since W070 (migration 20270105140300) the session
+ * client cannot insert into `client_timings`: the rows go through the service-role store
+ * (lib/server/client-timings.ts), each stamped with the session's user id, never the body's. The
+ * cross-account canary against the local stack is tests/tenancy/admin-telemetry.test.ts.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpError, requireUser } from "@/lib/server/auth";
@@ -11,18 +12,25 @@ import { POST as timings } from "@/app/api/timings/route";
 vi.mock("@/lib/server/auth", async (orig) => ({
   ...(await orig<typeof import("@/lib/server/auth")>()), requireUser: vi.fn() }));
 
-const user = vi.mocked(requireUser);
-
 type Insert = { table: string; rows: unknown };
 
+const admin = vi.hoisted(() => ({ client: null as unknown }));
+vi.mock("@/lib/server/admin", () => ({ adminClient: () => admin.client }));
+
+const user = vi.mocked(requireUser);
+
+/** The session client: W070 writes nothing with it, so any use fails the test. */
+const SESSION = { from: () => { throw new Error("session client used for client_timings"); } };
+
+/** The admin client the store writes with; `user.mockResolvedValue` hands out the session one. */
 function fakeClient() {
   const inserts: Insert[] = [];
-  const client = {
+  admin.client = {
     from: (table: string) => ({
       insert: async (rows: unknown) => { inserts.push({ table, rows }); return { error: null }; },
     }),
   };
-  return { client, inserts };
+  return { client: SESSION, inserts };
 }
 
 function post(body: unknown, headers: Record<string, string> = {}): Request {
@@ -86,8 +94,9 @@ describe("POST /api/timings", () => {
   });
 
   it("answers 202 even when the insert fails — a lost mark is not her problem", async () => {
-    const client = { from: () => ({ insert: async () => ({ error: { message: "boom" } }) }) };
-    user.mockResolvedValue({ userId: "u1", client: client as never });
+    admin.client = { from: () => ({ insert: async () => ({ error: { code: "XX000", message: "boom" } }) }) };
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    user.mockResolvedValue({ userId: "u1", client: SESSION as never });
     expect((await timings(post({ rows: [ROW] }))).status).toBe(202);
   });
 

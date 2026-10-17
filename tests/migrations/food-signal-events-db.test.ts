@@ -8,6 +8,10 @@
  * slate; an event for a food that was not offered is rejected (constraint and RPC). 3. "Not this"
  * and a taste dislike are stored apart. 4. The purge removes rows older than 180 days.
  * Plus: a retried client event id inserts once.
+ *
+ * Since W070 (20270105140000, 20270105140300) the batch is written only by the service role through
+ * `record_food_signals_for` with the session user's id, and `authenticated` cannot insert at all;
+ * `record` below is that call, and the table's own checks are probed as the service role.
  */
 import "../tenancy/local-only";
 import { readFileSync } from "node:fs";
@@ -85,9 +89,13 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261219090000 food_signal_events (data
   });
   afterAll(() => clear());
 
+  /** The route's write since W070: the service role, for the session-verified user. */
+  const record = (p_events: unknown[], owner: TestUser = a) =>
+    adminClient().rpc("record_food_signals_for", { p_user_id: owner.id, p_events });
+
   it("stores each event with its offered slate, under the caller", async () => {
     const sent = event({ kind: "swapped_away", chosen_key: "food:tofu" });
-    const { data, error } = await asA.rpc("record_food_signals", { p_events: [sent] });
+    const { data, error } = await record([sent]);
     expect(error).toBeNull();
     expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: 0 }]);
     const row = (await rowsOf(a.id)).find((r) => r.client_event_id === sent.client_event_id);
@@ -98,11 +106,9 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261219090000 food_signal_events (data
   it("rejects an event for a food that was not offered: the RPC skips it, the table refuses it", async () => {
     const offered = event();
     const unoffered = event({ kind: "not_this", chosen_key: "food:liver" });
-    const { data, error } = await asA.rpc("record_food_signals", { p_events: [unoffered, offered] });
+    const { data, error } = await record([unoffered, offered]);
     expect(error).toBeNull();
     expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: 1 }]);
-    const direct = await asA.from("food_signal_events").insert({ ...event({ chosen_key: "food:liver" }), user_id: a.id });
-    expect(direct.error?.code).toBe("23514");
     const asService = await adminClient().from("food_signal_events").insert({ ...event({ chosen_key: "food:liver" }), user_id: a.id });
     expect(asService.error?.code).toBe("23514");
     expect((await rowsOf(a.id)).filter((r) => r.chosen_key === "food:liver")).toEqual([]);
@@ -111,29 +117,33 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261219090000 food_signal_events (data
   it("refuses a slate over 8 keys, a repeated key or a malformed key", async () => {
     const nine = Array.from({ length: 9 }, (_, i) => `catalog:${i + 1}`);
     for (const offered_keys of [nine, ["food:salmon", "food:salmon"], ["food:salmon", "Salmon fillet"]]) {
-      const { error } = await asA.from("food_signal_events").insert({ ...event({ offered_keys }), user_id: a.id });
+      const { error } = await adminClient().from("food_signal_events").insert({ ...event({ offered_keys }), user_id: a.id });
       expect(error?.code).toBe("23514");
     }
   });
 
   it("a retried client event id inserts once", async () => {
     const sent = event();
-    await asA.rpc("record_food_signals", { p_events: [sent] });
-    const again = await asA.rpc("record_food_signals", { p_events: [sent, sent] });
+    await record([sent]);
+    const again = await record([sent, sent]);
     expect(again.data).toEqual([{ inserted: 0, duplicates: 2, rejected: 0 }]);
     expect((await rowsOf(a.id)).filter((r) => r.client_event_id === sent.client_event_id)).toHaveLength(1);
   });
 
   it("RLS denies another user's select and insert", async () => {
     const sent = event();
-    await asA.rpc("record_food_signals", { p_events: [sent] });
+    await record([sent]);
     const seen = await asB.from("food_signal_events").select("id").eq("client_event_id", sent.client_event_id as string);
     expect(seen.data).toEqual([]);
     const forged = await asB.from("food_signal_events").insert({ ...event(), user_id: a.id });
     expect(forged.error?.code).toBe("42501");
     const before = await rowsOf(a.id);
-    // B's batch can only ever land under B.
-    await asB.rpc("record_food_signals", { p_events: [{ ...event(), user_id: a.id }] });
+    // B's batch can only ever land under the user id the route passes; B cannot call either RPC.
+    const invoker = await asB.rpc("record_food_signals", { p_events: [{ ...event(), user_id: a.id }] });
+    expect(invoker.error?.code).toBe("42501");
+    const definer = await asB.rpc("record_food_signals_for", { p_user_id: a.id, p_events: [event()] });
+    expect(definer.error?.code).toBe("42501");
+    await record([{ ...event(), user_id: a.id }], b);
     expect(await rowsOf(a.id)).toEqual(before);
     const update = await asA.from("food_signal_events").update({ kind: "picked" }).eq("client_event_id", sent.client_event_id as string).select("id");
     expect(update.data ?? []).toEqual([]);
@@ -145,11 +155,11 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261219090000 food_signal_events (data
       on conflict (user_id) do update set diet_prefs = excluded.diet_prefs`);
     const prefs = () => runSql(`select coalesce(diet_prefs::text, 'null') from public.user_settings where user_id = '${a.id}'`);
     const before = prefs();
-    const { data } = await asA.rpc("record_food_signals", { p_events: [event({ kind: "not_this", surface: "plan_sheet" })] });
+    const { data } = await record([event({ kind: "not_this", surface: "plan_sheet" })]);
     expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: 0 }]);
     expect(prefs()).toBe(before);
     expect(before).toContain('"dislikes": ["f:okra"]');
-    const dislike = await asA.from("food_signal_events").insert({ ...event({ kind: "dislike" }), user_id: a.id });
+    const dislike = await adminClient().from("food_signal_events").insert({ ...event({ kind: "dislike" }), user_id: a.id });
     expect(dislike.error?.code).toBe("23514");
   });
 
@@ -158,7 +168,7 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261219090000 food_signal_events (data
     const bad = [event({ kind: "dislike" }), event({ surface: "coach" }), event({ occasion: "brunch" }),
       event({ offered_keys: ["food:salmon", "food:salmon"] }), event({ chosen_key: "catalog:0", offered_keys: ["catalog:0"] }),
       event({ ranking_version: "Bad Version" }), event({ offered_keys: null }), event({ slate_id: null })];
-    const { data, error } = await asA.rpc("record_food_signals", { p_events: [...bad, good] });
+    const { data, error } = await record([...bad, good]);
     expect(error).toBeNull();
     expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: bad.length }]);
   });
@@ -170,12 +180,12 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261219090000 food_signal_events (data
       const { error } = await client.from("food_signal_events").insert({ ...row, created_at: future });
       expect(error?.code).toBe("42501");
     }
-    expect((await asA.from("food_signal_events").insert(row)).error?.code).toBe("23514");
+    expect((await adminClient().from("food_signal_events").insert(row)).error?.code).toBe("23514");
   });
 
   it("refuses an empty batch or one over 20 events", async () => {
     for (const p_events of [[], Array.from({ length: 21 }, () => event())]) {
-      const { error } = await asA.rpc("record_food_signals", { p_events });
+      const { error } = await record(p_events);
       expect(error?.code).toBe("22023");
     }
   });

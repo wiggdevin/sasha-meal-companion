@@ -37,7 +37,7 @@ export async function POST(req: Request): Promise<Response> {
     const rejected = shaped.rejected + notOwned;
     if (eligible.length > 0) {
       try {
-        await recordFoodSignals(client, eligible);
+        await recordFoodSignals(userId, eligible);
       } catch (error) {
         console.warn("food signals: insert failed; answered 202", {
           code: error instanceof SignalStoreError ? error.code : "unexpected", events: eligible.length,

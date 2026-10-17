@@ -18,7 +18,8 @@
  * them for their OWN account and skip every server-side target check. Migration 20261228090000
  * makes them service-role only (lib/server/target-writes.ts); the last cases prove A is refused
  * for A and for B, and the manifest no longer lists them. The W044 retention purges (migration
- * 20270105100100) are service-role only too, and A is refused each one.
+ * 20270105100100) are service-role only too, and A is refused each one. So are the W070 telemetry
+ * writers (20270105140000, 20270105140300), and a direct insert into any of the three tables.
  */
 // Refuses any non-local database before anything else runs (review r8).
 import "./local-only";
@@ -29,7 +30,7 @@ import {
   HAS_BRANCH, HAS_DB, adminClient, ensureUser, runSql, userClient, type TestUser,
 } from "../helpers/supabase";
 import { authenticatedFunctions, userTables } from "./catalog";
-import { purge, seed } from "./seed";
+import { build, purge, seed } from "./seed";
 import rpcs from "./rpc-ops.json";
 import internalRpcs from "./rpc-internal.json";
 
@@ -128,10 +129,10 @@ const CASE_NAMES = {
   sync_changes: 1,
   compute_item_snapshot: 1,
   recipe_accept: 1, recipe_consumed: 1, recipe_undo: 1, shopping_window: 1,
-  coach_undo_record: 1, coach_undo_perform: 1, food_signals: 1, taste_confirm: 1, taste_undo: 1,
+  coach_undo_record: 1, coach_undo_perform: 1, taste_confirm: 1, taste_undo: 1,
   care_points_sync: 1, care_balance: 1, care_purchase: 1, care_equip: 1, care_accolades_sync: 1,
   care_accolades_seen: 1, care_message_mark: 1, care_log_grew: 1,
-  onboarding_events: 1, taste_dislike_remove: 1, taste_dislike_undo: 1,
+  taste_dislike_remove: 1, taste_dislike_undo: 1,
 } as const;
 type CaseName = keyof typeof CASE_NAMES;
 
@@ -373,16 +374,6 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
         .toMatchObject({ status: "not_found" });
       expect(await rowsOf("taste_dislike_removals", b.id)).toEqual(before);
     },
-    onboarding_events: async () => {
-      // Followups #18: the batch is stored under auth.uid() only. A sends B's own event, with
-      // B's user id and B's client event id: it lands as A's row, B's rows stay as they were.
-      const seeded = await seed("onboarding_events", b.id);
-      const before = await rowsOf("onboarding_events", b.id);
-      const { data, error } = await asA.rpc("record_onboarding_events", { p_events: [seeded.row] });
-      expect(error).toBeNull();
-      expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: 0 }]);
-      expect(await rowsOf("onboarding_events", b.id)).toEqual(before);
-    },
     coach_undo_perform: async () => {
       const record = await seed("coach_action_undos", b.id);
       const before = await rowsOf("coach_action_undos", b.id);
@@ -397,19 +388,6 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
       expect((await asB.rpc("perform_coach_undo", { p_undo_id: record.match.id, p_local: true }))
         .data).toMatchObject({ status: "undone" });
       expect((await row("coach_action_undos", record.match))?.undone_at).not.toBeNull();
-    },
-    food_signals: async () => {
-      // Phase 18 W6: the batch is stored under auth.uid() only. A sends B's own event, with B's
-      // user id and B's client event id: it lands as A's row, and B's rows stay as they were.
-      const seeded = await seed("food_signal_events", b.id);
-      const before = await rowsOf("food_signal_events", b.id);
-      const { data, error } = await asA.rpc("record_food_signals", { p_events: [seeded.row] });
-      expect(error).toBeNull();
-      expect(data).toEqual([{ inserted: 1, duplicates: 0, rejected: 0 }]);
-      expect(await rowsOf("food_signal_events", b.id)).toEqual(before);
-      const mine = await adminClient().from("food_signal_events").select("user_id")
-        .eq("client_event_id", seeded.row.client_event_id as string);
-      expect((mine.data ?? []).map((r) => r.user_id).sort()).toEqual([a.id, b.id].sort());
     },
     shopping_window: async () => {
       const window = await seed("shopping_purchase_windows", b.id);
@@ -590,6 +568,41 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
     for (const fn of RETENTION_PURGES) {
       const { data, error } = await asA.rpc(fn, { p_max: 1 });
       expect({ fn, code: error?.code, data }).toEqual({ fn, code: "42501", data: null });
+    }
+  });
+
+  // W070 (migrations 20270105140000, 20270105140300): the telemetry and event batches are written
+  // only by the service role, after the routes' rate limits. A is refused the old invoker RPCs, the
+  // new `_for` writers (for her own account and for B's) and a direct PostgREST insert into each
+  // table, all with 42501 before anything is stored.
+  it("the telemetry writers are refused to A (service role only)", async () => {
+    const signal = (await seed("food_signal_events", b.id)).row;
+    const step = (await seed("onboarding_events", b.id)).row;
+    const before = [await rowsOf("food_signal_events", b.id), await rowsOf("onboarding_events", b.id),
+      await rowsOf("food_signal_events", a.id), await rowsOf("onboarding_events", a.id)];
+    const calls = [
+      ["record_food_signals", { p_events: [signal] }],
+      ["record_onboarding_events", { p_events: [step] }],
+      ...[a.id, b.id].flatMap((owner) => [
+        ["record_food_signals_for", { p_user_id: owner, p_events: [signal] }],
+        ["record_onboarding_events_for", { p_user_id: owner, p_events: [step] }],
+      ]),
+    ] as const;
+    for (const [fn, args] of calls) {
+      const { data, error } = await asA.rpc(fn, args);
+      expect({ fn, code: error?.code, data }).toEqual({ fn, code: "42501", data: null });
+    }
+    expect([await rowsOf("food_signal_events", b.id), await rowsOf("onboarding_events", b.id),
+      await rowsOf("food_signal_events", a.id), await rowsOf("onboarding_events", a.id)])
+      .toEqual(before);
+  });
+
+  it("a direct insert into each telemetry table is refused to A with 42501", async () => {
+    for (const table of ["client_timings", "food_signal_events", "onboarding_events"] as const) {
+      const fixture = await build(table, a.id);
+      const { error } = await asA.from(table).insert(fixture.row);
+      expect({ table, code: error?.code }).toEqual({ table, code: "42501" });
+      expect(await row(table, fixture.match)).toBeNull();
     }
   });
 

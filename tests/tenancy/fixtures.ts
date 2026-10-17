@@ -231,8 +231,9 @@ export const BUILDERS: Record<string, Builder> = {
     local_date: new Date().toISOString().slice(0, 10), surface: "plan_sheet", kind: "not_this",
     occasion: "lunch", chosen_key: "food:tenancy-rice", offered_keys: ["food:tenancy-rice", "catalog:42"],
     ranking_version: "o2.1" }, { kind: "picked" }),
-  // Followups #18: granted to `authenticated` as insert-only (no select, update or delete) -- see
-  // onboarding_events in table-ops.json. A well-shaped step_entered row.
+  // Followups #18: written only by the service role since W070 (record_onboarding_events_for);
+  // `authenticated` has no operation on it -- see onboarding_events in table-ops.json. A
+  // well-shaped step_entered row.
   onboarding_events: async (owner) => withId("onboarding_events", { user_id: owner,
     client_event_id: randomUUID(), at: new Date().toISOString(), flow_version: "onboarding_v2",
     kind: "step_entered", step: "facts" }, { step: "allergy" }),
