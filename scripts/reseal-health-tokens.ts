@@ -33,7 +33,7 @@ export function guardFlags(args: Args): string[] {
   return [...(args.commit ? ["--fix"] : []), ...(args.production ? ["--production"] : [])];
 }
 
-export function keyFromEnv(name: string, env: NodeJS.ProcessEnv = process.env): Buffer {
+export function keyFromEnv(name: string, env: Record<string, string | undefined> = process.env): Buffer {
   const raw = env[name];
   if (!raw) throw new Error(`${name} not set`);
   const key = Buffer.from(raw, "base64");

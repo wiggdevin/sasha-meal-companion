@@ -118,8 +118,8 @@ describe("script arguments", () => {
   });
 
   it("keys must be 32 bytes", () => {
-    expect(() => keyFromEnv("K", {} as NodeJS.ProcessEnv)).toThrow("not set");
-    expect(() => keyFromEnv("K", { K: "AAAA" } as NodeJS.ProcessEnv)).toThrow("32 bytes");
-    expect(keyFromEnv("K", { K: newKey.toString("base64") } as NodeJS.ProcessEnv).equals(newKey)).toBe(true);
+    expect(() => keyFromEnv("K", {})).toThrow("not set");
+    expect(() => keyFromEnv("K", { K: "AAAA" })).toThrow("32 bytes");
+    expect(keyFromEnv("K", { K: newKey.toString("base64") }).equals(newKey)).toBe(true);
   });
 });
