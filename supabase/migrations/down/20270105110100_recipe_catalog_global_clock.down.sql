@@ -12,10 +12,15 @@ set local statement_timeout = '30s';
 -- the up file could compare equal again after a catalog change it never saw (and a sum stored under
 -- it could match a later account rev). Accepted rows keep their expiry for idempotent replay.
 -- The lock holds new previews out until this file commits, so none lands between the sweep and
--- the account-only check (the runner applies the file in one transaction).
-lock table public.recipe_plan_previews in share row exclusive mode;
-update public.recipe_plan_previews set expires_at = pg_catalog.now()
- where accepted_request_id is null and expires_at > pg_catalog.now();
+-- the account-only check (the runner applies the file in one transaction; LOCK needs one, and a
+-- DO block is one when a runner does not wrap the file).
+do $sweep$
+begin
+  lock table public.recipe_plan_previews in share row exclusive mode;
+  update public.recipe_plan_previews set expires_at = pg_catalog.now()
+   where accepted_request_id is null and expires_at > pg_catalog.now();
+end;
+$sweep$;
 
 do $migration$
 declare
