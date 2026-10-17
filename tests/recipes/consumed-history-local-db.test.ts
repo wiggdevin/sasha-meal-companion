@@ -101,8 +101,8 @@ describe.skipIf(!LOCAL)("recipe consumed history on a local test stack", () => {
     const outcomes = [first, second];
     expect(outcomes.filter((r) => !r.error)).toHaveLength(1);
     const loser = outcomes.find((r) => r.error)!;
-    // nowait row lock while the other commits, or the eaten check once it has
-    expect(["55P03", "40001"]).toContain(loser.error!.code);
+    // the account state lock serializes the calls; the second finds the slot already eaten
+    expect(loser.error!.code).toBe("40001");
     expect(await requestCount(selection.id)).toBe(1);
     const day = await admin.from("plan_days").select("eaten_slots")
       .eq("user_id", a.id).eq("local_date", date).single();
@@ -111,22 +111,22 @@ describe.skipIf(!LOCAL)("recipe consumed history on a local test stack", () => {
       .toEqual(winner.data.row.eaten_slots["meal-3"]);
   });
 
-  it("settles one history entry when a tab and its retry race with the same request", async () => {
+  it("writes once and replays once when two tabs race with the same request", async () => {
     const date = "2099-10-04";
     const selection = await accept(date);
     const requestId = crypto.randomUUID();
     const raced = await Promise.all([
       logWith(tabOne, date, selection, requestId), logWith(tabTwo, date, selection, requestId)]);
-    expect(raced.some((r) => !r.error)).toBe(true);
-    for (const r of raced.filter((x) => x.error)) {
-      expect(["55P03", "40001"]).toContain(r.error!.code);
-    }
+    // the state lock serializes them: one writes, the other replays the stored request
+    expect(raced.every((r) => !r.error)).toBe(true);
+    expect(raced.map((r) => r.data.replayed).sort()).toEqual([false, true]);
+    expect(raced[0].data.row.eaten_slots["meal-3"].history_epoch)
+      .toBe(raced[1].data.row.eaten_slots["meal-3"].history_epoch);
     expect(await requestCount(selection.id)).toBe(1);
     const retry = await logWith(tabTwo, date, selection, requestId);
     expect(retry.error).toBeNull();
     expect(retry.data.replayed).toBe(true);
-    const winner = raced.find((r) => !r.error)!;
     expect(retry.data.row.eaten_slots["meal-3"].history_epoch)
-      .toBe(winner.data.row.eaten_slots["meal-3"].history_epoch);
+      .toBe(raced[0].data.row.eaten_slots["meal-3"].history_epoch);
   });
 });
