@@ -33,6 +33,7 @@ function snapshot(accountId: string, computedAt = new Date().toISOString()): Mea
       occasion: { ...occasion, breakfast: { score: 0.93, source: "history" } } } } };
 }
 
+const eligibleCalls = () => vi.mocked(fetch).mock.calls.filter(([url]) => url !== "/api/foods/rules-version");
 const online = (body: unknown) => vi.stubGlobal("fetch", vi.fn(async () => Response.json(body)));
 const offline = () => vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
 
@@ -47,7 +48,8 @@ describe("phone snapshot: online", () => {
     const account = bindAccount(A);
     online({ ...snapshot(A), eligible: ELIGIBLE });
     const set = await loadEligibleLocalFoodIds(account, FOODS);
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/foods/eligible?v=3");
+    // W047 (d): the rules token first (for the cache), then the snapshot itself.
+    expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(["/api/foods/rules-version", "/api/foods/eligible?v=3"]);
     expect([...set].sort()).toEqual(Object.keys(FOODS).sort());
     expect(mealEvidenceOf(set)?.history).toEqual({ "tuna, canned in water": { breakfast: 0.93 } });
     expect((await readMealSnapshot(account))?.snapshot.accountId).toBe(A);
@@ -170,7 +172,9 @@ describe("Sol round 2: in-flight staleness and the 7-day limit on a held set", (
   /** Each fetch lets a log write land before its answer arrives. */
   function racingFetch(account: ReturnType<typeof bindAccount>, times: number) {
     let calls = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      // W047 (d): a closed account reads the rules token first; this server has none to give.
+      if (url === "/api/foods/rules-version") return new Response("not found", { status: 404 });
       calls += 1;
       if (calls <= times) {
         await putRow(account, "log_entries", LOG, { id: LOG, user_id: A, slot: "meal-1", local_date: "2026-10-04",
@@ -184,7 +188,7 @@ describe("Sol round 2: in-flight staleness and the 7-day limit on a held set", (
     const account = bindAccount(A);
     racingFetch(account, 1);
     const set = await loadEligibleLocalFoodIds(account, FOODS);
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    expect(eligibleCalls()).toHaveLength(2);
     expect(mealEvidenceOf(set)).not.toBeNull();
     expect(await readMealSnapshot(account)).not.toBeNull();
   });

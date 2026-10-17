@@ -370,7 +370,7 @@ describe("GET /api/foods/rules-version", () => {
   it("returns the two counters, no-store", async () => {
     const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2, world: "closed" });
+    expect(await res.json()).toEqual({ rulesVersion: 5, evidenceVersion: 2, world: "closed", ruleBoundaryAt: null });
   });
 
   it("carries the effective world: open while released, closed off the list or on hold (Sol r2 BLOCK)", async () => {
@@ -387,7 +387,7 @@ describe("GET /api/foods/rules-version", () => {
   it("reads an account with no rule write yet as rulesVersion 0", async () => {
     tables.account_rules_clock = [];
     const res = await rulesVersion(new Request("https://app.test/api/foods/rules-version"));
-    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2, world: "closed" });
+    expect(await res.json()).toEqual({ rulesVersion: 0, evidenceVersion: 2, world: "closed", ruleBoundaryAt: null });
   });
 });
 

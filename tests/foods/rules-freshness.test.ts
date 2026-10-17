@@ -3,7 +3,16 @@
  * token, so the next new-suggestion request refetches its admission, and an admission stamped with
  * the old token is never used. Offline, no new suggestion is made (owner question 6).
  */
-import { describe, expect, it, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { IDBFactory } from "fake-indexeddb";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { bindAccount } from "@/lib/device/account";
+import { CLOSED_CACHE_MAX_MS, loadEligibleLocalFoodIds, resetEligibleCache } from "@/lib/foods/eligible-client";
+import { noteFoodRulesChanged } from "@/lib/foods/rules-epoch";
+import { RANKING_VERSION, SNAPSHOT_SCHEMA_VERSION } from "@/lib/meals/snapshot";
+import { putRow } from "@/lib/sync/idb";
+import { resetTestAccount } from "@/tests/helpers/account";
+import { eats, F } from "@/tests/helpers/meal-foods";
 import { freshness, parseRulesToken, sameRulesToken, type RulesToken } from "@/lib/foods/world/freshness";
 import { freshAdmission } from "@/lib/foods/world/rules-version-client";
 
@@ -63,5 +72,144 @@ describe("freshAdmission (W2b acceptance 4)", () => {
     expect(await freshAdmission(held, { readToken: async () => t(5),
       refetch: async () => { throw new Error("409 rules_changed"); } })).toBeNull();
     expect(await freshAdmission(null, { readToken: async () => null, refetch: async () => held })).toBeNull();
+  });
+});
+
+/**
+ * W047 (d): a closed account's eligible set is reused, through the real phone loader and a server
+ * double, only while the server's token, its rule boundary and every local input are unchanged.
+ * A stale cache must never admit a food under older rules.
+ */
+describe("the closed-world eligible cache (W047 d)", () => {
+  const A = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  const FOODS = eats(F.eggs, F.toast, F.tuna);
+  type Server = { token: RulesToken | null; world: "open" | "closed"; boundary?: string | null;
+    ids: string[]; asked: string[] };
+  let server: Server;
+  const body = () => ({ schemaVersion: SNAPSHOT_SCHEMA_VERSION, rankingVersion: RANKING_VERSION, accountId: A,
+    computedAt: new Date().toISOString(), inputsHash: "h", foods: {},
+    eligible: { eligibleRefIds: [], eligibleFoodIds: server.ids, eligibleCatalogFoodIds: [], excluded: [],
+      rulesRevision: 1, preferenceFlags: [] } });
+
+  beforeEach(async () => {
+    await resetTestAccount(A);
+    globalThis.indexedDB = new IDBFactory();
+    resetEligibleCache();
+    server = { token: t(7, 3), world: "closed", boundary: null, ids: Object.keys(FOODS), asked: [] };
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      server.asked.push(url);
+      if (url === "/api/foods/rules-version") {
+        if (!server.token) throw new TypeError("Failed to fetch");
+        return Response.json({ ...server.token, world: server.world,
+          ...(server.boundary === undefined ? {} : { ruleBoundaryAt: server.boundary }) });
+      }
+      if (url === "/api/foods/eligible?v=3") return Response.json(body());
+      return new Response("not found", { status: 404 });
+    }));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  /** One read; the first read of a page may move the rules epoch (a new revision seen), so warm up. */
+  const read = async () => {
+    server.asked = [];
+    const set = await loadEligibleLocalFoodIds(bindAccount(A), FOODS);
+    return { set, asked: server.asked };
+  };
+  const warm = async () => { await read(); await read(); };
+
+  it("an unchanged key costs one token read and returns the same set", async () => {
+    await warm();
+    const first = await read();
+    expect(first.asked).toEqual(["/api/foods/rules-version"]);
+    const again = await read();
+    expect(again.asked).toEqual(["/api/foods/rules-version"]);
+    expect(again.set).toBe(first.set);
+  });
+
+  it.each([
+    ["the rules token moved (a rule written on another device)", () => { server.token = t(8, 3); }],
+    ["the evidence token moved", () => { server.token = t(7, 4); }],
+    ["the account's world opened", () => { server.world = "open"; }],
+    ["the server stopped reporting a rule boundary (an older server)", () => { server.boundary = undefined; }],
+    ["the token cannot be read (offline or an error)", () => { server.token = null; }],
+  ])("%s: a full read, never the cached set", async (_name, change) => {
+    await warm();
+    const held = (await read()).set;
+    change();
+    server.ids = [Object.keys(FOODS)[0]];
+    const next = await read();
+    expect(next.asked).toContain("/api/foods/eligible?v=3");
+    expect(next.set).not.toBe(held);
+  });
+
+  it("a rule removed on another device: the food it blocked is never served from the cache", async () => {
+    server.ids = Object.keys(FOODS).slice(1);
+    await warm();
+    const blocked = Object.keys(FOODS)[0];
+    expect((await read()).set.has(blocked)).toBe(false);
+    // Now the reverse: a rule ADDED elsewhere blocks a food the cached set admits.
+    server.ids = Object.keys(FOODS).slice(1, 2);
+    server.token = t(8, 3);
+    const next = await read();
+    expect([...next.set]).toEqual(Object.keys(FOODS).slice(1, 2));
+  });
+
+  it.each([
+    ["a local rule write (the rules epoch)", () => { noteFoodRulesChanged(); }],
+    ["a local log or a pulled row (the eaten-history watermark)", async () => {
+      await putRow(bindAccount(A), "log_entries", "log-1", { id: "log-1", user_id: A, slot: "meal-1",
+        local_date: "2026-10-17", rev: 1, items: [] });
+    }],
+  ])("%s: a full read", async (_name, change) => {
+    await warm();
+    await read();
+    await change();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((await read()).asked).toContain("/api/foods/eligible?v=3");
+  });
+
+  it("an Eats food changed on this phone: a full read", async () => {
+    await warm();
+    server.asked = [];
+    await loadEligibleLocalFoodIds(bindAccount(A), { ...FOODS, [Object.keys(FOODS)[0]]: {
+      ...FOODS[Object.keys(FOODS)[0]], status: "avoid" } });
+    expect(server.asked).toContain("/api/foods/eligible?v=3");
+  });
+
+  it("a calendar or expiring hard rule's boundary passes: a full read, with no token move", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-17T03:00:00Z"));
+    server.boundary = "2026-10-17T03:05:00Z"; // e.g. a fasting window opening at dawn
+    await warm();
+    expect((await read()).asked).toEqual(["/api/foods/rules-version"]);
+    vi.setSystemTime(new Date("2026-10-17T03:05:00Z"));
+    expect((await read()).asked).toContain("/api/foods/eligible?v=3");
+  });
+
+  it("a new local date or an age past the cap: a full read", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-17T12:00:00"));
+    await warm();
+    vi.setSystemTime(new Date(Date.now() + CLOSED_CACHE_MAX_MS + 1));
+    expect((await read()).asked).toContain("/api/foods/eligible?v=3");
+    await read();
+    vi.setSystemTime(new Date("2026-10-18T00:00:01"));
+    expect((await read()).asked).toContain("/api/foods/eligible?v=3");
+  });
+
+  it("a rule that moved between the token read and the body is caught on the next read", async () => {
+    await warm();
+    resetEligibleCache();
+    // The token is read (7), then a rule lands before the body is built: the body is newer.
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const res = await realFetch(url);
+      if (url === "/api/foods/rules-version") server.token = t(8, 3);
+      return res;
+    }));
+    await read();
+    vi.stubGlobal("fetch", realFetch);
+    // Cached under 7; the server now says 8: the next read is a full one.
+    expect((await read()).asked).toContain("/api/foods/eligible?v=3");
   });
 });

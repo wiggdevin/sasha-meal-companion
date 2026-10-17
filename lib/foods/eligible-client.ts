@@ -11,7 +11,7 @@ import { foodRulesKey, type VerifiedEligibleSet } from "@/lib/foods/rule-marks";
 import { foodRulesEpoch, noteRulesRevision } from "@/lib/foods/rules-epoch";
 import type { EligibleFoods, ExcludedFoodRef } from "@/lib/server/eligible-foods";
 import { ruleMarkFromWire } from "@/lib/foods/rule-mark-wire";
-import { readRulesState } from "@/lib/foods/world/rules-version-client";
+import { readRulesState, type RulesState } from "@/lib/foods/world/rules-version-client";
 import { sameRulesToken } from "@/lib/foods/world/freshness";
 import { openWorldInputs, type OpenWorldInputs } from "@/lib/meals/open-world";
 import { parseMealSnapshotV3, snapshotToken, snapshotV3Usable, type MealSnapshotV3 } from "@/lib/meals/snapshot-v3";
@@ -266,7 +266,7 @@ function openStamped(foods: Record<string, Food>, refs: FoodPrefRefCache, snapsh
  * read now. A held v3 snapshot whose token it is serves the run without a refetch.
  */
 async function heldOpenSet(account: AccountHandle, foods: Record<string, Food>,
-  startedAt: number): Promise<{ set: StampedEligibleSet | null; held: boolean }> {
+  startedAt: number): Promise<{ set: StampedEligibleSet | null; held: boolean; state?: RulesState }> {
   const stored = await readMealSnapshot(account);
   if (!stored || stored.snapshot.schemaVersion !== 3) return { set: null, held: false };
   // Same offline floor as a fresh answer (Sol r1 BLOCK): a held v3 body under an old ranking,
@@ -278,7 +278,7 @@ async function heldOpenSet(account: AccountHandle, foods: Record<string, Food>,
   // Sol r2 BLOCK: only while the server still says this account is open (released, listed, not
   // held). Taken off the release list or put on hold: one refetch, which answers the closed body.
   if (current.world !== "open" || !sameRulesToken(current.token, snapshotToken(stored.snapshot))) {
-    return { set: null, held: true };
+    return { set: null, held: true, state: current };
   }
   return { set: openStamped(foods, readPrefRefCache(account.userId), stored.snapshot, startedAt, account.userId),
     held: true };
@@ -320,6 +320,11 @@ export async function recheckHeldOpenSet(account: AccountHandle, set: StampedEli
 export async function loadEligibleLocalFoodIds(
   account: AccountHandle, foods: Record<string, Food>,
 ): Promise<StampedEligibleSet> {
+  const cached = closedCaches.get(account.userId);
+  if (cached) {
+    if (await closedCacheHolds(account, foods, cached)) return cached.set;
+    if (closedCaches.get(account.userId) === cached) closedCaches.delete(account.userId);
+  }
   // A snapshot answer that a local change (a log, an Eats edit) overtook in flight is read once
   // more; if that one is overtaken too, its ids stand but its evidence is not used (`null`).
   const first = await readEligibleOnce(account, foods);
@@ -336,9 +341,12 @@ async function readEligibleOnce(account: AccountHandle, foods: Record<string, Fo
   const startedAt = foodRulesEpoch();
   const inputsAtStart = snapshotInputWrites(account.userId);
   const generation = await snapshotEpoch(account);
+  const keyAtStart = closedCacheKey(account, foods, startedAt, inputsAtStart);
   // An open account's held snapshot serves this run only under the server's current token (W8).
   const held = await heldOpenSet(account, foods, startedAt);
   if (held.set) return { set: held.set, state: "skipped" };
+  // W047 (d): the token BEFORE the body, so a body cached under it is at least as new as it.
+  const tokenBefore = held.held ? held.state ?? null : await readRulesState(account);
   let response: Response;
   try {
     // `?v=3`: an open account's snapshot; a closed account gets main's v2 body byte for byte.
@@ -380,8 +388,80 @@ async function readEligibleOnce(account: AccountHandle, foods: Record<string, Fo
   // flight makes the answer stale even before the persisted watermark catches up.
   const state = snapshotInputWrites(account.userId) !== inputsAtStart ? "stale" as const
     : await saveMealSnapshot(account, snapshot, body, generation).catch(() => "skipped" as const);
-  return { set: stamped(foods, refs, body, startedAt, mealEvidence(snapshot, foods, refs),
-    Date.parse(snapshot.computedAt), account.userId), state };
+  const set = stamped(foods, refs, body, startedAt, mealEvidence(snapshot, foods, refs),
+    Date.parse(snapshot.computedAt), account.userId);
+  if (state === "stored") rememberClosedSet(account, set, tokenBefore, keyAtStart);
+  return { set, state };
+}
+
+/**
+ * W047 (d): a closed account's verified set, reused while nothing it was computed from can have
+ * changed. Design and safety argument: PR "W047 (d)". The key is everything the phone holds that
+ * the answer depends on (rules epoch, eaten-history watermark, local date, the Eats foods and
+ * their refs); the server side is the rules token (`rulesVersion` covers every account table
+ * admission reads, `evidenceVersion` every shared one), checked by a fresh `rules-version` read
+ * before each reuse, plus the next instant a calendar or expiring hard rule changes on its own
+ * (`ruleBoundaryAt`). In memory only, at most CLOSED_CACHE_MAX_MS old (a server deploy).
+ */
+export const CLOSED_CACHE_MAX_MS = 10 * 60_000;
+
+type ClosedCache = {
+  set: StampedEligibleSet; token: RulesState["token"]; key: string; cachedAt: number;
+  /** The rule boundary (ms) the server reported when the set was cached; null for none. */
+  boundary: number | null;
+};
+
+const closedCaches = new Map<string, ClosedCache>();
+
+/** Forget every cached closed set (tests; an account's own entry is replaced on its next read). */
+export function resetEligibleCache(): void {
+  closedCaches.clear();
+}
+
+function localDate(now: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function closedCacheKey(account: AccountHandle, foods: Record<string, Food>, epoch: number,
+  watermark: number): string {
+  const refs = readPrefRefCache(account.userId);
+  const rows = Object.keys(foods).sort().map((id) => {
+    const food = foods[id];
+    return [id, food.name, food.status, food.catalogFoodId ?? null, refs[id]?.userRefId ?? null,
+      refs[id]?.catalogRefId ?? null];
+  });
+  return JSON.stringify({ account: account.userId, epoch, watermark, date: localDate(new Date()), rows });
+}
+
+function rememberClosedSet(account: AccountHandle, set: StampedEligibleSet, token: RulesState | null,
+  key: string): void {
+  // Only a closed answer read under a closed token that said where its rules change next.
+  if (!token || token.world !== "closed" || token.ruleBoundaryAt === undefined || set.open) {
+    closedCaches.delete(account.userId);
+    return;
+  }
+  const now = Date.now();
+  if (token.ruleBoundaryAt !== null && now >= token.ruleBoundaryAt) return;
+  closedCaches.set(account.userId, { set, token: token.token, key, cachedAt: now, boundary: token.ruleBoundaryAt });
+}
+
+async function closedCacheHolds(account: AccountHandle, foods: Record<string, Food>,
+  cached: ClosedCache): Promise<boolean> {
+  const local = () => {
+    const now = Date.now();
+    return now - cached.cachedAt <= CLOSED_CACHE_MAX_MS && (cached.boundary === null || now < cached.boundary)
+      && !cached.set.revoked && cached.set.open === undefined
+      && closedCacheKey(account, foods, foodRulesEpoch(), snapshotInputWrites(account.userId)) === cached.key;
+  };
+  if (!local()) return false;
+  const current = await readRulesState(account);
+  if (!current || current.world !== "closed" || !sameRulesToken(current.token, cached.token)
+    || current.ruleBoundaryAt === undefined) return false;
+  if (current.ruleBoundaryAt !== null
+    && (cached.boundary === null || current.ruleBoundaryAt < cached.boundary)) cached.boundary = current.ruleBoundaryAt;
+  // Nothing local moved while the token was read.
+  return local();
 }
 
 /**
