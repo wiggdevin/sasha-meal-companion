@@ -7,9 +7,12 @@
 --
 -- `coach_save_turn` creates the thread when asked, appends the turn's rows at consecutive seqs and
 -- touches the thread (last_message_at, and the summary when given), all or nothing. The thread row
--- is locked FOR UPDATE, so two saves on one thread run one after the other; a seq still taken by a
--- writer that read its seq before this save (the weekly review, the abandoned-turn reply) is
--- retried inside the function after the thread's new last seq. The summary is clamped to the
+-- is locked FOR NO KEY UPDATE, so two saves on one thread run one after the other, while a direct
+-- coach_messages insert (the weekly review, the abandoned-turn reply) still passes: its foreign-key
+-- check takes FOR KEY SHARE, which NO KEY UPDATE does not block. FOR UPDATE would block it, and a
+-- direct insert that already holds a seq this save then waits on deadlocks (40P01). The turn is
+-- always appended at the thread's last seq + 1, read after the lock; the seq the caller sends is
+-- ignored. A seq a direct insert takes meanwhile is retried after the thread's new last seq. The summary is clamped to the
 -- column's 600-character check, so a long summary never costs the turn.
 --
 -- Service role only, called with the session-verified user id (lib/server/coach-threads.ts). The
@@ -90,12 +93,13 @@ begin
   end if;
 
   select th.user_id into v_owner from public.coach_threads th
-   where th.id = p_thread_id for update;
+   where th.id = p_thread_id for no key update;
   if v_owner is distinct from p_user_id then
     raise exception 'coach_thread_not_found' using errcode = 'P0001';
   end if;
 
-  v_first := (p_rows->0->>'seq')::int;
+  select coalesce(max(m.seq), 0) + 1 into v_first
+    from public.coach_messages m where m.thread_id = p_thread_id;
   loop
     v_attempt := v_attempt + 1;
     begin

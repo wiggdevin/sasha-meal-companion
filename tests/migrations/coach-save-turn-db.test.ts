@@ -6,13 +6,15 @@
  * It proves: a turn and its new thread land together; a failure mid-call (a refused second row, the
  * chat cap) leaves no empty thread and no half turn; a seq another writer holds is retried inside
  * the function after the thread's last seq, and gives up as `coach_seq_busy` after three tries; the
- * same message id is `coach_message_exists`; another account's thread is not found; the user row's
+ * same message id is `coach_message_exists`; a turn always appends after the thread's last seq, whatever
+ * seq the caller sent; a direct coach_messages insert running at the same time neither deadlocks
+ * with a save nor is blocked by its thread lock (FOR NO KEY UPDATE); another account's thread is not found; the user row's
  * shape is the one the session client's insert policy allowed; only the service role may call it.
  *
  * Needs the Postgres server binaries (PG_BIN, default Homebrew postgresql@16); skipped without
  * them. It never connects to any Supabase project.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -75,10 +77,12 @@ create function public._cap() returns trigger language plpgsql as $$ begin
   end if;
   return new; end $$;
 create trigger cap before insert on public.coach_threads for each row execute function public._cap();
--- Test hooks: a reply saying "boom" is refused mid-call; a question saying "squat" makes another
--- writer take the seq right after it, every time.
+-- Test hooks: a reply saying "boom" is refused mid-call; a row saying "slow" pauses a second after
+-- the save holds its thread lock and before the row takes its seq; a question saying "squat" makes
+-- another writer take the seq right after it, every time.
 create function public._hooks() returns trigger language plpgsql as $$ begin
   if new.content = 'boom' then raise exception 'forced failure'; end if;
+  if new.content = 'slow' then perform pg_sleep(1); end if;
   if new.content = 'squat' then
     insert into public.coach_messages (thread_id, user_id, role, content, seq)
     values (new.thread_id, new.user_id, 'assistant', 'other', new.seq + 1);
@@ -100,6 +104,26 @@ function save(args: { user?: string; thread?: string; kind?: string; title?: str
   return sql(`select public.coach_save_turn(${lit(args.user ?? A)}::uuid, ${lit(args.thread ?? T1)}::uuid,
     ${lit(args.kind ?? "chat")}, ${lit(args.title === undefined ? "Hi" : args.title)},
     ${lit(JSON.stringify(args.rows))}::jsonb, ${lit(args.summary ?? null)})`, role);
+}
+
+/** Runs SQL in its own session without waiting: the concurrent writer. */
+function background(text: string): Promise<{ code: number | null; err: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(bin("psql"), ["-h", dir, "-p", String(port), "-U", "postgres", "-d", "postgres",
+      "-X", "-q", "-At", "-v", "ON_ERROR_STOP=1", "-c", text]);
+    let err = "";
+    child.stderr.on("data", (chunk) => { err += String(chunk); });
+    child.on("close", (code) => resolve({ code, err }));
+  });
+}
+
+/** Waits until a session is blocked on a lock, or fails after five seconds. */
+async function untilWaiting(): Promise<void> {
+  for (let i = 0; i < 100; i += 1) {
+    if (Number(must("select count(*) from pg_stat_activity where wait_event_type = 'Lock'")) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error("no session ever waited on a lock");
 }
 
 const count = (table: string) => Number(must(`select count(*) from public.${table}`));
@@ -166,6 +190,79 @@ describe.skipIf(!HAS_PG)("coach_save_turn on Postgres (W088)", () => {
     expect(JSON.parse(r.out)).toEqual([{ id: Q, seq: 7 }, { id: R, seq: 8 }]);
     // The first attempt's question at 5 was rolled back with it.
     expect(must("select seq from public.coach_messages order by seq")).toBe("6\n7\n8");
+  });
+
+  it("appends after the thread's last seq, never into a gap below it, whatever seq the caller sent", () => {
+    must(`insert into public.coach_threads (id, user_id) values ('${T1}', '${A}')`);
+    must(`insert into public.coach_messages (thread_id, user_id, role, seq) values ('${T1}', '${A}', 'assistant', 10)`);
+    const r = save({ title: null, rows: [rowJson(Q, "user", 5), rowJson(R, "assistant", 6)] });
+    expect(JSON.parse(r.out)).toEqual([{ id: Q, seq: 11 }, { id: R, seq: 12 }]);
+  });
+
+  it("lets a direct insert holding the next seq finish, then saves after it, with no deadlock", async () => {
+    must(`insert into public.coach_threads (id, user_id) values ('${T1}', '${A}')`);
+    // The weekly review's shape: a direct insert at the next seq, its transaction still open.
+    const direct = background(`begin;
+      insert into public.coach_messages (thread_id, user_id, role, seq) values ('${T1}', '${A}', 'assistant', 1);
+      select pg_sleep(1); commit;`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    // The save locks the thread, reads seq 1 as free (the insert is not committed), and waits on it.
+    const saved = background(`select public.coach_save_turn('${A}', '${T1}', 'chat', null,
+      '${JSON.stringify([rowJson(Q, "user", 1), rowJson(R, "assistant", 2)])}'::jsonb, null)`);
+    const [first, second] = await Promise.all([direct, saved]);
+    expect(first).toEqual({ code: 0, err: "" });
+    expect(second).toEqual({ code: 0, err: "" });
+    expect(must("select role || ':' || seq from public.coach_messages order by seq"))
+      .toBe("assistant:1\nuser:2\nassistant:3");
+  });
+
+  it("does not deadlock when a direct insert takes the seq while the save holds the thread (Sol BLOCK)", async () => {
+    must(`insert into public.coach_threads (id, user_id) values ('${T1}', '${A}')`);
+    // The save locks the thread, reads seq 1, then pauses before its row takes seq 1.
+    const saved = background(`select public.coach_save_turn('${A}', '${T1}', 'chat', null,
+      '${JSON.stringify([rowJson(Q, "user", 1, { content: "slow" })])}'::jsonb, null)`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    // A direct insert takes seq 1 first; its foreign-key check then needs FOR KEY SHARE on the
+    // thread. Under FOR UPDATE it waits on the save while the save waits on its seq: 40P01.
+    const direct = await background(`insert into public.coach_messages (thread_id, user_id, role, seq)
+      values ('${T1}', '${A}', 'assistant', 1)`);
+    expect(direct).toEqual({ code: 0, err: "" });
+    expect(await saved).toEqual({ code: 0, err: "" });
+    expect(must("select role || ':' || seq from public.coach_messages order by seq")).toBe("assistant:1\nuser:2");
+  });
+
+  it("never blocks a direct insert's foreign-key check while a save holds the thread", async () => {
+    must(`insert into public.coach_threads (id, user_id) values ('${T1}', '${A}')`);
+    // A save that holds its thread lock for a second before committing.
+    const held = background(`begin;
+      select public.coach_save_turn('${A}', '${T1}', 'chat', null,
+        '${JSON.stringify([rowJson(Q, "user", 1)])}'::jsonb, null);
+      select pg_sleep(1); commit;`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    // A direct insert at another seq passes its foreign-key check at once (FOR KEY SHARE).
+    const started = Date.now();
+    const direct = sql(`insert into public.coach_messages (thread_id, user_id, role, seq)
+      values ('${T1}', '${A}', 'assistant', 50)`);
+    expect(direct.err).toBe("");
+    expect(Date.now() - started).toBeLessThan(700);
+    expect(await held).toEqual({ code: 0, err: "" });
+  });
+
+  it("makes a direct insert at the seq a save took wait, then refuse as a duplicate seq, never deadlock", async () => {
+    must(`insert into public.coach_threads (id, user_id) values ('${T1}', '${A}')`);
+    const held = background(`begin;
+      select public.coach_save_turn('${A}', '${T1}', 'chat', null,
+        '${JSON.stringify([rowJson(Q, "user", 1)])}'::jsonb, null);
+      select pg_sleep(1); commit;`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const direct = background(`insert into public.coach_messages (thread_id, user_id, role, seq)
+      values ('${T1}', '${A}', 'assistant', 1)`);
+    await untilWaiting();
+    const [save, other] = await Promise.all([held, direct]);
+    expect(save).toEqual({ code: 0, err: "" });
+    // The direct writer's own retry handles this (lib/server/coach.ts reads the next seq again).
+    expect(other.err).toContain("coach_messages_thread_seq");
+    expect(other.err).not.toContain("deadlock");
   });
 
   it("gives up as coach_seq_busy after three conflicts, saving nothing", () => {
