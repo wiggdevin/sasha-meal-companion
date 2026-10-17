@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * Sprout's pond (owner, 2026-10-07): the rings become a rainbow over a lake; tapping it shows a
- * "remaining" key on the water without "left"; when the day falls behind Sprout sits facing away, and
- * a poke makes it look back. jsdom has no WebGL: the painted lake stands in, and everything else works.
+ * "remaining" key on the water without "left"; a day behind never makes Sprout sulk (OD19), only
+ * pokes do. jsdom has no WebGL: the painted lake stands in, and everything else works.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -18,7 +18,7 @@ const DATA: PanelData = {
   partial: false,
 };
 const FINE: PetState = { mood: "content", vitality: 0.7, line: "Sprout is doing fine." };
-const LOW: PetState = { mood: "droopy", vitality: 0.2, line: "Sprout is feeling a little low." };
+const BEHIND: PetState = { mood: "content", vitality: 0.2, line: "Sprout is doing fine." };
 const scene = (pet: PetState, data = DATA) =>
   render(<MotionConfig reducedMotion="always"><PondScene data={data} pet={pet} /></MotionConfig>);
 
@@ -46,11 +46,12 @@ describe("PondScene", () => {
     expect(screen.getByRole("group", { name: "Remaining today" }).textContent).toContain("up to 1,500");
   });
 
-  it("sulks facing away while the day is behind, with kind words, and looks back when poked", () => {
-    const { container } = scene(LOW);
-    expect(screen.getByText("Sprout is waiting for you.", { selector: "[aria-live]" })).toBeTruthy();
-    expect(container.querySelector('[data-on] img')?.getAttribute("src")).toContain("sprout-sulk");
-    fireEvent.click(screen.getByRole("button", { name: "Sprout. Poke" }));
+  it("keeps fishing on a day that is behind, and sulks only after a few pokes", () => {
+    const { container } = scene(BEHIND);
+    expect(container.querySelector('[data-on] img')?.getAttribute("src")).toContain("sprout-fishing");
+    expect(screen.queryByText("Sprout is waiting for you.")).toBeNull();
+    const sprout = screen.getByRole("button", { name: "Sprout. Poke" });
+    fireEvent.click(sprout); fireEvent.click(sprout); fireEvent.click(sprout);
     expect(container.querySelector('[data-on] img')?.getAttribute("src")).toContain("sprout-lookback");
     expect(container.textContent).not.toMatch(/eat|should|must/i);
   });

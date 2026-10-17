@@ -1,18 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ANNOYED_MS, LOOK_BACK_MS, POKE_SULK_MS, SULK_LINES, initialSulk, nextChange, poke, pose, sulkLine,
-  updateDay } from "./sulk";
+import { ANNOYED_MS, LOOK_BACK_MS, POKE_SULK_MS, SULK_LINES, initialSulk, nextChange, poke, pose, sulkLine } from "./sulk";
 
 describe("Sprout's sulk", () => {
-  it("sits facing away while the day is behind, and turns back the moment it recovers", () => {
-    let s = updateDay(initialSulk(), true);
-    expect(pose(s, 0)).toBe("sulk");
-    expect(sulkLine(s, 0)).toBe(SULK_LINES.day);
-    s = poke(s, 100).state;
-    expect(pose(s, 200)).toBe("lookback");
-    s = updateDay(s, false);
-    expect(pose(s, 300)).toBe("fishing");
-    expect(sulkLine(s, 300)).toBeNull();
-    expect(s.pokes).toEqual([]);
+  it("never sulks on its own: unpoked, it fishes with no sulk line (OD19)", () => {
+    const s = initialSulk();
+    expect(pose(s, 0)).toBe("fishing");
+    expect(sulkLine(s, 0)).toBeNull();
+    expect(nextChange(s, 0)).toBeNull();
   });
 
   it("greets the first two pokes, sulks on the third, and looks back with tears when poked sulking", () => {

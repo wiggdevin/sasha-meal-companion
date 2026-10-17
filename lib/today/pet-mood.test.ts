@@ -21,14 +21,14 @@ describe("Sprout's mood", () => {
     expect(petState(day(1100, 80, 4), 14.5).mood).toBe("joyful");
   });
 
-  it("is a little low when the day falls well behind in the afternoon, and says so without a prompt", () => {
-    const state = petState(day(200, 10, 1), 17);
-    expect(state.mood).toBe("droopy");
-    expect(state.line).not.toMatch(/log|eat|meal|need/i);
-  });
-
-  it("never calls a young day low", () => {
-    expect(petState(day(0, 0, 0), 12).mood).not.toBe("droopy");
+  it("is never sad on a food or water shortfall, today or on a past day (OD19)", () => {
+    for (const hour of [12, 14, 17, 20]) {
+      const state = petState(day(200, 10, 1), hour);
+      expect(state.mood).toBe("content");
+      expect(state.line).toBe("Sprout is doing fine.");
+    }
+    expect(petState(day(0, 0, 0), 18)).toMatchObject({ mood: "content", vitality: 0 });
+    expect(petState(day(300, 20, 1), 23, "past")).toMatchObject({ mood: "content", line: "A steady day." });
   });
 
   it("never calls a partly measured day low", () => {
@@ -65,7 +65,6 @@ describe("Sprout's mood", () => {
 
   it("judges a past day whole, awake, and a future day not at all", () => {
     expect(petState(day(2000, 150, 8), 23, "past")).toMatchObject({ mood: "joyful", line: "A well cared-for day." });
-    expect(petState(day(300, 20, 1), 23, "past").mood).toBe("droopy");
     expect(petState(day(0, 0, 0), 10, "future")).toMatchObject({ mood: "content", vitality: null });
   });
 
