@@ -46,6 +46,7 @@ import { capturePayload, coachTurnPayload } from "@/lib/ai/gemini-payloads";
 import { LANES } from "@/lib/ai/lanes";
 import { estimateCostUsd } from "@/lib/ai/models";
 import { CAPTURE_SCHEMAS } from "@/lib/ai/schemas";
+import { memoryAdmin } from "./lane-bench/memory-admin";
 import {
   beatsIncumbent, isCorrect, markdownReport, summarise, type Attempt, type Expect,
 } from "./lane-bench/score";
@@ -89,19 +90,6 @@ const P95_GATED: ReadonlySet<BenchLane> = new Set(["converse", "capture_text"]);
 const CONVERSE_SCHEMA = z.object({ value: z.string().min(1).max(40) });
 
 const BENCH_USER = "00000000-0000-4000-8000-00000000be0c";
-
-/** An in-memory stand-in for the admin client: no circuit history, no spend, rows kept locally. */
-function memoryAdmin(rows: Record<string, unknown>[]) {
-  const chain: Record<string, unknown> = {};
-  Object.assign(chain, {
-    select: () => chain, eq: () => chain, neq: () => chain, gte: () => chain, in: () => chain,
-    order: () => chain, limit: () => chain,
-    insert: async (row: Record<string, unknown>) => { rows.push(row); return { error: null }; },
-    then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-      Promise.resolve({ data: [], error: null }).then(resolve),
-  });
-  return { from: () => chain } as never;
-}
 
 type Outcome = Omit<Attempt, "lane" | "caseId" | "correct"> & { value: unknown };
 
