@@ -1,9 +1,9 @@
 /**
  * Spec 3.5 canary for `POST /api/foods/favor` and lib/server/membership-revisions.ts (Phase 18 D6),
  * the declared service-role read of `food_membership_revisions`. B's membership marks are the
- * canary: the owner-filtered read for A never returns them, A's session client cannot read even its
- * own marks (RLS, no client read policy, which is why the declared read exists), and A's favor of a
- * crafted key naming B's food answers 404 and leaves every B row unchanged.
+ * canary: the owner-filtered read for A never returns them, A's session client reads its own marks
+ * only (the owner policy of migration 20261231110000, W029; the plan keeps the declared read), and
+ * A's favor of a crafted key naming B's food answers 404 and leaves every B row unchanged.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -125,12 +125,13 @@ describe.skipIf(!LOCAL)("favor isolation (canary)", () => {
     for (const id of ids) await admin.auth.admin.deleteUser(id);
   });
 
-  it("the owner-filtered read returns A's marks only; A's session client sees none of them", async () => {
+  it("the owner-filtered read returns A's marks only; A's session client sees none of B's", async () => {
     const mine = await readMembershipRevisions(a.id, ["favor a own", CANARY, `${CANARY} avoid`]);
     expect([...mine.keys()]).toEqual(["favor a own"]);
     expect(mine.get("favor a own")).toMatchObject({ status: "eats", rev: 3 });
-    const direct = await a.client.from("food_membership_revisions").select("name_norm");
-    expect(direct.data ?? []).toEqual([]);
+    const direct = await a.client.from("food_membership_revisions").select("name_norm,user_id");
+    expect((direct.data ?? []).every((row) => row.user_id === a.id)).toBe(true);
+    expect((direct.data ?? []).map((row) => row.name_norm)).not.toContain(CANARY);
   });
 
   it("A cannot favor B's food by a crafted key, even with B's id claimed; B's marks are unchanged", async () => {
@@ -148,8 +149,7 @@ describe.skipIf(!LOCAL)("favor isolation (canary)", () => {
     const { error } = await admin.from("food_membership_revisions").insert({ user_id: a.id, name_norm: KIWI,
       status: "avoid", rev: 1 });
     if (error) throw error;
-    // The session client cannot see the mark; the Favor plan reads it owner-scoped.
-    expect((await a.client.from("food_membership_revisions").select("name_norm")).data ?? []).toEqual([]);
+    // The Favor plan reads the mark owner-scoped (the session client may read its own marks too).
     const before = { a: await marksOf(a.id), b: await marksOf(b.id) };
     expect(await kiwiItem()).toMatchObject({ favorable: false });
     resetRateLimits();

@@ -74,15 +74,16 @@ const REFS: Ref[] = [
     key: (r) => ({ id: r.id }), shared: () => [null] },
   { name: "media_objects.entry_id", table: "media_objects", column: "entry_id",
     target: (o) => o.entry,
-    row: (u, _o, ref) => ({ path: `${u.id}/xref-${crypto.randomUUID()}.jpg`, user_id: u.id,
+    row: (u, _o, ref) => ({ path: `media/${u.id}/${crypto.randomUUID()}.jpg`, user_id: u.id,
       kind: "image", bytes: 1, entry_id: ref }),
     key: (r) => ({ path: r.path }), shared: () => [null] },
+  // Server-written tables: the client may only select them, so the service role is the writer.
+  // An assistant coach row (the only kind with an ai_call_id) is server-written since W018.
   { name: "coach_messages.ai_call_id", table: "coach_messages", column: "ai_call_id",
-    target: (o) => o.aiCall,
+    target: (o) => o.aiCall, clientWrites: false,
     row: (u, o, ref, n) => ({ thread_id: o.thread, user_id: u.id, role: "assistant", seq: n,
       ai_call_id: ref }),
     key: (r) => ({ thread_id: r.thread_id, seq: r.seq }), shared: () => [null] },
-  // Server-written tables: the client may only select them, so the service role is the writer.
   { name: "ingest_events.source_id", table: "ingest_events", column: "source_id",
     target: (o) => o.source, clientWrites: false,
     row: (u, _o, ref) => ({ id: crypto.randomUUID(), user_id: u.id, status: "applied",

@@ -52,6 +52,8 @@ export type AttachmentTurnDeps = {
    * 2026-09-23). The retry, with the same messageId, runs the turn again.
    */
   saveBy?: number;
+  /** W035: reserves this turn's budget slot, after the replay and capacity checks. */
+  reserve?: () => Promise<void>;
 };
 
 type StoredMessage = Pick<MessageRow, "id" | "role" | "content" | "seq" | "tool_calls">
@@ -292,6 +294,7 @@ function blockPolicy(draft: ReturnType<typeof captureDraftSchema.parse>) {
 
 async function persistReply(
   client: SupabaseClient,
+  admin: SupabaseClient,
   userId: string,
   req: AttachmentTurnRequest,
   deps: AttachmentTurnDeps,
@@ -330,7 +333,9 @@ async function persistReply(
   if (deps.saveBy !== undefined && Date.now() >= deps.saveBy) {
     throw new HttpError(503, "timeout", `${ASSISTANT_NAME} did not answer in time. Try again.`);
   }
-  await persist(client, threadId, [userRow, assistantRow], req.threadId === null ? canonical : null);
+  const [savedUser, savedAssistant] = await persist(client, threadId, [userRow, assistantRow],
+    req.threadId === null ? canonical : null, undefined, "chat", admin);
+  assistantRow = { ...assistantRow, seq: savedAssistant.seq };
   const replyDoneMs = elapsed(replyStartedAt, deps.now);
   if (block) {
     const sanityDeps = await import("@/lib/log/sanity").then((sanity) => ({
@@ -345,14 +350,15 @@ async function persistReply(
     if (sanityDeps) {
       const remainingMs = Math.max(1, AFTER_RESPONSE_BUDGET_MS - attachMs - replyDoneMs);
       const sanity = startPersistedCoachSanity(
-        client, userId, assistantRow.id, assistantRow.tool_calls, AbortSignal.timeout(remainingMs),
+        admin, userId, assistantRow.id, assistantRow.tool_calls, AbortSignal.timeout(remainingMs),
         sanityDeps,
       );
       assistantRow = { ...assistantRow, tool_calls: sanity.toolCalls };
       void sanity.settled;
     }
   }
-  const messages: CoachMessageView[] = [userRow, assistantRow].map(toMessageView);
+  const messages: CoachMessageView[] = [{ ...userRow, seq: savedUser.seq }, assistantRow]
+    .map(toMessageView);
   return {
     threadId, suggestions: [], actions: [], messages, draft: null, deflected: false,
     toolsUsed: [], model: { provider: "gemini", modelId: "" }, provenance,
@@ -372,6 +378,7 @@ export async function runAttachmentTurn(
   // A saved turn still replays at capacity; a fresh ninth attachment refuses before photo or
   // barcode resolution. The insert trigger remains the concurrency authority.
   if (req.threadId === null) await assertChatCapacity(client, userId);
+  await deps.reserve?.();
 
   if (req.attachment.kind === "barcode") {
     const attachStartedAt = deps.now();
@@ -383,7 +390,7 @@ export async function runAttachmentTurn(
       ...(req.attachment.slot ? { slot: req.attachment.slot } : {}),
       draft, policy: blockPolicy(draft), status: "pending",
     };
-    return persistReply(client, userId, req, deps,
+    return persistReply(client, admin, userId, req, deps,
       "Here's what I found — check the portion and log it.", attachMs, block);
   }
 
@@ -409,7 +416,7 @@ export async function runAttachmentTurn(
       ...(req.attachment.slot ? { slot: req.attachment.slot } : {}),
       draft, policy: blockPolicy(draft), status: "pending",
     };
-    return persistReply(client, userId, req, deps,
+    return persistReply(client, admin, userId, req, deps,
       "Here's what I found — check it and log it.", attachMs, block);
   } catch (error) {
     if (error instanceof HttpError
@@ -418,7 +425,7 @@ export async function runAttachmentTurn(
       error: error instanceof Error ? { name: error.name, message: error.message.slice(0, 300) }
         : { name: "UnknownError", message: "non-Error rejection" },
     });
-    return persistReply(client, userId, req, deps,
+    return persistReply(client, admin, userId, req, deps,
       "I couldn't read that photo. Try again or search.", elapsed(attachStartedAt, deps.now));
   }
 }

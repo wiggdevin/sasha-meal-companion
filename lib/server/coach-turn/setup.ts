@@ -1,6 +1,7 @@
 /**
- * Before any answer: the turn's clocks, the one round of setup reads (budget, idempotent replay,
- * thread, seq, chat capacity), and the health-context gate that every model-or-Jev path passes.
+ * Before any answer: the turn's clocks, the one round of setup reads (idempotent replay, thread,
+ * seq), the turn budget, chat capacity, and the health-context gate that every model-or-Jev path
+ * passes.
  */
 
 import { randomUUID } from "node:crypto";
@@ -11,14 +12,14 @@ import { ASSISTANT_NAME } from "@/lib/brand";
 import { TURN_REPLY_DEADLINE_MS, TURN_SAVE_DEADLINE_MS } from "@/lib/coach/turn";
 import { threadKindFor, type CoachTurnRequest, type CoachTurnResponse } from "@/lib/coach/types";
 import { HttpError } from "@/lib/server/auth";
-import { assertTurnBudget } from "@/lib/server/coach";
+import { reserveTurn } from "@/lib/server/coach";
 import { assertChatCapacity, nextSeq, persist, resolveThread, storedTurn, threadHistory,
   type MessageRow } from "@/lib/server/coach-threads";
 import { accountClock } from "@/lib/server/day-context";
 import { readPolicyProfile } from "@/lib/server/policy-profile";
 import { beforeDeadline, LATE, settle, TIMEOUT_MESSAGE, unwrap, type Settled }
   from "@/lib/server/coach-turn/deadline";
-import type { OpenTurn, StageDeps, Turn } from "@/lib/server/coach-turn/types";
+import type { OpenTurn, SaveArgs, StageDeps, Turn } from "@/lib/server/coach-turn/types";
 
 export type ThreadHistory = Awaited<ReturnType<typeof threadHistory>>;
 export type PolicyProfileRead = Awaited<ReturnType<typeof readPolicyProfile>>;
@@ -40,10 +41,11 @@ export function startTurn(
   const replyDeadlineAt = realStartedAt + (deps.replyDeadlineMs ?? TURN_REPLY_DEADLINE_MS);
   const saveDeadlineAt = replyDeadlineAt + (TURN_SAVE_DEADLINE_MS - TURN_REPLY_DEADLINE_MS);
   /** Saving the turn, bounded: late, the phone gets the retryable 503 while it still waits. */
-  const save = async (...args: Parameters<typeof persist>): Promise<void> => {
+  const save = async (...args: SaveArgs): Promise<MessageRow[]> => {
     const saved = await beforeDeadline(() => persist(args[0], args[1], args[2], args[3],
       args[4], threadKindFor(req.surface, req.scope), admin), saveDeadlineAt);
     if (saved === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
+    return saved;
   };
   const now = deps.now ?? (() => Date.now());
   const newId = deps.newId ?? (() => randomUUID());
@@ -62,7 +64,7 @@ export async function openTurn(turn: Turn): Promise<
   // ---- one round of reads -------------------------------------------------------------
   // None of these needs another's answer, and one after another they were seven round trips
   // before the first model call (2026-09-23: ~9 s from request to model). Each result is still
-  // APPLIED in the order the checks always ran — budget, replay, thread, seq, then the profile
+  // APPLIED in the order the checks always ran — replay, thread, seq, then the profile
   // after deflection — so a failing read reports exactly the error it did when sequential.
   const newThreadId = req.threadId === null ? newId() : null;
   // The profile and the history start now too, but only the model path waits for them: a replay
@@ -72,8 +74,7 @@ export async function openTurn(turn: Turn): Promise<
   const historyStarted = threadHistory(client, req.threadId).catch(() => (
     { summary: null, messages: [] as ThreadHistory["messages"], pendingDraft: null }));
   const setup = await beforeDeadline(() => Promise.all([
-    settle(assertTurnBudget(admin, userId, now())),
-    settle(storedTurn(client, userId, req.messageId,
+    settle(storedTurn(client, admin, userId, req.messageId,
       { provider: "gemini", modelId: "" },
       { threadId: req.threadId, kind: threadKindFor(req.surface, req.scope) })),
     settle(resolveThread(client, userId, req.threadId, () => newThreadId as string,
@@ -83,8 +84,7 @@ export async function openTurn(turn: Turn): Promise<
   // Reads that have not answered by the reply deadline leave nothing to save a reply into (no
   // thread, no seq), so the phone gets the retryable 503 while it is still waiting (review r3).
   if (setup === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
-  const [budgetRead, storedRead, threadRead, seqRead] = setup;
-  unwrap(budgetRead);
+  const [storedRead, threadRead, seqRead] = setup;
   const stored = unwrap(storedRead);
   if (stored) return { kind: "replay", response: stored };
   if (req.threadId === null && !req.surface) {
@@ -94,6 +94,10 @@ export async function openTurn(turn: Turn): Promise<
 
   const threadId = unwrap(threadRead);
   const seq = unwrap(seqRead);
+  // W035: a new turn reserves its budget slot only now, so neither a replay of a saved turn nor a
+  // turn refused for chat capacity or an unknown thread spends one.
+  const reserved = await beforeDeadline(() => reserveTurn(userId), replyDeadlineAt);
+  if (reserved === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
   const base = { thread_id: threadId, user_id: userId };
   const userRow: MessageRow = {
     ...base, id: req.messageId, role: "user", content: req.text, seq,

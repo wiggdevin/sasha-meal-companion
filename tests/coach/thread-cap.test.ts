@@ -28,7 +28,7 @@ describe("saved chat cap and private plan kind", () => {
         code: "P0001", message: "coach_chat_limit",
       } }); },
     }) } as never;
-    await expect(persist(client, THREAD, rows, "hi"))
+    await expect(persist(client, THREAD, rows, "hi", undefined, "chat", client))
       .rejects.toMatchObject({ status: 409, code: "chat_limit" });
     expect(writes).toEqual(["coach_threads"]);
   });
@@ -76,10 +76,10 @@ describe("saved chat cap and private plan kind", () => {
     } }) as never;
     const model = { provider: "gemini" as const, modelId: "" };
     for (const source of [client("plan"), client(null), client("chat", "assistant")]) {
-      await expect(storedTurn(source, "u1", "m1", model,
+      await expect(storedTurn(source, source, "u1", "m1", model,
         { threadId: null, kind: "chat" })).rejects.toMatchObject({ status: 404 });
     }
-    await expect(storedTurn(client("chat"), "u1", "m1", model,
+    await expect(storedTurn(client("chat"), client("chat"), "u1", "m1", model,
       { threadId: "3f1b1a2c-0000-4000-8000-000000000099", kind: "chat" }))
       .rejects.toMatchObject({ status: 404 });
   });
@@ -113,10 +113,10 @@ describe("saved chat cap and private plan kind", () => {
       return chain;
     } } as never;
     const model = { provider: "gemini" as const, modelId: "" };
-    const replay = await storedTurn(client, "u1", "m1", model, { threadId: THREAD, kind: "chat" });
+    const replay = await storedTurn(client, client, "u1", "m1", model, { threadId: THREAD, kind: "chat" });
     expect(replay?.threadId).toBe(THREAD);
     expect(replay?.messages.map((m) => m.id)).toEqual(["m1", "m2"]);
-    await expect(storedTurn(client, "u1", "m1", model, { threadId: THREAD, kind: "plan" }))
+    await expect(storedTurn(client, client, "u1", "m1", model, { threadId: THREAD, kind: "plan" }))
       .rejects.toMatchObject({ status: 404 });
   });
 });

@@ -207,6 +207,10 @@
     "test": "tests/tenancy/admin-routes.test.ts",
     "via": "@/app/api/mcp/route"
   },
+  "lib/server/backup-dump.ts": {
+    "test": "tests/tenancy/admin-backup.test.ts",
+    "via": "@/app/api/jobs/backup/route"
+  },
   "lib/server/barcode.ts": {
     "test": "tests/tenancy/admin-barcode.test.ts",
     "via": "@/app/api/foods/barcode/route"
@@ -242,6 +246,10 @@
   "lib/server/coach-role-advice.ts": {
     "test": "tests/tenancy/admin-libs.test.ts",
     "via": "@/lib/server/coach-role-advice"
+  },
+  "lib/server/coach-sanity.ts": {
+    "test": "tests/tenancy/admin-routes.test.ts",
+    "via": "@/app/api/coach/route"
   },
   "lib/server/coach-threads.ts": {
     "test": "tests/tenancy/admin-routes.test.ts",
@@ -282,6 +290,10 @@
   "lib/server/day-totals.ts": {
     "test": "tests/tenancy/admin-libs.test.ts",
     "via": "@/lib/server/day-totals"
+  },
+  "lib/server/expenditure-intake.ts": {
+    "test": "tests/tenancy/admin-jobs.test.ts",
+    "via": "@/app/api/jobs/estimate/route"
   },
   "lib/server/expenditure.ts": {
     "test": "tests/tenancy/admin-jobs.test.ts",

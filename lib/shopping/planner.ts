@@ -5,7 +5,7 @@ import { occasionFit } from "@/lib/recipes/occasion";
 import type { Occasion } from "@/lib/meals/occasion";
 import { recipeTastePoints, type TasteValues } from "@/lib/meals/preference";
 import {
-  aggregateShopping, identityKey, type AggregateOptions, type RecipeUse, type ShoppingAggregation,
+  aggregateShopping, identityKey, packageBuyGrams, type AggregateOptions, type RecipeUse, type ShoppingAggregation,
 } from "@/lib/shopping/aggregate";
 
 /** The same normalized identity `lib/meals/parts.ts`'s `foodKey` gives a plate row's food. */
@@ -179,8 +179,7 @@ function replenishmentByWindow(windows: readonly PlanWindow[], shopping: Shoppin
       if (confirmedStockGrams !== null) remaining = roundServings(remaining - confirmedStockGrams);
       const net = needGrams === null || confirmedStockGrams === null ? null
         : roundServings(Math.max(0, needGrams - confirmedStockGrams));
-      const buyGrams = net === null ? null : net === 0 ? 0
-        : line.packageGrams ? Math.ceil(net / line.packageGrams) * line.packageGrams : null;
+      const buyGrams = net === null ? null : packageBuyGrams(net, line.packageGrams);
       const prior = existing.find((item) => item.lineId === line.id
         && item.windowStartDate === row.window.startDate);
       const preserve = prior && needGrams !== null && prior.needGrams !== null
@@ -281,12 +280,19 @@ export function planShoppingPeriod(input: PlannerInput): PlanPreview {
       proteinShort.push(`${best.name} is ${Math.abs(proteinGapGrams)} g short of the protein for ${slot.localDate} ${slot.slotId}.`);
     }
     const servingsConsumed = roundServings(input.period.people * servingFraction);
-    const prior = chosen.find((use) => use.recipe.revisionId === best.revisionId
-      && use.batchId !== null && !use.keptSelectionId
-      && currentDay - dayNumber(use.localDate) <= 2
-      && Math.floor((dayNumber(use.localDate) - dayNumber(input.period.startDate)) / 7) === currentWindow
-      && chosen.filter((row) => row.batchId === use.batchId)
-        .reduce((sum, row) => sum + row.servingsConsumed, 0) + servingsConsumed <= best.servings);
+    // Judge each batch by its FIRST row (audit A046): a later row of an older batch is never the
+    // way in, or the batch would outlive its storage window.
+    const prior = chosen.find((use) => {
+      if (use.recipe.revisionId !== best.revisionId || use.batchId === null || use.keptSelectionId) {
+        return false;
+      }
+      const batch = chosen.filter((row) => row.batchId === use.batchId);
+      if (batch[0] !== use) return false;
+      const firstDay = dayNumber(use.localDate);
+      return currentDay - firstDay <= 2
+        && Math.floor((firstDay - dayNumber(input.period.startDate)) / 7) === currentWindow
+        && batch.reduce((sum, row) => sum + row.servingsConsumed, 0) + servingsConsumed <= best.servings;
+    });
     const batchId = prior?.batchId ?? `${input.period.id}:${slot.localDate}:${slot.slotId}:${best.revisionId}`;
     // Said only when no feasible recipe of the slot's meal type existed: a fitting recipe that
     // lost on pins, basket or cost is a ranking choice, not a missing breakfast.

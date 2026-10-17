@@ -3,9 +3,9 @@
  * `scripts/backtest-estimator.ts`. Unseeded randomness is banned outright; noise comes from a
  * seeded linear congruential generator, so a scenario is byte-identical on every machine and CI.
  *
- * Anchors from `../analysis/targets.md`: BASE_KG 57.6 kg is §2's "The user is 127 lb"; BASE_TDEE 2130 is
- * §1's working number. Weight moves only through the energy balance, at the §4.3 approximation of
- * 7700 kcal/kg, plus whatever artefact the scenario adds on top.
+ * BASE_KG and BASE_TDEE are fixed test inputs that describe no account. Weight moves only through
+ * the energy balance, at the §4.3 approximation of 7700 kcal/kg, plus whatever artefact the
+ * scenario adds on top.
  */
 import {
   estimateExpenditure, fromDayNumber, KCAL_PER_KG, toDayNumber,
@@ -15,9 +15,9 @@ import { summarizeActivity } from "@/lib/activity/summary";
 import type { DailyHealthRow } from "@/lib/health/contract";
 
 /**
- * The first client's seeds from analysis/targets.md §1 — "~2,130 kcal ← trained maintenance" and
- * "BMR (InBody, Katch-McArdle from 46.4 kg LBM) | 1,372 kcal". TEST SCENARIOS ONLY: the engine takes
- * the prior and the BMR per account (lib/server/expenditure.ts), never from a constant.
+ * Fixed prior and BMR for the synthetic scenarios; they describe no account. TEST SCENARIOS ONLY:
+ * the engine takes the prior and the BMR per account (lib/server/expenditure.ts), never from a
+ * constant.
  */
 export const PRIOR_KCAL = 2130;
 export const BMR_KCAL = 1372;

@@ -12,7 +12,7 @@
 import "../tenancy/local-only";
 import { afterAll, describe, expect, it } from "vitest";
 import { HAS_DB, runSql } from "../helpers/supabase";
-import { account, asUser, dropAccounts } from "../helpers/world-db";
+import { account, asUser, asUserWithSettingsGrant, dropAccounts } from "../helpers/world-db";
 
 const markers = (user: string) => runSql(`select coalesce(onboarded_at::text, '-') || '|'
   || coalesce(food_world_default_due_at::text, '-') || '|' || coalesce(food_world_set_at::text, '-')
@@ -36,7 +36,8 @@ describe.skipIf(!HAS_DB)("food world markers on the migrated schema (W13)", () =
 
   it("a re-onboarding keeps the first stamp, and a never-onboarded row has none", () => {
     const a = account();
-    asUser(a, `update public.user_settings set onboarded_at = now() where user_id = '${a}'`);
+    // A direct server write (W018: the signed-in user has no table UPDATE).
+    runSql(`update public.user_settings set onboarded_at = now() where user_id = '${a}'`);
     const first = markers(a)[1];
     runSql(`update public.user_settings set onboarded_at = null where user_id = '${a}'`);
     runSql(`update public.user_settings set onboarded_at = now() + interval '1 day' where user_id = '${a}'`);
@@ -48,12 +49,16 @@ describe.skipIf(!HAS_DB)("food world markers on the migrated schema (W13)", () =
 
   it("the signed-in user can write neither marker; the server can", () => {
     const a = account();
+    // W018: no table UPDATE at all, so the grant refuses first ...
     expect(() => asUser(a, `update public.user_settings set food_world_set_at = now() where user_id = '${a}'`))
-      .toThrow(/food world markers are server-written/);
-    expect(() => asUser(a, `update public.user_settings set food_world_default_due_at = now()
+      .toThrow(/permission denied for table user_settings/);
+    // ... and the marker guard behind it still refuses with the grant put back.
+    expect(() => asUserWithSettingsGrant(a, `update public.user_settings set food_world_set_at = now()
       where user_id = '${a}'`)).toThrow(/food world markers are server-written/);
-    asUser(a, `update public.user_settings set onboarded_at = now() where user_id = '${a}'`);
-    expect(() => asUser(a, `update public.user_settings set food_world_default_due_at = null
+    expect(() => asUserWithSettingsGrant(a, `update public.user_settings set food_world_default_due_at = now()
+      where user_id = '${a}'`)).toThrow(/food world markers are server-written/);
+    runSql(`update public.user_settings set onboarded_at = now() where user_id = '${a}'`);
+    expect(() => asUserWithSettingsGrant(a, `update public.user_settings set food_world_default_due_at = null
       where user_id = '${a}'`)).toThrow(/food world markers are server-written/);
     runSql(`begin; set local role service_role;
       update public.user_settings set food_world_set_at = now() where user_id = '${a}'; commit;`);

@@ -32,6 +32,11 @@ export async function applyFoodMembershipResult(
     return true;
   }
   if (op.entity !== "food_membership" || result.status !== "applied") return false;
+  const { acknowledgeFoodMembership } = await import("../foods/prefs-client");
+  const { name_norm: name, status, rev } = op.payload;
+  // The server's revision for this op (W029): the cache follows it while it still holds this mark.
+  if (typeof name === "string" && typeof rev === "number" && (status === null || status === "eats"
+    || status === "avoid")) acknowledgeFoodMembership(h, name, status, rev, result.rev);
   await deleteOp(h, op.op_id);
   return true;
 }

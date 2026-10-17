@@ -299,8 +299,10 @@ describe("Today plan sheet", () => {
       { target: { value: "https://example.com/tacos" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => expect(postTurn).toHaveBeenCalledTimes(1));
-    expect(String(fetchSpy.mock.calls[0][0])).toBe("/api/plan/inspire");
-    expect(JSON.parse(String(fetchSpy.mock.calls[0][1]?.body))).toMatchObject({ kind: "url",
+    // Find the call by URL: a batched POST /api/timings can flush first under load (CI on PR #67).
+    const inspire = fetchSpy.mock.calls.find(([url]) => String(url) === "/api/plan/inspire");
+    expect(inspire).toBeDefined();
+    expect(JSON.parse(String(inspire?.[1]?.body))).toMatchObject({ kind: "url",
       url: "https://example.com/tacos", localDate: "2026-09-26" });
     // The page's words ride as data (planSource), never inside the turn text.
     expect(postTurn.mock.calls[0][0].text).not.toContain("Chicken tacos");

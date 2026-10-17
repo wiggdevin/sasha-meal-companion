@@ -14,6 +14,8 @@ vi.mock("@/lib/foods/prefs-client", () => ({
   currentPrefStatus: async () => null,
   setFoodMembership: (name: string, status: unknown, opts?: unknown) => prefs.set(name, status, opts),
   reserveFoodMembershipIntent: () => ({}),
+  raiseFoodMembershipIntent: (intent: unknown) => intent,
+  readServerMembershipRev: async () => null,
   isLatestFoodMembershipIntent: () => true,
   saveFoodNoteForRef: vi.fn(async () => undefined),
   readFoodMembership: (userId: string, name: string) => prefs.membership(userId, name),
@@ -62,6 +64,13 @@ describe("undoFoodListMark against a newer mark", () => {
     await expect(undoFoodListMark({ ...avoidOats, markRev: 10 })).rejects.toThrow(/changed since/i);
     expect(prefs.set).not.toHaveBeenCalled();
     prefs.membership.mockReturnValue({ status: "avoid", note: null, rev: 10 });
+    await undoFoodListMark({ ...avoidOats, markRev: 10 });
+    expect(prefs.set).toHaveBeenCalledWith("Oats", null, expect.anything());
+  });
+
+  // W029: the server wrote this action's mark at a later revision than it asked for.
+  it("undoes a mark the server wrote at a later revision than this action asked for", async () => {
+    prefs.membership.mockReturnValue({ status: "avoid", note: null, rev: 31, sentRev: 10 });
     await undoFoodListMark({ ...avoidOats, markRev: 10 });
     expect(prefs.set).toHaveBeenCalledWith("Oats", null, expect.anything());
   });

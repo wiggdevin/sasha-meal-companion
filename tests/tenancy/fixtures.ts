@@ -206,6 +206,13 @@ export const BUILDERS: Record<string, Builder> = {
       status: "eats" }, match: { user_id: owner, name_norm: name },
       touch: () => ({ note: "touched" }) };
   },
+  // W029: the membership op ledger (migration 20261231110000), written only by set_food_membership.
+  food_membership_ops: async (owner) => {
+    const opId = randomUUID();
+    return { table: "food_membership_ops", row: { op_id: opId, user_id: owner, name_norm: `tenancy ${opId}`,
+      result: { rev: 1, status: "eats" } }, match: { op_id: opId },
+      touch: () => ({ name_norm: "touched" }) };
+  },
   food_note_authority: async (owner) => {
     const name = `tenancy ${randomUUID()}`;
     return { table: "food_note_authority", row: { user_id: owner, name_norm: name,
@@ -252,7 +259,7 @@ export const BUILDERS: Record<string, Builder> = {
       snapshot: {}, grams: 100 }, { grams: 50 });
   },
   media_objects: async (owner) => {
-    const path = `${owner}/tenancy-${randomUUID()}.jpg`;
+    const path = `media/${owner}/${randomUUID()}.jpg`; // the owner-path CHECK (W019)
     return { table: "media_objects", row: { path, user_id: owner, kind: "image", bytes: 3 },
       match: { path }, touch: () => ({ bytes: 4 }) };
   },

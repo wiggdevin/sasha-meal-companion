@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  clearDraft, draftPrefix, draftSaveWarning, latestDraft, loadDraft, saveDraft, type DraftStore,
+  captureInputKey, clearDraft, draftForInput, draftPrefix, draftSaveWarning, loadDraft, saveDraft, type DraftStore,
 } from "@/lib/capture/drafts";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 
@@ -42,10 +42,10 @@ describe("drafts per account (Phase 9 §0.4)", () => {
   it("files a draft under smc:u:<userId>:draft: and never shows it to another account", () => {
     const store = fakeStore();
     expect(DRAFT_PREFIX).toBe(`smc:u:${A}:draft:`);
-    saveDraft(draft("d1"), store);
+    saveDraft(draft("d1"), store, new Date(), "text:two eggs");
     bindAccount(B);
     expect(loadDraft("d1", store)).toBeNull();
-    expect(latestDraft(store)).toBeNull();
+    expect(draftForInput("text:two eggs", store)).toBeNull();
   });
 
   it("keeps nothing when no account is bound", () => {
@@ -93,17 +93,36 @@ describe("drafts in localStorage", () => {
     expect(saveDraft(draft("d1"), store)).toBe("unavailable");
   });
 
-  it("recovers the newest draft after a duplicate answer", () => {
+  // A032: a duplicate answer shows THIS input's draft, never another capture's.
+  it("recovers the draft saved for the same input after a duplicate answer", () => {
     const store = fakeStore();
-    saveDraft(draft("older"), store, new Date("2026-09-11T10:00:00.000Z"));
-    saveDraft(draft("newer"), store, new Date("2026-09-11T10:04:00.000Z"));
-    expect(latestDraft(store)?.draftId).toBe("newer");
+    saveDraft(draft("mine"), store, new Date("2026-09-11T10:00:00.000Z"), "text:black coffee");
+    saveDraft(draft("other"), store, new Date("2026-09-11T10:04:00.000Z"), "text:toast");
+    saveDraft(draft("unkeyed"), store, new Date("2026-09-11T10:05:00.000Z"));
+    expect(draftForInput("text:black coffee", store)?.draftId).toBe("mine");
+  });
+
+  it("finds no draft once that input's draft was committed, whatever else is held", () => {
+    const store = fakeStore();
+    saveDraft(draft("abandoned"), store, new Date("2026-09-11T10:00:00.000Z"), "text:toast");
+    saveDraft(draft("logged"), store, new Date("2026-09-11T10:04:00.000Z"), "text:black coffee");
+    clearDraft("logged", store);
+    expect(draftForInput("text:black coffee", store)).toBeNull();
+    expect(draftForInput(null, store)).toBeNull();
+  });
+
+  it("keys the same input the same way, and different inputs apart", async () => {
+    expect(await captureInputKey({ method: "text", text: " Black coffee " }))
+      .toBe(await captureInputKey({ method: "text", text: "black coffee" }));
+    const a = await captureInputKey({ method: "photo", blob: new Blob(["one"]) });
+    expect(a).toBe(await captureInputKey({ method: "photo", blob: new Blob(["one"]) }));
+    expect(a).not.toBe(await captureInputKey({ method: "photo", blob: new Blob(["two"]) }));
   });
 
   it("has no store to use on the server and says so", () => {
     expect(saveDraft(draft("d1"), null)).toBe("unavailable");
     expect(loadDraft("d1", null)).toBeNull();
-    expect(latestDraft(null)).toBeNull();
+    expect(draftForInput("text:x", null)).toBeNull();
   });
 });
 

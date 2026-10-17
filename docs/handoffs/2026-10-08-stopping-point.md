@@ -14,7 +14,7 @@ The Sasha orchestrator's handoff at the owner-requested stop. It records what la
 | #28, #33 | follow-ups batches A and B |
 | #29 | W13 Favored rename, star merge, account move-over |
 | #30 | W11 shopping focus + W10b |
-| #31 | no account inherits the first client's Wednesday fasted 7am day type; target writers go through the service role |
+| #31 | no account inherits the old hard-coded Wednesday fasted 7am day type; target writers go through the service role |
 | #32 | onboarding v2 question set (typed answers, pace chips, holds, delivery-gated save) |
 | #34, #35 | meal cards v2 and v3 |
 | #36 | onboarding: typed age/height/weight, slower food pile with "Just pick from the list", practices / foods-to-skip / cuisines questions |

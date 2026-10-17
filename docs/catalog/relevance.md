@@ -311,3 +311,22 @@ no threshold was lowered to reach 83.6 %.
 back to the bundled `lib/food-db.json` search. Catalog-version rollback is
 `.venv/bin/python scripts/import-fdc.py --rollback-to <previous label>`; there is no previous
 production label today (`2026-09-12` is the first), so "flag off" is the whole rollback.
+
+## Barcode foods join the candidate set (W059, 2026-10-11)
+
+Migration `20261231190200_catalog_search_barcode_versions` lets `catalog_search` read the
+`off` and `fdc_branded` versions the barcode writer files (it never activates them), so a scanned
+food is found by its own name. The score expression is unchanged (pinned by
+`tests/search/recall.test.ts` and `tests/search/score-parity.test.ts`), and no labelled query in
+`docs/catalog/labelled-queries.jsonl` names a barcode food. The only new candidates are scanned
+packaged foods; in production they can now compete with a labelled target, at a lower quality
+feature (`crowd` 0.25 against `analytical` 1.0, weight 0.05) unless the query names their brand.
+The labelled run needs `CATALOG_ACTIVE=1` and the imported catalog, which a local stack does not
+have, so it was not rerun for W059: rerun `scripts/search-eval.ts --dry-run` against production
+after the migration and confirm top-1 ≥ 82 %.
+
+**Separate owner call, not decided here (OD07,
+`docs/plans/2026-10-10-priority-spec-list.md`).** `lib/search/thresholds.ts` still holds the
+calibrated 0.95 / 0.30 auto-resolve pair, which no real query clears, so AI capture
+(`/api/log/propose`) never auto-grounds. Whether to keep that pair or move to a per-method measured
+gate is Devin's call; W059 leaves the file untouched.

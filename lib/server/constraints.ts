@@ -24,6 +24,7 @@ const SELECT = "rev, conditions, notes, avoid_allergens, avoid_food_ref_ids, ban
 /** Phase 18 W2b (migration 20261213090000_food_world_columns): read by getProfile only, and tolerated when missing. */
 const READ_SELECT = `${SELECT}, condition_review_required`;
 const UNDEFINED_COLUMN = "42703";
+const UNIQUE_VIOLATION = "23505";
 
 type ProfileRow = {
   rev: number; conditions: string[] | null; notes: string | null;
@@ -160,8 +161,14 @@ export async function putProfile(
   };
 
   if (rev === 0) {
-    const inserted = await client.from("constraint_profiles").upsert(next).select(SELECT)
+    // The first row is a plain INSERT, never an upsert (audit 2026-10-10 A119): two writers that
+    // both read "no row" cannot both succeed, so the second can never replace the first row and
+    // drop what it saved. The primary key refuses the loser, which gets the conflict answer.
+    const inserted = await client.from("constraint_profiles").insert(next).select(SELECT)
       .maybeSingle();
+    if (inserted.error && (inserted.error as { code?: string }).code === UNIQUE_VIOLATION) {
+      return conflictWithFresh(client, userId);
+    }
     if (inserted.error) throw new HttpError(500, "internal", "Could not save the profile.");
     return { status: "ok", profile: toProfile(inserted.data as ProfileRow | null), rev: 1 };
   }
@@ -171,14 +178,17 @@ export async function putProfile(
   const updated = await client.from("constraint_profiles").update(next)
     .eq("user_id", userId).eq("rev", rev).select(SELECT).maybeSingle();
   if (updated.error) throw new HttpError(500, "internal", "Could not save the profile.");
-  if (updated.data === null) {
-    const fresh = await getProfile(client, userId);
-    return {
-      status: "conflict", current_rev: fresh.rev,
-      entity: "constraint_profiles", value: fresh.profile,
-    };
-  }
+  if (updated.data === null) return conflictWithFresh(client, userId);
   return { status: "ok", profile: toProfile(updated.data as ProfileRow), rev: rev + 1 };
+}
+
+/** Another writer moved the row between the read and the write: answer with the row as it is. */
+async function conflictWithFresh(client: SupabaseClient, userId: string) {
+  const fresh = await getProfile(client, userId);
+  return {
+    status: "conflict" as const, current_rev: fresh.rev,
+    entity: "constraint_profiles" as const, value: fresh.profile,
+  };
 }
 
 /** One revision-checked write stores both explicit decisions and the completion marker. */

@@ -9,7 +9,8 @@
  * part.
  */
 import type { Food } from "@/lib/foods";
-import { planDay, type DayPlan } from "@/lib/meals/day";
+import { planDay, type DayPlan, type QuickRanking } from "@/lib/meals/day";
+import { plateMinutes, QUICK_MINUTES } from "@/lib/plan/prep-minutes";
 import type { OccasionOverrides } from "@/lib/meals/occasion";
 import type { FocusRanking } from "@/lib/meals/plate";
 import { evidenceKey, type MealEvidence } from "@/lib/meals/snapshot";
@@ -29,20 +30,25 @@ export type LayoutResult = {
   misses: DayPlan["misses"];
 };
 
+/** A061: the "Quick meals" mark's rule, the Plan sheet's "Ready in 15 min" cut. */
+const QUICK_PLATES: QuickRanking = { maxMinutes: QUICK_MINUTES, minutesOf: plateMinutes };
+
 /** Today renders the same day several times (cards, notice, today's totals): plan it once. */
 const MEMO_SIZE = 12;
 const memo = new Map<string, DayPlan>();
 
 function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
   overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
-  focus?: LayoutFocus, cuisine?: CuisineRanking): string {
+  focus?: LayoutFocus, cuisine?: CuisineRanking, quick?: boolean): string {
+  // A quick day also reads each food's no-cook mark (lib/plan/prep-minutes.ts).
   const foodPart = Object.values(foods).map((food) => [food.id, food.name, food.role, food.status,
-    food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat].join("|")).sort().join(";");
+    food.unit, food.perUnit.protein, food.perUnit.carbs, food.perUnit.fat, ...(quick ? [food.noCook === true] : [])]
+    .join("|")).sort().join(";");
   // A closed account's key is exactly main's; an open one adds its snapshot's identity, and an
   // active shopping focus its own (end and the keys that count that day).
   return JSON.stringify([date, slots, overrides ?? null, foodPart, evidenceKey(evidence),
     ...(open ? [open.key] : []), ...(focus ? [`focus:${focus.id}`] : []),
-    ...(cuisine ? [`cuisine:${cuisineKey(cuisine)}`] : [])]);
+    ...(cuisine ? [`cuisine:${cuisineKey(cuisine)}`] : []), ...(quick ? ["quick"] : [])]);
 }
 
 /**
@@ -58,17 +64,23 @@ function memoKey(date: string, slots: readonly LayoutSlot[], foods: Record<strin
  *
  * `cuisines` (onb3): the account's stored `user_settings.cuisines`; a stated cuisine raises plates
  * of its foods (lib/meals/cuisine.ts). None stated: unchanged.
+ *
+ * `quick` (A061): the date carries the "Quick meals" mark (`StoredDay.floorDay`); each slot then
+ * takes a plate ready in 15 minutes (lib/plan/prep-minutes.ts) when one fits it, else the plate it
+ * would have had. Absent or false: unchanged.
  */
 export function planMealsForDay(
   date: string, slots: readonly LayoutSlot[], foods: Record<string, Food>,
   overrides?: OccasionOverrides, evidence?: MealEvidence | null, open?: OpenWorldInputs,
-  focus?: LayoutFocus, cuisines?: readonly string[] | null,
+  focus?: LayoutFocus, cuisines?: readonly string[] | null, quick?: boolean,
 ): LayoutResult {
   const cuisine = cuisineRanking(cuisines);
-  const key = memoKey(date, slots, foods, overrides, evidence, open, focus, cuisine);
+  const key = memoKey(date, slots, foods, overrides, evidence, open, focus, cuisine, quick);
   let plan = memo.get(key);
   if (!plan) {
-    plan = cuisine ? planDay(date, slots, foods, overrides, evidence, open?.taste, open?.ranking, focus, cuisine)
+    plan = quick ? planDay(date, slots, foods, overrides, evidence, open?.taste, open?.ranking, focus, cuisine,
+      QUICK_PLATES)
+      : cuisine ? planDay(date, slots, foods, overrides, evidence, open?.taste, open?.ranking, focus, cuisine)
       : open ? planDay(date, slots, foods, overrides, evidence, open.taste, open.ranking, focus)
         : focus ? planDay(date, slots, foods, overrides, evidence, undefined, undefined, focus)
           : planDay(date, slots, foods, overrides, evidence);

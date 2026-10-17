@@ -117,8 +117,11 @@ describe("CareLayer", () => {
     expect(document.activeElement).toBe(stops[stops.length - 1]);
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sprout's shop" })).toBeNull());
-    expect(document.activeElement).toBe(chip);
-    expect(elsewhere.inert).toBe(false);
+    // Focus goes home after the exit fade, which can end after the dialog leaves the tree.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(chip);
+      expect(elsewhere.inert).toBe(false);
+    });
   });
 
   it("stays modal through the shop's closing fade, then hands focus to the chip (Sol r4)", async () => {

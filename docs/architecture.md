@@ -629,7 +629,7 @@ Meal Companion's real queries (the user's food list plus 30 days of logs) reachi
 ### 4.2 Media, propose → confirm
 
 Images resize client-side to 1600 px on the long edge, JPEG q 0.8 (≈ 300–600 KB); audio is ≤ 30 s AAC; EXIF is stripped before upload. `POST
-/api/media/sign` returns a 60-second signed URL into the private Storage bucket `media/<user_id>/<uuid>`, and the server validates MIME,
+/api/media/sign` returns a signed upload URL (valid until its token's JWT expiry, reported as `expiresInSeconds`; 7,200 s when the token cannot be read) into the private Storage bucket `media/<user_id>/<uuid>`, and the server validates MIME,
 magic bytes, and dimensions or duration. `POST /api/log/propose` **re-checks that the object path's first segment equals `auth.uid()`**
 before touching it; a `media_ref` from the body is never trusted as a capability. A private Storage URL is not readable by Gemini, so the
 server downloads the object itself, re-validates size and type, then sends **inline bytes** when the payload is under 4 MB (the normal case
@@ -655,8 +655,8 @@ two hops only the server can time — which the client files into the same `clie
 
 `lib/expenditure.ts`, pure functions, versioned via `engine_version`. Not a MacroFactor clone: its filter and coefficients are unpublished
 (the retained adaptive-TDEE research note). `7700 kcal/kg` is an explicit modelling approximation, not a
-physical constant. **Seed:** `prior = 2130 kcal`, the user's trained maintenance working number in `targets.md`; `BMR = 1372 kcal` (Katch-McArdle
-from the InBody lean mass of 46.4 kg). The absolute bounds below use this measured BMR, not a Mifflin-St Jeor estimate.
+physical constant. **Seed:** the account's own formula TDEE is the prior and its own BMR bounds the estimate
+(`lib/server/profile-tdee.ts`; until 2026-09-22 both were hard-coded constants). The absolute bounds below use that BMR.
 
 ```
 qualified day         = a local date whose intake completeness is 'complete'
@@ -894,7 +894,7 @@ ping that does not land costs the next tap the cold start it would have paid any
 | `/api/sync/ops`, `/api/sync/changes` | Supabase JWT | 1 MB | 60/min/user | `op_id` | RLS (§2.1) |
 | `/api/foods/search`, `/api/foods/barcode` | JWT | 8 KB | 120/min/user | — | OFF calls throttled and cached; identifying `User-Agent` |
 | `/api/foods/[id]` | JWT | — | 120/min/user | — | catalog food detail read, `503` falls back to the offline cache |
-| `/api/media/sign` | JWT | 1 KB | 30/min/user | — | signed URL 60 s |
+| `/api/media/sign` | JWT | 1 KB | 30/min/user | — | signed upload URL, JWT expiry (7,200 s fallback) |
 | `/api/log/propose` | JWT | 8 KB (refs only) | 30/day soft, 100 hard | input hash | daily spend cap from `ai_calls` |
 | `/api/log/commit` | JWT | 64 KB | 60/min/user | `entry_id` | rejects stale revisions |
 | `/api/health/ingest` | per-source token (hash in `health_sources`), revocable | 2 MB | 30/hour/source | `payload_hash` + `dedupe_key` | privileged boundary (§2.2); Shortcuts cannot sign, so a 10-minute timestamp replay window applies |
@@ -1048,7 +1048,7 @@ Each entry names the finding it answers in the retained 2026-09-10 GPT-5.6 v2 au
 | 10 | §6 pins `gemini-3.8-flash` and `@google/genai` major 2, requires a billing-enabled Gemini project, provider storage and logging disabled where exposed, provider file deletion after every call, and a recorded Nous retention decision before the user's data is sent. | BLOCK §0/§6 |
 | 11 | §4.2 re-checks that the media object path belongs to `auth.uid()`, fetches bytes server-side, and sends bounded inline bytes (< 4 MB) or a Gemini Files API upload with explicit deletion. The zod schema converts to the supported JSON-Schema subset and the response is re-validated after the call. | WARN §4.2/§6; §3 "Gemini audio and structured output" |
 | 12 | §4.1 gives the exact SQL, uses `ts_rank` normalization flag 32, maps all features explicitly to [0,1] with weights summing to 1.00, makes GTIN a separate deterministic path, and marks the 0.80/0.15 thresholds as calibrated on the labelled set. | §3 "Normalised search score"; v1 finding 11 |
-| 13 | §4.3 seeds `prior = 2130 kcal` from `targets.md` maintenance and bounds on the measured BMR of 1,372 kcal; burn-in ends only on ≥ 21 qualified days, ≥ 12 weigh-ins, ≥ 15 complete intake days **and** a defined `t−14` trend point; status holds when either trend endpoint is missing; the clamp order is numbered. | WARN §4.3 |
+| 13 | §4.3 seeds the prior from the account's own TDEE and bounds on its BMR; burn-in ends only on ≥ 21 qualified days, ≥ 12 weigh-ins, ≥ 15 complete intake days **and** a defined `t−14` trend point; status holds when either trend endpoint is missing; the clamp order is numbered. | WARN §4.3 |
 | 14 | §4.3 and §3.4 apply `kcal_min` and `protein_g_min` and define the floor-conflict rule: raise calories, never cut protein or fat below its floor; a raise above the weekly step cap sets status `blocked` for the reviewer. | v1 finding 6 |
 | 15 | §4.3 replaces "training start must not move TDEE by more than 5 %" with three separate claims: artifacts bounded, under-logging holds, real sustained change detected within a stated lag and error. | §3 "Estimator" |
 | 16 | §3.4 gives percent mode a full contract: stored `protein_pct`/`fat_pct`/`carb_pct` summing to 100, conversion at kcal × pct ÷ 4\|9\|4 per day type, carbs as the remainder, floors applied in grams afterwards, check constraints and rejection rules. | v1 finding 20 |

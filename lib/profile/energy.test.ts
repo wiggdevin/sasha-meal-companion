@@ -49,9 +49,9 @@ describe("bmr", () => {
   });
 
   it("uses Katch-McArdle for a recent measured body-fat value", () => {
-    // 57.64 kg at 19.5% body fat is 46.4 kg lean body mass (rounded).
-    expect(bmr(profile({ weightKg: 57.64, bodyFatPct: 19.5, bodyFatSource: "inbody",
-      bodyFatMeasuredOn: "2026-08-01" }), TODAY)).toBeCloseTo(1372, 0);
+    // Made-up inputs: 60 kg at 25% body fat is 45 kg lean mass; 370 + 21.6 × 45 = 1342.
+    expect(bmr(profile({ weightKg: 60, bodyFatPct: 25, bodyFatSource: "inbody",
+      bodyFatMeasuredOn: "2026-08-01" }), TODAY)).toBeCloseTo(1342, 0);
   });
 
   // Onboarding v2 "prefer not to say" (coordinator ruling 2026-10-06): the midpoint sex term is
@@ -72,7 +72,7 @@ describe("bmr", () => {
     });
 
     it("needs no sex term at all for Katch-McArdle (body fat known)", () => {
-      const base = { weightKg: 57.64, bodyFatPct: 19.5, bodyFatSource: "inbody" as const,
+      const base = { weightKg: 60, bodyFatPct: 25, bodyFatSource: "inbody" as const,
         bodyFatMeasuredOn: "2026-08-01" };
       expect(bmr(profile({ ...base, sex: "unspecified" }), TODAY))
         .toBe(bmr(profile({ ...base, sex: "female" }), TODAY));
@@ -91,11 +91,11 @@ describe("body-fat provenance (step C)", () => {
   // depend on the file-level TODAY or on the time zone the suite runs in.
   const TODAY = new Date("2026-09-19T12:00:00Z");
   const measured = (over: Partial<EnergyProfile>) =>
-    profile({ weightKg: 57.64, bodyFatPct: 19.5, ...over });
-  const MIFFLIN = bmr(profile({ weightKg: 57.64 }), TODAY);
+    profile({ weightKg: 60, bodyFatPct: 25, ...over });
+  const MIFFLIN = bmr(profile({ weightKg: 60 }), TODAY);
 
   it("accepts a scan taken today", () => {
-    expect(katchEligible({ bodyFatPct: 19.5, bodyFatSource: "dexa",
+    expect(katchEligible({ bodyFatPct: 25, bodyFatSource: "dexa",
       bodyFatMeasuredOn: "2026-09-19" }, TODAY)).toBe(true);
   });
 
@@ -117,19 +117,19 @@ describe("body-fat provenance (step C)", () => {
 
   it.each(["dexa", "inbody", "clinical_bia"] as const)(
     "uses Katch-McArdle for a measured source within 180 days: %s", (bodyFatSource) => {
-      expect(katchEligible({ bodyFatPct: 19.5, bodyFatSource, bodyFatMeasuredOn: "2026-03-23" },
+      expect(katchEligible({ bodyFatPct: 25, bodyFatSource, bodyFatMeasuredOn: "2026-03-23" },
         TODAY)).toBe(true);
     });
 
   it("falls back to Mifflin-St Jeor once the measurement is older than 180 days", () => {
-    expect(katchEligible({ bodyFatPct: 19.5, bodyFatSource: "dexa",
+    expect(katchEligible({ bodyFatPct: 25, bodyFatSource: "dexa",
       bodyFatMeasuredOn: "2026-03-22" }, TODAY)).toBe(false);
   });
 
   it("refuses a measured source with no date, a future date, or a malformed date", () => {
     for (const bodyFatMeasuredOn of [null, undefined, "2026-09-20", "2026-13-01", "2026-02-30",
       "2026-9-1", "soon"]) {
-      expect(katchEligible({ bodyFatPct: 19.5, bodyFatSource: "inbody", bodyFatMeasuredOn },
+      expect(katchEligible({ bodyFatPct: 25, bodyFatSource: "inbody", bodyFatMeasuredOn },
         TODAY)).toBe(false);
     }
   });

@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ingredient, recipe } from "../recipes/fixture";
+import { HttpError } from "@/lib/server/auth";
 
 const mocks = vi.hoisted(() => ({
   candidates: [] as unknown[],
@@ -131,6 +132,24 @@ describe("previewShopping with an accepted recipe selection", () => {
     expect(changed.blockingIssues).toContain("Your chosen Lentil soup on 2026-10-01 Meal 3 "
       + "changed in the recipe catalog. Choose that meal again before planning this period.");
     expect(changed.choices.some((row) => row.localDate === "2026-10-01")).toBe(false);
+  });
+
+  it("blocks only the slot whose accepted recipe was withdrawn (W024, audit A047)", async () => {
+    mocks.candidates = [better];
+    mocks.detail.mockRejectedValueOnce(new HttpError(410, "recipe_withdrawn",
+      "This recipe is no longer available for new plans."));
+    const result = await previewShopping(fakeClient(tables()), "user-1", { draft, basket: [] });
+    expect(result.blockingIssues).toEqual(["Your chosen Lentil soup on 2026-10-01 Meal 3 "
+      + "is no longer in the recipe catalog. Choose that meal again before planning this period."]);
+    expect(result.choices.some((row) => row.localDate === "2026-10-01")).toBe(false);
+    expect(result.choices.find((row) => row.localDate === "2026-10-02")).toBeDefined();
+  });
+
+  it("still fails the preview for any other recipe read error", async () => {
+    mocks.candidates = [better];
+    mocks.detail.mockRejectedValueOnce(new HttpError(503, "recipe_catalog_unavailable"));
+    await expect(previewShopping(fakeClient(tables()), "user-1", { draft, basket: [] }))
+      .rejects.toMatchObject({ status: 503 });
   });
 
   it("blocks instead of re-choosing when the accepted recipe no longer fits the rules", async () => {

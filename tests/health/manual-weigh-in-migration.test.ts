@@ -37,7 +37,11 @@ const signIn = (id: string) => [
   "set local role authenticated;",
 ].join("\n");
 
-/** Returns a marker instead of aborting the transaction: a refusal is the thing under test. */
+/**
+ * Returns a marker instead of aborting the transaction: a refusal is the thing under test.
+ * `try_source` runs as the owner: since W018 (20261231170000) a session has no insert on
+ * health_sources at all, and what it checks is the one-manual-source index behind that.
+ */
 const HELPERS = `
 create function pg_temp.try_weigh(d date, z text, k numeric) returns text
   language plpgsql as $f1$ begin
@@ -46,7 +50,7 @@ create function pg_temp.try_weigh(d date, z text, k numeric) returns text
   exception when others then return 'refused:' || sqlerrm;
   end $f1$;
 create function pg_temp.try_source(u uuid) returns text
-  language plpgsql as $f2$ begin
+  language plpgsql security definer as $f2$ begin
     insert into health_sources (user_id, kind) values (u, 'manual');
     return 'allowed';
   exception when unique_violation then return 'refused:one_manual';

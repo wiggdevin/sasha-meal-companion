@@ -25,8 +25,8 @@ function localDateOnly(dateStr: string): Date {
 
 /**
  * A `dayTypeOverride` on a StoredDay always wins over the weekday default. Every training weekday
- * is `training-10`: Wednesday's fasted 7am session was the first client's own week, and no
- * account inherits it (onboarding v2 G6). `training-7-fasted` is read only from an override the
+ * is `training-10`: Wednesday's fasted 7am session was a hard-coded early-build schedule, and
+ * no account inherits it (onboarding v2 G6). `training-7-fasted` is read only from an override the
  * account itself saved on a date.
  */
 export function dayTypeFor(

@@ -23,6 +23,7 @@ import {
 import { planConfirmations, unconfirmedConditions } from "@/lib/foods/world/condition-gate";
 import type { ConditionPacksEnv } from "@/lib/policy/profiles/condition-packs";
 import { HttpError } from "@/lib/server/auth";
+import { ONBOARDING_CUTOVER, openedAfterCutover } from "@/lib/profile/onboarding-cutover";
 import { normalizeAllergens, putProfile } from "@/lib/server/constraints";
 
 export const foodWorldRequest = z.object({
@@ -92,11 +93,17 @@ async function applyConfirmations(admin: SupabaseClient, userId: string, gate: A
  * answers as a no-op with the account's own current world (the client settles on it).
  */
 async function settledDefault(admin: SupabaseClient, userId: string, env: Env): Promise<FoodWorldResult> {
-  const current = await admin.from("user_settings").select("food_world,food_world_set_at")
+  const current = await admin.from("user_settings").select("food_world,food_world_set_at,first_opened_at")
     .eq("user_id", userId).maybeSingle();
   if (current.error) failed(current.error);
-  const row = current.data as { food_world?: string; food_world_set_at?: string | null } | null;
+  const row = current.data as { food_world?: string; food_world_set_at?: string | null;
+    first_opened_at?: string | null } | null;
   if (!row) throw new HttpError(409, "profile_required", "Finish your profile first.");
+  // An account opened before the onboarding cutover is never a brand-new account, so the default
+  // never applies to it (audit 2026-10-10 A091): it moves over only through the invitation (D14, Q5).
+  if (!openedAfterCutover(row.first_opened_at)) {
+    return { status: 200, body: { world: effectiveFoodWorld(row.food_world, userId, env) } };
+  }
   // A row that appeared after the write with nothing decided yet: retryable, never a settlement.
   if (!row.food_world_set_at) failed(new Error("food_world default raced a new settings row"));
   return { status: 200, body: { world: effectiveFoodWorld(row.food_world, userId, env) } };
@@ -139,7 +146,11 @@ export async function setFoodWorld(admin: SupabaseClient, userId: string, req: F
   let write = admin.from("user_settings")
     .update({ food_world: req.world, food_world_set_at: new Date().toISOString() })
     .eq("user_id", userId);
-  if (isDefault) write = write.is("food_world_set_at", null);
+  // The default opens only a brand-new account (D14: "New accounts become open at onboarding
+  // completion"); a grandfathered one finishing the Today invite or Settings "Finish profile" stays
+  // closed until it accepts the invitation (audit 2026-10-10 A091). Both are predicates of the one
+  // conditional write, so the rule and the "never decided" check hold on the same locked row.
+  if (isDefault) write = write.is("food_world_set_at", null).gt("first_opened_at", ONBOARDING_CUTOVER);
   const { data, error } = await write.select("food_world").maybeSingle();
   if (error && /condition_review/.test(error.message ?? "")) {
     const fresh = await readGate(admin, userId);
@@ -170,11 +181,13 @@ export async function readFoodWorld(admin: SupabaseClient, userId: string,
  * - `openDefaultPending`: the account went through the W13 onboarding default
  *   (`food_world_default_due_at`, stamped by the database in the same write that first set
  *   `onboarded_at`), nothing has decided its world yet (`food_world_set_at` null), it is still
- *   closed, and the default could still open it: released, not held, no unconfirmed condition --
- *   exactly the cases where `setFoodWorld` would answer the default with `open`.
+ *   closed, it is a brand-new account (first opened after the onboarding cutover), and the
+ *   default could still open it: released, not held, no unconfirmed condition -- exactly the
+ *   cases where `setFoodWorld` would answer the default with `open`.
  * - `starterSeed`: the world is `closed`, the server row is onboarded, and no open default is
  *   pending. That covers a legacy account (onboarded before W13, no due stamp), an explicit closed
- *   choice (`food_world_set_at` set while closed), and a W13 account whose default can never open
+ *   choice (`food_world_set_at` set while closed), a grandfathered account that finished the
+ *   invite after W13 (due stamp, but not brand new), and a W13 account whose default can never open
  *   it by policy (unreleased, held, or a condition to confirm -- the default's 423/409, which the
  *   phone also settles as closed). An open account, a row not yet onboarded on the server, and a
  *   pending default never seed. A failed read throws (503), and the phone seeds nothing on it.
@@ -188,18 +201,22 @@ export type FoodWorldState = {
 export async function readFoodWorldState(admin: SupabaseClient, userId: string,
   env: Env = process.env as Env): Promise<FoodWorldState> {
   const { data, error } = await admin.from("user_settings")
-    .select("food_world,food_world_set_at,food_world_default_due_at,onboarded_at")
+    .select("food_world,food_world_set_at,food_world_default_due_at,onboarded_at,first_opened_at")
     .eq("user_id", userId).maybeSingle();
   if (error) failed(error);
   const row = data as { food_world?: string; food_world_set_at?: string | null;
-    food_world_default_due_at?: string | null; onboarded_at?: string | null } | null;
+    food_world_default_due_at?: string | null; onboarded_at?: string | null;
+    first_opened_at?: string | null } | null;
   const world = effectiveFoodWorld(row?.food_world, userId, env);
   // A stored-open account the release settings read as closed never seeds the closed starter:
   // its own choice comes back, unchanged, when it is allowed again (no write here).
   if (!row || row.food_world === "open") return { world, openDefaultPending: false, starterSeed: false };
   let openDefaultPending = false;
+  // The due stamp is written for every first `onboarded_at`, a grandfathered account's too; only a
+  // brand-new account's default is pending (audit 2026-10-10 A091), so no device adopts it for an
+  // existing account and the closed starter seeds for it as it always did.
   if (row.food_world_default_due_at && !row.food_world_set_at
-    && openWorldOpenableFor(userId, env)) {
+    && openedAfterCutover(row.first_opened_at) && openWorldOpenableFor(userId, env)) {
     const gate = await readGate(admin, userId);
     openDefaultPending = unconfirmedConditions(gate.conditions, gate.confirmed).length === 0;
   }

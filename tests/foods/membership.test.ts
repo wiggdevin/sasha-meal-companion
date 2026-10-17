@@ -82,11 +82,12 @@ describe("normalized food membership", () => {
         name_norm: "watermelon",
         status: "avoid",
         note: "hurt on 9/12",
-        rev: 1_800_000_000_000,
+        // W029: one past the newest known revision, never the device clock.
+        rev: 1,
       },
     });
     expect(readFoodMembership(USER_ID, "watermelon")).toMatchObject({
-      status: "avoid", note: "hurt on 9/12", rev: 1_800_000_000_000,
+      status: "avoid", note: "hurt on 9/12", rev: 1,
     });
   });
 
@@ -97,7 +98,7 @@ describe("normalized food membership", () => {
 
     expect(await allOps(h)).toHaveLength(1);
     expect(readFoodMembership(USER_ID, "RICE")).toEqual({
-      status: null, note: "keep this note", rev: 100,
+      status: null, note: "keep this note", rev: 1,
     });
   });
 
@@ -107,7 +108,7 @@ describe("normalized food membership", () => {
     await setFoodMembership("Rice", "avoid", { supabase, now: () => 100 });
 
     const ops = await allOps(h);
-    expect(ops.map((op) => op.payload.rev)).toEqual([100, 101]);
+    expect(ops.map((op) => op.payload.rev)).toEqual([1, 2]);
     expect(readFoodMembership(USER_ID, "Rice")?.status).toBe("avoid");
   });
 
@@ -119,7 +120,7 @@ describe("normalized food membership", () => {
     ]);
 
     expect((await allOps(h)).map((op) => ({ status: op.payload.status, rev: op.payload.rev })))
-      .toEqual([{ status: "avoid", rev: 101 }]);
+      .toEqual([{ status: "avoid", rev: 2 }]);
     expect(readFoodMembership(USER_ID, "Rice")?.status).toBe("avoid");
   });
 
@@ -157,6 +158,7 @@ describe("normalized food membership", () => {
         p_status: status,
         p_note: "keep",
         p_rev: revision,
+        p_op_id: operation.op_id,
       });
     },
   );

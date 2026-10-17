@@ -34,15 +34,18 @@ const userRow = (createdAt: string) => ({ id: MESSAGE, thread_id: THREAD, role: 
 describe("replaying a turn that was only half saved", () => {
   it("answers a retryable 503 while the assistant row may still be landing", async () => {
     const now = new Date().toISOString();
-    await expect(storedTurn(db({ coach_messages: [userRow(now)] }), "u1", MESSAGE, model))
+    await expect(storedTurn(db({ coach_messages: [userRow(now)] }), db({}), "u1", MESSAGE, model))
       .rejects.toMatchObject({ status: 503, code: "in_progress" });
   });
 
   it("saves, then replays, an honest reply for a long-abandoned half turn", async () => {
     const old = new Date(Date.now() - 10 * 60_000).toISOString();
     const inserted: unknown[] = [];
-    const replay = await storedTurn(db({ coach_messages: [userRow(old)] }, null, inserted),
-      "u1", MESSAGE, model);
+    const sessionInserts: unknown[] = [];
+    // W018: the "could not finish" reply is an assistant row, so the service role writes it.
+    const replay = await storedTurn(db({ coach_messages: [userRow(old)] }, null, sessionInserts),
+      db({}, null, inserted), "u1", MESSAGE, model);
+    expect(sessionInserts).toEqual([]);
     expect(replay?.messages.at(-1)).toMatchObject({ role: "assistant", seq: 2 });
     expect(replay?.messages.at(-1)?.content).toContain("could not finish");
     expect(inserted).toEqual([expect.objectContaining({ role: "assistant", seq: 2,
@@ -54,7 +57,8 @@ describe("replaying a turn that was only half saved", () => {
     const inserted: unknown[] = [];
     const rows = [userRow(old),
       { id: "later-user", thread_id: THREAD, role: "user", content: "next", seq: 2, tool_calls: [] }];
-    const replay = await storedTurn(db({ coach_messages: rows }, null, inserted), "u1", MESSAGE, model);
+    const replay = await storedTurn(db({ coach_messages: rows }, null, inserted), db({}, null, inserted),
+      "u1", MESSAGE, model);
     expect(inserted).toEqual([]);
     expect(replay?.messages.map((m) => [m.role, m.content])).toEqual([
       ["user", "hi"], ["assistant", expect.stringContaining("could not finish")]]);
@@ -62,8 +66,8 @@ describe("replaying a turn that was only half saved", () => {
 
   it("answers the abandoned turn without a retry loop when its seq is taken meanwhile", async () => {
     const old = new Date(Date.now() - 10 * 60_000).toISOString();
-    const replay = await storedTurn(db({ coach_messages: [userRow(old)] },
-      { code: "23505", message: "duplicate key" }), "u1", MESSAGE, model);
+    const replay = await storedTurn(db({ coach_messages: [userRow(old)] }),
+      db({}, { code: "23505", message: "duplicate key" }), "u1", MESSAGE, model);
     expect(replay?.messages.at(-1)?.content).toContain("could not finish");
   });
 
@@ -73,7 +77,7 @@ describe("replaying a turn that was only half saved", () => {
       { id: "later-user", thread_id: THREAD, role: "user", content: "next", seq: 3, tool_calls: [] },
       { id: "later-reply", thread_id: THREAD, role: "assistant", content: "Later.", seq: 4,
         tool_calls: [] }];
-    await expect(storedTurn(db({ coach_messages: later }), "u1", MESSAGE, model))
+    await expect(storedTurn(db({ coach_messages: later }), db({}), "u1", MESSAGE, model))
       .rejects.toMatchObject({ status: 503, code: "in_progress" });
   });
 });
@@ -83,7 +87,8 @@ describe("a concurrent attempt at the same message", () => {
     const rows = [{ id: MESSAGE, thread_id: THREAD, user_id: "u1", role: "user", content: "hi",
       seq: 1, tool_calls: [], policy_checks: [], deflected: false, model_id: null,
       ai_call_id: null }] as MessageRow[];
-    await expect(persist(db({}, { code: "23505", message: "duplicate key" }), THREAD, rows, null))
+    const taken = db({}, { code: "23505", message: "duplicate key" });
+    await expect(persist(taken, THREAD, rows, null, undefined, "chat", taken))
       .rejects.toMatchObject({ status: 503, code: "in_progress" });
   });
 });
@@ -108,12 +113,15 @@ describe("the attachment branch", () => {
       from: () => {
         const chain: Record<string, unknown> = {};
         Object.assign(chain, { select: () => chain, eq: () => chain, gte: () => chain,
-          order: () => chain, then: () => new Promise(() => {}) });
+          order: () => chain, maybeSingle: () => new Promise(() => {}),
+          then: () => new Promise(() => {}) });
         return chain;
       },
     } as never;
     let outcome: unknown = "pending";
-    runTurn(stalled, neverDb, "u1", { threadId: null, messageId: MESSAGE, text: "",
+    // The attachment turn's first read is its replay check (W035: the budget is reserved after
+    // it), so the stalled database is the caller's own client.
+    runTurn(neverDb, stalled, "u1", { threadId: null, messageId: MESSAGE, text: "",
       attachment: { kind: "photo", path: "u1/x.jpg" } } as never,
     { startedAt: Date.now(), newId: () => THREAD }).then(
       (value) => { outcome = { value }; }, (error) => { outcome = { error }; });

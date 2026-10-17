@@ -9,13 +9,18 @@
  */
 
 import raw from "./food-db.json";
-import type { Food } from "./foods";
+import { foodKcalPerUnit, type Food } from "./foods";
 import { buildPortions, type Portion } from "./foods/portions";
 import { accountUnitGrams } from "./foods/unit-grams";
 import { macroKcal } from "./scaling";
 import type { LoggedFood, Macros } from "./types";
 
-export type DbPortion = { label: string; grams: number };
+/**
+ * `isDefault`: the one serving scripts/build-food-db.py chose for a bundled food (audit 2026-10-10
+ * A020: the first everyday portion inside a serving's calories, never a whole package or a cup of
+ * nuts). Account foods carry one portion and no marker.
+ */
+export type DbPortion = { label: string; grams: number; isDefault?: true };
 
 export type DbFood = {
   id: string;
@@ -61,8 +66,10 @@ export function dbFood(id: string): DbFood | undefined {
  */
 const DAIRY =
   /\b(milk|cheese|yogurt|butter|cream|whey|ghee|ice cream|cheesecake|latte|cappuccino|alfredo|ricotta|feta|brie|mozzarella|parmesan|cheddar|provolone|swiss|pudding|frozen yogurt|hot chocolate|chocolate milk)\b/i;
+// Phrases that read as dairy but are not; each is removed before DAIRY runs, so a name that
+// also names real dairy ("sesame butter, whey") still flags. Global: used with replace only.
 const DAIRY_OK =
-  /\b(almond milk|oat milk|soy milk|coconut milk|coconut water|peanut butter|almond butter|cashew butter|sunflower seed butter|cocoa butter|butternut|buttercup)\b/i;
+  /\b((?:almond|oat|soy|coconut) milk (?:latte|cappuccino)|almond milk|oat milk|soy milk|coconut milk|coconut water|peanut butter|almond butter|cashew butter|sesame butter|sunflower seed butter|cocoa butter|butternut|buttercup)\b/gi;
 const GLUTEN =
   /\b(bread|bagel|muffin|croissant|bun|roll|pita|naan|flour tortilla|pancake|waffle|french toast|spaghetti|pasta|noodle|couscous|barley|farro|spelt|wheat|rye|semolina|malt|bulgur|cracker|pretzel|cookie|brownie|cake|donut|pie|cinnamon|pop-tart|ramen|lo mein|dumpling|pierogi|sandwich|burger|pizza|burrito|quesadilla|enchilada|egg roll|spring roll|corn dog|mac|macaroni|lasagna|ziti|gnocchi|biscuit|cornbread|granola|cheerios|corn flakes|cream of wheat|beer|soy sauce|teriyaki|fish sticks|breaded|fried chicken|chicken nuggets|chicken tenders|onion rings|mozzarella sticks|crab cake|meatball|meatloaf|pot pie|gyro|sub |toast|graham|goldfish|rice krispies|oatmeal cookie|oreo|kit kat|falafel|shepherd)\b/i;
 const GLUTEN_OK = /\b(rice noodles|corn tortilla|rice cake|buckwheat|quinoa|gluten-free)\b/i;
@@ -71,7 +78,7 @@ const APPLE = /\bapple/i;
 function offPlanFlags(name: string): string[] {
   const out: string[] = [];
   if (GLUTEN.test(name) && !GLUTEN_OK.test(name)) out.push("gluten");
-  if (DAIRY.test(name) && !DAIRY_OK.test(name)) out.push("dairy");
+  if (DAIRY.test(name.replace(DAIRY_OK, " "))) out.push("dairy");
   if (APPLE.test(name)) out.push("apple");
   return out;
 }
@@ -91,12 +98,21 @@ function portionRank(label: string): number {
   return r * 100 + Math.min(l.length, 60);
 }
 
-/** Portions shown to them: the food's own (everyday ones first), then 1 oz and 100 g. */
+/**
+ * The food's own portions with a real weight, at most four: the marked default first, then the
+ * everyday ones (`portionRank`), as `{ label, grams }`.
+ */
+function ownPortions(food: DbFood): DbPortion[] {
+  const ranked = food.portions.filter((p) => p.grams > 0)
+    .sort((a, b) => portionRank(a.label) - portionRank(b.label));
+  const first = ranked.findIndex((p) => p.isDefault);
+  if (first > 0) ranked.unshift(...ranked.splice(first, 1));
+  return ranked.slice(0, 4).map((p) => ({ label: p.label, grams: p.grams }));
+}
+
+/** Portions shown to them: the food's own (its default, then everyday ones), then 1 oz and 100 g. */
 export function portionsFor(food: DbFood): DbPortion[] {
-  const own = [...food.portions]
-    .filter((p) => p.grams > 0)
-    .sort((a, b) => portionRank(a.label) - portionRank(b.label))
-    .slice(0, 4);
+  const own = ownPortions(food);
   const extra: DbPortion[] = [
     { label: "1 oz", grams: GRAMS_PER_OZ },
     { label: "100 g", grams: 100 },
@@ -121,18 +137,14 @@ function kcalPer100gFor(food: DbFood): number {
 }
 
 /**
- * UI lane contract (lib/foods/portions.ts): the food's own everyday portions, ranked the same way
- * `portionsFor` ranks them but WITHOUT its "1 oz"/"100 g" extras — `buildPortions` always appends
- * its own synthetic 100 g tail, so adding those here would double it up. Offline portions have no
- * id of their own (`id: null`); the first one (after ranking) is the default, since DbPortion
- * carries no isDefault flag.
+ * UI lane contract (lib/foods/portions.ts): the food's own portions, ordered as `portionsFor`
+ * orders them but WITHOUT its "1 oz"/"100 g" extras — `buildPortions` always appends its own
+ * synthetic 100 g tail, so adding those here would double it up. Offline portions have no id of
+ * their own (`id: null`); the first one is the default: the build's marked serving, or for an
+ * account food its one unit.
  */
 function realPortionsFor(food: DbFood): { id: null; label: string; grams: number; isDefault: boolean }[] {
-  return [...food.portions]
-    .filter((p) => p.grams > 0)
-    .sort((a, b) => portionRank(a.label) - portionRank(b.label))
-    .slice(0, 4)
-    .map((p, i) => ({ id: null, label: p.label, grams: p.grams, isDefault: i === 0 }));
+  return ownPortions(food).map((p, i) => ({ id: null, label: p.label, grams: p.grams, isDefault: i === 0 }));
 }
 
 /** The four fields `defaultPortion`/`portions` and a search card's own per100g panel need. */
@@ -354,11 +366,11 @@ export function mineAsDb(f: Food): DbFood {
       protein: f.perUnit.protein * scale,
       carbs: f.perUnit.carbs * scale,
       fat: f.perUnit.fat * scale,
-      kcal: macroKcal(f.perUnit) * scale,
+      kcal: foodKcalPerUnit(f) * scale,
       fiber: 0,
     },
     portions: [{ label: `1 ${f.unit === "whole" ? "each" : f.unit}`, grams }],
     flags: offPlanFlags(f.name),
-    ...(known === null ? { servingOnly: true as const, perServing: { ...f.perUnit, kcal: macroKcal(f.perUnit) } } : {}),
+    ...(known === null ? { servingOnly: true as const, perServing: { ...f.perUnit, kcal: foodKcalPerUnit(f) } } : {}),
   };
 }

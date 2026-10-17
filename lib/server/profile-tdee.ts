@@ -4,8 +4,8 @@
  *
  * - `profileSeedFor` seeds the expenditure engine (lib/server/expenditure.ts): the first prior
  *   before any estimate is stored, and the BMR the absolute clamp is measured against. Until
- *   2026-09-22 both were constants copied from the first client's InBody report and applied to
- *   every account (ruling 2026-09-22).
+ *   2026-09-22 both were constants fitted to one early account and applied to every account
+ *   (ruling 2026-09-22).
  * - `profileTdeeFor` is the display-only burn-in headline and the coach status payload.
  *
  * lib/tdee.ts (the Body screen's own display estimate) stays off this path; lib/tdee.test.ts
