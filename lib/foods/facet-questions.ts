@@ -1,10 +1,10 @@
 import { noul, type NoulQuestion } from "@/lib/ai/jev-types";
 import type { FacetFoodInput } from "@/lib/foods/facet-keys";
 import {
-  FACETS, OCCASION_RUBRIC_VERSION, RUBRIC_VERSION, type Facet, type OccasionFacet,
+  FACETS, OCCASION_RUBRIC_VERSION, RUBRIC_VERSION, STAGED_RUBRIC_VERSION, type Facet, type OccasionFacet,
 } from "@/lib/foods/facet-vocabulary";
 
-export { OCCASION_RUBRIC_VERSION, RUBRIC_VERSION };
+export { OCCASION_RUBRIC_VERSION, RUBRIC_VERSION, STAGED_RUBRIC_VERSION };
 
 type Rubric = { instructions: string; criteria: { true: string; false: string } };
 
@@ -143,6 +143,45 @@ const RUBRICS: Record<Facet, Rubric> = {
   },
 };
 
+/**
+ * W106: the dietary-profile map's §5.4 fixes to existing rubrics (docs/research/
+ * 2026-09-23-dietary-profile-map.md), staged as rubric `STAGED_RUBRIC_VERSION`. Not asked by the
+ * warm job: the calibration run and round 3 review come first (lib/foods/facet-vocabulary.ts).
+ * The map leaves `meat`, `beans`, `fish_seafood` and `simple_sugars` as they are: a Catholic
+ * abstinence rule needs land-animal flesh, a legume program needs an ingredient-level check
+ * (`contains_ingredient:`, W105), and the allergy rules for fish no longer read `fish_seafood`.
+ * Jev labels from these feed ranking and `unverified` holds only, never a rule decision.
+ */
+export const STAGED_RUBRIC_FIXES: Readonly<Partial<Record<Facet, Rubric>>> = {
+  contains_gluten: allergen("gluten", "wheat, barley, rye, malt, brewer's yeast, oats not labelled "
+    + "gluten-free, or another gluten-containing ingredient"),
+  contains_dairy: allergen("dairy", "milk from any animal (cow, goat, sheep or buffalo), lactose-free "
+    + "milk products (the milk protein remains), butter, ghee, cheese, whey, casein, cream, or another "
+    + "milk-derived ingredient"),
+  contains_egg: allergen("egg", "egg from any bird (chicken, duck, quail, goose), albumen, mayonnaise made "
+    + "with egg, or another egg-derived ingredient"),
+  contains_tree_nut: {
+    instructions: "Does this food contain tree nuts, or does its label warn that it may contain tree nuts?",
+    criteria: {
+      true: "The food states almond, Brazil nut, cashew, hazelnut, macadamia, pecan, pine nut, pistachio, "
+        + "walnut, or another tree nut on the FDA list, or an ingredient made from one, or carries a "
+        + "trace or cross-contact warning for tree nuts.",
+      false: "The food states no tree-nut ingredient or tree-nut cross-contact warning; coconut alone is "
+        + "false for this question.",
+    },
+  },
+  alcohol: {
+    instructions: "Does this food or drink contain beverage alcohol as consumed?",
+    criteria: {
+      true: "The item is an alcoholic drink, a beer or wine sold as non-alcoholic or alcohol-free (these "
+        + "can hold up to 0.5% alcohol), or contains ethanol from an alcoholic ingredient that remains in "
+        + "the food as consumed.",
+      false: "The item contains no beverage alcohol as consumed; sugar alcohols, fully alcohol-free "
+        + "flavour names, and vanilla extract baked into a food are false.",
+    },
+  },
+};
+
 /** Minimal provider state: canonical food facts only, never account, health, note, or policy data. */
 export function facetState(food: FacetFoodInput): FacetFoodInput {
   return {
@@ -158,16 +197,18 @@ export function facetState(food: FacetFoodInput): FacetFoodInput {
  * The rubric questions for `facets`. "current" is what the warm job asks and stores (occasion
  * facets at OCCASION_RUBRIC_VERSION, the rest at RUBRIC_VERSION). "v1" is the frozen rubric-v1
  * wording the committed jev-facets eval cache hashes (lib/foods/facet-eval-questions.ts); it is
- * never used to judge a food for the cache.
+ * never used to judge a food for the cache. "staged" is the W106 rubric v2 (`STAGED_RUBRIC_FIXES`)
+ * for the calibration run only; the warm job never asks it until `RUBRIC_VERSION` moves.
  */
 export function facetQuestions(
   _food: FacetFoodInput,
   facets: readonly Facet[] = FACETS,
-  rubric: "current" | "v1" = "current",
+  rubric: "current" | "v1" | "staged" = "current",
 ): Record<string, NoulQuestion> {
   return Object.fromEntries([...new Set(facets)].map((facet) => {
     const chosen = rubric === "v1" && facet in V1_OCCASION_RUBRICS
-      ? V1_OCCASION_RUBRICS[facet as OccasionFacet] : RUBRICS[facet];
+      ? V1_OCCASION_RUBRICS[facet as OccasionFacet]
+      : rubric === "staged" ? STAGED_RUBRIC_FIXES[facet] ?? RUBRICS[facet] : RUBRICS[facet];
     return [facet, noul(chosen.instructions, chosen.criteria)];
   }));
 }

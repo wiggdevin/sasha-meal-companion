@@ -11,7 +11,8 @@
  *   label (the strict lexicon in lib/policy/label-completeness.ts) that names nothing that can hide
  *   it, or, for an allergen-backed facet, the allergen finding's own deterministic absence. A label
  *   never clears an animal facet (animal_product, meat, pork, beef, fish_seafood, shellfish): W2c
- *   re-plan Option A.
+ *   re-plan Option A. The one planned exception is W104's item-by-item parser
+ *   (lib/policy/diet-label.ts), off until its Sol review passes.
  * - `unknown` otherwise. A held allergen row (a Jev-only `listed`, lib/policy/allergen-holds.ts)
  *   never clears a facet it backs. Silence never clears anything.
  *
@@ -21,6 +22,7 @@ import type { Facet } from "@/lib/foods/facet-vocabulary";
 import {
   allergenFinding, allergenKey, looksLikeCompleteList, textNames, type StoredAllergenEvidence,
 } from "@/lib/policy/allergens";
+import { dietLabelClearanceEnabled, dietLabelRulesOut } from "@/lib/policy/diet-label";
 import type { FacetOutcome } from "@/lib/policy/facet-rules";
 import { absentAnimalFacets, classifyWholeFood, clearanceNameOf } from "@/lib/policy/whole-foods";
 
@@ -260,7 +262,9 @@ function textFacetOutcome(facet: TextFacet, e: DietEvidence): FacetOutcome {
   }
   if (held(e, related)) return "unknown";
   if (classRulesOut(facet, e)) return "absent";
-  return facet === "alcohol" && alcoholLabelRulesOut(e) ? "absent" : "unknown";
+  if (facet === "alcohol") return alcoholLabelRulesOut(e) ? "absent" : "unknown";
+  // W104 (Option B): a plant-only label read item by item, off until its Sol review passes.
+  return dietLabelClearanceEnabled() && dietLabelRulesOut(facet, e) ? "absent" : "unknown";
 }
 
 /** `onion_garlic` and `beans` are policy categories: a stored list decides, a name may add one. */

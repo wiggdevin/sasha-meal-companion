@@ -12,7 +12,7 @@
  * rule. A food only Jev flagged is `unknown` (never allowed), and a Jev `absent` no longer clears.
  */
 import { allergenKey, textNames } from "@/lib/policy/allergens";
-import { FACETS, isTemplateFacet, NEW_FACETS, type Facet, type NewFacet }
+import { FACETS, NEW_FACETS, type Facet, type NewFacet }
   from "@/lib/foods/facet-vocabulary";
 import type { FacetOutcome } from "@/lib/policy/facet-rules";
 import type { NutrientCode } from "@/lib/nutrients/codes";
@@ -24,6 +24,7 @@ const FACET_SET = new Set<string>(FACETS);
 const NEW_FACET_SET = new Set<string>(NEW_FACETS);
 const ALLERGEN_TEMPLATE_PREFIX = "contains_allergen:";
 const FOOD_NAMED_PREFIX = "food_named:";
+const INGREDIENT_TEMPLATE_PREFIX = "contains_ingredient:";
 
 /** The food's own deterministic evidence (W2c: the same inputs a preference flag reads). */
 export type ProfileFacetEvidence = DietEvidence & {
@@ -45,6 +46,30 @@ function namesFood(name: string, text: string | null | undefined): boolean {
   const key = name.trim().toLowerCase();
   if (key === "" || !text) return false;
   return new RegExp(`(^|[^a-z])${escapeWordPattern(key)}([^a-z]|$)`).test(text.toLowerCase());
+}
+
+/**
+ * W105: the ingredient names a `contains_ingredient:<description>` rule states. The description is
+ * the map's prose ("legume (beans, lentils, chickpeas, peas)", "wine, beer, spirits, liqueur or
+ * cooking wine (including cooked-off)", "dairy other than ghee/clarified butter"): the head and each
+ * listed name are separate terms, split at commas, slashes, "or" and "and". An exception clause
+ * ("other than …", "except …", "including …") names no term, and a leading "any"/"added" is dropped.
+ */
+export function ingredientTerms(description: string): string[] {
+  const text = description.toLowerCase()
+    .replace(/\(\s*(?:including|incl\.?|e\.g\.?|such as)\b[^)]*\)/g, " ")
+    .replace(/\b(?:other than|except(?: for)?|excluding|but not)\b[^(),]*/g, " ")
+    .replace(/[()]/g, ",");
+  const terms = text.split(/,|\/|;|\bor\b|\band\b/)
+    .map((term) => term.replace(/^\s*(?:(?:any|all|added|other)\s+)+/, "").trim())
+    .filter((term) => term.length > 1 && /[a-z]/.test(term));
+  return [...new Set(terms)];
+}
+
+/** A term, or its plural/singular twin, as a whole word ("legume" matches "legumes"). */
+function namesIngredient(term: string, text: string): boolean {
+  const forms = new Set([term, `${term}s`, `${term}es`, term.replace(/(?:es|s)$/, "")]);
+  return [...forms].some((form) => form.length > 1 && namesFood(form, text));
 }
 
 /**
@@ -70,7 +95,13 @@ export function profileFacetOutcome(facet: string, evidence: ProfileFacetEvidenc
     const text = [evidence.foodName, evidence.ingredientsText].filter(Boolean).join(" ");
     return namesFood(name, text) ? "present" : "unknown";
   }
-  if (isTemplateFacet(facet)) return "unknown"; // contains_ingredient:<desc> — declared, not wired
+  if (facet.startsWith(INGREDIENT_TEMPLATE_PREFIX)) {
+    // W105: the food's own name or ingredient text naming a term blocks it. A miss is never proof
+    // of absence (no ingredient list is exhaustive about a free-text rule), so it stays `unknown`.
+    const text = [evidence.foodName, evidence.ingredientsText].filter(Boolean).join(" ");
+    const terms = ingredientTerms(facet.slice(INGREDIENT_TEMPLATE_PREFIX.length));
+    return terms.some((term) => namesIngredient(term, text)) ? "present" : "unknown";
+  }
   return "unknown";
 }
 

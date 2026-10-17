@@ -33,6 +33,8 @@ type KeywordRule = {
   exclusions?: readonly string[];
   /** high_listeria_risk only: an unstated preparation counts as present, per the map's rubric. */
   defaultPresentUnlessCooked?: boolean;
+  /** Phrases removed before any match: a plant or dish that borrows the word ("oyster mushrooms"). */
+  strip?: readonly string[];
 };
 
 type NutrientRule = {
@@ -89,6 +91,44 @@ const RULES: Record<NewFacet, NewFacetRule> = {
     "artificial flavour", "protein isolate", "modified starch", "instant noodle",
     "soda", "packaged snack",
   ] },
+  // W106, R2-20: the phenelzine and tranylcypromine label lists plus the map's "aged, fermented,
+  // pickled or smoked" rule. Never absent: an unlisted food stays unknown (`unverified`).
+  tyramine_rich: { kind: "keyword", strip: ["cottage cheese", "cream cheese"], present: [
+    "cheese", "aged cheese", "cheddar", "parmesan", "blue cheese", "gorgonzola", "camembert",
+    "brie", "gouda", "feta", "yogurt", "yoghurt", "kefir", "herring", "pickled herring",
+    "smoked fish", "smoked salmon", "lox", "liver", "liverwurst", "pate", "pâté", "salami", "pepperoni", "lebanon bologna",
+    "summer sausage", "dry sausage", "fermented sausage", "prosciutto", "chorizo", "soy sauce",
+    "miso", "fermented tofu", "tempeh", "natto", "sauerkraut", "kimchi", "pickled", "beer",
+    "wine", "non-alcoholic beer", "alcohol-free beer", "yeast extract", "marmite", "vegemite",
+    "brewer's yeast", "brewers yeast", "fava", "broad beans", "fish sauce", "shrimp paste",
+    "kombucha",
+  ] },
+  grapefruit_family: { kind: "keyword", present: [
+    "grapefruit", "pomelo", "pummelo", "seville orange", "bitter orange", "marmalade", "tangelo",
+    "minneola",
+  ] },
+  star_fruit: { kind: "keyword", present: ["star fruit", "starfruit", "carambola"] },
+  // Falafel is often chickpea, but may be fava: a G6PD rule stays on the safe side.
+  fava_bean: { kind: "keyword", present: [
+    "fava", "fava bean", "fava beans", "broad bean", "broad beans", "ful medames", "foul medames",
+    "falafel",
+  ] },
+  aspartame: { kind: "keyword", present: [
+    "aspartame", "phenylketonurics", "contains phenylalanine", "nutrasweet",
+  ] },
+  phosphate_additive: { kind: "keyword", present: [
+    "phosphate", "phosphates", "phosphoric", "polyphosphate", "pyrophosphate", "tripolyphosphate",
+    "hexametaphosphate", "metaphosphate", "glycerophosphate",
+  ] },
+  gelatin: { kind: "keyword", present: ["gelatin", "gelatine", "collagen", "aspic"] },
+  honey: { kind: "keyword", present: ["honey", "honeycomb", "bee pollen", "royal jelly", "propolis"] },
+  mollusc: { kind: "keyword", strip: [
+    "oyster mushroom", "oyster mushrooms", "oyster cracker", "oyster crackers",
+  ], present: [
+    "clam", "clams", "mussel", "mussels", "oyster", "oysters", "oyster sauce", "scallop",
+    "scallops", "squid", "calamari", "octopus", "snail", "snails", "escargot", "abalone",
+    "cuttlefish", "conch", "whelk", "whelks",
+  ] },
   high_sodium: { kind: "nutrient", code: "sodium", highAt: 460, lowAt: 140 },
   // sugars_total is the best-available proxy: the catalog has no separate added-sugars code
   // (lib/nutrients/codes.ts). This over-counts naturally-occurring sugar in whole fruit/dairy;
@@ -105,7 +145,8 @@ export function evaluateNewFacet(facet: NewFacet, input: NewFacetInput): FacetOu
 }
 
 function keywordOutcome(input: NewFacetInput, rule: KeywordRule): FacetOutcome {
-  const text = input.text.toLowerCase();
+  const text = (rule.strip ?? []).reduce((current, phrase) => current.replaceAll(phrase, " "),
+    input.text.toLowerCase());
   const hits = (words: readonly string[] | undefined) => (words ?? []).some((w) => hasWord(text, w));
   // sol FIX: a named species ("bigeye tuna", "swordfish") is checked before the exclusions, so a
   // broad lower-mercury word elsewhere in the text ("albacore") can never clear it.
