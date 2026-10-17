@@ -40,6 +40,8 @@ export class HoldController {
   /** Guards late callbacks and awaited work after cancel or a new session. */
   private gen = 0;
   private carried = "";
+  /** One per clip in flight; `cancel()` aborts it so the upload and model call stop. */
+  private clipAbort: AbortController | null = null;
   /** `timingPath: null` (the capture box) files no `dictation` step and discards no coach run. */
   constructor(private readonly ports: HoldPorts,
     private readonly timingPath: TimingPath | null = "coach-turn") {}
@@ -106,6 +108,8 @@ export class HoldController {
     this.session = null;
     this.recorder?.cancel();
     this.recorder = null;
+    this.clipAbort?.abort();
+    this.clipAbort = null;
     this.clipState = "none";
     this.holding = false;
     if (this.state.phase === "idle") this.publish();
@@ -254,7 +258,10 @@ export class HoldController {
     if (this.releasedAt === 0) this.releasedAt = this.now();
     this.clipState = "transcribing";
     this.publish();
-    const outcome = await this.ports.transcribe(clip);
+    const abort = new AbortController();
+    this.clipAbort = abort;
+    const outcome = await this.ports.transcribe(clip, abort.signal);
+    if (this.clipAbort === abort) this.clipAbort = null;
     if (gen !== this.gen) return;
     this.clipState = "none";
     this.holding = false;
@@ -291,6 +298,8 @@ export class HoldController {
   private abandon(notice: DictationNotice | null): void {
     this.typed = this.ports.readBox();
     this.gen += 1;
+    this.clipAbort?.abort();
+    this.clipAbort = null;
     this.ports.writeBox(this.typed);
     if (this.timingPath) discardRun(this.timingPath);
     this.showNotice(notice);

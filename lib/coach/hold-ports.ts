@@ -36,7 +36,8 @@ export type HoldView = {
 export type HoldPorts = {
   listen: (handlers: SpeechHandlers) => SpeechSession | null;
   record: (handlers: MicHandlers) => Promise<MicRecorder | null>;
-  transcribe: (clip: Blob) => Promise<TranscribeOutcome>;
+  /** `signal` aborts when the session is cancelled while the clip is in flight. */
+  transcribe: (clip: Blob, signal?: AbortSignal) => Promise<TranscribeOutcome>;
   readBox: () => string;
   writeBox: (text: string) => void;
   publish: (view: HoldView) => void;

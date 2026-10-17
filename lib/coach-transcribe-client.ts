@@ -38,7 +38,7 @@ export type TranscribeOutcome =
  * lines above and its own words are never echoed back to them.
  */
 export async function transcribeClip(
-  clip: Blob, opts: { fetchImpl?: typeof fetch } = {},
+  clip: Blob, opts: { fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<TranscribeOutcome> {
   /*
    * ONE budget for the whole hop, not one per call. §4 measures "release → transcript in the box",
@@ -51,6 +51,11 @@ export async function transcribeClip(
   // the upload and the model call all keep running — and keep being paid for — after the phone
   // has given up on them (panel round 1, MEDIUM 9).
   const giveUp = new AbortController();
+  // The caller (a cancelled hold) stops the same work the deadline would.
+  const outer = opts.signal;
+  const onOuterAbort = () => giveUp.abort();
+  if (outer?.aborted) giveUp.abort();
+  else outer?.addEventListener("abort", onOuterAbort, { once: true });
   const slow = new Promise<TranscribeOutcome>((resolve) => {
     timer = setTimeout(() => {
       giveUp.abort();
@@ -61,6 +66,7 @@ export async function transcribeClip(
     return await Promise.race([uploadAndTranscribe(clip, opts, giveUp.signal), slow]);
   } finally {
     clearTimeout(timer);
+    outer?.removeEventListener("abort", onOuterAbort);
   }
 }
 
