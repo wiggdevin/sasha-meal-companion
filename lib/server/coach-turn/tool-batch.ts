@@ -146,7 +146,8 @@ export async function runToolBatch(
   for (const outcome of outcomes) {
     if (outcome.kind === "invalid") {
       state.toolCalls.push({ name: outcome.name, ok: false, error: outcome.error,
-        failure: outcome.issues ? { kind: "invalid_args", args: outcome.issues } : { kind: "refused" } });
+        failure: outcome.issues ? { kind: "invalid_args", args: outcome.issues }
+          : lookupTool(outcome.name) ? { kind: "refused" } : { kind: "unknown_tool" } });
       state.transcript.push(renderToolResult(
         { name: outcome.name as ToolName, ok: false, error: outcome.error }));
       continue;

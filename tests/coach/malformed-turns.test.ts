@@ -283,6 +283,17 @@ describe("runTurn — the model's abort and the fallback log", () => {
     expect(JSON.stringify(line)).not.toContain("42");
   });
 
+  it("logs an unknown tool as (unknown), not the name the model sent", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const generate = vi.fn()
+      .mockResolvedValueOnce({ kind: "tool", calls: [{ name: "grandma_lasagna_lookup", args: {} }] })
+      .mockResolvedValue({ kind: "abort", reason: "stuck" });
+    await run(generate);
+    const line = warn.mock.calls.find(([label]) => label === "coach turn fallback");
+    expect(line?.[1]).toMatchObject({ failedTools: [{ tool: "(unknown)", kind: "unknown_tool" }] });
+    expect(JSON.stringify(line)).not.toContain("lasagna");
+  });
+
   it("logs nothing when the model's reply is delivered", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const generate = vi.fn().mockResolvedValue({ kind: "final", text: "Eggs and toast would work." });

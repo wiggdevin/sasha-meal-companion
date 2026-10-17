@@ -20,6 +20,7 @@ import type { TasteChipsProposal } from "@/lib/coach/taste-chips-card";
 import { FOOD_PREFERENCE_PROFILE_ID } from "@/lib/policy/profiles/food-preference-rule";
 import { hasUnloggedMeal } from "@/lib/server/coach-unlogged-meal";
 import { INVALID_ARGS_PREFIX } from "@/lib/coach/dispatch";
+import { lookupTool } from "@/lib/coach/registry";
 import type { ReplyCheckResult } from "@/lib/coach/reply-check";
 import { checkReplyLive } from "@/lib/server/reply-check";
 import { beforeDeadline, LATE } from "@/lib/server/coach-turn/deadline";
@@ -211,7 +212,7 @@ export async function modelReply(
   return {
     kind: "model", content, modelId, memory,
     // The cards ride with the actions so an idempotent replay returns the same turn (HIGH 7).
-    toolCalls: { calls: toolCalls, actions, suggestions, composed,
+    toolCalls: { calls: toolCalls.map(({ failure: _failure, ...stored }) => stored), actions, suggestions, composed,
       blocks: validatedBlocks(...blocks),
       ...(recipeRefusals.length > 0 ? { recipeRefusals } : {}),
       ...(tasteChips ? { tasteChips } : {}) },
@@ -258,7 +259,7 @@ function logFallback(
     // Which call failed and why, as the tool name plus argument paths and codes (or the error
     // class and status): never an argument value or an error message.
     failedTools: state.toolCalls.filter((call) => !call.ok).slice(0, 8)
-      .map((call) => ({ tool: call.name, ...call.failure })),
+      .map((call) => ({ tool: lookupTool(call.name) ? call.name : "(unknown)", ...call.failure })),
     abortCorrected: state.abortCorrectionRequested,
     ...(cause === "model_abort" && step.kind === "abort" ? { modelReasonChars: step.reason.length } : {}),
     ...(replaced ? { replacedBy: replaced.by, held: replaced.reasons.slice(0, 8),

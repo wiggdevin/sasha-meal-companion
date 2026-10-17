@@ -33,7 +33,8 @@ export type ModelEnv = {
 /** A failed tool call, described without any of the person's words. */
 export type ToolFailure =
   | { kind: "invalid_args"; args: ArgIssue[] }
-  | { kind: "refused" }
+  | { kind: "refused" } // per-turn cap or bad-args limit reached
+  | { kind: "unknown_tool" }
   | { kind: "threw"; errorName: string; status?: number };
 
 export type ModelState = {
