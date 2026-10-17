@@ -31,8 +31,13 @@ const COUNTS = `select
  *  migration, then `extra` statements — all inside one transaction, rolled back at the end so
  *  the stack's real state (whatever it was before this file ran) is unaffected afterward. */
 function rolledBack(...extra: string[]): string {
-  const sql = ["begin;", ORIGINAL_UP, CLEANUP_UP, ...extra, "rollback;"].join("\n");
-  return runSql(sql);
+  return counts(["begin;", ORIGINAL_UP, CLEANUP_UP, ...extra, "rollback;"].join("\n"));
+}
+
+/** psql echoes a tag per statement here; the COUNTS row is the one "n,n,n,n" line. */
+function counts(sql: string): string {
+  return runSql(sql).split("\n").map((line) => line.trim())
+    .filter((line) => /^\d+,\d+,\d+,\d+$/.test(line)).at(-1) ?? "";
 }
 
 describe.skipIf(!HAS_DB)("voice_ears cleanup migration (rolled back)", () => {
@@ -42,18 +47,18 @@ describe.skipIf(!HAS_DB)("voice_ears cleanup migration (rolled back)", () => {
 
   it("is idempotent: running the cleanup twice still leaves everything dropped", () => {
     const sql = ["begin;", ORIGINAL_UP, CLEANUP_UP, CLEANUP_UP, COUNTS, "rollback;"].join("\n");
-    expect(runSql(sql)).toBe("0,0,0,0");
+    expect(counts(sql)).toBe("0,0,0,0");
   });
 
   it("the down file restores the table and all three functions", () => {
     const sql = ["begin;", ORIGINAL_UP, CLEANUP_UP, CLEANUP_DOWN, COUNTS, "rollback;"].join("\n");
-    expect(runSql(sql)).toBe("1,1,1,1");
+    expect(counts(sql)).toBe("1,1,1,1");
   });
 
   it("after the down file, the cleanup can be re-applied cleanly", () => {
     const sql = ["begin;", ORIGINAL_UP, CLEANUP_UP, CLEANUP_DOWN, CLEANUP_UP, COUNTS, "rollback;"]
       .join("\n");
-    expect(runSql(sql)).toBe("0,0,0,0");
+    expect(counts(sql)).toBe("0,0,0,0");
   });
 
   it("the down file restores RLS and the service-role-only grants", () => {
