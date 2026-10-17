@@ -63,6 +63,7 @@ SPEND_CAPS = {"global": ("AI_GLOBAL_DAILY_SPEND_CAP_USD", 50.0),
               "background": ("AI_BACKGROUND_DAILY_SPEND_CAP_USD", 10.0),
               "account": ("AI_DAILY_SPEND_CAP_USD", 2.0)}
 GROUNDING_MONTHLY_QUERIES = 5000
+ACCOUNT_ROWS = 100  # STATE_QUERY sends at most this many account amounts
 GROUNDING_COST_PER_QUERY_USD = 0.014  # lib/ai/spend.ts GROUNDING_COST_PER_QUERY_USD
 
 TITLES = {
@@ -111,7 +112,8 @@ select json_build_object(
                                   where day = (now() at time zone 'utc')::date and settled_at is null
                                   group by user_id) h
                          on h.user_id = d.user_id
-                       order by committed desc limit 100) a),
+                       order by committed desc limit 100) a),  -- ACCOUNT_ROWS
+  -- Month range on ai_calls_created_at (20270105100000).
   'lookup_month_cost', (select coalesce(sum(greatest(cost_estimate, 0)), 0) from public.ai_calls
                         where purpose = 'lookup'
                           and created_at >= date_trunc('month', now() at time zone 'utc') at time zone 'utc')
@@ -205,7 +207,8 @@ def spend_findings(state, caps):
     cap = caps["account"]
     over = [float(v) for v in state.get("spend_accounts") or [] if cap > 0 and float(v) > SPEND_ALERT_SHARE * cap]
     if over:
-        lines.append(f"- {len(over)} account{'s' if len(over) != 1 else ''} over {round(100 * SPEND_ALERT_SHARE)} % "
+        count = f"{len(over)}+" if len(over) >= ACCOUNT_ROWS else str(len(over))
+        lines.append(f"- {count} account{'s' if len(over) != 1 else ''} over {round(100 * SPEND_ALERT_SHARE)} % "
                      f"of the {usd(cap)} account cap (highest {usd(max(over))})")
     found = {"ai-spend": None, "grounding": None}
     if lines:

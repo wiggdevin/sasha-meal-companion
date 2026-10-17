@@ -57,6 +57,10 @@ class RulesTest(unittest.TestCase):
                              "2 accounts over 60 % of the $2.00 account cap (highest $1.90)")):
             self.assertIn(text, ops.spend_findings(state, caps)["ai-spend"])
 
+    def test_a_full_account_list_reads_as_a_lower_bound(self):
+        body = ops.spend_findings({"spend_accounts": [1.5] * ops.ACCOUNT_ROWS}, ops.spend_caps({}))["ai-spend"]
+        self.assertIn(f"{ops.ACCOUNT_ROWS}+ accounts", body)
+
     def test_a_zero_cap_is_the_kill_switch_not_an_alert(self):
         found = ops.spend_findings({"spend_global": 1, "spend_accounts": [1]},
                                    {"global": 0.0, "background": 0.0, "account": 0.0})

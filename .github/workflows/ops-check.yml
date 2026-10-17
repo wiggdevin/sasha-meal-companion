@@ -17,11 +17,11 @@ on:
   workflow_dispatch:
     inputs:
       test_alert:
-        description: "File and close one test issue for this rule (blank: a normal check)"
+        description: "File and close one test issue for this rule (none: a normal check)"
         required: false
-        default: ""
+        default: "none"
         type: choice
-        options: ["", "health", "backup-json", "backup-hosted", "job-pass", "ai-spend", "grounding"]
+        options: ["none", "health", "backup-json", "backup-hosted", "job-pass", "ai-spend", "grounding"]
 
 permissions:
   contents: read
@@ -45,7 +45,12 @@ jobs:
 
       # Standard library only: no install step on a job that runs 96 times a day.
       - name: Check health, backups, job passes and AI spend
-        run: python3 scripts/ops-check.py ${TEST_ALERT:+--test-alert "$TEST_ALERT"}
+        run: |
+          if [ -n "$TEST_ALERT" ] && [ "$TEST_ALERT" != "none" ]; then
+            python3 scripts/ops-check.py --test-alert "$TEST_ALERT"
+          else
+            python3 scripts/ops-check.py
+          fi
         env:
           TEST_ALERT: ${{ inputs.test_alert }}
           HEALTH_URL: ${{ vars.HEALTH_URL }}
