@@ -72,3 +72,32 @@ describe("LiveWidget: one effective preference for every renderer and every writ
     expect(loadWidgetPrefs(handle)).toEqual({ panels: ["kcalLeft"], expanded: false, index: 0 });
   });
 });
+
+describe("LiveWidget: a layout that cannot be saved (W117)", () => {
+  it("says so, and keeps the unsaved choice on screen", async () => {
+    const handle = await resetTestAccount();
+    saveWidgetPrefs(handle, { panels: ["kcalLeft", "water"], expanded: true, index: 0 }, false);
+    render(<LiveWidget data={DATA} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("full"); });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Move Water up" }));
+      expect(await screen.findByText("Couldn't save layout")).toBeTruthy();
+      // The choice is still what the tray shows.
+      const rows = screen.getByRole("region", { name: "Arrange the widget" }).querySelectorAll("li");
+      expect(rows[0].textContent).toContain("Water");
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
+  it("stays quiet when the write lands", async () => {
+    const handle = await resetTestAccount();
+    saveWidgetPrefs(handle, { panels: ["kcalLeft", "water"], expanded: true, index: 0 }, false);
+    render(<LiveWidget data={DATA} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move Water up" }));
+    await waitFor(() => expect(loadWidgetPrefs(handle).panels).toEqual(["water", "kcalLeft"]));
+    expect(screen.queryByText("Couldn't save layout")).toBeNull();
+  });
+});

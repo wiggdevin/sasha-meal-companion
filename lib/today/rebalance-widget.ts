@@ -60,9 +60,9 @@ export function useRebalanceWidgetSync(
     const current = accountChanged ? loadWidgetPrefs(account, live) : live;
     const effective = effectiveWidgetPrefs(current, show);
     const at = effective.panels.indexOf("rebalance");
-    // A fresh nudge both selects "rebalance" and opens the widget onto it (D3) — a selected panel
-    // the user cannot see is not a notification.
-    const next = justNudged && at >= 0 ? { ...effective, index: at, expanded: true } : effective;
+    // A fresh nudge selects "rebalance" (D3) so the widget opens onto it the next time it opens; it
+    // never expands the widget by itself (W116): the bubble and the collapsed headline carry it.
+    const next = justNudged && at >= 0 ? { ...effective, index: at } : effective;
     if (samePrefs(next, current)) return;
     update(next);
     // `update` and `live` are fresh every render and are read when this fires; only a mount, an

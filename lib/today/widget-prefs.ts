@@ -125,8 +125,7 @@ export function saveWidgetPrefs(account: AccountHandle | null, prefs: WidgetPref
   // remount must see this attempt, not whatever older value storage still has readable.
   sessionPrefs.set(sessionKey(account), effective);
   try {
-    writeAccountItem(account, NAME, JSON.stringify(effective));
-    return true;
+    return writeAccountItem(account, NAME, JSON.stringify(effective));
   } catch {
     return false;
   }
