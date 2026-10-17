@@ -37,7 +37,7 @@ import type { Part } from "@/lib/meals/parts";
 import { PREFERENCE_VERSION } from "@/lib/meals/preference";
 import { RANKING_VERSION } from "@/lib/meals/snapshot";
 import {
-  SNAPSHOT_V3, SNAPSHOT_V3_MAX_BYTES, type MealSnapshotV3, type PlateRuleKey,
+  SNAPSHOT_V3, SNAPSHOT_V3_MAX_BYTES, snapshotV3Size, type MealSnapshotV3, type PlateRuleKey,
 } from "@/lib/meals/snapshot-v3";
 import { tasteProfile, type TasteResult } from "@/lib/meals/taste";
 import { cuisinesFrom } from "@/lib/profile/cuisines";
@@ -81,18 +81,27 @@ export type MealSnapshotV3Response = MealSnapshotV3;
  */
 let overageCount = 0;
 
-export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHOT_V3_MAX_BYTES): MealSnapshotV3 {
-  const bytes = Buffer.byteLength(JSON.stringify(body), "utf8");
-  if (bytes <= maxBytes) return body;
+/**
+ * Checks the 250 KB ceiling and, given the build time, logs one `snapshot_v3_build` line per body
+ * (W107): build milliseconds, total bytes, bytes per section and entry counts. Neither line holds
+ * a food name, an id or the account: `snapshotV3Size` reads lengths and counts only. The build
+ * p95 (target 500 ms) and the size spread are read from these lines (docs/operations/plan-day-benchmark.md).
+ */
+export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHOT_V3_MAX_BYTES,
+  buildMs?: number): MealSnapshotV3 {
+  const size = snapshotV3Size(body);
+  const over = size.bytes > maxBytes;
+  if (buildMs !== undefined) {
+    console.info("meal snapshot v3: built", { metric: "snapshot_v3_build", buildMs: Math.round(buildMs),
+      bytes: size.bytes, maxBytes, over, sections: size.sections, counts: size.counts });
+  }
+  if (!over) return body;
   overageCount += 1;
   console.error("meal snapshot v3: over the 250 KB target (stated exception, D11/acceptance 5); "
     + "the body is sent complete rather than risk ranking or admission correctness", {
-    metric: "snapshot_v3_overage", count: overageCount,
-    accountId: body.accountId, bytes, maxBytes,
-    foods: Buffer.byteLength(JSON.stringify(body.foods), "utf8"),
+    metric: "snapshot_v3_overage", count: overageCount, bytes: size.bytes, maxBytes,
+    sections: size.sections, counts: size.counts,
     admittedRefIds: body.admittedRefIds.length, admittedUniverseIds: body.admittedUniverseIds.length,
-    excluded: Buffer.byteLength(JSON.stringify(body.excluded), "utf8"),
-    eligible: Buffer.byteLength(JSON.stringify(body.eligible), "utf8"),
   });
   return body;
 }
@@ -185,6 +194,7 @@ export async function mealSnapshotV3(client: SupabaseClient, userId: string, now
   // could otherwise generate from a response W8's freshness guarantee never covered (Sol r3 BLOCK).
   const world = await readWorld(client, userId).catch(unavailable);
   if (world !== "open") return mealSnapshot(client, userId, now, deps);
+  const started = performance.now();
 
   const t0 = await readRulesToken(client, userId).catch(unavailable);
   let parts: Awaited<ReturnType<typeof mealSnapshotParts>>;
@@ -256,5 +266,5 @@ export async function mealSnapshotV3(client: SupabaseClient, userId: string, now
     admittedUniverseIds: [...candidate.admittedUniverseIds], admittedRefIds: [...candidate.admittedRefIds],
     foods, excluded: candidate.excluded.map((row) => ({ id: row.id, verdict: row.verdict, reason: row.reason })),
     eligible: parts.eligible,
-  });
+  }, SNAPSHOT_V3_MAX_BYTES, performance.now() - started);
 }
