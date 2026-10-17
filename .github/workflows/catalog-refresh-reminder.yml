@@ -1,0 +1,29 @@
+name: Catalog refresh reminder
+
+# W146: the USDA bulk catalog refreshes quarterly (docs/catalog/import.md, Cadence). This only
+# opens a reminder issue; it never imports anything.
+
+on:
+  schedule:
+    # 09:00 UTC on the first day of Jan, Apr, Jul and Oct.
+    - cron: "0 9 1 1,4,7,10 *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind:
+    name: Remind
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the reminder issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          label="$(date -u +%Y-%m-%d)"
+          gh issue create \
+            --title "Quarterly catalog refresh ($label)" \
+            --body "Time for the quarterly USDA catalog refresh. Run \`./scripts/catalog-refresh.sh <version-label>\` on a machine with Docker, read \`docs/catalog/sizing.md\`, and sign off before the production import. See the Cadence section of \`docs/catalog/import.md\`."

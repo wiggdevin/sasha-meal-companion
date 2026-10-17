@@ -279,3 +279,21 @@ exists so the grants can be reverted deliberately, not as a step in this runbook
 
 Quarterly for the three bulk sources (§7.3). Each run gets its own `version_label`; keep the
 previous one for rollback and drop the ones before it.
+
+### Quarterly refresh script
+
+`./scripts/catalog-refresh.sh <version-label> <branch-db-url>` runs the sizing dry run
+(`catalog-dry-run.sh`), then `import-fdc.py --version-label` against the given Supabase branch, then
+stops. The sizing sign-off is the gate before the production import, which stays a manual owner
+step. The script fails closed: set `BRANCH_PROJECT_REF` to the branch's ref (or use a local URL); it
+refuses a URL that names the project in `SUPABASE_URL`.
+`.github/workflows/catalog-refresh-reminder.yml` opens a reminder issue on the first of January,
+April, July and October; it imports nothing.
+
+## AI canary
+
+`scripts/ai-canary.ts` probes each pinned Gemini model with one structured call and reports whether
+the key is on a billing-enabled project. `.github/workflows/ai-canary.yml` runs it every Monday and
+on manual dispatch, never on push. It uses the `GEMINI_API_KEY` repo secret and skips cleanly when
+that secret is not set; it fails when the verdict is UNPAID or a structured call fails. The owner
+confirms the secret is set.
