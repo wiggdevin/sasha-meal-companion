@@ -197,7 +197,7 @@ export default function DayBoard(props: Props) {
   // One box follows the board's height for both stages: nested, the outer box chased the inner one
   // on a spring of its own and settled after the frame had landed (the "gum" on close).
   return <AutoHeight spring="gentle"><TipStage tips={tips} active={active}>
-    {(openTip) => <ExplainerStage explainers={explainers} active={active}>
+    {(openTip, shownTipId) => <ExplainerStage explainers={explainers} active={active}>
       {(play) => <>
         <motion.div className={styles.span2} {...settle(0)}>
           <NextTile next={props.next} planned={props.planned} onMarkEaten={props.onMarkEaten} date={props.date} today={props.today} />
@@ -206,7 +206,7 @@ export default function DayBoard(props: Props) {
           <WaterTile water={props.water} onAddCup={props.onAddCup} onSetCups={props.onSetWater} active={active} />
         </motion.div>
         <motion.div className={styles.pairCell} data-pair="tip" {...settle(2)}>
-          <TipTile tips={tips} onOpen={openTip} />
+          <TipTile tips={tips} shownId={shownTipId} onOpen={openTip} />
         </motion.div>
         {week && <motion.div className={styles.span2} {...settle(3)}>
           <WeekTile week={week} onSelectDate={props.onSelectDate} active={active} delay={enterDelay} />

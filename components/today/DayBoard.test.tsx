@@ -105,6 +105,30 @@ describe("DayBoard · the tip opens in place", () => {
     await waitFor(() => expect(document.activeElement).toBe(tile));
   });
 
+  it("pages through the tips inside the open view, and closes into the tip it was last on (OD17)", async () => {
+    const { container } = mount({ reduced: true });
+    const first = APP_TIPS.find((tip) => live(container).textContent?.includes(tip.title))!;
+    fireEvent.click(openButton());
+    const region = await screen.findByRole("region", { name: first.title });
+    const paging = within(region).getByRole("navigation", { name: "Tips" });
+    expect(paging.textContent).toContain(`1 of ${APP_TIPS.length}`);
+    fireEvent.click(within(region).getByRole("button", { name: "Next tip" }));
+    const second = await screen.findByRole("region", { name: /./ });
+    expect(second.textContent).toContain(`2 of ${APP_TIPS.length}`);
+    expect(second.querySelector('[aria-live="polite"]')?.textContent).toMatch(new RegExp(`^Tip 2 of ${APP_TIPS.length}\\.`));
+    const shownTitle = second.querySelector("h3")!.textContent!;
+    expect(shownTitle).not.toBe(first.title);
+    fireEvent.click(within(second).getByRole("button", { name: "Previous tip" }));
+    await waitFor(() => expect(screen.getByRole("region", { name: first.title })).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("region", { name: first.title })).getByRole("button", { name: "Previous tip" }));
+    // Wraps from the first back to the last.
+    await waitFor(() => expect(view()?.textContent).toContain(`${APP_TIPS.length} of ${APP_TIPS.length}`));
+    const lastTitle = view()!.querySelector("h3")!.textContent!;
+    fireEvent.click(within(view() as HTMLElement).getByRole("button", { name: "Close tip" }));
+    await waitFor(() => expect(anyView()).toBeNull(), { timeout: 200 });
+    expect(screen.getByRole("button", { name: /^Open tip: / }).getAttribute("aria-label")).toBe(`Open tip: ${lastTitle}`);
+  });
+
   it("leads with the tip that matters now: no water yet today puts the water tip first", () => {
     const { container } = mount({ water: { cups: 0, goal: 8 } });
     const water = APP_TIPS.find((tip) => tip.id === "water")!;

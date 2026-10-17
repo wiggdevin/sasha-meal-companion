@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, type Ref } from "react";
+import { useEffect, useId, useRef, useState, type Ref } from "react";
 import { motion, useIsPresent, useReducedMotionConfig } from "motion/react";
 import type { BoardTip } from "@/lib/today/board";
 import TipDemo from "@/components/today/tips/TipDemo";
 import TipGlyph, { glyphOf } from "@/components/today/tips/TipGlyph";
-import { TipFace } from "@/components/today/TipTile";
+import { NextGlyph, TipFace } from "@/components/today/TipTile";
+import Button from "@/components/ui/Button";
 import { TIP_CORNER, TIP_LAYOUT_ID } from "@/components/today/tips/shared";
 import { boardMorph, type Box } from "@/components/today/useDayCardMotion";
 import tileStyles from "@/components/today/TipTile.module.css";
@@ -14,6 +15,9 @@ import styles from "@/components/today/tips/TipView.module.css";
 /** The tile the view grew from: its tips, the one on show and its size, so the view can carry the
  *  tile's face at the tile's own size while it grows and while it lands. */
 export type TipFaceBox = { tips: BoardTip[]; index: number; width: number; height: number };
+
+/** Paging through the tips from inside the view (OD17): where this tip sits, and the step. */
+export type TipPaging = { index: number; count: number; onPage: (step: 1 | -1) => void };
 
 /** A view on its way back: the tile's box in the stage, and the size the view had when it began. */
 export type TipClosing = { to: Box; from: { width: number; height: number } };
@@ -32,11 +36,14 @@ export type TipClosing = { to: Box; from: { width: number; height: number } };
  * hands over to the tile (`onClosed`). Under reduced motion nothing travels.
  *
  * Inside: the glyph, the headline and the X; the one-line summary; the demonstration, which takes
- * whatever room the board leaves; then the steps. Focus goes to the X when the view opens, and
- * Escape closes it.
+ * whatever room the board leaves; then the steps; then, with more than one tip, Previous, "n of N"
+ * and Next (OD17, 2026-10-12: paging lives here, not on the tile). Paging swaps the tip in the same
+ * view and says the new one in a live region. Focus goes to the X when the view opens, and Escape
+ * closes it.
  */
-export default function TipView({ tip, minHeight, face, closing = null, onClose, onClosed, ref }: {
+export default function TipView({ tip, minHeight, face, closing = null, paging = null, onClose, onClosed, ref }: {
   tip: BoardTip;
+  paging?: TipPaging | null;
   /** The board's height when the tip opened, less the stage's padding: the view fills it. */
   minHeight?: number;
   face?: TipFaceBox | null;
@@ -54,6 +61,13 @@ export default function TipView({ tip, minHeight, face, closing = null, onClose,
   const headingId = useId();
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
+  // Said only after a page turn: opening the view moves focus to its X, which names it already.
+  const [said, setSaid] = useState<string | null>(null);
+  const [lastId, setLastId] = useState(tip.id);
+  if (tip.id !== lastId) {
+    setLastId(tip.id);
+    setSaid(`Tip ${(paging?.index ?? 0) + 1} of ${paging?.count ?? 1}. ${tip.title ? `${tip.title}. ` : ""}${tip.text}`);
+  }
   const steps = tip.steps && tip.steps.length > 0 ? tip.steps : null;
   const box = closing
     ? { position: "absolute" as const, top: closing.to.top, left: closing.to.left, width: closing.to.width, height: closing.to.height }
@@ -84,7 +98,7 @@ export default function TipView({ tip, minHeight, face, closing = null, onClose,
       </header>
       {tip.title && <p className={styles.summary}>{tip.text}</p>}
       <div className={styles.stage}>
-        {tip.demo ? <TipDemo kind={tip.demo} />
+        {tip.demo ? <TipDemo key={tip.id} kind={tip.demo} />
           : <span className={styles.glyphLarge} aria-hidden="true"><TipGlyph glyph={glyphOf(tip)} size={40} /></span>}
       </div>
       {steps && <ol className={styles.steps}>
@@ -93,6 +107,14 @@ export default function TipView({ tip, minHeight, face, closing = null, onClose,
           <span>{step}</span>
         </li>)}
       </ol>}
+      {paging && paging.count > 1 && <nav className={styles.paging} aria-label="Tips">
+        <Button variant="secondary" shape="circle" size="sm" aria-label="Previous tip"
+          onClick={() => paging.onPage(-1)}><NextGlyph back /></Button>
+        <span className={styles.position} aria-hidden="true">{paging.index + 1} of {paging.count}</span>
+        <Button variant="secondary" shape="circle" size="sm" aria-label="Next tip"
+          onClick={() => paging.onPage(1)}><NextGlyph /></Button>
+      </nav>}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{said}</p>
     </motion.div>
     {face && !reduce && <motion.div className={`${tileStyles.tip} ${styles.face}`} data-tip-face="" aria-hidden="true"
       layout="position" style={{ width: face.width, height: face.height }}
