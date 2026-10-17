@@ -28,6 +28,14 @@ describe("Settings health read", () => {
     expect(fetchDaily).not.toHaveBeenCalled();
   });
 
+  it("falls through to the read when the probe cannot decide", async () => {
+    read.mockReturnValue("unknown");
+    probe.mockResolvedValue("unknown");
+    fetchDaily.mockResolvedValue({ ok: true });
+    expect(await fetchDailyIfEnabled({} as never, "a", "b")).toEqual({ ok: true });
+    expect(fetchDaily).toHaveBeenCalledTimes(1);
+  });
+
   it("reads when health is on", async () => {
     read.mockReturnValue("enabled");
     fetchDaily.mockResolvedValue({ ok: true });
