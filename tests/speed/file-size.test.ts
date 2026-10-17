@@ -200,6 +200,9 @@ const MODULES = [
   "lib/log/pending-types.ts",
   "lib/log/card-from-request.ts",
   "lib/log/queued-ops.ts",
+  // W123: Log again and the recent meals it reads.
+  "lib/log/log-again.ts",
+  "lib/log/recent-meals.ts",
   "lib/log/catalog-card.ts",
   "lib/log/card-items.ts",
   "lib/log/web-lock.ts",

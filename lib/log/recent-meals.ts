@@ -40,7 +40,8 @@ export function recentMeals(
     if (opts.before !== undefined && date >= opts.before) continue;
     for (const entry of day.extras ?? []) if (canLogAgain(entry)) rows.push({ entry, date });
   }
-  rows.sort((a, b) => (b.entry.at < a.entry.at ? -1 : b.entry.at > a.entry.at ? 1 : 0));
+  const time = (row: RecentMeal) => { const t = Date.parse(row.entry.at); return Number.isNaN(t) ? 0 : t; };
+  rows.sort((a, b) => time(b) - time(a));
   const seen = new Set<string>();
   const out: RecentMeal[] = [];
   for (const row of rows) {

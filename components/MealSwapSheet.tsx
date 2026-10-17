@@ -155,6 +155,8 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
    *  moment of the tap, not whenever the save happens to finish, or a save that straddles
    *  midnight would misreport its own date (Sol review r3 WARN). */
   function sendSwapSignals(option: SwapAlternative, tappedAt: Date) {
+    // A Recent meal row is not in the ranked slate the signal reports, so it reports nothing.
+    if (option.id.startsWith("logged:")) return;
     const events = swapSignalEvents({ slateId: slateId.current, currentComponents: slot.components,
       shownOptions: options, chosenOption: option, foods,
       occasion: occasionAt(slot.time, { slot: slot.slot }) });

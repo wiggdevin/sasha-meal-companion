@@ -613,7 +613,8 @@ export default function Today() {
     setOpenEntry(null);
     try {
       const done = await logAgain(entry);
-      if (!done) return;
+      // A fresh entry id is never another tab's: `owned_elsewhere` here is an account switch.
+      if (!done || done.result.status === "owned_elsewhere") return;
       const outcome = outcomeFor(done.result);
       if (!outcome.keep) {
         todayFeedback.notify({ tone: "error", message: outcome.message ?? "That did not log. Try again." });
@@ -621,7 +622,8 @@ export default function Today() {
       }
       // The commit already put the card on that day and settled it; nothing to add here.
       refresh();
-      if (outcome.message) todayFeedback.notify({ tone: "error", message: outcome.message });
+      // Kept either way: a mark or a "still saving" line is news, not a failure.
+      if (outcome.message) todayFeedback.notify({ tone: "changed", message: outcome.message });
       else confirmLogged(done.date === todayIso ? "Logged again for today." : "Logged again.");
     } catch (e) {
       if (!(e instanceof AccountChanged)) {

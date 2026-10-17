@@ -15,7 +15,7 @@ import type { LogCommitFailure, LogCommitRequest, LogCommitResponse }
   from "@/lib/log/contract";
 import { acquireCommitLock, claimCommit, joinCommit } from "@/lib/log/live-commits";
 import { getDay, upsertExtra } from "@/lib/store";
-import { announceLog, confirmEntry, markNeedsReconcile } from "@/lib/log/pending";
+import { announceLog, clearPending, confirmEntry, markNeedsReconcile } from "@/lib/log/pending";
 import { isDeleted, settleDeletedEntry } from "@/lib/log/delete-entry";
 import { safeQueue } from "@/lib/log/queue-commit";
 import { isAccepted, readResult } from "@/lib/log/read-result";
@@ -315,10 +315,21 @@ async function postCommit(
     // Their delete can still land in the read just above: it stays, and wins (W027).
     if ((await settled(h, req.entry_id)).deleted) {
       await settleDeletedEntry(h, req.entry_id, optimistic?.date);
+      // A refused create is the server saying it holds nothing: no delete is owed, and a record
+      // left asking it would only read "no row" until the cap.
+      if (gone && req.base_rev === undefined) await clearPending(h, req.entry_id);
       close();
       return { status: "discarded" };
     }
-  } else await markNeedsReconcile(h, req.entry_id, null);
+  } else {
+    await markNeedsReconcile(h, req.entry_id, null);
+    // Their delete takes the mirror row first, which is what makes it read as unsettled here.
+    if (await isDeleted(h, req.entry_id)) {
+      await settleDeletedEntry(h, req.entry_id, optimistic?.date);
+      close();
+      return { status: "discarded" };
+    }
+  }
   close();
   // A conflict that kept nothing is a plain refusal as far as the sheet is concerned: there is no
   // entity to describe and no card left to describe it beside.
