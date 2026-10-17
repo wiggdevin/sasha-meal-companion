@@ -58,8 +58,19 @@ describe.skipIf(!HAS_DB)("target_profiles goal rate check (database, rolled back
       "select 'rows:' || count(*) from public.target_profiles where user_id = '" + owner + "';",
       "rollback;"].join("\n"));
     expect(out).toContain("rows:2");
+    expect(runSql([...base, up(NAMES[0]), up(NAMES[1]),
+      "select 'old:' || goal_rate_bp_week from public.target_profiles where effective_from = '2026-01-01';",
+      "rollback;"].join("\n"))).toContain("old:0");
     expect(() => runSql([...base, up(NAMES[0]), up(NAMES[1]), row("2026-01-03", -30), "rollback;"].join("\n")))
       .toThrow(/target_profiles_goal_rate_bp_week_check/);
+  });
+
+  it("the NOT VALID file alone already rejects a new off-preset insert and keeps old rows", () => {
+    expect(() => runSql([...seed, down(NAMES[1]), down(NAMES[0]), row("2026-01-01", -30), up(NAMES[0]),
+      row("2026-01-02", -30), "rollback;"].join("\n"))).toThrow(/target_profiles_goal_rate_bp_week_check/);
+    expect(runSql([...seed, down(NAMES[1]), down(NAMES[0]), row("2026-01-01", -30), up(NAMES[0]),
+      "select 'kept:' || count(*) from public.target_profiles where user_id = '" + owner + "';",
+      "rollback;"].join("\n"))).toContain("kept:1");
   });
 
   it("validation names the problem when a legacy row holds another rate", () => {

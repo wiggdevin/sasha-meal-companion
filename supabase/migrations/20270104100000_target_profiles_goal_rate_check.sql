@@ -3,7 +3,9 @@
 -- preset (lib/profile/rate-goal.ts); this makes a direct or future writer unable to store another.
 --
 -- Live-safe: added NOT VALID (checks new and changed rows only, no table scan); the follow-up file
--- 20270104100100 validates it. Apply the two files in order.
+-- 20270104100100 validates it. Apply the two files in order, the second soon after the first.
+-- Before the first, check for legacy rows:
+--   select count(*) from public.target_profiles where goal_rate_bp_week not in (-75,-50,-25,0,10,20,25);
 set local lock_timeout = '3s';
 set local statement_timeout = '30s';
 

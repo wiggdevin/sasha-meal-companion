@@ -2,7 +2,7 @@
 -- holds another rate, say which accounts instead of failing with a bare constraint error; nothing
 -- is rewritten. Fix those rows deliberately (an owner step), then apply this file again.
 set local lock_timeout = '3s';
-set local statement_timeout = '30s';
+set local statement_timeout = '120s';
 
 do $migration$
 declare
