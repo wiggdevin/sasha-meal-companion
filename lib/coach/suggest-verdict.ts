@@ -9,6 +9,7 @@ import { facetOutcome } from "@/lib/policy/facet-rules";
 import { evaluatePolicy, type ConstraintProfile, type PolicyEvidence } from "@/lib/policy/constraints";
 import { classifyWholeFood } from "@/lib/policy/whole-foods";
 import { reasonFragment } from "@/lib/policy/reason-words";
+import { unknownAllergenFragment } from "@/lib/policy/held-allergens";
 
 export function suggestionFoodIdentity(item: Pick<ComposedItem,
   "foodRefId" | "catalogFoodRevisionId">): string {
@@ -76,10 +77,8 @@ export function suggestionItemsVerdict(
     }
     if (policy.verdict === "unverified") {
       hasUnverified = true;
-      const unknown = policy.allergens?.filter((finding) => finding.outcome === "unknown")
-        .map((finding) => finding.allergen).join(", ");
-      unverifiedReason ??= unknown ? `cannot be checked for ${unknown}.`
-        : "cannot be checked against your food rules.";
+      unverifiedReason ??= unknownAllergenFragment(policy.allergens ?? [])
+        ?? "cannot be checked against your food rules.";
     }
     if (needsNoCook) {
       const prep = preparationOutcome(facts);

@@ -12,6 +12,10 @@
  *   nothing more. Never reuse an id for other chips (409 `action_conflict`).
  * - Offline, nothing is sent: `{ ok: false, reason: "offline" }`, and the caller keeps the chips
  *   selected and says the confirm waits for a connection. Nothing is queued in the background.
+ * - A confirm first sends any settings write still queued on this device (`flushOutboxNow`), so a
+ *   first-time account's own settings row reaches the server before the confirm that needs it, and
+ *   the confirm is not refused `settings_not_synced` (W103). This only orders the one send; the
+ *   confirm itself still goes out exactly once, and nothing retries it on its own.
  * - A network failure, a lost answer, a 429 or a 5xx is `retry` (same id); a 4xx is `refused` with
  *   its code. A success fires SYNCED_EVENT after the row is settled, so open screens re-read it.
  */
@@ -19,7 +23,7 @@ import {
   accountFetch, accountHandle, accountJson, rethrowAccountChanged, type AccountHandle,
 } from "@/lib/device/account";
 import { SYNCED_EVENT } from "@/lib/foods/rules-epoch";
-import { applyServerUserSettings } from "@/lib/sync/client";
+import { applyServerUserSettings, flushOutboxNow } from "@/lib/sync/client";
 import type {
   TasteConfirmRequest, TasteConfirmResult, TasteUndoResult,
 } from "@/lib/profile/taste-confirm";
@@ -30,7 +34,11 @@ export type TasteWriteOutcome<T> =
   | { ok: false; reason: "retry"; message: string }
   | { ok: false; reason: "refused"; status: number; code: string; message: string };
 
-type Options = { account?: AccountHandle; fetchImpl?: typeof fetch; online?: () => boolean };
+type Options = {
+  account?: AccountHandle; fetchImpl?: typeof fetch; online?: () => boolean;
+  /** Sends the queued settings write before a confirm (default `flushOutboxNow`); a test seam. */
+  flushSettings?: (h: AccountHandle) => Promise<boolean>;
+};
 
 /** A fresh idempotency key for one confirm tap. */
 export function newTasteActionId(): string {
@@ -79,9 +87,13 @@ async function post<T extends { settings: Record<string, unknown> | null }>(
 }
 
 /** Confirm the chips the user kept. The settings mirror updates from the server's row. */
-export function confirmTasteChips(request: TasteConfirmRequest,
+export async function confirmTasteChips(request: TasteConfirmRequest,
   opts: Options = {}): Promise<TasteWriteOutcome<TasteConfirmResult>> {
-  return post<TasteConfirmResult>("/api/profile/taste/confirm", request, opts);
+  if (!(opts.online ?? defaultOnline)()) return { ok: false, reason: "offline" };
+  const h = opts.account ?? accountHandle();
+  // Never throws: a write that is still queued afterwards leaves the server to answer as before.
+  await (opts.flushSettings ?? flushOutboxNow)(h);
+  return post<TasteConfirmResult>("/api/profile/taste/confirm", request, { ...opts, account: h });
 }
 
 /** Undo one confirm by its action id: only the keys that confirm added and that are still present. */
