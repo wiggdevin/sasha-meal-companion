@@ -68,7 +68,7 @@ export function ratiosFor(
 
 /** Includes per-date added or authored meals; a saved eaten record always stays visible. */
 export function plannedSlotIds(store: Store, date: string, dayType: DayType): SlotId[] {
-  const ids = slotListFor(dayType, store.settings);
+  const ids = slotListFor(dayType, store.settings, date);
   const day = store.days[date];
   const extras = MEAL_IDS.filter((id) => {
     const override = day?.itemOverrides?.[id];

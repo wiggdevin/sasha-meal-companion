@@ -272,7 +272,8 @@ describe("POST /api/jobs/weekly-proposal", () => {
     rpc.mockReset().mockResolvedValue({ data: "proposal-id-1", error: null });
     admin.from.mockReset().mockImplementation((t: string) => {
       if (t === "user_settings") {
-        return { select: () => ({ not: () => keysetListing({ data: [{ user_id: "u1" }], error: null }) }) };
+        return { select: () => ({ not: () => keysetListing({ data: [{ user_id: "u1" }], error: null }),
+          eq: () => ({ maybeSingle: async () => ({ data: { time_zone: null }, error: null }) }) }) };
       }
       if (t === "job_cursors") return noCursors();
       if (t === "expenditure_estimates") {

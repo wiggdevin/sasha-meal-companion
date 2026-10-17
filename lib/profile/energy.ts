@@ -136,7 +136,9 @@ export function bmr(profile: EnergyProfile, today: Date): number {
     const leanBodyMassKg = profile.weightKg * (1 - profile.bodyFatPct / 100);
     return 370 + 21.6 * leanBodyMassKg;
   }
-  const age = today.getFullYear() - profile.birthYear;
+  // The UTC year, like every other date rule here: an effective date is a noon-UTC instant
+  // (lib/profile/derive.ts), so a phone at UTC+13 and the server read the same age (audit A005).
+  const age = today.getUTCFullYear() - profile.birthYear;
   return 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * age + SEX_BMR_TERM[profile.sex];
 }
 

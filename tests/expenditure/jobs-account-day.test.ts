@@ -87,3 +87,24 @@ describe("job account day (t24b probe)", () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("weekly-proposal job"));
   });
 });
+
+// Audit A118: a failed zone read must not date the account by UTC and take that day's lock; the
+// job retries the account on its next run instead.
+describe("job account day: a failed zone read", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const base = admin.from.getMockImplementation()!;
+    admin.from.mockImplementation((t: string) => t === "user_settings" ? { select: () => ({
+      not: () => keysetListing({ data: [{ user_id: "u1" }], error: null }),
+      eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "timeout" } }) }) }) }
+      : base(t));
+  });
+
+  it.each([["estimate", estimatePOST], ["weekly proposal", proposalPOST]] as const)(
+    "%s job: no lock, no estimate, the account is retried", async (_name, post) => {
+      expect((await call(post)).status).toBe(200);
+      expect(runEstimate).not.toHaveBeenCalled();
+      expect(admin.from).not.toHaveBeenCalledWith("job_runs");
+      expect(console.error).toHaveBeenCalled();
+    });
+});

@@ -29,7 +29,7 @@ import { blockedFrom, type ExpenditureResult } from "@/lib/expenditure";
 import { buildProposal } from "@/lib/proposal";
 import { activeProfile } from "@/lib/server/targets";
 import {
-  ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZone, resolveAccountDay,
+  ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZoneStrict, resolveAccountDay,
 } from "@/lib/server/account-day";
 import { runEstimate, timeZoneFor, upsertEstimate } from "@/lib/server/expenditure";
 import { mergedDays, weighInsKg } from "@/lib/server/health-daily";
@@ -128,7 +128,7 @@ export async function POST(req: Request): Promise<Response> {
         // boundary keeps the cron zone chain (`timeZoneFor`): `weekStartOf` in lib/server/jobs.ts
         // promises the weekly-review job computes this same week_start, and that job is unchanged.
         const day = resolveAccountDay({ purpose: "weekly-proposal job", now: passStartedAt,
-          storedZone: await readAccountZone(admin, userId) });
+          storedZone: await readAccountZoneStrict(admin, userId) });
         const asOf = day.date;
         const weekZone = await timeZoneFor(admin, userId);
         weekStart = requestedWeekStart ?? weekJustEnding(weekZone || DEFAULT_TZ, passStartedAt);

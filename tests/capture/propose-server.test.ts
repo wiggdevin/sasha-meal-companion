@@ -34,7 +34,7 @@ const RULES = { user_id: "u1", ...DEFAULT_PROFILE };
 /** Only the surface proposeDraft uses: two rpcs, three table reads, one insert. */
 function fakeDb(opts: { today?: number; duplicate?: { id: string } | null; portions?: unknown[];
   portionRows?: unknown[]; portionsError?: boolean; mediaObject?: typeof DEFAULT_MEDIA_OBJECT | null; mediaObjectError?: boolean;
-  constraints?: Record<string, unknown> | null } = {}) {
+  constraints?: Record<string, unknown> | null; timeZone?: string | null } = {}) {
   const inserts: Record<string, unknown>[] = [];
   const rpc = vi.fn(async (name: string) => {
     if (name === "ai_calls_today") return { data: opts.today ?? 0, error: null };
@@ -64,11 +64,12 @@ function fakeDb(opts: { today?: number; duplicate?: { id: string } | null; porti
           ? { data: null, error: { message: "boom" } }
           : { data: opts.mediaObject === undefined ? DEFAULT_MEDIA_OBJECT : opts.mediaObject, error: null })
       : table === "constraint_profiles" ? { data: opts.constraints ?? null, error: null }
+      : table === "user_settings" ? { data: opts.timeZone ? { time_zone: opts.timeZone } : null, error: null }
       : { data: null, error: null });
     chain.insert = vi.fn(async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; });
     return chain;
   });
-  return { inserts, client: withSpendRpc({ rpc, from }) as never };
+  return { inserts, rpc, client: withSpendRpc({ rpc, from }) as never };
 }
 
 const captureOk = vi.fn(async () => ({
@@ -338,6 +339,26 @@ describe("proposeDraft", () => {
     expect(spy).toHaveBeenCalledWith("ai_calls_today failed",
       { userId: "u1", error: { message: "boom" } });
     spy.mockRestore();
+  });
+
+  // Audit A143: the request's zone never sets the day the cap counts.
+  it("counts the daily cap in the account's stored zone, not the zone the request names", async () => {
+    const db = fakeDb({ timeZone: "America/Denver" });
+    const rpc = db.rpc;
+    await proposeDraft(db.client, db.client, "u1", { ...REQ, tz: "Pacific/Kiritimati" },
+      { runCapture: captureOk as never, searchFoods: searchOk as never });
+    expect(rpc).toHaveBeenCalledWith("ai_calls_today", { p_user_id: "u1", p_tz: "America/Denver" });
+  });
+
+  it("counts the daily cap by UTC, logged, for an account with no stored zone", async () => {
+    const db = fakeDb();
+    const rpc = db.rpc;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await proposeDraft(db.client, db.client, "u1", { ...REQ, tz: "Pacific/Kiritimati" },
+      { runCapture: captureOk as never, searchFoods: searchOk as never });
+    expect(rpc).toHaveBeenCalledWith("ai_calls_today", { p_user_id: "u1", p_tz: "UTC" });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("capture cap"));
+    warn.mockRestore();
   });
 
   it("blocks a label whose ingredients name an allergen and derives the draftId from the media uuid", async () => {

@@ -66,7 +66,8 @@ export type Fresh<T> = Cached<T> & { stale: boolean };
 async function fetchCached<T>(
   h: AccountHandle, name: string, url: string, fetchFn: typeof fetch = fetch,
 ): Promise<Fresh<T> | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  // "Saved on" names the phone's day, never the UTC date (audit A051).
+  const today = targetDayFor();
   try {
     const res = await accountFetch(h, url, { headers: { accept: "application/json" } },
       { fetchImpl: fetchFn });

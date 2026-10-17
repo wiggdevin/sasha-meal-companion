@@ -13,6 +13,7 @@ import { getProfile, getRuleReviewStatus, type StoredProfile } from "@/lib/serve
 import { readPolicyProfile } from "@/lib/server/policy-profile";
 import { latestEstimate } from "@/lib/server/expenditure";
 import { activeTargets } from "@/lib/server/targets";
+import { addIsoDays, resolveAccountDay } from "@/lib/server/account-day";
 import { isMealSlot } from "@/lib/meals";
 import { mapCatalogFoodHit } from "@/lib/server/coach";
 import { eatsOwnFood } from "@/lib/server/eats-own-food";
@@ -78,12 +79,9 @@ export async function searchExactUserFood(
   if (food.error || !food.data) return null;
   const row = food.data as UserFoodSearchRow;
   signal?.throwIfAborted();
-  // sol FIX (review round 1, finding #2): foodKey needs only row.id/row.rev, already known here —
-  // start these two reads now, alongside the ref→pref chain below, instead of tacking them on
-  // after both complete. That used to add a full extra serial round trip to every coach-turn call
-  // to this exact-food-search fallback. A `.catch` with no handler keeps an early ref/pref return
-  // below from leaving an unhandled rejection if `readAllergenEvidence` fails while in flight; the
-  // real result (or error) is still read from `factsRead` once we get there.
+  // sol FIX (review r1, #2): start these two reads beside the ref→pref chain below, not after it
+  // (a serial round trip per call). The empty `.catch` keeps an early return from leaving an
+  // unhandled rejection; the real result or error is still read from `factsRead`.
   const foodKey = `user_food:${row.id}:${row.rev}`;
   const factsRead = Promise.all([
     readAllergenEvidence(admin, [foodKey]), readAllergenChecks(admin, userId, [foodKey]),
@@ -179,10 +177,9 @@ export async function suggestionTarget(
 ): Promise<{ kcal: number; protein: number; carbs: number; fat: number } | null> {
   const { buildDayContext } = await import("@/lib/server/day-context");
   const day = await (loaded ?? buildDayContext(admin, userId, clock.date, clock.tz, input.slot));
-  // No revision yet, or none effective on the turn's OWN day (a day before the account's first
-  // revision, or a revision dated later than the day asked about). That is a fact about the day,
-  // not a failure: the suggestion path says so (lib/coach/suggest.ts) instead of throwing into
-  // the fast path's catch, where it used to read "I couldn't build those suggestions right now. Please try again." Every
+  // No revision yet, or none effective on the turn's OWN day (before the account's first revision,
+  // or one dated later). That is a fact about the day, not a failure: the suggestion path says so
+  // (lib/coach/suggest.ts) instead of throwing into the fast path's generic retry line. Every
   // other property still throws, so a real failure is still reported as one.
   if (!day.remaining) return null;
   if (input.kind === "snack") return day.remaining;
@@ -287,7 +284,9 @@ export function defaultPorts(
     // this tool mid-turn must see them, not just the legacy avoid_allergens/banned_categories.
     getConstraints: async (userId) => policyProfile(userId),
     recentGut: async (userId, days) => {
-      const from = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+      // gut_log.local_date is the phone's day: step back from the turn's day, not UTC (A109).
+      const now = clock.now ? new Date(clock.now) : new Date();
+      const from = addIsoDays(resolveAccountDay({ purpose: "recentGut", requestZone: tz, now }).date, -days);
       const { data } = await client.from("gut_log")
         .select("local_date, state, note").eq("user_id", userId)
         .is("deleted_at", null).gte("local_date", from)
@@ -344,7 +343,8 @@ export function defaultPorts(
         suggestionTarget(admin, userId, args, clock, day.viewed),
         policyProfile(userId),
       ]);
-      return suggestOptions(args, {
+      // Rotation and history run on the turn's day, not the server's UTC date (audit A110).
+      return suggestOptions({ ...args, date: args.date ?? clock.date }, {
         userId,
         profile,
         target: async () => target,

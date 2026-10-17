@@ -5,6 +5,7 @@
  * as an argument and returns a value — no start date, no expiry (PRD §1.1).
  */
 
+import { targetRevisionOn } from "@/lib/targets/revision";
 import type { DayType, SlotId, Settings } from "./types";
 
 // -------------------------------------------------------- local date math
@@ -51,11 +52,32 @@ const LAYOUT_TIMES: Record<number, string[]> = {
   6: ["07:00", "09:30", "12:00", "14:30", "17:00", "19:30"],
 };
 
+/** What the layout reads. `targetHistory` lets a viewed date use its own revision. */
+export type LayoutSettings = Partial<Pick<Settings,
+  "mealsPerDay" | "activeTargetProfile" | "targetHistory" | "targetHistorySince">>;
+
+/**
+ * The revision whose training kcal sizes the layout: with a `date` and a dated history, the one in
+ * force on that date (`targetRevisionOn`, the server's own rule, lib/server/log-occasion.ts: a
+ * past day's meal count is the one its own day had, never today's); else the current cache
+ * (audit A063).
+ */
+function layoutProfile(settings: LayoutSettings, date?: string): Settings["activeTargetProfile"] | undefined {
+  // An unsaved onboarding candidate (no revision number) is the user's own preview: it sizes the
+  // layout whatever the date, as it always did.
+  const current = settings.activeTargetProfile;
+  if (!date || !settings.targetHistory || (current && typeof current.revision !== "number")) {
+    return current;
+  }
+  return targetRevisionOn({ activeTargetProfile: settings.activeTargetProfile ?? null,
+    targetHistory: settings.targetHistory, targetHistorySince: settings.targetHistorySince }, date);
+}
+
 /** A missing server revision cannot invent targets; it only supplies an empty three-card layout. */
-export function mealCountFor(settings: Partial<Pick<Settings, "mealsPerDay" | "activeTargetProfile">>): number {
+export function mealCountFor(settings: LayoutSettings, date?: string): number {
   const chosen = settings.mealsPerDay;
   if (Number.isInteger(chosen) && chosen! >= 2 && chosen! <= 6) return chosen!;
-  const trainingKcal = settings.activeTargetProfile?.training?.kcal;
+  const trainingKcal = layoutProfile(settings, date)?.training?.kcal;
   return trainingKcal == null || trainingKcal <= 1800 ? 3 : trainingKcal <= 2600 ? 4 : 5;
 }
 
@@ -73,8 +95,8 @@ export function shiftForFirstMeal(
   return timeToMinutes(firstMealTime) - timeToMinutes(layoutFirst);
 }
 
-export function slotListFor(_dayType: DayType, settings?: Pick<Settings, "mealsPerDay" | "activeTargetProfile">): SlotId[] {
-  return MEAL_IDS.slice(0, settings ? mealCountFor(settings) : 3);
+export function slotListFor(_dayType: DayType, settings?: LayoutSettings, date?: string): SlotId[] {
+  return MEAL_IDS.slice(0, settings ? mealCountFor(settings, date) : 3);
 }
 
 // ------------------------------------------------------------- slot times
@@ -106,14 +128,15 @@ export type ResolvedSlotTime = { slot: SlotId; time: string };
 /**
  * Final slot times for a day type: base time -> `settings.slotTimes`
  * per-slot override -> `settings.shiftMinutes` whole-day offset on top.
- * PRD §7.4.
+ * PRD §7.4. Pass the viewed `date` so the layout is that date's revision's.
  */
 export function resolveSlotTimes(
   dayType: DayType,
-  settings: Pick<Settings, "slotTimes" | "shiftMinutes"> & Partial<Pick<Settings, "mealsPerDay" | "activeTargetProfile">>
+  settings: Pick<Settings, "slotTimes" | "shiftMinutes"> & LayoutSettings,
+  date?: string,
 ): ResolvedSlotTime[] {
-  const count = mealCountFor(settings);
-  const slots = slotListFor(dayType, settings);
+  const count = mealCountFor(settings, date);
+  const slots = slotListFor(dayType, settings, date);
   const base = LAYOUT_TIMES[count];
 
   return slots.map((slot, index) => {

@@ -42,7 +42,9 @@ import type { SuggestPorts } from "@/lib/coach/suggest";
 const MAX_CANDIDATES = 12;
 
 /** Today, in the server's own clock — a suggestion run's rotation only, never a stored date
- *  (the same fallback `lib/coach/compose-pinned.ts` uses for a direct wish). */
+ *  (the same fallback `lib/coach/compose-pinned.ts` uses for a direct wish). Every server caller
+ *  passes the turn's day (`lib/server/coach-ports.ts`, `lib/server/plan-ideas.ts`); this is only
+ *  for a direct caller that has none (audit A110). */
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -120,7 +122,9 @@ export async function buildPoolCandidates<T extends SuggestPorts & MealClockPort
   const focus = await abortable(ports.focus?.(ports.userId) ?? Promise.resolve(undefined), signal);
   const rank = (foods: PoolInputs["foods"] | readonly Food[]) => rankPlates({
     date: input.date ?? todayUtc(), slot: input.slot ?? "", occasion: mealType, untimed, target,
-    foods, evidence: open.evidence, taste: open.taste, ...(open.ranking ? { open: open.ranking } : {}),
+    // The open search marks the account's food world for the shortage copy (W102, batch E).
+    foods, evidence: open.evidence, taste: open.taste,
+    ...(open.ranking ? { open: open.ranking, foodWorld: "open" as const } : {}),
     ...(focus ? { focus } : {}),
   }).plates;
   const wish = input.wish?.trim() || input.kind;
