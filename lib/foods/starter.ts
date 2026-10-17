@@ -231,6 +231,8 @@ export function starterFood(id: string, status: FoodStatus): Food {
   const factor = item.grams / 100;
   return { id: `starter:${id}`, name: db.name, role: item.role, unit: item.unit,
     perUnit: { protein: db.per100g.protein * factor, carbs: db.per100g.carbs * factor, fat: db.per100g.fat * factor },
+    // The USDA energy, not 4/4/9 of the rounded macros (a banana is 105 kcal, not 116).
+    kcalPerUnit: db.per100g.kcal * factor,
     status, updatedAt: new Date(0).toISOString() };
 }
 

@@ -71,8 +71,10 @@ export function isNextDisabled(
   saving: boolean,
   classifying: boolean,
   bodyComplete: boolean,
+  answered: { activity: boolean; goal: boolean } = { activity: true, goal: true },
 ): boolean {
-  return saving || (step === 0 && !bodyComplete) || (step === 3 && classifying);
+  return saving || (step === 0 && !bodyComplete) || (step === 1 && !answered.activity)
+    || (step === 2 && !answered.goal) || (step === 3 && classifying);
 }
 
 export function OnboardingNotice({ message }: { message: string | null }) {
@@ -537,7 +539,8 @@ export default function OnboardingFlow({
               )}
               {step < 5 ? (
                 <Button variant="primary" className="flex-1"
-                  disabled={isNextDisabled(step, saving, classifying, isBodyStepComplete(currentState, today))
+                  disabled={isNextDisabled(step, saving, classifying, isBodyStepComplete(currentState, today),
+                    { activity: currentState.activityLevel !== null, goal: currentState.goal !== null })
                     || showSafety
                     || (step === 4 && !optionalFoods && !(foodAccess.status === "legacy" && starterSelectionReady))}
                   onClick={() => { void next(); }}>
