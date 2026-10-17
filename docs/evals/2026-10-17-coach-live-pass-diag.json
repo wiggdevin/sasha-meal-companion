@@ -1,0 +1,292 @@
+{
+  "generatedAt": "2026-10-17T08:56:24.478Z",
+  "mode": "diag",
+  "branch": "coach-eval",
+  "coachProvider": "openrouter",
+  "coachModel": "google/gemini-2.5-flash",
+  "turns": [
+    {
+      "turn": 1,
+      "label": "diag-1",
+      "sentence": "remove watermelon from avoid",
+      "elapsedMs": 3203,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 5,
+        "model": 1897,
+        "ground": 9
+      },
+      "calls": [
+        {
+          "turn": 1,
+          "status": 200,
+          "elapsedMs": 1619,
+          "streamed": true,
+          "promptChars": 32051,
+          "finishReason": "stop",
+          "completionTokens": 71,
+          "promptTokens": 9579,
+          "costUsd": 0.00082856,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 2,
+      "label": "diag-2",
+      "sentence": "add tofu to my eats",
+      "elapsedMs": 1626,
+      "error": null,
+      "reply": "Adding Tofu, firm to your Favored list.",
+      "actions": [
+        "add_to_eats"
+      ],
+      "cards": 0,
+      "model": "gemini/",
+      "timings": {
+        "intent": 405,
+        "model": 0,
+        "ground": 748
+      },
+      "calls": [],
+      "logs": []
+    },
+    {
+      "turn": 3,
+      "label": "diag-3",
+      "sentence": "put eggs on my avoid list",
+      "elapsedMs": 1228,
+      "error": null,
+      "reply": "Adding Eggs, cooked to your Avoid list.",
+      "actions": [
+        "add_to_avoid"
+      ],
+      "cards": 0,
+      "model": "gemini/",
+      "timings": {
+        "intent": 418,
+        "model": 0,
+        "ground": 360
+      },
+      "calls": [],
+      "logs": []
+    },
+    {
+      "turn": 4,
+      "label": "diag-4",
+      "sentence": "add Greek yogurt to my eats",
+      "elapsedMs": 1631,
+      "error": null,
+      "reply": "Adding Greek yogurt, plain to your Favored list.",
+      "actions": [
+        "add_to_eats"
+      ],
+      "cards": 0,
+      "model": "gemini/",
+      "timings": {
+        "intent": 411,
+        "model": 0,
+        "ground": 791
+      },
+      "calls": [],
+      "logs": []
+    },
+    {
+      "turn": 5,
+      "label": "diag-5",
+      "sentence": "add salmon back to my eats list",
+      "elapsedMs": 3692,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 2,
+        "model": 2321,
+        "ground": 577
+      },
+      "calls": [
+        {
+          "turn": 5,
+          "status": 200,
+          "elapsedMs": 2062,
+          "streamed": true,
+          "promptChars": 32054,
+          "finishReason": "stop",
+          "completionTokens": 191,
+          "promptTokens": 9582,
+          "costUsd": 0.00112919,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 6,
+      "label": "diag-6",
+      "sentence": "log a spaghetti bolognese as my snack",
+      "elapsedMs": 5700,
+      "error": null,
+      "reply": "I couldn’t pin that one down. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 5,
+        "model": 4936,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 6,
+          "status": 200,
+          "elapsedMs": 2424,
+          "streamed": true,
+          "promptChars": 32060,
+          "finishReason": "stop",
+          "completionTokens": 254,
+          "promptTokens": 9582,
+          "costUsd": 0.00128669,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 6,
+          "status": 200,
+          "elapsedMs": 2022,
+          "streamed": true,
+          "promptChars": 32772,
+          "finishReason": "stop",
+          "completionTokens": 144,
+          "promptTokens": 9792,
+          "costUsd": 0.00106983,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    }
+  ],
+  "aiCalls": [
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9579,
+      "output_tokens": 71,
+      "latency_ms": 1768,
+      "cost_estimate": 0.00082856,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 419,
+      "output_tokens": 23,
+      "latency_ms": 519,
+      "cost_estimate": 0.000017598000000000003,
+      "error": null
+    },
+    {
+      "purpose": "coach-intent",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 1467,
+      "output_tokens": 534,
+      "latency_ms": 274,
+      "cost_estimate": 0.00006161400000000001,
+      "error": null
+    },
+    {
+      "purpose": "meal-component-role",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 496,
+      "output_tokens": 70,
+      "latency_ms": 240,
+      "cost_estimate": 0.000020832,
+      "error": null
+    },
+    {
+      "purpose": "coach-intent",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 1468,
+      "output_tokens": 535,
+      "latency_ms": 334,
+      "cost_estimate": 0.00006165600000000001,
+      "error": null
+    },
+    {
+      "purpose": "coach-intent",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 1468,
+      "output_tokens": 536,
+      "latency_ms": 240,
+      "cost_estimate": 0.00006165600000000001,
+      "error": null
+    },
+    {
+      "purpose": "meal-component-role",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 496,
+      "output_tokens": 70,
+      "latency_ms": 255,
+      "cost_estimate": 0.000020832,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9582,
+      "output_tokens": 191,
+      "latency_ms": 2215,
+      "cost_estimate": 0.00112919,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9582,
+      "output_tokens": 254,
+      "latency_ms": 2556,
+      "cost_estimate": 0.00128669,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9792,
+      "output_tokens": 144,
+      "latency_ms": 2167,
+      "cost_estimate": 0.00106983,
+      "error": null
+    }
+  ]
+}

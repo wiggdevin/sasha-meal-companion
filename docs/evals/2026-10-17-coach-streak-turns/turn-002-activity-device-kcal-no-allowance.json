@@ -1,0 +1,155 @@
+{
+  "generatedAt": "2026-10-17T08:30:25.203Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 2,
+  "case": {
+    "id": "activity-device-kcal-no-allowance",
+    "category": "activity",
+    "sentence": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+    "expected_path": "llm",
+    "note": "C13: call 520 a device estimate, give no food allowance, claim no target mutation, and point to the logs-and-weight weekly proposal",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": []
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3387,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.14,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3387 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.14"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "C13 activity context present",
+      "passed": true,
+      "detail": "packed today.activity present"
+    },
+    {
+      "name": "C13 device estimate wording",
+      "passed": true,
+      "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+    },
+    {
+      "name": "C13 forbidden allowance wording",
+      "passed": true,
+      "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+    },
+    {
+      "name": "C13 no numeric food allowance",
+      "passed": true,
+      "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+    },
+    {
+      "name": "C13 no target mutation",
+      "passed": true,
+      "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+    },
+    {
+      "name": "C13 logs-and-weight weekly proposal",
+      "passed": true,
+      "detail": "\"Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "59173f8a-4c66-4081-8c10-deb2e149d40a",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 2,
+      "model": 2084,
+      "ground": 10
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "a2d068a7-257b-4f92-b10e-dd4cd51936fa",
+        "role": "user",
+        "content": "Apple says I burned 520 calories and I only did 3,200 steps. How much extra can I eat?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "44ec6d49-262c-4b0a-a158-620448b164dd",
+        "role": "assistant",
+        "content": "Your device estimates 520 active calories. That reading does not change your target or create a food allowance. Your one-tap weekly proposal is based on your logs and weight.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

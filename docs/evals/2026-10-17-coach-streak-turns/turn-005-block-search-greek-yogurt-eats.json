@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-10-17T08:31:04.594Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 5,
+  "case": {
+    "id": "block-search-greek-yogurt-eats",
+    "category": "block",
+    "sentence": "find greek yogurt and put it on my eats",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "eats"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4008,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.02,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_eats]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4008 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.02"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t work that one out. Try naming the meal or food you mean.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_search]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected food-search intent",
+      "passed": false,
+      "detail": "expected eats; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "86e96d2a-42ff-4319-85c0-e994d50d9e0b",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "greek yogurt",
+        "grams": null,
+        "reason": "allergen:dairy",
+        "verdict": "blocked"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 6,
+      "model": 2482,
+      "ground": 784
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "598cb1ef-5187-473d-a842-f1282cfe0d86",
+        "role": "user",
+        "content": "find greek yogurt and put it on my eats",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "788c4fd7-a10c-47d1-8e5d-6d4969721ff6",
+        "role": "assistant",
+        "content": "I couldn’t work that one out. Try naming the meal or food you mean.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

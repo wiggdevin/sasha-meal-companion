@@ -1,0 +1,143 @@
+{
+  "generatedAt": "2026-10-17T08:32:47.564Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 11,
+  "case": {
+    "id": "meals-p4-spaghetti-snack",
+    "category": "meals",
+    "sentence": "I just ate spaghetti bolognese as a snack.",
+    "expected_path": "llm",
+    "note": "P4: one log_meal with title Spaghetti bolognese",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6389,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.02,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [log_meal]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6389 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.02"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t work that one out. Try naming the meal or food you mean.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": false,
+      "detail": "{\"expected\":\"log_meal\",\"actual\":null}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": false,
+      "detail": "{\"expected\":\"snack\",\"actual\":null}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": false,
+      "detail": "{\"expected\":\"Spaghetti bolognese\",\"actual\":\"\"}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": false,
+      "detail": "{\"expected\":{\"min\":350,\"max\":600},\"actual\":null}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "a3a67013-21c3-493e-b89a-fa28d4e4c524",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 5,
+      "model": 4797,
+      "ground": 7
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "bbc00af5-74ea-4603-9090-87e8e4bee5c3",
+        "role": "user",
+        "content": "I just ate spaghetti bolognese as a snack.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "fb49ced4-a298-4ba1-925f-247a7761dff2",
+        "role": "assistant",
+        "content": "I couldn’t work that one out. Try naming the meal or food you mean.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

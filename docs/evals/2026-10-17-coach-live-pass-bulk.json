@@ -1,0 +1,2856 @@
+{
+  "generatedAt": "2026-10-17T08:48:52.061Z",
+  "mode": "bulk",
+  "branch": "coach-eval",
+  "coachProvider": "openrouter",
+  "coachModel": "google/gemini-2.5-flash",
+  "turns": [
+    {
+      "turn": 1,
+      "label": "bulk-1",
+      "sentence": "What should I eat for dinner tonight? Give me three options with a short reason for each.",
+      "elapsedMs": 9811,
+      "error": null,
+      "reply": "I can't find any dinner options that fit your criteria right now. Would you like me to try again with different preferences?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 6409,
+        "ground": 8
+      },
+      "calls": [
+        {
+          "turn": 1,
+          "status": 200,
+          "elapsedMs": 1934,
+          "streamed": true,
+          "promptChars": 32112,
+          "finishReason": "stop",
+          "completionTokens": 185,
+          "promptTokens": 9597,
+          "costUsd": 0.00087137,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 1,
+          "status": 200,
+          "elapsedMs": 2063,
+          "streamed": true,
+          "promptChars": 32679,
+          "finishReason": "stop",
+          "completionTokens": 97,
+          "promptTokens": 9789,
+          "costUsd": 0.0031792,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 1,
+          "status": 200,
+          "elapsedMs": 1687,
+          "streamed": true,
+          "promptChars": 32786,
+          "finishReason": "stop",
+          "completionTokens": 100,
+          "promptTokens": 9825,
+          "costUsd": 0.00072106,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 2,
+      "label": "bulk-2",
+      "sentence": "Explain how my daily protein target works and what I could change over the next month.",
+      "elapsedMs": 3003,
+      "error": null,
+      "reply": "Your daily protein target is 130g. I cannot change your protein target; it is fixed.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 6,
+        "model": 1903,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 2,
+          "status": 200,
+          "elapsedMs": 1664,
+          "streamed": true,
+          "promptChars": 32109,
+          "finishReason": "stop",
+          "completionTokens": 83,
+          "promptTokens": 9595,
+          "costUsd": 0.00086282,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 3,
+      "label": "bulk-3",
+      "sentence": "Plan a full day of meals for tomorrow with rough macros for each meal.",
+      "elapsedMs": 2361,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 5,
+        "model": 1743,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 3,
+          "status": 200,
+          "elapsedMs": 1362,
+          "streamed": true,
+          "promptChars": 32093,
+          "finishReason": "stop",
+          "completionTokens": 35,
+          "promptTokens": 9593,
+          "costUsd": 0.00074222,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 4,
+      "label": "bulk-4",
+      "sentence": "I'm bored of chicken and rice. Give me five varied dinner ideas that fit my plan.",
+      "elapsedMs": 10211,
+      "error": null,
+      "reply": "Some foods are hidden until their labels are checked",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 6351,
+        "ground": 3
+      },
+      "calls": [
+        {
+          "turn": 4,
+          "status": 200,
+          "elapsedMs": 2001,
+          "streamed": true,
+          "promptChars": 32104,
+          "finishReason": "stop",
+          "completionTokens": 166,
+          "promptTokens": 9598,
+          "costUsd": 0.00107122,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 4,
+          "status": 200,
+          "elapsedMs": 1921,
+          "streamed": true,
+          "promptChars": 32211,
+          "finishReason": "stop",
+          "completionTokens": 146,
+          "promptTokens": 9634,
+          "costUsd": 0.00078389,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 4,
+          "status": 200,
+          "elapsedMs": 1611,
+          "streamed": true,
+          "promptChars": 32361,
+          "finishReason": "stop",
+          "completionTokens": 54,
+          "promptTokens": 9676,
+          "costUsd": 0.00081273,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 5,
+      "label": "bulk-5",
+      "sentence": "How am I doing this week overall? Be specific about what went well and what to adjust.",
+      "elapsedMs": 4648,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 2,
+        "model": 3946,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 5,
+          "status": 200,
+          "elapsedMs": 1594,
+          "streamed": true,
+          "promptChars": 32109,
+          "finishReason": "stop",
+          "completionTokens": 80,
+          "promptTokens": 9597,
+          "costUsd": 0.00085592,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 5,
+          "status": 200,
+          "elapsedMs": 1879,
+          "streamed": true,
+          "promptChars": 32259,
+          "finishReason": "stop",
+          "completionTokens": 33,
+          "promptTokens": 9640,
+          "costUsd": 0.0029745,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 6,
+      "label": "bulk-6",
+      "sentence": "What are good high-protein snacks I can eat that are gluten free and dairy free?",
+      "elapsedMs": 6703,
+      "error": null,
+      "reply": "Some foods are hidden until their labels are checked",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 3,
+        "model": 3954,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 6,
+          "status": 200,
+          "elapsedMs": 1947,
+          "streamed": true,
+          "promptChars": 32103,
+          "finishReason": "stop",
+          "completionTokens": 93,
+          "promptTokens": 9596,
+          "costUsd": 0.00088812,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 6,
+          "status": 200,
+          "elapsedMs": 1582,
+          "streamed": true,
+          "promptChars": 32210,
+          "finishReason": "stop",
+          "completionTokens": 62,
+          "promptTokens": 9632,
+          "costUsd": 0.00057356,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 7,
+      "label": "bulk-7",
+      "sentence": "Give me a detailed grocery list for a week of lunches that fit my plan.",
+      "elapsedMs": 2906,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 3,
+        "model": 2236,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 7,
+          "status": 200,
+          "elapsedMs": 2005,
+          "streamed": true,
+          "promptChars": 32094,
+          "finishReason": "stop",
+          "completionTokens": 73,
+          "promptTokens": 9594,
+          "costUsd": 0.00083752,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 8,
+      "label": "bulk-8",
+      "sentence": "Why might my weight go up and down from day to day? Keep it practical.",
+      "elapsedMs": 3858,
+      "error": null,
+      "reply": "Daily weight fluctuations are normal and can be due to many factors like water retention, changes in food intake, or even the timing of your weigh-ins. It's more helpful to look at the trend over time rather than focusing on a single day's number.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 2683,
+        "ground": 3
+      },
+      "calls": [
+        {
+          "turn": 8,
+          "status": 200,
+          "elapsedMs": 2449,
+          "streamed": true,
+          "promptChars": 32093,
+          "finishReason": "stop",
+          "completionTokens": 144,
+          "promptTokens": 9595,
+          "costUsd": 0.00076827,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 9,
+      "label": "bulk-9",
+      "sentence": "Walk me through what I have left to eat today and suggest how to spend it.",
+      "elapsedMs": 4473,
+      "error": null,
+      "reply": "You have 1473 kcal, 112 g protein, 93 g carbs, and 61 g fat remaining today. Would you like some meal ideas for your remaining slots?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 2,
+        "model": 2711,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 9,
+          "status": 200,
+          "elapsedMs": 2450,
+          "streamed": true,
+          "promptChars": 32097,
+          "finishReason": "stop",
+          "completionTokens": 103,
+          "promptTokens": 9595,
+          "costUsd": 0.003136,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 10,
+      "label": "bulk-10",
+      "sentence": "I have a long run on Saturday. How should I eat before, during and after it?",
+      "elapsedMs": 7693,
+      "error": null,
+      "reply": "Some foods are hidden until their labels are checked",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 4917,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 10,
+          "status": 200,
+          "elapsedMs": 2498,
+          "streamed": true,
+          "promptChars": 32099,
+          "finishReason": "stop",
+          "completionTokens": 114,
+          "promptTokens": 9597,
+          "costUsd": 0.0031641,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 10,
+          "status": 200,
+          "elapsedMs": 1923,
+          "streamed": true,
+          "promptChars": 32506,
+          "finishReason": "stop",
+          "completionTokens": 82,
+          "promptTokens": 9717,
+          "costUsd": 0.00064663,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 11,
+      "label": "bulk-11",
+      "sentence": "What can I eat at a restaurant if the menu is mostly pasta and pizza?",
+      "elapsedMs": 12366,
+      "error": null,
+      "reply": "I couldn’t pin that one down. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 11709,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 2145,
+          "streamed": true,
+          "promptChars": 32092,
+          "finishReason": "stop",
+          "completionTokens": 170,
+          "promptTokens": 9594,
+          "costUsd": 0.00108002,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 1659,
+          "streamed": true,
+          "promptChars": 32717,
+          "finishReason": "stop",
+          "completionTokens": 64,
+          "promptTokens": 9798,
+          "costUsd": 0.0030994,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 1557,
+          "streamed": true,
+          "promptChars": 32867,
+          "finishReason": "stop",
+          "completionTokens": 62,
+          "promptTokens": 9839,
+          "costUsd": 0.00087758,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 1786,
+          "streamed": true,
+          "promptChars": 33052,
+          "finishReason": "stop",
+          "completionTokens": 116,
+          "promptTokens": 9885,
+          "costUsd": 0.00077771,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 1543,
+          "streamed": true,
+          "promptChars": 33237,
+          "finishReason": "stop",
+          "completionTokens": 76,
+          "promptTokens": 9931,
+          "costUsd": 0.00069016,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 1626,
+          "streamed": true,
+          "promptChars": 33422,
+          "finishReason": "stop",
+          "completionTokens": 62,
+          "promptTokens": 9977,
+          "costUsd": 0.00066788,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 12,
+      "label": "bulk-12",
+      "sentence": "Suggest a no-cook breakfast I can prepare the night before.",
+      "elapsedMs": 9050,
+      "error": null,
+      "reply": "I couldn't find any no-cook breakfast ideas you can prepare the night before.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 6361,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 12,
+          "status": 200,
+          "elapsedMs": 2004,
+          "streamed": true,
+          "promptChars": 32082,
+          "finishReason": "stop",
+          "completionTokens": 159,
+          "promptTokens": 9591,
+          "costUsd": 0.00105189,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 12,
+          "status": 200,
+          "elapsedMs": 1732,
+          "streamed": true,
+          "promptChars": 32398,
+          "finishReason": "stop",
+          "completionTokens": 111,
+          "promptTokens": 9690,
+          "costUsd": 0.00095916,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 12,
+          "status": 200,
+          "elapsedMs": 1999,
+          "streamed": true,
+          "promptChars": 32505,
+          "finishReason": "stop",
+          "completionTokens": 48,
+          "promptTokens": 9726,
+          "costUsd": 0.0030378,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 13,
+      "label": "bulk-13",
+      "sentence": "Can you explain what counts as ultra processed in my plan and why it is limited?",
+      "elapsedMs": 3204,
+      "error": null,
+      "reply": "Ultra-processed foods are typically industrial formulations made from ingredients extracted or refined from whole foods, often with additives. They are limited in your plan because they are generally high in unhealthy fats, sugar, and sodium, and low in fiber and essential nutrients.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 2067,
+        "ground": 3
+      },
+      "calls": [
+        {
+          "turn": 13,
+          "status": 200,
+          "elapsedMs": 1844,
+          "streamed": true,
+          "promptChars": 32103,
+          "finishReason": "stop",
+          "completionTokens": 108,
+          "promptTokens": 9595,
+          "costUsd": 0.00092532,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 14,
+      "label": "bulk-14",
+      "sentence": "Write me a short meal-prep plan for Sunday that covers Monday to Wednesday.",
+      "elapsedMs": 10240,
+      "error": null,
+      "reply": "I can help with meal prep ideas. What kind of meals are you looking for? For example, are you looking for breakfast, lunch, or dinner ideas, or a specific type of cuisine?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 9061,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 14,
+          "status": 200,
+          "elapsedMs": 2045,
+          "streamed": true,
+          "promptChars": 32098,
+          "finishReason": "stop",
+          "completionTokens": 163,
+          "promptTokens": 9594,
+          "costUsd": 0.00106252,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 14,
+          "status": 200,
+          "elapsedMs": 1767,
+          "streamed": true,
+          "promptChars": 32396,
+          "finishReason": "stop",
+          "completionTokens": 81,
+          "promptTokens": 9677,
+          "costUsd": 0.00063321,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 14,
+          "status": 200,
+          "elapsedMs": 2241,
+          "streamed": true,
+          "promptChars": 32546,
+          "finishReason": "stop",
+          "completionTokens": 217,
+          "promptTokens": 9718,
+          "costUsd": 0.00098443,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 14,
+          "status": 200,
+          "elapsedMs": 2128,
+          "streamed": true,
+          "promptChars": 33622,
+          "finishReason": "stop",
+          "completionTokens": 150,
+          "promptTokens": 9989,
+          "costUsd": 0.00089121,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 15,
+      "label": "bulk-15",
+      "sentence": "I'm traveling for two days with only a hotel fridge. What can I pack?",
+      "elapsedMs": 9507,
+      "error": null,
+      "reply": "I can help with meal ideas, but I need more information about what kind of food you're looking for. Are you looking for meals or snacks, and do you have any preferences for the type of food?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 6561,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 15,
+          "status": 200,
+          "elapsedMs": 2542,
+          "streamed": true,
+          "promptChars": 32092,
+          "finishReason": "stop",
+          "completionTokens": 272,
+          "promptTokens": 9596,
+          "costUsd": 0.00133562,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 15,
+          "status": 200,
+          "elapsedMs": 1602,
+          "streamed": true,
+          "promptChars": 32665,
+          "finishReason": "stop",
+          "completionTokens": 87,
+          "promptTokens": 9788,
+          "costUsd": 0.00067854,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 15,
+          "status": 200,
+          "elapsedMs": 1671,
+          "streamed": true,
+          "promptChars": 32772,
+          "finishReason": "stop",
+          "completionTokens": 98,
+          "promptTokens": 9824,
+          "costUsd": 0.00096362,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 16,
+      "label": "bulk-16",
+      "sentence": "What does my plan say about fibre, and how do I get enough without upsetting my gut?",
+      "elapsedMs": 5981,
+      "error": null,
+      "reply": "Your logged entry today has no fibre data. I cannot give medical advice about your gut.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 4665,
+        "ground": 4
+      },
+      "calls": [
+        {
+          "turn": 16,
+          "status": 200,
+          "elapsedMs": 1990,
+          "streamed": true,
+          "promptChars": 32107,
+          "finishReason": "stop",
+          "completionTokens": 111,
+          "promptTokens": 9597,
+          "costUsd": 0.00068637,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 16,
+          "status": 200,
+          "elapsedMs": 2194,
+          "streamed": true,
+          "promptChars": 32699,
+          "finishReason": "stop",
+          "completionTokens": 70,
+          "promptTokens": 9793,
+          "costUsd": 0.00063754,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 17,
+      "label": "bulk-17",
+      "sentence": "Compare salmon and chicken for me: protein, fat and how often I could eat each.",
+      "elapsedMs": 6329,
+      "error": null,
+      "reply": "Per 100g, cooked salmon has 22g protein and 12g fat. Roasted chicken breast has 31g protein and 3.6g fat. Both are on your Favored list, so you can eat them as often as you like.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 4886,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 17,
+          "status": 200,
+          "elapsedMs": 1991,
+          "streamed": true,
+          "promptChars": 32102,
+          "finishReason": "stop",
+          "completionTokens": 192,
+          "promptTokens": 9596,
+          "costUsd": 0.00088857,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 17,
+          "status": 200,
+          "elapsedMs": 2445,
+          "streamed": true,
+          "promptChars": 35232,
+          "finishReason": "stop",
+          "completionTokens": 155,
+          "promptTokens": 10541,
+          "costUsd": 0.00105581,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 18,
+      "label": "bulk-18",
+      "sentence": "Give me a high-protein lunch under 500 calories with exact portions.",
+      "elapsedMs": 8288,
+      "error": null,
+      "reply": "I couldn't find a high-protein lunch under 500 calories with exact portions right now. Would you like me to try again with different criteria?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 2,
+        "model": 6111,
+        "ground": 60
+      },
+      "calls": [
+        {
+          "turn": 18,
+          "status": 200,
+          "elapsedMs": 1896,
+          "streamed": true,
+          "promptChars": 32091,
+          "finishReason": "stop",
+          "completionTokens": 132,
+          "promptTokens": 9595,
+          "costUsd": 0.00073827,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 18,
+          "status": 200,
+          "elapsedMs": 1873,
+          "streamed": true,
+          "promptChars": 32238,
+          "finishReason": "stop",
+          "completionTokens": 100,
+          "promptTokens": 9636,
+          "costUsd": 0.00091681,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 18,
+          "status": 200,
+          "elapsedMs": 1594,
+          "streamed": true,
+          "promptChars": 32342,
+          "finishReason": "stop",
+          "completionTokens": 71,
+          "promptTokens": 9672,
+          "costUsd": 0.00085403,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 19,
+      "label": "bulk-19",
+      "sentence": "What are some safe ways to add flavour without sauces that are off my plan?",
+      "elapsedMs": 3588,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 2453,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 19,
+          "status": 200,
+          "elapsedMs": 2185,
+          "streamed": true,
+          "promptChars": 32098,
+          "finishReason": "stop",
+          "completionTokens": 58,
+          "promptTokens": 9594,
+          "costUsd": 0.00104707,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 20,
+      "label": "bulk-20",
+      "sentence": "Help me decide between rice and sweet potato at dinner.",
+      "elapsedMs": 4780,
+      "error": null,
+      "reply": "Both rice and sweet potato are on your Favored list. Do you have a preference for taste or texture tonight?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 3405,
+        "ground": 5
+      },
+      "calls": [
+        {
+          "turn": 20,
+          "status": 200,
+          "elapsedMs": 1332,
+          "streamed": true,
+          "promptChars": 32078,
+          "finishReason": "stop",
+          "completionTokens": 118,
+          "promptTokens": 9589,
+          "costUsd": 0.00094879,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 20,
+          "status": 200,
+          "elapsedMs": 1553,
+          "streamed": true,
+          "promptChars": 32450,
+          "finishReason": "stop",
+          "completionTokens": 161,
+          "promptTokens": 9710,
+          "costUsd": 0.00108962,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 21,
+      "label": "bulk-21",
+      "sentence": "How many meals per day does my plan use, and how should I space them on a late shift?",
+      "elapsedMs": 3031,
+      "error": null,
+      "reply": "Your plan uses 4 meals per day. To space them on a late shift, I need to know what time your shift starts and ends.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 1944,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 21,
+          "status": 200,
+          "elapsedMs": 1681,
+          "streamed": true,
+          "promptChars": 32108,
+          "finishReason": "stop",
+          "completionTokens": 95,
+          "promptTokens": 9599,
+          "costUsd": 0.00064697,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 22,
+      "label": "bulk-22",
+      "sentence": "Tell me everything I should know about eating enough protein on a recomp goal.",
+      "elapsedMs": 2544,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 1849,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 22,
+          "status": 200,
+          "elapsedMs": 1616,
+          "streamed": true,
+          "promptChars": 32101,
+          "finishReason": "stop",
+          "completionTokens": 68,
+          "promptTokens": 9593,
+          "costUsd": 0.00082472,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 23,
+      "label": "bulk-23",
+      "sentence": "What are three different snack ideas under 200 calories?",
+      "elapsedMs": 10147,
+      "error": null,
+      "reply": "I couldn't find any snack ideas under 200 calories that fit your profile.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 7325,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 23,
+          "status": 200,
+          "elapsedMs": 2146,
+          "streamed": true,
+          "promptChars": 32079,
+          "finishReason": "stop",
+          "completionTokens": 211,
+          "promptTokens": 9591,
+          "costUsd": 0.00093484,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 23,
+          "status": 200,
+          "elapsedMs": 2290,
+          "streamed": true,
+          "promptChars": 32585,
+          "finishReason": "stop",
+          "completionTokens": 100,
+          "promptTokens": 9760,
+          "costUsd": 0.003178,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 23,
+          "status": 200,
+          "elapsedMs": 2223,
+          "streamed": true,
+          "promptChars": 32692,
+          "finishReason": "stop",
+          "completionTokens": 69,
+          "promptTokens": 9796,
+          "costUsd": 0.0031113,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 24,
+      "label": "bulk-24",
+      "sentence": "I skipped lunch. How should I adjust the rest of my day?",
+      "elapsedMs": 9292,
+      "error": null,
+      "reply": "Which meal did you skip? I need to know which meal to adjust.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 8075,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 24,
+          "status": 200,
+          "elapsedMs": 1712,
+          "streamed": true,
+          "promptChars": 32079,
+          "finishReason": "stop",
+          "completionTokens": 110,
+          "promptTokens": 9592,
+          "costUsd": 0.00092969,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 24,
+          "status": 200,
+          "elapsedMs": 1574,
+          "streamed": true,
+          "promptChars": 32226,
+          "finishReason": "stop",
+          "completionTokens": 93,
+          "promptTokens": 9633,
+          "costUsd": 0.00065109,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 24,
+          "status": 200,
+          "elapsedMs": 1823,
+          "streamed": true,
+          "promptChars": 32382,
+          "finishReason": "stop",
+          "completionTokens": 107,
+          "promptTokens": 9676,
+          "costUsd": 0.00094523,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 24,
+          "status": 200,
+          "elapsedMs": 1970,
+          "streamed": true,
+          "promptChars": 32561,
+          "finishReason": "stop",
+          "completionTokens": 104,
+          "promptTokens": 9722,
+          "costUsd": 0.00095045,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 25,
+      "label": "bulk-25",
+      "sentence": "Can you list the foods I have marked as eats and suggest a meal from them?",
+      "elapsedMs": 6782,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 3673,
+        "ground": 74
+      },
+      "calls": [
+        {
+          "turn": 25,
+          "status": 200,
+          "elapsedMs": 1670,
+          "streamed": true,
+          "promptChars": 32097,
+          "finishReason": "stop",
+          "completionTokens": 126,
+          "promptTokens": 9595,
+          "costUsd": 0.00072327,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 25,
+          "status": 200,
+          "elapsedMs": 1453,
+          "streamed": true,
+          "promptChars": 32201,
+          "finishReason": "stop",
+          "completionTokens": 129,
+          "promptTokens": 9631,
+          "costUsd": 0.00074076,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 26,
+      "label": "bulk-26",
+      "sentence": "What should I do if I go over my calories one day?",
+      "elapsedMs": 3035,
+      "error": null,
+      "reply": "Eating over your calorie target one day is fine; tomorrow starts fresh. Your one-tap weekly proposal is based on your logs and weight, and it accounts for days like this.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 2092,
+        "ground": 0
+      },
+      "calls": [
+        {
+          "turn": 26,
+          "status": 200,
+          "elapsedMs": 1872,
+          "streamed": true,
+          "promptChars": 32073,
+          "finishReason": "stop",
+          "completionTokens": 95,
+          "promptTokens": 9591,
+          "costUsd": 0.00089189,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 27,
+      "label": "bulk-27",
+      "sentence": "Give me a vegetarian dinner that still hits a decent amount of protein.",
+      "elapsedMs": 9515,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 8354,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 27,
+          "status": 200,
+          "elapsedMs": 1735,
+          "streamed": true,
+          "promptChars": 32094,
+          "finishReason": "stop",
+          "completionTokens": 91,
+          "promptTokens": 9592,
+          "costUsd": 0.00088219,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 27,
+          "status": 200,
+          "elapsedMs": 1837,
+          "streamed": true,
+          "promptChars": 32241,
+          "finishReason": "stop",
+          "completionTokens": 70,
+          "promptTokens": 9633,
+          "costUsd": 0.0030649,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 27,
+          "status": 200,
+          "elapsedMs": 1653,
+          "streamed": true,
+          "promptChars": 32388,
+          "finishReason": "stop",
+          "completionTokens": 91,
+          "promptTokens": 9674,
+          "costUsd": 0.00065731,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 27,
+          "status": 200,
+          "elapsedMs": 1940,
+          "streamed": true,
+          "promptChars": 32567,
+          "finishReason": "stop",
+          "completionTokens": 165,
+          "promptTokens": 9720,
+          "costUsd": 0.00085503,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 28,
+      "label": "bulk-28",
+      "sentence": "How do I eat out at a burger place and stay on plan?",
+      "elapsedMs": 9810,
+      "error": null,
+      "reply": "I can help with that. What kind of burger are you thinking of?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 6630,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 28,
+          "status": 200,
+          "elapsedMs": 2704,
+          "streamed": true,
+          "promptChars": 32075,
+          "finishReason": "stop",
+          "completionTokens": 287,
+          "promptTokens": 9592,
+          "costUsd": 0.00137219,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 28,
+          "status": 200,
+          "elapsedMs": 1482,
+          "streamed": true,
+          "promptChars": 32654,
+          "finishReason": "stop",
+          "completionTokens": 118,
+          "promptTokens": 9786,
+          "costUsd": 0.00075544,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 28,
+          "status": 200,
+          "elapsedMs": 1745,
+          "streamed": true,
+          "promptChars": 32761,
+          "finishReason": "stop",
+          "completionTokens": 72,
+          "promptTokens": 9822,
+          "costUsd": 0.00065043,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 29,
+      "label": "bulk-29",
+      "sentence": "Which of my foods are highest in protein per 100 grams?",
+      "elapsedMs": 8024,
+      "error": null,
+      "reply": "I can't tell you which of your foods are highest in protein per 100 grams. I can only search for specific foods.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 6599,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 29,
+          "status": 200,
+          "elapsedMs": 2087,
+          "streamed": true,
+          "promptChars": 32078,
+          "finishReason": "stop",
+          "completionTokens": 116,
+          "promptTokens": 9593,
+          "costUsd": 0.00094472,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 29,
+          "status": 200,
+          "elapsedMs": 2013,
+          "streamed": true,
+          "promptChars": 32225,
+          "finishReason": "stop",
+          "completionTokens": 111,
+          "promptTokens": 9634,
+          "costUsd": 0.00094371,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 29,
+          "status": 200,
+          "elapsedMs": 1613,
+          "streamed": true,
+          "promptChars": 32390,
+          "finishReason": "stop",
+          "completionTokens": 97,
+          "promptTokens": 9690,
+          "costUsd": 0.00092416,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 30,
+      "label": "bulk-30",
+      "sentence": "Make me a menu for a small birthday dinner that fits my plan.",
+      "elapsedMs": 4853,
+      "error": null,
+      "reply": "I can help you plan a birthday dinner. What kind of cuisine or dish are you thinking of?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 3693,
+        "ground": 3
+      },
+      "calls": [
+        {
+          "turn": 30,
+          "status": 200,
+          "elapsedMs": 1419,
+          "streamed": true,
+          "promptChars": 32084,
+          "finishReason": "stop",
+          "completionTokens": 30,
+          "promptTokens": 9592,
+          "costUsd": 0.00072969,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 30,
+          "status": 200,
+          "elapsedMs": 1812,
+          "streamed": true,
+          "promptChars": 32278,
+          "finishReason": "stop",
+          "completionTokens": 113,
+          "promptTokens": 9643,
+          "costUsd": 0.00095114,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 31,
+      "label": "bulk-31",
+      "sentence": "What can I drink besides water that still fits my plan?",
+      "elapsedMs": 8985,
+      "error": null,
+      "reply": "I can suggest some drinks, but I need to know what kind of drink you're looking for. Are you thinking of a hot drink, a cold drink, or something else?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 7741,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 31,
+          "status": 200,
+          "elapsedMs": 1868,
+          "streamed": true,
+          "promptChars": 32078,
+          "finishReason": "stop",
+          "completionTokens": 134,
+          "promptTokens": 9590,
+          "costUsd": 0.00098909,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 31,
+          "status": 200,
+          "elapsedMs": 1850,
+          "streamed": true,
+          "promptChars": 32558,
+          "finishReason": "stop",
+          "completionTokens": 49,
+          "promptTokens": 9749,
+          "costUsd": 0.0030472,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 31,
+          "status": 200,
+          "elapsedMs": 1167,
+          "streamed": true,
+          "promptChars": 32708,
+          "finishReason": "stop",
+          "completionTokens": 65,
+          "promptTokens": 9790,
+          "costUsd": 0.00062414,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 31,
+          "status": 200,
+          "elapsedMs": 1932,
+          "streamed": true,
+          "promptChars": 32893,
+          "finishReason": "stop",
+          "completionTokens": 126,
+          "promptTokens": 9836,
+          "costUsd": 0.00078909,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 32,
+      "label": "bulk-32",
+      "sentence": "Suggest a post-workout meal and explain the timing.",
+      "elapsedMs": 10229,
+      "error": null,
+      "reply": "I can help with a post-workout meal. What kind of meal are you looking for?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 7368,
+        "ground": 42
+      },
+      "calls": [
+        {
+          "turn": 32,
+          "status": 200,
+          "elapsedMs": 2019,
+          "streamed": true,
+          "promptChars": 32074,
+          "finishReason": "stop",
+          "completionTokens": 158,
+          "promptTokens": 9589,
+          "costUsd": 0.00104879,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 32,
+          "status": 200,
+          "elapsedMs": 1982,
+          "streamed": true,
+          "promptChars": 32369,
+          "finishReason": "stop",
+          "completionTokens": 173,
+          "promptTokens": 9672,
+          "costUsd": 0.00110903,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 32,
+          "status": 200,
+          "elapsedMs": 2257,
+          "streamed": true,
+          "promptChars": 32473,
+          "finishReason": "stop",
+          "completionTokens": 78,
+          "promptTokens": 9708,
+          "costUsd": 0.0031074,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 33,
+      "label": "bulk-33",
+      "sentence": "What is a sensible way to track my progress other than the scale?",
+      "elapsedMs": 3737,
+      "error": null,
+      "reply": "Tracking progress can involve several methods beyond the scale. You could consider taking body measurements, progress photos, or assessing your fitness performance, such as how much weight you can lift or how long you can run. How do you feel about these options?",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 2225,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 33,
+          "status": 200,
+          "elapsedMs": 1831,
+          "streamed": true,
+          "promptChars": 32088,
+          "finishReason": "stop",
+          "completionTokens": 124,
+          "promptTokens": 9592,
+          "costUsd": 0.00071764,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 34,
+      "label": "bulk-34",
+      "sentence": "Give me a quick, simple breakfast idea using eggs.",
+      "elapsedMs": 7424,
+      "error": null,
+      "reply": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 3942,
+        "ground": 136
+      },
+      "calls": [
+        {
+          "turn": 34,
+          "status": 200,
+          "elapsedMs": 1544,
+          "streamed": true,
+          "promptChars": 32073,
+          "finishReason": "stop",
+          "completionTokens": 87,
+          "promptTokens": 9589,
+          "costUsd": 0.00062424,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 34,
+          "status": 200,
+          "elapsedMs": 1856,
+          "streamed": true,
+          "promptChars": 32268,
+          "finishReason": "stop",
+          "completionTokens": 67,
+          "promptTokens": 9644,
+          "costUsd": 0.0030607,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)"
+      ]
+    }
+  ],
+  "aiCalls": [
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9597,
+      "output_tokens": 185,
+      "latency_ms": 2070,
+      "cost_estimate": 0.00087137,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9789,
+      "output_tokens": 97,
+      "latency_ms": 2190,
+      "cost_estimate": 0.0031792,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9825,
+      "output_tokens": 100,
+      "latency_ms": 1823,
+      "cost_estimate": 0.00072106,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 437,
+      "output_tokens": 23,
+      "latency_ms": 465,
+      "cost_estimate": 0.000018354000000000004,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9595,
+      "output_tokens": 83,
+      "latency_ms": 1808,
+      "cost_estimate": 0.00086282,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 430,
+      "output_tokens": 23,
+      "latency_ms": 299,
+      "cost_estimate": 0.000018060000000000003,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9593,
+      "output_tokens": 35,
+      "latency_ms": 1640,
+      "cost_estimate": 0.00074222,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9598,
+      "output_tokens": 166,
+      "latency_ms": 2116,
+      "cost_estimate": 0.00107122,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9634,
+      "output_tokens": 146,
+      "latency_ms": 2036,
+      "cost_estimate": 0.00078389,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9676,
+      "output_tokens": 54,
+      "latency_ms": 1748,
+      "cost_estimate": 0.00081273,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 421,
+      "output_tokens": 23,
+      "latency_ms": 1458,
+      "cost_estimate": 0.000017682,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9597,
+      "output_tokens": 80,
+      "latency_ms": 1737,
+      "cost_estimate": 0.00085592,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9640,
+      "output_tokens": 33,
+      "latency_ms": 2006,
+      "cost_estimate": 0.0029745,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9596,
+      "output_tokens": 93,
+      "latency_ms": 2082,
+      "cost_estimate": 0.00088812,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9632,
+      "output_tokens": 62,
+      "latency_ms": 1701,
+      "cost_estimate": 0.00057356,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 421,
+      "output_tokens": 23,
+      "latency_ms": 290,
+      "cost_estimate": 0.000017682,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9594,
+      "output_tokens": 73,
+      "latency_ms": 2143,
+      "cost_estimate": 0.00083752,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9595,
+      "output_tokens": 144,
+      "latency_ms": 2571,
+      "cost_estimate": 0.00076827,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 459,
+      "output_tokens": 23,
+      "latency_ms": 363,
+      "cost_estimate": 0.000019278,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9595,
+      "output_tokens": 103,
+      "latency_ms": 2571,
+      "cost_estimate": 0.003136,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 450,
+      "output_tokens": 23,
+      "latency_ms": 659,
+      "cost_estimate": 0.000018900000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9597,
+      "output_tokens": 114,
+      "latency_ms": 2655,
+      "cost_estimate": 0.0031641,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9717,
+      "output_tokens": 82,
+      "latency_ms": 2077,
+      "cost_estimate": 0.00064663,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 421,
+      "output_tokens": 23,
+      "latency_ms": 314,
+      "cost_estimate": 0.000017682,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9594,
+      "output_tokens": 170,
+      "latency_ms": 2273,
+      "cost_estimate": 0.00108002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9798,
+      "output_tokens": 64,
+      "latency_ms": 1796,
+      "cost_estimate": 0.0030994,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9839,
+      "output_tokens": 62,
+      "latency_ms": 1691,
+      "cost_estimate": 0.00087758,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9885,
+      "output_tokens": 116,
+      "latency_ms": 1936,
+      "cost_estimate": 0.00077771,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9931,
+      "output_tokens": 76,
+      "latency_ms": 1670,
+      "cost_estimate": 0.00069016,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9977,
+      "output_tokens": 62,
+      "latency_ms": 1758,
+      "cost_estimate": 0.00066788,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9591,
+      "output_tokens": 159,
+      "latency_ms": 2123,
+      "cost_estimate": 0.00105189,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9690,
+      "output_tokens": 111,
+      "latency_ms": 1857,
+      "cost_estimate": 0.00095916,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9726,
+      "output_tokens": 48,
+      "latency_ms": 2114,
+      "cost_estimate": 0.0030378,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 429,
+      "output_tokens": 23,
+      "latency_ms": 289,
+      "cost_estimate": 0.000018018,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9595,
+      "output_tokens": 108,
+      "latency_ms": 1977,
+      "cost_estimate": 0.00092532,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 459,
+      "output_tokens": 23,
+      "latency_ms": 363,
+      "cost_estimate": 0.000019278,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9594,
+      "output_tokens": 163,
+      "latency_ms": 2173,
+      "cost_estimate": 0.00106252,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9677,
+      "output_tokens": 81,
+      "latency_ms": 1887,
+      "cost_estimate": 0.00063321,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9718,
+      "output_tokens": 217,
+      "latency_ms": 2356,
+      "cost_estimate": 0.00098443,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9989,
+      "output_tokens": 150,
+      "latency_ms": 2254,
+      "cost_estimate": 0.00089121,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 447,
+      "output_tokens": 23,
+      "latency_ms": 393,
+      "cost_estimate": 0.000018774,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9596,
+      "output_tokens": 272,
+      "latency_ms": 2678,
+      "cost_estimate": 0.00133562,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9788,
+      "output_tokens": 87,
+      "latency_ms": 1767,
+      "cost_estimate": 0.00067854,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9824,
+      "output_tokens": 98,
+      "latency_ms": 1804,
+      "cost_estimate": 0.00096362,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 454,
+      "output_tokens": 23,
+      "latency_ms": 341,
+      "cost_estimate": 0.000019068,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9597,
+      "output_tokens": 111,
+      "latency_ms": 2115,
+      "cost_estimate": 0.00068637,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9793,
+      "output_tokens": 70,
+      "latency_ms": 2342,
+      "cost_estimate": 0.00063754,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 430,
+      "output_tokens": 23,
+      "latency_ms": 351,
+      "cost_estimate": 0.000018060000000000003,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9596,
+      "output_tokens": 192,
+      "latency_ms": 2121,
+      "cost_estimate": 0.00088857,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 10541,
+      "output_tokens": 155,
+      "latency_ms": 2589,
+      "cost_estimate": 0.00105581,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 472,
+      "output_tokens": 23,
+      "latency_ms": 394,
+      "cost_estimate": 0.000019824000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9595,
+      "output_tokens": 132,
+      "latency_ms": 2020,
+      "cost_estimate": 0.00073827,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9636,
+      "output_tokens": 100,
+      "latency_ms": 2023,
+      "cost_estimate": 0.00091681,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9672,
+      "output_tokens": 71,
+      "latency_ms": 1798,
+      "cost_estimate": 0.00085403,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 445,
+      "output_tokens": 23,
+      "latency_ms": 376,
+      "cost_estimate": 0.000018690000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9594,
+      "output_tokens": 58,
+      "latency_ms": 2348,
+      "cost_estimate": 0.00104707,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 425,
+      "output_tokens": 23,
+      "latency_ms": 292,
+      "cost_estimate": 0.00001785,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9589,
+      "output_tokens": 118,
+      "latency_ms": 1452,
+      "cost_estimate": 0.00094879,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9710,
+      "output_tokens": 161,
+      "latency_ms": 1673,
+      "cost_estimate": 0.00108962,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 436,
+      "output_tokens": 23,
+      "latency_ms": 304,
+      "cost_estimate": 0.000018312,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9599,
+      "output_tokens": 95,
+      "latency_ms": 1846,
+      "cost_estimate": 0.00064697,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 437,
+      "output_tokens": 23,
+      "latency_ms": 253,
+      "cost_estimate": 0.000018354000000000004,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9593,
+      "output_tokens": 68,
+      "latency_ms": 1750,
+      "cost_estimate": 0.00082472,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9591,
+      "output_tokens": 211,
+      "latency_ms": 2268,
+      "cost_estimate": 0.00093484,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9760,
+      "output_tokens": 100,
+      "latency_ms": 2430,
+      "cost_estimate": 0.003178,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9796,
+      "output_tokens": 69,
+      "latency_ms": 2352,
+      "cost_estimate": 0.0031113,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 430,
+      "output_tokens": 23,
+      "latency_ms": 307,
+      "cost_estimate": 0.000018060000000000003,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9592,
+      "output_tokens": 110,
+      "latency_ms": 1856,
+      "cost_estimate": 0.00092969,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9633,
+      "output_tokens": 93,
+      "latency_ms": 1732,
+      "cost_estimate": 0.00065109,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9676,
+      "output_tokens": 107,
+      "latency_ms": 1969,
+      "cost_estimate": 0.00094523,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9722,
+      "output_tokens": 104,
+      "latency_ms": 2101,
+      "cost_estimate": 0.00095045,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 423,
+      "output_tokens": 23,
+      "latency_ms": 372,
+      "cost_estimate": 0.000017766000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9595,
+      "output_tokens": 126,
+      "latency_ms": 1798,
+      "cost_estimate": 0.00072327,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9631,
+      "output_tokens": 129,
+      "latency_ms": 1652,
+      "cost_estimate": 0.00074076,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 472,
+      "output_tokens": 23,
+      "latency_ms": 780,
+      "cost_estimate": 0.000019824000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9591,
+      "output_tokens": 95,
+      "latency_ms": 1987,
+      "cost_estimate": 0.00089189,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 445,
+      "output_tokens": 23,
+      "latency_ms": 242,
+      "cost_estimate": 0.000018690000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9592,
+      "output_tokens": 91,
+      "latency_ms": 2081,
+      "cost_estimate": 0.00088219,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9633,
+      "output_tokens": 70,
+      "latency_ms": 2016,
+      "cost_estimate": 0.0030649,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9674,
+      "output_tokens": 91,
+      "latency_ms": 1805,
+      "cost_estimate": 0.00065731,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9720,
+      "output_tokens": 165,
+      "latency_ms": 2077,
+      "cost_estimate": 0.00085503,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 443,
+      "output_tokens": 23,
+      "latency_ms": 379,
+      "cost_estimate": 0.000018606,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9592,
+      "output_tokens": 287,
+      "latency_ms": 2831,
+      "cost_estimate": 0.00137219,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9786,
+      "output_tokens": 118,
+      "latency_ms": 1599,
+      "cost_estimate": 0.00075544,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9822,
+      "output_tokens": 72,
+      "latency_ms": 1884,
+      "cost_estimate": 0.00065043,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 427,
+      "output_tokens": 23,
+      "latency_ms": 309,
+      "cost_estimate": 0.000017934,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9593,
+      "output_tokens": 116,
+      "latency_ms": 2215,
+      "cost_estimate": 0.00094472,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9634,
+      "output_tokens": 111,
+      "latency_ms": 2274,
+      "cost_estimate": 0.00094371,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9690,
+      "output_tokens": 97,
+      "latency_ms": 1782,
+      "cost_estimate": 0.00092416,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 441,
+      "output_tokens": 23,
+      "latency_ms": 487,
+      "cost_estimate": 0.000018522000000000003,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9592,
+      "output_tokens": 30,
+      "latency_ms": 1543,
+      "cost_estimate": 0.00072969,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9643,
+      "output_tokens": 113,
+      "latency_ms": 1945,
+      "cost_estimate": 0.00095114,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 432,
+      "output_tokens": 23,
+      "latency_ms": 367,
+      "cost_estimate": 0.000018144,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9590,
+      "output_tokens": 134,
+      "latency_ms": 1999,
+      "cost_estimate": 0.00098909,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9749,
+      "output_tokens": 49,
+      "latency_ms": 1988,
+      "cost_estimate": 0.0030472,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9790,
+      "output_tokens": 65,
+      "latency_ms": 1302,
+      "cost_estimate": 0.00062414,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9836,
+      "output_tokens": 126,
+      "latency_ms": 2065,
+      "cost_estimate": 0.00078909,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 444,
+      "output_tokens": 23,
+      "latency_ms": 374,
+      "cost_estimate": 0.000018648,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9589,
+      "output_tokens": 158,
+      "latency_ms": 2154,
+      "cost_estimate": 0.00104879,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9672,
+      "output_tokens": 173,
+      "latency_ms": 2120,
+      "cost_estimate": 0.00110903,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9708,
+      "output_tokens": 78,
+      "latency_ms": 2410,
+      "cost_estimate": 0.0031074,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 433,
+      "output_tokens": 23,
+      "latency_ms": 526,
+      "cost_estimate": 0.000018186,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9592,
+      "output_tokens": 124,
+      "latency_ms": 2048,
+      "cost_estimate": 0.00071764,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 457,
+      "output_tokens": 23,
+      "latency_ms": 351,
+      "cost_estimate": 0.000019194000000000003,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9589,
+      "output_tokens": 87,
+      "latency_ms": 1705,
+      "cost_estimate": 0.00062424,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9644,
+      "output_tokens": 67,
+      "latency_ms": 2017,
+      "cost_estimate": 0.0030607,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 431,
+      "output_tokens": 23,
+      "latency_ms": 512,
+      "cost_estimate": 0.000018102,
+      "error": null
+    }
+  ]
+}

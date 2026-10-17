@@ -1,0 +1,170 @@
+{
+  "generatedAt": "2026-10-17T08:38:49.790Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 34,
+  "case": {
+    "id": "jev-role-advice-unconfirmed",
+    "category": "jev",
+    "sentence": "add blue pea crunch to my Eats list",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "role_advice_unconfirmed"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3370,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "meal-component-role"
+      ],
+      "membershipBefore": {
+        "status": "avoid",
+        "role": null
+      },
+      "membershipAfter": {
+        "status": "avoid",
+        "role": null
+      }
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_eats]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3370 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t work that one out. Try naming the meal or food you mean.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted role advice requires confirmation",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev role unchanged before confirmation",
+      "passed": true,
+      "detail": "{\"before\":{\"status\":\"avoid\",\"role\":null},\"after\":{\"status\":\"avoid\",\"role\":null}}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "c9f0c9a9-eda7-4d27-8e96-c4ee6c412bf5",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 2,
+      "model": 2175,
+      "ground": 588
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "68f64097-b321-43c6-a09a-d8a0e70a7f9c",
+        "role": "user",
+        "content": "add blue pea crunch to my Eats list",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "2130bd5f-1b9f-4c4b-b2ff-b084f1feba55",
+        "role": "assistant",
+        "content": "I couldn’t work that one out. Try naming the meal or food you mean.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}
