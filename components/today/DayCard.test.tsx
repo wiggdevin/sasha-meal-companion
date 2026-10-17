@@ -119,7 +119,7 @@ describe("DayCard · one card", () => {
     fireEvent.click(within(tray).getByRole("button", { name: "Done" }));
   });
 
-  it("Phase 19 R2: joins the widget and opens on it once its tone turns to nudge (D3)", async () => {
+  it("Phase 19 R2: joins the widget and selects it, closed, once its tone turns to nudge (D3, W116)", async () => {
     const onOpenSlot = vi.fn();
     // Mounts hidden first, like the real gate (useRebalancePanel starts at show: false), then turns
     // on: the sync hook only jumps to "rebalance" on that edge, never on an already-true first render.
@@ -141,10 +141,13 @@ describe("DayCard · one card", () => {
           planned: 3, onMarkEaten: () => {}, week, onSelectDate: () => {}, tips: boardTips(), explainers: [DAY_CARD_EXPLAINER],
         }} />,
     );
-    // The nudge expands the widget by itself (D3) — no extra tap to open it first. The pager dot
-    // carries the same accessible name once expanded, so the toggle is found by its own attribute.
-    await waitFor(() => expect(document.querySelector("[data-widget-toggle]")?.getAttribute("aria-expanded"))
-      .toBe("true"));
+    // The nudge selects "rebalance" but leaves the widget closed (W116); one tap opens it onto the
+    // panel. The pager dot carries the same accessible name, so the toggle is found by its attribute.
+    const toggle = () => document.querySelector("[data-widget-toggle]");
+    await waitFor(() => expect(toggle()?.textContent).toContain("Rebalance my day"));
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle()!);
+    await waitFor(() => expect(toggle()?.getAttribute("aria-expanded")).toBe("true"));
     fireEvent.click(screen.getByRole("button", { name: "View meal" }));
     expect(onOpenSlot).toHaveBeenCalledWith("meal-2");
   });
