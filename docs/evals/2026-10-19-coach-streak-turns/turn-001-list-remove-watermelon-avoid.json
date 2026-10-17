@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-10-17T11:34:44.421Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 1,
+  "case": {
+    "id": "list-remove-watermelon-avoid",
+    "category": "list_edit",
+    "sentence": "remove watermelon from avoid",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "remove_from_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3502,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.11,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [remove_from_avoid]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3502 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.11"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check watermelon against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "b43f2d1e-4cd1-4dfe-bcd7-4af6d7baa44c",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 3,
+      "model": 2227,
+      "ground": 10
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "c6b6f4bb-0d0d-4f4d-b86f-cafd3f8c5124",
+        "role": "user",
+        "content": "remove watermelon from avoid",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "ae54e5ea-f406-4172-a047-3cd2c17883f8",
+        "role": "assistant",
+        "content": "I couldn’t check watermelon against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

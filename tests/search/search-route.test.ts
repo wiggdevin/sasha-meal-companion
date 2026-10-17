@@ -56,6 +56,9 @@ describe("GET /api/foods/search", () => {
   it.each([
     ["an empty q", "?q="],
     ["a missing q", ""],
+    ["a whitespace-only q", "?q=%20%20%20"],
+    ["a whitespace-only brand", "?q=rice&brand=%20%09"],
+    ["a non-numeric limit", "?q=rice&limit=abc"],
     ["a q over 120 chars", `?q=${"a".repeat(121)}`],
     ["limit 0", "?q=rice&limit=0"],
     ["limit 26", "?q=rice&limit=26"],

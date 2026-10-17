@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-10-17T11:27:15.047Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 14,
+  "case": {
+    "id": "list-restore-salmon-eats",
+    "category": "list_edit",
+    "sentence": "put salmon back on eats",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4085,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.13,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_eats]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4085 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.13"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check Salmon, cooked against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "cabd2225-eaf2-485f-a323-25e40f12976e",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 5,
+      "model": 2952,
+      "ground": 386
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "965b8ce5-462a-4113-9343-f72981c2aab5",
+        "role": "user",
+        "content": "put salmon back on eats",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "1c5878f4-e6e1-4026-b81d-97579fca7b92",
+        "role": "assistant",
+        "content": "I couldn’t check Salmon, cooked against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

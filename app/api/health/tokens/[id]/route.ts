@@ -2,6 +2,7 @@
 import { adminClient } from "@/lib/server/admin";
 import { HttpError, requireUser } from "@/lib/server/auth";
 import { jsonError } from "@/lib/server/http";
+import { parseUuid } from "@/lib/server/validate";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 
 export const runtime = "nodejs";
@@ -12,7 +13,7 @@ export async function DELETE(req: Request,
   try {
     const { userId } = await requireUser(req);
     await enforceRateLimit(`health:tokens:${userId}`, 20, 3600);
-    const { id } = await ctx.params;
+    const id = parseUuid((await ctx.params).id, "source id");
 
     const { data, error } = await adminClient().from("health_sources")
       .update({ revoked_at: new Date().toISOString() })

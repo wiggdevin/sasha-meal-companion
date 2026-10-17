@@ -11,3 +11,18 @@ Environment: local app `http://localhost:3101`, synthetic account, EGO task spac
 | Recipe off-plan rejection | Not exercised within the bounded pass. | Remains unverified interactively. |
 
 Synthetic changes retained: Salmon preset on Eats; meal QA p3 chicken rice on September 15. No cleanup or deletion of other synthetic records. p3 remains open; task space was not finished.
+
+## Re-baseline 2026-10-17 (W121)
+
+A cloud thread has no local Supabase stack or authenticated browser, so the 69 inventory rows that read
+"Pending authenticated browser verification" are now marked **Moved**, not pass. Nothing was claimed as seen.
+Still open for a Mac session with the local stack, each to be logged here as pass, fail or moved with evidence:
+
+- the c11 walk-through;
+- the 390 px clean-storage sweep (empty account, empty storage);
+- the 69 moved inventory rows in `inventory.md`.
+
+Closed in code the same day: Settings no longer asks `/api/health/daily` when health is off (a cached
+"disabled" answer, or one shared probe, skips the read), and the sex picker offers "Prefer not to say"
+(`unspecified`), shown on the profile card. Tests: `tests/settings/health-off-probe.test.ts`,
+`tests/settings/tap-paths.test.tsx`, `tests/body/profile-fields.test.tsx`.

@@ -1,0 +1,201 @@
+{
+  "generatedAt": "2026-10-17T11:30:43.375Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 28,
+  "case": {
+    "id": "list-add-tofu-eats",
+    "category": "list_edit",
+    "sentence": "add tofu to the foods I eat",
+    "expected_path": "either",
+    "note": "argument-confidence rule: paraphrased list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4234,
+    "actions": [
+      "add_to_eats"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.5,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_eats]; got [add_to_eats]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4234 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.5"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Tofu is on your Favored list.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "0b99fb41-873e-4fef-9895-2e8899a9e30e",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "add_to_eats",
+        "name": "Tofu, firm",
+        "foodRefId": "2c6af1c0-27e2-4657-bf0c-84b925d5d799",
+        "catalogFoodRevisionId": 10,
+        "kcalPer100g": 144,
+        "proteinPer100g": 17.3,
+        "carbsPer100g": 2.8,
+        "fatPer100g": 8.7,
+        "verdict": "unverified",
+        "marks": [
+          {
+            "facet": "gluten",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "dairy",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "apple",
+            "source": "floor",
+            "outcome": "unknown"
+          }
+        ],
+        "actionId": "72ed92a7-abfe-45f2-b7e3-24e34c00e56f",
+        "flagged": [],
+        "alsoFoodRefIds": [],
+        "roleAdvice": {
+          "foodRefId": "2c6af1c0-27e2-4657-bf0c-84b925d5d799",
+          "suggestedRole": "protein_anchor",
+          "proposedRole": "protein",
+          "currentRole": null,
+          "reason": "The food is chiefly the meal's protein anchor.",
+          "confidence": 0.99,
+          "requiresConfirmation": true
+        }
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 9,
+      "model": 2419,
+      "ground": 721
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "3c479d5c-c29f-420c-bda0-730875e4ddc8",
+        "role": "user",
+        "content": "add tofu to the foods I eat",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "de0423a7-a1ca-4bb6-96d8-c6e213bcd62c",
+        "role": "assistant",
+        "content": "Tofu is on your Favored list.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "name": "Tofu, firm",
+            "foodRefId": "2c6af1c0-27e2-4657-bf0c-84b925d5d799",
+            "catalogFoodRevisionId": 10,
+            "kcalPer100g": 144,
+            "proteinPer100g": 17.3,
+            "carbsPer100g": 2.8,
+            "fatPer100g": 8.7,
+            "verdict": "unverified",
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "actionId": "72ed92a7-abfe-45f2-b7e3-24e34c00e56f",
+            "flagged": [],
+            "kind": "add_to_eats",
+            "alsoFoodRefIds": [],
+            "roleAdvice": {
+              "foodRefId": "2c6af1c0-27e2-4657-bf0c-84b925d5d799",
+              "suggestedRole": "protein_anchor",
+              "proposedRole": "protein",
+              "currentRole": null,
+              "reason": "The food is chiefly the meal's protein anchor.",
+              "confidence": 0.99,
+              "requiresConfirmation": true
+            }
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

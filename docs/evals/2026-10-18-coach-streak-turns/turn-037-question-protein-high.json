@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-10-17T11:32:34.012Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 37,
+  "case": {
+    "id": "question-protein-high",
+    "category": "no_action",
+    "sentence": "why is my protein so high?",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3331,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.08,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3331 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.08"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Your protein target for today is 130g. You have eaten 18g so far and have 112g remaining.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "f3fc1d3f-b699-45d7-8563-1361b874b911",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 0,
+      "model": 2334,
+      "ground": 2
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "31acadf3-d9d6-4a91-b5e6-e26b347ecb32",
+        "role": "user",
+        "content": "why is my protein so high?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "36a5433c-898e-43ac-8b78-3cc0ca0855d9",
+        "role": "assistant",
+        "content": "Your protein target for today is 130g. You have eaten 18g so far and have 112g remaining.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

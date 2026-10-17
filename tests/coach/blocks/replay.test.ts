@@ -44,10 +44,10 @@ describe("toMessageView replay", () => {
 
 function routeClient() {
   const data: Record<string, Record<string, unknown>[]> = {
-    coach_threads: [{ id: "thread-1", user_id: "u1", title: "Chat", kind: "chat",
+    coach_threads: [{ id: "3f1b1a2c-0000-4000-8000-000000000001", user_id: "u1", title: "Chat", kind: "chat",
       last_message_at: "2026-09-19T16:00:00.000Z", deleted_at: null }],
     coach_messages: [{
-      id: "m1", thread_id: "thread-1", role: "assistant", content: "Readable", seq: 1,
+      id: "m1", thread_id: "3f1b1a2c-0000-4000-8000-000000000001", role: "assistant", content: "Readable", seq: 1,
       created_at: "2026-09-19T16:00:00.000Z",
       tool_calls: { blocks: [{ kind: "future", v: 9, id: "nope" }], composed: legacyMeal },
     }],
@@ -86,13 +86,26 @@ describe("GET /api/coach/threads/[id] replay", () => {
   });
 
   it("returns CoachMessageView rows, omits unknown blocks, and adapts legacy composed cards", async () => {
-    const response = await GET(new Request("https://app.test/api/coach/threads/thread-1"),
-      { params: Promise.resolve({ id: "thread-1" }) });
+    const response = await GET(new Request("https://app.test/api/coach/threads/3f1b1a2c-0000-4000-8000-000000000001"),
+      { params: Promise.resolve({ id: "3f1b1a2c-0000-4000-8000-000000000001" }) });
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.messages).toEqual([{
       id: "m1", role: "assistant", content: "Readable", seq: 1,
       createdAt: "2026-09-19T16:00:00.000Z", composed: [legacyMeal],
     }]);
+  });
+
+  it.each(["abc", "2.5", "0", "51", "-1"])("400s a bad ?limit=%s", async (limit) => {
+    const id = "3f1b1a2c-0000-4000-8000-000000000001";
+    const response = await GET(new Request(`https://app.test/api/coach/threads/${id}?limit=${limit}`),
+      { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(400);
+  });
+
+  it("400s a malformed thread id", async () => {
+    const response = await GET(new Request("https://app.test/api/coach/threads/thread-1"),
+      { params: Promise.resolve({ id: "thread-1" }) });
+    expect(response.status).toBe(400);
   });
 });

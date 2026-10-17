@@ -104,7 +104,8 @@ export function BodyProfileFieldsView({ drafts, draftErrors, error, onEdit, onCo
           <GlassSelect aria-label="Sex used in formula" aria-describedby="sex-formula-help"
             className={INPUT} value={drafts.sex} onChange={onSex}
             options={[{ value: "", label: "Not set" }, { value: "female", label: "Female" },
-              { value: "male", label: "Male" }]} />
+              { value: "male", label: "Male" },
+              { value: "unspecified", label: "Prefer not to say" }]} />
         </label>
         <p id="sex-formula-help" className={`m-0 ${LABEL}`}>
           This is a physiological formula input, not your gender identity.

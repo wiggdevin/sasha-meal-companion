@@ -27,7 +27,8 @@ export function profileDetails(settings: Settings, year = new Date().getFullYear
     { label: "Height", value: formatHeight(settings.heightCm ?? null, settings.heightUnit ?? "ft_in") },
     { label: "Weight", value: weight },
     { label: "Age", value: settings.birthYear ? String(year - settings.birthYear) : "—" },
-    { label: "Sex", value: settings.sex === "female" ? "Female" : settings.sex === "male" ? "Male" : "—" },
+    { label: "Sex", value: settings.sex === "female" ? "Female" : settings.sex === "male" ? "Male"
+      : settings.sex === "unspecified" ? "Prefer not to say" : "—" },
     { label: "Body fat", value: settings.bodyFatPct == null ? "—" : `${settings.bodyFatPct}%` },
   ];
 }

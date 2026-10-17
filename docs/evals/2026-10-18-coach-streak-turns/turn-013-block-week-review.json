@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-10-17T11:27:01.036Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 13,
+  "case": {
+    "id": "block-week-review",
+    "category": "block",
+    "sentence": "how did this week go?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "kcal_week"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 13123,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 13123 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can show you a chart of your calories over the week. Would you like to see that?\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [chart]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected chart subtype",
+      "passed": false,
+      "detail": "expected kcal_week; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "d8a73d9f-e01e-4de0-aa1b-a16c7e181c09",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 7,
+      "model": 11943,
+      "ground": 9
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "6045f8e1-98c0-45a1-8b10-c0ff606c3093",
+        "role": "user",
+        "content": "how did this week go?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "b90439b8-95e3-4063-ab09-27cad9780f64",
+        "role": "assistant",
+        "content": "I can show you a chart of your calories over the week. Would you like to see that?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

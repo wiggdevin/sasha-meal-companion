@@ -11,6 +11,7 @@ import { flattenMeals, type MealRow } from "@/lib/server/export-meals";
 import { csvDocument, toCsv } from "@/lib/export/csv";
 import { HttpError, requireUser } from "@/lib/server/auth";
 import { jsonError } from "@/lib/server/http";
+import { isCalendarDate } from "@/lib/server/validate";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
 import { FAVORITE_COLUMNS, favoriteRowValues, MEAL_COLUMNS, mealRowValues, PROGRESS_COLUMNS,
@@ -27,7 +28,6 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 1000;
 const MAX_LIMIT = 5000;
-const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const STREAMED = new Set(["meals", "progress", "recipes", "favorites", "water", "body-profile",
   "body-data"]);
 type StreamKind = "meals" | "progress" | "recipes" | "favorites" | "water" | "body-profile"
@@ -61,7 +61,7 @@ type Row = Record<string, unknown>;
 function dateParam(url: URL, name: string): string | undefined {
   const raw = url.searchParams.get(name);
   if (raw === null) return undefined;
-  if (!LOCAL_DATE.test(raw)) throw new HttpError(422, "bad_request", `malformed ${name}`);
+  if (!isCalendarDate(raw)) throw new HttpError(422, "bad_request", `malformed ${name}`);
   return raw;
 }
 

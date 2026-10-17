@@ -1,0 +1,224 @@
+{
+  "generatedAt": "2026-10-17T11:40:02.433Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 21,
+  "case": {
+    "id": "jev-low-fodmap-unverified",
+    "category": "jev",
+    "sentence": "make a recipe from mystery broth, rice, and chicken",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "unverified_recipe",
+      "preference": "low_fodmap"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5189,
+    "actions": [],
+    "blocks": [
+      "recipe_results"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "17800218-0567-49c4-83f8-5dab009099ad",
+        "kind": "recipe_results",
+        "recipes": [],
+        "limitations": [
+          "Shared recipe discovery is not available for this account yet."
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "I can't find a recipe with those ingredients right now. Shared recipe discovery is not available for this account yet.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "suggest_options",
+            "result": {
+              "ok": true,
+              "block": "recipe_results",
+              "recipes": [],
+              "limitations": [
+                "Shared recipe discovery is not available for this account yet."
+              ]
+            }
+          }
+        ],
+        "blocks": [
+          {
+            "v": 1,
+            "id": "17800218-0567-49c4-83f8-5dab009099ad",
+            "kind": "recipe_results",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [
+        {
+          "v": 1,
+          "id": "17800218-0567-49c4-83f8-5dab009099ad",
+          "kind": "recipe_results",
+          "recipes": [],
+          "limitations": [
+            "Shared recipe discovery is not available for this account yet."
+          ]
+        }
+      ],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5189 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can't find a recipe with those ingredients right now. Shared recipe discovery is not available for this account yet.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected []; got [recipe_results]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "Jev persisted recipe excludes unverified food",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted Not verified low-FODMAP copy",
+      "passed": false,
+      "detail": "I can't find a recipe with those ingredients right now. Shared recipe discovery is not available for this account yet."
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "29ec3f61-ff39-48fa-8476-f9241f37b557",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 2,
+      "model": 3994,
+      "ground": 10
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "5583a130-5477-4db2-b2ca-c6c939a312b4",
+        "role": "user",
+        "content": "make a recipe from mystery broth, rice, and chicken",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "d3256ee7-d670-4212-8120-e263aecf9905",
+        "role": "assistant",
+        "content": "I can't find a recipe with those ingredients right now. Shared recipe discovery is not available for this account yet.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "recipe_results",
+            "v": 1,
+            "id": "17800218-0567-49c4-83f8-5dab009099ad",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

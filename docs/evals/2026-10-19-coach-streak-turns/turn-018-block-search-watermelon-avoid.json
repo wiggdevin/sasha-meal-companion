@@ -1,0 +1,241 @@
+{
+  "generatedAt": "2026-10-17T11:39:22.231Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 18,
+  "case": {
+    "id": "block-search-watermelon-avoid",
+    "category": "block",
+    "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "avoid"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5372,
+    "actions": [],
+    "blocks": [
+      "food_search",
+      "next_action_chip"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "600365c5-c34b-4cab-ab04-60cf35868769",
+        "kind": "food_search",
+        "query": "watermelon",
+        "intent": "log",
+        "results": [
+          {
+            "name": "Watermelon, raw",
+            "status": "neutral",
+            "blocked": false,
+            "foodRefId": "9893c68e-695c-4bf9-a485-3f8597142ce8",
+            "revisionId": "19",
+            "kcalPer100g": 30
+          },
+          {
+            "name": "Watermelon, raw",
+            "status": "neutral",
+            "blocked": false,
+            "foodRefId": "65b8f14a-935d-4c9d-b496-7a4b74f015b8",
+            "revisionId": "20",
+            "kcalPer100g": 30
+          },
+          {
+            "name": "Tuna, light, canned in water",
+            "status": "eats",
+            "blocked": false,
+            "foodRefId": "924d1568-123f-402e-9700-2d795f99760f",
+            "revisionId": "3",
+            "kcalPer100g": 116
+          }
+        ],
+        "truncated": false
+      },
+      {
+        "v": 1,
+        "id": "01e46c1e-1576-4423-bd7d-ac21a57b6be6",
+        "kind": "next_action_chip",
+        "label": "Check a label",
+        "action": "check_label"
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5372 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I found watermelon in the catalog.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_search]; got [food_search, next_action_chip]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1,1]"
+    },
+    {
+      "name": "expected food-search intent",
+      "passed": false,
+      "detail": "expected avoid; got [\"log\"]"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "379402a4-da8f-4cc0-afac-12d7fcebcbf7",
+    "suggestions": [
+      {
+        "foodRefId": "65b8f14a-935d-4c9d-b496-7a4b74f015b8",
+        "name": "Watermelon, raw",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      },
+      {
+        "foodRefId": "924d1568-123f-402e-9700-2d795f99760f",
+        "name": "Tuna, light, canned in water",
+        "grams": null,
+        "reason": null,
+        "verdict": "unverified"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 1,
+      "model": 3921,
+      "ground": 9
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "7fbead0b-b06b-4bde-9431-5d86eab82d1a",
+        "role": "user",
+        "content": "show me watermelon in the catalog so I can decide whether to avoid it",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "e9d841a9-212b-4df0-b4ba-45893e78ea86",
+        "role": "assistant",
+        "content": "I found watermelon in the catalog.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "food_search",
+            "v": 1,
+            "id": "600365c5-c34b-4cab-ab04-60cf35868769",
+            "query": "watermelon",
+            "intent": "log",
+            "results": [
+              {
+                "foodRefId": "9893c68e-695c-4bf9-a485-3f8597142ce8",
+                "revisionId": "19",
+                "name": "Watermelon, raw",
+                "kcalPer100g": 30,
+                "status": "neutral",
+                "blocked": false
+              },
+              {
+                "foodRefId": "65b8f14a-935d-4c9d-b496-7a4b74f015b8",
+                "revisionId": "20",
+                "name": "Watermelon, raw",
+                "kcalPer100g": 30,
+                "status": "neutral",
+                "blocked": false
+              },
+              {
+                "foodRefId": "924d1568-123f-402e-9700-2d795f99760f",
+                "revisionId": "3",
+                "name": "Tuna, light, canned in water",
+                "kcalPer100g": 116,
+                "status": "eats",
+                "blocked": false
+              }
+            ],
+            "truncated": false
+          },
+          {
+            "kind": "next_action_chip",
+            "v": 1,
+            "id": "01e46c1e-1576-4423-bd7d-ac21a57b6be6",
+            "action": "check_label",
+            "label": "Check a label",
+            "provenance": {
+              "ai": false,
+              "source": "app"
+            }
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

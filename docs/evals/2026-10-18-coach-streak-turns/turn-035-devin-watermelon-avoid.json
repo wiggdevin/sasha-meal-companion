@@ -1,0 +1,166 @@
+{
+  "generatedAt": "2026-10-17T11:32:11.491Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 35,
+  "case": {
+    "id": "devin-watermelon-avoid",
+    "category": "devin",
+    "sentence": "add watermelon to my avoid list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 1320,
+    "actions": [
+      "add_to_avoid"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.05,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_avoid]; got [add_to_avoid]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 2000 ms; got 1320 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.05"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Adding Watermelon, raw to your Avoid list.\""
+    },
+    {
+      "name": "C11 all same-name watermelon refs",
+      "passed": true,
+      "detail": "{\"expected\":[\"9893c68e-695c-4bf9-a485-3f8597142ce8\",\"65b8f14a-935d-4c9d-b496-7a4b74f015b8\"],\"actual\":[\"9893c68e-695c-4bf9-a485-3f8597142ce8\",\"65b8f14a-935d-4c9d-b496-7a4b74f015b8\"]}"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "ce1147db-7d3e-45f8-a86b-8cb9fe622c2b",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "add_to_avoid",
+        "name": "Watermelon, raw",
+        "foodRefId": "9893c68e-695c-4bf9-a485-3f8597142ce8",
+        "catalogFoodRevisionId": 19,
+        "kcalPer100g": 30,
+        "proteinPer100g": 0.6,
+        "carbsPer100g": 7.6,
+        "fatPer100g": 0.2,
+        "verdict": "unverified",
+        "marks": [
+          {
+            "facet": "gluten",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "dairy",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "apple",
+            "source": "floor",
+            "outcome": "unknown"
+          }
+        ],
+        "actionId": "666c62b9-dda1-4a7a-a569-1a7b3e7ecdbc",
+        "flagged": [],
+        "alsoFoodRefIds": [
+          "65b8f14a-935d-4c9d-b496-7a4b74f015b8"
+        ],
+        "roleAdvice": {
+          "foodRefId": "9893c68e-695c-4bf9-a485-3f8597142ce8",
+          "suggestedRole": "mixed_dish",
+          "proposedRole": null,
+          "currentRole": null,
+          "reason": "No role was saved. The food is a mixed dish without one clear component role.",
+          "confidence": 0,
+          "requiresConfirmation": true
+        }
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "intent": "add_to_avoid",
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 392,
+      "model": 0,
+      "ground": 659
+    },
+    "provenance": {
+      "ai": true,
+      "source": "jev",
+      "purpose": "coach-intent"
+    },
+    "messages": [
+      {
+        "id": "9f4a87fc-693d-4a70-9450-f9a6aab3ca6c",
+        "role": "user",
+        "content": "add watermelon to my avoid list",
+        "seq": 1
+      },
+      {
+        "id": "aa6780d6-de5a-4835-9183-25b7d7ed4b8f",
+        "role": "assistant",
+        "content": "Adding Watermelon, raw to your Avoid list.",
+        "seq": 2,
+        "provenance": {
+          "ai": true,
+          "source": "jev",
+          "purpose": "coach-intent"
+        }
+      }
+    ]
+  }
+}

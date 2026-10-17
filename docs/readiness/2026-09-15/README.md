@@ -52,7 +52,7 @@ The app initially returned 402 DEPLOYMENT_DISABLED despite a Ready deployment. V
 | Calories | 1,950-to-2,000 training change retained 115 g protein; full clamp/portion acceptance remains automated or untested |
 | Catalog logging | 125 g catalog serving appeared, changed totals and survived reload; nutrient coverage rendered |
 | Note sync | Saved synthetic note reached local DB revision 2 with 125 g item unchanged; [receipt](note-sync-local.json). Concurrent replay preservation additionally covered by regression |
-| Recipes | Created version 1, favorited, edited to version 2 and reloaded. Previously logged recipe-version immutability was not directly verified in this UI sequence |
+| Recipes | Created version 1, favorited, edited to version 2 and reloaded. Previously logged recipe-version immutability was not directly verified in this UI sequence; W085 (2026-10-17) covers it in `tests/recipes/consumed-history-local-db.test.ts` (logged version untouched by a catalog edit, one history entry for two tabs logging the same slot, same-request race), with the R6 dairy and three-food rejections in `tests/recipes/eligibility.test.ts`. The database cases run in CI's integration job against a local stack, not on cloud threads |
 | Export/sync | Authenticated local meals CSV 200; Sync now reported all sent |
 | Restore drill | Separate disposable database restored 39 migrations and all 84 dumped table counts, 324,341 rows, zero count mismatches. [Details](backup-restore.md) |
 

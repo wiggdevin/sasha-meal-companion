@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-10-17T11:40:44.731Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 24,
+  "case": {
+    "id": "suggest-no-cook-recipes-wish",
+    "category": "suggestion",
+    "sentence": "recipes I can make without cooking",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5730,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.02,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 1-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5730 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.02"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can suggest recipes, but I need to know what kind of recipes you're looking for. What dish or cuisine do you have in mind?\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "36881efd-8182-415a-97db-4d987686eadd",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 4,
+      "model": 4647,
+      "ground": 2
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "679ef7d0-a51f-47f1-969f-14684a7f4a05",
+        "role": "user",
+        "content": "recipes I can make without cooking",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "ce187406-89d2-4ee0-84aa-de68baecfae6",
+        "role": "assistant",
+        "content": "I can suggest recipes, but I need to know what kind of recipes you're looking for. What dish or cuisine do you have in mind?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}
