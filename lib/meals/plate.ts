@@ -470,7 +470,39 @@ export function rankPinnedPlates(input: PlateInput, pinned: readonly Food[]): Pl
   });
   plates.sort(input.focus ? byFocus : byScore);
   return plates.length ? { plates, shortage: null }
-    : { plates: [], shortage: { missing: [], reason: "No coherent plate holds every named food" } };
+    : { plates: [], shortage: pinnedShortage(pinned, pools, anchors, input) };
+}
+
+/**
+ * Why no plate holds every named food: two named foods that clash (tuna with banana) first, else the part the template still needs when
+ * neither the named foods nor the pool can supply it, else the generic line. `missing` is empty for a clash: nothing is absent, two foods just don't go together.
+ */
+function pinnedShortage(pinned: readonly Food[], pools: PartPools, anchors: readonly Food[],
+  input: PlateInput): Shortage {
+  // The template follows the food that would anchor the plate, as `platesFor` does.
+  const lead = pinned.find((food) => partsOf(food).includes("anchor")) ?? pinned[0];
+  const key = templateFor(input.occasion, input.untimed, mealFamily(lead.name)?.usual ?? []);
+  const template = TEMPLATES[key];
+  for (const a of pinned) {
+    if (!partsOf(a).includes("anchor")) continue;
+    for (const b of pinned) {
+      if (a === b) continue;
+      const sides = partsOf(b).filter((part) => part !== "anchor");
+      if (sides.length && sides.every((part) =>
+        template.never.includes(part) || pairScore(a, b, part, key, input.occasion).score < PAIR_FLOOR)) {
+        return { missing: [], reason: `${displayName(a.name)} and ${displayName(b.name)} don't go together on one plate` };
+      }
+    }
+  }
+  const present = new Set<Part>(pinned.flatMap((food) => partsOf(food)));
+  if (anchors.length) present.add("anchor");
+  for (const part of SIDE_PARTS) if ((pools.get(part)?.foods.length ?? 0) > 0) present.add(part);
+  const unmet = unmetRequirements(template, [...present], {
+    anchorCarriesStarch: pinned.some((food) => partsOf(food).includes("anchor") && partsOf(food).includes("starch")),
+  });
+  const missing = [...new Set(unmet.flat())];
+  if (missing.length) return { missing, reason: shortageReason(input.occasion, missing, input.foodWorld) };
+  return { missing: [], reason: "No coherent plate holds every named food" };
 }
 
 /** The best plate per anchor, best first: the distinct choices a person compares. */
