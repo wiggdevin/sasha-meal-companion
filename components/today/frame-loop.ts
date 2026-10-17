@@ -15,12 +15,15 @@ export function runFrames(step: (now: number) => boolean): FrameLoop {
   let running = false;
   let settled = false;
   let stopped = false;
+  /** A wake that landed while `step` was drawing: the loop must not settle on that frame. */
+  let woke = false;
   const hidden = () => typeof document !== "undefined" && document.visibilityState === "hidden";
   const tick = (now: number) => {
-    running = false;
-    if (stopped) return;
-    if (!step(now)) { settled = true; return; }
-    running = true;
+    if (stopped) { running = false; return; }
+    woke = false;
+    // Running stays true through the step, so a wake from inside it cannot start a second chain.
+    const more = step(now);
+    if (!more && !woke) { running = false; settled = true; return; }
     frame = requestAnimationFrame(tick);
   };
   const start = () => {
@@ -36,7 +39,7 @@ export function runFrames(step: (now: number) => boolean): FrameLoop {
   if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
   start();
   return {
-    wake() { settled = false; start(); },
+    wake() { settled = false; woke = true; start(); },
     stop() {
       stopped = true;
       cancelAnimationFrame(frame);

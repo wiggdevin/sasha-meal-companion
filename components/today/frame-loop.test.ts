@@ -66,4 +66,15 @@ describe("runFrames", () => {
     flush();
     expect(step).not.toHaveBeenCalled();
   });
+
+  it("keeps one chain when the step wakes the loop itself, and does not settle on that frame", () => {
+    let loop: FrameLoop | null = null;
+    let calls = 0;
+    const step = vi.fn(() => { calls += 1; if (calls === 1) loop?.wake(); return calls < 1; });
+    loop = runFrames(step);
+    flush();
+    expect(queue).toHaveLength(1);
+    flush();
+    expect(queue).toHaveLength(0);
+  });
 });

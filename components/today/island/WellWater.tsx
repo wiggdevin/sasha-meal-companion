@@ -98,7 +98,7 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      if (width > 0 && height > 0) sim.current.size = { w: width, h: height };
+      if (width > 0 && height > 0) { sim.current.size = { w: width, h: height }; wake.current(); }
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -127,12 +127,14 @@ export default function WellWater({ water, onAddCup, paused = false }: {
       plumEnd: tokenColour(el, "--color-gauge-protein-end", [0.7, 0.65, 0.81]),
     };
     setGlReady(Boolean(gl.current));
+    // A rebuilt context starts blank, and a sleeping loop would leave it so.
+    wake.current();
     const onLost = (event: Event) => { event.preventDefault(); gl.current = null; setGlReady(false); };
     const onRestored = () => setGlAttempt((n) => n + 1);
     el.addEventListener("webglcontextlost", onLost);
     el.addEventListener("webglcontextrestored", onRestored);
     // Resizing a canvas clears it; with no frame loop running (still water) redraw the one frame.
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { fit(); drawStill.current(); });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { fit(); drawStill.current(); wake.current(); });
     observer?.observe(el);
     return () => {
       observer?.disconnect();
@@ -194,7 +196,8 @@ export default function WellWater({ water, onAddCup, paused = false }: {
       s.y += s.v * dt;
       const { w, h } = s.size;
       const baseY = h * (1 - s.y);
-      if ((stir += dt) > STIR_EVERY_S) {
+      // The stir stops once the water has been calm a moment, so the loop can settle.
+      if ((stir += dt) > STIR_EVERY_S && calmFor < 1) {
         stir = 0;
         splash(s.surface, Math.random() * w, w, (Math.random() - 0.5) * 50);
       }

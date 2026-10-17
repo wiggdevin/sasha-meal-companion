@@ -66,6 +66,7 @@ export default function WaterLiquid({ level, tilt, animate }: {
       const { width, height } = entry.contentRect;
       if (width > 0 && height > 0) {
         sim.current.size = { w: width, h: height };
+        wake.current();
         el.setAttribute("viewBox", `0 0 ${width.toFixed(1)} ${height.toFixed(1)}`);
       }
     });
@@ -98,7 +99,7 @@ export default function WaterLiquid({ level, tilt, animate }: {
     let t = 0;
     let lean = 0;
     // Settled: the level has landed, the slosh has died and the lean has caught the phone. The loop
-    // sleeps a moment after that, so the bubbles finish a lap, and wakes on a new level or a tilt.
+    // sleeps a moment after that (the bubbles stop where they are) and wakes on a new level, a tilt or a resize.
     let quiet = 0;
     const draw = (now: number): boolean => {
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
