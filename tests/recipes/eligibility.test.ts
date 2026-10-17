@@ -58,4 +58,33 @@ describe("recipe eligibility", () => {
     });
     expect(result.status).toBe("blocked");
   });
+  // R6 (2026-09-13): a recipe is a meal the user plans, so the account's own rules bind it. The
+  // rules come from the profile and the Avoid list, never from a default (no account inherits
+  // another's gluten, dairy or apple rule).
+  it("blocks a dairy ingredient under a dairy rule and leaves it eligible with no rule (R6)", () => {
+    const candidate = recipe({ ingredients: [ingredient({ seq: 1, name: "milk",
+      allergenEvidence: { dairy: "present" } }), ingredient({ seq: 2, name: "salt" })] });
+    const blocked = recipeEligibility(candidate, { profile: {
+      ...EMPTY_PROFILE, avoid_allergens: ["dairy"] } });
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.reasons).toContainEqual(expect.objectContaining({
+      code: "policy_block", ingredientSeq: 1 }));
+    expect(recipeEligibility(candidate, { profile: EMPTY_PROFILE }))
+      .toEqual({ status: "eligible", reasons: [] });
+  });
+
+  it("reports every off-plan ingredient of a three-food recipe, not only the first (R6)", () => {
+    const candidate = recipe({ ingredients: [
+      ingredient({ seq: 1, name: "milk", allergenEvidence: { dairy: "present" } }),
+      ingredient({ seq: 2, name: "wheat bread", allergenEvidence: { gluten: "present" } }),
+      ingredient({ seq: 3, name: "apple" }),
+    ] });
+    const result = recipeEligibility(candidate, { profile: {
+      ...EMPTY_PROFILE, avoid_allergens: ["dairy", "gluten"] },
+    explicitAvoidFoodRefIds: ["apple"] });
+    expect(result.status).toBe("blocked");
+    const seqs = new Set(result.reasons.map((entry) => entry.ingredientSeq));
+    expect([...seqs].sort()).toEqual([1, 2, 3]);
+    expect(candidate.ingredients).toHaveLength(3);
+  });
 });
