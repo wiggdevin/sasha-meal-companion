@@ -1,3 +1,4 @@
+import { jevHealthGateOn } from "@/lib/ai/jev-health";
 import { jevConfigured } from "@/lib/ai/provider-env";
 import { claimsAction, type CoachAction } from "@/lib/coach/actions";
 import { actionLine } from "@/lib/coach/history";
@@ -26,7 +27,9 @@ export async function verifyReply(
   input: VerifyReplyInput,
   context: { userId?: string },
 ): Promise<{ flagged: boolean; p: number | null }> {
-  if (!jevConfigured()) {
+  // OD12: a reply is always health-bearing, so with the health gate on it never reaches Jev;
+  // skipping here keeps the adapter's refusal out of every turn's log.
+  if (!jevConfigured() || jevHealthGateOn()) {
     return { flagged: heuristic(input.reply, input.actions), p: null };
   }
   const modules = await Promise.all([import("@/lib/ai/typesafe"), import("@/lib/ai/payloads")])

@@ -6,7 +6,10 @@ import {
   callModel, CallRefused, ProviderHttpError, SchemaRejection, type Ledger,
 } from "@/lib/ai/call";
 import { JEV_MODEL } from "@/lib/ai/models";
-import { jevProvenance, type JevPayload, type JevPurpose } from "@/lib/ai/payloads";
+import { JEV_HEALTH_REFUSAL, jevHealthGateOn } from "@/lib/ai/jev-health";
+import {
+  jevCarriesHealth, jevProvenance, type JevPayload, type JevPurpose,
+} from "@/lib/ai/payloads";
 import { claimJevCall } from "@/lib/ai/request-budget";
 import { adminClient } from "@/lib/server/admin";
 
@@ -215,6 +218,9 @@ export async function systemOne<P extends JevPurpose, Q extends Questions>(
       target: () => ({ provider: "typesafe", model: REQUEST_MODEL, sdkVersion: SDK_VERSION }),
       admit: () => {
         if (!key) throw new JevSkip("TYPESAFE_API_KEY is not configured");
+        // OD12: while the health gate is on, a payload that may carry health context never
+        // leaves; it degrades to null like any other skip (no request, no row).
+        if (jevCarriesHealth(payload) && jevHealthGateOn()) throw new JevSkip(JEV_HEALTH_REFUSAL);
         body = JSON.stringify({ state: payload.state, model: REQUEST_MODEL, questions: payload.questions });
         const logicalCallKey = createHash("sha256")
           .update(payload.purpose).update("\0").update(body).digest("hex");
