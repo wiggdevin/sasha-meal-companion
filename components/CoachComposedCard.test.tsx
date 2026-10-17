@@ -15,7 +15,7 @@ vi.mock("@/lib/foods/signals-client", () => ({
   sendFoodSignals: (events: unknown) => mocked.sendFoodSignals(events),
 }));
 
-import CoachComposedCard, { fitLine, isIncompleteDraft } from "@/components/CoachComposedCard";
+import CoachComposedCard, { fitLine, isIncompleteDraft, leftOutLine } from "@/components/CoachComposedCard";
 import type { ComposedMeal } from "@/lib/coach/compose";
 
 afterEach(cleanup);
@@ -159,5 +159,15 @@ describe("CoachComposedCard, an incomplete draft (Phase 18 W9)", () => {
     render(<CoachComposedCard meal={incompleteMeal("x")} tz="UTC" onAction={vi.fn()} />);
     expect(screen.getByText("Turkey")).toBeTruthy();
     expect(screen.getByText("Oatmeal")).toBeTruthy();
+  });
+});
+
+describe("leftOutLine (OD26)", () => {
+  it("says nothing when nothing was left out", () => {
+    expect(leftOutLine({})).toBeNull();
+  });
+  it("names capped and unmatched foods", () => {
+    expect(leftOutLine({ leftOut: [{ term: "yogurt", why: "over_limit" }, { term: "zzz", why: "not_found" }] }))
+      .toBe("Left out yogurt: I use up to 4 foods per meal. Left out zzz: no match you can eat.");
   });
 });

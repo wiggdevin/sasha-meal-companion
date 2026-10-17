@@ -245,6 +245,8 @@ export const composedMealSchema = z.object({
   // Phase 18 W9 (D12): an incoherent named combination's reason. The card shows it instead of a
   // fit line (fitNote stays null); a malformed shape never carries, it just drops the field.
   incomplete: z.object({ reason: z.string() }).optional(),
+  // OD26: foods the user named that the meal does not hold. A malformed shape just drops the field.
+  leftOut: z.array(z.object({ term: z.string(), why: z.enum(["over_limit", "not_found"]) })).optional().catch(undefined),
   rankNote: z.string().nullable().optional(),
   shortfallNote: z.string().nullable().optional(),
   anchorProtein: z.string().optional(),
