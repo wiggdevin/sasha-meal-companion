@@ -44,6 +44,15 @@ describe("W070 telemetry lockdown migrations", () => {
     }
   });
 
+  it("rolls the checks back in the same two steps: NOT VALID first, then a validate-only file", () => {
+    const [, notValidDown, validateDown] = DOWNS.map(code);
+    for (const name of ["client_timings_path_check", "client_timings_step_check"]) {
+      expect(validateDown).toMatch(new RegExp(`add constraint ${name}\\s*check \\([^;]*?\\) not valid`));
+      expect(notValidDown).toContain(`alter table public.client_timings validate constraint ${name};`);
+    }
+    expect(notValidDown).not.toMatch(/add constraint|drop constraint/);
+  });
+
   it("revokes every direct insert and the invoker RPCs from authenticated, and proves none is left", () => {
     const sql = code(LOCKDOWN);
     for (const table of ["client_timings", "food_signal_events", "onboarding_events"]) {
