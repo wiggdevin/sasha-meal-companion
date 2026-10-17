@@ -1,6 +1,6 @@
 # References
 
-The patterns in this kit were taken from real apps, found through Mobbin and Refero and the galleries in the Claude Design Blueprint. The 102 screenshots are kept as an internal reference library only (never shipped, never published): `research/design-system-2026-10/assets/references/` in the Sasha client folder (outside this repo). Copy mechanisms, never pixels, logos or copy.
+The patterns in this kit were taken from real apps, found through Mobbin and Refero and the galleries in the Claude Design Blueprint. The 102 screenshots are kept as an internal reference library only (never shipped, never published): `research/design-system-2026-10/assets/references/` in the planning archive (outside this repo). Copy mechanisms, never pixels, logos or copy.
 
 ## The twelve mechanisms Sasha adopts
 

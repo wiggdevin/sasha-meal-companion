@@ -2,7 +2,7 @@
 
 ## The mark: Steam
 
-An olive half-disc bowl, a geometric monoline **S** rising above it as steam, and a small `persimmon` diamond at the S's upper right. The bowl is the meal, the S is Sasha, the diamond is the ◆ ornament from the meal card, here as seasoning.
+An olive half-disc bowl, a geometric monoline **S** rising above it as steam, and a small `persimmon` diamond (the `orange` token, `#D46B38`) at the S's upper right. The bowl is the meal, the S is Sasha, the diamond is the ◆ ornament from the meal card, here as seasoning.
 
 Construction on a 512 grid (rebuild from these numbers, never by eye):
 
@@ -19,7 +19,7 @@ Construction on a 512 grid (rebuild from these numbers, never by eye):
 | --- | --- | --- |
 | Primary mark | Website, splash, print | `public/brand/steam-mark.svg` (olive + persimmon) |
 | One-ink mark | Single-colour print, stamps, embossing | `steam-mark-mono.svg` |
-| App icon, olive | iOS, PWA `any`; `app-icon-maskable.svg` for Android and PWA `maskable` | `app-icon-olive.svg`, `app-icon-1024.png` |
+| App icon, olive | iOS, PWA `any`; `app-icon-maskable.svg` for Android and PWA `maskable` | `app-icon-olive.svg` |
 | App icon, charcoal | Alternate icon, dark marketing | `app-icon-charcoal.svg` |
 | Assistant avatar | Sasha in the coach chat (circle) | `avatar.svg` |
 | Horizontal lockup | Website header, documents | `lockup-horizontal.svg` |

@@ -1,7 +1,7 @@
 ---
 version: "alpha"
 name: "Sasha Meal Companion"
-description: "Phone-first nutrition PWA for multiple accounts, each with a plan derived from that account's foods, preferences, and targets. Harvest (2026-10-01, from Devin's Premium Meal Card reference): an oat stone ground with a matte grain, ivory cards, matte charcoal meal cards with true-colour food photography and a sweeping photo curve, an olive primary with cream text and an inset bevel, beige trays, a cream Fraunces headline voice over Plus Jakarta Sans, and muted harvest macros (brick, plum, sage, wheat, slate). Client-owned identity; never reuse elsewhere."
+description: "Phone-first nutrition PWA for multiple accounts, each with a plan derived from that account's foods, preferences, and targets. Harvest (2026-10-01, from Devin's Premium Meal Card reference): an oat stone ground with a matte grain, ivory cards, matte charcoal meal cards with true-colour food photography and a sweeping photo curve, an olive primary with cream text and an inset bevel, beige trays, a cream Fraunces headline voice over Plus Jakarta Sans, and muted harvest macros (brick, plum, sage, wheat, slate). App-owned identity; never reuse elsewhere."
 colors:
   primary: "#4F5343"
   secondary: "#EAE5D9"
@@ -134,7 +134,7 @@ components:
 ---
 ## Overview
 
-Brand (2026-10-10): the logo is **Steam**: an olive bowl with a geometric S rising as steam and a persimmon diamond. The logo system, brand book (voice, imagery, iconography), named motion moments and the 30 ship rules live in `docs/design/brand/`; logo files in `public/brand/`.
+Brand (2026-10-10): the logo is **Steam**: an olive bowl with a geometric S rising as steam and a persimmon diamond. The logo system, brand book (voice, imagery, iconography), named motion moments and the 31 ship rules live in `docs/design/brand/`; logo files in `public/brand/`.
 
 Meal Companion looks like a good restaurant menu, not a cockpit (the "Harvest" theme, 2026-10-01,
 branch `feat/nutrition-look`, from Devin's Premium Meal Card reference: "use this as inspiration").
