@@ -59,6 +59,13 @@ export class StampedEligibleSet extends Set<string> implements VerifiedEligibleS
   private readonly inputsAt: number;
   private readonly openInputs: OpenWorldInputs | undefined;
   /**
+   * W137: an open set held across a date change waits for the server's token before it seeds
+   * anything again (`markProvisional`, `recheckHeldOpenSet`); `withdrawn` is final: the server
+   * said the account is no longer open or the token moved. A closed set is never either.
+   */
+  private provisional = false;
+  private withdrawn = false;
+  /**
    * The open-world inputs while this set may still seed a suggestion: never once revoked (a local
    * rule write, or 7 days). A local Avoid mark written since is applied by the reader
    * (lib/meals/open-world.ts `livePool`), so it takes effect before the next read.
@@ -66,6 +73,20 @@ export class StampedEligibleSet extends Set<string> implements VerifiedEligibleS
   get open(): OpenWorldInputs | undefined {
     return this.revoked ? undefined : this.openInputs;
   }
+  /** The open-world inputs this set was made with, revoked or not (the recheck's token). */
+  get heldOpen(): OpenWorldInputs | undefined { return this.openInputs; }
+  /** W137: hold an open set until its token is rechecked. No effect on a closed set. */
+  markProvisional(): void {
+    if (this.openInputs && !this.withdrawn) this.provisional = true;
+  }
+  /** W137: the recheck's verdict. `fresh` lifts the hold; `withdrawn` revokes the set for good. */
+  settleProvisional(verdict: "fresh" | "withdrawn"): void {
+    if (!this.openInputs) return;
+    if (verdict === "withdrawn") this.withdrawn = true;
+    this.provisional = false;
+  }
+  get isProvisional(): boolean { return this.provisional; }
+  get isWithdrawn(): boolean { return this.withdrawn; }
   /**
    * Phase 18 W11 (D7): this account's shopping focus as the phone holds it now
    * (lib/shopping/focus-client.ts), read on every use so a toggle re-ranks at once. A ranking
@@ -89,7 +110,8 @@ export class StampedEligibleSet extends Set<string> implements VerifiedEligibleS
    * server verified it (D2), checked on every use rather than only when IndexedDB is read.
    */
   get revoked(): boolean {
-    return this.epoch !== foodRulesEpoch() || Date.now() - this.verifiedAt > SNAPSHOT_MAX_AGE_MS;
+    return this.provisional || this.withdrawn
+      || this.epoch !== foodRulesEpoch() || Date.now() - this.verifiedAt > SNAPSHOT_MAX_AGE_MS;
   }
   /**
    * A revoked set clears nothing, even for a caller that only asks `.has` (round 5 WARN 5, e.g.
@@ -243,6 +265,30 @@ async function heldOpenSet(account: AccountHandle, foods: Record<string, Food>,
   }
   return { set: openStamped(foods, readPrefRefCache(account.userId), stored.snapshot, startedAt, account.userId),
     held: true };
+}
+
+/**
+ * W137: the check a held open set needs after a date change, before it seeds a meal again. The set
+ * is provisional (nothing new is generated from it) from the call until the answer; a caller can
+ * mark it earlier (`markProvisional`). Today never waits on it. The set is fresh only while the server still says the
+ * account is open and its token is the one the set was admitted under; otherwise it is withdrawn.
+ * Unreachable server: it stays provisional (no new suggestion), and the next read replaces it.
+ * A closed set (no open inputs) asks nothing and is `closed`.
+ */
+export async function recheckHeldOpenSet(account: AccountHandle, set: StampedEligibleSet):
+  Promise<"closed" | "fresh" | "withdrawn" | "provisional"> {
+  const open = set.heldOpen;
+  if (!open || set.accountId !== account.userId) return "closed";
+  if (set.isWithdrawn) return "withdrawn";
+  set.markProvisional();
+  const current = await readRulesState(account);
+  if (current === null) return "provisional";
+  if (current.world !== "open" || !sameRulesToken(current.token, open.token)) {
+    set.settleProvisional("withdrawn");
+    return "withdrawn";
+  }
+  set.settleProvisional("fresh");
+  return "fresh";
 }
 
 /**

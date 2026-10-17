@@ -16,9 +16,9 @@ import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bindAccount } from "@/lib/device/account";
 import { baseFoodName } from "@/lib/foods/base-name";
-import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
+import { loadEligibleLocalFoodIds, recheckHeldOpenSet, StampedEligibleSet } from "@/lib/foods/eligible-client";
 import { MEAL_SNAPSHOT_KEY, readMealSnapshot, saveMealSnapshot, snapshotEpoch } from "@/lib/foods/meal-snapshot-store";
-import { openWorldOf } from "@/lib/foods/rule-marks";
+import { currentEligibleView, openWorldOf } from "@/lib/foods/rule-marks";
 import { ownPlateEvidence } from "@/lib/foods/world/plate-evidence";
 import { planDay, type DaySlot } from "@/lib/meals/day";
 import { livePool } from "@/lib/meals/open-world";
@@ -160,6 +160,71 @@ describe("Sol r2 BLOCK: the held open snapshot needs the server to still say ope
     }));
     await pool();
     expect(server.asked).toContain("/api/foods/eligible?v=3");
+  });
+});
+
+describe("W137: a set held across a date change waits for the token", () => {
+  /** Today's view of the held set: no open pool and no verified view means no generated meal. */
+  const seeds = (set: StampedEligibleSet) =>
+    openWorldOf(set) !== undefined || currentEligibleView({}, {}, set) !== undefined;
+
+  const held = async () => {
+    const { set } = await pool();
+    expect(set).toBeInstanceOf(StampedEligibleSet);
+    expect(seeds(set as StampedEligibleSet)).toBe(true);
+    server.asked = [];
+    return set as StampedEligibleSet;
+  };
+
+  it("(a) the account was taken off the open world: the held set never yields a meal again", async () => {
+    const set = await held();
+    server.world = "closed";
+    const check = recheckHeldOpenSet(bindAccount(A), set);
+    // Provisional from the date change on, before the server answers.
+    expect(seeds(set)).toBe(false);
+    expect(await check).toBe("withdrawn");
+    expect(server.asked).toEqual(["/api/foods/rules-version"]);
+    expect(seeds(set)).toBe(false);
+    expect(set.has(CHICKEN)).toBe(false);
+    // Another date change does not bring it back, whatever the server says next.
+    server.world = "open";
+    set.markProvisional();
+    expect(await recheckHeldOpenSet(bindAccount(A), set)).toBe("withdrawn");
+    expect(seeds(set)).toBe(false);
+  });
+
+  it("(b) the token moved on another device: the held set never yields a meal again", async () => {
+    const set = await held();
+    server.token = { rulesVersion: 8, evidenceVersion: 3 };
+    const check = recheckHeldOpenSet(bindAccount(A), set);
+    expect(seeds(set)).toBe(false);
+    expect(await check).toBe("withdrawn");
+    expect(seeds(set)).toBe(false);
+    expect(set.has(CHICKEN)).toBe(false);
+  });
+
+  it("the same token and still open: the held set serves the new date", async () => {
+    const set = await held();
+    set.markProvisional();
+    expect(seeds(set)).toBe(false);
+    expect(await recheckHeldOpenSet(bindAccount(A), set)).toBe("fresh");
+    expect(seeds(set)).toBe(true);
+    expect(set.has(CHICKEN)).toBe(true);
+  });
+
+  it("the server cannot be reached: the set stays provisional and yields nothing new", async () => {
+    const set = await held();
+    server.token = null;
+    expect(await recheckHeldOpenSet(bindAccount(A), set)).toBe("provisional");
+    expect(seeds(set)).toBe(false);
+  });
+
+  it("a closed account's set is never held back and never asks for the token", async () => {
+    const set = new StampedEligibleSet(["food-1"], new Map(), "k", 0, undefined, Date.now(), A);
+    set.markProvisional();
+    expect(set.isProvisional).toBe(false);
+    expect(await recheckHeldOpenSet(bindAccount(A), set)).toBe("closed");
+    expect(server.asked).toEqual([]);
   });
 });
 
