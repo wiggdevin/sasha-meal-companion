@@ -10,6 +10,7 @@ import BarcodeDraftEditor, {
 } from "@/components/coach/editors/BarcodeDraftEditor";
 import { toCachedRevision, type BarcodeMatch, type BarcodeResponse } from "@/lib/barcode/client";
 import { offPlanFor } from "@/lib/catalog-client";
+import { setFavorite } from "@/lib/favorites-client";
 import { commitLogEntry } from "@/lib/log-commit-client";
 import { buildCommitRequest } from "@/lib/log-client";
 import { catalogCard, scanItemAmount } from "@/lib/log/catalog-card";
@@ -31,6 +32,7 @@ export default function ScanConfirmSheet({
   onLogged: (entryId: string, saved?: string) => void;
   onClose: () => void;
   onSearch?: (hint: string) => void;
+  /** The star on the scanned food. Absent: the sheet stars it in Favorites itself (W124). */
   onFavorite?: (foodRefId: string) => void;
   eatenAt?: Date; // when it was eaten: a past day's slot time (lib/log/viewed-at.ts), else now
 }) {
@@ -78,6 +80,16 @@ export default function ScanConfirmSheet({
 
   const { title, subtitle } = scanHeading(response, headingMatch);
 
+  /** W124: the scanned food gets its star wherever the sheet opens, not only where a caller wires one. */
+  function starScanned(foodRefId: string): void {
+    const match = headingMatch?.foodRefId === foodRefId ? headingMatch : null;
+    void setFavorite("food", foodRefId, true, match
+      ? { name: match.description, catalogFoodId: match.catalogFoodId, revisionId: match.revisionId }
+      : undefined).catch((error: unknown) => {
+      console.warn("[scan] star failed", error instanceof Error ? error.name : "unknown");
+    });
+  }
+
   return (
     <Sheet title={title} subtitle={subtitle} onClose={onClose}>
       {/* T0 source guard: the editor owns <WorkingLine active={saving} step="commit" /> now. */}
@@ -88,7 +100,7 @@ export default function ScanConfirmSheet({
         onCommit={(edits) => void logIt(edits)}
         onSearchManually={(hint) => onSearch?.(hint)}
         onDismiss={onClose}
-        onFavorite={onFavorite}
+        onFavorite={onFavorite ?? starScanned}
         onMatchChange={setHeadingMatch}
       />
       <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />

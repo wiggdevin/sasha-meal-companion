@@ -10,19 +10,27 @@ const OLD = "media/u1/11111111-1111-4111-8111-111111111111.jpg";
 const rows = vi.hoisted(() => [] as { path: string; user_id: string }[]);
 const nullFilters = vi.hoisted(() => new Set<string>());
 const selects = vi.hoisted(() => [] as string[]);
+/** Thumbnails linked to an entry deleted before the cutoff: the second pass's listing (W125). */
+const thumbnails = vi.hoisted(() => [] as { path: string; user_id: string }[]);
+const linkedFilters = vi.hoisted(() => [] as string[]);
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => ({
   from: () => ({ select: (columns: string) => {
     selects.push(columns);
     let after: string | null = null;
+    const source = columns.includes("log_entries") ? thumbnails : rows;
     const chain = {
+      not: (column: string, op: string, value: unknown) => {
+        linkedFilters.push(`${column} not ${op} ${String(value)}`); return chain;
+      },
+      lt: (column: string) => { if (source === thumbnails) linkedFilters.push(`${column} <`); return chain; },
       is: (column: string, value: unknown) => {
         if (value === null) nullFilters.add(column);
         return chain;
       },
-      lt: () => chain, order: () => chain,
+      order: () => chain,
       gt: (_key: string, value: string) => { after = value; return chain; },
       range: async (start: number, end: number) => ({
-        data: rows.filter((r) => after === null || r.path > after).slice(start, end + 1),
+        data: source.filter((r) => after === null || r.path > after).slice(start, end + 1),
         error: null }),
     };
     return chain;
@@ -42,6 +50,7 @@ function req(method: "GET" | "POST", token?: string): Request {
 beforeEach(() => {
   resetRateLimits(); removed.length = 0; vi.stubEnv("CRON_SECRET", "s3cret");
   rows.splice(0, rows.length, { path: OLD, user_id: "u1" });
+  thumbnails.length = 0; linkedFilters.length = 0;
 });
 
 describe("GET /api/jobs/media-sweep", () => {
@@ -65,6 +74,16 @@ describe("GET /api/jobs/media-sweep", () => {
     nullFilters.clear();
     await POST(req("POST", "s3cret"));
     expect([...nullFilters].sort()).toEqual(["deleted_at", "entry_id"]);
+  });
+
+  it("sweeps a kept thumbnail only once its entry has been deleted past the cutoff (W125)", async () => {
+    const THUMB = "media/u1/22222222-2222-4222-8222-222222222222.jpg";
+    thumbnails.push({ path: THUMB, user_id: "u1" });
+    const res = await POST(req("POST", "s3cret"));
+    expect(await res.json()).toEqual({ swept: 2, failed: 0 });
+    expect(removed).toEqual([OLD, THUMB]);
+    expect(selects.some((columns) => columns.includes("log_entries!inner(deleted_at)"))).toBe(true);
+    expect(linkedFilters).toEqual(["entry_id not is null", "log_entries.deleted_at <"]);
   });
 
   it("keeps going past the old 500-object cap, page after page, in one run (S3)", async () => {
@@ -92,7 +111,10 @@ describe("GET /api/jobs/media-sweep", () => {
       const res = await POST(req("POST", "s3cret"));
       expect(await res.json()).toEqual({ swept: 1, failed: 0, skipped: 3 });
       expect(removed).toEqual([OLD]);
-      expect(selects.at(-1)?.split(",").map((c) => c.trim())).toEqual(["path", "user_id"]);
+      // Each listing reads the path and the owner and nothing else it could act on.
+      for (const columns of selects) {
+        expect(columns.split(",").map((c) => c.trim()).slice(0, 2)).toEqual(["path", "user_id"]);
+      }
       expect(spy).toHaveBeenCalledWith("media sweep skipped a path outside its owner's folder",
         expect.objectContaining({ userId: "u1" }));
     } finally {

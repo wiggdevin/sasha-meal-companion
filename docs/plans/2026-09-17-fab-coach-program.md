@@ -279,3 +279,22 @@ Not cut and not forgotten; each one needs a call from Devin before it starts aga
 - **Voice-to-voice.** The separate spec after T7.
 - **Weight-trend smoothing (F-084).**
 - **T0 AC7–AC10 proofs.** Run in the readiness pass rather than under T0.
+
+## As built: W124 and W125 (2026-10-17)
+
+- **T3, label scan (W124).** A repeat scan of a product the account already saved reuses that
+  `user_foods` row and its ref: same brand and name after case and spacing, every core per-100 g
+  code present on both or neither, and every shared code within half a unit or 2 %. A rescan that
+  names an allergen the saved food lacks saves a new food (`sameLabelFood`,
+  `lib/server/log-label-food.ts`). The barcode confirm sheet stars the scanned food in Favorites
+  wherever it opens. Left for the Mac: the 10-label eval and the p95 targets need live keys.
+- **T2, plate photo (W125).** The phone reads the original JPEG's `DateTimeOriginal` (and its
+  offset) before the resize drops it (`lib/media/exif-time.ts`), else the time the file was
+  picked; the meal takes that time only on the capture's own day and never ahead of now
+  (`lib/capture/shot-time.ts`). The confirm sheet has an editable meal name (a label's food name,
+  which renames the saved food), a time control, and "Save as recipe" (one serving, allowed foods
+  only, R6; `lib/capture/save-as-recipe.ts`). D2: the plate photo's 512 px copy is uploaded while
+  the photo is read and linked to the entry after an applied commit through the existing
+  `media_objects.entry_id`, so no migration; the media sweep removes it a day after its entry is
+  deleted. Showing the thumbnail on the Today card and in the entry sheet is still to do.
+  The auto-resolve gate number stays the owner's ruling.

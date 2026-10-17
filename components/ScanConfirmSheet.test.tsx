@@ -80,3 +80,17 @@ describe("ScanConfirmSheet on a past day (UI audit 2026-10-07)", () => {
     expect(opts.optimistic.date).toBe("2026-10-05");
   });
 });
+
+describe("the scanned food's star (W124)", () => {
+  it("shows a star and stars the scanned food in Favorites with no caller wiring", async () => {
+    const favorites = await import("@/lib/favorites-client");
+    const star = vi.spyOn(favorites, "setFavorite").mockResolvedValue(true);
+    open();
+    const button = screen.getByRole("button", { name: "Favourite this food" });
+    await act(async () => { fireEvent.click(button); });
+    expect(star).toHaveBeenCalledWith("food", MATCH.foodRefId, true,
+      { name: "Oat bar", catalogFoodId: 12, revisionId: 34 });
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    star.mockRestore();
+  });
+});

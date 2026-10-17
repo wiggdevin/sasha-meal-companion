@@ -6,6 +6,9 @@ import WorkingLine from "@/components/WorkingLine";
 import AllergenFindingLines from "@/components/coach/editors/AllergenFindingLines";
 import EditorPill from "@/components/coach/editors/EditorPill";
 import PortionFollowUps from "@/components/coach/editors/PortionFollowUps";
+import CaptureMealDetails, {
+  type CaptureDetails, type CaptureDetailsSpec,
+} from "@/components/coach/editors/CaptureMealDetails";
 import DraftSlotPicker from "@/components/coach/editors/DraftSlotPicker";
 import SanityNotices from "@/components/coach/editors/SanityNotices";
 import ProjectedDayTotals, { type DayProjection } from "@/components/ProjectedDayTotals";
@@ -32,6 +35,8 @@ export type CaptureDraftEdits = {
   items: DraftEdits;
   saveLabelAsFood: boolean;
   slot?: SlotId;
+  /** The meal's name, time and "Save as recipe" (W125), when the sheet offered them. */
+  details?: CaptureDetails;
 };
 
 export type CaptureEditorDraft = {
@@ -47,6 +52,8 @@ export type CaptureEditorDraft = {
   canEditSlot?: boolean;
   showDismiss?: boolean;
   blockedItemIds?: string[];
+  /** Offer the meal's name, time and "Save as recipe" (W125). The capture sheet's, not the coach's. */
+  details?: CaptureDetailsSpec;
 };
 
 export type CaptureDraftLayout = (regions: { body: ReactNode; footer: ReactNode }) => ReactNode;
@@ -159,6 +166,9 @@ export default function CaptureDraftEditor({
   const [saveLabel, setSaveLabel] = useState(draft.proposal.method === "label");
   const [slot, setSlot] = useState<SlotId | undefined>(draft.slot);
   const [rerunUsed, setRerunUsed] = useState(false);
+  const [details, setDetails] = useState<CaptureDetails>({
+    title: draft.details?.defaultTitle ?? "", clock: null, saveAsRecipe: false,
+  });
   const firstGrams = useRef<HTMLDivElement | null>(null);
   const blockedItemIds = new Set(draft.blockedItemIds ?? []);
   const items = (applyEdits(draft.proposal.items, edits) as EditedSanityItem[]).map((item) =>
@@ -220,6 +230,9 @@ export default function CaptureDraftEditor({
         </div>
       )}
 
+      {draft.details && kept.length > 0
+        && <CaptureMealDetails spec={draft.details} value={details} onChange={setDetails} />}
+
       {draft.canEditSlot !== false && slot !== undefined
         && <DraftSlotPicker value={slot} onChange={setSlot} />}
     </>
@@ -228,7 +241,7 @@ export default function CaptureDraftEditor({
     <div className="flex flex-col gap-2 pt-1">
         <button type="button" disabled={!ready}
           onClick={() => onCommit({ items: edits, saveLabelAsFood: saveLabel,
-            ...(slot === undefined ? {} : { slot }) })}
+            ...(slot === undefined ? {} : { slot }), ...(draft.details ? { details } : {}) })}
           className={`btn-ink tap w-full disabled:opacity-40 ${PRIMARY_CLASS}`} style={PRIMARY}>
           {draft.saving ? "Saving" : commitCopy}
         </button>

@@ -316,6 +316,12 @@ function revisionRef(revisionId: number | null): { revision_id: number | null } 
 
 export type CommitContext = {
   entryId?: string; eatenAt?: Date; tz: string; slot: SlotId; note?: string;
+  /** The meal's name, as the user edited it on the confirm sheet (W125). */
+  title?: string;
+  /** The label food's name, as the user edited it; else the name the label read. */
+  labelName?: string;
+  /** The plate photo's kept 512 px copy, already uploaded (W125, `uploadThumbnail`). */
+  thumbnailPath?: string | null;
   saveLabelAsFood?: boolean; fetchImpl?: typeof fetch;
   /** The account the capture started as, so the commit files under it (Phase 9 §0.5a). */
   account?: AccountHandle;
@@ -345,6 +351,7 @@ export async function commitDraft(
     tz: ctx.tz,
     slot: ctx.slot,
     note: ctx.note,
+    title: ctx.title,
     // A030: the label item names the placeholder and its grams alone; its own food has no
     // catalog revision or portion for a pin to name.
     items: kept.map((item, i) => item.seq === labelSeq ? {
@@ -363,8 +370,12 @@ export async function commitDraft(
   const req: LogCommitRequest = { ...base, method: draft.method, draft_id: draft.draftId };
   if (labelSeq !== null && draft.labelFood) {
     req.save_label_as_food = true;
-    req.label_food = labelFoodBody(draft.labelFood);
+    const body = labelFoodBody(draft.labelFood);
+    const name = ctx.labelName?.trim().slice(0, 160);
+    req.label_food = name ? { ...body, name } : body;
   }
+  // The server links this copy to the entry only after it applies, and only one of the caller's own.
+  if (draft.method === "photo" && ctx.thumbnailPath) req.thumbnail_path = ctx.thumbnailPath;
   // The capture method IS the timing path (spec §1), so this commit closes the run the sign /
   // upload / propose marks opened.
   return commitLogEntry(req, {
@@ -373,6 +384,7 @@ export async function commitDraft(
     // The same day the request itself files under (base.local_date), not a re-derive off the
     // device's own zone — the optimistic card and the commit must agree.
     optimistic: { date: base.local_date,
-      entry: draftCard(draft, kept, entryId, itemIds, eatenAt, ctx.note, labelSeq) },
+      entry: draftCard(draft, kept, entryId, itemIds, eatenAt, ctx.note, labelSeq,
+        base.title ?? (labelSeq !== null ? req.label_food?.name : undefined)) },
   });
 }

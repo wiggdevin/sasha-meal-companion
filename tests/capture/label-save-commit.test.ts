@@ -178,3 +178,34 @@ describe("the saved label on the phone (Sol review)", () => {
     expect(item).toMatchObject({ name: "Seeded crackers", food_ref_id: "ref-real" });
   });
 });
+
+describe("the confirm sheet's name and thumbnail (W125)", () => {
+  async function bodyFor(draft: ProposeResponse, ctx: Partial<Parameters<typeof commitDraft>[2]>) {
+    let sent: Record<string, unknown> | null = null;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      sent = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ status: "ok", entry_id: "e", rev: 1, items: [],
+        totals: { local_date: "2026-09-11", nutrients: [], micro_coverage_pct: 0 } }),
+      { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
+    await commitDraft(draft, {}, { entryId: ENTRY_ID, tz: "UTC", slot: "meal-2",
+      eatenAt: new Date("2026-09-11T16:00:00.000Z"), fetchImpl, ...ctx });
+    return sent as Record<string, unknown> | null;
+  }
+
+  it("renames the label food and the meal with the name the user typed", async () => {
+    const sent = await bodyFor(LABEL_DRAFT, { saveLabelAsFood: true, title: "Crackers (seeded)",
+      labelName: "Crackers (seeded)" });
+    expect(sent).toMatchObject({ title: "Crackers (seeded)",
+      label_food: { name: "Crackers (seeded)", brand: "Acme" } });
+  });
+
+  it("sends a plate photo's thumbnail path, and no other method's", async () => {
+    const photo: ProposeResponse = { ...LABEL_DRAFT, method: "photo", labelFood: undefined,
+      items: [{ ...LABEL_DRAFT.items[0], foodRefId: REF_A, policy: { verdict: "allowed" } }] };
+    const path = `media/${TEST_USER}/55555555-5555-4555-8555-555555555555.jpg`;
+    expect(await bodyFor(photo, { thumbnailPath: path })).toMatchObject({ thumbnail_path: path });
+    const label = await bodyFor(LABEL_DRAFT, { saveLabelAsFood: true, thumbnailPath: path });
+    expect(label && "thumbnail_path" in label).toBe(false);
+  });
+});

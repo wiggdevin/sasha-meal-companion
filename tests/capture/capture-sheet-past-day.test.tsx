@@ -27,12 +27,28 @@ describe("a capture from a past day's meal card", () => {
     const noop = () => {};
     render(<CaptureSheet open initialMode="confirm" initialDraft={captureProposal} at={at} slot="meal-2"
       onClose={noop} onLogged={noop} onOpenSearch={noop} />);
-    const log = screen.getAllByRole("button").find((button) => /^(Log it|Save)/.test(button.textContent ?? ""));
+    const log = screen.getAllByRole("button").find((button) => /^(Log it|Save \d)/.test(button.textContent ?? ""));
     expect(log).toBeTruthy();
     await act(async () => { fireEvent.click(log!); });
     expect(capture.commit).toHaveBeenCalledOnce();
     const ctx = capture.commit.mock.calls[0][2] as { eatenAt?: Date; slot: string };
     expect(ctx.eatenAt?.getTime()).toBe(at.getTime());
     expect(ctx.slot).toBe("meal-2");
+  });
+
+  it("commits at the time the user set on the sheet, on that same day (W125)", async () => {
+    const at = new Date("2026-10-05T08:30:00");
+    const noop = () => {};
+    render(<CaptureSheet open initialMode="confirm" initialDraft={captureProposal} at={at} slot="meal-2"
+      onClose={noop} onLogged={noop} onOpenSearch={noop} />);
+    const time = screen.getByLabelText("Eaten at") as HTMLInputElement;
+    expect(time.value).toBe("08:30");
+    fireEvent.change(time, { target: { value: "07:45" } });
+    fireEvent.change(screen.getByLabelText("Meal name"), { target: { value: "Early oats" } });
+    const log = screen.getAllByRole("button").find((button) => /^(Log it|Save \d)/.test(button.textContent ?? ""));
+    await act(async () => { fireEvent.click(log!); });
+    const ctx = capture.commit.mock.calls[0][2] as { eatenAt?: Date; title?: string };
+    expect(ctx.eatenAt?.getTime()).toBe(new Date("2026-10-05T07:45:00").getTime());
+    expect(ctx.title).toBe("Early oats");
   });
 });

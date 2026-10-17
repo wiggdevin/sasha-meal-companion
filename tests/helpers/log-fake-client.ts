@@ -46,6 +46,7 @@ export function fakeClient(opts: {
       range: () => builder,
       limit: () => builder,
       like: () => builder,
+      is: () => builder,
       eq(column: string, value: unknown) { filters.push({ column, value }); return builder; },
       in(column: string, values: unknown[]) { filters.push({ column, values }); return builder; },
       maybeSingle: async () => ({ data: rows().find((r) => matches(r, filters)) ?? null, error: null }),

@@ -22,6 +22,7 @@ const LABEL = { name: "Pear pouch", brand: "Serenity", per100g: PER_100G,
 function fakeDb(opts: { media?: { path: string }[]; existingEntry?: boolean;
   profile?: Record<string, unknown> | null } = {}) {
   const writes: { table: string; row: unknown }[] = [];
+  const updates: { table: string; patch: unknown; filters: string[] }[] = [];
   const removed: string[] = [];
   const rpc = vi.fn(async (name: string) => {
     if (name === "get_or_create_food_ref") return { data: "ref-new", error: null };
@@ -42,7 +43,18 @@ function fakeDb(opts: { media?: { path: string }[]; existingEntry?: boolean;
     chain.in = vi.fn(async (_col: string, ids: string[]) => ({ data: ids.map((id) => ({ id })), error: null }));
     chain.insert = vi.fn((row: unknown) => ({ select: () => ({ single: async () => {
       writes.push({ table, row }); return { data: { id: "uf-1" }, error: null }; } }) }));
-    chain.update = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
+    chain.update = vi.fn((patch: unknown) => {
+      // Records each update and its filters; awaiting any point of the chain answers no error.
+      const filters: string[] = [];
+      updates.push({ table, patch, filters });
+      const link: Record<string, unknown> = {
+        then: (resolve: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(resolve),
+      };
+      for (const m of ["eq", "is", "lte"]) {
+        link[m] = (column: string, value: unknown) => { filters.push(`${m}:${column}=${String(value)}`); return link; };
+      }
+      return link;
+    });
     chain.maybeSingle = vi.fn(async () => {
       if (table === "constraint_profiles") return { data: opts.profile ?? null, error: null };
       if (opts.existingEntry && table === "log_entries") return { data: { id: REQ.entry_id }, error: null };
@@ -53,7 +65,7 @@ function fakeDb(opts: { media?: { path: string }[]; existingEntry?: boolean;
   });
   const storage = { from: () => ({ remove: vi.fn(async (keys: string[]) => {
     removed.push(...keys); return { error: null }; }) }) };
-  return { writes, removed, rpc, client: { rpc, from, storage } as never };
+  return { writes, updates, removed, rpc, client: { rpc, from, storage } as never };
 }
 
 describe("applyLogEntry with a label capture", () => {
@@ -137,5 +149,36 @@ describe("applyLogEntry with a label capture", () => {
     }, { admin: db.client });
     expect(out.status).toBe("ok");
     expect(db.removed).toEqual([]);
+  });
+});
+
+describe("the plate photo's kept thumbnail (W125)", () => {
+  const PHOTO = { ...REQ, method: "photo", save_label_as_food: undefined,
+    items: [{ ...REQ.items[0], food_ref_id: "44444444-4444-4444-8444-444444444444" }] };
+  const THUMB = "media/u1/55555555-5555-4555-8555-555555555555.jpg";
+
+  it("links the caller's own thumbnail to the entry after an applied write, re-checking its row", async () => {
+    const db = fakeDb();
+    await applyLogEntry(db.client, "u1", PHOTO, { admin: db.client, thumbnailPath: THUMB });
+    const link = db.updates.find((u) => u.table === "media_objects"
+      && (u.patch as { entry_id?: string }).entry_id === REQ.entry_id);
+    expect(link?.filters).toEqual([`eq:path=${THUMB}`, "eq:user_id=u1", "eq:kind=image",
+      "is:entry_id=null", "is:deleted_at=null", "lte:bytes=262144"]);
+  });
+
+  it.each([
+    ["another account's path", "media/u2/55555555-5555-4555-8555-555555555555.jpg", PHOTO],
+    ["the draft's own full-size photo", `media/u1/${REQ.draft_id}.jpg`, PHOTO],
+    ["a label capture", THUMB, REQ],
+  ])("links nothing for %s", async (_name, path, body) => {
+    const db = fakeDb();
+    await applyLogEntry(db.client, "u1", body, { admin: db.client, labelFood: LABEL, thumbnailPath: path });
+    expect(db.updates.some((u) => (u.patch as { entry_id?: string }).entry_id)).toBe(false);
+  });
+
+  it("links nothing on a replay that wrote nothing", async () => {
+    const db = fakeDb({ existingEntry: true });
+    await applyLogEntry(db.client, "u1", PHOTO, { admin: db.client, thumbnailPath: THUMB });
+    expect(db.updates.some((u) => (u.patch as { entry_id?: string }).entry_id)).toBe(false);
   });
 });

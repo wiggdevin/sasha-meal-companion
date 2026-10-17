@@ -63,6 +63,12 @@ export type LogCommitRequest = {
   eaten_at: string; tz: string; local_date: string; slot: SlotId | "snack";
   method: (typeof METHODS)[number];
   draft_id?: string; save_label_as_food?: boolean; label_food?: LabelFoodWire;
+  /**
+   * A plate photo's kept 512 px copy (W125, T2 D2): one of the caller's own media paths. Not part
+   * of the parsed schema, like `label_food`: the route hands the raw value to lib/server/log.ts,
+   * which links it to the entry only after an applied write.
+   */
+  thumbnail_path?: string;
   /** Storage allows 80 characters so user-authored titles have headroom beyond coach titles. */
   title?: string | null;
   note?: string; items: LogItemInput[];

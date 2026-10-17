@@ -41,7 +41,8 @@ export async function POST(req: Request): Promise<Response> {
 
     const body = await readJson(req, envelope, MAX_BYTES);
     const result = await applyLogEntry(client, userId, body,
-      { admin: adminClient(), labelFood: (body as { label_food?: unknown }).label_food });
+      { admin: adminClient(), labelFood: (body as { label_food?: unknown }).label_food,
+        thumbnailPath: (body as { thumbnail_path?: unknown }).thumbnail_path });
     if (result.status === "ok" && result.user_food_id) afterResponse(async () => {
       try {
         const { ensureUserFoodFacets } = await import("@/lib/foods/facet-warm");

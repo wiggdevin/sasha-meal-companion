@@ -13,7 +13,7 @@ import { evidenceForItems } from "@/lib/server/log-evidence";
 import { recordFingerprint } from "@/lib/server/log-duplicates";
 import { partialRecipeItems } from "@/lib/server/log-recipe-coverage";
 import { stampLogOccasionsSafely } from "@/lib/server/log-occasion";
-import { deleteMedia, MEDIA_BUCKET } from "@/lib/server/media";
+import { deleteMedia, draftIdFromPath, MEDIA_BUCKET, ownedObjectKey } from "@/lib/server/media";
 import { loadSuggestionEvidence } from "@/lib/coach/suggest-policy";
 import { logCommitPolicyIssues, RULES_UNREADABLE_MESSAGE } from "@/lib/coach/log-policy";
 import { normalizePreferenceFlags, type PreferenceFlag } from "@/lib/profile/onboarding-state";
@@ -116,34 +116,52 @@ async function ok(
  * Our media copy, gone within a second of the tap (AC8). The path is DERIVED — draft_id is the
  * object's uuid — so no media_ref travels on the wire and nothing from the body is trusted as a
  * capability. A failure here is logged, never thrown: the 24-hour sweep is the backstop, and a
- * saved meal must not report failure because a file lingered.
+ * saved meal must not report failure because a file lingered. A row linked to the entry is the
+ * kept thumbnail (W125, `linkThumbnail`), never touched here: an edit re-applies the entry.
  */
 async function deleteCommittedMedia(
   admin: SupabaseClient, userId: string, entryId: string, draftId: string | undefined
 ): Promise<void> {
+  if (!draftId) return;
   try {
-    const paths = new Set<string>();
-    const byEntry = await admin.from("media_objects").select("path")
-      .eq("user_id", userId).eq("entry_id", entryId);
-    if (byEntry.error) {
-      console.error("media_objects lookup by entry_id failed", { entry_id: entryId, error: byEntry.error });
-    }
-    for (const row of (byEntry.data ?? []) as { path: string }[]) paths.add(row.path);
-    if (draftId) {
-      const byDraft = await admin.from("media_objects").select("path")
-        .eq("user_id", userId).like("path", `${MEDIA_BUCKET}/${userId}/${draftId}.%`);
-      if (byDraft.error) {
-        console.error("media_objects lookup by draft_id failed",
-          { entry_id: entryId, draft_id: draftId, error: byDraft.error });
-      }
-      for (const row of (byDraft.data ?? []) as { path: string }[]) paths.add(row.path);
+    const byDraft = await admin.from("media_objects").select("path")
+      .eq("user_id", userId).like("path", `${MEDIA_BUCKET}/${userId}/${draftId}.%`);
+    if (byDraft.error) {
+      console.error("media_objects lookup by draft_id failed",
+        { entry_id: entryId, draft_id: draftId, error: byDraft.error });
     }
     // One failed removal must not keep the others: it stays live and the daily sweep retries it.
-    for (const path of paths) {
-      try { await deleteMedia(admin, path); } catch { /* logged by deleteMedia */ }
+    for (const row of (byDraft.data ?? []) as { path: string }[]) {
+      try { await deleteMedia(admin, row.path); } catch { /* logged by deleteMedia */ }
     }
   } catch (e) {
     console.error("media delete after commit failed", { entry_id: entryId, error: e });
+  }
+}
+
+/** A kept thumbnail is small: 512 px at q 0.7 is tens of KB, so anything near full size is not one. */
+const THUMBNAIL_MAX_BYTES = 256 * 1024;
+
+/**
+ * W125 (T2 D2): keeps a plate photo's 512 px copy beside its entry. The path must be exactly one
+ * of the caller's own objects (`ownedObjectKey`), not the draft's full-size photo, and its row
+ * live, unlinked, an image and thumbnail-sized; the update itself re-checks all of that, so a
+ * guessed or reused path links nothing. Linked, the sweep keeps it until the entry is deleted
+ * (app/api/jobs/media-sweep). A failure is logged, never thrown: the meal is saved either way,
+ * and the unlinked copy goes with the 24-hour sweep.
+ */
+async function linkThumbnail(
+  admin: SupabaseClient, userId: string, req: LogCommitRequest, path: unknown,
+): Promise<void> {
+  if (req.method !== "photo" || typeof path !== "string" || path.length > 200) return;
+  if (ownedObjectKey(path, userId) === null || draftIdFromPath(path) === req.draft_id) return;
+  try {
+    const linked = await admin.from("media_objects").update({ entry_id: req.entry_id })
+      .eq("path", path).eq("user_id", userId).eq("kind", "image")
+      .is("entry_id", null).is("deleted_at", null).lte("bytes", THUMBNAIL_MAX_BYTES);
+    if (linked.error) console.error("thumbnail link failed", { entry_id: req.entry_id, code: linked.error.code });
+  } catch (e) {
+    console.error("thumbnail link failed", { entry_id: req.entry_id, error: e instanceof Error ? e.name : "unknown" });
   }
 }
 
@@ -286,7 +304,7 @@ export async function storedEntryFlags(
 
 export async function applyLogEntry(
   client: SupabaseClient, userId: string, body: unknown,
-  extras: { admin?: SupabaseClient; labelFood?: unknown } = {}
+  extras: { admin?: SupabaseClient; labelFood?: unknown; thumbnailPath?: unknown } = {}
 ): Promise<LogCommitResponse | LogCommitFailure> {
   const parsed = logCommitRequestSchema.safeParse(body);
   if (!parsed.success) return { status: "invalid", issues: issuesFrom(parsed.error) };
@@ -317,6 +335,7 @@ export async function applyLogEntry(
     // Only an applied write is stamped (never a replay, conflict or refusal).
     await stampLogOccasionsSafely(client, userId, { ids: [req.entry_id] });
     await deleteCommittedMedia(extras.admin ?? client, userId, req.entry_id, req.draft_id);
+    await linkThumbnail(extras.admin ?? client, userId, req, extras.thumbnailPath);
     const response = await ok(client, userId, req, result.rev as number);
     const withFood = userFoodId ? { ...response, user_food_id: userFoodId } : response;
     return flagged.length > 0 ? { ...withFood, flagged } : withFood;

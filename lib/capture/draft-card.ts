@@ -18,12 +18,12 @@ import type { LoggedFood, LoggedItem } from "@/lib/types";
  */
 export function draftCard(
   draft: ProposeResponse, kept: EditedItem[], entryId: string, itemIds: string[], at: Date,
-  note: string | undefined, labelSeq: number | null = null,
+  note: string | undefined, labelSeq: number | null = null, title?: string,
 ): LoggedFood {
   const zero = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const grams = Math.round(kept.reduce((sum, item) => sum + item.grams, 0) * 10) / 10;
-  const name = draft.labelFood?.name
-    ?? (kept.length === 1 ? kept[0].label : `${kept.length} items`);
+  const name = title?.trim() || draft.labelFood?.name
+    || (kept.length === 1 ? kept[0].label : `${kept.length} items`);
   // The label item is sent as the placeholder and its grams (A030); the card says the same.
   const sent = kept.map((item) => item.seq === labelSeq
     ? { ...item, foodRefId: LABEL_FOOD_PLACEHOLDER_REF, qty: item.grams, unit: "g" } : item);

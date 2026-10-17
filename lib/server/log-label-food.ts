@@ -1,7 +1,7 @@
 /**
  * The label-food half of the commit path: the placeholder ref, the label body's schema, and the
- * save that mints a real food_ref for it. Moved out of lib/server/log.ts unchanged (T9 §2); T3
- * reworks this path next, and it is easier to rework in a file of its own.
+ * save that mints a real food_ref for it. Moved out of lib/server/log.ts (T9 §2); a repeat scan of
+ * a saved product reuses that food (W124).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -57,8 +57,78 @@ export function labelPolicyEvidence(label: LabelFoodInput) {
   };
 }
 
+/** The per-100 g codes a repeat scan must agree on, present or absent, before it is the same food. */
+const CORE_CODES = ["energy_kcal", "protein", "carbohydrate", "fat_total"] as const;
+
+/** A name or brand as a repeat scan compares it: case, width and spacing never make a new food. */
+export function labelKey(text: string | null | undefined): string {
+  return (text ?? "").normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Two reads of one panel: within half a unit, or 2 % of the larger, whichever is wider. */
+function closeEnough(a: number, b: number): boolean {
+  return Math.abs(a - b) <= Math.max(0.5, 0.02 * Math.max(Math.abs(a), Math.abs(b)));
+}
+
+export type StoredLabelFood = {
+  id: string; name: string; brand: string | null;
+  per_100g: Record<string, number | null> | null; allergen_tags: string[] | null;
+  ingredients_text?: string | null;
+};
+
+/**
+ * W124: the same product scanned again. Brand and name match after `labelKey`; every core code is
+ * present on both or absent on both; every code both carry agrees within `closeEnough`; the
+ * ingredient text reads the same. A rescan naming an allergen the stored food lacks, or a
+ * reformulated list (W2c reads the text for diet rules), is a new food, never a quiet reuse.
+ */
+export function sameLabelFood(label: LabelFoodInput, allergenTags: string[], row: StoredLabelFood): boolean {
+  if (labelKey(row.name) !== labelKey(label.name) || labelKey(row.brand) !== labelKey(label.brand)
+    || labelKey(row.ingredients_text) !== labelKey(label.ingredientsText)) {
+    return false;
+  }
+  const stored = row.per_100g ?? {};
+  const read = label.per100g as Record<string, number | null | undefined>;
+  for (const code of new Set([...Object.keys(stored), ...Object.keys(read)])) {
+    const a = stored[code];
+    const b = read[code];
+    const aSet = typeof a === "number" && Number.isFinite(a);
+    const bSet = typeof b === "number" && Number.isFinite(b);
+    if (aSet && bSet) { if (!closeEnough(a, b)) return false; continue; }
+    if (aSet !== bSet && (CORE_CODES as readonly string[]).includes(code)) return false;
+  }
+  const held = new Set(row.allergen_tags ?? []);
+  return allergenTags.every((tag) => held.has(tag));
+}
+
+/**
+ * The account's live label food this scan repeats (the oldest of its last 500), or null. A failed read is not a
+ * refusal: the scan saves a row of its own, as it did before W124.
+ */
+async function repeatLabelFood(
+  client: SupabaseClient, userId: string, label: LabelFoodInput, allergenTags: string[],
+): Promise<string | null> {
+  try {
+    const found = await client.from("user_foods")
+      .select("id, name, brand, per_100g, allergen_tags, ingredients_text, created_at")
+      .eq("user_id", userId).eq("kind", "label_scan").is("deleted_at", null)
+      .order("created_at", { ascending: false }).limit(500);
+    if (found.error) {
+      console.error("label food repeat lookup failed", { code: found.error.code });
+      return null;
+    }
+    const rows = (found.data ?? []) as StoredLabelFood[];
+    // Newest first, so a long scan history still meets its recent products; the oldest match wins.
+    return rows.filter((row) => sameLabelFood(label, allergenTags, row)).at(-1)?.id ?? null;
+  } catch (error) {
+    console.error("label food repeat lookup failed", { error: error instanceof Error ? error.name : "unknown" });
+    return null;
+  }
+}
+
 /** Their own food, from the label the user photographed. Runs after the refs and revisions are
- * validated (A036) and before the RPC, so the swap is honoured. */
+ * validated (A036) and before the RPC, so the swap is honoured. A repeat scan of a product they
+ * already saved reuses that food (W124), so search and Favorites hold one row per product. */
 async function saveLabelFood(
   client: SupabaseClient, userId: string, entryId: string, label: LabelFoodInput
 ): Promise<{ userFoodId?: string; foodRefId: string }> {
@@ -73,6 +143,8 @@ async function saveLabelFood(
   // keeps reading exactly as it always did.
   const fromIngredients = namedAllergenHints(label.ingredientsText, ["apple"]);
   const allergenTags = [...new Set([...label.allergenTags, ...fromIngredients])];
+  const repeat = await repeatLabelFood(client, userId, label, allergenTags);
+  if (repeat !== null) return { foodRefId: await labelFoodRef(client, userId, repeat) };
   // A036: the id is named by the account and the entry, so an attempt the RPC refused or that
   // died after this insert is met by its retry here, never answered with a second row.
   const id = labelFoodIdFor(userId, entryId);
@@ -90,10 +162,14 @@ async function saveLabelFood(
     const held = await client.from("user_foods").select("id").eq("id", id).maybeSingle();
     if (held.error || !held.data) throw held.error ?? new Error("could not read the label food");
   }
+  return { userFoodId: created ? id : undefined, foodRefId: await labelFoodRef(client, userId, id) };
+}
+
+async function labelFoodRef(client: SupabaseClient, userId: string, userFoodId: string): Promise<string> {
   const ref = await client.rpc("get_or_create_food_ref", { p_user_id: userId, p_kind: "user",
-    p_catalog_food_id: null, p_user_food_id: id });
+    p_catalog_food_id: null, p_user_food_id: userFoodId });
   if (ref.error || !ref.data) throw ref.error ?? new Error("could not register the label food");
-  return { userFoodId: created ? id : undefined, foodRefId: ref.data as string };
+  return ref.data as string;
 }
 
 /**
