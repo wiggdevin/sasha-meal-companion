@@ -2,11 +2,17 @@
 -- recipe_store_preview compare the account rev alone again, the three catalog triggers bump every
 -- account's recipe_plan_state row again (their 20261231200000 bodies), then the clock, its bump
 -- function and recipe_plan_previews.catalog_rev go. A preview stored under this file holds the sum
--- of both revs, so it answers "stale preview" once and is rebuilt; nothing else changes.
+-- of both revs, so it answers "stale preview" once and is rebuilt. Unaccepted previews are expired first (below).
 -- Order: roll the code back FIRST. The new build's stateRevision reads recipe_catalog_clock, so
 -- every preview answers 503 once this has dropped it.
 set local lock_timeout = '3s';
 set local statement_timeout = '30s';
+
+-- Expire every unaccepted preview first. Back on the account-only check, a preview stored before
+-- the up file could compare equal again after a catalog change it never saw (and a sum stored under
+-- it could match a later account rev). Accepted rows keep their expiry for idempotent replay.
+update public.recipe_plan_previews set expires_at = pg_catalog.now()
+ where accepted_request_id is null and expires_at > pg_catalog.now();
 
 do $migration$
 declare
