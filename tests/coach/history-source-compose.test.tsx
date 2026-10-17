@@ -40,7 +40,7 @@ it("sends the selected source with a text turn and blocks changing it while busy
   sendViaDock("What did I say about breakfast?");
   await waitFor(() => expect(post).toHaveBeenCalledWith(expect.objectContaining({
     text: "What did I say about breakfast?", historySourceThreadId: "source-thread",
-  })));
+  }), expect.anything()));
   expect(screen.getByRole("button", { name: "Ask from history" }).hasAttribute("disabled")).toBe(true);
 });
 

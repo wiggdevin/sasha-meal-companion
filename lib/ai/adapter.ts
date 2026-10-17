@@ -10,6 +10,7 @@
  */
 
 import { geminiUsage } from "@/lib/ai/gemini-usage";
+import { streamGemini } from "@/lib/ai/gemini-stream";
 import { callModel, parseModelJson, ProviderHttpError, SchemaRejection } from "@/lib/ai/call";
 import type { ProviderResult } from "@/lib/ai/call-ledger";
 import { geminiProvenance } from "@/lib/ai/gemini-payloads";
@@ -108,17 +109,16 @@ export function geminiHttpError(e: unknown): ProviderHttpError | null {
 
 async function geminiCall(
   model: string, parts: Part[], jsonSchema: unknown, maxOutputTokens?: number, signal?: AbortSignal,
-  temperature: number = 0,
+  temperature: number = 0, onText?: (raw: string) => void,
 ): Promise<ProviderResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set");
   const ai = new GoogleGenAI({ apiKey: key });
+  const request = { model, contents: [{ role: "user", parts }],
+    config: geminiConfig({ model, jsonSchema, temperature, maxOutputTokens, signal }) };
   try {
-    const res = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts }],
-      config: geminiConfig({ model, jsonSchema, temperature, maxOutputTokens, signal }),
-    });
+    if (onText) return await streamGemini(ai, request, onText);
+    const res = await ai.models.generateContent(request);
     return { text: res.text ?? "", ...geminiUsage(res.usageMetadata) };
   } catch (e) {
     throw geminiHttpError(e) ?? e;
@@ -189,10 +189,12 @@ export type StructuredArgs<T> = GenerateArgs<T> & {
   /** The schema the PROVIDER is sent, when it must be stricter than the one the reply is parsed
    *  with. The coach sends one whose every key is required (lib/coach/wire.ts). */
   providerSchema?: ZodType;
+  /** OD06: stream the reply; sees the raw text so far on each attempt (lib/ai/gemini-stream.ts). */
+  onText?: (raw: string) => void;
 } & RefuseArg<T>;
 export type GenerateDeps = {
   sleep?: (ms: number) => Promise<void>;
-  callGemini?: (model: string, parts: Part[], jsonSchema: unknown, maxOutputTokens?: number, signal?: AbortSignal, temperature?: number) => Promise<ProviderResult>;
+  callGemini?: (model: string, parts: Part[], jsonSchema: unknown, maxOutputTokens?: number, signal?: AbortSignal, temperature?: number, onText?: (raw: string) => void) => Promise<ProviderResult>;
   uploadMedia?: (media: Media) => Promise<UploadedFile>;
   deleteMedia?: (name: string) => Promise<void>;
   /** Debug hook: sees each raw provider answer before the schema judges it (scripts only). */
@@ -247,7 +249,7 @@ export async function generateStructured<T>(
           deps.uploadMedia ?? uploadToFiles));
       },
       send: (signal, model) => (deps.callGemini ?? geminiCall)(
-        model, parts, jsonSchema, args.maxOutputTokens, signal, args.temperature ?? 0),
+        model, parts, jsonSchema, args.maxOutputTokens, signal, args.temperature ?? 0, args.onText),
       // architecture §6: "Provider files are deleted after every call that uses the Files API, in
       // a finally block". A delete that itself fails must not mask the call's own error.
       close: async () => {

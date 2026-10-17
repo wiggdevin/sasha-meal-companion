@@ -108,7 +108,7 @@ describe("the lane table (Phase 13 §3)", () => {
     const nonModels = new Set([
       "America/Denver", "America/Los_Angeles", "America/New_York", "n/a",
       "docs/evals", "docs/features.md", "supabase/migrations", "tools/call",
-      "application/json", "application/pdf", "application/x-www-form-urlencoded",
+      "application/json", "application/pdf", "application/x-ndjson", "application/x-www-form-urlencoded",
       "audio/aac", "audio/mp4", "audio/mpeg", "audio/wav",
       "image/gif", "image/jpeg", "image/png", "text/calendar", "text/csv", "text/plain",
     ]);

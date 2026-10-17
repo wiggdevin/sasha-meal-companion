@@ -18,6 +18,7 @@ import type { startPersistedCoachSanity } from "@/lib/server/coach-sanity";
 import type { accountClock } from "@/lib/server/day-context";
 import type { LogEntryExistsPort } from "@/lib/server/coach-unlogged-meal";
 import type { MessageRow, persist } from "@/lib/server/coach-threads";
+import type { DraftSink } from "@/lib/server/coach-turn/draft";
 
 /** `persist`'s arguments up to the summary; the save adds the kind and the writer. */
 export type SaveArgs = Parameters<typeof persist> extends [infer C, infer T, infer R, infer N, infer S,
@@ -51,6 +52,11 @@ export type StageDeps = {
    * and body parsing are on the same clock as the phone's. Defaults to the start of runTurn.
    */
   startedAt?: number;
+  /**
+   * OD06 / W091: where the streaming route sends the final step's draft text
+   * (lib/server/coach-turn/draft.ts). Absent, nothing streams and the turn is unchanged.
+   */
+  draft?: DraftSink;
 };
 
 /** The request and its clocks, fixed before the first read. */
@@ -90,6 +96,8 @@ export type CoachModel = {
   responseSchema: ZodType<TurnStep>;
   /** One cited synthesis of saved-message excerpts (lib/server/coach-history-recall.ts). */
   synthesizeHistory: (sources: HistorySource[]) => Promise<unknown>;
-  /** One model step over the transcript, on `modelId`, within `remainingMs`. */
-  step: (modelId: string, transcript: string[], remainingMs: number) => Promise<TurnStep>;
+  /** One model step over the transcript, on `modelId`, within `remainingMs`. `onText`, when
+   *  given, streams the call and sees the provider's raw output so far (OD06). */
+  step: (modelId: string, transcript: string[], remainingMs: number,
+    onText?: (raw: string) => void) => Promise<TurnStep>;
 };

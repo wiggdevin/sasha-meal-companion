@@ -82,7 +82,7 @@ function audioPart(dataUrl: string): { type: "input_audio"; input_audio: { data:
 async function callOpenRouter(
   model: string, text: string, jsonSchema: unknown, temperature: number, signal: AbortSignal,
   maxTokens?: number, imageDataUrl?: string, schemaName = "coach_turn_step", fileDataUrl?: string,
-  audioDataUrl?: string,
+  audioDataUrl?: string, onText?: (raw: string) => void,
 ): Promise<OpenRouterResult> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is not set");
@@ -121,6 +121,8 @@ async function callOpenRouter(
       // owner's own data-handling commitment (docs/ai-data-handling.md) needs both. Live-tested OK
       // for anthropic/claude-haiku-4.5, google/gemini-2.5-flash and google/gemini-3-flash-preview.
       provider: { data_collection: "deny", zdr: true, require_parameters: true },
+      // OD06: a caller watching the reply as it is written gets server-sent events instead.
+      ...(onText ? { stream: true } : {}),
     }),
     signal,
   });
@@ -131,6 +133,7 @@ async function callOpenRouter(
     // carry health data. Only the status crosses into the message; the body is never read at all.
     throw new ProviderHttpError(response.status, `openrouter ${response.status}`);
   }
+  if (onText) return readOpenRouterStream(response, onText);
   let json: unknown;
   try {
     json = await response.json();
@@ -150,6 +153,71 @@ async function callOpenRouter(
     outputTokens: body.usage?.completion_tokens ?? 0,
     costUsd: typeof body.usage?.cost === "number" ? body.usage.cost : 0,
   };
+}
+
+type StreamChunk = {
+  choices?: { delta?: { content?: string | null } }[];
+  usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+  error?: { code?: number | string };
+};
+
+/**
+ * OD06 / W091: one streamed chat completion, read to its end. OpenRouter sends server-sent events:
+ * `data: {chunk}` lines, `: comment` keep-alives, and `data: [DONE]`. Each chunk's delta is
+ * appended and `onText` sees the whole text so far; the usage (tokens and billed cost) rides on
+ * the last chunk. A provider error after the headers arrives as a chunk carrying `error`, and is
+ * thrown as the same ProviderHttpError a non-2xx would be (only its code crosses, never its body).
+ * A stream that ends without its usage chunk or `[DONE]` is a cut-off reply: the JSON parse in
+ * `accept` refuses it as schema_invalid, exactly like a non-streamed reply cut off mid-JSON.
+ */
+export async function readOpenRouterStream(
+  response: Response, onText: (raw: string) => void,
+): Promise<OpenRouterResult> {
+  if (!response.body) throw new SchemaRejection("openrouter stream has no body");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffered = "";
+  let text = "";
+  let usage: StreamChunk["usage"];
+  const take = (line: string): boolean => {
+    if (!line.startsWith("data:")) return false;
+    const data = line.slice(5).trim();
+    if (data === "[DONE]") return true;
+    let chunk: StreamChunk;
+    try { chunk = JSON.parse(data) as StreamChunk; } catch { return false; }
+    if (chunk.error) {
+      const code = Number(chunk.error.code);
+      const status = Number.isInteger(code) && code >= 400 && code < 600 ? code : 502;
+      throw new ProviderHttpError(status, `openrouter ${status}`);
+    }
+    const delta = chunk.choices?.[0]?.delta?.content;
+    if (typeof delta === "string" && delta !== "") {
+      text += delta;
+      try { onText(text); } catch { /* a watcher's failure never fails the call */ }
+    }
+    if (chunk.usage) usage = chunk.usage;
+    return false;
+  };
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      buffered += decoder.decode(value, { stream: !done });
+      const lines = buffered.split(/\r?\n/);
+      buffered = done ? "" : lines.pop() ?? "";
+      for (const line of lines) if (take(line)) return finished();
+      if (done) return finished();
+    }
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
+  function finished(): OpenRouterResult {
+    return {
+      text,
+      inputTokens: usage?.prompt_tokens ?? 0,
+      outputTokens: usage?.completion_tokens ?? 0,
+      costUsd: typeof usage?.cost === "number" ? usage.cost : 0,
+    };
+  }
 }
 
 export type OpenRouterArgs<T> = {
@@ -183,6 +251,11 @@ export type OpenRouterArgs<T> = {
    * probe (lib/server/capture.ts) finds the same request whichever provider answered it.
    */
   inputHash?: string;
+  /**
+   * OD06 / W091: stream the reply and show it the raw text so far, chunk by chunk, on every
+   * attempt (a retry starts again from ""). The reply is still parsed and judged whole, once.
+   */
+  onText?: (raw: string) => void;
 } & RefuseArg<T>;
 
 export type OpenRouterDeps = {
@@ -307,7 +380,7 @@ export async function generateOpenRouter<T>(
         model, args.payload.text, jsonSchema, args.temperature ?? 0, signal, args.maxOutputTokens,
         args.payload.imageDataUrl, args.payload.purpose === "coach-openrouter"
           ? "coach_turn_step" : args.payload.purpose.replace(/[^a-zA-Z0-9_-]/g, "_"),
-        args.payload.fileDataUrl, args.payload.audioDataUrl),
+        args.payload.fileDataUrl, args.payload.audioDataUrl, args.onText),
     },
     accept: (result) => {
       const parsed = args.schema.safeParse(
