@@ -31,8 +31,9 @@ export default function ShoppingFocusToggle() {
     if (!h) return;
     const sync = () => setUntil(heldShoppingFocus(h.userId)?.until ?? null);
     window.addEventListener(SYNCED_EVENT, sync);
-    void refreshShoppingFocus(h).then(sync);
-    return () => window.removeEventListener(SYNCED_EVENT, sync);
+    let live = true;
+    void refreshShoppingFocus(h).then(() => { if (live && isCurrent(h)) sync(); });
+    return () => { live = false; window.removeEventListener(SYNCED_EVENT, sync); };
   }, []);
 
   const on = until !== null;
@@ -82,7 +83,7 @@ export default function ShoppingFocusToggle() {
           : "Turn on to have meal ideas favor what is on your list and in your pantry."}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" role="switch" aria-checked={on} disabled={busy}
+        <Button variant="secondary" role="switch" aria-label="Use my list" aria-checked={on} disabled={busy}
           onClick={() => { void toggle(); }}>
           {on ? "Stop using my list" : "Use my list"}
         </Button>

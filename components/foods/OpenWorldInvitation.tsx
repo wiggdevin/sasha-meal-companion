@@ -41,8 +41,8 @@ export default function OpenWorldInvitation() {
     if (!h || busy) return;
     setBusy(true); setMessage(null);
     const result = await chooseFoodWorld(h, "open");
-    if (!isCurrent(h)) return;
     setBusy(false);
+    if (!isCurrent(h)) return;
     if (result.ok) {
       setShow(false);
       window.dispatchEvent(new Event(SYNCED_EVENT));

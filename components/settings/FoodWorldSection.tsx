@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/ui/Notice";
 import { currentAccountOrNull, isCurrent } from "@/lib/device/account";
@@ -29,13 +29,18 @@ export default function FoodWorldSection() {
   const [view, setView] = useState<FoodWorldView | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  /** Bumped by every read and every switch: only the newest answer lands. */
+  const latest = useRef(0);
 
   useEffect(() => {
     let live = true;
     const load = () => {
       const h = currentAccountOrNull();
       if (!h) return;
-      void readFoodWorldView(h).then((next) => { if (live && isCurrent(h)) setView(next); });
+      const run = ++latest.current;
+      void readFoodWorldView(h).then((next) => {
+        if (live && run === latest.current && isCurrent(h)) setView(next);
+      });
     };
     load();
     window.addEventListener(SYNCED_EVENT, load);
@@ -49,11 +54,14 @@ export default function FoodWorldSection() {
     const h = currentAccountOrNull();
     if (!h || busy) return;
     setBusy(true); setMessage(null);
+    const run = ++latest.current;
     const result = await chooseFoodWorld(h, open ? "closed" : "open");
-    if (!isCurrent(h)) return;
     setBusy(false);
+    if (!isCurrent(h)) return;
     if (result.ok) {
-      setView({ world: result.world, eligible: view?.eligible ?? true });
+      // The invitation route says "not eligible" for an open account, so a just-closed account
+      // keeps the switch (it was visible a moment ago and may turn it back on).
+      if (run === latest.current) setView({ world: result.world, eligible: true });
       window.dispatchEvent(new Event(SYNCED_EVENT));
     } else {
       setMessage(result.reason === "condition_review" ? FOOD_WORLD_COPY.review
@@ -68,7 +76,7 @@ export default function FoodWorldSection() {
           <h3 className={`m-0 ${CARD_TITLE}`}>Open food list</h3>
           <p className={`m-0 ${CAPTION}`}>{open ? FOOD_WORLD_COPY.on : FOOD_WORLD_COPY.off}</p>
         </div>
-        <Button variant="secondary" role="switch" aria-checked={open} disabled={busy}
+        <Button variant="secondary" role="switch" aria-label="Open food list" aria-checked={open} disabled={busy}
           onClick={() => { void toggle(); }}>
           {open ? "Turn off open food list" : "Turn on open food list"}
         </Button>

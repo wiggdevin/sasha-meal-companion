@@ -49,7 +49,7 @@ describe("Settings › Food ideas", () => {
   });
 
   it("switches back off", async () => {
-    client.view.mockResolvedValue({ world: "open", eligible: true });
+    client.view.mockResolvedValue({ world: "open", eligible: false });
     client.choose.mockImplementation(async () => {
       client.view.mockResolvedValue({ world: "closed", eligible: true });
       return { ok: true, world: "closed" };

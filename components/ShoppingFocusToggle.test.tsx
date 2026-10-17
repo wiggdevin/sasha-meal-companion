@@ -38,7 +38,7 @@ describe("Shopping › Use my list", () => {
     focus.held = { until: UNTIL, keys: [] };
     focus.write.mockImplementation(async () => { focus.held = null; return { actionId: "a2", until: null, previous: UNTIL }; });
     render(<ShoppingFocusToggle />);
-    fireEvent.click(screen.getByRole("switch", { name: "Stop using my list" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Use my list" }));
     await waitFor(() => expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false"));
     expect(focus.write).toHaveBeenCalledWith(expect.anything(), false);
   });
