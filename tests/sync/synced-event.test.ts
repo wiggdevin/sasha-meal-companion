@@ -24,6 +24,8 @@ const count = () => { events += 1; };
 /** The server double: the feed it answers next, whether it is reachable, and every request. */
 let feed: ChangeRow[] = [];
 let reachable = true;
+/** Pages answered before the feed fails (W047 review: rows applied before a failure). */
+let failAfterPages: number | null = null;
 let requests: string[] = [];
 let seq = 0;
 
@@ -35,6 +37,13 @@ const fetchFn = (async (url: string, init?: RequestInit) => {
   requests.push(`${init?.method ?? "GET"} ${url.split("?")[0]}`);
   if (!reachable) throw new TypeError("Failed to fetch");
   if (url.startsWith("/api/sync/changes")) {
+    if (failAfterPages !== null) {
+      if (failAfterPages === 0) throw new TypeError("Failed to fetch");
+      failAfterPages -= 1;
+      const changes = feed;
+      feed = [];
+      return json({ changes, next_cursor: changes.at(-1)?.seq ?? seq, has_more: true });
+    }
     const changes = feed;
     feed = [];
     return json({ changes, next_cursor: changes.at(-1)?.seq ?? seq, has_more: false });
@@ -64,7 +73,7 @@ beforeEach(async () => {
     refs: [{ id: "r1", user_food_id: "f1" }],
   });
   saveStore(defaultStore());
-  feed = []; reachable = true; seq = 0; events = 0;
+  feed = []; reachable = true; failAfterPages = null; seq = 0; events = 0;
   window.addEventListener(SYNCED_EVENT, count);
 });
 afterEach(() => {
@@ -117,5 +126,17 @@ describe("SYNCED_EVENT per pass (W047 a)", () => {
     // Back online: the error clears, which the card needs to show.
     expect((await pass()).events).toBe(1);
     expect((await pass()).events).toBe(0);
+  });
+
+  it("rows applied before the same failure as last time still announce", async () => {
+    await pass();
+    reachable = false;
+    await pass(); // the error line is now "Failed to fetch"
+    reachable = true;
+    failAfterPages = 1;
+    feed = [{ seq: ++seq, entity: "water_log", entity_key: "2026-10-15", rev: 1, op: "create",
+      at: "2026-10-15T08:00:00.000Z", current: { local_date: "2026-10-15", cups: 3, rev: 1 } }];
+    // Page 1 applies, page 2 fails with the very same line: the row is still announced.
+    expect((await pass()).events).toBe(1);
   });
 });

@@ -362,6 +362,7 @@ export async function pullChanges(
       // A164). A log entry never gets here: projectPulledLogEntry above defers to its own writes.
       else await putPulledRow(h, change);
       applied += 1;
+      appliedRows += 1;
     }
     cursor = page.next_cursor;
     await setCursor(h, cursor);
@@ -384,7 +385,7 @@ export async function pullChanges(
   // Plan days pulled before Today saw them are projected once (W096). It runs only on a normal
   // pass that read the feed to its end, with the pages that pass has left.
   if (storedCursor !== null && !hasMore && pages < maxPages) {
-    replayed = await replayPlanDays(h, storedCursor, Math.min(PLAN_REPLAY_PAGES, maxPages - pages), fetchFn);
+    replayed += await replayPlanDays(h, storedCursor, Math.min(PLAN_REPLAY_PAGES, maxPages - pages), fetchFn);
   }
 
   // Direct Foods membership writes bypass the change feed. The account's canonical rows
@@ -604,6 +605,19 @@ const passes = new Map<number, SyncPass>();
 
 /** Account epochs whose first pass on this page already fired SYNCED_EVENT (W047). */
 const announcedEpochs = new Set<number>();
+/** Rows any pull applied on this page, counted as each is applied, so a pass that fails after
+ *  applying some still announces them (W047). */
+let appliedRows = 0;
+/** SYNCED_EVENTs this page has fired, so a caller can tell whether a pass already announced. */
+let announcements = 0;
+
+export function syncedAnnouncements(): number { return announcements; }
+
+/** Fire SYNCED_EVENT (W047: a sync pass that changed data, or a foreground pass, lib/sync/account-sync.ts). */
+export function announceSynced(): void {
+  announcements += 1;
+  globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+}
 
 /** Forget every in-flight pass. The passes themselves stop at their next handle check. */
 export function resetSyncPasses(): void {
@@ -678,6 +692,7 @@ export async function syncOnce(
     // when the pull applied or projected rows, the push settled ops, the error line changed, or this
     // is the account's first pass on this page.
     const errorBefore = await errorLine(h);
+    const rowsBefore = appliedRows;
     const seen: { pull?: PullResult } = {};
     let changed = false;
     try {
@@ -685,15 +700,16 @@ export async function syncOnce(
       changed = passChangedData(result);
       return result;
     } catch (e) {
-      // A push that failed after a pull that changed rows still changed this phone's data.
-      changed = seen.pull !== undefined && passChangedData({ pull: seen.pull, push: NOTHING_PUSHED });
+      // A pass that failed after applying or projecting rows still changed this phone's data.
+      changed = appliedRows !== rowsBefore
+        || (seen.pull !== undefined && passChangedData({ pull: seen.pull, push: NOTHING_PUSHED }));
       throw e;
     } finally {
       if (passes.get(h.epoch) === pass) passes.delete(h.epoch);
       const first = !announcedEpochs.has(h.epoch);
       announcedEpochs.add(h.epoch);
       if (first || changed || errorBefore === undefined || (await errorLine(h)) !== errorBefore) {
-        globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+        announceSynced();
       }
     }
   })();
