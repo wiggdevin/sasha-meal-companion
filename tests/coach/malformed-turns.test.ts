@@ -173,6 +173,14 @@ describe("an Eats or Avoid mark is not advice (F001, F010, F022)", () => {
     expect(withoutListMarkConfirmations("Added bread to your Favored list.", [bread])).toBe("");
   });
 
+  it("never strips a sentence through a model-written name that is a clause", () => {
+    for (const name of ["rice, then try shrimp", "rice then try the shrimp tacos", "2 eggs"]) {
+      const text = `Added ${name} to your Favored list.`;
+      expect(withoutListMarkConfirmations(text, [{ kind: "add_to_eats", name }])).toBe(
+        text);
+    }
+  });
+
   it("control: the same reply with no mark still re-asks, naming the rule", () => {
     const result = check("Adding Greek yogurt to your Favored list.", []);
     expect(isReask(result.content)).toBe(true);
@@ -180,7 +188,7 @@ describe("an Eats or Avoid mark is not advice (F001, F010, F022)", () => {
   });
 
   it("drops only the card that mirrors the mark", () => {
-    expect(withoutListMarkMirrors([{ name: "greek yogurt" }, { name: "honey" }],
+    expect(withoutListMarkMirrors([{ name: "Greek yogurt" }, { name: "honey" }],
       [{ kind: "add_to_eats", name: "Greek yogurt, plain" }])).toEqual([{ name: "honey" }]);
   });
 });

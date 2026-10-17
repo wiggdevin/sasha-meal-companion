@@ -30,17 +30,23 @@ const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 type ActionLike = { kind: string; name?: unknown };
 
+/** A name short and plain enough to be a food's name, not a clause ("rice, then try shrimp"). */
+const MAX_NAME_WORDS = 4;
+
 /**
- * The names this turn's list marks carry: the model's own words (a raw action) or the catalog's
- * (a grounded one, "Greek yogurt, plain", with its head "Greek yogurt"). Used only to recognise a
- * confirmation sentence or a card that mirrors the mark, never to exempt a mention of the food.
+ * The names this turn's list marks carry, as the head before any comma: the catalog's "Greek
+ * yogurt, plain" is "Greek yogurt". A raw action's name is the model's own free text, so a head
+ * of more than four words, or with a digit or sentence punctuation in it, is not used at all and
+ * its sentence stays in the scan. Used only to recognise a confirmation sentence or a card that
+ * mirrors the mark, never to exempt a mention of the food.
  */
 export function listMarkNames(actions: readonly ActionLike[]): string[] {
   const names = actions.flatMap((action) =>
     (LIST_MARK_KINDS as readonly string[]).includes(action.kind) && typeof action.name === "string"
-      ? [action.name, action.name.split(",")[0]] : [])
+      ? [action.name.split(",")[0]] : [])
     .map((name) => name.trim().replace(/\s+/g, " "))
-    .filter((name) => name !== "" && !/[.!?;:]/.test(name));
+    .filter((name) => name !== "" && !/[.!?;:\d]/.test(name)
+      && name.split(" ").length <= MAX_NAME_WORDS);
   return [...new Map(names.map((name) => [name.toLowerCase(), name])).values()];
 }
 
