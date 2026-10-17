@@ -479,7 +479,9 @@ export function rankPinnedPlates(input: PlateInput, pinned: readonly Food[]): Pl
  */
 function pinnedShortage(pinned: readonly Food[], pools: PartPools, anchors: readonly Food[],
   input: PlateInput): Shortage {
-  const key = templateFor(input.occasion, input.untimed, mealFamily(pinned[0].name)?.usual ?? []);
+  // The template follows the food that would anchor the plate, as `platesFor` does.
+  const lead = pinned.find((food) => partsOf(food).includes("anchor")) ?? pinned[0];
+  const key = templateFor(input.occasion, input.untimed, mealFamily(lead.name)?.usual ?? []);
   const template = TEMPLATES[key];
   for (const a of pinned) {
     if (!partsOf(a).includes("anchor")) continue;
