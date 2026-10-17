@@ -14,7 +14,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-const ARCHITECTURE = "docs/architecture.md";
+const ARCHITECTURE = path.join("docs", "architecture.md");
 const args = process.argv.slice(2);
 const architectureOnly = args[0] === "--architecture";
 const FEATURES = architectureOnly ? "" : (args[0] ?? "docs/features.md");
