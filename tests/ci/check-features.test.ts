@@ -141,4 +141,24 @@ describe("scripts/check-features.ts", () => {
     expect(seeded.code).toBe(1);
     expect(seeded.out).toContain("`lib/there-is-no-such-module.ts` does not");
   });
+
+  it("also checks the paths docs/architecture.md names", () => {
+    const run = (...args: string[]) => {
+      try {
+        execFileSync("npx", ["tsx", "scripts/check-features.ts", ...args],
+          { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+        return { code: 0, out: "" };
+      } catch (e) {
+        const err = e as { status?: number; stderr?: string };
+        return { code: err.status ?? 1, out: String(err.stderr ?? "") };
+      }
+    };
+    expect(run().code).toBe(0);
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "w131-arch-")), "architecture.md");
+    writeFileSync(file, readFileSync("docs/architecture.md", "utf8")
+      + "\nBuilt in `lib/there-is-no-such-module.ts`.\n");
+    const seeded = run("--architecture", file);
+    expect(seeded.code).toBe(1);
+    expect(seeded.out).toContain("`lib/there-is-no-such-module.ts` but it does not exist");
+  }, 30_000);
 });

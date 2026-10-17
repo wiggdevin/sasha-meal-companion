@@ -1,6 +1,8 @@
-# Meal Companion — Architecture v2.1 (2026-09-10)
+# Meal Companion — Architecture v2.2 (2026-10-17)
 
 Status: **APPROVED WITH CHANGES applied.** Supersedes v2. Self-contained: an implementer needs only this file and the sources below.
+
+v2.2 (2026-10-17) adds §13 and §14 below: an architecture-level view of phases 9-19 and what Wave 4 shipped. Sections 0-12 are the v2.1 text with three broken paths fixed; where §13 and an older section disagree, §13 and the phase specs win.
 
 | Reference | Location |
 |---|---|
@@ -939,7 +941,7 @@ asserted by `assertPinnedSdk()` against the installed version, so a major upgrad
 temperature 0 for extraction. Model ID and SDK version are written to every `ai_calls` row. **Provider data handling** — required before any
 of Meal Companion's real data is sent:
 
-- **Routing and the recorded provider agree by construction (T4).** Callers pass one `{provider, modelId}` decision (`lib/ai/route.ts` until 2026-10-01; the pins now live in `lib/ai/models.ts`); the
+- **Routing and the recorded provider agree by construction (T4).** Callers pass one `{provider, modelId}` decision (lib/ai/route.ts until 2026-10-01, since removed; the pins now live in `lib/ai/models.ts`); the
   adapter takes it as a single `route` override and refuses a pair whose provider does not serve the model. Before T4 the coach's table
   entry pointed at a Nous model while the client reported Gemini, an inconsistency no test caught because every test stubbed `generate`
   itself. The adapter-level test now drives the real `generateStructured` and inspects the `ai_calls` row. The turn step is a discriminated
@@ -988,7 +990,7 @@ model or SDK change, a live canary of 20 items from Meal Companion's eval set, r
 Each phase: tests green → deploy → the reviewer's manual gate.
 
 **This table stops at Phase 8.** Phases 9 onward are each scoped in their own file under
-`docs/specs/` (`phase-9-tenancy-blank-slate.md` through `phase-19-day-rebalance.md`); see that
+`docs/specs/` (`docs/specs/phase-9-tenancy-blank-slate.md` through `docs/specs/phase-19-day-rebalance.md`); see that
 directory for the full phase list and current scope.
 
 | Phase | Scope | Exit gate |
@@ -1119,3 +1121,41 @@ authenticated account and online revision-aware writes. The period detail return
 purchase windows. Unknown conversion or package size stays null in Buy, and unknown price is not
 a budget promise. Weekly windows preserve prior checked/note state on replan when the relevant
 need and Buy do not rise. See [pilot release](recipes/pilot-release.md) for deployment order.
+
+## 13. Phases 9-19 at architecture level
+
+The phase table in §8 stops at Phase 8. Each later phase has its own spec in `docs/specs/`; this section says only how they fit together. `AGENTS.md` has the file-by-file map and the rules tests guard.
+
+**Tenancy and authority (Phase 9, `docs/specs/phase-9-tenancy-blank-slate.md`).** Every account starts blank: no personal defaults, and every number a new account starts from is its own. Reads and writes go through the caller's session client with RLS. The admin (service-role) client is used only from declared entry points with the session-verified user id, and canary tests in `tests/tenancy/` hold that list. Target writers and server-owned tables are service-role only, so a signed-in phone cannot write them directly. The server's target revision is the sole authority for calories, macros and floors.
+
+**Sync (Phase 0 onward, `docs/specs/phase-0-foundations.md`).** The phone is local-first. Edits go to an outbox as ops, `POST /api/sync/ops` applies them through `apply_sync_op` with compare-and-swap, and every write lands in `change_log` so other devices pull it from `/api/sync/changes`. Replay safety comes from `op_id`; since Wave 4 the receipts live in their own table (§14).
+
+**Onboarding and plan (Phases 10, 15, 16; `docs/specs/phase-10-conversational-onboarding.md`, `docs/specs/phase-15-new-user-plan-and-today.md`, `docs/specs/phase-16-adaptive-handoff.md`, `docs/specs/onboarding-as-built.md`).** A six-step onboarding records the inputs for a target candidate, the server writes the first revision, and Today builds every day from the account's own foods, rules and the revision in force on that date. The advisory expenditure engine proposes changes weekly and a person approves them; nothing moves a target by itself.
+
+**Coach (Phases 7, 8, 11, 12; `docs/specs/phase-7-coach.md`, `docs/specs/phase-8-coach-actions.md`, `docs/specs/phase-11-conversations-memory.md`, `docs/specs/phase-12-coach-tools.md`).** A coach turn runs an optional Jev intent pre-pass, then the model, then a reply check. Actions come from one registry (`lib/coach/actions/index.ts`), apply on the phone with a server-recorded Undo, and every assistant row is written by the server. Cut ideas are parked in `docs/specs/coach-ideas-later.md`. Maps: `docs/architecture/2026-10-10/coach-path.md`.
+
+**Model lanes and the AI call layer (Phase 13, `docs/specs/phase-13-model-lanes-food-safety.md`).** Every model call goes through `callModel` (`lib/ai/call.ts`): registry check, attestation, spend reservation, circuit, attempts, and one `ai_calls` row. Pins live in `lib/ai/lanes.ts`. Jev is never on the allergy, diet or religious rule path. Maps: `docs/architecture/2026-10-10/ai-call-path.html`.
+
+**Open-world foods, occasions and rebalance (Phases 17, 18, 19; `docs/specs/phase-17-meal-occasion.md`, `docs/specs/phase-18-open-world-foods.md`, `docs/specs/phase-19-day-rebalance.md`).** Candidate foods pass one admission order before any score exists: only `allowed` foods, less every Avoid family, under the current rules and evidence tokens. Ranking (occasion fit, taste, pairing) only orders admitted foods and never changes a safety verdict. No account is open yet by default; closed accounts see their verified Eats only.
+
+**Jobs and crons (`vercel.json`, `docs/architecture/2026-10-10/vercel-crons.md`).** Ten cron routes plus the S3 sweep helpers: backup, estimate, facet-warm, media-sweep, onboarding-events-purge, oura-pull, signal-purge, spend-sweep, weekly-proposal and weekly-review. Each checks its cron secret before it spends the shared limiter; the long ones resume from `job_cursors` and stop starting work at 240 s.
+
+Other maps: `docs/architecture/2026-10-10/system-architecture.html`, `docs/architecture/2026-10-10/module-map.html`, `docs/architecture/2026-10-10/data-flows.html`, `docs/architecture/2026-10-10/mcp-tools.md` and `docs/architecture/2026-10-10/scale-review.md`.
+
+## 14. What Wave 4 shipped (2026-10-17)
+
+Merged to `main`:
+
+- **Coach and capture:** cancelling a voice note aborts the in-flight transcription (W140, #167); a named plate that fails now says which part is missing or which foods clash (W156, #175); the photo attempt records the stripped image size, and a regional priors spec was added (W155, #176; `docs/specs/2026-10-17-regional-priors.md`); the live coach quality and privacy pass on the OpenRouter lane is written up (W087, #179).
+- **Sync and foods:** per-pass sync fan-out is cut (W047 a-c, #177); the closed-world eligible set is cached on the rules token (W047 d, #181); an open eligible set is held across a date change until its token is rechecked (W137, #168).
+- **Replay receipts (W048 step 1, #169, applied before merge):** `sync_op_receipts` stores each op's outcome so a replay stays a duplicate after its `change_log` row is gone. It is in `lib/server/backup-tables.ts`. Compaction and snapshots are not built.
+- **Onboarding, draft and Today:** the onboarding draft expires in one transaction (W150, #171); "Your usual" (W141, #166); the Avoid check now warns when more than 12 checked meals are sent (W139, #172).
+- **Scale tests:** sign-up load and a 1,000-account job-sweep soak script (W049, #170); no production load has been run.
+- **Care companions:** the shop's wearables widen to the companions that can wear them, and `docs/specs/companion-state.md` records the stored fields (W145, #165). The migration is applied.
+
+Ready and **awaiting apply by the Mac session** (migrations, not merged; this describes them as written in their PRs):
+
+- **#173, W044:** a daily `/api/jobs/retention-purge` cron deletes rows past their window from `client_timings` (90 days), `ai_calls` (90 days, except rows an unsettled spend hold or a coach message still cites), `job_runs` (60 days) and `recipe_plan_previews` (7 days past expiry), in bounded passes. It also builds four indexes concurrently. Apply the purge functions before the code deploys; the index file cannot run through `scripts/apply-migrations.py`.
+- **#178, W072:** shared catalog writes bump one `recipe_catalog_clock` row instead of every account's `recipe_plan_state`. A preview is fresh while the account revision plus the catalog revision is unchanged. Lock order becomes `evidence_clock`, `account_rules_clock`, `recipe_catalog_clock`, `recipe_plan_state`. The PR also adds a partition plan note (docs/plans/2026-10-17-partition-plan.md, not yet on main). Apply before deploy.
+
+Not yet built: replay-receipt compaction and snapshots, retention purge and the catalog clock in production, partitioning of `ai_calls`, `change_log` and `client_timings`.

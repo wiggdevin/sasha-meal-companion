@@ -1,8 +1,9 @@
 /**
  * T9 §3 guard: `docs/features.md` must not rot again.
  *
- *   pnpm lint:docs            # docs/features.md
- *   tsx scripts/check-features.ts <file>   # any copy of it, which is how the test seeds a lie
+ *   pnpm lint:docs            # docs/features.md, then docs/architecture.md
+ *   tsx scripts/check-features.ts <file>   # any copy of features.md, which is how the test seeds a lie
+ *   tsx scripts/check-features.ts --architecture <file>   # any copy of architecture.md
  *
  * One rule, in two directions, over every cell of the row — Detail and Acceptance name files as
  * often as Source does. A `planned` row may not name, in backticks, a file that exists (the
@@ -13,7 +14,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-const FEATURES = process.argv[2] ?? "docs/features.md";
+const ARCHITECTURE = "docs/architecture.md";
+const args = process.argv.slice(2);
+const architectureOnly = args[0] === "--architecture";
+const FEATURES = architectureOnly ? "" : (args[0] ?? "docs/features.md");
 /**
  * A backticked token with one of the repo's file extensions: `lib/server/log.ts`,
  * `scripts/import-fdc.py`, `app/globals.css`. Only backticked text is read, and only these
@@ -65,12 +69,39 @@ function problems(all: Row[], root: string): string[] {
 }
 
 const root = process.cwd();
-const all = rows(readFileSync(path.resolve(root, FEATURES), "utf8"));
-if (all.length === 0) {
-  console.error(`${FEATURES}: no feature rows found — has the table shape changed?`);
-  process.exit(1);
+
+/**
+ * architecture.md has no disposition column, so its one rule is the "exists" half: a backticked
+ * file path it names must be there. A path that was removed is written without backticks.
+ */
+function architectureProblems(file: string): string[] {
+  const found: string[] = [];
+  readFileSync(path.resolve(root, file), "utf8").split("\n").forEach((line, i) => {
+    for (const m of line.matchAll(PATH_IN_BACKTICKS)) {
+      if (!existsSync(path.join(root, m[2]))) {
+        found.push(`${file}:${i + 1} names \`${m[2]}\` but it does not exist.`);
+      }
+    }
+  });
+  return found;
 }
-const found = problems(all, root);
+
+let found: string[] = [];
+let checked = "";
+if (!architectureOnly) {
+  const all = rows(readFileSync(path.resolve(root, FEATURES), "utf8"));
+  if (all.length === 0) {
+    console.error(`${FEATURES}: no feature rows found — has the table shape changed?`);
+    process.exit(1);
+  }
+  found = problems(all, root);
+  checked = `${FEATURES}: ${all.length} rows`;
+}
+if (architectureOnly || args.length === 0) {
+  const file = architectureOnly ? (args[1] ?? ARCHITECTURE) : ARCHITECTURE;
+  found = found.concat(architectureProblems(file));
+  checked = `${checked ? `${checked}; ` : ""}${file} paths`;
+}
 for (const problem of found) console.error(problem);
-console.error(`${FEATURES}: ${all.length} rows, ${found.length} problem(s).`);
+console.error(`${checked}, ${found.length} problem(s).`);
 process.exit(found.length === 0 ? 0 : 1);
