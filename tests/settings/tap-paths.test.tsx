@@ -19,6 +19,14 @@ const settings = {
 };
 
 describe("Settings low-tap edit paths", () => {
+  it("shows an unspecified sex as Prefer not to say, not a dash", () => {
+    const markup = renderToStaticMarkup(
+      <AppProfileCard settings={{ ...settings, sex: "unspecified" as const }} setup={false}
+        training={null} rest={null} />,
+    );
+    expect(markup).toContain("Prefer not to say");
+  });
+
   it("shows the body details on the profile card, whose Edit profile edits them", () => {
     // Owner, 2026-10-05: the "Body profile & units" section repeated what Edit profile edits.
     const markup = renderToStaticMarkup(
