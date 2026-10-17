@@ -13,6 +13,7 @@ import { getProfile, getRuleReviewStatus, type StoredProfile } from "@/lib/serve
 import { readPolicyProfile } from "@/lib/server/policy-profile";
 import { latestEstimate } from "@/lib/server/expenditure";
 import { activeTargets } from "@/lib/server/targets";
+import { accountDay, addIsoDays } from "@/lib/server/account-day";
 import { isMealSlot } from "@/lib/meals";
 import { mapCatalogFoodHit } from "@/lib/server/coach";
 import { eatsOwnFood } from "@/lib/server/eats-own-food";
@@ -287,7 +288,11 @@ export function defaultPorts(
     // this tool mid-turn must see them, not just the legacy avoid_allergens/banned_categories.
     getConstraints: async (userId) => policyProfile(userId),
     recentGut: async (userId, days) => {
-      const from = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+      // gut_log.local_date is the account's own day, so the window steps back from the account's
+      // today (stored zone, else the turn's zone), never the server's UTC date (audit A109).
+      const today = await accountDay(client, userId, { purpose: "recentGut", requestZone: tz,
+        now: clock.now ? new Date(clock.now) : new Date() });
+      const from = addIsoDays(today.date, -days);
       const { data } = await client.from("gut_log")
         .select("local_date, state, note").eq("user_id", userId)
         .is("deleted_at", null).gte("local_date", from)
@@ -344,7 +349,9 @@ export function defaultPorts(
         suggestionTarget(admin, userId, args, clock, day.viewed),
         policyProfile(userId),
       ]);
-      return suggestOptions(args, {
+      // The rotation and history windows run on the turn's day, never the server's UTC date when
+      // the model leaves `date` out (audit A110).
+      return suggestOptions({ ...args, date: args.date ?? clock.date }, {
         userId,
         profile,
         target: async () => target,

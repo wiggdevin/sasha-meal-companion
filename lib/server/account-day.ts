@@ -76,19 +76,35 @@ export function resolveAccountDay(input: AccountDayInput): AccountDay {
     zone: ACCOUNT_DAY_LAST_RESORT_ZONE, source: "utc_last_resort" };
 }
 
+/** The calendar date `days` after `day` (negative steps back). Calendar days, not 24-hour steps. */
+export function addIsoDays(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * The account's stored zone, or null when the account has none. A failed read THROWS: a job that
+ * dates and locks work by the account's day (estimate, weekly proposal) must retry, never date the
+ * account by UTC and take that day's lock (audit A118).
+ */
+export async function readAccountZoneStrict(
+  client: SupabaseClient, userId: string,
+): Promise<string | null> {
+  const { data, error } = await client.from("user_settings").select("time_zone")
+    .eq("user_id", userId).maybeSingle();
+  if (error) throw new Error(`account-day: time zone read failed: ${error.message ?? "unknown"}`);
+  const zone = (data as { time_zone?: unknown } | null)?.time_zone;
+  return typeof zone === "string" && zone.trim() !== "" ? zone : null;
+}
+
 /** The account's stored zone. A failed read is logged and answers null, so the chain goes on to
  *  the request's zone: a zone read never fails the target read it serves. */
 export async function readAccountZone(
   client: SupabaseClient, userId: string,
 ): Promise<string | null> {
   try {
-    const { data, error } = await client.from("user_settings").select("time_zone")
-      .eq("user_id", userId).maybeSingle();
-    if (error) throw error;
-    const zone = (data as { time_zone?: unknown } | null)?.time_zone;
-    return typeof zone === "string" && zone.trim() !== "" ? zone : null;
+    return await readAccountZoneStrict(client, userId);
   } catch (e) {
-    console.warn(`account-day: time zone read failed: ${e instanceof Error ? e.message : "unknown"}`);
+    console.warn(e instanceof Error ? e.message : "account-day: time zone read failed: unknown");
     return null;
   }
 }
