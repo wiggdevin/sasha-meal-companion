@@ -391,7 +391,7 @@ function reask(base: ReplyCheckResult, failures: readonly ReplyFailure[]): Reply
     content: reaskMessage(held), suggestions, draft: null, actions: [],
     draftChecks: base.draftChecks, textChecks: [...base.textChecks, ...extra],
     replaced: { by: "reply_scan", reasons: held.map((f) => reaskReasonCode(f.reason)),
-      incomplete: failures.some((f) => f.reason === REPLY_CHECK_INCOMPLETE) },
+      incomplete: failures.some((f) => f.reason === REPLY_CHECK_INCOMPLETE), held },
   };
 }
 

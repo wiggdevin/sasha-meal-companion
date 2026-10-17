@@ -38,8 +38,9 @@ function capitalised(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** The reply that replaces an answer the food-rule check could not let through. */
-export function reaskMessage(failures: readonly ReaskFailure[]): string {
+function sorted(failures: readonly ReaskFailure[]): {
+  blocked: ReaskFailure[]; unchecked: string[]; incomplete: boolean;
+} {
   const seen = new Set<string>();
   const blocked: ReaskFailure[] = [];
   const unchecked: string[] = [];
@@ -56,12 +57,59 @@ export function reaskMessage(failures: readonly ReaskFailure[]): string {
     if (failure.reason === null || failure.reason === UNCHECKED_ID) unchecked.push(name);
     else blocked.push({ name, reason: failure.reason });
   }
+  return { blocked, unchecked, incomplete };
+}
+
+/** The quick reply that sends the coach "Add <food> to Eats"; a chip holds at most 40 characters. */
+function addToEatsOption(name: string): string | null {
+  const option = `Add ${name} to Eats`;
+  return option.length <= 40 ? option : null;
+}
+/** The second chip beside the Eats offer: a quick-replies block needs two options. */
+export const REASK_SOMETHING_ELSE = "Suggest something else";
+
+/**
+ * Item 2 of the 2026-10-17 coach rerun: a re-ask that held back foods it could not check left the
+ * person at a dead end. When it held back a food only because nothing checked it yet (never one a
+ * rule blocks), it offers the step that gets it checked: adding it to Eats, which runs the Eats
+ * verification and facet warm (lib/foods/prefs-client.ts). The food stays held in this reply.
+ *
+ * `listed` is the account's own Eats and Avoid names: a food already on either list is not
+ * offered, so a food on Avoid is never proposed for Eats. Returns the foods the offer names and
+ * the quick-reply options, or null when there is nothing to offer.
+ */
+export function reaskNextStep(
+  failures: readonly ReaskFailure[], listed: readonly string[],
+): { foods: string[]; options: string[] } | null {
+  const known = new Set(listed.map((name) => name.trim().replace(/\s+/g, " ").toLowerCase()));
+  const foods = sorted(failures).unchecked.slice(0, MAX_NAMED)
+    .filter((name) => !known.has(name.toLowerCase()) && addToEatsOption(name) !== null)
+    .slice(0, 2);
+  if (foods.length === 0) return null;
+  return { foods, options: [...foods.map((name) => addToEatsOption(name) as string), REASK_SOMETHING_ELSE] };
+}
+
+/**
+ * The reply that replaces an answer the food-rule check could not let through. `offerEats` names
+ * the unchecked foods `reaskNextStep` offers to add to Eats; the reply then says how to get them
+ * checked.
+ */
+export function reaskMessage(
+  failures: readonly ReaskFailure[], offerEats: readonly string[] = [],
+): string {
+  const { blocked, unchecked, incomplete } = sorted(failures);
   const parts = blocked.slice(0, MAX_NAMED)
     .map((failure) => `${capitalised(failure.name)} ${reasonFragment(failure.reason)}`);
   const shown = unchecked.slice(0, MAX_NAMED);
   if (shown.length > 0) {
     parts.push(`I couldn’t check ${listOf(shown)} against your food rules yet, so I left `
       + `${shown.length === 1 ? "it" : "them"} out.`);
+    const offered = shown.filter((name) => offerEats.some((o) => o.toLowerCase() === name.toLowerCase()));
+    if (offered.length > 0) {
+      const subject = offered.length === 1 && shown.length === 1 ? "it" : listOf(offered);
+      parts.push(`Add ${subject} to your Eats and ${offered.length === 1 ? "it gets" : "they get"} `
+        + "checked against your food rules.");
+    }
   }
   if (parts.length === 0) {
     return incomplete ? REASK_INCOMPLETE : abortMessage("unverified_text_food");
