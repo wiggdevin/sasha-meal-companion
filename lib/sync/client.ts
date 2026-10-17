@@ -66,6 +66,10 @@ export type PullResult = {
   /** The post-pull food or target projection failed (W026, A080). The feed itself was applied and
    *  the cursor saved; the pass still pushes, and says what went wrong. */
   projectionError?: string;
+  /** W047: local rows the post-pull projections and the plan-day replay changed (food, target and
+   *  membership caches, replayed plan days). A pass with none of these and nothing applied leaves
+   *  the phone's data as it was. Absent from an older caller's hand-built result. */
+  projected?: number;
 };
 
 /** A row this client cannot address (an unknown key shape) is quarantined, not fatal: one poisoned
@@ -212,18 +216,19 @@ async function deleteMirroredTargetProfile(h: AccountHandle, key: string): Promi
 /** Each pass rebuilds history and current from the mirror (audit 2026-10-05 #16, #23): backfill,
  *  a future revision turning current on its date, a stale coerced cache re-parsed, and an account
  *  whose rows are all malformed returned to needs_profile. */
-async function refreshTargetHistory(h: AccountHandle): Promise<void> {
+async function refreshTargetHistory(h: AccountHandle): Promise<number> {
   const { heldIds, revisions } = await mirroredTargetRevisions(h);
   const store = loadStore();
   const cached = store.settings.activeTargetProfile;
   // An unsaved onboarding candidate (no revision number) is the user's preview; leave it.
-  if (cached && typeof cached.revision !== "number") return;
+  if (cached && typeof cached.revision !== "number") return 0;
   const settings = settingsFromTargetMirror(store.settings, revisions, undefined, heldIds);
-  if (settings === store.settings) return;
+  if (settings === store.settings) return 0;
   saveStoreFor(h, { ...store, settings }, { silent: true });
+  return 1;
 }
 
-async function refreshFoodProjection(h: AccountHandle): Promise<void> {
+async function refreshFoodProjection(h: AccountHandle): Promise<number> {
   // Taken before the server read: a tap after it keeps its own mark (W029, A039). Imported late,
   // as lib/sync/outbox-membership.ts does: prefs-client reaches this module through the outbox.
   const { adoptServerMemberships, foodMembershipWriteMark } = await import("@/lib/foods/prefs-client");
@@ -246,9 +251,8 @@ async function refreshFoodProjection(h: AccountHandle): Promise<void> {
   }
   // The mark cache follows the server's marks (a server Favor, another device's tap), so a repeat
   // tap here compares with what the server holds; queued names keep their local mark.
-  if (snapshot.memberships) {
-    adoptServerMemberships(h, snapshot.memberships, new Set(membership.keys()), writeMark);
-  }
+  const adopted = snapshot.memberships
+    ? adoptServerMemberships(h, snapshot.memberships, new Set(membership.keys()), writeMark) : 0;
   for (const [id, food] of Object.entries(foods)) {
     const pendingStatus = membership.get(normalizeFoodName(food.name));
     if (pendingStatus) foods[id] = { ...food, status: pendingStatus.status ?? "neutral",
@@ -275,6 +279,7 @@ async function refreshFoodProjection(h: AccountHandle): Promise<void> {
     if (id && op.kind !== "delete" && store.foods[id]) foods[id] = store.foods[id];
   }
   saveStoreFor(h, { ...store, foods }, { silent: true });
+  return adopted + (JSON.stringify(foods) === JSON.stringify(store.foods) ? 0 : 1);
 }
 
 /** Apply pages of `ChangeRow` until the feed runs out. The cursor is saved ONLY after a whole page
@@ -357,6 +362,7 @@ export async function pullChanges(
       // A164). A log entry never gets here: projectPulledLogEntry above defers to its own writes.
       else await putPulledRow(h, change);
       applied += 1;
+      appliedRows += 1;
     }
     cursor = page.next_cursor;
     await setCursor(h, cursor);
@@ -365,9 +371,11 @@ export async function pullChanges(
     hasMore = page.has_more;
   }
 
+  let replayed = 0;
   // Only the end of the replay establishes what the server holds. Until then the legacy op remains
   // baseline-less and the drain keeps it parked.
   if (recovery && !hasMore) {
+    replayed += 1;
     const seen = recovery.seen;
     if (seen === null || seen.row === null) await establishEmptySettingsBaseline(h);
     else await applyAndMirrorPulledUserSettings(h, seen.row, seen.rev);
@@ -377,16 +385,16 @@ export async function pullChanges(
   // Plan days pulled before Today saw them are projected once (W096). It runs only on a normal
   // pass that read the feed to its end, with the pages that pass has left.
   if (storedCursor !== null && !hasMore && pages < maxPages) {
-    await replayPlanDays(h, storedCursor, Math.min(PLAN_REPLAY_PAGES, maxPages - pages), fetchFn);
+    replayed += await replayPlanDays(h, storedCursor, Math.min(PLAN_REPLAY_PAGES, maxPages - pages), fetchFn);
   }
 
   // Direct Foods membership writes bypass the change feed. The account's canonical rows
   // must refresh on every sync pass, including one with an already-consumed cursor. They are
   // projections of what was pulled, not the pull: a failed read here must not keep the outbox
   // from pushing (audit 2026-10-10 A080), so it is reported, and the pass goes on.
-  const projectionError = await projectAfterPull(h);
+  const { failure: projectionError, changed } = await projectAfterPull(h);
 
-  return { applied, skipped, cursor, hasMore, pages,
+  return { applied, skipped, cursor, hasMore, pages, projected: replayed + changed,
     ...(projectionError === null ? {} : { projectionError }) };
 }
 
@@ -397,7 +405,8 @@ export async function pullChanges(
  */
 async function replayPlanDays(
   h: AccountHandle, storedCursor: number, pageBudget: number, fetchFn: typeof fetch,
-): Promise<void> {
+): Promise<number> {
+  let replayed = 0;
   try {
     let replay = await pendingPlanReplay(h, storedCursor);
     let pages = 0;
@@ -408,6 +417,7 @@ async function replayPlanDays(
       for (const change of newestPlanDays(page.changes, replay.through)) {
         if (!addressable(change.entity, change.entity_key, change.seq)) continue;
         await applyReplayedPlanDay(h, change);
+        replayed += 1;
       }
       replay = { ...replay, cursor: page.has_more ? page.next_cursor : replay.through };
       await savePlanReplay(h, replay);
@@ -417,21 +427,24 @@ async function replayPlanDays(
     if (e instanceof AccountChanged || !isCurrent(h)) throw e;
     console.warn(`sync: plan day replay paused: ${shortMessage(e)}`);
   }
+  return replayed;
 }
 
-/** Both post-pull projections, each on its own; the first failure's line, or null. */
-async function projectAfterPull(h: AccountHandle): Promise<string | null> {
+/** Both post-pull projections, each on its own; the first failure's line (or null) and how many
+ *  local changes they made. */
+async function projectAfterPull(h: AccountHandle): Promise<{ failure: string | null; changed: number }> {
   let failure: string | null = null;
+  let changed = 0;
   for (const project of [refreshFoodProjection, refreshTargetHistory]) {
     try {
-      await project(h);
+      changed += await project(h);
     } catch (e) {
       if (e instanceof AccountChanged || !isCurrent(h)) throw e;
       console.warn(`sync: ${project.name} failed after the pull: ${shortMessage(e)}`);
       failure ??= shortMessage(e);
     }
   }
-  return failure;
+  return { failure, changed };
 }
 
 export function lastSyncAt(h: AccountHandle): Promise<string | null> {
@@ -590,9 +603,45 @@ type SyncPass = {
 /** One pass per account epoch (Phase 9 §0.3): a pass for A never answers a call for B. */
 const passes = new Map<number, SyncPass>();
 
+/** Account epochs whose first pass on this page already fired SYNCED_EVENT (W047). */
+const announcedEpochs = new Set<number>();
+/** Rows any pull applied on this page, counted as each is applied, so a pass that fails after
+ *  applying some still announces them (W047). */
+let appliedRows = 0;
+/** SYNCED_EVENTs this page has fired, so a caller can tell whether a pass already announced. */
+let announcements = 0;
+
+export function syncedAnnouncements(): number { return announcements; }
+
+/** Fire SYNCED_EVENT (W047: a sync pass that changed data, or a foreground pass, lib/sync/account-sync.ts). */
+export function announceSynced(): void {
+  announcements += 1;
+  globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+}
+
 /** Forget every in-flight pass. The passes themselves stop at their next handle check. */
 export function resetSyncPasses(): void {
   passes.clear();
+  announcedEpochs.clear();
+}
+
+/** The stored error line, or undefined when it cannot be read (then the pass always announces). */
+async function errorLine(h: AccountHandle): Promise<string | null | undefined> {
+  try {
+    return await getLastError(h);
+  } catch {
+    return undefined;
+  }
+}
+
+const NOTHING_PUSHED: DrainResult = {
+  pushed: 0, applied: 0, conflicts: 0, dropped: 0, errored: 0, failed: false, retryAfterMs: null,
+};
+
+/** W047: whether a pass changed this phone's data: rows applied or projected, or ops settled. */
+export function passChangedData({ pull, push }: { pull: PullResult; push: DrainResult }): boolean {
+  return pull.applied > 0 || (pull.projected ?? 1) > 0
+    || push.applied + push.conflicts + push.dropped > 0;
 }
 
 /** Records the error line, unless the account changed: that is not a failure of this account. */
@@ -602,11 +651,12 @@ async function recordFailure(h: AccountHandle, e: unknown): Promise<void> {
 }
 
 async function runPass(
-  h: AccountHandle, options: SyncOptions,
+  h: AccountHandle, options: SyncOptions, seen: { pull?: PullResult } = {},
 ): Promise<{ pull: PullResult; push: DrainResult }> {
   let pull: PullResult;
   try {
     pull = await pullChanges(h, undefined, options);
+    seen.pull = pull;
   } catch (e) {
     await recordFailure(h, e);
     throw e;
@@ -638,12 +688,29 @@ export async function syncOnce(
   }
   const pass: SyncPass = { promise: Promise.resolve() as never, runAgain: false };
   pass.promise = (async () => {
+    // W047: listeners re-read on SYNCED_EVENT, so a pass that changed nothing stays quiet. It fires
+    // when the pull applied or projected rows, the push settled ops, the error line changed, or this
+    // is the account's first pass on this page.
+    const errorBefore = await errorLine(h);
+    const rowsBefore = appliedRows;
+    const seen: { pull?: PullResult } = {};
+    let changed = false;
     try {
-      return await runPass(h, options);
+      const result = await runPass(h, options, seen);
+      changed = passChangedData(result);
+      return result;
+    } catch (e) {
+      // A pass that failed after applying or projecting rows still changed this phone's data.
+      changed = appliedRows !== rowsBefore
+        || (seen.pull !== undefined && passChangedData({ pull: seen.pull, push: NOTHING_PUSHED }));
+      throw e;
     } finally {
       if (passes.get(h.epoch) === pass) passes.delete(h.epoch);
-      // Either way the card is now stale — a failure is exactly what the user needs to see.
-      globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+      const first = !announcedEpochs.has(h.epoch);
+      announcedEpochs.add(h.epoch);
+      if (first || changed || errorBefore === undefined || (await errorLine(h)) !== errorBefore) {
+        announceSynced();
+      }
     }
   })();
   passes.set(h.epoch, pass);

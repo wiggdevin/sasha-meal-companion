@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
-import { enforceRateLimit } from "@/lib/server/ratelimit";
+import { enforceInstanceRateLimit, enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
 import { completeRuleReview, getRuleReviewStatus } from "@/lib/server/constraints";
 import { adminClient } from "@/lib/server/admin";
@@ -17,7 +17,8 @@ const request = z.object({
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await enforceRateLimit(`rule-review:pre:ip:${requestIp(req)}`, 120, 60, "fail_open");
+    // W047: the pre-auth guard is this instance's memory only; the shared count is per account below.
+    await enforceInstanceRateLimit(`rule-review:pre:ip:${requestIp(req)}`, 120, 60);
     const { client, userId } = await requireUser(req);
     await enforceRateLimit(`rule-review:${userId}`, 30, 60, "fail_open");
     return Response.json(await getRuleReviewStatus(client, userId));

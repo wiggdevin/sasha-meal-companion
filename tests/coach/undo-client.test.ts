@@ -17,6 +17,7 @@ vi.mock("@/lib/coach/actions/apply", () => ({
 }));
 vi.mock("@/lib/sync/client", () => ({
   syncOnce: mocks.syncOnce, flushOutboxNow: mocks.flushOutboxNow,
+  SYNCED_EVENT: "meal-companion:synced", syncedAnnouncements: () => 0,
 }));
 
 const { bindAccount, unbindAccount } = await import("@/lib/device/account");

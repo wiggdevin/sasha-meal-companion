@@ -12,6 +12,10 @@
  *
  * Best effort in every direction: no session, no body, no error path, one short deadline for the
  * whole pass so a slow network cannot make the ping itself something the user waits on.
+ *
+ * W047 (scale step 7): one call per foreground. The hot routes are touched only on the first
+ * foreground of a page load, or when they were last touched more than `ROUTES_IDLE_MS` ago (long
+ * enough for an idle function to have gone cold); every other foreground sends `/api/warm` alone.
  */
 
 import { fetchWithDeadline } from "@/lib/fetch-with-deadline";
@@ -27,6 +31,17 @@ export const WARM_ROUTES = [
   "/api/foods/search",
 ] as const;
 
+/** How long the hot routes count as warm after a touch (Vercel reclaims idle functions in minutes). */
+export const ROUTES_IDLE_MS = 10 * 60_000;
+
+/** When this page last touched the hot routes; null before the first foreground. */
+let routesWarmedAt: number | null = null;
+
+/** Forget the last touch (tests, or a new session on the same page). */
+export function resetWarmState(): void {
+  routesWarmedAt = null;
+}
+
 async function touch(
   url: string, method: "GET" | "HEAD", opts: { fetchImpl?: typeof fetch }
 ): Promise<void> {
@@ -41,12 +56,15 @@ async function touch(
   }
 }
 
-export async function pingWarm(opts: { fetchImpl?: typeof fetch } = {}): Promise<void> {
+export async function pingWarm(opts: { fetchImpl?: typeof fetch; now?: number } = {}): Promise<void> {
   const doFetch = opts.fetchImpl ?? (typeof fetch === "function" ? fetch : null);
   if (!doFetch) return;
+  const now = opts.now ?? Date.now();
+  const routes = routesWarmedAt === null || now - routesWarmedAt > ROUTES_IDLE_MS;
+  if (routes) routesWarmedAt = now;
   await Promise.all([
     // The warm route exists to answer a GET and does nothing else.
     touch(WARM_URL, "GET", { fetchImpl: doFetch }),
-    ...WARM_ROUTES.map((url) => touch(url, "HEAD", { fetchImpl: doFetch })),
+    ...(routes ? WARM_ROUTES.map((url) => touch(url, "HEAD", { fetchImpl: doFetch })) : []),
   ]);
 }

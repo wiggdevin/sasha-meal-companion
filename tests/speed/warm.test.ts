@@ -5,8 +5,8 @@
  * The route-segment config is asserted from the module's own exports, not from the source text:
  * that is what Next actually reads.
  */
-import { describe, expect, it, vi } from "vitest";
-import { pingWarm, WARM_ROUTES, WARM_URL } from "@/lib/warm-client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { pingWarm, resetWarmState, ROUTES_IDLE_MS, WARM_ROUTES, WARM_URL } from "@/lib/warm-client";
 
 const HOT_ROUTES = [
   "@/app/api/log/propose/route",
@@ -69,6 +69,23 @@ describe("GET /api/warm", () => {
 });
 
 describe("pingWarm", () => {
+  beforeEach(() => resetWarmState());
+
+  it("W047: one call per foreground; the hot routes again only after a long idle", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const calls = () => (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map(([u]) => String(u));
+    const t0 = 1_000_000;
+    await pingWarm({ fetchImpl, now: t0 });
+    expect(calls()).toHaveLength(1 + WARM_ROUTES.length);
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await pingWarm({ fetchImpl, now: t0 + 60_000 });
+    await pingWarm({ fetchImpl, now: t0 + ROUTES_IDLE_MS });
+    expect(calls()).toEqual([WARM_URL, WARM_URL]);
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await pingWarm({ fetchImpl, now: t0 + ROUTES_IDLE_MS + 1 });
+    expect(calls()).toHaveLength(1 + WARM_ROUTES.length);
+  });
+
   it("touches the warm route and every hot route — each is its own function on Vercel", async () => {
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
     await pingWarm({ fetchImpl });

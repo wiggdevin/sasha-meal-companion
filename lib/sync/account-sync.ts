@@ -18,12 +18,12 @@
  * gone: `mountAccountSync` starts one `startAccountSync` per ready event and stops it on gone.
  */
 import { flushPendingUndos } from "@/lib/coach/undo-client";
-import { onAccountGone, onAccountReady, type AccountHandle } from "@/lib/device/account";
+import { isCurrent, onAccountGone, onAccountReady, type AccountHandle } from "@/lib/device/account";
 import { loadStore, setOnSave, setOnScheduleEdit } from "@/lib/store";
 import { pingWarm } from "@/lib/warm-client";
 import { msUntilNextLocalDay, targetDayRoll } from "@/lib/targets/day-roll";
 import { restoreCachedPlanDays } from "./plan-cache";
-import { SYNCED_EVENT } from "./client";
+import { SYNCED_EVENT, syncedAnnouncements } from "./client";
 import { OUTBOX_QUEUED_EVENT } from "./outbox";
 import { queueScheduleEdit } from "./schedule-settings";
 import { syncThenCatchUp } from "./post-sync";
@@ -55,11 +55,23 @@ export function startAccountSync(h: AccountHandle, deps: AccountSyncDeps = {}): 
   const flushUndos = deps.flushUndos ?? ((handle: AccountHandle) => flushPendingUndos(handle));
   let stopped = false;
   let timer: number | null = null;
-  const run = (): void => {
+  /**
+   * W047: a pass announces SYNCED_EVENT only when it changed data (lib/sync/client.ts). A pass this
+   * module starts on open, on the way back to the foreground, on reconnect or for a queued write
+   * (`announce`) still announces once if it did not: listeners re-read what the feed does not
+   * carry (another device's food rules, a queued target revision, a failed read's retry).
+   */
+  const run = (announce = false): void => {
     if (stopped) return;
+    const before = syncedAnnouncements();
     // A rejection is offline, signed out, or the account changed; the outbox keeps the write and
     // backs off on its own.
     void pass(h).catch(() => {})
+      .then(() => {
+        if (announce && !stopped && isCurrent(h) && syncedAnnouncements() === before) {
+          win.dispatchEvent(new Event(SYNCED_EVENT));
+        }
+      })
       .then(() => (stopped ? undefined : flushUndos(h)))
       .catch(() => {}); // Queued records stay queued; the next pass sends them.
   };
@@ -81,28 +93,34 @@ export function startAccountSync(h: AccountHandle, deps: AccountSyncDeps = {}): 
   rollDay();
   armMidnight();
 
-  run();
-  // T0 §5: the hot routes are warmed on the way in.
+  run(true);
+  // T0 §5: the hot routes are warmed on the way in (W047: one call per foreground after this; the
+  // routes again only once they may have gone cold, lib/warm-client.ts).
   void pingWarm();
 
   const onVisible = (): void => {
     if (doc.visibilityState !== "visible") return;
     rollDay();
     void pingWarm();
-    run();
+    run(true);
   };
-  const onOnline = (): void => run();
-  const scheduleRun = (): void => {
+  const onOnline = (): void => run(true);
+  let announceScheduled = false;
+  const scheduleRun = (announce = false): void => {
+    announceScheduled ||= announce;
     if (timer) win.clearTimeout(timer);
     timer = win.setTimeout(() => {
       timer = null;
-      run();
+      const next = announceScheduled;
+      announceScheduled = false;
+      run(next);
     }, SAVE_DEBOUNCE_MS);
   };
+  const onQueued = (): void => scheduleRun(true);
   doc.addEventListener("visibilitychange", onVisible);
   win.addEventListener("online", onOnline);
-  win.addEventListener(OUTBOX_QUEUED_EVENT, scheduleRun);
-  setOnSave(scheduleRun);
+  win.addEventListener(OUTBOX_QUEUED_EVENT, onQueued);
+  setOnSave(() => scheduleRun());
   // A meal-time or shift edit, from any writer, goes to user_settings (Phase 17 O4a). Edits queue
   // one after another, so the last one wins; a failure (the account changed) leaves the phone's own
   // schedule as it is.
@@ -117,7 +135,7 @@ export function startAccountSync(h: AccountHandle, deps: AccountSyncDeps = {}): 
     stopped = true;
     doc.removeEventListener("visibilitychange", onVisible);
     win.removeEventListener("online", onOnline);
-    win.removeEventListener(OUTBOX_QUEUED_EVENT, scheduleRun);
+    win.removeEventListener(OUTBOX_QUEUED_EVENT, onQueued);
     if (timer) win.clearTimeout(timer);
     if (midnight) win.clearTimeout(midnight);
     setOnSave(null);

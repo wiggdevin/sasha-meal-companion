@@ -177,6 +177,32 @@ describe("rate-limit call-site inventory (scale S2)", () => {
     expect([...new Set(found)].sort()).toEqual(Object.keys(SINGLE_READ_GETS).sort());
   });
 
+  it("W047: the cheap GETs guard pre-auth in memory only and keep a shared per-account limit", () => {
+    for (const handler of ["app/api/constraints/route.ts GET", "app/api/constraints/review/route.ts GET",
+      "app/api/foods/diet/route.ts GET"]) {
+      const file = handler.split(" ")[0];
+      const src = readFileSync(path.join(ROOT, file), "utf8");
+      const start = src.indexOf("export async function GET(");
+      const end = src.indexOf("export async function", start + 1);
+      const body = src.slice(start, end === -1 ? src.length : end);
+      expect(body, handler).toMatch(/enforceInstanceRateLimit\(`[a-z:-]+:pre:ip:\$\{requestIp\(req\)\}`/);
+      expect(body, handler).toMatch(/enforceRateLimit\(`[a-z:-]+:\$\{userId\}`, \d+, \d+, "fail_open"\)/);
+      expect(body, handler).not.toMatch(/enforceRateLimit\(`[^`]*:ip:/);
+    }
+    // Nowhere else: a write, a model route or an expensive read keeps the shared count.
+    const users = ["app", "lib"].flatMap(sourceFiles)
+      .filter((f) => readFileSync(path.join(ROOT, f), "utf8").includes("enforceInstanceRateLimit("))
+      .filter((f) => f !== "lib/server/ratelimit.ts").sort();
+    expect(users).toEqual(["app/api/constraints/review/route.ts", "app/api/constraints/route.ts",
+      "app/api/foods/diet/route.ts"]);
+    for (const f of users) {
+      const src = readFileSync(path.join(ROOT, f), "utf8");
+      const calls = [...src.matchAll(/enforceInstanceRateLimit\(/g)].map((m) =>
+        [...src.slice(0, m.index).matchAll(/export (?:async )?function (\w+)\(/g)].map((h) => h[1]).pop());
+      expect(calls.every((h) => h === "GET"), f).toBe(true);
+    }
+  });
+
   it("passes the policy only as a literal or a typed parameter", () => {
     const odd = sites.filter((s) => {
       const args = topLevelArgs(s.call.slice("enforceRateLimit(".length, -2));

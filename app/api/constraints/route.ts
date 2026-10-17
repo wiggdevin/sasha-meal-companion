@@ -2,7 +2,7 @@
 
 import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
-import { enforceRateLimit } from "@/lib/server/ratelimit";
+import { enforceInstanceRateLimit, enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
 import { getProfile, putProfile } from "@/lib/server/constraints";
 import { constraintsPutSchema } from "@/lib/coach/types";
@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await enforceRateLimit(`constraints:pre:ip:${requestIp(req)}`, 120, 60, "fail_open");
+    // W047: the pre-auth guard is this instance's memory only; the shared count is per account below.
+    await enforceInstanceRateLimit(`constraints:pre:ip:${requestIp(req)}`, 120, 60);
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`constraints:${userId}`, 30, 60, "fail_open");
     return Response.json(await getProfile(client, userId));

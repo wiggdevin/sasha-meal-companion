@@ -82,3 +82,37 @@ describe("sync gating (Phase 9 §0.3)", () => {
     unmount();
   });
 });
+
+describe("W047: which passes announce SYNCED_EVENT", () => {
+  it("a foreground, reconnect or queued-write pass announces once; a save pass that changed nothing does not", async () => {
+    const { SYNCED_EVENT } = await import("@/lib/sync/client");
+    const { OUTBOX_QUEUED_EVENT } = await import("@/lib/sync/outbox");
+    vi.useFakeTimers();
+    let events = 0;
+    const count = () => { events += 1; };
+    window.addEventListener(SYNCED_EVENT, count);
+    const h = bindAccount(A);
+    markAccountReady(h);
+    // A pass that changed nothing (syncOnce itself stays quiet).
+    const stop = startAccountSync(h, { run: async () => {}, flushUndos: async () => {}, rollTargetDay: () => false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events).toBe(1); // the opening pass
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events).toBe(2);
+    window.dispatchEvent(new Event("online"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events).toBe(3);
+    window.dispatchEvent(new Event(OUTBOX_QUEUED_EVENT));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(events).toBe(4);
+    const { saveStore, loadStore } = await import("@/lib/store");
+    saveStore(loadStore());
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(events).toBe(4);
+    stop();
+    window.removeEventListener(SYNCED_EVENT, count);
+    vi.useRealTimers();
+    unbindAccount();
+  });
+});
