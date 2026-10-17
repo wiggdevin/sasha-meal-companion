@@ -10,6 +10,8 @@ vi.mock("next/font/google", () => ({
   Plus_Jakarta_Sans: () => ({ variable: "font-text-face", className: "", style: {} }),
 }));
 // AppChrome reads the pathname for its tab allowlist; there is no app router in a static render.
+// The layout reads the request's CSP nonce (middleware.ts, W079).
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-nonce": "test-nonce" }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn() }) }));
 
 vi.mock("@/components/AuthGate", () => ({
@@ -29,11 +31,9 @@ describe("RootLayout", () => {
   // The gate wraps BOTH the children and the chrome: AuthGate renders a shell instead of
   // children while the account's disposition resolves or when signed out, so the tab bar
   // is inside it (b4bfce5) and no longer visible to a signed-out visitor.
-  it("wraps the children and the chrome in AuthGate; the children render first", () => {
+  it("wraps the children and the chrome in AuthGate; the children render first", async () => {
     const markup = renderToStaticMarkup(
-      <RootLayout>
-        <div data-testid="page-content">hello</div>
-      </RootLayout>,
+      await RootLayout({ children: <div data-testid="page-content">hello</div> }),
     );
 
     const gateOpen = markup.indexOf('data-testid="auth-gate"');
@@ -46,6 +46,11 @@ describe("RootLayout", () => {
     expect(childIndex).toBeLessThan(gateClose);
     expect(tabBarIndex).toBeGreaterThan(childIndex);
     expect(tabBarIndex).toBeLessThan(gateClose);
+  });
+
+  it("gives the inline boot script the request's nonce", async () => {
+    const markup = renderToStaticMarkup(await RootLayout({ children: null }));
+    expect(markup).toMatch(/<script nonce="test-nonce">/);
   });
 
   it("keeps a light status bar with dark icons over the oat Harvest ground", () => {

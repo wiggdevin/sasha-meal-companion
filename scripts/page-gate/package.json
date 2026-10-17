@@ -1,0 +1,9 @@
+{
+  "name": "page-gate",
+  "private": true,
+  "description": "W079 CI page gate tools (Lighthouse, puppeteer-core). Not an app dependency; CI installs it with npm ci.",
+  "dependencies": {
+    "lighthouse": "13.5.0",
+    "puppeteer-core": "25.9.0"
+  }
+}

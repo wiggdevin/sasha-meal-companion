@@ -222,3 +222,27 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: placeholder
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder
+
+      # W079: the heaviest route's first-load JavaScript and all client chunks stay inside
+      # scripts/perf-budget.json (gzipped). Raising it is a deliberate edit in the PR that grows them.
+      - name: Bundle budget
+        run: pnpm exec tsx scripts/bundle-budget.ts
+
+      # W079: the built sign-in page loads with no CSP violation (report-only ones too) and meets
+      # the Lighthouse mobile scores in scripts/perf-budget.json (median of three runs).
+      - name: Install Lighthouse
+        run: npm ci --no-audit --no-fund --prefix scripts/page-gate
+
+      - name: Page gate (CSP and Lighthouse)
+        timeout-minutes: 10
+        run: |
+          pnpm start --port 3000 > "$RUNNER_TEMP/next-start.log" 2>&1 &
+          for _ in $(seq 1 60); do curl -fsS -o /dev/null http://localhost:3000/sign-in && break; sleep 1; done
+          curl -fsS -o /dev/null http://localhost:3000/sign-in || { cat "$RUNNER_TEMP/next-start.log"; exit 1; }
+          node scripts/page-gate/gate.mjs http://localhost:3000
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder

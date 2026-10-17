@@ -1,0 +1,8 @@
+{
+  "bundle": { "firstLoadKb": 980, "totalKb": 1420 },
+  "pages": {
+    "paths": ["/sign-in"],
+    "runs": 3,
+    "minScores": { "performance": 0.4, "accessibility": 0.9, "best-practices": 0.9 }
+  }
+}

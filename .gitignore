@@ -70,3 +70,4 @@ __pycache__/
 # panel acceptance suite copy-in (never committed)
 .panel
 /.priors-work/
+/scripts/page-gate/node_modules

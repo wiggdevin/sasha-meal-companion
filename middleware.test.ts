@@ -26,14 +26,13 @@ describe("the matcher", () => {
     for (const p of ["/", "/week", "/foods", "/settings"]) expect(matcher.test(p)).toBe(true);
   });
 
-  it("never touches api, auth, next internals, sign-in or static files", () => {
+  it("never touches api, auth, next internals or static files", () => {
     for (const p of [
       "/api/mcp",
       "/api/sync",
       "/api/health",
       "/auth/callback",
       "/_next/static/chunk.js",
-      "/sign-in",
       "/manifest.webmanifest",
       "/ground-v1.mp4",
       "/favicon.ico",
@@ -44,6 +43,18 @@ describe("the matcher", () => {
 });
 
 describe("middleware", () => {
+  // /sign-in gets the page CSP (W079) but never the auth check, or a signed-out visit would loop.
+  it("serves /sign-in without building a session client or redirecting", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    mockedCreate.mockReset();
+    expect(matcher.test("/sign-in")).toBe(true);
+    const res = await middleware(new NextRequest(new Request("https://app.test/sign-in?next=%2F")));
+    expect(mockedCreate).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).toBeNull();
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     mockedCreate.mockReset();
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
