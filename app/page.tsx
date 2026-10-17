@@ -38,6 +38,7 @@ import type { FoodComponent, LoggedFood, SlotId, SlotOverride } from "@/lib/type
 import { AnimatePresence, MotionConfig } from "motion/react";
 import TodayDayStrip from "@/components/TodayDayStrip";
 import DayCard from "@/components/today/DayCard";
+import DuplicateEntryCard from "@/components/today/DuplicateEntryCard";
 import { DAY_CARD_EXPLAINER } from "@/components/today/ExplainerPlayer";
 import { boardTips, nextMeal } from "@/lib/today/board";
 import DayNutrients from "@/components/DayNutrients";
@@ -957,6 +958,8 @@ export default function Today() {
             tips: boardTips(),
             explainers: [DAY_CARD_EXPLAINER],
           }} />
+
+        <DuplicateEntryCard date={viewedDate} extras={resolved.extras} />
 
         <DayNutrients day={resolved} accountId={currentAccountOrNull()?.userId ?? null} />
 
