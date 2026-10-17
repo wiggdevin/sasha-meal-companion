@@ -144,8 +144,28 @@ export async function enforceRateLimit(
   }
 }
 
+/** Windows of `enforceInstanceRateLimit`, in this process only. */
+const instanceWindows = memoryRateLimitStore();
+let instanceKeys = 0;
+
+/**
+ * W047 (scale step 7): a pre-auth flood guard that costs no database round trip. The window lives
+ * in this instance's memory only, so it bounds what one IP can make ONE instance do before the
+ * session check; the shared count is the per-account limit after it, which every caller of this
+ * keeps. Only for the reviewed single-read GETs (diet, constraints, rule review), never in place
+ * of a shared limit on a write, a model route or an expensive read.
+ */
+export async function enforceInstanceRateLimit(key: string, limit: number, windowSeconds: number): Promise<void> {
+  // Bounded memory: start over rather than grow without end (a fresh window only ever allows more).
+  if (++instanceKeys > 10_000) { instanceWindows.clear(); instanceKeys = 0; }
+  const hit = await instanceWindows.hit(key, limit, windowSeconds);
+  if (!hit.allowed) throw tooMany(hit.resetAt, Date.now());
+}
+
 /** Forget every refused key and the test store's windows. Tests only. */
 export function resetRateLimits(): void {
   refused.clear();
   memory.clear();
+  instanceWindows.clear();
+  instanceKeys = 0;
 }

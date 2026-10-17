@@ -82,7 +82,8 @@ export function startAccountSync(h: AccountHandle, deps: AccountSyncDeps = {}): 
   armMidnight();
 
   run();
-  // T0 §5: the hot routes are warmed on the way in.
+  // T0 §5: the hot routes are warmed on the way in (W047: one call per foreground after this; the
+  // routes again only once they may have gone cold, lib/warm-client.ts).
   void pingWarm();
 
   const onVisible = (): void => {

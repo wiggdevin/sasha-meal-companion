@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocked = vi.hoisted(() => ({ requireUser: vi.fn(), rate: vi.fn() }));
+const mocked = vi.hoisted(() => ({ requireUser: vi.fn(), rate: vi.fn(), instance: vi.fn() }));
 vi.mock("@/lib/server/auth", async (actual) => ({
   ...await actual<typeof import("@/lib/server/auth")>(), requireUser: mocked.requireUser,
 }));
-vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: mocked.rate }));
+vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: mocked.rate, enforceInstanceRateLimit: mocked.instance }));
 
 import { GET } from "@/app/api/foods/diet/route";
 
@@ -14,7 +14,7 @@ function client(row: { diet_prefs: Record<string, unknown>; rev: number }) {
   return { from, readEq };
 }
 
-beforeEach(() => { mocked.requireUser.mockReset(); mocked.rate.mockReset(); });
+beforeEach(() => { mocked.requireUser.mockReset(); mocked.rate.mockReset(); mocked.instance.mockReset(); });
 
 describe("diet flags route", () => {
   it("reads only the authenticated account row", async () => {
@@ -23,6 +23,9 @@ describe("diet flags route", () => {
     const response = await GET(new Request("http://localhost/api/foods/diet"));
     expect(response.status).toBe(200);
     expect(db.readEq).toHaveBeenCalledWith("user_id", "account-a");
+    // W047: a memory-only pre-auth guard, then the shared per-account count.
+    expect(mocked.instance).toHaveBeenCalledWith(expect.stringMatching(/^foods:diet:pre:ip:/), 120, 60);
+    expect(mocked.rate).toHaveBeenCalledWith("foods:diet:account-a", 30, 60, "fail_open");
     expect(await response.json()).toMatchObject({ rev: 4, dietPrefs: { flags: ["vegan"] } });
   });
 
