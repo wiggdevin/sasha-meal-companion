@@ -33,8 +33,6 @@ export type DbFood = {
   srCategory?: string | null;
   per100g: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
   portions: DbPortion[];
-  /** Off-plan for their colitis plan: "gluten" | "dairy" | "apple". Logging is still allowed. */
-  flags: string[];
   /**
    * OPT-IN marker, set only by `mineAsDb` for an account food whose unit has no known gram weight
    * ("1 cup" of a home recipe, "1 ml" of a liquid of unknown density). The older functions
@@ -49,38 +47,18 @@ export type DbFood = {
   perServing?: Macros;
 };
 
-export const FOOD_DB: DbFood[] = raw as DbFood[];
+/**
+ * The JSON still carries a `flags` field from scripts/build-food-db.py: name-based gluten, dairy and
+ * apple marks written for the original client's plan. They are no account's rules, so they are
+ * dropped here and never reach a search hit, a logged card or the recipe builder. What a food breaks
+ * for THIS account comes from its own rules: the server's policy verdict on a catalog hit, and the
+ * `flagged` answer of `/api/log/commit`.
+ */
+export const FOOD_DB: DbFood[] = (raw as (DbFood & { flags?: unknown })[]).map(({ flags: _legacy, ...food }) => food);
 const BY_ID = new Map(FOOD_DB.map((f) => [f.id, f]));
 
 export function dbFood(id: string): DbFood | undefined {
   return BY_ID.get(id);
-}
-
-/**
- * Off-plan markers for a food name — the same word lists as
- * lib/catalog-client.ts's offPlanFlags (kept local rather than imported to
- * avoid a food-db.ts <-> catalog-client.ts import cycle, since catalog-client
- * already imports searchFoods from here). Used for their own ("mine") foods,
- * which otherwise had no independent off-plan check downstream of the
- * one-time add-time gate in lib/foods.ts's bannedReason (audit finding #28).
- */
-const DAIRY =
-  /\b(milk|cheese|yogurt|butter|cream|whey|ghee|ice cream|cheesecake|latte|cappuccino|alfredo|ricotta|feta|brie|mozzarella|parmesan|cheddar|provolone|swiss|pudding|frozen yogurt|hot chocolate|chocolate milk)\b/i;
-// Phrases that read as dairy but are not; each is removed before DAIRY runs, so a name that
-// also names real dairy ("sesame butter, whey") still flags. Global: used with replace only.
-const DAIRY_OK =
-  /\b((?:almond|oat|soy|coconut) milk (?:latte|cappuccino)|almond milk|oat milk|soy milk|coconut milk|coconut water|peanut butter|almond butter|cashew butter|sesame butter|sunflower seed butter|cocoa butter|butternut|buttercup)\b/gi;
-const GLUTEN =
-  /\b(bread|bagel|muffin|croissant|bun|roll|pita|naan|flour tortilla|pancake|waffle|french toast|spaghetti|pasta|noodle|couscous|barley|farro|spelt|wheat|rye|semolina|malt|bulgur|cracker|pretzel|cookie|brownie|cake|donut|pie|cinnamon|pop-tart|ramen|lo mein|dumpling|pierogi|sandwich|burger|pizza|burrito|quesadilla|enchilada|egg roll|spring roll|corn dog|mac|macaroni|lasagna|ziti|gnocchi|biscuit|cornbread|granola|cheerios|corn flakes|cream of wheat|beer|soy sauce|teriyaki|fish sticks|breaded|fried chicken|chicken nuggets|chicken tenders|onion rings|mozzarella sticks|crab cake|meatball|meatloaf|pot pie|gyro|sub |toast|graham|goldfish|rice krispies|oatmeal cookie|oreo|kit kat|falafel|shepherd)\b/i;
-const GLUTEN_OK = /\b(rice noodles|corn tortilla|rice cake|buckwheat|quinoa|gluten-free)\b/i;
-const APPLE = /\bapple/i;
-
-function offPlanFlags(name: string): string[] {
-  const out: string[] = [];
-  if (GLUTEN.test(name) && !GLUTEN_OK.test(name)) out.push("gluten");
-  if (DAIRY.test(name.replace(DAIRY_OK, " "))) out.push("dairy");
-  if (APPLE.test(name)) out.push("apple");
-  return out;
 }
 
 const GRAMS_PER_OZ = 28.35;
@@ -235,7 +213,6 @@ export function loggedFoodFor(food: DbFood, portion: DbPortion, qty: number,
     qty,
     grams: gramsForDbPortion(food, portion, qty) ?? 0,
     macros: macrosForPortion(food, portion, qty),
-    flags: food.flags.length ? food.flags : undefined,
     at: extra.at,
   };
 }
@@ -246,7 +223,6 @@ export type SearchHit = {
   id: string;
   name: string;
   source: "db" | "mine";
-  flags: string[];
   score: number;
   /** UI lane contract (lib/foods/portions.ts) — the same shape the online catalog hit carries. */
   kcalPer100g: number | null;
@@ -325,12 +301,12 @@ export function searchFoods(
   for (const f of Object.values(mine)) {
     if (f.status !== "eats") continue;
     const s = scoreName(q, f.name);
-    if (s > 0) hits.push({ id: f.id, name: f.name, source: "mine", flags: offPlanFlags(f.name), score: s + 50,
+    if (s > 0) hits.push({ id: f.id, name: f.name, source: "mine", score: s + 50,
       ...hitDataFor(mineAsDb(f)) });
   }
   for (const f of FOOD_DB) {
     const s = scoreName(q, f.name);
-    if (s > 0) hits.push({ id: f.id, name: f.name, source: "db", flags: f.flags, score: s,
+    if (s > 0) hits.push({ id: f.id, name: f.name, source: "db", score: s,
       ...servingDataFor(f) });
   }
   hits.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
@@ -370,7 +346,6 @@ export function mineAsDb(f: Food): DbFood {
       fiber: 0,
     },
     portions: [{ label: `1 ${f.unit === "whole" ? "each" : f.unit}`, grams }],
-    flags: offPlanFlags(f.name),
     ...(known === null ? { servingOnly: true as const, perServing: { ...f.perUnit, kcal: foodKcalPerUnit(f) } } : {}),
   };
 }
