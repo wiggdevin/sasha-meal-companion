@@ -255,6 +255,10 @@ function logFallback(
     invalidToolArgs: state.toolCalls.filter((call) => !call.ok
       && (call.error ?? "").startsWith(INVALID_ARGS_PREFIX)).length,
     tools: [...new Set(state.toolsUsed)],
+    // Which call failed and why, as the tool name plus argument paths and codes (or the error
+    // class and status): never an argument value or an error message.
+    failedTools: state.toolCalls.filter((call) => !call.ok).slice(0, 8)
+      .map((call) => ({ tool: call.name, ...call.failure })),
     abortCorrected: state.abortCorrectionRequested,
     ...(cause === "model_abort" && step.kind === "abort" ? { modelReasonChars: step.reason.length } : {}),
     ...(replaced ? { replacedBy: replaced.by, held: replaced.reasons.slice(0, 8),

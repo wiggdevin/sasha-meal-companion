@@ -270,6 +270,19 @@ describe("runTurn — the model's abort and the fallback log", () => {
       .toMatchObject({ cause: "wall_clock", abortCorrected: false });
   });
 
+  it("names the failing tool and argument paths on a fallback, never a value", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const generate = vi.fn()
+      .mockResolvedValueOnce({ kind: "tool", calls: [{ name: "search_foods", args: { query: 42 } }] })
+      .mockResolvedValue({ kind: "abort", reason: "stuck" });
+    await run(generate);
+    const line = warn.mock.calls.find(([label]) => label === "coach turn fallback");
+    expect(line?.[1]).toMatchObject({ failedToolCalls: 1,
+      failedTools: [{ tool: "search_foods", kind: "invalid_args",
+        args: [{ path: "query", code: "invalid_type" }] }] });
+    expect(JSON.stringify(line)).not.toContain("42");
+  });
+
   it("logs nothing when the model's reply is delivered", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const generate = vi.fn().mockResolvedValue({ kind: "final", text: "Eggs and toast would work." });

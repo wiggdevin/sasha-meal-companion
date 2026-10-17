@@ -7,7 +7,7 @@
 
 import { hydrateResolvedTool, isDirectBlockTool, runDirectBlockTool } from "@/lib/coach/blocks";
 import type { ComposedMeal } from "@/lib/coach/compose";
-import { validateToolCall, type ToolResult } from "@/lib/coach/dispatch";
+import { validateToolCall, type ArgIssue, type ToolResult } from "@/lib/coach/dispatch";
 import { renderToolResult, wrapUntrusted } from "@/lib/coach/envelope";
 import type { DraftResult, FoodHit } from "@/lib/coach/executors";
 import { lookupSourcesOf } from "@/lib/coach/lookup-sources";
@@ -33,8 +33,8 @@ import type { OpenTurn } from "@/lib/server/coach-turn/types";
 const GENERIC_TOOL_FAILURE = "that lookup failed";
 
 type ToolOutcome =
-  | { kind: "invalid"; name: string; error: string }
-  | { kind: "failed"; name: string; message: string }
+  | { kind: "invalid"; name: string; error: string; issues?: ArgIssue[] }
+  | { kind: "failed"; name: string; message: string; errorName: string; status?: number }
   | { kind: "ok"; name: string; data: unknown; resolvedData: unknown; persistResult: boolean;
       block: UiBlock | null };
 
@@ -46,7 +46,7 @@ async function runTool(
   const { profile, executors } = kit;
   const { blockContext } = env;
   const validated = validateToolCall(call.name, call.args);
-  if (!validated.ok) return { kind: "invalid", name: call.name, error: validated.error };
+  if (!validated.ok) return { kind: "invalid", name: call.name, error: validated.error, issues: validated.issues };
   const name = validated.tool.name;
   // A tool that throws must not escape the turn. Before this, a catalog 503 (or any
   // transient read failure) propagated out of runTurn, past every write below, so the
@@ -92,7 +92,9 @@ async function runTool(
         ? { name: e.name, message: e.message.slice(0, 300) }
         : { name: "UnknownError", message: "non-Error rejection" },
     });
-    return { kind: "failed", name, message: e instanceof HttpError ? e.message : GENERIC_TOOL_FAILURE };
+    return { kind: "failed", name, message: e instanceof HttpError ? e.message : GENERIC_TOOL_FAILURE,
+      errorName: e instanceof Error ? e.name : "UnknownError",
+      ...(e instanceof HttpError ? { status: e.status } : {}) };
   }
 }
 
@@ -143,7 +145,8 @@ export async function runToolBatch(
   }
   for (const outcome of outcomes) {
     if (outcome.kind === "invalid") {
-      state.toolCalls.push({ name: outcome.name, ok: false, error: outcome.error });
+      state.toolCalls.push({ name: outcome.name, ok: false, error: outcome.error,
+        failure: outcome.issues ? { kind: "invalid_args", args: outcome.issues } : { kind: "refused" } });
       state.transcript.push(renderToolResult(
         { name: outcome.name as ToolName, ok: false, error: outcome.error }));
       continue;
@@ -151,7 +154,9 @@ export async function runToolBatch(
     const name = outcome.name;
     if (!state.toolsUsed.includes(name)) state.toolsUsed.push(name);
     if (outcome.kind === "failed") {
-      state.toolCalls.push({ name, ok: false, error: outcome.message });
+      state.toolCalls.push({ name, ok: false, error: outcome.message,
+        failure: { kind: "threw", errorName: outcome.errorName,
+          ...(outcome.status !== undefined ? { status: outcome.status } : {}) } });
       // A refusal written for the person (an HttpError, e.g. "Review your existing food rules
       // before getting recipe suggestions.") is the honest reply; the generic line is not.
       if (name === "suggest_options" && outcome.message !== GENERIC_TOOL_FAILURE) {
