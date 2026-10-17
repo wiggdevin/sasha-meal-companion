@@ -15,7 +15,7 @@ export type OnboardingEventStoreResult = { inserted: number; duplicates: number;
 
 export class OnboardingEventStoreError extends Error {
   constructor(public readonly code: string) {
-    super(`record_onboarding_events failed (${code})`);
+    super(`record_onboarding_events_for failed (${code})`);
     this.name = "OnboardingEventStoreError";
   }
 }

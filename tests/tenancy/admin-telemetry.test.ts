@@ -6,6 +6,8 @@
  * id, so B's rows are the canary: A's posts land under A only, even when A sends B's user id or B's
  * own client event ids, and B's rows stay exactly as they were.
  */
+// Refuses any non-local database before anything else runs (review r8).
+import "./local-only";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookieJar, createRequestClient } from "@/lib/supabase/server";

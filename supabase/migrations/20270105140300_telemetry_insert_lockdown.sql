@@ -11,11 +11,13 @@
 --     check at the end proves none is left) and the three insert policies are dropped.
 --   * `record_food_signals(jsonb)` and `record_onboarding_events(jsonb)` are kept (an older build
 --     names them) but no longer executable by `authenticated`.
---   * `authenticated` keeps its owner SELECT on food_signal_events; nothing else changes.
+--   * `authenticated` keeps its owner SELECT on food_signal_events; client_timings and
+--     onboarding_events are left with no policy for it at all, so it has no operation on either.
 --
 -- Order: apply to production AFTER the W070 code deploys, never before. An older build writes with
 -- the session client and gets 42501 once this is applied; its routes still answer 202, so the cost
--- is lost measurements, never a failed tap. Needs 20270105140000 first.
+-- is lost measurements, never a failed tap. Needs 20270105140000 first. Rolling the code back after
+-- this is applied has the same cost: run the down file first, then revert the code.
 -- Down: supabase/migrations/down/20270105140300_telemetry_insert_lockdown.down.sql.
 set local lock_timeout = '3s';
 set local statement_timeout = '30s';

@@ -83,7 +83,7 @@ export type SignalStoreResult = { inserted: number; duplicates: number; rejected
 
 export class SignalStoreError extends Error {
   constructor(public readonly code: string) {
-    super(`record_food_signals failed (${code})`);
+    super(`record_food_signals_for failed (${code})`);
     this.name = "SignalStoreError";
   }
 }
