@@ -15,7 +15,16 @@ import type { ChangeRow } from "./types";
  * belong to other writers. Projection is silent so a pull does not enqueue another sync.
  */
 export function applyPulledPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolean> {
-  return serializePlanDay(change.entity_key, () => applyPlanDay(h, change));
+  return serializePlanDay(change.entity_key, () => applyPlanDay(h, change, true));
+}
+
+/**
+ * The plan-day replay (lib/sync/plan-replay.ts) projects a change the cursor already passed. A
+ * day with a queued op is left to that op and records no hold: a hold would rewind the main pull
+ * to this old change and make it read every entity again from there.
+ */
+export function applyReplayedPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolean> {
+  return serializePlanDay(change.entity_key, () => applyPlanDay(h, change, false));
 }
 
 /**
@@ -35,7 +44,7 @@ export function projectMirroredPlanDay(h: AccountHandle, date: string): Promise<
   });
 }
 
-async function applyPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolean> {
+async function applyPlanDay(h: AccountHandle, change: ChangeRow, hold: boolean): Promise<boolean> {
   const parsed = planDayProjectionSchema.safeParse(change.current ?? {});
   if (!parsed.success) {
     console.warn(`sync: skipping malformed plan day ${change.entity_key}`);
@@ -52,7 +61,7 @@ async function applyPlanDay(h: AccountHandle, change: ChangeRow): Promise<boolea
   if (pending.some((op) => op.entity === "plan_days" && op.entity_id === change.entity_key)) {
     // Held, and remembered: the pull reads it again once the day's queue is empty, so an op that
     // settles without reading the row back cannot lose this change (audit 2026-10-10 A168).
-    await recordPullHold(tx.objectStore(META_STORE), change);
+    if (hold) await recordPullHold(tx.objectStore(META_STORE), change);
     await tx.done;
     return true;
   }
