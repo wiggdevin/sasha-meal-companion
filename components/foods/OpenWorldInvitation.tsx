@@ -4,15 +4,12 @@ import { useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/ui/Notice";
 import { currentAccountOrNull, isCurrent } from "@/lib/device/account";
+import { readAccountItem, writeAccountItem } from "@/lib/device/account-storage";
 import { chooseFoodWorld, readFoodWorldView } from "@/lib/foods/world-open-client";
 import { FOOD_WORLD_COPY } from "@/components/settings/FoodWorldSection";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 
-const dismissKey = (userId: string) => `open-world-invite-dismissed:${userId}`;
-
-function dismissed(userId: string): boolean {
-  try { return window.localStorage.getItem(dismissKey(userId)) === "1"; } catch { return false; }
-}
+const DISMISSED_NAME = "open-world-invite-dismissed";
 
 /**
  * The dismissible open-world invitation (Phase 18 W13, D14), shown on Foods only while the server
@@ -27,7 +24,7 @@ export default function OpenWorldInvitation() {
   useEffect(() => {
     let live = true;
     const h = currentAccountOrNull();
-    if (!h || dismissed(h.userId)) return;
+    if (!h || readAccountItem(h, DISMISSED_NAME) === "1") return;
     void readFoodWorldView(h).then((view) => {
       if (live && isCurrent(h) && view && view.world === "closed" && view.eligible) setShow(true);
     });
@@ -54,7 +51,7 @@ export default function OpenWorldInvitation() {
 
   function dismiss() {
     const h = currentAccountOrNull();
-    if (h) { try { window.localStorage.setItem(dismissKey(h.userId), "1"); } catch { /* optional */ } }
+    if (h) writeAccountItem(h, DISMISSED_NAME, "1");
     setShow(false);
   }
 
