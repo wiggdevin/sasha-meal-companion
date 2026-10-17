@@ -32,7 +32,7 @@ ranking lift has been measured. No data build, replay or latency benchmark has r
 |---|---|
 | The food world is open by default. Favored foods rank higher and never limit meals. Every eaten ingredient feeds the taste profile, except foods the account's rules exclude. | Owner brief (§1) |
 | A named `compose_meal` combination that cannot form a coherent plate returns an incomplete named draft with a reason. It makes no fit claim and adds no foods. | O4 ruling, 2026-10-05 |
-| Jev's role: formulas and code do all the scoring. Jev labels food pairs offline, turns free text into chips the user confirms, and runs at most one short-list check per suggestion run. Jev never sets numbers, never invents dishes, never decomposes dishes, and is never on the rules path (D9). | Owner approval, revision 2 |
+| Jev's role: formulas and code do all the scoring. Jev labels food pairs offline, turns free text into chips the user confirms, and runs the short-list check inside a request budget of three logical Jev calls (W089). Jev never sets numbers, never invents dishes, never decomposes dishes, and is never on the rules path (D9). | Owner approval, revision 2 |
 | W2 takes Jev off every allergy decision and fails closed: a food that only Jev flagged never becomes clear (D4, W2a). | Coordinator, revision 2 |
 | The population prior stops at national → sex by age. It has no region, state or race and ethnicity node. The app never asks, infers or stores race or ethnicity; the survey field is used only in offline fairness audits. State priors and Canada are deferred. | Coordinator, revision 3 |
 | The freshness token is two monotonic counters: an account rules clock bumped by database triggers on every rule write, and a global evidence clock bumped on every allergen-evidence or `policy_categories` change (D11). | Owner, revision 5 |
@@ -129,7 +129,7 @@ Kept close to the owner's words:
   simplicity × vegetable preference (`lib/meals/plate.ts:179-185`). The side shortlist keeps 2
   starches, 2 fruits and 1 of each other part (`lib/meals/plate.ts:72`), and `sideCandidates`
   rescans the pool for every anchor (`lib/meals/plate.ts:98`).
-- **Suggestions already make one Jev call** over the policy-clean set inside an 8-second budget
+- **Suggestions made one Jev call (now a budget of three logical calls, W089)** over the policy-clean set inside an 8-second budget
   (`lib/coach/suggest.ts:70`, `:143-160`). When Jev is slow or down, the fit order stands
   (`lib/coach/suggest.ts:122`). The Jev transport defaults to a 3-second deadline
   (`lib/ai/typesafe.ts:15`) and returns `null` on any failure (`lib/ai/typesafe.ts:181-183`).
@@ -581,7 +581,7 @@ This replaces every earlier "verifier" or "creative" use of Jev in this spec.
      (W4).
    - Jev does not create substitute edges or spread a taste dislike.
 6. **Latency.** The fast path runs on precomputed scores. The phone layout makes no Jev call. A
-   suggestion run makes at most one, on the short list only.
+   suggestion run is held to the request budget of three logical Jev calls (W089); the ranking call is on the short list only.
 
 ### D10. Data build and artifacts
 
@@ -1393,7 +1393,7 @@ taste term, and the bounded short-list check (D9 item 4) with the veto in shadow
 
 Acceptance:
 1. An open account with 0 Favored foods gets at least 3 admitted cards for each occasion.
-2. Each run makes at most one Jev call, on 5 to 8 admitted plates, with no retry, inside
+2. Each run stays within three logical Jev calls (W089, `MAX_LOGICAL_CALLS`); the ranking call is on 5 to 8 admitted plates, with no retry, inside
    `SUGGEST_BUDGET_MS`.
 3. The request payload holds only generic candidate identities and meal descriptions: a payload test
    finds no profile, rule, medical note, account identifier or custom food name.
