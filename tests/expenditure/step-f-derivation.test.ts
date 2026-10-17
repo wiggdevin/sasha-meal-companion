@@ -179,6 +179,8 @@ describe("step F — invalid inputs and the four-day default", () => {
     expect(() => derive({ settings: { ...settings, activityLevel: null } })).toThrow(/incomplete/);
     expect(() => derive({ today: "2026-9-19" })).toThrow(/YYYY-MM-DD/);
     expect(() => derive({ today: "19/09/2026" })).toThrow(/YYYY-MM-DD/);
+    expect(() => derive({ today: "2027-02-29" })).toThrow(/YYYY-MM-DD/);
+    expect(() => derive({ today: "2026-13-01" })).toThrow(/YYYY-MM-DD/);
     expect(() => derive({ settings: { ...settings, goal: "lose_fat", goalRateBpWeek: -40 } }))
       .toThrow(/preset/);
   });
