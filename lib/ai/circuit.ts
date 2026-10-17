@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AiStatus } from "@/lib/ai/call-ledger";
+import { CALLER_ABORT_ERROR, type AiStatus } from "@/lib/ai/call-ledger";
 
 /**
  * Provider circuit breaker — split out of lib/ai/adapter.ts (T4, audit round 4) so the adapter
@@ -46,12 +46,13 @@ export async function recentFailureCount(
   // contrast, fails closed — lib/ai/spend.ts). A read
   // that throws instead of returning an error counts the same.
   try {
-    let query = admin.from("ai_calls").select("created_at").eq("provider", provider);
+    let query = admin.from("ai_calls").select("created_at, error").eq("provider", provider);
     if (model !== undefined) query = query.eq("model_id", model);
     const { data, error } = await query.in("status", statuses)
       .gte("created_at", windowStart);
     if (error) return 0;
-    return (data ?? []).length;
+    // A call its caller stopped says nothing about the provider (W068, lib/ai/call.ts).
+    return ((data ?? []) as { error?: unknown }[]).filter((row) => row.error !== CALLER_ABORT_ERROR).length;
   } catch {
     return 0;
   }

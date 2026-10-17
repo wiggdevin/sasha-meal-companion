@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   callModel, CallRefused, ProviderHttpError, SchemaRejection, type Ledger,
 } from "@/lib/ai/call";
+import { CALL_REGISTRY, type CallSite } from "@/lib/ai/call-registry";
 import { JEV_MODEL } from "@/lib/ai/models";
 import { JEV_HEALTH_REFUSAL, jevHealthGateOn } from "@/lib/ai/jev-health";
 import {
@@ -128,10 +129,14 @@ function parseAnswers<Q extends Questions>(questions: Q, answers: unknown): Answ
 }
 
 /**
- * Purposes whose request is the user's own food or taste text (Phase 18 W5b, Sol r1 WARN): a provider
- * error body may echo that text, so only the status is kept — in `ai_calls.error` and in the log.
+ * Whether a provider error keeps only its status, in `ai_calls.error` and in the log: every purpose
+ * whose request carries the user's own content (D1), since a provider error body may echo it
+ * (Phase 18 W5b, Sol r1 WARN; widened to every user-content purpose by W068). Food-only (D0)
+ * evals keep the first 200 body characters.
  */
-const REDACTED_ERROR_PURPOSES: ReadonlySet<string> = new Set(["profile-taste", "profile-prefs"]);
+function redactsErrors(purpose: string): boolean {
+  return (CALL_REGISTRY as Record<string, CallSite>)[purpose]?.dataClass !== "D0";
+}
 
 /** The Jev transport: one POST, provider I/O only. A non-2xx keeps the first 200 body chars, or
  *  only its status for a redacted purpose. */
@@ -229,13 +234,16 @@ export async function systemOne<P extends JevPurpose, Q extends Questions>(
       ledger: () => jevLedger(options.userId),
       inputHash: () => `\\x${createHash("sha256").update(body).digest("hex")}`,
       signal: options.signal,
+      // A deadline shorter than the default is the caller's own latency budget (a chip's ranking),
+      // so missing it is not counted against Jev's circuit (W068).
+      callerDeadline: deadlineMs < DEFAULT_DEADLINE_MS,
       policy: {
         attempts: options.noRetry ? 1 : 2, budgetMs: deadlineMs, attemptMs: deadlineMs,
         backoffMs: [RETRY_BACKOFF_MS],
         retryable: (e) => !options.noRetry && e instanceof ProviderHttpError
           && RETRYABLE_STATUSES.has(e.status),
       },
-      transport: { send: (signal) => postSystemOne(body, key ?? "", signal, REDACTED_ERROR_PURPOSES.has(payload.purpose)) },
+      transport: { send: (signal) => postSystemOne(body, key ?? "", signal, redactsErrors(payload.purpose)) },
       accept: (result) => parseAnswers(payload.questions, result.answers),
       price: (_model, billed) => billed.inputTokens * INPUT_USD_PER_MILLION / 1_000_000,
       ledgerModel: (result) => result.model,
