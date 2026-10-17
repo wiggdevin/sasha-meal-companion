@@ -57,8 +57,10 @@ describe("profileFacetOutcome (§4, §9 R5)", () => {
       .toBe("unknown");
   });
 
-  it("leaves an unimplemented contains_ingredient: template unknown, not guessed", () => {
+  it("W105: a contains_ingredient: template is present when the food names it, never absent", () => {
     expect(profileFacetOutcome("contains_ingredient:vinegar", { ingredientsText: "vinegar, salt" }))
+      .toBe("present");
+    expect(profileFacetOutcome("contains_ingredient:vinegar", { ingredientsText: "Water, salt." }))
       .toBe("unknown");
   });
 });

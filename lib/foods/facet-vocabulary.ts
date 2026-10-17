@@ -38,6 +38,15 @@ export type Facet = (typeof FACETS)[number];
 export const RUBRIC_VERSION = 1;
 
 /**
+ * W106: the dietary-profile map's rubric fixes (§5.4) are written and staged as rubric v2
+ * (`STAGED_RUBRIC_FIXES` in lib/foods/facet-questions.ts) but not yet asked. Moving
+ * `RUBRIC_VERSION` to this number re-warms every cached facet row and needs regenerated threshold
+ * bands (lib/foods/facet-thresholds.ts), so it waits for the billed calibration run
+ * (scripts/eval/jev-facets.ts with the staged wording) and the round 3 review. Both are Mac steps.
+ */
+export const STAGED_RUBRIC_VERSION = 2;
+
+/**
  * Phase 17 O3 (facets v2, docs/specs/phase-17-meal-occasion.md D6/D7): the four occasion facets
  * moved to their own rubric. v1 asked whether a food is eaten at a meal "in at least one ordinary
  * food culture", which says yes to almost anything; v2 asks whether it is "a typical choice at
@@ -107,6 +116,17 @@ export const NEW_FACETS = [
   "high_mercury_fish",
   "ultra_processed",
   "protein_dense",
+  // W106: the map's keyword-first facets (§5.3 "ingredient keyword match first", and R2-20's
+  // label list for tyramine_rich). Same contract: a named match is present, nothing is absent.
+  "tyramine_rich",
+  "grapefruit_family",
+  "star_fruit",
+  "fava_bean",
+  "aspartame",
+  "phosphate_additive",
+  "gelatin",
+  "honey",
+  "mollusc",
 ] as const;
 
 export type NewFacet = (typeof NEW_FACETS)[number];
