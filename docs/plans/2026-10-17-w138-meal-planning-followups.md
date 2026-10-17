@@ -23,24 +23,26 @@ four-food-term cap stays and regional priors are deferred (OD26). Nothing else i
 
 ## Do cached facets reach coach grounding and `/api/log/commit`? Yes
 
-Every path reads the cache through `loadSuggestionEvidence` (`lib/coach/suggest-policy.ts:71`, the
+The main paths read the cache through `loadSuggestionEvidence` (`lib/coach/suggest-policy.ts:71`, the
 cache read via `readFacets` at about line 175, alongside stored allergen evidence and the user's
 checks). A failed facet read is "could not be checked", never empty evidence.
 
 | Path | Where it reads facets |
 |---|---|
-| Log commit policy | `lib/server/log.ts:204` (`policyIssues`) calls `loadSuggestionEvidence`; `app/api/log/commit/route.ts:44-52` warms a newly created account food's facets after the response |
+| Log commit policy | `lib/server/log.ts:204` (`policyIssues`) calls `loadSuggestionEvidence`; `app/api/log/commit/route.ts:46-53` warms a newly created account food's facets after the response |
 | Coach log actions | `lib/coach/log-policy.ts:190` |
 | Coach plan items | `lib/coach/plan-item-policy.ts` (same cache-only evidence, fails closed) |
 | Coach reply check | `lib/server/reply-check-ports.ts:28` |
 | Suggestions and eligible Eats | `lib/server/eligible-foods.ts:123` |
-| Coach sanity | reads no facets (`lib/server/coach-sanity.ts`); it checks amounts, not policy |
+| Sync log ops (outbox) | `lib/server/sync-log-ops.ts:57` calls `applyLogEntry`, so it reads facets through the same `policyIssues` call; it does not run the route's post-response warm |
+| Other callers | `lib/server/taste-admission.ts:56`, `lib/server/shopping-rule-marks.ts:97`, `lib/coach/recipe-policy.ts`, `lib/coach/suggest.ts:156`, `lib/plan/document-ground.ts:130`; `lib/server/recipe-candidates.ts:117` and `lib/log/sanity.ts:118` call `readFacets` directly |
+| Coach sanity | `lib/server/coach-sanity.ts` only builds a facet key; it reads no facets |
 
 ## Why the sync log-ops outbox path does not warm facets
 
-`lib/server/sync-log-ops.ts` applies phone-queued log writes and has no facet warm of its own. It does
-not need one: an account food reaches `/api/log/commit` (which warms it, above), and the daily
-Eats warm (`lib/server/eats-facet-warm.ts`, run by `app/api/jobs/facet-warm`, scheduled in
-`vercel.json`) walks each account's Eats list and warms whatever is uncached. A food logged through
-the outbox is therefore warmed by the Eats cron, and until then policy reads treat missing facets
-as "not verified", not as allowed.
+`lib/server/sync-log-ops.ts` calls `applyLogEntry` directly, so the post-response warm in
+`app/api/log/commit/route.ts:46-53` never runs for an outbox-created account food. Nothing on that
+path warms it. The daily Eats warm (`lib/server/eats-facet-warm.ts`, run by
+`app/api/jobs/facet-warm`, scheduled in `vercel.json`) walks each account's Eats list only, so such a
+food is covered only if it is on Eats. Otherwise it stays without cached facets until another path
+warms it. Policy reads handle that as "could not be checked" (see above), not as allowed.
