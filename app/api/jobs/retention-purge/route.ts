@@ -11,7 +11,13 @@
  * the next run and the job moves on to the next table.
  *
  * The answer names, per table, the rows purged and the row counts before and after (an exact
- * count; null when that read failed or took over 15 s, which never fails the job).
+ * count; null when that read failed, took over 15 s or would run past REPORT_END, which never
+ * fails the job). A count that runs out of time has its request aborted
+ * and is abandoned (the statement itself ends under the database's statement timeout).
+ *
+ * recipe_plan_previews: a preview is purged 7 days after it expired, accepted or not. A retried
+ * accept of a purged preview answers 404 `not_found` from the accept routes' own preview lookup
+ * (app/api/shopping/accept, app/api/recipes/[id]/plan); the accepted selection and period stay.
  *
  * The cron secret is checked before the rate limit, as every job (scale S2): the limit is a shared
  * counter an unauthenticated caller must not spend. The limit fails closed. Vercel's scheduler
@@ -44,13 +50,25 @@ type TableResult = { purged: number; passes: number; before: number | null;
 
 /** A count that takes longer than this answers null: it is a report, never worth the run. */
 const COUNT_MS = 15_000;
+/**
+ * No count runs past this point of a run: maxDuration (300 s) less a 10 s margin for the answer.
+ * The final counts start after the runner's 285 s hard stop at the latest, so they get what is left.
+ */
+const REPORT_END_MS = 290_000;
 
-async function rowCount(admin: ReturnType<typeof adminClient>, table: Table): Promise<number | null> {
+async function rowCount(admin: ReturnType<typeof adminClient>, table: Table,
+  until: number): Promise<number | null> {
+  const ms = Math.min(COUNT_MS, until - Date.now());
+  if (ms <= 0) return null;
+  const abort = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), COUNT_MS); });
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => { abort.abort(); resolve(null); }, ms);
+  });
   const read = (async () => {
     try {
-      const { count, error } = await admin.from(table).select("*", { count: "exact", head: true });
+      const { count, error } = await admin.from(table)
+        .select("*", { count: "exact", head: true }).abortSignal(abort.signal);
       return !error && typeof count === "number" ? count : null;
     } catch {
       return null;
@@ -72,7 +90,8 @@ async function run(req: Request): Promise<Response> {
     const state = Object.fromEntries(RETENTION_TABLES.map((t) => [t,
       { purged: 0, passes: 0, more: true, failed: false }])) as Record<Table,
       { purged: number; passes: number; more: boolean; failed: boolean }>;
-    const before = await Promise.all(RETENTION_TABLES.map((t) => rowCount(admin, t)));
+    const reportEnd = startedAt + REPORT_END_MS;
+    const before = await Promise.all(RETENTION_TABLES.map((t) => rowCount(admin, t, reportEnd)));
 
     // The next pass is listed only after the last one finished with a full batch (concurrency 1).
     async function* passes(): AsyncGenerator<{ table: Table; n: number }> {
@@ -103,7 +122,7 @@ async function run(req: Request): Promise<Response> {
       },
     });
 
-    const after = await Promise.all(RETENTION_TABLES.map((t) => rowCount(admin, t)));
+    const after = await Promise.all(RETENTION_TABLES.map((t) => rowCount(admin, t, reportEnd)));
     const tables = {} as Record<Table, TableResult>;
     let purged = 0;
     RETENTION_TABLES.forEach((t, i) => {

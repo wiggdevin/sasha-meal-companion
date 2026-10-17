@@ -464,6 +464,15 @@ export async function previewShopping(client: SupabaseClient, userId: string,
     unfilledSlots: preview.unfilledSlots, proposedAdditions: preview.proposedAdditions,
     compromise: preview.compromise, price: preview.shopping.price };
 }
+/**
+ * Accepts a stored preview (POST /api/recipes/[id]/plan, POST /api/shopping/accept). A retry with
+ * the same requestId answers the first accept's result while the preview row exists. The daily
+ * retention purge (W044, `recipe_plan_previews_purge`) deletes a preview 7 days after it expired,
+ * accepted or not, so a retried accept after that answers 404 `not_found` (from each route's own
+ * preview lookup, else the read below if the purge lands in between); the accepted selection
+ * and shopping period are not touched. A caller that gets it re-reads the plan to learn whether
+ * the first accept landed.
+ */
 export async function acceptPreview(client: SupabaseClient, userId: string,
   previewId: string, requestId: string, acceptApproximate: boolean):
   Promise<{ period: ShoppingPeriod | null; lines: import("@/lib/shopping/types").ShoppingLine[];
