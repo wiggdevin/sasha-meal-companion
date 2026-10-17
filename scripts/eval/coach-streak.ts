@@ -42,6 +42,8 @@ import {
   type TurnRecord,
 } from "./coach-streak-state";
 import { defaultBranch, needsActivityContext } from "./coach-streak-branch";
+import { addDays } from "@/lib/recipes-hub/put-in-meal";
+import { optionalValue } from "./coach-streak-args";
 import { withRunDate } from "./coach-streak-run-date";
 import {
   evaluateRunnerTurn,
@@ -116,7 +118,7 @@ function resolveFailure(): void {
   const config = configFromCli();
   const state = loadState(config);
   if (!state) throw new Error(`No streak state at ${relativeToRoot(config.statePath)}.`);
-  const requestedId = option("--resolve");
+  const requestedId = optionalValue(process.argv, "--resolve");
   const failure = requestedId
     ? state.failures.find((item) => item.id === requestedId)
     : state.failures.findLast((item) => item.status === "open");
@@ -310,7 +312,7 @@ async function runCase(
     return verified.p === null ? null : { flagged: verified.flagged, p: verified.p };
   }, persistedBlocks, context.activityContextPresent);
   const materializedTitle = item.id === "meals-p2-future-breakfast"
-    ? await materializedMealTitle(harness.db, harness.userId, "2026-10-05", "meal-1") : null;
+    ? await materializedMealTitle(harness.db, harness.userId, addDays(harness.date, 7), "meal-1") : null;
   const assertions = [
     ...result.evaluated.assertions,
     ...liveCheckAssertions(item.id, response, context),
