@@ -8,8 +8,15 @@ describe("extractGtins", () => {
   it("reads a spaced UPC after a label and pads it to GTIN-14", () => {
     expect(extractGtins("jar, UPC 0 12345 67890 5")).toEqual(["00012345678905"]);
   });
-  it("reads a bare 12-digit UPC with a valid check digit", () => {
-    expect(extractGtins("code 036000291452")).toEqual(["00036000291452"]);
+  it("reads a UPC followed by run-on digits", () => {
+    expect(extractGtins("UPC 036000291452; lots 1103")).toEqual(["00036000291452"]);
+    expect(extractGtins("UPC 036000291452 1103")).toEqual(["00036000291452"]);
+  });
+  it("never reads a bare digit run, even one with a valid check digit", () => {
+    expect(extractGtins("Lot 036000291452 exp 06/2027")).toEqual([]);
+  });
+  it("does not read a lot number that follows filler after the label", () => {
+    expect(extractGtins("UPC see lot 12345678")).toEqual([]);
   });
   it("drops long digit runs that fail the check digit (lot numbers, dates)", () => {
     expect(extractGtins("Lot 20261101 exp 20270301 id 123456789013")).toEqual([]);

@@ -26,23 +26,30 @@ export type RecallNote = { itemId: string; recallNumber: string; reason: "brand_
 /** A recall with the GTIN-14s found in its text. */
 export type IndexedRecall = RecallRecord & { gtin14: string[] };
 
-const UPC_LABELED = /\b(?:UPC|U\.P\.C\.|GTIN|EAN|BARCODE)\b[^0-9]{0,12}((?:\d[\s-]?){7,13}\d)/gi;
-const BARE_RUN = /(?<![\d.])(\d{12,14})(?![\d])/g;
+const UPC_LABELED =
+  /\b(?:UPC|U\.P\.C\.|GTIN|EAN)\s*(?:code|no\.?|number|#)?\s*[:#-]?\s*(\d(?:[ -]?\d){6,15})/gi;
+const PREFIX_LENGTHS = [14, 13, 12, 8];
 
 /**
- * GTINs named in free text: a run after a UPC/GTIN/EAN label (spaces and dashes allowed, as
- * printed "0 12345 67890 5"), or a bare 12-14 digit run. Only values with a valid GS1 check digit
- * count, so lot numbers and dates that happen to be long digit runs are dropped.
+ * GTINs named in free text, only after a UPC/GTIN/EAN label (spaces and dashes allowed, as printed
+ * "0 12345 67890 5"). A bare digit run is never read: about one random 12-14 digit run in ten passes
+ * the check digit, and lot or case numbers would then raise false alerts. Digits run on after the
+ * code ("UPC 036000291452 1103") are handled by trying the longest valid prefix.
  */
 export function extractGtins(text: string | null | undefined): string[] {
   if (!text) return [];
   const found = new Set<string>();
-  const add = (raw: string) => {
-    const g = toGtin14(raw);
-    if (g) found.add(g);
-  };
-  for (const m of text.matchAll(UPC_LABELED)) add(m[1]);
-  for (const m of text.matchAll(BARE_RUN)) add(m[1]);
+  for (const m of text.matchAll(UPC_LABELED)) {
+    const digits = m[1].replace(/\D/g, "");
+    for (const len of PREFIX_LENGTHS) {
+      if (digits.length < len) continue;
+      const g = toGtin14(digits.slice(0, len));
+      if (g) {
+        found.add(g);
+        break;
+      }
+    }
+  }
   return [...found];
 }
 

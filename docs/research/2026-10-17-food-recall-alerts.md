@@ -15,8 +15,8 @@ with network access and paste the number here before deciding whether the featur
 tests use `synthetic-sample.json`, which is hand-written and not real recall data.
 
 ## Match rules
-- Alert only on exact GTIN-14 equality. UPCs found in text are read after a UPC/GTIN/EAN label or as a bare
-  12-14 digit run, and kept only with a valid GS1 check digit (`lib/search/gtin.ts`, reused), then padded to
+- Alert only on exact GTIN-14 equality. UPCs found in text are read only after a UPC/GTIN/EAN label (a bare
+  digit run is never read: about 1 in 10 random runs passes the check digit), and kept only with a valid GS1 check digit (`lib/search/gtin.ts`, reused), then padded to
   GTIN-14, so UPC-A and EAN-13 forms agree.
 - A brand + name match is recorded as a note for review and never alerts. Brand matches are whole-word, so
   "Kind" does not match "Kindred".
