@@ -183,29 +183,6 @@
   outline-offset: -2px;
 }
 
-/* Next: the system's small secondary circle (components/ui/Button, sm: 36 px with a 44 px hit area) in
-   the upper corner, its centre on the glyph's (12 px padding + 16 px). Only its place lives here: the
-   button system owns its fill, size and focus ring. Above the open control. */
-.next {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-}
-
-/* The button's likeness in the tile's face (TipFace), which carries no control: the secondary
-   recipe (a faint ink tint inside an ink hairline). */
-.nextDisc {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9999px;
-  background: rgb(var(--ink-rgb) / 0.035);
-  color: var(--color-charcoal);
-  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.16), 0 1px 1px rgb(var(--ink-rgb) / 0.04);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .dot {
     transition: none;

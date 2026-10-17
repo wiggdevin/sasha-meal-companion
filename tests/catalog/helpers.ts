@@ -5,9 +5,25 @@ export const BRANCH_URL = process.env.SUPABASE_TEST_URL ?? "";
 export const BRANCH_DB_URL = process.env.SUPABASE_TEST_DB_URL ?? "";
 export const hasBranch = Boolean(BRANCH_URL && BRANCH_DB_URL);
 
+/** The connection as libpq environment variables, so the URL and its password never appear in the process list. */
+export function psqlEnv(url: string, base: Partial<NodeJS.ProcessEnv> = process.env): NodeJS.ProcessEnv {
+  const u = new URL(url);
+  const env = { ...base } as NodeJS.ProcessEnv;
+  if (u.hostname) env.PGHOST = decodeURIComponent(u.hostname);
+  if (u.port) env.PGPORT = u.port;
+  if (u.username) env.PGUSER = decodeURIComponent(u.username);
+  if (u.password) env.PGPASSWORD = decodeURIComponent(u.password);
+  const db = decodeURIComponent(u.pathname.replace(/^\//, ""));
+  if (db) env.PGDATABASE = db;
+  const sslmode = u.searchParams.get("sslmode");
+  if (sslmode) env.PGSSLMODE = sslmode;
+  return env;
+}
+
 function run(sql: string): string {
   try {
-    return execFileSync("psql", [BRANCH_DB_URL, "-v", "ON_ERROR_STOP=1", "-At", "-F", "|", "-c", sql], {
+    return execFileSync("psql", ["-v", "ON_ERROR_STOP=1", "-At", "-F", "|", "-c", sql], {
+      env: psqlEnv(BRANCH_DB_URL),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });

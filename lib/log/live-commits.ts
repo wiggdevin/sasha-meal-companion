@@ -82,29 +82,9 @@ export async function isCommitting(entryId: string, now: number = Date.now()): P
   return isHeld(LOCK_PREFIX + entryId);
 }
 
-/**
- * Entries the user deleted while a commit for them was still posting.
- *
- * The delete cannot be applied yet — the POST is in the air, and its settle would draw the card
- * again and mirror the row — so it is remembered here and applied when that commit settles
- * (Grok pass 11, HIGH 2). In-process by nature: only this tab's commit can honour it, and a tab
- * that dies with one pending leaves the entry to the drain and the next pull, which is the state
- * it was in before the user deleted it.
- */
-const deletedWhileLive = new Set<string>();
-
 /** Phase 9 §0.3: forget the last account's live commits. Their own settle stops at its handle
- *  check; the cross-tab locks are released by their own `finally`. */
+ *  check; the cross-tab locks are released by their own `finally`. A delete made while a commit
+ *  posts is the durable `deleted` record in lib/log/pending.ts, not anything held here (W027). */
 export function resetLiveCommits(): void {
   live.clear();
-  deletedWhileLive.clear();
-}
-
-export function rememberDelete(entryId: string): void {
-  deletedWhileLive.add(entryId);
-}
-
-/** Was this entry deleted while its commit was posting? Asked once, by that commit's settle. */
-export function takeDelete(entryId: string): boolean {
-  return deletedWhileLive.delete(entryId);
 }

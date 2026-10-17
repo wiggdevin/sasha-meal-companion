@@ -274,6 +274,8 @@ export function resolveDay(store: Store, date: string, waterCups = 0,
         }),
         name: override.title ?? baseMeal?.name ?? SLOT_LABELS[slotId],
         components, macros: sumMacros(components),
+        // W099: an edited or swapped slot no longer holds the generated plate its chips described.
+        reasons: override.followPlan ? baseMeal?.reasons : undefined,
       } satisfies Meal : baseMeal ?? null;
       // An eaten slot that nothing describes (no snapshot, no saved edit; a time-only followPlan
       // shell describes nothing either) is frozen: it shows its frozen share as an estimate, or

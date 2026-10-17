@@ -83,7 +83,10 @@ export function policyCopy(policy: PolicyVerdict): string | null {
   return reasonLabel(reason, "Blocked");
 }
 
-export function spendNote(spend: { usedToday: number; softCap: number }): string {
+/** The day's capture count against the soft cap, or nothing when there is no cap to count against
+ *  (an empty draft, a coach draft): "0 of 0 today" says nothing (W139). */
+export function spendNote(spend: { usedToday: number; softCap: number }): string | undefined {
+  if (!(spend.softCap > 0)) return undefined;
   return `${spend.usedToday} of ${spend.softCap} today`;
 }
 

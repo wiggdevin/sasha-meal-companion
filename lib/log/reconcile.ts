@@ -12,7 +12,6 @@
  * `retryPendingReconciles` below picks up after the next successful sync. Nothing here posts
  * anything: these entries are already the server's.
  */
-import { amountLabel, entryMass } from "@/lib/log/mass";
 import { assertCurrent, isCurrent, type AccountHandle } from "@/lib/device/account";
 import { browserClient } from "@/lib/supabase/client";
 import { withAccount } from "@/lib/device/account-supabase";
@@ -20,19 +19,22 @@ import { withinBudget } from "@/lib/fetch-with-deadline";
 import { isCompleteEntryRow, serverFields } from "@/lib/log/entry-row";
 import {
   baseRevOf, claimForUser, clearPending, confirmEntry, countAttempt, deletedFor, isDeleted,
-  markCapped, markNeedsReconcile, readPending, readyNow, recordFor, type PendingLogEntry,
+  markCapped, markNeedsReconcile, readPending, readyNow, recordFor, retirePending,
+  type PendingLogEntry,
 } from "@/lib/log/pending";
 import { finishPendingDeletes } from "@/lib/log/delete-entry";
 import { isCommitting } from "@/lib/log/live-commits";
 import { getDay, loadStore, removeExtra } from "@/lib/store";
 import { cardFor, placeCard } from "@/lib/log/card-find";
-import type { LogCommitRequest } from "@/lib/log/contract";
 import type { LoggedFood } from "@/lib/types";
 import { deleteRow, getRow, putRow } from "@/lib/sync/idb";
 import { hasQueuedOp, ownWriteQueued, reconcileFromEntity } from "@/lib/log-commit-settle";
 import { deriveMealTitle } from "@/lib/coach/meal-title";
 import { loadPartialRecipeRefIds } from "@/lib/recipes-client";
 import { rowNutritionPartial } from "@/lib/log/partial-mark";
+import { cardFromRequest } from "@/lib/log/card-from-request";
+
+export { cardFromRequest };
 
 /** What one read-back did about the entry. Only the first two are the end of the matter. */
 export type ReconcileOutcome = "settled" | "deleted" | "missing" | "unreadable";
@@ -213,7 +215,7 @@ export async function reconcileFromServer(
   const mirrorRev = await heldRev(h, entryId);
   const incoming = typeof stored.rev === "number" ? stored.rev : null;
   if (mirrorRev !== null && incoming !== null && incoming < mirrorRev) {
-    await clearPending(h, entryId);
+    await retirePending(h, entryId);
     return "settled";
   }
   try {
@@ -224,9 +226,14 @@ export async function reconcileFromServer(
   }
   // The card follows the row. The row may be another device's newer one, and a card left on the
   // grams the user picked is a card a later note save would post back as fact (Grok pass 4, HIGH 2).
+  // Their delete can land while the writes above are open. It stays, and the row it removed
+  // does not come back with this read (W027).
+  if ((await retirePending(h, entryId)).deleted) {
+    await deleteRow(h, "log_entries", entryId).catch(() => undefined);
+    return "settled";
+  }
   patchCardFromRow(h, entryId, stored, mirrorRev, await ownWriteQueued(h, entryId),
     await loadPartialRecipeRefIds(h));
-  await clearPending(h, entryId);
   return "settled";
 }
 
@@ -245,7 +252,7 @@ async function promoteOrphans(h: AccountHandle, userId: string): Promise<void> {
     if (record.userId !== userId && record.userId !== null) continue;
     if (await isCommitting(record.entryId)) continue;
     if (await mirrorHasThisCommit(h, record)) {
-      await clearPending(h, record.entryId);
+      await retirePending(h, record.entryId);
       continue;
     }
     await markNeedsReconcile(h, record.entryId, userId);
@@ -353,48 +360,4 @@ async function sendAgain(h: AccountHandle, record: PendingLogEntry, now: number)
   await commitLogEntry(record.request, {
     account: h, automatic: true, optimistic: { date, entry },
   }).catch(() => undefined);
-}
-
-/**
- * The last resort: a card for an entry whose own card is gone and whose record never kept one.
- *
- * What the request knows is ids, grams, units and their note — not what the user called the food. So it
- * is named the way a saved meal with no name of its own is named, and the macros are zero until
- * the reply or the read-back fills the snapshots in, which is what every card's totals come from
- * (lib/resolve.ts's entryMacros). A pending mark over a plain card is the honest state: the meal
- * is theirs, and it is still on its way.
- */
-export function cardFromRequest(req: LogCommitRequest, previous?: LoggedFood): LoggedFood {
-  const previousName = previous?.name.trim();
-  const derived = deriveMealTitle(previous?.items ?? []);
-  const count = `${req.items.length} item${req.items.length === 1 ? "" : "s"}`;
-  // With no card and no record, the request still knows how many items it carries.
-  const title = req.title?.trim()
-    || (previousName && previousName !== "Logged meal" ? previousName : derived)
-    || (previous ? "Logged meal" : `Meal · ${count}`);
-  if (previous) {
-    return {
-      ...previous,
-      id: req.entry_id,
-      name: title,
-      slot: req.slot,
-      at: req.eaten_at,
-      ...(req.note?.trim() ? { note: req.note } : {}),
-    };
-  }
-  const { grams, massUnknown } = entryMass(req.items);
-  return {
-    id: req.entry_id, foodId: "meal",
-    name: title, slot: req.slot,
-    portionLabel: count, qty: 1, grams, ...(massUnknown ? { massUnknown: true as const } : {}),
-    macros: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-    ...(req.note ? { note: req.note } : {}),
-    items: req.items.map((item, i) => ({
-      id: item.id, seq: item.seq ?? i + 1, food_ref_id: item.food_ref_id, grams: item.grams,
-      qty: item.qty, unit: item.unit, snapshot: {},
-      foodId: "catalog:0", name: "Logged food", portionLabel: amountLabel(item),
-      macros: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-    })),
-    at: req.eaten_at,
-  };
 }

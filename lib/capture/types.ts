@@ -89,7 +89,10 @@ export type DraftItem = {
   policy: PolicyVerdict;
   alternatives: { foodRefId: string; label: string; score: number;
     /** Exact catalog revision behind this server-grounded choice; absent in older saved drafts. */
-    catalogFoodRevisionId?: number }[]; // top 3 when not auto-resolved
+    catalogFoodRevisionId?: number;
+    /** W139: the search verdict for this choice, so a swap to it keeps a verdict. Advisory: the
+     *  commit rechecks the chosen food. Absent in older saved drafts (the swap reads unverified). */
+    policy?: PolicyVerdict }[]; // top 3 when not auto-resolved
   autoResolved: boolean;
   /**
    * Present only for a grounded food with no stored role on this account (task t2c), from the

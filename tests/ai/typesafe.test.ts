@@ -136,10 +136,10 @@ describe("TypeSafe SystemOne adapter", () => {
     await expect(pending).resolves.toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledOnce();
-    expect(warn).toHaveBeenCalledWith("[typesafe] HTTP 529: {\"error\":\"overloaded\"}");
+    expect(warn).toHaveBeenCalledWith("[typesafe] HTTP 529");
   });
 
-  it("warns once with the HTTP status and first 200 body characters", async () => {
+  it("warns once with the HTTP status only, never the body (W068)", async () => {
     const body = "x".repeat(220);
     vi.mocked(fetch).mockResolvedValue(new Response(body, { status: 400 }));
 
@@ -147,7 +147,7 @@ describe("TypeSafe SystemOne adapter", () => {
       .resolves.toBeNull();
 
     expect(warn).toHaveBeenCalledOnce();
-    expect(warn).toHaveBeenCalledWith(`[typesafe] HTTP 400: ${"x".repeat(200)}`);
+    expect(warn).toHaveBeenCalledWith("[typesafe] HTTP 400");
     expect(String(warn.mock.calls[0][0])).not.toContain("test-typesafe-key");
   });
 
@@ -380,7 +380,7 @@ describe("TypeSafe SystemOne adapter", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ provider: "typesafe", model_id: "jev-latest",
-      status: "provider_error", error: "HTTP 400: bad request", cost_estimate: 0 });
+      status: "provider_error", error: "HTTP 400", cost_estimate: 0 });
   });
 
   it("returns null without HTTP while the Jev circuit is open", async () => {
@@ -388,7 +388,7 @@ describe("TypeSafe SystemOne adapter", () => {
     const openCircuit = { eq: () => openCircuit, neq: () => openCircuit, in: () => openCircuit,
       gte: async () => ({ data: Array.from({ length: 5 }, () => ({ created_at: "now" })), error: null }) };
     adminClientMock.mockReturnValue({ from: (table: string) => ({ ...admin.from(table),
-      select: (columns: string) => (columns === "created_at"
+      select: (columns: string) => (columns === "created_at, error"
         ? openCircuit : admin.from(table).select(columns)) }) });
 
     await expect(systemOne(J({ message: "hello" }, "coach-verify"), { userId: "user-1" }))

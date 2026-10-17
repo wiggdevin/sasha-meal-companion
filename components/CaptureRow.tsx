@@ -1,6 +1,6 @@
 "use client";
 
-import { CaptureGlyph } from "@/components/CaptureSheet";
+import { CaptureGlyph } from "@/components/CaptureGlyph";
 import { SHORT_CAPTURE_LABELS, type CaptureAction } from "@/lib/capture-client";
 import type { CaptureMethod } from "@/lib/capture/flags";
 

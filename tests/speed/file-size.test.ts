@@ -196,6 +196,13 @@ const MODULES = [
   "lib/log/today-state.ts",
   "lib/log/read-result.ts",
   "lib/log/delete-entry.ts",
+  // W027: split out of pending, reconcile and the settle to keep each under the house rule.
+  "lib/log/pending-types.ts",
+  "lib/log/card-from-request.ts",
+  "lib/log/queued-ops.ts",
+  // W123: Log again and the recent meals it reads.
+  "lib/log/log-again.ts",
+  "lib/log/recent-meals.ts",
   "lib/log/catalog-card.ts",
   "lib/log/card-items.ts",
   "lib/log/web-lock.ts",

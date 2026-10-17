@@ -262,8 +262,9 @@ export type EditedItem = DraftItem & { removed: boolean; wasEdited: boolean };
  * The sheet holds edits by `seq` and never mutates the draft it was given, so a dismissed sheet
  * leaves the stored draft exactly as the server returned it.
  *
- * Typing grams or swapping the food clears the old portion. A swap drops the verdict to
- * `unverified`: the server rechecks the chosen food at commit, and the old verdict cannot be reused.
+ * Typing grams or swapping the food clears the old portion. A swap takes the chosen alternative's
+ * own search verdict (W139), else `unverified`: the old item's verdict is never reused, and the
+ * server rechecks the chosen food at commit either way.
  * A server-grounded alternative may carry its own revision pin for an accurate preview.
  */
 export function applyEdits(items: DraftItem[], edits: DraftEdits): EditedItem[] {
@@ -282,7 +283,8 @@ export function applyEdits(items: DraftItem[], edits: DraftEdits): EditedItem[] 
       qty: edit.qty ?? (gramsMoved || swapped ? grams : item.qty),
       unit: edit.unit ?? (gramsMoved || swapped ? "g" : item.unit),
       portionId: edit.portionId !== undefined ? edit.portionId : (gramsMoved || swapped ? null : item.portionId),
-      policy: swapped ? { verdict: "unverified" as const } : item.policy,
+      policy: swapped ? (item.alternatives.find((alt) => alt.foodRefId === edit.foodRefId)?.policy
+        ?? { verdict: "unverified" as const }) : item.policy,
       removed: edit.removed === true,
       wasEdited: gramsMoved || swapped,
     };

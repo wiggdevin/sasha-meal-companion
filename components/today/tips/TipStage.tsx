@@ -31,17 +31,25 @@ function focusWasInView(): boolean {
  * The view fills the room the board had, so the card keeps its height; when the view needs more,
  * the board's height (DayBoard's one AutoHeight) springs on the frame's own gentle spring. Focus moves to the view's X and back
  * to the tile without scrolling the page. A board that leaves the screen closes its tip at once.
+ *
+ * Paging is the view's (OD17): Previous and Next swap the tip inside the one open view, and the
+ * stage holds which tip the tile shows (`shownId`), so the view closes into the tip it was last on.
  */
 export default function TipStage({ tips, active, children }: {
   tips: BoardTip[];
   /** False while another face of the Day card is on show. */
   active: boolean;
-  /** `open(tip, from)`: `from` is the control that opened it, inside the board's tiles. */
-  children: (open: (tip: BoardTip, from: HTMLElement) => void) => ReactNode;
+  /** `open(tip, from)`: `from` is the control that opened it, inside the board's tiles; `shownId`
+   *  is the tip the tile shows. */
+  children: (open: (tip: BoardTip, from: HTMLElement) => void, shownId: string | null) => ReactNode;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
   const t = boardMorph(reduce);
   const [openId, setOpenId] = useState<string | null>(null);
+  // One key per opening: a page turn keeps the view, a new opening always mounts a fresh one.
+  const [opening, setOpening] = useState(0);
+  // Held by id, from the first tip the board had: a reorder never switches the tile's tip.
+  const [shownId, setShownId] = useState<string | null>(() => tips[0]?.id ?? null);
   const [room, setRoom] = useState(0);
   const [face, setFace] = useState<TipFaceBox | null>(null);
   const [closing, setClosing] = useState<TipClosing | null>(null);
@@ -50,6 +58,9 @@ export default function TipStage({ tips, active, children }: {
   // The tiles are covered while the view is open; closing, they are back in the flow and fading in.
   const covered = shown !== null && closing === null;
   const stage = useRef<HTMLDivElement | null>(null);
+  // The tip the last page turn went to, until the render that shows it.
+  const pagedTo = useRef<string | null>(null);
+  useEffect(() => { pagedTo.current = null; }, [openId]);
   // Closing hands focus back to the tile the tip grew from; a board that left the screen does not.
   const returnFocus = useRef(false);
   useEffect(() => {
@@ -80,7 +91,21 @@ export default function TipStage({ tips, active, children }: {
     setFace({ tips, index: Math.max(0, tips.indexOf(tip)), width: from.offsetWidth, height: from.offsetHeight });
     setClosing(null);
     setOpenId(tip.id);
+    setShownId(tip.id);
+    setOpening((n) => n + 1);
   };
+  // A page turn swaps the tip in the open view; the tile and the face it lands on follow.
+  const page = (step: 1 | -1) => {
+    if (!shown || closing || tips.length < 2) return;
+    // From the latest page turn, not this render's tip, so two taps in one batch move two tips.
+    const at = tips.findIndex((tip) => tip.id === (pagedTo.current ?? shown.id));
+    const index = ((at < 0 ? 0 : at) + step + tips.length) % tips.length;
+    pagedTo.current = tips[index].id;
+    setOpenId(tips[index].id);
+    setShownId(tips[index].id);
+    setFace((box) => box && { ...box, tips, index });
+  };
+
   const close = () => {
     if (closing) return;
     returnFocus.current = true;
@@ -97,10 +122,12 @@ export default function TipStage({ tips, active, children }: {
         inert={covered} aria-hidden={covered ? true : undefined}
         initial={false} animate={covered ? TILES_COVERED : TILES_SHOWN}
         transition={covered ? t.tilesOut : t.tilesIn}>
-        {children(open)}
+        {children(open, shownId)}
       </motion.div>
       <AnimatePresence initial={false}>
-        {shown && <TipView key={shown.id} tip={shown} minHeight={room} face={face} closing={closing}
+        {/* One key per opening: a page turn swaps its tip in place, never re-grows it. */}
+        {shown && <TipView key={`tip-view-${opening}`} tip={shown} minHeight={room} face={face} closing={closing}
+          paging={{ index: Math.max(0, tips.indexOf(shown)), count: tips.length, onPage: page }}
           onClose={close} onClosed={finish} />}
       </AnimatePresence>
     </div>

@@ -8,7 +8,7 @@ import { rethrowAccountChanged, type AccountHandle } from "@/lib/device/account"
 import type { LogCommitRequest } from "@/lib/log/contract";
 import { isDeleted, settleDeletedEntry } from "@/lib/log/delete-entry";
 import { opIdFor } from "@/lib/log/op-id";
-import { clearPending } from "@/lib/log/pending";
+import { retirePending } from "@/lib/log/pending";
 import { hasQueuedOp, type OptimisticWrite } from "@/lib/log-commit-settle";
 import { enqueue } from "@/lib/sync/outbox";
 
@@ -37,8 +37,13 @@ export async function safeQueue(
   }
   try {
     const queued = await queue(h, req);
-    // The outbox owns the pending mark from here on; Today re-reads it on the same event.
-    await clearPending(h, req.entry_id);
+    // The outbox owns the pending mark from here on; Today re-reads it on the same event. Their
+    // delete can land while the queue write is open: it dropped the outbox before this write put
+    // the create back, so the record it left stays, and the create goes again (W027).
+    if ((await retirePending(h, req.entry_id)).deleted) {
+      await settleDeletedEntry(h, req.entry_id, optimistic?.date);
+      return { status: "discarded" };
+    }
     return queued;
   } catch (e) {
     rethrowAccountChanged(e);

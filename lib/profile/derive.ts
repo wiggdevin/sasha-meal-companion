@@ -3,7 +3,7 @@ import {
   ACTIVITY_MODEL_VERSION, bmr, bmrMethod, deriveTargets, energyProfileFrom, isProfileComplete,
   weightForTargets,
 } from "@/lib/profile/energy";
-import type { EnergyFloorBound } from "@/lib/profile/energy";
+import { isoDay, type EnergyFloorBound } from "@/lib/profile/energy";
 import { macroMinimumKcal } from "@/lib/profile/rate-goal";
 import {
   AdultOnlyError, isMinorOn, paceAllowed, standardProtein, type TargetEligibility,
@@ -118,7 +118,10 @@ export function applyTargetPins(base: TargetSet, pins: TargetPins): TargetSet {
 }
 
 function effectiveDate(value: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Target date must be YYYY-MM-DD");
+  // A real calendar day only: "2027-02-29" used to pass the shape check and fail at the database.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || isoDay(value) === null) {
+    throw new Error("Target date must be YYYY-MM-DD");
+  }
   return new Date(`${value}T12:00:00.000Z`);
 }
 

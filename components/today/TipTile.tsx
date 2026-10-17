@@ -8,7 +8,6 @@ import TipGlyph, { glyphOf } from "@/components/today/tips/TipGlyph";
 import { BOARD_MORPH } from "@/components/today/useDayCardMotion";
 import { TIP_CORNER, TIP_LAYOUT_ID, TIP_OPEN_ATTR } from "@/components/today/tips/shared";
 import styles from "@/components/today/TipTile.module.css";
-import Button from "@/components/ui/Button";
 
 /** Past this many tips the dots stop reading as a count, so a figure stands in for them. */
 export const MAX_DOTS = 7;
@@ -48,9 +47,10 @@ function Dots({ tips, index }: { tips: BoardTip[]; index: number }) {
     : <span className={styles.count} aria-hidden="true">{index + 1}/{count}</span>;
 }
 
-function NextGlyph() {
+/** The paging chevron, drawn by the full view's Previous and Next (components/today/tips/TipView.tsx). */
+export function NextGlyph({ back = false }: { back?: boolean }) {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9.5 6 6 6-6 6" /></svg>;
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={back ? "m14.5 6-6 6 6 6" : "m9.5 6 6 6-6 6"} /></svg>;
 }
 
 /**
@@ -65,8 +65,6 @@ export function TipFace({ tips, index }: { tips: BoardTip[]; index: number }) {
     <Quote />
     <div className={styles.stack}><div className={styles.slide}><Slide tip={tip} /></div></div>
     <Dots tips={tips} index={index} />
-    {/* The Next button's likeness (the face is a picture: no control in it). */}
-    {tips.length > 1 && <span className={`${styles.next} ${styles.nextDisc}`}><NextGlyph /></span>}
   </>;
 }
 
@@ -74,23 +72,28 @@ export function TipFace({ tips, index }: { tips: BoardTip[]; index: number }) {
  * The board's tip (2026-10-03): the ivory panel washed with wheat in one corner, a hairline rim
  * running from olive into wheat, the matte grain and a wheat quote mark. The tile keeps the short
  * form: a topic glyph in an olive disc, a short serif headline and one line (clamped to three
- * rows in a narrow column), with the round Next button in its upper corner and the dots under it.
- * Every tip is drawn in the same cell, so the tile is as tall as its longest tip and changing tip
- * never moves the board; the next one slides in from the right through a short blur.
+ * rows in a narrow column), with dots under it saying how many tips there are. Every tip is drawn
+ * in the same cell, so the tile is as tall as its longest tip and changing tip never moves the
+ * board; the next one slides in from the right through a short blur.
  *
- * Tapping the tile (anywhere but Next) opens the tip's full view in place: the tile is the
- * container that grows into it (components/today/tips/TipStage.tsx). The tips arrive already
- * ordered (lib/today/board.ts `orderTips`), so the tile starts at the first.
+ * Tapping the tile opens the tip's full view in place: the tile is the container that grows into
+ * it (components/today/tips/TipStage.tsx). Paging lives in that full view (OD17, 2026-10-12): the
+ * tile has no Next of its own, and shows the tip the view was last on (`shownId`, held by the
+ * stage). The tips arrive already ordered (lib/today/board.ts `orderTips`), so the tile starts at
+ * the first.
  */
-export default function TipTile({ tips, onOpen }: {
+export default function TipTile({ tips, shownId: heldId, onOpen }: {
   tips: BoardTip[];
+  /** The tip on show, by id; the stage holds it. Unset or unknown, the first. */
+  shownId?: string | null;
   /** Opens the tip's full view; `from` is the tile's open control. */
   onOpen?: (tip: BoardTip, from: HTMLElement) => void;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
   // The shown tip is held by id, not position: the tips reorder as the day changes (a first cup
   // drops the water tip's relevance), and the tile must not switch tips, or announce one, on its own.
-  const [shownId, setShownId] = useState<string | null>(() => tips[0]?.id ?? null);
+  const [firstId] = useState<string | null>(() => tips[0]?.id ?? null);
+  const shownId = heldId === undefined ? firstId : heldId;
   const liveId = useId();
   const count = tips.length;
   const found = shownId === null ? -1 : tips.findIndex((item) => item.id === shownId);
@@ -124,18 +127,9 @@ export default function TipTile({ tips, onOpen }: {
     </div>
     <Dots tips={tips} index={index} />
     <p id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">{said?.text}</p>
-    {/* The whole tile opens the tip; Next sits above this control in its own corner. */}
+    {/* The whole tile opens the tip. */}
     {onOpen && <button type="button" className={styles.open} {...{ [TIP_OPEN_ATTR]: tip.id }}
       aria-label={`Open tip: ${tip.title ?? tip.text}`}
       onClick={(event) => onOpen(tip, event.currentTarget)} />}
-    {/* The system's small secondary circle: 36 px to see, 44 px to hit (DESIGN.md §Buttons). Not the
-        primary: paging tips completes nothing, and the board's one primary is "mark eaten". */}
-    {count > 1 && <Button variant="secondary" shape="circle" size="sm" className={styles.next} aria-label="Next tip"
-      aria-controls={liveId} onClick={() => setShownId((prev) => {
-        const at = prev === null ? -1 : tips.findIndex((item) => item.id === prev);
-        return tips[((at < 0 ? 0 : at) + 1) % count].id;
-      })}>
-      <NextGlyph />
-    </Button>}
   </motion.div>;
 }

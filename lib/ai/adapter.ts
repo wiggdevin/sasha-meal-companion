@@ -11,7 +11,8 @@
 
 import { geminiUsage } from "@/lib/ai/gemini-usage";
 import { streamGemini } from "@/lib/ai/gemini-stream";
-import { callModel, parseModelJson, ProviderHttpError, SchemaRejection } from "@/lib/ai/call";
+import { callModel, parseModelJson, SchemaRejection } from "@/lib/ai/call";
+import { geminiHttpError } from "@/lib/ai/gemini-errors";
 import type { ProviderResult } from "@/lib/ai/call-ledger";
 import { geminiProvenance } from "@/lib/ai/gemini-payloads";
 import type { GeminiPayload, GeminiPurpose, Media } from "@/lib/ai/payloads";
@@ -99,13 +100,7 @@ export function inputHashFor(parts: readonly Part[], media?: Media): string {
   return "\\x" + hash.digest("hex");
 }
 
-/** Keeps the provider's own words: a 503 that is really a schema complaint (2026-09-16). */
-export function geminiHttpError(e: unknown): ProviderHttpError | null {
-  const { status, message: detail } = e as { status?: unknown; message?: unknown };
-  if (typeof status !== "number") return null;
-  const suffix = typeof detail === "string" && detail.trim() ? `: ${detail.trim().slice(0, 300)}` : "";
-  return new ProviderHttpError(status, `gemini ${status}${suffix}`);
-}
+export { geminiHttpError } from "@/lib/ai/gemini-errors";
 
 async function geminiCall(
   model: string, parts: Part[], jsonSchema: unknown, maxOutputTokens?: number, signal?: AbortSignal,

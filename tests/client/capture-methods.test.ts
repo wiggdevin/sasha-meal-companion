@@ -68,6 +68,8 @@ describe("policy copy", () => {
 describe("the spend note and the Today meta", () => {
   it("reads n of 30 today", () => {
     expect(spendNote({ usedToday: 4, softCap: 30 })).toBe("4 of 30 today");
+    // W139: an empty or coach draft carries no cap; "0 of 0 today" is never shown.
+    expect(spendNote({ usedToday: 0, softCap: 0 })).toBeUndefined();
   });
 
   it("ignores an entry that was not captured", () => {

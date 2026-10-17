@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # Standard library only: no install step on a job that runs 96 times a day.
       - name: Check health, backups and job passes
