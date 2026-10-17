@@ -58,6 +58,25 @@ pnpm timings      # p50/p95/n per path and step from client_timings (service-rol
   is behind main (`lib/dev/freshness.ts`, `components/DevFreshnessBanner.tsx`). A worktree's own
   server uses another port (3523+) and is stopped when its work lands.
 
+## Cloud threads (Claude Code Projects)
+A thread in a cloud environment has its own clone, no Mac tools (zs-land, ZS Vault, zs-memory,
+Codex/Grok, the local proxies) and no production credentials. The section above is for the
+Mac; in a cloud thread these rules replace it:
+- Work on one `feat/`, `fix/` or `chore/` branch in the thread's own clone. No `git worktree`, no
+  `wip/` parking: push the branch and open a **draft** PR before the thread stops.
+- Mark the PR ready only when it is done and CI is green. **Never merge**: a merge to `main`
+  deploys production. The owner (or a Mac session with zs-land) merges.
+- Run `pnpm lint`, `pnpm exec tsc --noEmit` and the targeted `vitest` specs locally. The full
+  suite, the integration tests (local Supabase) and the build run in CI; read CI, don't rerun it all.
+- Never apply a migration, touch Vercel env, or call production Supabase. A PR that needs a
+  migration in production says so in its first line; a Mac session applies it.
+- Second opinion: before marking a non-trivial PR ready, have a Claude reviewer subagent check
+  the diff (BLOCK/WARN/NIT) and fix the verified findings. Say in the PR that Sol did not review it.
+- Parallel threads: one thread per branch, never two threads on the same files. A new migration
+  takes a fresh timestamp; check open PRs for a clash first (see the `20261229090000` reuse in
+  `docs/handoffs/2026-10-08-stopping-point.md`).
+- Runtime: Node 22, `corepack enable && pnpm install --frozen-lockfile`.
+
 ## Where things live
 | Path | What |
 |---|---|
