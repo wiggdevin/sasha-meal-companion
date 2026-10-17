@@ -47,12 +47,33 @@ export class UnusableReply extends SchemaRejection {
 }
 
 /** A reply cut off mid-JSON (the output cap, a dropped stream) is the wrong shape, not a failed
- *  call, so it is recorded as schema_invalid like any reply the schema cannot accept (2026-09-15). */
+ *  call, so it is recorded as schema_invalid like any reply the schema cannot accept (2026-09-15).
+ *  The message keeps the character count and the parser's position only: V8 quotes the start of
+ *  the text it could not parse, and that is the model's own reply (W087: never log its content). */
 export function parseModelJson(text: string): unknown {
   try { return JSON.parse(text); }
   catch (e) {
-    throw new SchemaRejection(`model output is not valid JSON: ${e instanceof Error ? e.message : "parse failed"}`);
+    const at = e instanceof Error ? /position (\d+)/.exec(e.message)?.[1] : undefined;
+    throw new SchemaRejection(`model output is not valid JSON: ${text.length} chars${
+      at === undefined ? "" : `, failed at position ${at}`}`);
   }
+}
+
+/**
+ * A rejected reply's issues as `path:code` pairs ("actions.0.name:too_small"), at most eight — the
+ * field and the rule, never a value or a message that could quote one. This is what the
+ * `ai_calls.error` row and the coach's failure log carry (W087: the abort reason was not logged).
+ * A custom issue may name its rule in `params.reason`, a fixed code its own schema wrote
+ * (lib/coach/wire.ts), so a refused turn step says which variant rule it broke.
+ */
+type SummarisedIssue = { path: readonly PropertyKey[]; code: string; params?: Record<string, unknown> };
+export function schemaIssueSummary(error: { issues: readonly SummarisedIssue[] }): string {
+  const issues = error.issues.slice(0, 8).map((issue) => {
+    const reason = typeof issue.params?.reason === "string" ? `(${issue.params.reason})` : "";
+    return `${issue.path.map(String).join(".") || "(root)"}:${issue.code}${reason}`;
+  });
+  const more = error.issues.length > 8 ? ` (+${error.issues.length - 8} more)` : "";
+  return `${issues.join("; ")}${more}`;
 }
 export class ProviderHttpError extends Error {
   constructor(public status: number, message: string) { super(message); this.name = "ProviderHttpError"; }

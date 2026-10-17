@@ -12,7 +12,9 @@ import {
 } from "@/lib/ai/models";
 import { openRouterConfigured } from "@/lib/ai/provider-env";
 import { ASSISTANT_NAME } from "@/lib/brand";
-import { planTurn, TURN_LIMITS, type TurnStep } from "@/lib/coach/turn";
+import {
+  ABORT_CORRECTION, planTurn, TURN_LIMITS, TURN_STOP_REASONS, type TurnStep,
+} from "@/lib/coach/turn";
 import { HttpError } from "@/lib/server/auth";
 import { withWallClock } from "@/lib/server/coach-turn/deadline";
 import { draftStream, type DraftStream } from "@/lib/server/coach-turn/draft";
@@ -35,6 +37,16 @@ export async function runModelLoop(
       const step = planTurn({ toolCallsUsed: state.used, startedAt, now: now(), limits: TURN_LIMITS },
         output);
       state.step = step;
+      // W087: the model's own abort, on a question it could answer ("plan tomorrow's meals"),
+      // ended the turn with the generic line. It is sent back once, like a bare refusal; a
+      // second abort, the clock and the tool cap still end the turn.
+      if (output.kind === "abort" && step.kind === "abort" && step.reason === output.reason
+          && !TURN_STOP_REASONS.has(output.reason) && !state.abortCorrectionRequested
+          && round < TURN_LIMITS.maxToolCalls) {
+        state.abortCorrectionRequested = true;
+        state.transcript.push(ABORT_CORRECTION);
+        continue;
+      }
       if (step.kind === "final") {
         if (await settleFinalStep(turn, kit, env, state, step, round) === "retry") continue;
         break;

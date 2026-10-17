@@ -7,7 +7,7 @@
  * with a hard rule never goes on the list unremarked.
  */
 import { describe, expect, it } from "vitest";
-import { abortMessage } from "@/lib/coach/turn";
+import { isReask } from "@/lib/coach/reask";
 import { checkReply, loggedFoodIdentities } from "@/lib/coach/reply-check";
 import {
   checkReplyLive, startReplyScan, type ReplyCheckPorts, type ReplyScanInput,
@@ -15,7 +15,6 @@ import {
 import type { FoodHit } from "@/lib/coach/executors";
 import { TEST_PROFILE } from "@/tests/helpers/constraint-profile";
 
-const REASK = abortMessage("unverified_text_food");
 
 const shoppingAction = {
   actionId: "a1", kind: "add_to_shopping_list" as const, flagged: [] as string[],
@@ -47,7 +46,7 @@ describe("checkReply (pure): a shopping item is not advice", () => {
       text: "Added apple and oat milk to your list.", named: [], draft: null,
       actions: [shoppingAction], evidence, profile: TEST_PROFILE,
     });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.actions).toEqual([]);
   });
 
@@ -56,7 +55,7 @@ describe("checkReply (pure): a shopping item is not advice", () => {
       "Added apple to your list, it's fine for you."]) {
       const result = checkReply({ text, named: [], draft: null, actions: [shoppingAction],
         evidence, profile: TEST_PROFILE });
-      expect(result.content).toBe(REASK);
+      expect(isReask(result.content)).toBe(true);
     }
   });
 
@@ -65,7 +64,7 @@ describe("checkReply (pure): a shopping item is not advice", () => {
       text: "Added apple and oat milk to your list.", named: [], draft: null,
       actions: [], evidence, profile: TEST_PROFILE,
     });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 });
 
@@ -115,7 +114,7 @@ describe("checkReplyLive: a shopping item is not advice", () => {
         named: withoutShoppingMirrors([{ name: "apple" }], [appleOnly]),
         actions: [], pendingActions: [appleOnly], evidence: {}, profile: TEST_PROFILE,
       }, { searchFoods });
-      expect(result.content).toBe(REASK);
+      expect(isReask(result.content)).toBe(true);
       expect(result.actions).toEqual([]);
     });
 
@@ -124,7 +123,7 @@ describe("checkReplyLive: a shopping item is not advice", () => {
       userId: "u1", text: "Added banana to your list.", named: [], draft: null,
       actions: [bananaOnly], evidence: {}, profile: TEST_PROFILE,
     }, { searchFoods: async () => { throw new Error("catalog down"); } });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("re-asks when the reply recommends the item as well as adding it", async () => {
@@ -133,7 +132,7 @@ describe("checkReplyLive: a shopping item is not advice", () => {
       userId: "u1", text: "An apple is a perfect snack for you. Added apple to your list.",
       named: [], draft: null, actions: [appleOnly], evidence: {}, profile: TEST_PROFILE,
     }, { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("control: the same food only SUGGESTED, not added to the list, still re-asks", async () => {
@@ -142,7 +141,7 @@ describe("checkReplyLive: a shopping item is not advice", () => {
       userId: "u1", text: "You could pick up an apple while you're there.", named: [], draft: null,
       actions: [], evidence: {}, profile: TEST_PROFILE,
     }, { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 });
 

@@ -10,6 +10,7 @@
 
 import { z } from "zod";
 import {
+  actionSpecFor,
   coachActionWireSchemaFor,
   flatCoachActionSchema,
   providerActionSchema,
@@ -95,14 +96,43 @@ export const EMPTY_WIRE_STEP = {
 
 export type WireTurnStep = z.infer<typeof flatTurnStep>;
 
+/** Empty the way a required wire field says "nothing here": "", 0, null, or only empties. */
+function blank(value: unknown): boolean {
+  if (value === undefined || value === null || value === 0) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.every(blank);
+  if (typeof value === "object") return Object.values(value).every(blank);
+  return false;
+}
+
 /**
- * The flat reply as a candidate union member, or the union's complaint. All the strictness lives
- * in `turnStepSchema`, so a `final` with no text, an `abort` with no reason or a suggestion
- * carrying a non-uuid id is refused by exactly one schema. Pure.
+ * Keys a placeholder may still carry a value in: `slot` is an enum, so the provider schema forces
+ * one in, and `date` is the day the model is told to write on every action. Neither names a thing
+ * to do on its own once the action has failed its own schema.
+ */
+const PLACEHOLDER_KEYS = new Set(["kind", "slot", "date"]);
+
+/**
+ * A refused action that carries nothing but its kind, a slot and a date: a placeholder. Never for a
+ * kind whose whole action IS a date and a slot (skip_slot, restore_slot): a refused one of those
+ * is a real action the model got wrong, and still refuses the turn.
+ */
+function placeholderAction(action: Record<string, unknown>): boolean {
+  const wire = actionSpecFor(String(action.kind))?.wire;
+  const own = [...(wire?.named ?? []), ...(wire?.numbers ?? []), ...(wire?.strings ?? []),
+    ...Object.keys(wire?.fields ?? {}), wire?.numbersRest?.field, wire?.stringsRest?.field];
+  if (!own.some((key) => key !== undefined && !PLACEHOLDER_KEYS.has(key))) return false;
+  return Object.entries(action).every(([key, value]) => PLACEHOLDER_KEYS.has(key) || blank(value));
+}
+
+/**
+ * The flat reply as a candidate union member, or the rule it broke as a fixed code. All the
+ * strictness lives in `turnStepSchema`, so a `final` with no text, an `abort` with no reason or a
+ * suggestion carrying a non-uuid id is refused by exactly one schema. Pure.
  */
 export function turnStepCandidate(
   wire: WireTurnStep, today?: string,
-): { ok: true; step: TurnStep } | null {
+): { ok: true; step: TurnStep } | { ok: false; reason: string } {
   const candidate: Record<string, unknown> = { kind: wire.kind };
   // Empty is how a required field says "not this variant" — see the note on flatTurnStep. Each
   // key is also read only where its own variant wants it: now that every key is required, a model
@@ -117,20 +147,33 @@ export function turnStepCandidate(
   if (wire.kind === "abort" && wire.reason) candidate.reason = wire.reason.slice(0, 200);
   if (wire.kind !== "final") {
     const parsed = turnStepSchema.safeParse(candidate);
-    return parsed.success ? { ok: true, step: parsed.data } : null;
+    if (parsed.success) return { ok: true, step: parsed.data };
+    return { ok: false, reason: wire.kind === "tool" ? "tool_without_named_calls" : "abort_without_reason" };
   }
   if (wire.text) candidate.text = wire.text;
   const suggestions = named(wire.suggestions);
   if (suggestions.length) candidate.suggestions = suggestions;
   if (wire.actions?.length) {
     const actionSchema = coachActionWireSchemaFor(today);
-    const actions = wire.actions.map((action) => actionSchema.safeParse(action));
-    if (actions.some((action) => !action.success)) return null;
-    candidate.actions = actions.map((action) => action.data);
+    const kept: unknown[] = [];
+    for (const [index, action] of wire.actions.entries()) {
+      const parsed = actionSchema.safeParse(action);
+      if (parsed.success) kept.push(parsed.data);
+      // W087: a refused action with nothing in it is the model filling the required array, like
+      // a blank-named suggestion. Dropping it keeps the reply; refusing it threw the whole turn
+      // away as "coach unavailable". A refused action with any content still refuses the turn.
+      // The index and the kind only: the kind is the schema's own enum, never the model's prose.
+      else if (!placeholderAction(action)) {
+        return { ok: false, reason: `action_${index}_${action.kind}_unsupported` };
+      }
+    }
+    if (kept.length) candidate.actions = kept;
   }
   if (wire.memory?.length) candidate.memory = wire.memory;
   const parsed = turnStepSchema.safeParse(candidate);
-  return parsed.success ? { ok: true, step: parsed.data } : null;
+  if (parsed.success) return { ok: true, step: parsed.data };
+  const field = parsed.error.issues[0]?.path[0];
+  return { ok: false, reason: `final_${typeof field === "string" ? field : "shape"}_invalid` };
 }
 
 /**
@@ -141,16 +184,19 @@ export function turnStepCandidate(
  * union refuses a wire-valid reply, instead of recording the weaker flat parse as `ok`.
  */
 export function turnStepWireSchemaFor(today?: string): z.ZodType<TurnStep> {
+  // `params.reason` names the variant rule the reply broke; lib/ai/call.ts schemaIssueSummary
+  // writes it into the ai_calls row and the coach's failure log (W087).
+  const refuse = (ctx: z.RefinementCtx, reason: string) => ctx.addIssue({
+    code: "custom", message: "the reply is not one of the three turn steps", params: { reason } });
   return flatTurnStep
     .superRefine((wire, ctx) => {
-      if (turnStepCandidate(wire, today) === null) {
-        ctx.addIssue({ code: "custom", message: "the reply is not one of the three turn steps" });
-      }
+      const candidate = turnStepCandidate(wire, today);
+      if (!candidate.ok) refuse(ctx, candidate.reason);
     })
     .transform((wire, ctx): TurnStep => {
       const candidate = turnStepCandidate(wire, today);
-      if (candidate === null) {
-        ctx.addIssue({ code: "custom", message: "the reply is not one of the three turn steps" });
+      if (!candidate.ok) {
+        refuse(ctx, candidate.reason);
         return z.NEVER;
       }
       return candidate.step;

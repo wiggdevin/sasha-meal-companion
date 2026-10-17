@@ -162,6 +162,21 @@ export function planTurn(state: TurnState, modelOutput: ModelOutput): TurnStep {
   return { kind: "tool", calls: modelOutput.calls };
 }
 
+/** The turn's own stop codes (the clock, the tool cap, an empty tool step); any other abort
+ *  reason is the model's own words. */
+export const TURN_STOP_REASONS: ReadonlySet<string> =
+  new Set(["wall_clock", "max_tool_calls", "empty_tool_step"]);
+
+/**
+ * The one correction round a model `abort` gets (W087): in the 2026-10-17 live pass the model
+ * aborted on answerable questions (a day plan, a weekly check-in, a grocery list) and the person
+ * read only the generic line below. It is asked to answer, or to say what it is missing.
+ */
+export const ABORT_CORRECTION =
+  "SYSTEM: You returned abort. Reply with a final step instead: call a tool first if you need data,"
+  + " answer what you can, and if something is missing, say in `text` what you need from the"
+  + " person. Abort again only if the request is unsafe or impossible.";
+
 /** An abort yields a readable assistant message, never an exception (acceptance criterion 11). */
 export function abortMessage(reason: string): string {
   if (reason === "max_tool_calls") {

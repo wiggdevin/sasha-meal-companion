@@ -11,7 +11,7 @@
 
 import { geminiUsage } from "@/lib/ai/gemini-usage";
 import { streamGemini } from "@/lib/ai/gemini-stream";
-import { callModel, parseModelJson, SchemaRejection } from "@/lib/ai/call";
+import { callModel, parseModelJson, SchemaRejection, schemaIssueSummary } from "@/lib/ai/call";
 import { geminiHttpError } from "@/lib/ai/gemini-errors";
 import type { ProviderResult } from "@/lib/ai/call-ledger";
 import { geminiProvenance } from "@/lib/ai/gemini-payloads";
@@ -256,7 +256,7 @@ export async function generateStructured<T>(
     accept: (result) => {
       const parsed = args.schema.safeParse(parseModelJson(stripJsonFence(result.text)));
       if (!parsed.success) {
-        throw new SchemaRejection(`model output failed the schema: ${parsed.error.message}`);
+        throw new SchemaRejection(`model output failed the schema: ${schemaIssueSummary(parsed.error)}`);
       }
       return acceptRefused(parsed.data, args.refuse);
     },

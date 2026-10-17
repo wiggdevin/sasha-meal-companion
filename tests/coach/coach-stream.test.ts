@@ -128,11 +128,11 @@ describe("readOpenRouterStream", () => {
       ": OPENROUTER PROCESSING", "",
       "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"kind\\\":\"}}]}", "",
       "data: {\"choices\":[{\"delta\":{\"content\":\"\\\"final\\\"}\"}}]}", "",
-      "data: {\"choices\":[{\"delta\":{}}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"cost\":0.002}}",
+      "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"cost\":0.002}}",
       "data: [DONE]",
     ]), (text) => seen.push(text));
     expect(result).toEqual({ text: "{\"kind\":\"final\"}", inputTokens: 10, outputTokens: 4,
-      costUsd: 0.002 });
+      costUsd: 0.002, finishReason: "stop" });
     expect(seen).toEqual(["", "{\"kind\":", "{\"kind\":\"final\"}"]);
   });
 

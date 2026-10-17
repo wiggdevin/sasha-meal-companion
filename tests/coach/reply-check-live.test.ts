@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { abortMessage } from "@/lib/coach/turn";
+import { isReask } from "@/lib/coach/reask";
 import {
   checkReplyLive, hasActiveHardRules, startReplyScan, type ReplyCheckPorts, type ReplyScanInput,
 } from "@/lib/server/reply-check";
@@ -27,7 +27,6 @@ const baseInput = (over: Partial<Input> = {}): Input => ({
 const live = (input: Input, ports: ReplyCheckPorts, budgetMs = 1_000) =>
   checkReplyLive(input, startReplyScan(input, ports, Date.now() + budgetMs));
 const FISH = { ...EMPTY_PROFILE, avoid_allergens: ["fish"] };
-const REASK = abortMessage("unverified_text_food");
 
 describe("hasActiveHardRules", () => {
   it("is false for a profile with nothing to avoid", () => {
@@ -84,13 +83,13 @@ describe("checkReplyLive — an unreadable profile-rule read", () => {
   it("re-asks when the rules read fails, even with no legacy rule", async () => {
     const profileRules = vi.fn(async () => { throw new Error("db down"); });
     const result = await live(baseInput({ text }), { searchFoods: vi.fn(), profileRules });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("re-asks when the rules read never answers inside the scan's budget", async () => {
     const profileRules = vi.fn(() => new Promise<null>(() => {}));
     const result = await live(baseInput({ text }), { searchFoods: vi.fn(), profileRules }, 50);
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 });
 
@@ -100,7 +99,7 @@ describe("checkReplyLive — free-text-only replies (R7)", () => {
       ? [hit({ name: "Salmon, Atlantic, farmed, cooked", allergenTags: ["fish"] })] : []);
     const result = await live(baseInput({ text: "Grilled salmon tonight.", profile: FISH }),
       { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.textChecks).toEqual([expect.objectContaining({ name: "salmon", verdict: "blocked" })]);
   });
 
@@ -108,7 +107,7 @@ describe("checkReplyLive — free-text-only replies (R7)", () => {
     const searchFoods = vi.fn(async () => [] as FoodHit[]);
     const result = await live(baseInput({ text: "A bit of arugula on the side.", profile: TEST_PROFILE }),
       { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.textChecks.map((c) => c.name)).toEqual(["arugula"]);
   });
 
@@ -116,7 +115,7 @@ describe("checkReplyLive — free-text-only replies (R7)", () => {
     const searchFoods = vi.fn(async () => [hit({ name: "Quinoa, cooked", foodRefId: null })]);
     const result = await live(baseInput({ text: "Quinoa works well.", profile: TEST_PROFILE }),
       { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("checks a food named late in a long reply", async () => {
@@ -125,7 +124,7 @@ describe("checkReplyLive — free-text-only replies (R7)", () => {
     const text = "Great work staying consistent this week with breakfast lunch snacks timing "
       + "hydration sleep and walking, and for dinner tonight try salmon.";
     const result = await live(baseInput({ text, profile: FISH }), { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("does not re-ask when the resolved food is allowed", async () => {
@@ -149,7 +148,7 @@ describe("checkReplyLive — fails closed on its own deadline and errors", () =>
   it("re-asks when a search rejects", async () => {
     const searchFoods = vi.fn(async () => { throw new Error("catalog 503"); });
     const result = await live(baseInput({ text: "Try salmon.", profile: FISH }), { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.textChecks).toEqual([expect.objectContaining({ reason: "reply_check_incomplete" })]);
   });
 
@@ -158,7 +157,7 @@ describe("checkReplyLive — fails closed on its own deadline and errors", () =>
     const started = Date.now();
     const result = await live(baseInput({ text: "Try salmon.", profile: FISH }), { searchFoods }, 50);
     expect(Date.now() - started).toBeLessThan(500);
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("passes a reply with no hard rules even when a search would fail", async () => {
@@ -178,7 +177,7 @@ describe("checkReplyLive — mixed replies (blocks + prose)", () => {
     const result = await live(baseInput({
       text: "Pizza tonight, and maybe a little arugula on the side.", evidence, profile: TEST_PROFILE,
     }), { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.textChecks.map((c) => c.name).sort()).toEqual(["arugula", "pizza"]);
   });
 
@@ -201,7 +200,7 @@ describe("checkReplyLive — mixed replies (blocks + prose)", () => {
       text: "Here is an idea.", profile: TEST_PROFILE,
       named: [{ name: "chicken breast", foodRefId: REF(3) }],
     }), { searchFoods });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.textChecks).toEqual([expect.objectContaining({ reason: "unchecked_id" })]);
   });
 });
@@ -234,7 +233,7 @@ describe("checkReplyLive — cards policy already blocked (§6 block ids first, 
       text: "Yoghurt is not one for today.", profile: NO_DAIRY, named: [yoghurt],
       blockFoods: [{ name: "yoghurt", foodRefId: DAIRY_REF }],
     }), { searchFoods: noSearch() });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.suggestions).toHaveLength(1);
     expect(result.suggestions[0]).toMatchObject({ name: "yoghurt", verdict: "blocked" });
     expect(result.suggestions[0].reason).toBeTruthy();
@@ -248,7 +247,7 @@ describe("checkReplyLive — cards policy already blocked (§6 block ids first, 
       evidence: { rice: { foodRefId: REF(6), allergenTags: [], category: [], onEatsList: true,
         onAvoidList: false, checkedAllergens: ["dairy"] } },
     }), { searchFoods: noSearch() });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.suggestions.map((s) => [s.name, s.verdict])).toEqual([["yoghurt", "blocked"]]);
   });
 });
@@ -265,7 +264,7 @@ describe("checkReplyLive — confirmed profile hard rules (§6 row 5)", () => {
     const result = await live(baseInput({ text: "Add bacon to breakfast." }), {
       searchFoods: vi.fn(async () => [bacon]), profileRules: async () => rules, foodEvidence,
     });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.textChecks).toEqual([expect.objectContaining({ name: "bacon", reason: "rule:pork" })]);
     expect(foodEvidence).toHaveBeenCalledWith("u1", [{ foodRefId: REF(4), catalogFoodRevisionId: 44 }]);
   });
@@ -288,7 +287,7 @@ describe("checkReplyLive — confirmed profile hard rules (§6 row 5)", () => {
       searchFoods: vi.fn(async () => [mystery]), profileRules: async () => rules,
       foodEvidence: async () => new Map([[REF(8), { foodName: "Sausage, cooked" }]]),
     });
-    expect(unknown.content).toBe(REASK);
+    expect(isReask(unknown.content)).toBe(true);
     const failed = await live(baseInput({ text }), {
       searchFoods: vi.fn(async () => [mystery]), profileRules: async () => rules,
       foodEvidence: async () => { throw new Error("read failed"); },
@@ -338,7 +337,7 @@ describe("checkReplyLive — confirmed profile hard rules (§6 row 5)", () => {
       searchFoods: vi.fn(async () => [banana]), profileRules: async () => rules,
       foodEvidence: async () => new Map(),
     });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("control: a SUGGESTED food (not logged) with an unknown facet still re-asks", async () => {
@@ -348,7 +347,7 @@ describe("checkReplyLive — confirmed profile hard rules (§6 row 5)", () => {
       searchFoods: vi.fn(async (_u: string, q: string) => q === "bacon" ? [bacon] : []),
       profileRules: async () => rules, foodEvidence: async () => new Map(),
     });
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
     expect(result.actions).toEqual([]);
   });
 });
@@ -380,7 +379,7 @@ describe("checkReplyLive — round-4 audit", () => {
     const input = baseInput({ text: "You could try zorbleberry with lunch?", profile: DAIRY });
     const result = await live(input, { searchFoods });
     expect(searchFoods.mock.calls.some(([, p]) => String(p).includes("zorbleberry"))).toBe(true);
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   /** Grok audit round 6 (BLOCK, rejected with this evidence): a phrase is held by a card only
@@ -401,7 +400,7 @@ describe("checkReplyLive — round-4 audit", () => {
       groundedLogged: Promise.resolve({ names: new Set(["yogurt bowl"]), refs: new Set([REF(8)]) }) };
     const result = await live(input, { searchFoods });
     expect(searchFoods).toHaveBeenCalled();
-    expect(result.content).toBe(REASK);
+    expect(isReask(result.content)).toBe(true);
   });
 
   it("exempts the logged food itself when its phrase comes back as the logged ref", async () => {
