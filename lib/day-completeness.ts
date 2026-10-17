@@ -28,7 +28,7 @@ export type DayCompletenessState = {
   mealsEaten: number;
   /** Foods and meals logged outside the plan's meal slots. */
   entryCount: number;
-  /** The clock hour of the latest ticked meal, when one is known. */
+  /** The clock hour of the latest ticked meal or logged entry, when one is known. */
   lastEntryHour: number | null;
 };
 
@@ -41,7 +41,10 @@ export function dayCompletenessState(
   day: StoredDay | undefined, date: string, today: string, now: Date = new Date(),
 ): DayCompletenessState {
   const stamps = Object.values(day?.eaten ?? {}).filter((stamp): stamp is string => Boolean(stamp));
-  const hours = stamps.map(hourOf).filter((hour): hour is number => hour !== null);
+  // Ticked meals and logged extras both count as the day's latest entry.
+  const hours = [...stamps, ...(day?.extras ?? []).map((extra) => extra.at)]
+    .map((stamp) => (typeof stamp === "string" ? hourOf(stamp) : null))
+    .filter((hour): hour is number => hour !== null);
   const isToday = date === today;
   return {
     isToday,
@@ -53,5 +56,5 @@ export function dayCompletenessState(
 }
 
 /** The shown copy: a question about the log, never about eating. */
-export const DAY_NUDGE_TITLE = "This day may be missing a meal.";
+export const DAY_NUDGE_TITLE = "A meal may not be logged yet.";
 export const DAY_NUDGE_BODY = "Mark it fully logged anyway?";

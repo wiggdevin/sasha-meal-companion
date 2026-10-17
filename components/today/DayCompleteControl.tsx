@@ -22,7 +22,7 @@
  * A quiet row on the ground, not a card: it closes the day's list and must not outweigh the meal
  * cards or "Add a meal" (Kimi audit 2026-10-04, finding 11).
  */
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { Check } from "lucide-react";
 import Fold from "@/components/ui/Fold";
@@ -66,10 +66,14 @@ export type DayCompleteControlProps = {
   save?: (date: string, complete: boolean) => Promise<StoredDay>;
   /** Seam for tests: the day-completeness nudge check. */
   checkNudge?: (state: DayCompletenessState) => Promise<boolean>;
+  /** How long the day must sit unchanged before the check is asked (tests pass 0). */
+  nudgeSettleMs?: number;
 };
 
+const NUDGE_SETTLE_MS = 500;
+
 export default function DayCompleteControl({ date, today, readDay = getDay,
-  save = saveDayComplete, checkNudge = fetchDayNudge }: DayCompleteControlProps) {
+  save = saveDayComplete, checkNudge = fetchDayNudge, nudgeSettleMs = NUDGE_SETTLE_MS }: DayCompleteControlProps) {
   const feedback = useActionFeedback();
   const reduce = useReducedMotionConfig();
   const id = useId().replace(/:/g, "");
@@ -93,14 +97,22 @@ export default function DayCompleteControl({ date, today, readDay = getDay,
   useEffect(() => {
     if (!checkable) return;
     let current = true;
-    void checkNudge(nudgeState).catch(() => false).then((nudge) => {
-      if (current) setVerdict({ key: nudgeKey, nudge });
-    });
-    return () => { current = false; };
+    // Debounced so paging through days (or editing the log) asks once it settles, not per step.
+    const timer = setTimeout(() => {
+      void Promise.resolve().then(() => checkNudge(nudgeState)).catch(() => false).then((nudge) => {
+        if (current) setVerdict({ key: nudgeKey, nudge });
+      });
+    }, nudgeSettleMs);
+    return () => { current = false; clearTimeout(timer); };
     // The state is a pure function of `nudgeKey`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkable, nudgeKey, checkNudge]);
+  }, [checkable, nudgeKey, checkNudge, nudgeSettleMs]);
   const asked = asking === nudgeKey && verdict?.key === nudgeKey && verdict.nudge;
+  // Moving focus to "Mark anyway" is what announces the question to a screen reader.
+  const nudgeRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (asked) nudgeRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [asked]);
   const control = feedback.controlPropsFor(key);
 
   async function toggle(skipNudge = false) {
@@ -159,10 +171,10 @@ export default function DayCompleteControl({ date, today, readDay = getDay,
         </button>
         <AnimatePresence initial={false}>
           {asked && !complete && <Fold key="nudge">
-            <Notice tone="info" title={DAY_NUDGE_TITLE} onDismiss={() => setAsking(null)}
+            <div ref={nudgeRef}><Notice tone="info" title={DAY_NUDGE_TITLE} onDismiss={() => setAsking(null)}
               action={{ label: "Mark anyway", onClick: () => void toggle(true) }}>
               {DAY_NUDGE_BODY}
-            </Notice>
+            </Notice></div>
           </Fold>}
         </AnimatePresence>
         <AnimatePresence initial={false}>

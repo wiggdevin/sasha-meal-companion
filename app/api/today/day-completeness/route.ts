@@ -19,7 +19,8 @@ const Body = z.object({
 /**
  * POST /api/today/day-completeness — W142. Counts and hours of the viewed day in, `{ nudge }` out:
  * true only when Jev is above its threshold that a meal went unrecorded. No names, notes or health
- * fields are accepted. Advisory: any failure answers `{ nudge: false }` and the mark is never held.
+ * fields are accepted. Advisory: a Jev failure answers `{ nudge: false }`; auth, validation and limiter refusals keep their
+ * 4xx/5xx and the phone treats every one of them as no nudge. The mark is never held.
  */
 export async function POST(req: Request): Promise<Response> {
   try {

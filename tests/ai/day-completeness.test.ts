@@ -38,11 +38,12 @@ describe("day_completeness payload", () => {
     const day: StoredDay = {
       date: "2026-10-04",
       eaten: { "meal-1": "2026-10-04T08:10:00" },
-      extras: [{ id: "a", name: "Secret snack" } as never, { id: "b", name: "Other" } as never],
+      extras: [{ id: "a", name: "Secret snack", at: "2026-10-04T19:05:00" } as never,
+        { id: "b", name: "Other", at: "2026-10-04T12:00:00" } as never],
     };
     const now = new Date("2026-10-04T21:30:00");
     const state = dayCompletenessState(day, "2026-10-04", "2026-10-04", now);
-    expect(state).toEqual({ isToday: true, localHour: 21, mealsEaten: 1, entryCount: 2, lastEntryHour: 8 });
+    expect(state).toEqual({ isToday: true, localHour: 21, mealsEaten: 1, entryCount: 2, lastEntryHour: 19 });
     expect(JSON.stringify(state)).not.toContain("Secret");
     expect(dayCompletenessState(day, "2026-10-03", "2026-10-04", now).localHour).toBeNull();
   });

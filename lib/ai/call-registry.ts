@@ -62,12 +62,12 @@ export const CALL_REGISTRY = {
   // Phase 17 O3: the occasion-rubric calibration eval (scripts/eval/facets-occasion-eval.ts), on a
   // labelled synthetic holdout of foods and dishes. Food-only, no user: D0. Never runs in CI.
   jev_occasion_eval: { provider: "typesafe", dataClass: "D0", builder: "occasionEvalPayload" },
-  // Phase 18 W1c (D9 item 2): offline pair-plausibility labels for the pairing table
-  // (scripts/pairing/jev-labels.ts). Catalog food names and a stated occasion only: D0. Never on a
-  // request path, never in CI.
   // W142: the check before "Day fully logged". Counts and clock hours about the viewed day only
   // (lib/day-completeness.ts): no food name, note, profile or health field. Advisory; never blocks.
   day_completeness: { provider: "typesafe", dataClass: "D1", builder: "dayCompletenessPayload" },
+  // Phase 18 W1c (D9 item 2): offline pair-plausibility labels for the pairing table
+  // (scripts/pairing/jev-labels.ts). Catalog food names and a stated occasion only: D0. Never on a
+  // request path, never in CI.
   pair_plausibility: { provider: "typesafe", dataClass: "D0", builder: "pairPlausibilityPayload" },
   // ---- Gemini (paid, attested project) --------------------------------------------------------
   // The ordinary turn and source-bound saved-chat synthesis both use this attested payload lane.
