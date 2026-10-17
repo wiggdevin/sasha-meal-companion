@@ -604,6 +604,27 @@ export async function removeFavoriteMeal(
 }
 
 /**
+ * Saved meal id → the slot it was saved from, read from the per-account source index. The index
+ * lives on the saving phone only, so a meal saved elsewhere is simply absent (no slot known).
+ * Where one meal was saved from several plates, the newest save decides.
+ */
+export async function favoriteMealSlots(
+  h: AccountHandle | null = currentAccountOrNull(),
+): Promise<Record<string, SlotId>> {
+  if (h === null) return {};
+  const index = (await getMeta<SourceIndex>(h, FAVORITE_MEAL_SOURCES_KEY)) ?? {};
+  const newest: Record<string, string> = {};
+  const out: Record<string, SlotId> = {};
+  for (const [key, entry] of Object.entries(index)) {
+    const slot = key.split("|")[1];
+    if (!slot || !entry?.savedMealId || (newest[entry.savedMealId] ?? "") > entry.savedAt) continue;
+    newest[entry.savedMealId] = entry.savedAt;
+    out[entry.savedMealId] = slot as SlotId;
+  }
+  return out;
+}
+
+/**
  * The live saved meal for this plate, or null: the meal saved from `source`, or the slot's meal
  * itself when it IS a saved meal (`saved:<id>`). A meal tombstoned or deleted on any device reads
  * null once its row is.

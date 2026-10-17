@@ -80,7 +80,9 @@ macros must be byte-identical before and after, and a test asserts exactly that 
 decomposition cannot hold the total, it does not ship — `../analysis/targets.md` owns the numbers
 and nothing here re-derives them.
 
-## Phase C — build a meal from anything
+## Phase C — build a meal from anything (closed)
+
+Status: closed. `BuildMealSheet` was replaced by "Log a meal" (`LogFoodSheet`, picked-commit).
 
 Today `BuildMealSheet` takes one protein, one carb and one fat from her own foods.
 
@@ -89,7 +91,9 @@ Today `BuildMealSheet` takes one protein, one carb and one fat from her own food
 - "Log it" writes it as that slot's override for the day (Phase A's mechanism).
 - Keep the one-tap sizing that exists now as a starting point, not a constraint.
 
-## Phase D — "Make this my usual"
+## Phase D — "Make this my usual" (shipped)
+
+Status: shipped as the meal card heart; saved meals are offered for every slot, and a meal saved from this slot on this phone ranks first as "Your usual".
 
 - Saves the built or edited meal as a **recipe** (`recipes` + `recipe_revisions` + `recipe_items`),
   which already syncs and already appears in search.
