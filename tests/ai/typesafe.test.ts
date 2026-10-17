@@ -136,7 +136,6 @@ describe("TypeSafe SystemOne adapter", () => {
     await expect(pending).resolves.toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledOnce();
-    // W068: a user-content purpose keeps only the status.
     expect(warn).toHaveBeenCalledWith("[typesafe] HTTP 529");
   });
 

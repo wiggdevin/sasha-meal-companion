@@ -12,13 +12,6 @@ export type ProviderResult = { text: string; inputTokens: number; outputTokens: 
 // permission_denied (2026-10-06): a 403 denying the project; opens the circuit on the first row.
 export type AiStatus =
   "ok" | "schema_invalid" | "provider_error" | "timeout" | "blocked" | "error" | "permission_denied";
-/**
- * `ai_calls.error` for a call the caller stopped (its own abort, or a Jev latency budget it set
- * itself): the provider was not unwell, so lib/ai/circuit.ts never counts it (W068). Recorded
- * under the `timeout` status, which the status check already allows.
- */
-export const CALLER_ABORT_ERROR = "caller_abort";
-
 /** Tokens a provider billed; summed over every answered attempt of one logical call. */
 export type Billed = { inputTokens: number; outputTokens: number };
 

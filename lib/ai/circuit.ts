@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CALLER_ABORT_ERROR, type AiStatus } from "@/lib/ai/call-ledger";
+import { CALLER_ABORT_ERROR } from "@/lib/ai/call-abort";
+import type { AiStatus } from "@/lib/ai/call-ledger";
 
 /**
  * Provider circuit breaker — split out of lib/ai/adapter.ts (T4, audit round 4) so the adapter

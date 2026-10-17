@@ -29,9 +29,10 @@ import { aiCallRow, type AiStatus, type Billed, writeAiCall } from "@/lib/ai/cal
 import { assertCircuitClosed } from "@/lib/ai/circuit";
 import { isPermissionDeniedFailure } from "@/lib/ai/failures";
 import { reserveSpend, settleSpend } from "@/lib/ai/spend";
-import { CALLER_ABORT_ERROR } from "@/lib/ai/call-ledger";
+import { CALLER_ABORT_ERROR } from "@/lib/ai/call-abort";
 
-export { CALLER_ABORT_ERROR, type Billed } from "@/lib/ai/call-ledger";
+export type { Billed } from "@/lib/ai/call-ledger";
+export { CALLER_ABORT_ERROR } from "@/lib/ai/call-abort";
 
 export class SchemaRejection extends Error {}
 
