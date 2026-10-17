@@ -30,9 +30,9 @@ describe("DayNutrients", () => {
   });
 
   it.each([
-    ["under", 10, "Under your 20–25 g band"],
-    ["in band", 22, "In your 20–25 g band"],
-    ["over", 40, "Over your 20–25 g band"],
+    ["under", 10, "Under the 20–25 g reference range"],
+    ["in band", 22, "In the 20–25 g reference range"],
+    ["over", 40, "Over the 20–25 g reference range"],
   ])("reads a %s day off %s g of fibre", (_state, fiber, copy) => {
     expect(renderToStaticMarkup(<DayNutrients day={dayWith(fiber as number)} />))
       .toContain(copy as string);

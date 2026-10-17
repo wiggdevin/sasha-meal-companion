@@ -115,7 +115,7 @@ describe("DayNutrients · daily card dismissal", () => {
     try {
       const { container } = render(<DayNutrients day={dayFor("2026-09-28")} accountId="user-a" />);
       const card = container.querySelector("[data-swipe-card]") as HTMLElement;
-      const text = screen.getByText(/g band|No fibre logged yet/);
+      const text = screen.getByText(/g reference range|No fibre logged yet/);
       fireEvent.pointerDown(text, { pointerType: "touch", pointerId: 3, clientX: 300, clientY: 100 });
       expect(capture).not.toHaveBeenCalled();
       fireEvent.pointerMove(card, { pointerType: "touch", pointerId: 3, clientX: 298, clientY: 130 });
