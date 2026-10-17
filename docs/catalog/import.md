@@ -284,8 +284,9 @@ previous one for rollback and drop the ones before it.
 
 `./scripts/catalog-refresh.sh <version-label> <branch-db-url>` runs the sizing dry run
 (`catalog-dry-run.sh`), then `import-fdc.py --version-label` against the given Supabase branch, then
-stops for sizing sign-off. The production import stays a manual owner step; set
-`PRODUCTION_PROJECT_REF` to make the script refuse a URL that names production.
+stops. The sizing sign-off is the gate before the production import, which stays a manual owner
+step. The script fails closed: set `BRANCH_PROJECT_REF` to the branch's ref (or use a local URL); it
+refuses a URL that names the project in `SUPABASE_URL`.
 `.github/workflows/catalog-refresh-reminder.yml` opens a reminder issue on the first of January,
 April, July and October; it imports nothing.
 

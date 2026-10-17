@@ -25,9 +25,9 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
-      - name: Skip when no key is set
+      - name: Note that the canary did not run
         if: ${{ env.GEMINI_API_KEY == '' }}
-        run: echo "GEMINI_API_KEY is not set as a repo secret; skipping the canary."
+        run: echo "::warning::GEMINI_API_KEY is not set as a repo secret; the canary did not run."
 
       - name: Check out code
         if: ${{ env.GEMINI_API_KEY != '' }}
