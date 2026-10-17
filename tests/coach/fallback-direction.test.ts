@@ -9,6 +9,7 @@
  * COACH_PROVIDER/COACH_MODEL_ID are module-load constants, so these cases reset the module
  * registry and re-import, the same pattern tests/coach/provider-selection.test.ts uses.
  */
+import { withCoachSaveTurn } from "@/tests/helpers/coach-save-turn";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ai/lanes", async (importOriginal) => {
@@ -39,7 +40,7 @@ function db(writes: { rows: { table: string; row: unknown }[] }) {
     });
     return chain;
   };
-  return { from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) } as never;
+  return withCoachSaveTurn({ from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) }) as never;
 }
 
 const ports = {

@@ -9,6 +9,7 @@ import TargetModeSheet from "@/components/TargetModeSheet";
 import CaloriesCard from "@/components/settings/CaloriesCard";
 import AppProfileCard from "@/components/settings/AppProfileCard";
 import DataAccountSection from "@/components/settings/DataAccountSection";
+import DeleteAccountCard from "@/components/settings/DeleteAccountCard";
 import SignOutCard from "@/components/settings/SignOutCard";
 import HealthConnectionsSection from "@/components/settings/HealthConnectionsSection";
 import MacroList from "@/components/settings/MacroList";
@@ -18,6 +19,7 @@ import SettingsSection from "@/components/settings/Section";
 import { CAPTION, CARD_TITLE } from "@/components/settings/settings-styles";
 import TargetsSection from "@/components/settings/TargetsSection";
 import CuisinesSection from "@/components/settings/CuisinesSection";
+import BackgroundSection from "@/components/settings/BackgroundSection";
 import CompanionSection from "@/components/settings/CompanionSection";
 import ProcessorsSection from "@/components/settings/ProcessorsSection";
 import WaterSection from "@/components/settings/WaterSection";
@@ -131,6 +133,8 @@ export default function SettingsPage() {
 
       <CompanionSection />
 
+      <BackgroundSection />
+
       <HowSashaWorksCard />
 
       <ScheduleSection shiftMinutes={settings.shiftMinutes} slotTimes={settings.slotTimes}
@@ -144,6 +148,8 @@ export default function SettingsPage() {
         <ExportCard />
         <SyncStatus />
         <SignOutCard />
+        {/* Hidden until ACCOUNT_DELETION_ENABLED is on (GET /api/account/delete/enabled). */}
+        <DeleteAccountCard />
       </DataAccountSection>
 
       <ProcessorsSection />

@@ -9,6 +9,8 @@ import InstallPromptCapture from "@/components/InstallPromptCapture";
 import SyncBootstrap from "@/components/SyncBootstrap";
 import AuthGate from "@/components/AuthGate";
 import DevFreshnessBanner from "@/components/DevFreshnessBanner";
+import { GROUND_BOOT_SCRIPT } from "@/lib/design/ground-boot";
+import GroundTheme from "@/components/GroundTheme";
 import { THEME_COLOR } from "@/lib/design/theme-color";
 import { readAppCapabilities } from "@/lib/capabilities";
 import SectionHue from "@/components/SectionHue";
@@ -65,14 +67,16 @@ export default function RootLayout({
   const capabilities = readAppCapabilities(process.env);
 
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
       <body className="bg-paper text-charcoal antialiased">
+        <script dangerouslySetInnerHTML={{ __html: GROUND_BOOT_SCRIPT }} />
         <ClientErrorHook />
         <DevFreshnessBanner />
         <CapabilitiesProvider value={capabilities}>
           {/* The Harvest ground (DESIGN.md §Techniques): still, pure CSS, oat with a matte grain. */}
           <div className="harvest-ground" aria-hidden="true" />
           <SectionHue />
+          <GroundTheme />
           <ServiceWorkerRegistrar />
           <SyncBootstrap />
           {/* The visible install card is inline on the Today page (owner feedback, 2026-10-08: it

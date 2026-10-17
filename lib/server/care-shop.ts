@@ -3,6 +3,7 @@ import "server-only";
 /** UI-NEEDS SPROUT-CARE item 2: the shop catalog, inventory, equipped map and purchase/equip. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { HttpError } from "@/lib/server/auth";
+import { readCareBalance } from "@/lib/server/care-points";
 import type {
   CareEquipResult, CarePurchaseResult, CareShopItem, CareShopResponse, CareSlot,
 } from "@/lib/care/contract";
@@ -14,20 +15,19 @@ export async function readCareShop(client: SupabaseClient, userId: string): Prom
     client.from("care_items").select("id, slot, tier, price, asset_key, mascots").eq("active", true),
     client.from("care_inventory").select("item_id").eq("user_id", userId),
     client.from("care_equipped").select("equipped, rev").eq("user_id", userId).maybeSingle(),
-    client.from("care_points_ledger").select("delta, status").eq("user_id", userId).eq("status", "settled"),
+    readCareBalance(client, userId),
   ]);
   if (items.error) throw new HttpError(502, "care_shop_read_failed", "The shop could not be read.", { cause: items.error });
   if (owned.error) throw new HttpError(502, "care_shop_read_failed", "The shop could not be read.", { cause: owned.error });
   if (equipped.error) throw new HttpError(502, "care_shop_read_failed", "The shop could not be read.", { cause: equipped.error });
-  if (points.error) throw new HttpError(502, "care_shop_read_failed", "The shop could not be read.", { cause: points.error });
   const list: CareShopItem[] = (items.data as ItemRow[] ?? []).map((r) => ({
     id: r.id, slot: r.slot as CareSlot, tier: r.tier as CareShopItem["tier"], price: r.price,
     assetKey: r.asset_key, mascots: r.mascots,
   }));
   const ownedIds = (owned.data as { item_id: string }[] ?? []).map((r) => r.item_id);
   const equippedRow = equipped.data as { equipped: Record<string, string>; rev: number } | null;
-  const balance = (points.data as { delta: number }[] ?? []).reduce((sum, r) => sum + r.delta, 0);
-  return { items: list, owned: ownedIds, equipped: equippedRow?.equipped ?? {}, rev: equippedRow?.rev ?? 0, balance };
+  return { items: list, owned: ownedIds, equipped: equippedRow?.equipped ?? {}, rev: equippedRow?.rev ?? 0,
+    balance: points.balance };
 }
 
 type PurchaseRpcAnswer = {

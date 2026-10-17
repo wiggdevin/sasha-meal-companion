@@ -128,7 +128,7 @@ const CASE_NAMES = {
   compute_item_snapshot: 1,
   recipe_accept: 1, recipe_consumed: 1, recipe_undo: 1, shopping_window: 1,
   coach_undo_record: 1, coach_undo_perform: 1, food_signals: 1, taste_confirm: 1, taste_undo: 1,
-  care_points_sync: 1, care_purchase: 1, care_equip: 1, care_accolades_sync: 1,
+  care_points_sync: 1, care_balance: 1, care_purchase: 1, care_equip: 1, care_accolades_sync: 1,
   care_accolades_seen: 1, care_message_mark: 1, care_log_grew: 1,
   onboarding_events: 1, taste_dislike_remove: 1, taste_dislike_undo: 1,
 } as const;
@@ -437,6 +437,15 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
         { p_user_id: b.id, p_local_date: today, p_zone: "UTC" });
       expect(control.error).toBeNull();
       expect(control.data).toMatchObject({ balance: expect.any(Number) });
+    },
+    care_balance: async () => {
+      const before = await rowsOf("care_points_ledger", b.id);
+      const { error } = await asA.rpc("care_balance", { p_user_id: b.id });
+      expect(error?.message).toContain("forbidden");
+      expect(await rowsOf("care_points_ledger", b.id)).toEqual(before);
+      const control = await asB.rpc("care_balance", { p_user_id: b.id });
+      expect(control.error).toBeNull();
+      expect(control.data).toMatchObject({ balance: expect.any(Number), pending: expect.any(Number) });
     },
     care_purchase: async () => {
       const before = [await rowsOf("care_inventory", b.id), await rowsOf("care_purchase_receipts", b.id)];

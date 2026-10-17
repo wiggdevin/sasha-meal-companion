@@ -45,7 +45,32 @@ grant execute on function test_view_options() to service_role;
 -- Clear one user's rows between tests, children first.
 create or replace function test_reset_user(p_user_id uuid) returns void
   language plpgsql security definer set search_path = public as $$
+declare
+  t text;
 begin
+  -- Every other user-owned table (W075). Guarded, so a branch that predates a table still
+  -- resets; children go before their parents (a selection's target FK has no cascade), and
+  -- tests/migrations/test-reset-user-coverage.test.ts fails when a table with a user_id column
+  -- in tests/tenancy/table-ops.json is missing from these lists.
+  foreach t in array array[
+    'recipe_plan_selections', 'recipe_plan_previews', 'recipe_consumed_undo_requests',
+    'recipe_consumed_slot_state', 'recipe_consumed_requests',
+    'shopping_purchase_window_edits', 'shopping_purchase_windows', 'shopping_lines',
+    'shopping_pantry', 'shopping_periods',
+    'care_points_ledger', 'care_inventory', 'care_equipped', 'care_purchase_receipts',
+    'care_accolades', 'care_messages',
+    'taste_chip_holds', 'taste_chip_receipts', 'taste_dislike_removals',
+    'food_signal_events', 'onboarding_events', 'coach_intent_events', 'client_timings',
+    'favorites_catalog_recipes', 'food_allergen_evidence', 'food_facets',
+    'food_membership_ops', 'food_membership_revisions', 'food_note_authority',
+    'food_world_condition_confirmations', 'user_allergen_checks', 'user_dietary_profiles',
+    'ai_spend_reservations', 'ai_spend_user_days', 'job_runs', 'media_objects', 'oauth_states',
+    'voice_ears'
+  ] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('delete from %I where user_id = $1', t) using p_user_id;
+    end if;
+  end loop;
   delete from change_log     where user_id = p_user_id;
   delete from change_seq     where user_id = p_user_id;
   delete from duplicate_groups where user_id = p_user_id;
@@ -76,6 +101,12 @@ begin
   delete from target_profiles where user_id = p_user_id;
   delete from constraint_profiles where user_id = p_user_id;
   delete from ai_calls       where user_id = p_user_id;
+  -- Deleting the rows above can bump these clocks; remove the final rows last.
+  foreach t in array array['recipe_plan_state', 'account_rules_clock'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('delete from %I where user_id = $1', t) using p_user_id;
+    end if;
+  end loop;
 end; $$;
 revoke execute on function test_reset_user(uuid) from public, anon, authenticated;
 grant execute on function test_reset_user(uuid) to service_role;

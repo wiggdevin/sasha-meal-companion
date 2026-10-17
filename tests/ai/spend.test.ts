@@ -3,7 +3,8 @@ import path from "node:path";
 import ts from "typescript";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  DEFAULT_GLOBAL_SPEND_CAP_USD, DEFAULT_OPENROUTER_ATTEMPT_CEILING_USD, globalSpendCapUsd,
+  DEFAULT_BACKGROUND_SPEND_CAP_USD, DEFAULT_GLOBAL_SPEND_CAP_USD, DEFAULT_INTERACTIVE_RESERVE_USD,
+  DEFAULT_OPENROUTER_ATTEMPT_CEILING_USD, backgroundSpendCapUsd, globalSpendCapUsd, interactiveReserveUsd,
   openRouterAttemptCeilingUsd, openRouterAttemptCost, reserveSpend, settleSpend,
 } from "@/lib/ai/spend";
 
@@ -23,8 +24,34 @@ describe("reserveSpend (scale S2: atomic reservation, fail closed)", () => {
       reason: null, user_committed_usd: 0.1, global_committed_usd: 1 }], error: null }));
     await expect(reserveSpend(admin as never, "user-a", 0.05))
       .resolves.toEqual({ id: "r1", amountUsd: 0.05 });
-    expect(admin.rpc).toHaveBeenCalledWith("ai_spend_reserve", { p_user_id: "user-a",
-      p_amount_usd: 0.05, p_user_cap_usd: 0.5, p_global_cap_usd: 12, p_ttl_seconds: 300 });
+    expect(admin.rpc).toHaveBeenCalledWith("ai_spend_reserve_split", { p_user_id: "user-a",
+      p_amount_usd: 0.05, p_user_cap_usd: 0.5, p_global_cap_usd: 12, p_ttl_seconds: 300,
+      p_background: false, p_background_cap_usd: 10, p_interactive_reserve_usd: 1 });
+  });
+
+  it("marks a background call and sends the OD01 splits from the env", async () => {
+    vi.stubEnv("AI_BACKGROUND_DAILY_SPEND_CAP_USD", "4");
+    vi.stubEnv("AI_INTERACTIVE_RESERVE_USD", "1.5");
+    const admin = adminWith(async () => ({ data: [{ reservation_id: "r2", allowed: true,
+      reason: null, user_committed_usd: 0.1, global_committed_usd: 1 }], error: null }));
+    await reserveSpend(admin as never, "user-a", 0.05, { background: true });
+    expect(admin.rpc).toHaveBeenCalledWith("ai_spend_reserve_split", expect.objectContaining({
+      p_background: true, p_background_cap_usd: 4, p_interactive_reserve_usd: 1.5 }));
+  });
+
+  it("defaults the background ceiling to $10 and the interactive reserve to $1 (OD01)", () => {
+    expect(backgroundSpendCapUsd()).toBe(DEFAULT_BACKGROUND_SPEND_CAP_USD);
+    expect(DEFAULT_BACKGROUND_SPEND_CAP_USD).toBe(10);
+    expect(interactiveReserveUsd()).toBe(DEFAULT_INTERACTIVE_RESERVE_USD);
+    expect(DEFAULT_INTERACTIVE_RESERVE_USD).toBe(1);
+  });
+
+  it.each(["background_cap", "background_user_cap"])("refuses a background call with spend_cap on %s", async (reason) => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const admin = adminWith(async () => ({ data: [{ reservation_id: null, allowed: false,
+      reason, user_committed_usd: 1, global_committed_usd: 10 }], error: null }));
+    await expect(reserveSpend(admin as never, "user-a", 0.05, { background: true }))
+      .rejects.toMatchObject({ status: 429, code: "spend_cap" });
   });
 
   it("defaults the global ceiling to $50 and refuses a malformed env value", async () => {
@@ -170,3 +197,11 @@ function sourceFiles(root: string): string[] {
     return /\.tsx?$/.test(entry.name) ? [entryPath] : [];
   });
 }
+
+describe("OD01 background purposes", () => {
+  it("are all registered purposes", async () => {
+    const { BACKGROUND_PURPOSES, CALL_REGISTRY } = await import("@/lib/ai/call-registry");
+    for (const purpose of BACKGROUND_PURPOSES) expect(Object.keys(CALL_REGISTRY)).toContain(purpose);
+    expect([...BACKGROUND_PURPOSES].sort()).toEqual(["food_facets", "weeklyReview"]);
+  });
+});

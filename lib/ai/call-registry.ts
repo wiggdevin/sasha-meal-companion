@@ -43,6 +43,14 @@ export type CallSite = {
   builder: string;
 };
 
+/**
+ * OD01: purposes no person waits on — the weekly review (a cron) and facet warming. Their spend
+ * reservations count against the background ceiling and never use an account's interactive
+ * reserve (lib/ai/spend.ts `reserveSpend`). Every other purpose is interactive.
+ */
+export const BACKGROUND_PURPOSES: ReadonlySet<string> =
+  new Set(["weeklyReview", "food_facets"] satisfies RegisteredPurpose[]);
+
 export const CALL_REGISTRY = {
   // ---- Jev (TypeSafe System One) --------------------------------------------------------------
   "coach-intent": { provider: "typesafe", dataClass: "D1", builder: "intentPayload" },

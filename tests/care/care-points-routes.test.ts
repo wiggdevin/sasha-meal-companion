@@ -56,19 +56,44 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("GET /api/care/points", () => {
-  it("syncs then sums settled vs pending into balance/pending", async () => {
-    rpc.mockResolvedValue({ data: { balance: 2, pending: 0, awarded: [] }, error: null });
+  it("syncs, then answers the whole-ledger totals from care_balance and the newest rows", async () => {
+    rpc.mockImplementation(async (name: string) => name === "care_balance"
+      ? { data: { balance: 2002, pending: 1 }, error: null }
+      : { data: { balance: 2002, pending: 1, awarded: [] }, error: null });
     from.mockReturnValue(selectChain([
       { id: "1", kind: "day_recorded", delta: 2, local_date: "2041-01-04", status: "settled", source: {} },
       { id: "2", kind: "water_goal", delta: 1, local_date: "2041-01-05", status: "pending", source: {} },
     ]));
     const response = await points.GET(get("/api/care/points"));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ balance: 2, pending: 1, recent: [
+    // W067 (audit A106): the totals are care_balance's SQL sum over every row, not a JS sum of
+    // the rows a select returned (the API's 1,000-row cap cut that short; 1,001+ rows are proven
+    // against Postgres in tests/care/care-ledger-db.test.ts).
+    expect(await response.json()).toEqual({ balance: 2002, pending: 1, recent: [
       { id: "1", kind: "day_recorded", delta: 2, localDate: "2041-01-04", status: "settled", itemId: null },
       { id: "2", kind: "water_goal", delta: 1, localDate: "2041-01-05", status: "pending", itemId: null },
     ] });
     expect(rpc).toHaveBeenCalledWith("care_points_sync", { p_user_id: "u1", p_local_date: "2041-01-05", p_zone: "UTC" });
+    expect(rpc).toHaveBeenCalledWith("care_balance", { p_user_id: "u1" });
+  });
+
+  it("forwards the phone's own day to the sync; the database takes it within one date (W067, A108)", async () => {
+    const { accountDay } = await import("@/lib/server/account-day");
+    vi.mocked(accountDay).mockResolvedValueOnce({ date: "2041-01-06", zone: "UTC", source: "client_day" as const });
+    rpc.mockImplementation(async () => ({ data: { balance: 0, pending: 0, awarded: [] }, error: null }));
+    from.mockReturnValue(selectChain([]));
+    const response = await points.GET(get("/api/care/points?date=2041-01-06"));
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("care_points_sync", { p_user_id: "u1", p_local_date: "2041-01-06", p_zone: "UTC" });
+  });
+
+  it("answers 502, never a partial balance, when care_balance fails", async () => {
+    rpc.mockImplementation(async (name: string) => name === "care_balance"
+      ? { data: null, error: { code: "XX000", message: "boom" } }
+      : { data: { balance: 0, pending: 0, awarded: [] }, error: null });
+    from.mockReturnValue(selectChain([]));
+    const response = await points.GET(get("/api/care/points"));
+    expect(response.status).toBe(502);
   });
 });
 

@@ -64,7 +64,6 @@
   "taste_dislike_removals": { "ops": ["select"], "owner": "user_id", "seed": "taste_dislike_removals" },
   "user_foods": { "ops": ["select", "insert", "update", "delete"], "owner": "user_id", "seed": "user_foods" },
   "user_settings": { "ops": ["select"], "owner": "user_id", "seed": "user_settings" },
-  "voice_ears": { "ops": [], "owner": "user_id", "seed": "voice_ears" },
   "water_log": { "ops": ["select", "insert", "update", "delete"], "owner": "user_id", "seed": "water_log" },
   "care_points_ledger": { "ops": ["select"], "owner": "user_id", "seed": "care_points_ledger" },
   "care_inventory": { "ops": ["select"], "owner": "user_id", "seed": "care_inventory" },

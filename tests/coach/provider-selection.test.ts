@@ -2,6 +2,7 @@
  * COACH_PROVIDER selects between the pinned Gemini and OpenRouter coach models at module load.
  * Tests stub the OpenRouter pin so routing proves it reads the pin table.
  */
+import { withCoachSaveTurn } from "@/tests/helpers/coach-save-turn";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -136,7 +137,7 @@ describe("the coach turn routes its PRIMARY call by COACH_PROVIDER (owner reques
       });
       return chain;
     };
-    const db = () => ({ from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) }) as never;
+    const db = () => withCoachSaveTurn({ from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) }) as never;
     const ports = {
       dayTotals: async () => ({ local_date: "2026-09-16", nutrients: [] }),
       weekTotals: async () => [], activeTargets: async () => ({ kcal_train: 2200 }),
