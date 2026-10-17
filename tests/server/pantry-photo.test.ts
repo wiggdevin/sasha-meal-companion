@@ -58,7 +58,7 @@ describe("draftPantryPhoto", () => {
     const sent = Buffer.from(generate.mock.calls[0][0].payload.imageDataUrl.split(",")[1], "base64").byteLength;
     const lines = info.mock.calls.filter((c) => c[0] === "[media-telemetry]").map((c) => c[1]);
     info.mockRestore();
-    expect(lines).toEqual([{ purpose: "photoToIdeas", image_bytes: sent }]);
+    expect(lines).toEqual([{ purpose: "pantryPhoto", image_bytes: sent }]);
   });
 
   it("strips EXIF/GPS metadata server-side before the payload is built (acceptance 5)", async () => {

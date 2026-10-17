@@ -24,8 +24,10 @@ and never admits, excludes or changes a safety verdict (`tests/meals/ranking-bou
 - Build the prior from CCHS Nutrition (Day 1 recalls, adults), mapped to the Canadian Nutrient
   File (CNF) through a crosswalk like the FNDDS one in W1b.
 - Same artifact shape, same `n_eff >= 30` floor, own manifest and hash. Only an account whose
-  stored `country_code = 'CA'` reads it; no or another country is neutral.
-- A province split is allowed only when the account holds a province variable (below).
+  stored `country_code = 'CA'` reads it; no or another country is neutral. **Reading `CA` today
+  needs an owner ruling**, because the W5 rule gives only `US` a prior.
+- A province split would need a region field, which AGENTS.md rules out. It is **not proposed**
+  here: it needs its own owner ruling first, and without one only the national root is used.
 
 ## 3. Entry gates
 
@@ -35,15 +37,15 @@ No part ships until all of these pass, each with a receipt in `docs/priors/`:
    aggregate-use ruling.
 2. **CCHS licence**: the Statistics Canada licence for the CCHS file in use is read and allows
    aggregate derived rates in a shipped artifact; the licence check in `check-artifact.ts` lists it.
-3. **Province variable**: a Canadian province field exists as a user-set setting, before any
-   provincial cohort. It is never inferred from a zone, location or model. Without it only the
-   national root is used.
+3. **Owner ruling** on the two region questions above (a `CA` prior, and any province split).
+   Without it, nothing Canadian ships; a province, if ever allowed, is user-set and never inferred
+   from a zone, location or model.
 4. **The section-5 lift test**: the prior must beat the neutral baseline on the held-out replay and
    holdout calibration defined in phase-18 §5, with the same targets as the pairing `co` term.
    Failing leaves the weight at 0.
 
 ## 4. Never
 
-No state, region, race or ethnicity field, in the artifact, the settings or any payload to a
+No state, race or ethnicity field, and no region field without the ruling above, in the artifact, the settings or any payload to a
 model. Race and Hispanic origin stay in the offline fairness audit only. Guarded by
 `tests/foods/nhanes-no-microdata.test.ts`.

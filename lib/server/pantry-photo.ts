@@ -83,7 +83,7 @@ export async function draftPantryPhoto(
   }
   let model: InspirePhotoOutput;
   try {
-    recordImageBytes("photoToIdeas", stripped);
+    recordImageBytes("pantryPhoto", stripped);
     model = await (deps.generate ?? generateOpenRouter)({
       payload: inspirePhotoPayload({ bytes: stripped, mimeType: kind }, { as: "ingredients" }),
       userId, admin, schema: inspirePhotoSchema, modelId: planPhotoModel(),
