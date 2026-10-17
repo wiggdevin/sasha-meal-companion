@@ -45,7 +45,7 @@ describe("POST /api/proposals/[id]/decide", () => {
     const res = await call({ decision: "approve", expectedStatus: "pending" });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ status: "approved", targetProfileId: "tp1" });
-    expect(decide).toHaveBeenCalledWith({}, "u1", "pr1",
+    expect(decide).toHaveBeenCalledWith({}, "u1", "5f1b1a2c-0000-4000-8000-0000000000a1",
       { decision: "approve", expectedStatus: "pending" });
   });
   it("400s a body missing expectedStatus", async () => {
