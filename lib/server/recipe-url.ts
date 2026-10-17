@@ -156,7 +156,13 @@ export async function fetchRecipePage(raw: string, deps: RecipeFetchDeps = {}): 
       }
       throw new HttpError(422, "unreachable", "That page didn’t open. Try another link or a photo.");
     }
-    if (res.location) { url = checkRecipeUrl(new URL(res.location, url).toString()); continue; }
+    if (res.location) {
+      let next: string;
+      try { next = new URL(res.location, url).toString(); }
+      catch { throw new HttpError(422, "bad_redirect", "That link sends you somewhere that can’t be read."); }
+      url = checkRecipeUrl(next);
+      continue;
+    }
     if (res.status < 200 || res.status >= 300) {
       throw new HttpError(422, "unreachable", "That page didn’t open. Try another link or a photo.");
     }

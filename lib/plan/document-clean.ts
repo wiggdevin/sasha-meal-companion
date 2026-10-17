@@ -16,7 +16,7 @@ export const MAX_DOC_FOODS = 12;
 /** An amount as written ("150 g", "1 ½ cups", "2"), or null: digits, fractions and unit words only. */
 export function cleanAmount(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const text = raw.normalize("NFKC").replace(/[^\p{L}\p{N} .,/½¼¾⅓⅔-]/gu, " ").replace(/\s+/g, " ").trim();
+  const text = raw.normalize("NFKC").replace(/[^\p{L}\p{N} .,/()½¼¾⅓⅔-]/gu, " ").replace(/\s+/g, " ").trim();
   if (!text || text.length > 24 || text.split(" ").length > 4 || !/\d|½|¼|¾|⅓|⅔/.test(text)) return null;
   return text;
 }
@@ -39,7 +39,10 @@ function cleanFoods(raw: readonly { name: string; amount: string | null }[]): Do
   const out: DocumentFood[] = [];
   for (const item of raw) {
     const name = foodName(item.name);
-    if (name) out.push({ name, amount: cleanAmount(item.amount) });
+    if (!name) continue;
+    const amount = cleanAmount(item.amount);
+    const unreadable = amount === null && !!item.amount?.trim();
+    out.push({ name, amount, ...(unreadable ? { amountUnreadable: true as const } : {}) });
     if (out.length === MAX_DOC_FOODS) break;
   }
   return out;
@@ -157,8 +160,15 @@ function leadingNumber(text: string): { value: number; rest: string } | null {
 /** The amount, parsed; null amount reads as one household portion, the set_slot_meal default. */
 export function parseAmount(amount: string | null): ParsedAmount | null {
   if (!amount) return { count: 1 };
-  const lead = leadingNumber(amount.toLowerCase().replace(/(\d)([a-z])/g, "$1 $2"));
+  const text = amount.toLowerCase().replace(/(\d)([a-z])/g, "$1 $2");
+  const lead = leadingNumber(text);
   if (!lead || lead.value <= 0) return null;
+  // "1 (15 oz) can": a count of packages, each of a stated weight.
+  const can = lead.rest.match(/^\(?\s*(\d+(?:\.\d+)?)\s*(oz|ounces?|g|grams?|lbs?|pounds?|kg|ml)\.?\s*\)?\s*(cans?|tins?|jars?|packages?|pkgs?|bottles?)?$/);
+  if (can && (lead.rest.startsWith("(") || can[3])) {
+    const per = WEIGHTS.find(([words]) => whole(words).test(can[2]));
+    if (per) return { grams: Math.round(lead.value * Number(can[1]) * per[1]) };
+  }
   const unit = lead.rest.split(" ")[0] ?? "";
   const weight = WEIGHTS.find(([words]) => whole(words).test(unit));
   if (weight) return { grams: Math.round(lead.value * weight[1]) };

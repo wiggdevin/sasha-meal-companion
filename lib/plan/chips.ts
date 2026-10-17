@@ -37,6 +37,20 @@ export { QUICK_MINUTES };
 export const CHIP_CARD_COUNT = 3;
 export const MAX_EXCLUDE_IDS = 40;
 export const MAX_STATED_FOODS = 15;
+/** The ideas route reads at most 2 KB; the ids leave room for the rest of the body. */
+const EXCLUDE_ID_BYTES = 1200;
+
+/** The newest "Not this" ids that fit the request body: at most 40 and 1,200 bytes together. */
+export function capExcludeIds(ids: readonly string[]): string[] {
+  const kept: string[] = [];
+  let bytes = 0;
+  for (const id of [...ids].reverse()) {
+    bytes += new TextEncoder().encode(id).length + 3;
+    if (kept.length === MAX_EXCLUDE_IDS || bytes > EXCLUDE_ID_BYTES) break;
+    kept.unshift(id);
+  }
+  return kept;
+}
 
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 

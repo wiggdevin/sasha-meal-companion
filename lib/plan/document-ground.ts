@@ -88,7 +88,7 @@ function sized(hits: FoodHit[], amount: ParsedAmount): { hit: FoodHit; grams: nu
 async function groundFood(userId: string, food: DocumentFood, profile: ConstraintProfile,
   ports: DocumentGroundPorts): Promise<GroundedActionItem | LeftOutFood> {
   const leave = (reason: string): LeftOutFood => ({ ...food, reason });
-  const amount = parseAmount(food.amount);
+  const amount = food.amountUnreadable ? null : parseAmount(food.amount);
   if (!amount) return leave("Couldn’t read the amount");
   const pick = sized(await ports.searchFoods(userId, food.name, "grams" in amount ? 1 : 3), amount);
   if ("reason" in pick) return leave(pick.reason);

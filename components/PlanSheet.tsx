@@ -44,7 +44,7 @@ import AiLabel from "@/components/ui/AiLabel";
 import PhotoPrivacyNotice from "@/components/ui/PhotoPrivacyNotice";
 import { inspirePrompt, inspireSource, looksLikeUrl, notAgainList, pickPrompt, rankPicks,
   recipeSearchFor, wishPrompt, type PlanAsk as Ask, type QuickPick } from "@/lib/plan/quick-picks";
-import { CHIP_OF, MAX_EXCLUDE_IDS, MAX_STATED_FOODS, type PlanIdeasResponse } from "@/lib/plan/chips";
+import { CHIP_OF, capExcludeIds, MAX_STATED_FOODS, type PlanIdeasResponse } from "@/lib/plan/chips";
 import { PlanIdeasError, requestPlanIdeas, startChipRun, type ChipRun } from "@/lib/plan/ideas-client";
 
 const isMealSlotId = (id: string): id is MealSlotId => (MEAL_SLOT_IDS as readonly string[]).includes(id);
@@ -213,7 +213,7 @@ export default function PlanSheet({ date, slot, target, onClose, onPlaced, mode 
       .map((name) => name.trim().slice(0, 80)).filter(Boolean).slice(0, MAX_STATED_FOODS) : [];
     if (!isMealSlotId(slot.slot)) return false;
     const body = { chip, slot: slot.slot, date, zone: tz,
-      ...(excludeIds.length ? { excludeIds: excludeIds.slice(-MAX_EXCLUDE_IDS) } : {}),
+      ...(excludeIds.length ? { excludeIds: capExcludeIds(excludeIds) } : {}),
       ...(stated.length ? { stated } : {}) };
     requestBusy.current = true;
     onAccept?.();
