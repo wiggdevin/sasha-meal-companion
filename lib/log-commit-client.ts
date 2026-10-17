@@ -311,8 +311,14 @@ async function postCommit(
     // ends the commit exactly as their own delete does (Grok pass 20, HIGH 2).
     return { status: "discarded" };
   }
-  if (gone || await mirrorSettled(h, req.entry_id)) await settled(h, req.entry_id);
-  else await markNeedsReconcile(h, req.entry_id, null);
+  if (gone || await mirrorSettled(h, req.entry_id)) {
+    // Their delete can still land in the read just above: it stays, and wins (W027).
+    if ((await settled(h, req.entry_id)).deleted) {
+      await settleDeletedEntry(h, req.entry_id, optimistic?.date);
+      close();
+      return { status: "discarded" };
+    }
+  } else await markNeedsReconcile(h, req.entry_id, null);
   close();
   // A conflict that kept nothing is a plain refusal as far as the sheet is concerned: there is no
   // entity to describe and no card left to describe it beside.
