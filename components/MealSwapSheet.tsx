@@ -14,6 +14,7 @@ import { AccountChanged, assertCurrent, currentAccountOrNull } from "@/lib/devic
 import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import { readPrefRefCache } from "@/lib/foods/prefs-client";
 import { foodSignal, sendFoodSignals } from "@/lib/foods/signals-client";
+import { favoriteMealSlots } from "@/lib/favorite-meals-client";
 import { listRecipes } from "@/lib/recipes-client";
 import { allRows } from "@/lib/sync/idb";
 import { occasionAt } from "@/lib/meals/occasion";
@@ -109,9 +110,10 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
         clock: slot.time, date, eligible: allowed }));
       let recipes: Awaited<ReturnType<typeof listRecipes>> = [];
       let rows: SavedMealRow[] = [];
+      let savedSlots: Awaited<ReturnType<typeof favoriteMealSlots>> = {};
       try {
-        [recipes, rows] = await Promise.all([listRecipes(), allRows(account, "favorites_meals")]) as
-          [typeof recipes, SavedMealRow[]];
+        [recipes, rows, savedSlots] = await Promise.all([listRecipes(), allRows(account, "favorites_meals"),
+          favoriteMealSlots(account)]) as [typeof recipes, SavedMealRow[], typeof savedSlots];
       } catch (caught) {
         if (caught instanceof AccountChanged) throw caught;
         if (live) setError("Saved meals aren’t available right now. Your foods are still here.");
@@ -124,7 +126,7 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
           ({ id: entry.id, name: entry.name, items: entry.items ?? [] })),
         currentComponents: slot.components }));
       setOptions(swapAlternatives({ slot: slot.slot, target, foods: safeFoods,
-        refs, recipes,
+        refs, recipes, savedSlots,
         savedMeals: rows, currentMealId: slot.meal?.id, currentComponents: slot.components,
         clock: slot.time, date, eligible: allowed }));
     }).catch((caught: unknown) => {

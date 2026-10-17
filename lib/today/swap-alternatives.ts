@@ -13,7 +13,7 @@ import type { FoodComponent, Macros, SlotId } from "@/lib/types";
 
 export type SavedMealRow = { id: string; name: string; items?: Record<string, unknown>[] };
 export type SwapAlternative = {
-  id: string; name: string; source: "Your foods" | "Your recipe" | "Saved meal" | "Recent meal";
+  id: string; name: string; source: "Your foods" | "Your recipe" | "Saved meal" | "Your usual" | "Recent meal";
   components: FoodComponent[]; macros: Macros; proteinKey: string;
   foodIds: string[];
   /**
@@ -125,6 +125,8 @@ const PLATE_ROWS = 40;
 export function swapAlternatives(input: {
   slot: SlotId; target: Macros; foods: Record<string, Food>; refs?: FoodPrefRefCache;
   recipes?: RecipeRow[]; savedMeals?: SavedMealRow[]; currentMealId?: string;
+  /** Saved meal id → the slot it was saved from (`favoriteMealSlots`). A match ranks first. */
+  savedSlots?: Readonly<Record<string, SlotId>>;
   /** The foods on the card now. A row holding the same foods is the current meal (audit A065):
    *  a generated plate's id (`suggested:`) never equals the `plate:` row it was built from. */
   currentComponents?: readonly FoodComponent[];
@@ -141,8 +143,10 @@ export function swapAlternatives(input: {
     ...(input.recipes ?? []).map((row) => savedAlternative(`recipe:${row.id}`, row.name,
       "Your recipe", row.items, Number(row.servings), target, refs)),
     ...(input.savedMeals ?? []).map((row) => savedAlternative(`saved:${row.id}`, row.name,
-      "Saved meal", row.items ?? [], 1, target, refs)),
+      input.savedSlots?.[row.id] === slot ? "Your usual" : "Saved meal", row.items ?? [], 1, target, refs)),
   ].filter((row): row is SwapAlternative => row !== null);
+  // Meals saved from this slot lead; the sort is stable, so every other order is unchanged.
+  saved.sort((a, b) => Number(b.source === "Your usual") - Number(a.source === "Your usual"));
   const occasion = input.occasion ?? occasionAt(input.clock, { slot });
   const open = openWorldOf(input.eligible);
   // `null`: a snapshot was required and none usable is held, so no new plate is offered (D2).

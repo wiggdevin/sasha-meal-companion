@@ -48,6 +48,21 @@ describe("account-owned swap alternatives", () => {
     expect(options.map((row) => row.name)).not.toContain("Unknown ingredient");
   });
 
+  it("ranks meals saved from this slot first as Your usual, and still refuses a blocked ingredient", () => {
+    const items = [{ food_ref_id: "ref-chicken", grams: 127.57 }, { food_ref_id: "ref-rice", grams: 198.45 },
+      { food_ref_id: "ref-oil", grams: 113.4 }];
+    const savedMeals = [{ id: "other", name: "From elsewhere", items },
+      { id: "here", name: "My usual lunch", items: items.map((i) => ({ ...i, grams: i.grams * 1.02 })) },
+      { id: "blocked", name: "Blocked", items: [...items, { food_ref_id: "ref-gone", grams: 50 }] }];
+    const savedSlots = { here: "meal-2" as const, blocked: "meal-2" as const, other: "meal-3" as const };
+    const options = swapAlternatives({ slot: "meal-2", target, foods, refs, savedMeals, savedSlots });
+    expect(options[0]).toMatchObject({ id: "saved:here", source: "Your usual" });
+    expect(options.find((row) => row.id === "saved:other")?.source).toBe("Saved meal");
+    expect(options.map((row) => row.name)).not.toContain("Blocked");
+    const unknown = swapAlternatives({ slot: "meal-2", target, foods, refs, savedMeals });
+    expect(unknown.some((row) => row.source === "Your usual")).toBe(false);
+  });
+
   it("leaves out a saved meal whose ingredient is a liquid of unknown density (no invented mass)", () => {
     const tonic: Food = { id: "tonic", name: "Grandma's tonic", role: "carb", unit: "ml",
       perUnit: { protein: 0, carbs: 0.1, fat: 0 }, status: "eats", updatedAt: "2026-09-26" };

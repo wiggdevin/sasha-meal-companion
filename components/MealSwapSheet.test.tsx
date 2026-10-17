@@ -19,6 +19,7 @@ vi.mock("@/lib/today/swap-alternatives", async (importOriginal) => ({
 }));
 vi.mock("@/lib/foods/eligible-client", () => ({ loadEligibleLocalFoodIds: mocked.loadEligibleLocalFoodIds }));
 vi.mock("@/lib/foods/prefs-client", () => ({ readPrefRefCache: () => ({}) }));
+vi.mock("@/lib/favorite-meals-client", () => ({ favoriteMealSlots: async () => ({ "saved-1": "meal-2" }) }));
 vi.mock("@/lib/recipes-client", () => ({ listRecipes: async () => [] }));
 vi.mock("@/lib/sync/idb", () => ({ allRows: async () => [] }));
 vi.mock("@/lib/foods/signals-client", () => ({
@@ -90,6 +91,15 @@ describe("MealSwapSheet signals (Phase 18 W6)", () => {
     expect(picked).toMatchObject({ surface: "swap_sheet", kind: "picked", chosenKey: "food:chicken-1",
       offeredKeys: ["food:chicken-1", "food:turkey-1"], occasion: "lunch" });
     expect(away.slateId).toBe(picked.slateId);
+  });
+
+  it("tells the ranking which slot each saved meal came from", async () => {
+    render(<MealSwapSheet slot={slot} date="2026-10-06"
+      target={{ kcal: 260, protein: 40, carbs: 0, fat: 5 }} foods={foods} currentOverride={false}
+      onSelect={async () => {}} onReset={async () => {}} onEdit={() => {}} onClose={() => {}} />);
+    await screen.findByRole("button", { expanded: false });
+    await waitFor(() => expect(mocked.swapAlternatives.mock.calls.at(-1)?.[0])
+      .toMatchObject({ savedSlots: { "saved-1": "meal-2" } }));
   });
 
   it("stamps both events with the tap's own time, not the save's completion time " +
