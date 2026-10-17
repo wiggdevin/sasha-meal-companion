@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { resetTestAccount } from "@/tests/helpers/account";
 import type { OpenDuplicateGroup } from "@/lib/duplicates/read";
@@ -103,5 +104,12 @@ describe("DuplicateEntryCard", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Keep both entries/ })); });
     expect(await screen.findByText("That did not save. Try again.")).toBeTruthy();
     expect(screen.getByTestId("duplicate-entry-card")).toBeTruthy();
+  });
+
+  it("open: Today mounts the card between the Day card and the day's nutrients", () => {
+    const page = readFileSync("app/page.tsx", "utf8");
+    const card = page.indexOf("<DuplicateEntryCard date={viewedDate} extras={resolved.extras} />");
+    expect(card).toBeGreaterThan(page.indexOf("<DayCard"));
+    expect(card).toBeLessThan(page.indexOf("<DayNutrients"));
   });
 });
