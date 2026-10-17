@@ -13,7 +13,7 @@ import { getProfile, getRuleReviewStatus, type StoredProfile } from "@/lib/serve
 import { readPolicyProfile } from "@/lib/server/policy-profile";
 import { latestEstimate } from "@/lib/server/expenditure";
 import { activeTargets } from "@/lib/server/targets";
-import { accountDay, addIsoDays } from "@/lib/server/account-day";
+import { addIsoDays, resolveAccountDay } from "@/lib/server/account-day";
 import { isMealSlot } from "@/lib/meals";
 import { mapCatalogFoodHit } from "@/lib/server/coach";
 import { eatsOwnFood } from "@/lib/server/eats-own-food";
@@ -288,9 +288,10 @@ export function defaultPorts(
     // this tool mid-turn must see them, not just the legacy avoid_allergens/banned_categories.
     getConstraints: async (userId) => policyProfile(userId),
     recentGut: async (userId, days) => {
-      // gut_log.local_date is the account's own day, so the window steps back from the account's
-      // today (stored zone, else the turn's zone), never the server's UTC date (audit A109).
-      const today = await accountDay(client, userId, { purpose: "recentGut", requestZone: tz,
+      // gut_log.local_date is the phone's own day, so the window steps back from the day the
+      // turn's zone is on (the phone's day comes first, t24b), never the server's UTC date
+      // (audit A109).
+      const today = resolveAccountDay({ purpose: "recentGut", requestZone: tz,
         now: clock.now ? new Date(clock.now) : new Date() });
       const from = addIsoDays(today.date, -days);
       const { data } = await client.from("gut_log")

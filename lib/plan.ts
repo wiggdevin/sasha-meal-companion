@@ -63,7 +63,12 @@ export type LayoutSettings = Partial<Pick<Settings,
  * (audit A063).
  */
 function layoutProfile(settings: LayoutSettings, date?: string): Settings["activeTargetProfile"] | undefined {
-  if (!date || !settings.targetHistory) return settings.activeTargetProfile;
+  // An unsaved onboarding candidate (no revision number) is the user's own preview: it sizes the
+  // layout whatever the date, as it always did.
+  const current = settings.activeTargetProfile;
+  if (!date || !settings.targetHistory || (current && typeof current.revision !== "number")) {
+    return current;
+  }
   return targetRevisionOn({ activeTargetProfile: settings.activeTargetProfile ?? null,
     targetHistory: settings.targetHistory, targetHistorySince: settings.targetHistorySince }, date);
 }
