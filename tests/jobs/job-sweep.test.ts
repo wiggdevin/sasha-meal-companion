@@ -5,8 +5,13 @@
  * failure never stopping another. The pass across runs is tests/jobs/job-cursor.test.ts.
  */
 import { describe, expect, it, vi } from "vitest";
-import { keysetRows, runWithinBudget } from "@/lib/server/job-sweep";
+import { keysetRows, runWithinBudget, type RunOutcome } from "@/lib/server/job-sweep";
 import { accountIds, accountZones } from "@/lib/server/jobs";
+import { listOf } from "@/lib/server/job-cursor";
+import {
+  assertLocalApp, assertLocalStack, parseSignupArgs, signupPlan,
+} from "@/scripts/load/signup-load";
+import { injectedOutcome, parseSoakArgs, soakPlan } from "@/scripts/load/job-sweep-soak";
 
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `u-${String(i).padStart(5, "0")}`);
 
@@ -188,4 +193,97 @@ describe("runWithinBudget: retry and the hard stop", () => {
       });
       expect(outcome).toMatchObject({ started: 1_000, complete: false, cursor: keys[999] });
     });
+});
+
+describe("soak shape (W049): many keys, injected retries, cursor resume", () => {
+  it("5,000 accounts over budgeted runs: each listed once, resumed exactly, retries drained", async () => {
+    const keys = ids(5_000);
+    const { page } = listing(keys);
+    const failRate = 0.05;
+    const attempts = new Map<string, number>();
+    let clock = 0;
+    const work = async (id: string) => {
+      clock += 1;                                  // each account costs 1 ms of the budget
+      const attempt = (attempts.get(id) ?? 0) + 1;
+      attempts.set(id, attempt);
+      const outcome = injectedOutcome(id, attempt, failRate);
+      if (outcome === "throw") throw new Error("injected");
+      return outcome;
+    };
+
+    // The listing phase, resumed from each run's cursor as job-cursor.ts saves it.
+    let after: string | null = null;
+    let queued: string[] = [];
+    let listingRuns = 0;
+    for (;;) {
+      listingRuns += 1;
+      const out: RunOutcome = await runWithinBudget({
+        items: keysetRows(page, (k) => k, after), keyOf: (k) => k,
+        concurrency: 6, deadline: clock + 700, now: () => clock, work,
+      });
+      expect(out.listError).toBeUndefined();
+      // The started items are the unbroken prefix after the resume key.
+      const from = after === null ? 0 : keys.indexOf(after) + 1;
+      expect(out.cursor).toBe(keys[from + out.started - 1]);
+      queued = [...new Set([...queued, ...out.retry])];
+      after = out.cursor ?? after;
+      if (out.complete) break;
+      expect(listingRuns).toBeLessThan(50);
+    }
+    expect(listingRuns).toBeGreaterThan(5);
+    // Every account was listed and started exactly once in the listing phase.
+    expect([...attempts.keys()].sort()).toEqual(keys);
+    const firstFailures = keys.filter((k) => injectedOutcome(k, 1, failRate) !== "ok");
+    expect(queued).toEqual(firstFailures);
+    expect(firstFailures.length).toBeGreaterThan(150);
+
+    // The retry phase, over exactly the queued keys, until nothing is left.
+    let retryRuns = 0;
+    while (queued.length > 0) {
+      retryRuns += 1;
+      const out = await runWithinBudget({
+        items: listOf(queued), keyOf: (k) => k, concurrency: 6, deadline: Infinity, work,
+      });
+      expect(out.complete).toBe(true);
+      queued = out.retry;
+      expect(retryRuns).toBeLessThan(5);
+    }
+    const depth = Math.max(...[...attempts.values()].map((n) => n - 1));
+    expect(depth).toBe(2);
+    expect(retryRuns).toBe(2);
+  });
+});
+
+describe("load and soak scripts (W049): local test stack only", () => {
+  it("accept only the isolated test stack's API port on this machine", () => {
+    expect(assertLocalStack("http://127.0.0.1:56321").port).toBe("56321");
+    expect(assertLocalStack("http://localhost:56321/").port).toBe("56321");
+    for (const url of ["https://abcdefgh.supabase.co", "http://127.0.0.1:54321",
+      "http://127.0.0.1:55321", "https://127.0.0.1:56321", "http://10.0.0.5:56321",
+      "http://127.0.0.1", "not a url"]) {
+      expect(() => assertLocalStack(url), url).toThrow(/refusing/);
+    }
+    expect(() => assertLocalStack(undefined)).toThrow(/SUPABASE_TEST_URL/);
+    expect(() => assertLocalApp("https://meal-companion.vercel.app")).toThrow(/refusing/);
+    expect(assertLocalApp("http://localhost:3523").port).toBe("3523");
+  });
+
+  it("dry runs print the plan and make no request", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
+    const env = { SUPABASE_TEST_URL: "http://127.0.0.1:56321" };
+    expect(signupPlan(parseSignupArgs(["--n", "200", "--app", "http://localhost:3523"]), env))
+      .toContain("then GET http://localhost:3523/api/foods/world per account");
+    expect(soakPlan(parseSoakArgs(["--budget-ms", "20000"]), env)[1]).toMatch(/seed 1000 accounts/);
+    expect(() => soakPlan(parseSoakArgs([]), { SUPABASE_TEST_URL: "https://x.supabase.co" }))
+      .toThrow(/refusing/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("fire only the allowlisted cron routes, never a model-calling one", () => {
+    expect(parseSoakArgs(["--routes", "estimate,weekly-proposal"]).routes)
+      .toEqual(["estimate", "weekly-proposal"]);
+    expect(() => parseSoakArgs(["--routes", "facet-warm"])).toThrow(/not one of/);
+    expect(() => parseSignupArgs(["--n", "0"])).toThrow(/whole number/);
+  });
 });
