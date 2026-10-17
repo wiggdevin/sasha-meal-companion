@@ -52,6 +52,8 @@ describe("recipe widget rules", () => {
     expect(fitLabel(fitToday({ kcal: 450, protein: 10, carbs: 100, fat: 2 }, room))).toBe("~40 g carbs over");
     expect(fitLabel(fitToday({ kcal: 900, protein: 10, carbs: 100, fat: 45 }, room))).toBe("~400 kcal over");
     expect(fitToday({ kcal: 400, protein: 30, carbs: null, fat: 10 }, room)).toEqual({ kind: "unknown" });
+    // A serving whose protein is unknown is not a fit either (W058).
+    expect(fitToday({ kcal: 400, protein: null, carbs: 40, fat: 10 }, room)).toEqual({ kind: "unknown" });
     expect(fitToday({ kcal: 400, protein: 30, carbs: null, fat: 30 }, room)).toEqual({ kind: "over", by: 10, macro: "fat" });
   });
 

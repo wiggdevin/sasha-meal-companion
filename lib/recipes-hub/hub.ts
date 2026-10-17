@@ -125,10 +125,11 @@ export type Fit = { kind: "fits" } | { kind: "over"; by: number; macro: FitMacro
 /**
  * Whether one serving fits what is left today: its kcal, fat and carbs each within what is left
  * (2026-10-04 audit, MINOR 9: a serving inside the kcal and far over the fat read "Fits today").
- * Any known value over says so, kcal first. An unknown value never reads as a fit.
+ * Any known value over says so, kcal first. An unknown value, protein included, never reads as a fit.
  */
 export function fitToday(facts: ServingFacts, left: Macros | null): Fit {
-  if (!left || facts.kcal === null) return { kind: "unknown" };
+  // Protein is a floor, never a cap, but a serving whose protein is unknown cannot be called a fit.
+  if (!left || facts.kcal === null || facts.protein === null) return { kind: "unknown" };
   const limits: FitMacro[] = ["kcal", "fat", "carbs"];
   for (const macro of limits) {
     const value = facts[macro];
