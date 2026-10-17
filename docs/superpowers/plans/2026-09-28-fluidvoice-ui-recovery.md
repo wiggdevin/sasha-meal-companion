@@ -1,5 +1,7 @@
 # FluidVoice UI Recovery Implementation Plan
 
+> **Superseded (2026-10-17):** the work this plan describes has landed on `main`. The current status of each row is in [the acceptance ledger](../../audit/2026-10-17-fluidvoice-acceptance-ledger.md); use that, not the task list below.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restore every approved FluidVoice UI interaction on Today, Foods, Recipes, the coach composer, feedback surfaces, and the PWA update flow, then ship them through one PR and one production deployment.
