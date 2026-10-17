@@ -18,7 +18,7 @@ import { isDeleted } from "@/lib/log/pending";
 import { canPatchCard, reconcileFromServer, type ReconcileOutcome } from "@/lib/log/reconcile";
 import { rowNutritionPartial } from "@/lib/log/partial-mark";
 import { loadPartialRecipeRefIds } from "@/lib/recipes-client";
-import { allOps, deleteOp, deleteRow, getRow, putRow } from "@/lib/sync/idb";
+import { deleteOp, deleteRow, getRow, putRow } from "@/lib/sync/idb";
 import { mergedItems } from "@/lib/log/card-items";
 import { withItemMass, withServerAmount } from "@/lib/log/mass";
 import { opIdFor } from "@/lib/log/op-id";
@@ -26,6 +26,7 @@ import type { LoggedFood } from "@/lib/types";
 
 export { reconcileFromServer, retryPendingReconciles } from "@/lib/log/reconcile";
 export type { ReconcileOutcome } from "@/lib/log/reconcile";
+export { dropQueuedOps, hasQueuedOp, ownWriteQueued } from "@/lib/log/queued-ops";
 
 /** A 2xx the client could not read. The server has the entry; the details arrive with the pull. */
 export type CommitAccepted = { status: "accepted" };
@@ -275,51 +276,6 @@ export async function dropCommitOp(h: AccountHandle, req: LogCommitRequest): Pro
 }
 
 /**
- * Is one of THEIR writes still queued for this entry — a note, an edit?
- *
- * While one is, the local fields it owns are theirs and not the server's: a read-back that wrote the
- * row's empty note over the line the user had just typed took it off the card while the write that
- * would have sent it was still waiting (Grok pass 27, HIGH 2).
- */
-export async function ownWriteQueued(h: AccountHandle, entryId: string): Promise<boolean> {
-  try {
-    return (await allOps(h)).some((op) =>
-      op.entity === "log_entries" && op.entity_id === entryId && op.kind === "update");
-  } catch (e) { rethrowAccountChanged(e);
-    return false;
-  }
-}
-
-/**
- * EVERY outbox op still waiting for this entry. Only their delete means this: the entry is going,
- * so the note and the edit behind it are going too.
- */
-export async function dropQueuedOps(h: AccountHandle, entryId: string): Promise<void> {
-  try {
-    const ops = await allOps(h);
-    for (const op of ops) {
-      if (op.entity === "log_entries" && op.entity_id === entryId) await deleteOp(h, op.op_id);
-    }
-  } catch (e) { rethrowAccountChanged(e); console.warn("Could not clear the queued ops for a committed entry."); }
-}
-
-/**
- * Is an outbox op still waiting to send this entry? What a drain would settle on its own.
- *
- * An outbox that cannot be read at all answers neither: `"unknown"`. A caller deciding whether to
- * POST again waits for a pass that can read it rather than sending a write the drain may already
- * hold (Grok pass 23, LOW 3) — a pause, not the permanent verdict panel round 18 warned about,
- * because the record stays and the next pass asks again.
- */
-export async function hasQueuedOp(h: AccountHandle, entryId: string): Promise<boolean | "unknown"> {
-  try {
-    return (await allOps(h)).some((o) => o.entity === "log_entries" && o.entity_id === entryId);
-  } catch (e) { rethrowAccountChanged(e);
-    return "unknown";
-  }
-}
-
-/**
  * The mirror row this commit already wrote, brought up to the server's own answer: `rev`, the
  * day's `totals`, any `flagged` item, and the grams and snapshot the server actually stored.
  *
@@ -384,11 +340,27 @@ export async function reconcileMirror(
 ): Promise<ReconcileOutcome> {
   const reconciled = reconciledRow(req, result, attemptId);
   try {
-    if (reconciled.kind === "row") await putRow(h, "log_entries", req.entry_id, reconciled.row);
+    // Forward-only, like the read-back below: a pull can mirror another device's newer revision
+    // while this answer is in the air, and putting this one over it hands the next note an old
+    // `base_rev` — or, when that read then fails, leaves it there (W027).
+    if (reconciled.kind === "row" && !await mirrorIsNewer(h, req.entry_id, result.rev)) {
+      await putRow(h, "log_entries", req.entry_id, reconciled.row);
+    }
     // `no_items` writes nothing: the row this commit already wrote stands, with no revision on
     // it, until the read below settles it.
   } catch (e) { rethrowAccountChanged(e); console.warn("Could not reconcile the mirrored entry."); }
   return reconcileFromServer(h, req.entry_id);
+}
+
+/** Does the mirror already hold a later revision of this entry than `rev`? A failed read says no. */
+async function mirrorIsNewer(h: AccountHandle, entryId: string, rev: unknown): Promise<boolean> {
+  if (typeof rev !== "number") return false;
+  try {
+    const held = (await getRow(h, "log_entries", entryId) as Record<string, unknown> | undefined)?.rev;
+    return typeof held === "number" && held > rev;
+  } catch (e) { rethrowAccountChanged(e);
+    return false;
+  }
 }
 
 /** "blocked:allergen:gluten" -> "gluten"; anything else keeps its own words. */

@@ -7,7 +7,7 @@
 import { accountHandle } from "@/lib/device/account";
 import { commitLogEntry, type CommitResult } from "@/lib/log-commit-client";
 import { isCommitting } from "@/lib/log/live-commits";
-import { clearPending, unsavedRequest } from "@/lib/log/pending";
+import { retirePending, unsavedRequest } from "@/lib/log/pending";
 import { getDay } from "@/lib/store";
 import { getRow } from "@/lib/sync/idb";
 
@@ -31,7 +31,8 @@ export async function retryUnsavedCommit(
   // Either way there is nothing left to save (Grok pass 9, MEDIUM 5).
   const mirrored = await getRow(h, "log_entries", entryId).catch(() => undefined);
   if (!entry || mirrored?.deleted_at) {
-    await clearPending(h, entryId);
+    // A delete the user made stays: it is what still owes the server (W027).
+    await retirePending(h, entryId);
     return null;
   }
   return commitLogEntry(request, {

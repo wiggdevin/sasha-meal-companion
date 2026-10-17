@@ -7,7 +7,7 @@
 import { rethrowAccountChanged, type AccountHandle } from "@/lib/device/account";
 import type { LogCommitRequest } from "@/lib/log/contract";
 import { isCompleteEntryRow } from "@/lib/log/entry-row";
-import { clearPending, markDurable, markInFlight } from "@/lib/log/pending";
+import { markDurable, markInFlight, retirePending } from "@/lib/log/pending";
 import { queue } from "@/lib/log/queue-commit";
 import { localRow, type MirrorBefore } from "@/lib/log-commit-settle";
 import { getRow, putRow } from "@/lib/sync/idb";
@@ -85,8 +85,9 @@ export async function writeLocalFirst(h: AccountHandle, req: LogCommitRequest): 
   return before;
 }
 
-export async function settled(h: AccountHandle, entryId: string): Promise<void> {
-  await clearPending(h, entryId);
+/** The commit is done with this entry. A delete that landed meanwhile stays, and says so (W027). */
+export async function settled(h: AccountHandle, entryId: string): Promise<{ deleted: boolean }> {
+  return retirePending(h, entryId);
 }
 
 /**

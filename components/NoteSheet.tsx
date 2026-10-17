@@ -33,6 +33,7 @@ export default function NoteSheet({
   onSave,
   onSaved,
   onRemove,
+  onLogAgain,
   onClose,
 }: {
   title: string;
@@ -43,6 +44,8 @@ export default function NoteSheet({
   /** The sheet closed after changing the note: the note it opened with, and the one it saved. */
   onSaved?: (before: string, after: string) => void;
   onRemove?: () => void;
+  /** Log this entry again as a new one now (W123). Absent when the entry cannot be rebuilt. */
+  onLogAgain?: () => void;
   onClose: () => void;
 }) {
   const [text, setText] = useState(note);
@@ -85,6 +88,7 @@ export default function NoteSheet({
             onClick={() => { void save(true); }}>
             Save note
           </Button>
+          {onLogAgain && <Button block onClick={onLogAgain}>Log again now</Button>}
           {onRemove && <Button variant="danger" block onClick={onRemove}>Remove from today</Button>}
         </div>
       }

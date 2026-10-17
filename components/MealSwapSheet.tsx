@@ -16,8 +16,10 @@ import { foodSignal, sendFoodSignals } from "@/lib/foods/signals-client";
 import { listRecipes } from "@/lib/recipes-client";
 import { allRows } from "@/lib/sync/idb";
 import { occasionAt } from "@/lib/meals/occasion";
-import { swapAlternatives, type SavedMealRow, type SwapAlternative }
+import { recentSwapAlternatives, swapAlternatives, type SavedMealRow, type SwapAlternative }
   from "@/lib/today/swap-alternatives";
+import { recentMeals } from "@/lib/log/recent-meals";
+import { loadStore } from "@/lib/store";
 import { swapSignalEvents } from "@/components/signals/swap-sheet-signals";
 import type { Food } from "@/lib/foods";
 import type { Macros, ResolvedSlot } from "@/lib/types";
@@ -74,6 +76,8 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
 }) {
   const [account] = useState(currentAccountOrNull);
   const [options, setOptions] = useState<SwapAlternative[]>([]);
+  /** W123: meals logged before, sized to this slot (`logged:<entryId>`). */
+  const [recent, setRecent] = useState<SwapAlternative[]>([]);
   const [loading, setLoading] = useState(!!account && !!target);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,8 +117,13 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       }
       assertCurrent(account);
       if (!live) return;
+      const refs = readPrefRefCache(account.userId);
+      setRecent(recentSwapAlternatives({ target, foods: safeFoods, refs,
+        recent: recentMeals(loadStore().days, { limit: 20 }).map(({ entry }) =>
+          ({ id: entry.id, name: entry.name, items: entry.items ?? [] })),
+        currentComponents: slot.components }));
       setOptions(swapAlternatives({ slot: slot.slot, target, foods: safeFoods,
-        refs: readPrefRefCache(account.userId), recipes,
+        refs, recipes,
         savedMeals: rows, currentMealId: slot.meal?.id, currentComponents: slot.components,
         clock: slot.time, date, eligible: allowed }));
     }).catch((caught: unknown) => {
@@ -146,6 +155,8 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
    *  moment of the tap, not whenever the save happens to finish, or a save that straddles
    *  midnight would misreport its own date (Sol review r3 WARN). */
   function sendSwapSignals(option: SwapAlternative, tappedAt: Date) {
+    // A Recent meal row is not in the ranked slate the signal reports, so it reports nothing.
+    if (option.id.startsWith("logged:")) return;
     const events = swapSignalEvents({ slateId: slateId.current, currentComponents: slot.components,
       shownOptions: options, chosenOption: option, foods,
       occasion: occasionAt(slot.time, { slot: slot.slot }) });
@@ -193,7 +204,7 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
     <div className="flex min-w-0 flex-col gap-3">
       {loading && <p role="status" className="m-0 text-caption text-graphite">Checking your food rules and saved meals…</p>}
       {error && <Notice tone="error" title={error} />}
-      {target && options.length === 0 && !loading && <Notice tone="neutral"
+      {target && options.length === 0 && recent.length === 0 && !loading && <Notice tone="neutral"
         title="No close matches for this slot yet. Check your food rules, or edit this meal." />}
       {/* Swaps are sized to the slot's target: with none (no target revision in force, or a slot that
           carries no target) there is nothing to size them to, and the sheet says so rather than
@@ -207,6 +218,14 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
           image: suggestionPhoto(option.name, option.components),
           description: portionLine(option.components), values: option.macros,
           tag: <Tag size="md" tone={option.source === "Your foods" ? "neutral" : "olive"}>{option.source}</Tag>,
+          detail: <SwapDetail option={option} saving={saving} status={swap.status}
+            onSwap={() => { void swapTo(option); }} /> }))} />}
+      {recent.length > 0 && <p className="m-0 text-overline text-graphite">Recent meals</p>}
+      {recent.length > 0 && <SuggestionCarousel label="Recent meals" nested
+        items={recent.map((option) => ({ id: option.id, name: option.name,
+          image: suggestionPhoto(option.name, option.components),
+          description: portionLine(option.components), values: option.macros,
+          tag: <Tag size="md" tone="olive">{option.source}</Tag>,
           detail: <SwapDetail option={option} saving={saving} status={swap.status}
             onSwap={() => { void swapTo(option); }} /> }))} />}
       <div className="flex min-w-0 flex-wrap justify-center gap-x-2">

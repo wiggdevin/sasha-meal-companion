@@ -12,6 +12,7 @@ import type { ProposeResponse } from "@/lib/capture/types";
 import { useCaptureRevisions } from "@/components/coach/editors/useCaptureRevisions";
 import type { SaveResult } from "@/lib/log/outcome";
 import type { SlotId } from "@/lib/types";
+import LoggedBeforeLine from "@/components/LoggedBeforeLine";
 
 export default function CaptureConfirm({
   draft, saving, message, slot, projection, onSave, onDismiss, onSearchManually,
@@ -54,6 +55,7 @@ export default function CaptureConfirm({
       <Sheet title="Check this" subtitle={spendNote(draft.spend)} onClose={onDismiss} footer={footer}>
         <div className="flex flex-col gap-3 px-1">
           <AiLabel provenance={draft.provenance} className="self-start" />
+          <LoggedBeforeLine refs={draft.items.map((item) => item.foodRefId)} />
           {body}
         </div>
         <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
