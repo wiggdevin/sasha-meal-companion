@@ -91,6 +91,10 @@
     "test": "tests/tenancy/admin-jobs.test.ts",
     "via": "@/app/api/jobs/oura-pull/route"
   },
+  "app/api/jobs/retention-purge/route.ts": {
+    "test": "tests/tenancy/admin-retention-purge.test.ts",
+    "via": "@/app/api/jobs/retention-purge/route"
+  },
   "app/api/jobs/signal-purge/route.ts": {
     "test": "tests/tenancy/admin-signal-purge.test.ts",
     "via": "@/app/api/jobs/signal-purge/route"

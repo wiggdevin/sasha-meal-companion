@@ -17,7 +17,8 @@
  * `approve_target_proposal`) bound p_user_id to auth.uid(), but a signed-in user could still call
  * them for their OWN account and skip every server-side target check. Migration 20261228090000
  * makes them service-role only (lib/server/target-writes.ts); the last cases prove A is refused
- * for A and for B, and the manifest no longer lists them.
+ * for A and for B, and the manifest no longer lists them. The W044 retention purges (migration
+ * 20270105100100) are service-role only too, and A is refused each one.
  */
 // Refuses any non-local database before anything else runs (review r8).
 import "./local-only";
@@ -579,6 +580,18 @@ describe.skipIf(!HAS_BRANCH)("account RPCs, called by A with B's ids (spec 3.3)"
         .toEqual(before);
     });
   }
+
+  // W044 (migration 20270105100100): the retention purges delete every account's old rows by age,
+  // so they are service-role only; a signed-in user is refused before the body runs.
+  const RETENTION_PURGES = ["client_timings_purge", "ai_calls_purge", "job_runs_purge",
+    "recipe_plan_previews_purge"] as const;
+
+  it("the retention purges are refused to A (service role only)", async () => {
+    for (const fn of RETENTION_PURGES) {
+      const { data, error } = await asA.rpc(fn, { p_max: 1 });
+      expect({ fn, code: error?.code, data }).toEqual({ fn, code: "42501", data: null });
+    }
+  });
 
   it("_sync_tombstone is refused to A and leaves B's row alive", async () => {
     const food = await seed("user_foods", b.id);

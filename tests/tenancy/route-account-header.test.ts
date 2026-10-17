@@ -58,6 +58,7 @@ const NOT_COOKIE: Record<string, string> = {
   "app/api/jobs/media-sweep/route.ts": "cron: CRON_SECRET bearer",
   "app/api/jobs/onboarding-events-purge/route.ts": "cron: CRON_SECRET bearer",
   "app/api/jobs/oura-pull/route.ts": "cron: CRON_SECRET bearer",
+  "app/api/jobs/retention-purge/route.ts": "cron: CRON_SECRET bearer",
   "app/api/jobs/signal-purge/route.ts": "cron: CRON_SECRET bearer",
   "app/api/jobs/spend-sweep/route.ts": "cron: CRON_SECRET bearer",
   "app/api/jobs/weekly-proposal/route.ts": "cron: CRON_SECRET bearer",
