@@ -31,6 +31,8 @@ describe("reaskNextStep", () => {
   it("never offers a food on Eats or Avoid, matched by its head words", () => {
     expect(reaskNextStep([open("Watermelon")], lists(["watermelon"]))).toBeNull();
     expect(reaskNextStep([open("watermelon")], lists(["Watermelon, raw"]))).toBeNull();
+    expect(reaskNextStep([open("strawberry")], lists(["Strawberries, raw"]))).toBeNull();
+    expect(reaskNextStep([open("pork loin")], lists(["Pork, fresh, loin"]))).toBeNull();
     expect(reaskNextStep([open("watermelon"), open("rice")], lists(["Watermelon, raw"]))?.foods)
       .toEqual(["rice"]);
   });

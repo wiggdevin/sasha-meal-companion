@@ -85,9 +85,16 @@ export function reaskNextStep(
   failures: readonly ReaskFailure[], listed: { names: readonly string[]; complete: boolean },
 ): { foods: string[]; options: string[] } | null {
   if (!listed.complete || failures.some((f) => f.reason === REPLY_CHECK_INCOMPLETE)) return null;
-  const padded = (name: string) => ` ${normalizeFoodText(name)} `;
-  const known = listed.names.map(padded);
-  const onList = (name: string) => known.some((l) => l.includes(padded(name)) || padded(name).includes(l));
+  // Word sets, plural folded: "strawberry" and "pork loin" match "Strawberries, raw" and
+  // "Pork, fresh, loin". Matching loosely only ever withholds an offer.
+  const stem = (word: string) => word.replace(/ies$/, "y").replace(/(?:es|s)$/, "");
+  const wordsOf = (name: string) => new Set(normalizeFoodText(name).split(/[\s-]+/).filter(Boolean).map(stem));
+  const within = (a: Set<string>, b: Set<string>) => a.size > 0 && [...a].every((w) => b.has(w));
+  const known = listed.names.map(wordsOf);
+  const onList = (name: string) => {
+    const words = wordsOf(name);
+    return known.some((l) => within(words, l) || within(l, words));
+  };
   const against = new Set(failures.filter((f) => !f.offerEats).map((f) => normalizeFoodText(f.name)));
   const offerable = new Set(failures.filter((f) => f.offerEats).map((f) => normalizeFoodText(f.name)));
   const foods = sorted(failures).unchecked.slice(0, MAX_NAMED)
