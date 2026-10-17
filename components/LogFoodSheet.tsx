@@ -27,7 +27,7 @@ import {
 import type { FavoriteRow } from "@/lib/favorites";
 import type { Food } from "@/lib/foods";
 import type { FoodDetail } from "@/lib/server/catalog";
-import { gramsForPortion, parseGramsText } from "@/lib/log/grams";
+import { gramsForPortion, parseGramsText, roundGrams } from "@/lib/log/grams";
 import { resolveFoodRef, type FoodRefFailureReason } from "@/lib/log-client";
 import { AccountChanged } from "@/lib/device/account";
 import { localOnlyCard, preparePickedCommit, type LogPick } from "@/lib/log/picked-commit";
@@ -267,7 +267,7 @@ export default function LogFoodSheet({
     // Grams typed by hand: the count scales them (150 g at 1 is 300 g at 2), so the stepper never
     // moves alone while the grams and the numbers stay put (UI audit r1).
     if (!catPortion) {
-      if (typedPer !== null) { const g = Math.round(typedPer * q); setGrams(g); setGramsText(String(g)); }
+      if (typedPer !== null) { const g = roundGrams(typedPer * q); setGrams(g); setGramsText(String(g)); }
       return;
     }
     const g = gramsForPortion({ gramWeight: catPortion.gramWeight }, q);
