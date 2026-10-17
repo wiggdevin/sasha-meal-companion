@@ -12,13 +12,21 @@
 -- _sync_written_at still reads change_log and is unchanged. Nothing is pruned here: compaction,
 -- snapshots and the client's stale-cursor path are later W048 steps.
 --
+-- PREREQUISITE FOR ANY PRUNING: two replay paths still read the change_log row's CONTENT by op
+-- id, not just its existence, and are not switched here. write_target_revision answers a retried
+-- request id with the stored revision (20261023091000), and care_log_grew reads the op's kind and
+-- date (20261225090500). Pruned, the first would try a second write (refused by the receipt) and
+-- the second would answer grew: false. A compaction step must move both onto snapshots first.
+--
 -- A receipt insert is a plain insert, so a second change_log row with an op_id that already has a
 -- receipt fails with unique_violation, exactly as the change_log_op_id index does today (the index
 -- fires first while the row exists; the receipt keeps the rule once it is pruned).
 --
--- Live-safe: a new table, a policy, a trigger and a function replacement. The backfill and the
--- trigger run under one SHARE ROW EXCLUSIVE lock on change_log, so no op lands between them; a
--- sync write waits for the migration to commit (lock_timeout 3s to take the lock).
+-- A new table, a policy, a trigger and a function replacement. The backfill and the trigger run
+-- under one SHARE ROW EXCLUSIVE lock on change_log, so no op lands between them; a sync write
+-- waits for the migration to commit (lock_timeout 3s to take the lock). The FK takes the same lock
+-- on auth.users, so sign-ins wait too. Live-safe only while change_log is small: count its op_id
+-- rows before applying (`select count(*) from change_log where op_id is not null`).
 -- Order: APPLY TO PRODUCTION BEFORE THIS CODE DEPLOYS. The app code does not read the table, but
 -- the receipt has to exist before any later step prunes change_log.
 -- Down: supabase/migrations/down/20270105110000_sync_op_receipts.down.sql.

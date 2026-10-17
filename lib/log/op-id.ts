@@ -3,8 +3,9 @@
  *
  * This is the one thing the browser and the server MUST agree on byte for byte: an offline replay
  * through the outbox and an online retry through `/api/log/commit` collapse onto one change_log
- * row only because both name the op identically. apply_sync_op answers the replay 'duplicate' from
- * its `sync_op_receipts` row (W048, migration 20270105110000), which outlives the change_log row. So there is one implementation, and it is pure —
+ * row only because both name the op identically. apply_sync_op answers the replay
+ * 'duplicate' from its `sync_op_receipts` row (W048, migration 20270105110000), which outlives
+ * the change_log row. So there is one implementation, and it is pure —
  * no `node:crypto`, which would follow `lib/log/contract.ts` into the browser bundle and make Next
  * either fail the build or ship a polyfill (Grok pass 2, HIGH 3).
  *
