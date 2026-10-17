@@ -95,6 +95,7 @@ export const NOT_BACKED_UP: Readonly<Record<string, string>> = {
   care_accolade_defs: "shared definitions seeded by migration 20261225090300",
   food_facets: "derived model cache: facet-warm computes it again",
   evidence_clock: "one global counter, not account-owned",
+  recipe_catalog_clock: "one global counter, not account-owned (W072)",
   backup_runs: "this job's own bookkeeping",
   job_cursors: "background-job bookkeeping",
   job_runs: "background-job bookkeeping: per-account run locks",

@@ -1,7 +1,8 @@
 /**
- * W034 (audit 2026-10-10 F23: A096, A162, A163): one lock order for the three clock rows,
+ * W034 (audit 2026-10-10 F23: A096, A162, A163): one lock order for the clock rows,
  * evidence_clock, then account_rules_clock, then recipe_plan_state (migration 20261231200000), on
- * the real migrated schema (SUPABASE_TEST_DB_URL).
+ * the real migrated schema (SUPABASE_TEST_DB_URL). W072 (20270105110100) puts the global
+ * recipe_catalog_clock third, between account_rules_clock and recipe_plan_state.
  *
  * Each case runs one audited deadlock pair on two connections. A third "gate" connection holds one
  * clock row for 1.5 s, so the pair interleaves the way the audit described it: under the old order
@@ -154,6 +155,45 @@ describe.skipIf(!HAS_DB)("one clock lock order (W034): the audited deadlock pair
     const source = runSql(`select prosrc from pg_proc where oid = 'public.recipe_plan_bump_state()'::regprocedure`);
     const listed = [.../tg_table_name in \(([^)]*)\)/.exec(source)![1].matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
     expect(listed).toEqual(both);
+  });
+
+  // W072: a first catalog ref holds the catalog clock, then its membership backfill moves the
+  // account's recipe_plan_state; a preview takes the catalog clock FOR SHARE before that row. The
+  // gate holds the state row, so the mint waits there holding the catalog clock and the preview
+  // queues behind it on the catalog clock (it never holds the state row the mint wants). The
+  // preview's revision was read before the mint, so it answers "stale preview", never a deadlock.
+  it("W072: a first catalog ref and the same account's recipe preview", async () => {
+    const a = favorAccount();
+    const plum = catalogFood("W034 Plum");  // the family favorAccount marked Avoid: the mint backfills it
+    const sum = Number(runSql(`select coalesce((select rev from public.recipe_plan_state where user_id = '${a}'), 0)
+      + (select rev from public.recipe_catalog_clock where id = 1)`));
+    const preview = `begin; set local request.jwt.claim.role = 'service_role';
+      set local request.jwt.claims = '{"role": "service_role"}';
+      select public.recipe_store_preview('${a}', 'recipe', '{"choices": [], "blockingIssues": []}'::jsonb,
+        ${sum}, now() + interval '10 minutes'); commit;`;
+    const [gate, mintResult, previewResult] = await race(recipeStateOf(a), mint(a, plum), preview);
+    expect([gate, mintResult]).toEqual(["ok", "ok"]);
+    expect(previewResult).toMatch(/stale preview/);
+    expect(previewResult).not.toMatch(/deadlock/i);
+    expect(runSql(`select p.status from public.user_food_prefs p join public.food_refs r on r.id = p.food_ref_id
+      where p.user_id = '${a}' and r.catalog_food_id = ${plum}`)).toBe("avoid");
+  });
+
+  it("W072: the catalog triggers bump one clock row and the previews take it before recipe_plan_state", () => {
+    for (const fn of ["recipe_plan_bump_global_state", "recipe_plan_bump_food_ref_state",
+      "recipe_plan_bump_allergen_evidence"]) {
+      const source = runSql(`select prosrc from pg_proc where oid = 'public.${fn}()'::regprocedure`);
+      expect(source, fn).toContain("_recipe_catalog_bump()");
+      expect(source, fn).not.toMatch(/update public\.recipe_plan_state set rev = rev \+ 1 where user_id is not null/);
+      expect(source.indexOf("_clock_lock_evidence()"), fn).toBeLessThan(source.indexOf("_recipe_catalog_bump()"));
+    }
+    for (const fn of ["recipe_store_preview(uuid,text,jsonb,bigint,timestamptz)",
+      "recipe_accept_preview(uuid,uuid,boolean)"]) {
+      const source = runSql(`select prosrc from pg_proc where oid = 'public.${fn}'::regprocedure`);
+      const clock = source.indexOf("from public.recipe_catalog_clock where id = 1 for share");
+      expect(clock, fn).toBeGreaterThan(0);
+      expect(clock, fn).toBeLessThan(source.indexOf("from public.recipe_plan_state where user_id"));
+    }
   });
 
   // Not an audited pair: Favor now takes evidence_clock first, so a recipe's first save (its account

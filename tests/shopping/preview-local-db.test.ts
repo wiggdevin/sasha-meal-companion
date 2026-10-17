@@ -69,6 +69,9 @@ describe.skipIf(!LOCAL)("recipe proof RPCs on an approved local test stack", () 
     const state = await aClient.from("recipe_plan_state").select("rev")
       .eq("user_id", a.id).maybeSingle();
     expect(state.error).toBeNull();
+    // W072: a preview's state rev is the account's rev plus the global catalog rev.
+    const catalog = await aClient.from("recipe_catalog_clock").select("rev").eq("id", 1).single();
+    expect(catalog.error).toBeNull();
     const withBaselines = await Promise.all(choices.map(async (choice) => {
       const row = choice as { localDate: string; slotId: string };
       const day = await aClient.from("plan_days").select("rev,swaps,item_overrides,eaten_slots")
@@ -80,7 +83,7 @@ describe.skipIf(!LOCAL)("recipe proof RPCs on an approved local test stack", () 
         eaten: day.data?.eaten_slots?.[row.slotId] ?? null } };
     }));
     const saved = await admin.rpc("recipe_store_preview", { p_user_id: a.id,
-      p_kind: "recipe", p_state_rev: state.data?.rev ?? 0,
+      p_kind: "recipe", p_state_rev: Number(state.data?.rev ?? 0) + Number(catalog.data!.rev),
       p_expires_at: expiresAt(), p_proof: { authorityDate,
         authority: { targetRevisionId: targetId, targetRevision: targetRev },
         choices: withBaselines, blockingIssues: [] } });
