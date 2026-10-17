@@ -32,11 +32,12 @@ describe("plant-only statements", () => {
     "Tomatoes, tomato juice, citric acid, calcium chloride (firming agent).",
     "Enriched wheat flour (wheat flour, niacin, reduced iron, thiamine mononitrate, riboflavin, folic acid), water, yeast, salt.",
     "Water, black beans, salt. Contains: soy.",
-    "Water, black beans, salt. Produced in a facility that also processes milk and eggs.",
+    "Water, black beans, salt. Produced in a facility that also processes peanuts and tree nuts.",
     "Vegetable oil (canola and/or sunflower oil), potatoes, sea salt.",
     "Organic cane sugar, water, salt.",
     "Oyster mushrooms, water, salt.",
     "Rice, water, salt and pepper.",
+    "Water, salt, and pepper.",
     "Water, kidney beans, contains 2% or less of: salt, onion powder, garlic powder.",
     "Pinto beans, water, less than 0.5% of: salt.",
   ])("%s", (text) => {
@@ -65,6 +66,9 @@ describe("statements that stay unverified", () => {
     "Water, beans, salt. Contains 2% or less of: natural flavor.",
     "Water, beans, salt. Contains:",
     "Water, beans, salt. May contain natural flavor.",
+    "Beans, salt. Contains: fish.",
+    "Rice, salt. May contain milk.",
+    "Rice, salt. Produced in a facility that also processes eggs.",
     "Water, beans, salt (contains one or more of the following: natural flavor).",
     // Words that only look like a plant, and the edge words the W2c review pinned.
     "Eggplant, water, salt.",
@@ -90,6 +94,7 @@ describe("dietLabelRulesOut", () => {
     expect(dietLabelRulesOut("contains_dairy", label("Water, beans, salt."))).toBe(false);
     expect(dietLabelRulesOut("meat", { ingredientsText: "Water, beans, salt.", ingredientsTextIsLabel: false }))
       .toBe(false);
+    expect(dietLabelRulesOut("meat", { ingredientsText: "Water, beans, salt." })).toBe(false);
     expect(dietLabelRulesOut("meat", label("Water, beans, salt."))).toBe(true);
   });
 });

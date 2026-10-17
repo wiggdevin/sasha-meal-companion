@@ -130,13 +130,16 @@ const PURPOSE_NOTES: ReadonlySet<string> = new Set([
   "anticaking agent", "to prevent caking",
 ]);
 
-/** Words a trailing allergen or facility sentence may use. Anything else fails the label. */
+/**
+ * Words a trailing allergen or facility sentence may use. Anything else fails the label, so a
+ * sentence naming milk, egg, fish or shellfish (even "may contain") never reads as plant-only here,
+ * whatever the caller checks first.
+ */
 const TRAILING_WORDS: ReadonlySet<string> = new Set([
   "contains", "may", "contain", "traces", "trace", "of", "and", "or", "produced", "manufactured",
   "processed", "made", "packed", "in", "on", "a", "the", "facility", "plant", "that", "which",
   "also", "processes", "handles", "uses", "shared", "equipment", "with", "products",
-  "milk", "egg", "eggs", "fish", "shellfish", "crustacean", "wheat", "soy", "soybean", "soybeans",
-  "peanut", "peanuts", "tree", "nut", "nuts", "sesame", "almond", "almonds", "cashew", "cashews",
+  "wheat", "soy", "soybean", "soybeans", "peanut", "peanuts", "tree", "nut", "nuts", "sesame", "almond", "almonds", "cashew", "cashews",
   "walnut", "walnuts", "pecan", "pecans", "pistachio", "pistachios", "hazelnut", "hazelnuts",
   "coconut", "macadamia", "brazil",
 ]);
@@ -210,7 +213,8 @@ function splitItems(list: string): ParsedIngredient[] | null {
     if (depth === 0) {
       const join = /^ (?:and\/or|and|or|&) (?!less\b)/.exec(list.slice(i));
       if (join) {
-        pieces.push(current);
+        // An Oxford comma ("salt, and pepper") leaves nothing between the comma and the join.
+        if (current.trim() !== "" || pieces.length === 0) pieces.push(current);
         current = "";
         i += join[0].length - 1;
         continue;
@@ -268,6 +272,7 @@ export function dietLabelRulesOut(
   facet: string, e: { ingredientsText?: string | null; ingredientsTextIsLabel?: boolean },
 ): boolean {
   if (!(LABEL_CLEARABLE_FACETS as readonly string[]).includes(facet)) return false;
-  if (e.ingredientsTextIsLabel === false) return false;
+  // Only text known to be the printed label: an unset flag (a recipe, a user's own text) never clears.
+  if (e.ingredientsTextIsLabel !== true) return false;
   return isPlantOnlyStatement(e.ingredientsText);
 }
