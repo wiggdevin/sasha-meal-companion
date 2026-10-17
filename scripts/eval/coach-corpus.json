@@ -150,11 +150,11 @@
   {
     "id": "list-add-tofu-eats",
     "category": "list_edit",
-    "sentence": "add tofu to the foods I eat",
+    "sentence": "add tofu to the foods I avoid",
     "expected_path": "either",
-    "note": "argument-confidence rule: paraphrased list target is classifier-selected and may fall below 0.90",
+    "note": "argument-confidence rule: paraphrased list target is classifier-selected and may fall below 0.90; tofu is soy and the seed bans legumes, so it goes on Avoid",
     "expected_action_kinds": [
-      "add_to_eats"
+      "add_to_avoid"
     ],
     "expected_card_count": {
       "min": 0,
@@ -420,15 +420,14 @@
   {
     "id": "block-search-greek-yogurt-eats",
     "category": "block",
-    "sentence": "find greek yogurt and put it on my eats",
+    "sentence": "find greek yogurt and put it on my avoid list",
+    "note": "The seed profile avoids dairy, so yogurt belongs on Avoid, never Eats",
     "expected_path": "either",
-    "expected_action_kinds": [
-      "add_to_eats"
-    ],
+    "expected_action_kinds": [],
     "expected_block_kinds": [
       "food_search"
     ],
-    "expected_block_intent": "eats",
+    "expected_block_intent": "avoid",
     "expected_card_count": {
       "min": 0,
       "max": 0
@@ -579,9 +578,9 @@
   {
     "id": "meals-p2-future-breakfast",
     "category": "meals",
-    "sentence": "What's my breakfast on 2026-10-05?",
+    "sentence": "What's my breakfast a week from today?",
     "expected_path": "llm",
-    "note": "P2 follows P1 in the same thread: report Sourdough toast, bacon & eggs from the materialized plan",
+    "note": "P2 follows P1 in the same thread (the date is relative to the run day, never hard-coded): report Sourdough toast, bacon & eggs from the materialized plan",
     "expected_action_kinds": [],
     "expected_card_count": { "min": 0, "max": 0 },
     "latency_bound_ms": { "fast": 2000, "llm": 15000 },
