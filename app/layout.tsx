@@ -1,14 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import { CapabilitiesProvider } from "@/components/CapabilitiesProvider";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import ClientErrorHook from "@/components/ClientErrorHook";
+import ZodJitless from "@/components/ZodJitless";
 import InstallPromptCapture from "@/components/InstallPromptCapture";
 import SyncBootstrap from "@/components/SyncBootstrap";
 import AuthGate from "@/components/AuthGate";
 import DevFreshnessBanner from "@/components/DevFreshnessBanner";
+import { NONCE_HEADER } from "@/lib/security-headers";
 import { GROUND_BOOT_SCRIPT } from "@/lib/design/ground-boot";
 import GroundTheme from "@/components/GroundTheme";
 import { THEME_COLOR } from "@/lib/design/theme-color";
@@ -59,15 +62,20 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Reading the request makes every page render per request (W079): Next stamps its own scripts
+  // with the request's CSP nonce (middleware.ts) only while rendering, so a page prerendered at
+  // build time would carry none. The one inline script of our own takes the same nonce.
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   const capabilities = readAppCapabilities(process.env);
 
   return (
     <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
       <body className="bg-paper text-charcoal antialiased">
-        <script dangerouslySetInnerHTML={{ __html: GROUND_BOOT_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: GROUND_BOOT_SCRIPT }} />
+        <ZodJitless />
         <ClientErrorHook />
         <DevFreshnessBanner />
         <CapabilitiesProvider value={capabilities}>
