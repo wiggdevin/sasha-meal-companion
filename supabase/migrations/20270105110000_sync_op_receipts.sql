@@ -62,15 +62,19 @@ end;
 $fn$;
 revoke all on function public._sync_op_receipt() from public, anon, authenticated;
 
-lock table public.change_log in share row exclusive mode;
-
-insert into public.sync_op_receipts (op_id, user_id, outcome, at)
-select c.op_id, c.user_id, 'applied', c.at from public.change_log c where c.op_id is not null
-on conflict (op_id) do nothing;
-
-drop trigger if exists change_log_op_receipt on public.change_log;
-create trigger change_log_op_receipt after insert on public.change_log
-  for each row when (new.op_id is not null) execute function public._sync_op_receipt();
+-- One block, so the lock covers the backfill and the trigger whether or not the runner wraps the
+-- file in a transaction (LOCK TABLE needs one; a DO block is one).
+do $backfill$
+begin
+  lock table public.change_log in share row exclusive mode;
+  insert into public.sync_op_receipts (op_id, user_id, outcome, at)
+  select c.op_id, c.user_id, 'applied', c.at from public.change_log c where c.op_id is not null
+  on conflict (op_id) do nothing;
+  drop trigger if exists change_log_op_receipt on public.change_log;
+  create trigger change_log_op_receipt after insert on public.change_log
+    for each row when (new.op_id is not null) execute function public._sync_op_receipt();
+end;
+$backfill$;
 
 do $migration$
 declare
