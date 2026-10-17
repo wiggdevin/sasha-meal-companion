@@ -13,8 +13,8 @@ gap brief (`~/Inbox/notes/sasha-tdee-engines-brief-2026-09-22.md`); architecture
 | B | Conservative activity table 1.20–1.70 with whole-day labels; recomp = 0 %; plan-step footer | **done** on `feat/ui-edits` (2026-09-22) |
 | C | Body-fat provenance; Mifflin-St Jeor default; Katch-McArdle only for measured values | **landed** in PR #241; migration `20261028090000` in production (checked 2026-10-04) |
 | D | Rate-based goals (% body weight / week) on top of the live TDEE | **landed** in PR #241; migration `20261029090000` in production (checked 2026-10-04); Grok + DeepSeek audit done |
-| E | Static → adaptive handoff: prior fade, robust 28-day slope, "day fully logged", stricter proposal gate | **built, in review** — spec `docs/specs/phase-16-adaptive-handoff.md`, rulings `docs/decisions/2026-10-04-adaptive-handoff-rulings.md`; PRs #349 (proposal weekdays), #350 (E1 seed freeze), #351 (E6 day mark), engine `exp-3.0.0` (E2–E5, E7–E9) on `feat/tdee-engine-v3`; UI for the mark and the range is the UI lane's |
-| F | Test suite: reference personas, derivation properties, adaptive convergence, noise and trust | grows with C–E |
+| E | Static → adaptive handoff: prior fade, robust 28-day slope, "day fully logged", stricter proposal gate | **built**, engine `exp-3.1.0` (checked 2026-10-17 at `070c7fa`). Evidence: `lib/expenditure.ts`, `lib/expenditure-slope.ts`, `lib/expenditure-cycle.ts`; seed freeze `lib/server/profile-tdee.ts` `seedFor` + migration `20261209090000`; day mark migration `20261209090100` + `lib/server/expenditure-intake.ts`; estimate columns migration `20261209090200`; `formulaTdee` removed from `lib/tdee.ts`; tests `tests/expenditure/handoff.test.ts`, `tests/server/expenditure-v3-db.test.ts`, `tests/targets/seed-freeze-db.test.ts`. Spec `docs/specs/phase-16-adaptive-handoff.md`, rulings `docs/decisions/2026-10-04-adaptive-handoff-rulings.md`. The mark control and the range on the card are the UI lane's |
+| F | Test suite: reference personas, derivation properties, adaptive convergence, noise and trust | **audited** 2026-10-17 (W094): every named case maps to a test; see "Step F test map" below |
 
 The two done steps also removed the `trainingDays = 4` default from the server path: an account
 with no training schedule now derives from its explicit weekdays or is `needs_profile`, never a
@@ -220,6 +220,58 @@ the stated error bound; cycle simulations across every starting phase; 14- vs 28
 → held; missing days → held, never a lower TDEE; a real +250 kcal/day change is detected within
 the stated lag; slow ramps track without oscillating proposals; DST and zone changes never move a
 day; the 150 kcal proposal step is never exceeded; engine-version changes reproduce old revisions.
+
+### Step F test map (W094, 2026-10-17)
+
+Each case the section above names, and the test that holds it. "New" rows were added by W094 in
+four files: `tests/expenditure/step-f-derivation.test.ts`, `step-f-adaptive.test.ts`,
+`step-f-trust.test.ts` and `step-f-accounts.test.ts`. The property checks draw 150 seeded
+profiles from the fixtures' LCG; `fast-check` is not a dependency. Abbreviations: `energy` is
+`lib/profile/energy.test.ts`, `handoff` and `backtest` are `tests/expenditure/*.test.ts`.
+
+| Case | Test | Status |
+|---|---|---|
+| Mifflin persona 1,337.5 | `energy` "derives about 1,870 kcal a day, never the old 2,115" | existed |
+| Katch persona 1,436.35 | `energy` "ignores a typed 32 % and uses Katch-McArdle only for a recent scan" | existed |
+| Typed body fat → Mifflin; recent InBody → Katch | `energy` "body-fat provenance (step C)" block | existed |
+| Activity table locked | `energy` "energy coefficients" | existed |
+| Recomp = 0 | `lib/profile/rate-goal.test.ts` "is 0 for maintain and recomp whatever is stored"; `energy` "makes recomp equal to maintenance in energy" | existed |
+| Persona {1870, 1956/1760} | `energy` "derives about 1,870 kcal a day" | existed |
+| Birthday and leap-day boundaries | `tests/profile/bmr-age-zone.test.ts` (Dec 31 in Auckland); `step-f-derivation` "birthday and leap-day boundaries" (age steps on 1 Jan UTC, 29 Feb seed, 180-day scan from 29 Feb, day numbers) | new |
+| BMR rises with weight and height, falls with age | `step-f-derivation` "Mifflin rises 10 kcal per kg …" | new |
+| Katch falls as body fat rises | `step-f-derivation` "Katch-McArdle falls 0.216 × weight …" (one point in `energy` before) | new |
+| TDEE monotonic across levels | `step-f-derivation` "TDEE rises strictly with every activity level …" (one persona in `energy` before) | new |
+| Loss ≤ maintenance ≤ gain | `step-f-derivation` "loss ≤ maintenance ≤ gain …" and "where the minimums bind …" | new |
+| Recomp = maintenance | `energy` persona; `step-f-derivation` "recomp is maintenance in energy" | existed + new |
+| Protein the same on both days; weekly energy for `trainingDays` 0–7; no negative macro; Atwater | `energy` matrix "$kind profile, $goal, $trainingDays …"; `step-f-derivation` "protein is the same both days …" | existed + new |
+| Invalid inputs rejected | `energy` "refuses a rate that does not belong to the goal", "rejects an incomplete profile"; `step-f-derivation` "refuses an incomplete profile, a malformed date …" | existed + new |
+| No silent four-day default | `tests/proposals/build-proposal.test.ts` "proposes nothing for a target with no stored training schedule"; `step-f-derivation` "no training weekdays means no cycling …" | existed + new |
+| Flat weight + 2,000 kcal → ~2,000 | `handoff` "acceptance 2" | existed |
+| Known loss rate | `handoff` "acceptance 4" | existed |
+| Known gain rate | `step-f-adaptive` "known gain rate" (exact, and with noise) | new |
+| 20–30 % wrong prior converges | `handoff` "acceptance 3" (25 %); `step-f-adaptive` "a 20–30 % wrong prior …" (20 % and 30 % both ways) | existed + new |
+| Goal changes do not move TDEE | `handoff` "acceptance 10 / E7" (engine); `step-f-accounts` "goal and rate never reach the estimate (server path)" | existed + new |
+| Identical observations → identical estimates across accounts | `step-f-adaptive` "identical observations, identical estimates" | new |
+| No seed leaks between accounts | `tests/expenditure/server-expenditure.test.ts` "per-account seeds"; `step-f-accounts` "no seed leaks between accounts" | existed + new |
+| One-day sodium spike → no proposal | `step-f-adaptive` "a one-day 1.5 kg spike …" | new |
+| 1.5 kg three-day swing inside the bound | `handoff` "acceptance 5"; `backtest` "claim 1a" | existed |
+| Cycle simulations across every starting phase | `handoff` "acceptance 6" (every 4th phase, full replay); `step-f-trust` "… at every one of the 28 starting phases" (sampled nights) | existed + new |
+| 14- vs 28-day disagreement → held | `handoff` "acceptance 7 / R4". The engine keeps `estimating` and sets `proposalEligible` false with the reason; the spec (acceptance 7) asks for exactly that | existed |
+| Missing days → held, never a lower TDEE | `handoff` "acceptance 14-equivalent"; `server-expenditure` "holds the last valid estimate (R8)"; `step-f-trust` "missing days hold the last estimate (R8)" | existed + new |
+| Real +250 kcal/day change within the lag | `handoff` "acceptance 11"; `backtest` "claim 3a" | existed |
+| Slow ramp, no oscillating proposals | `backtest` "claim 3b / 12" | existed |
+| DST and zone changes never move a day | `tests/expenditure/constants.test.ts` "toDayNumber"; `tests/expenditure/jobs-account-day.test.ts`; `step-f-trust` "DST and runtime zones never move a day" | existed + new |
+| 150 kcal proposal step never exceeded | `tests/proposals/build-proposal.test.ts` "keeps every calorie step inside max_weekly_kcal_step" | existed |
+| Engine-version changes reproduce old revisions | `server-expenditure` "maps a stored row … an exp-2 row"; `tests/targets/seed-freeze-db.test.ts`; `step-f-trust` "engine version reproduces its own numbers" (pinned nights of the six scenarios, tied to `exp-3.1.0`) | existed + new |
+
+Two findings, recorded and not changed:
+
+- "Missing days → never a lower TDEE" holds only for `HELD_LOOKBACK_DAYS` (28). After that, R8
+  holds at the seed. A seed below the learned number therefore shows a lower number after a long
+  gap. This is the ruling, not a bug; the plan sentence is broader than R8.
+- "Loss ≤ maintenance" fails when the macro minimum binds. Loss doses protein at 2.0 g/kg and
+  maintain at 1.8, so a small, sedentary profile gets a loss target above its maintenance target
+  (pinned: 49.8 kg, 145 cm, 77 y, sedentary → maintain 1,210, loss 1,250).
 
 ## Order and gates
 
