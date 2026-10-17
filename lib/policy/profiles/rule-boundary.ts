@@ -6,16 +6,18 @@
  *
  * Every candidate a rule could flip on is counted, the same items `isActiveHardRule` can make
  * active (strength "never", a hard basis, confirmed), whatever their state now. A date that does
- * not parse answers `now`: the cache is never trusted around a rule it cannot read.
+ * not parse answers `undefined`, which the route sends as no `ruleBoundaryAt` (no cache): the
+ * cache is never trusted around a rule it cannot read.
  */
 import type { ProfileInstance } from "@/lib/policy/profiles/types";
 
-export function nextRuleBoundary(instances: readonly ProfileInstance[], now: Date): Date | null {
+export function nextRuleBoundary(instances: readonly ProfileInstance[], now: Date): Date | null | undefined {
   const t = now.getTime();
   let next: number | null = null;
+  let unreadable = false;
   const consider = (iso: string): void => {
     const at = Date.parse(iso);
-    if (!Number.isFinite(at)) { next = t; return; }
+    if (!Number.isFinite(at)) { unreadable = true; return; }
     if (at > t && (next === null || at < next)) next = at;
   };
   for (const instance of instances) {
@@ -30,5 +32,6 @@ export function nextRuleBoundary(instances: readonly ProfileInstance[], now: Dat
       }
     }
   }
+  if (unreadable) return undefined;
   return next === null ? null : new Date(next);
 }

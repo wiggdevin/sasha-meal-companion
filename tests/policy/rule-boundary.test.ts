@@ -32,7 +32,9 @@ describe("nextRuleBoundary", () => {
       .toBeNull();
   });
 
-  it("answers now for a date it cannot read, so nothing is cached around it", () => {
-    expect(nextRuleBoundary([instance(item({ expiresAt: "not a date" }))], NOW)?.getTime()).toBe(NOW.getTime());
+  it("answers undefined for a date it cannot read, so the route sends no boundary and nothing is cached", () => {
+    expect(nextRuleBoundary([instance(item({ expiresAt: "not a date" }))], NOW)).toBeUndefined();
+    expect(nextRuleBoundary([instance(item({ expiresAt: "2026-10-18T00:00:00Z" }),
+      item({ expiresAt: "not a date" }))], NOW)).toBeUndefined();
   });
 });

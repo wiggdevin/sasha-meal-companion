@@ -142,7 +142,7 @@ describe("the closed-world eligible cache (W047 d)", () => {
     expect(next.set).not.toBe(held);
   });
 
-  it("a rule removed on another device: the food it blocked is never served from the cache", async () => {
+  it("a rule added on another device: the food it now blocks is never served from the cache", async () => {
     server.ids = Object.keys(FOODS).slice(1);
     await warm();
     const blocked = Object.keys(FOODS)[0];
@@ -183,6 +183,28 @@ describe("the closed-world eligible cache (W047 d)", () => {
     await warm();
     expect((await read()).asked).toEqual(["/api/foods/rules-version"]);
     vi.setSystemTime(new Date("2026-10-17T03:05:00Z"));
+    expect((await read()).asked).toContain("/api/foods/eligible?v=3");
+  });
+
+  it.each([
+    ["to a later one", "2026-10-17T09:00:00Z"],
+    ["to none", null],
+  ])("the server's boundary passed while this phone's clock is behind (it moved %s): a full read",
+    async (_name, next) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-17T03:00:00Z"));
+      server.boundary = "2026-10-17T03:05:00Z";
+      await warm();
+      expect((await read()).asked).toEqual(["/api/foods/rules-version"]);
+      // The server's clock passed 03:05 and the window opened; the phone still reads 03:00.
+      server.boundary = next;
+      expect((await read()).asked).toContain("/api/foods/eligible?v=3");
+    });
+
+  it("a first read whose token cannot be read caches nothing", async () => {
+    server.token = null;
+    await read();
+    server.token = t(7, 3);
     expect((await read()).asked).toContain("/api/foods/eligible?v=3");
   });
 

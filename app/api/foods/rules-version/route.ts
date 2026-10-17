@@ -36,7 +36,7 @@ export async function GET(req: Request): Promise<Response> {
     const stored = settings.error ? null : (settings.data as { food_world?: unknown } | null)?.food_world;
     const boundary = profiles === null ? undefined : nextRuleBoundary(profiles, new Date());
     return Response.json({ ...token, world: effectiveFoodWorld(stored, userId),
-      ...(boundary === undefined ? {} : { ruleBoundaryAt: boundary?.toISOString() ?? null }) },
+      ...(boundary === undefined ? {} : { ruleBoundaryAt: boundary === null ? null : boundary.toISOString() }) },
       { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return jsonError(error);

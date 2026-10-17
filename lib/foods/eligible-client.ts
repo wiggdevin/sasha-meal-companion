@@ -442,7 +442,10 @@ function rememberClosedSet(account: AccountHandle, set: StampedEligibleSet, toke
     return;
   }
   const now = Date.now();
-  if (token.ruleBoundaryAt !== null && now >= token.ruleBoundaryAt) return;
+  if (token.ruleBoundaryAt !== null && now >= token.ruleBoundaryAt) {
+    closedCaches.delete(account.userId);
+    return;
+  }
   closedCaches.set(account.userId, { set, token: token.token, key, cachedAt: now, boundary: token.ruleBoundaryAt });
 }
 
@@ -456,10 +459,10 @@ async function closedCacheHolds(account: AccountHandle, foods: Record<string, Fo
   };
   if (!local()) return false;
   const current = await readRulesState(account);
+  // The server's clock decides: once its next boundary differs from the cached one (a window
+  // opened or closed there, whatever this phone's clock says), the set is not reused.
   if (!current || current.world !== "closed" || !sameRulesToken(current.token, cached.token)
-    || current.ruleBoundaryAt === undefined) return false;
-  if (current.ruleBoundaryAt !== null
-    && (cached.boundary === null || current.ruleBoundaryAt < cached.boundary)) cached.boundary = current.ruleBoundaryAt;
+    || current.ruleBoundaryAt === undefined || current.ruleBoundaryAt !== cached.boundary) return false;
   // Nothing local moved while the token was read.
   return local();
 }
