@@ -1,0 +1,55 @@
+{
+  "stack": "http://127.0.0.1:56321",
+  "seedMs": 16890,
+  "harness": {
+    "job": "w049-soak-2ce51e1c",
+    "accountsSeeded": 1000,
+    "listed": 1000,
+    "budgetMs": 5000,
+    "concurrency": 6,
+    "failRate": 0.03,
+    "passDone": true,
+    "passMs": 1019,
+    "runs": [
+      {
+        "phase": "listing",
+        "ms": 951,
+        "started": 1000,
+        "failed": 16,
+        "retryQueued": 29,
+        "complete": true,
+        "passDone": false
+      },
+      {
+        "phase": "retry",
+        "ms": 40,
+        "started": 29,
+        "failed": 8,
+        "retryQueued": 8,
+        "complete": true,
+        "passDone": false
+      },
+      {
+        "phase": "retry",
+        "ms": 21,
+        "started": 8,
+        "failed": 0,
+        "retryQueued": 0,
+        "complete": true,
+        "passDone": true
+      }
+    ],
+    "retryDepth": 2,
+    "attemptsHistogram": {
+      "1": 971,
+      "2": 21,
+      "3": 8
+    }
+  },
+  "routes": [],
+  "cleanup": {
+    "deleted": 1000,
+    "leftoversSwept": 0,
+    "cursorRowsDeleted": 1
+  }
+}
