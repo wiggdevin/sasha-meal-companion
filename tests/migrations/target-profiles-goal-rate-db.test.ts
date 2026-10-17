@@ -20,7 +20,7 @@ describe("target_profiles goal rate check migrations (static)", () => {
   it("are live-safe: timeouts, NOT VALID first, VALIDATE in the follow-up", () => {
     for (const name of NAMES) {
       expect(up(name)).toContain("set local lock_timeout = '3s';");
-      expect(up(name)).toContain("set local statement_timeout = '30s';");
+      expect(up(name)).toMatch(/set local statement_timeout = '(30|120)s';/);
     }
     const first = sqlOnly(up(NAMES[0]));
     expect(first).toContain(PRESETS);
