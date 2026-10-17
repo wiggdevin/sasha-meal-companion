@@ -13,19 +13,33 @@ const mocked = vi.hoisted(() => ({
   calls: [] as string[],
   counts: {} as Record<string, number[]>,
   countFails: new Set<string>(),
+  countHangs: new Set<string>(),
+  countReads: [] as string[],
+  aborted: [] as string[],
+  onRpc: undefined as ((fn: string) => void) | undefined,
 }));
 const admin = {
   rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
     if (!fn.endsWith("_purge") || args.p_max !== 5000) throw new Error(`unexpected ${fn}`);
     mocked.calls.push(fn);
+    mocked.onRpc?.(fn);
     return mocked.results[fn]?.shift() ?? { data: 0, error: null };
   }),
   from: (table: string) => ({
-    select: async (_cols: string, opts: { count: string; head: boolean }) => {
-      if (opts.count !== "exact" || !opts.head) throw new Error("not a head count");
-      if (mocked.countFails.has(table)) return { count: null, error: { code: "57014" } };
-      return { count: mocked.counts[table]?.shift() ?? 0, error: null };
-    },
+    select: (_cols: string, opts: { count: string; head: boolean }) => ({
+      abortSignal: async (signal: AbortSignal) => {
+        if (opts.count !== "exact" || !opts.head) throw new Error("not a head count");
+        mocked.countReads.push(table);
+        if (mocked.countHangs.has(table)) {
+          return new Promise((resolve) => signal.addEventListener("abort", () => {
+            mocked.aborted.push(table);
+            resolve({ count: null, error: { code: "20", message: "AbortError" } });
+          }));
+        }
+        if (mocked.countFails.has(table)) return { count: null, error: { code: "57014" } };
+        return { count: mocked.counts[table]?.shift() ?? 0, error: null };
+      },
+    }),
   }),
 };
 vi.mock("@/lib/server/admin", () => ({ adminClient: () => admin }));
@@ -44,6 +58,12 @@ beforeEach(() => {
   mocked.calls = [];
   mocked.counts = {};
   mocked.countFails = new Set();
+  mocked.countHangs = new Set();
+  mocked.countReads = [];
+  mocked.aborted = [];
+  mocked.onRpc = undefined;
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.stubEnv("CRON_SECRET", "cron-secret");
 });
 
@@ -100,5 +120,46 @@ describe("retention purge job", () => {
     mocked.results = Object.fromEntries(TABLES.map((t) =>
       [`${t}_purge`, [{ data: null, error: { code: "42501" } }]]));
     expect((await GET(cron("cron-secret"))).status).toBe(500);
+  });
+
+  it("aborts a count that runs out of time and answers null for it", async () => {
+    vi.useFakeTimers();
+    mocked.countHangs.add("ai_calls");
+    const pending = GET(cron("cron-secret"));
+    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(15_000);
+    const body = await (await pending).json() as {
+      tables: Record<string, { before: number | null; after: number | null }> };
+    expect(body.tables.ai_calls).toMatchObject({ before: null, after: null });
+    expect(mocked.aborted).toEqual(["ai_calls", "ai_calls"]);
+  });
+
+  it("starts no final count past the report end, and bounds a late one by the time left", async () => {
+    vi.useFakeTimers();
+    const start = Date.now();
+    // The last pass ends 285 s into the run: 5 s are left before the 290 s report end.
+    mocked.onRpc = (fn) => { if (fn === "recipe_plan_previews_purge") vi.setSystemTime(start + 285_000); };
+    mocked.countHangs.add("job_runs");
+    mocked.counts = { client_timings: [1, 1], ai_calls: [1, 1], job_runs: [], recipe_plan_previews: [1, 1] };
+    let pending = GET(cron("cron-secret"));
+    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(5_000);
+    let body = await (await pending).json() as { tables: Record<string, { after: number | null }> };
+    expect(body.tables.job_runs.after).toBeNull();
+    expect(body.tables.client_timings.after).toBe(1);
+    expect(Date.now()).toBeLessThanOrEqual(start + 290_000);
+    expect(mocked.aborted).toEqual(["job_runs", "job_runs"]);
+
+    // Past the report end no count request is made at all.
+    mocked.countHangs.clear();
+    mocked.countReads = [];
+    vi.setSystemTime(start + 400_000);
+    const late = Date.now();
+    mocked.onRpc = (fn) => { if (fn === "recipe_plan_previews_purge") vi.setSystemTime(late + 291_000); };
+    pending = GET(cron("cron-secret"));
+    await vi.advanceTimersByTimeAsync(0);
+    body = await (await pending).json() as { tables: Record<string, { after: number | null }> };
+    expect(Object.values(body.tables).map((t) => t.after)).toEqual([null, null, null, null]);
+    expect(mocked.countReads).toHaveLength(4);
   });
 });
