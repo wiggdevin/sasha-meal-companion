@@ -18,6 +18,7 @@ import SettingsSection from "@/components/settings/Section";
 import { CAPTION, CARD_TITLE } from "@/components/settings/settings-styles";
 import TargetsSection from "@/components/settings/TargetsSection";
 import CuisinesSection from "@/components/settings/CuisinesSection";
+import BackgroundSection from "@/components/settings/BackgroundSection";
 import CompanionSection from "@/components/settings/CompanionSection";
 import ProcessorsSection from "@/components/settings/ProcessorsSection";
 import WaterSection from "@/components/settings/WaterSection";
@@ -130,6 +131,8 @@ export default function SettingsPage() {
       <CuisinesSection settings={settings} />
 
       <CompanionSection />
+
+      <BackgroundSection />
 
       <HowSashaWorksCard />
 

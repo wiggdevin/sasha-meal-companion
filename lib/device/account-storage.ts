@@ -9,7 +9,7 @@ import { ACCOUNT_KEY_PREFIX, accountKey, assertCurrent, type AccountHandle } fro
 /** Device-level keys: not account data, kept across sign-ins. */
 export const DEVICE_KEYS: readonly string[] = [
   "smc:body_capability", "meal-companion:install-prompt-dismissed", "smc:device:accounts",
-  "smc:device:signal",
+  "smc:device:signal", "smc:device:ground",
 ];
 
 export const LEGACY_PREFIX = "smc:legacy:";
