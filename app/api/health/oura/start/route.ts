@@ -17,13 +17,19 @@ import { safeReturnTo } from "@/lib/health/oura-return";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** The body is only an optional same-origin return path. */
+const MAX_BODY_BYTES = 1024;
+
 async function startForUser(req: Request): Promise<string> {
   if (!process.env.HEALTH_INGEST_ENABLED) {
     throw new HttpError(503, "unavailable", "Health ingest is off.");
   }
   const { userId } = await requireUser(req);
   await enforceRateLimit(`health:oura:start:${userId}`, 10, 3600);
+  const declared = req.headers.get("content-length");
+  if (declared !== null && Number(declared) > MAX_BODY_BYTES) throw new HttpError(413, "too_large", "Body too large.");
   const raw = await req.text();
+  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) throw new HttpError(413, "too_large", "Body too large.");
   let requested: unknown;
   if (raw) {
     try {

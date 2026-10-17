@@ -2,6 +2,7 @@ import { z } from "zod";
 import { HttpError } from "@/lib/server/auth";
 import { requireRecipeUser } from "@/lib/server/recipe-access";
 import { jsonError, readJson } from "@/lib/server/http";
+import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { removePantry } from "@/lib/shopping/repository";
 import { id, requestId, revision } from "@/lib/shopping/validation";
 
@@ -12,6 +13,7 @@ export async function DELETE(req: Request,
   context: { params: Promise<{ id: string }> }): Promise<Response> {
   try {
     const { client, userId } = await requireRecipeUser(req);
+    await enforceRateLimit(`shopping-pantry:${userId}`, 60, 60);
     const itemId = (await context.params).id;
     if (!id.safeParse(itemId).success) throw new HttpError(400, "bad_request", "Invalid pantry ID.");
     const body = await readJson(req, Body, 1024);
