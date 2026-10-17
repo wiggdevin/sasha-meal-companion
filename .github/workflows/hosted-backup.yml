@@ -1,0 +1,47 @@
+name: Hosted backup
+
+# OD03 (docs/decisions/2026-10-12-owner-decisions.md): a nightly pg_dump plus the media bucket,
+# each gzipped and encrypted to an age public key, stored in the private `backups` bucket
+# (scripts/backup-hosted.py; runbook docs/operations/backup-recovery.md). The Mac copy
+# (scripts/run-backup-job.sh) continues. Nothing is uploaded as a workflow artifact: the repo is
+# public. A no-op until SUPABASE_DB_URL and SUPABASE_ACCESS_TOKEN (secrets) and
+# BACKUP_AGE_RECIPIENT (a variable: a public key) exist. ops-check.yml alerts once the newest
+# hosted backup is older than 36 hours.
+
+on:
+  schedule:
+    # 08:30 UTC, after the JSON backup's last fire (06:45) and the Mac job.
+    - cron: "30 8 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # pg_dump must match the server's major (17); scripts/lib/database_backup.py refuses a mismatch.
+      - name: Install PostgreSQL 17 client and age
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-common age
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-client-17
+
+      - name: Dump, encrypt and upload
+        run: python3 scripts/backup-hosted.py backup
+        env:
+          PG_BIN: /usr/lib/postgresql/17/bin
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
