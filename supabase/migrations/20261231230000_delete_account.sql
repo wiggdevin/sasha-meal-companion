@@ -3,7 +3,9 @@
 -- in ONE transaction, so a failure part-way leaves the account whole, never half-deleted.
 --
 --   1. A transaction advisory lock per account: two deletes of one account serialize, and the
---      second answers `already_gone`.
+--      second answers `already_gone`. Then the W034 clock lock order (migration
+--      20261231200000): `evidence_clock`, then the account's `account_rules_clock` row, before any
+--      delete below bumps either, so a sync on the account's other device cannot deadlock with it.
 --   2. The account's rows in every public table with a `user_id` column, read from pg_catalog on
 --      every call (not written here), so a table added later is covered without a change to this
 --      function. Shared rows (`user_id is null`, the catalog) never match. This step is what
@@ -12,9 +14,14 @@
 --      `recipe_items`, `log_items` and favourites still point at it with a NO ACTION key, and
 --      that check fails mid-cascade. Tables are tried in name order; one that a row elsewhere
 --      still references (23503) is retried after the others, until a pass deletes from no new
---      table. Any table left (a guard that refuses while the auth row exists) goes in step 4.
+--      table. A table whose guard refuses while the auth row exists (P0001: a held Jev row in
+--      `food_allergen_evidence` steps aside only once the account is gone) is left for step 4.
+--      Each try is its own subtransaction, so a refused one changes nothing. Deleting the
+--      account's `food_refs` and `food_facets` rows bumps the global evidence clock, as any food
+--      write does, so open-world phones refetch their snapshot once.
 --   3. Pending background work that names the account outside a foreign key: its id in a job
---      cursor's retry list, and its rate-limit windows (keys end in the user id).
+--      cursor's retry list, and the rate-limit windows whose key ends in the user id (the
+--      per-account keys; a token- or IP-keyed window names no account and expires by itself).
 --   4. The `auth.users` row itself. Every account-owned table (the tenancy manifest,
 --      tests/tenancy/table-ops.json) reaches it through ON DELETE CASCADE, so this one statement
 --      also removes whatever step 2 left, and any row a step-2 delete's trigger wrote back (a
@@ -51,6 +58,8 @@ begin
   if not exists (select 1 from auth.users where id = p_user_id) then
     return jsonb_build_object('status', 'already_gone');
   end if;
+  perform public._clock_lock_evidence();
+  perform public._clock_lock_rules(p_user_id);
 
   -- 2. The account's rows in every table with a user_id column, children before parents.
   select coalesce(array_agg(c.oid::regclass order by c.relname), '{}')
@@ -64,7 +73,7 @@ begin
     foreach v_table in array v_left loop
       begin
         execute format('delete from %s where user_id = $1', v_table) using p_user_id;
-      exception when foreign_key_violation then
+      exception when foreign_key_violation or raise_exception then
         v_next := v_next || v_table;
       end;
     end loop;

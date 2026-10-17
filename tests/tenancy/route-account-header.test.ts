@@ -92,7 +92,8 @@ async function call(file: string, method: string, headers: Record<string, string
 
 /** Feature switches on, so a flag-gated route reaches its account check instead of its 404/503. */
 const FLAGS = { COACH_ENABLED: "1", HEALTH_INGEST_ENABLED: "1", FEATURE_SCAN: "1",
-  TASTE_CHIPS_ENABLED: "1", RECIPE_PLANNING_USER_IDS: "*", CONDITION_PACKS_ENABLED: "1" };
+  TASTE_CHIPS_ENABLED: "1", RECIPE_PLANNING_USER_IDS: "*", CONDITION_PACKS_ENABLED: "1",
+  ACCOUNT_DELETION_ENABLED: "1" };
 
 beforeEach(() => {
   for (const [k, v] of Object.entries(FLAGS)) vi.stubEnv(k, v);

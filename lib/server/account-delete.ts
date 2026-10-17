@@ -65,7 +65,9 @@ async function listObjects(admin: SupabaseClient, prefix: string, depth = 0): Pr
     const path = `${prefix}/${entry.name}`;
     // A folder has no id; objects do.
     if (entry.id === null || entry.id === undefined) {
-      if (depth < MAX_DEPTH) paths.push(...await listObjects(admin, path, depth + 1));
+      // Never report the account deleted with files left behind.
+      if (depth >= MAX_DEPTH) throw new HttpError(503, "storage_unavailable", "Could not remove your files. Try again.");
+      paths.push(...await listObjects(admin, path, depth + 1));
     } else {
       paths.push(path);
     }

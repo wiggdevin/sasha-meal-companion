@@ -63,10 +63,10 @@ export const DEADLINES: Record<Budget, number> = {
   signIn: 10_000,
   /**
    * Self-serve account deletion (lib/account-delete-client.ts): the server removes the account's
-   * files, then its rows in one transaction. Rare and deliberate; a timeout reads as "not
-   * confirmed", and a retry is safe (the route is idempotent).
+   * files, then its rows in one transaction. Rare and deliberate. Longer than the route's own
+   * `maxDuration` (60 s), so the phone never gives up on a delete the server is still finishing.
    */
-  accountDelete: 30_000,
+  accountDelete: 65_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */

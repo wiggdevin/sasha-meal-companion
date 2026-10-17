@@ -69,6 +69,7 @@ const STORAGE_FILES: Record<string, string> = {
   "lib/device/account-storage.ts": "account: the smc:u:<id>: helpers",
   "lib/device/boot.ts": "IndexedDB presence check before legacy adoption; no key",
   "lib/device/forget.ts": "device: smc:device:accounts registry (ids only); reads smc-u-<id>",
+  "lib/device/erase.ts": "account, after deletion: removes smc:u:<id>:*, keys naming <id>, its registry entry and IndexedDB smc-u-<id>",
   "lib/device/legacy-recovery.ts": "device: smc:device:legacy-recovered:<op id> → owner id (W055 owner-run recovery; reads the legacy smc database, never writes it)",
   "lib/device/legacy-adoption.ts": "legacy: moves old keys under smc:legacy:, holds the smc database",
   "lib/device/tab-signal.ts": "device: smc:device:signal",

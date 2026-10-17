@@ -5,7 +5,8 @@
  *
  * A fresh account gets one row in every table the tenancy manifest declares
  * (tests/tenancy/table-ops.json, through the same builders the tenancy matrix uses), plus the
- * rows no cascade reaches (`food_facets`), a job-cursor retry key, a rate-limit window and two
+ * rows no cascade reaches (`food_facets`), a held Jev allergen row (whose guard refuses a delete
+ * while the account exists), a job-cursor retry key, a rate-limit window and two
  * Storage objects. After the delete:
  *
  * - every public table with a `user_id` column, read from the schema rather than a list here,
@@ -66,6 +67,9 @@ run("delete_account on the real schema", () => {
     for (const id of seeds) await seed(id, doomed);
     runSql(`insert into public.food_facets (food_key, input_hash, facet, rubric_version, p, model, user_id)
       values ('delete-test-${randomUUID()}', '\\x00', 'breakfast', 2, 0.5, 'test', '${doomed}')`);
+    // A held Jev allergen row: its guard refuses a delete until the auth row is gone.
+    runSql(`insert into public.food_allergen_evidence (food_key, allergen, level, source, user_id)
+      values ('user_food:${randomUUID()}:1', 'dairy', 'listed', 'jev', '${doomed}')`);
     runSql(`insert into public.job_cursors (job, period, retry_keys)
       values ('${job}', '2040-01-01', array['${doomed}', '${bystander}'])`);
     runSql(`insert into public.rate_limits (key, window_start, count, expires_at)

@@ -47,11 +47,12 @@ export async function requestAccountDeletion(
       method: "POST", cache: "no-store", credentials: "same-origin",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: "DELETE" }),
     }, { budget: "accountDelete", fetchImpl: opts.fetchImpl });
+    const body = await accountJson<{ status?: unknown; error?: unknown } | null>(h, res)
+      .catch((e: unknown) => { rethrowAccountChanged(e); return null; });
     if (res.status === 200) {
-      const body = await res.json().catch(() => null) as { status?: unknown } | null;
       return body?.status === "deleted" || body?.status === "already_gone" ? "deleted" : "failed";
     }
-    const code = (await res.json().catch(() => null) as { error?: unknown } | null)?.error;
+    const code = body?.error;
     if (res.status === 401) return code === "reauth_required" ? "reauth_required" : "signed_out";
     if (res.status === 404 && code === "not_enabled") return "not_enabled";
     if (res.status === 429) return "rate_limited";

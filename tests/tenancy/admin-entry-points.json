@@ -1,4 +1,8 @@
 {
+  "app/api/account/delete/route.ts": {
+    "test": "tests/tenancy/admin-account-delete.test.ts",
+    "via": "@/app/api/account/delete/route"
+  },
   "app/api/coach/route.ts": {
     "test": "tests/tenancy/admin-routes.test.ts",
     "via": "@/app/api/coach/route"
@@ -206,6 +210,10 @@
   "lib/mcp/health-tools.ts": {
     "test": "tests/tenancy/admin-routes.test.ts",
     "via": "@/app/api/mcp/route"
+  },
+  "lib/server/account-delete.ts": {
+    "test": "tests/tenancy/admin-account-delete.test.ts",
+    "via": "@/app/api/account/delete/route"
   },
   "lib/server/backup-dump.ts": {
     "test": "tests/tenancy/admin-backup.test.ts",
