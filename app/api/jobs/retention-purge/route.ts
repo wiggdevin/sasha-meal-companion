@@ -11,7 +11,7 @@
  * the next run and the job moves on to the next table.
  *
  * The answer names, per table, the rows purged and the row counts before and after (an exact
- * count; null when that read failed, which never fails the job).
+ * count; null when that read failed or took over 15 s, which never fails the job).
  *
  * The cron secret is checked before the rate limit, as every job (scale S2): the limit is a shared
  * counter an unauthenticated caller must not spend. The limit fails closed. Vercel's scheduler
@@ -42,12 +42,24 @@ type Table = (typeof RETENTION_TABLES)[number];
 type TableResult = { purged: number; passes: number; before: number | null;
   after: number | null; incomplete?: true };
 
+/** A count that takes longer than this answers null: it is a report, never worth the run. */
+const COUNT_MS = 15_000;
+
 async function rowCount(admin: ReturnType<typeof adminClient>, table: Table): Promise<number | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), COUNT_MS); });
+  const read = (async () => {
+    try {
+      const { count, error } = await admin.from(table).select("*", { count: "exact", head: true });
+      return !error && typeof count === "number" ? count : null;
+    } catch {
+      return null;
+    }
+  })();
   try {
-    const { count, error } = await admin.from(table).select("*", { count: "exact", head: true });
-    return !error && typeof count === "number" ? count : null;
-  } catch {
-    return null;
+    return await Promise.race([read, late]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 

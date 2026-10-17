@@ -13,6 +13,8 @@
 --         until the hold is settled or reconciled. A hold already pruned is not open.
 --       - a coach message cites (coach_messages.ai_call_id, a foreign key with no cascade): that
 --         is the stored proof a reply came from a model, kept as long as the message.
+--     Most coach-turn calls are cited, so this purge mostly removes capture, plan, intent and
+--     background calls; the cited ones go when their thread or account is deleted.
 --     The spend caps read their own day tables (40 days), the circuit breaker minutes, and the
 --     capture duplicate probe hours, so nothing reads ai_calls past 90 days.
 --   * job_runs, 60 days by started_at. Every lock key is the current date or week (oura-pull,

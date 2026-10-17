@@ -7,6 +7,10 @@
  * Acceptance: each purge deletes only rows past its window, at most p_max per call; the ai_calls
  * purge keeps a row whose spend hold is still unsettled (and lets it go once the hold settles) and
  * a row a coach message cites; no API role can call a purge.
+ *
+ * The purges run against the whole shared stack, so this file relies on `test:integration`
+ * running files one at a time (--no-file-parallelism): in parallel, another file's cleanup of user
+ * A's spend holds could release the hold this file's held call depends on.
  */
 import "../tenancy/local-only";
 import { readFileSync } from "node:fs";

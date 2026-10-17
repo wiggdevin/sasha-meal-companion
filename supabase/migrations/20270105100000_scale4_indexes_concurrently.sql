@@ -15,8 +15,9 @@
 -- NOT IN A TRANSACTION. CREATE INDEX CONCURRENTLY refuses to run inside a transaction block, so
 -- this file has no `set local` lines and nothing but the four statements:
 --   * The Supabase CLI (2.120.0, `supabase start` / `db reset` in CI and scripts/test-stack.sh)
---     runs a CONCURRENTLY statement on its own, outside the file's batch (migration-apply.ts
---     `isPipelineIncompatible`), then records the version.
+--     runs a CONCURRENTLY statement on its own, outside the file's batch, then records the version
+--     (its migration apply matches `^CREATE\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY` as
+--     pipeline-incompatible; the pattern is in the @supabase/cli-linux-x64 2.120.0 binary).
 --   * scripts/apply-migrations.py wraps each file in begin/commit and CANNOT apply this file: it
 --     fails before building anything and stops there. Apply it by hand instead, as the PR says:
 --     `psql "$DB_URL" -v ON_ERROR_STOP=1 -f <this file>` (psql runs each statement in its own
