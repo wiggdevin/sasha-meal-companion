@@ -1,0 +1,131 @@
+{
+  "generatedAt": "2026-10-17T11:41:17.105Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 26,
+  "case": {
+    "id": "meals-p2-future-breakfast",
+    "category": "meals",
+    "sentence": "What's my breakfast on 2026-10-05?",
+    "expected_path": "llm",
+    "note": "P2 follows P1 in the same thread: report Sourdough toast, bacon & eggs from the materialized plan",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4939,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4939 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"You had no meal planned for Meal 1 on October 5th.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 future plan materialized",
+      "passed": false,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":null}"
+    },
+    {
+      "name": "C9 future plan reported",
+      "passed": false,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"You had no meal planned for Meal 1 on October 5th.\"}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "e67d31b2-6fc0-495d-a247-6bceb4423be5",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "get_plan"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 7,
+      "model": 3773,
+      "ground": 10
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "2f5f2bfb-d380-457a-918f-7d50c1788c7c",
+        "role": "user",
+        "content": "What's my breakfast on 2026-10-05?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "129d98aa-d216-42b8-a9ae-afed9d568b1f",
+        "role": "assistant",
+        "content": "You had no meal planned for Meal 1 on October 5th.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

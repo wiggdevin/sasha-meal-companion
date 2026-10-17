@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-10-17T11:25:48.195Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 9,
+  "case": {
+    "id": "block-weight-trend",
+    "category": "block",
+    "sentence": "how's my weight trending?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "weight_trend"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4953,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4953 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"No weigh-ins yet.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [chart]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected chart subtype",
+      "passed": false,
+      "detail": "expected weight_trend; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "fb6e25ea-2e99-4b0e-9c0b-c88a23bb24ef",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 3,
+      "model": 3852,
+      "ground": 6
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "e2be6c95-8532-458f-8937-fa54678be995",
+        "role": "user",
+        "content": "how's my weight trending?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "39985363-43b5-4991-a33d-566f76a177bb",
+        "role": "assistant",
+        "content": "No weigh-ins yet.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

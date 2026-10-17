@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-10-17T11:43:26.685Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 36,
+  "case": {
+    "id": "question-food-left",
+    "category": "no_action",
+    "sentence": "what do I have left to eat today?",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3005,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3005 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"You have 1473 kcal, 112 g protein, 93 g carbs, and 61 g fat left to eat today.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "f623dcde-719e-433c-a700-e86fee5d1dd6",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 3,
+      "model": 1969,
+      "ground": 2
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "ec7e8cce-0de2-4e8b-8554-3b225b65f17e",
+        "role": "user",
+        "content": "what do I have left to eat today?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "8656a566-1136-4eeb-833c-ddf80fe50704",
+        "role": "assistant",
+        "content": "You have 1473 kcal, 112 g protein, 93 g carbs, and 61 g fat left to eat today.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,739 @@
+{
+  "generatedAt": "2026-10-17T11:39:37.737Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 19,
+  "case": {
+    "id": "jev-tiny-rice-log",
+    "category": "jev",
+    "sentence": "log 1 g of rice",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "tiny_log_commit",
+      "grams": 1
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4258,
+    "actions": [
+      "log_meal",
+      "log_meal"
+    ],
+    "blocks": [
+      "next_action_chip"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "e3ea097c-3326-4bf8-96d8-6366e088aafd",
+        "kind": "next_action_chip",
+        "label": "Pick from your suggestions",
+        "action": "pick_suggestion"
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.06,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "Logged 1 g of rice.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [
+          {
+            "v": 1,
+            "id": "e3ea097c-3326-4bf8-96d8-6366e088aafd",
+            "kind": "next_action_chip",
+            "label": "Pick from your suggestions",
+            "action": "pick_suggestion"
+          }
+        ],
+        "actions": [
+          {
+            "date": "2026-10-17",
+            "kind": "log_meal",
+            "slot": "meal-1",
+            "items": [
+              {
+                "name": "Rice, white, cooked",
+                "grams": 1,
+                "marks": [
+                  {
+                    "facet": "gluten",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "dairy",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "apple",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  }
+                ],
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "kind": "portion",
+                      "level": "tiny",
+                      "itemId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f:0",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                },
+                "verdict": "unverified",
+                "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 13
+              }
+            ],
+            "title": "Rice, white, cooked",
+            "flagged": [],
+            "actionId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f"
+          },
+          {
+            "date": "2026-10-17",
+            "kind": "log_meal",
+            "slot": "meal-1",
+            "items": [
+              {
+                "name": "Rice, white, cooked",
+                "grams": 1,
+                "marks": [
+                  {
+                    "facet": "gluten",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "dairy",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "apple",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  }
+                ],
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "kind": "portion",
+                      "level": "tiny",
+                      "itemId": "ec833f6d-c4c8-4709-9f58-3873252adc41:0",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                },
+                "verdict": "unverified",
+                "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 13
+              }
+            ],
+            "title": "Rice, white, cooked",
+            "flagged": [],
+            "actionId": "ec833f6d-c4c8-4709-9f58-3873252adc41"
+          }
+        ],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": [
+          {
+            "name": "Rice, white, cooked",
+            "grams": 1,
+            "reason": null,
+            "verdict": "allowed",
+            "foodRefId": null
+          }
+        ]
+      },
+      "actions": [
+        {
+          "date": "2026-10-17",
+          "kind": "log_meal",
+          "slot": "meal-1",
+          "items": [
+            {
+              "name": "Rice, white, cooked",
+              "grams": 1,
+              "marks": [
+                {
+                  "facet": "gluten",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "dairy",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "apple",
+                  "source": "floor",
+                  "outcome": "unknown"
+                }
+              ],
+              "sanity": {
+                "status": "warn",
+                "warnings": [
+                  {
+                    "kind": "portion",
+                    "level": "tiny",
+                    "itemId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f:0",
+                    "message": "This serving is under 2 g."
+                  }
+                ]
+              },
+              "verdict": "unverified",
+              "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+              "fatPer100g": 0.3,
+              "kcalPer100g": 130,
+              "carbsPer100g": 28,
+              "proteinPer100g": 2.7,
+              "catalogFoodRevisionId": 13
+            }
+          ],
+          "title": "Rice, white, cooked",
+          "flagged": [],
+          "actionId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f"
+        },
+        {
+          "date": "2026-10-17",
+          "kind": "log_meal",
+          "slot": "meal-1",
+          "items": [
+            {
+              "name": "Rice, white, cooked",
+              "grams": 1,
+              "marks": [
+                {
+                  "facet": "gluten",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "dairy",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "apple",
+                  "source": "floor",
+                  "outcome": "unknown"
+                }
+              ],
+              "sanity": {
+                "status": "warn",
+                "warnings": [
+                  {
+                    "kind": "portion",
+                    "level": "tiny",
+                    "itemId": "ec833f6d-c4c8-4709-9f58-3873252adc41:0",
+                    "message": "This serving is under 2 g."
+                  }
+                ]
+              },
+              "verdict": "unverified",
+              "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+              "fatPer100g": 0.3,
+              "kcalPer100g": 130,
+              "carbsPer100g": 28,
+              "proteinPer100g": 2.7,
+              "catalogFoodRevisionId": 13
+            }
+          ],
+          "title": "Rice, white, cooked",
+          "flagged": [],
+          "actionId": "ec833f6d-c4c8-4709-9f58-3873252adc41"
+        }
+      ],
+      "blocks": [
+        {
+          "v": 1,
+          "id": "e3ea097c-3326-4bf8-96d8-6366e088aafd",
+          "kind": "next_action_chip",
+          "label": "Pick from your suggestions",
+          "action": "pick_suggestion"
+        }
+      ],
+      "commit": {
+        "status": "ok",
+        "entry_id": "53d42f1a-854c-470b-ba0c-cb05de5bfeec",
+        "rev": 1,
+        "items": [
+          {
+            "id": "e21c24ba-2616-4a53-bad0-974c0d11a712",
+            "entry_id": "53d42f1a-854c-470b-ba0c-cb05de5bfeec",
+            "seq": 1,
+            "food_ref_id": "067ea2d7-0597-4847-a380-d8841b799bf1",
+            "qty": 1,
+            "unit": "g",
+            "grams": 1,
+            "portion_id": null,
+            "food_revision_id": 13,
+            "was_edited": false,
+            "confidence": null,
+            "snapshot": {
+              "protein": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.027,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              },
+              "fat_total": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.003,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              },
+              "energy_kcal": {
+                "unit": "kcal",
+                "basis": "per_100g",
+                "amount": 1.3,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              },
+              "carbohydrate": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.28,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              }
+            },
+            "nutrition_partial": null
+          }
+        ],
+        "totals": {
+          "local_date": "2026-10-17",
+          "nutrients": [
+            {
+              "code": "energy_kcal_calc",
+              "amount": 420,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "protein",
+              "amount": 18.027,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "carbohydrate",
+              "amount": 72.28,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "energy_kcal",
+              "amount": 421.3,
+              "unit": "kcal",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "fat_total",
+              "amount": 8.003,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            }
+          ],
+          "micro_coverage_pct": 0
+        },
+        "flagged": [
+          {
+            "path": "items.0",
+            "message": "unverified:allergen:gluten"
+          },
+          {
+            "path": "items.0",
+            "message": "unverified:allergen:dairy"
+          },
+          {
+            "path": "items.0",
+            "message": "unverified:allergen:apple"
+          }
+        ]
+      },
+      "logEntry": {
+        "id": "53d42f1a-854c-470b-ba0c-cb05de5bfeec",
+        "grams": [
+          1
+        ]
+      },
+      "rankingPurposes": [
+        "coach-intent",
+        "coach-openrouter"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_meal]; got [log_meal, log_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4258 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.06"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 1 g of rice.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected []; got [next_action_chip]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "Jev persisted tiny-portion warning",
+      "passed": true,
+      "detail": "{\"name\":\"Rice, white, cooked\",\"grams\":1,\"marks\":[{\"facet\":\"gluten\",\"source\":\"floor\",\"outcome\":\"unknown\"},{\"facet\":\"dairy\",\"source\":\"floor\",\"outcome\":\"unknown\"},{\"facet\":\"apple\",\"source\":\"floor\",\"outcome\":\"unknown\"}],\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"c7a849e8-e8ed-440f-b7f1-e607f0df286f:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"unverified\",\"foodRefId\":\"067ea2d7-0597-4847-a380-d8841b799bf1\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":13}"
+    },
+    {
+      "name": "Jev tiny log committed",
+      "passed": true,
+      "detail": "{\"status\":\"ok\",\"entry_id\":\"53d42f1a-854c-470b-ba0c-cb05de5bfeec\",\"rev\":1,\"items\":[{\"id\":\"e21c24ba-2616-4a53-bad0-974c0d11a712\",\"entry_id\":\"53d42f1a-854c-470b-ba0c-cb05de5bfeec\",\"seq\":1,\"food_ref_id\":\"067ea2d7-0597-4847-a380-d8841b799bf1\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":13,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"}},\"nutrition_partial\":null}],\"totals\":{\"local_date\":\"2026-10-17\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":421.3,\"unit\":\"kcal\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0},\"flagged\":[{\"path\":\"items.0\",\"message\":\"unverified:allergen:gluten\"},{\"path\":\"items.0\",\"message\":\"unverified:allergen:dairy\"},{\"path\":\"items.0\",\"message\":\"unverified:allergen:apple\"}]}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "dc532bf7-09f8-498b-bad2-928ff8163889",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "Rice, white, cooked",
+        "grams": 1,
+        "reason": null,
+        "verdict": "allowed"
+      }
+    ],
+    "actions": [
+      {
+        "date": "2026-10-17",
+        "kind": "log_meal",
+        "slot": "meal-1",
+        "items": [
+          {
+            "name": "Rice, white, cooked",
+            "grams": 1,
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "sanity": {
+              "status": "warn",
+              "warnings": [
+                {
+                  "kind": "portion",
+                  "level": "tiny",
+                  "itemId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f:0",
+                  "message": "This serving is under 2 g."
+                }
+              ]
+            },
+            "verdict": "unverified",
+            "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+            "fatPer100g": 0.3,
+            "kcalPer100g": 130,
+            "carbsPer100g": 28,
+            "proteinPer100g": 2.7,
+            "catalogFoodRevisionId": 13
+          }
+        ],
+        "title": "Rice, white, cooked",
+        "flagged": [],
+        "actionId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f"
+      },
+      {
+        "date": "2026-10-17",
+        "kind": "log_meal",
+        "slot": "meal-1",
+        "items": [
+          {
+            "name": "Rice, white, cooked",
+            "grams": 1,
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "sanity": {
+              "status": "warn",
+              "warnings": [
+                {
+                  "kind": "portion",
+                  "level": "tiny",
+                  "itemId": "ec833f6d-c4c8-4709-9f58-3873252adc41:0",
+                  "message": "This serving is under 2 g."
+                }
+              ]
+            },
+            "verdict": "unverified",
+            "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+            "fatPer100g": 0.3,
+            "kcalPer100g": 130,
+            "carbsPer100g": 28,
+            "proteinPer100g": 2.7,
+            "catalogFoodRevisionId": 13
+          }
+        ],
+        "title": "Rice, white, cooked",
+        "flagged": [],
+        "actionId": "ec833f6d-c4c8-4709-9f58-3873252adc41"
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 438,
+      "model": 2574,
+      "ground": 409
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "f65d46b4-0a07-4373-8168-f152be9e5315",
+        "role": "user",
+        "content": "log 1 g of rice",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "431705cf-783c-4143-aebb-87d5738361c5",
+        "role": "assistant",
+        "content": "Logged 1 g of rice.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "next_action_chip",
+            "v": 1,
+            "id": "e3ea097c-3326-4bf8-96d8-6366e088aafd",
+            "action": "pick_suggestion",
+            "label": "Pick from your suggestions",
+            "provenance": {
+              "ai": false,
+              "source": "app"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "actionId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f",
+            "flagged": [],
+            "kind": "log_meal",
+            "date": "2026-10-17",
+            "slot": "meal-1",
+            "title": "Rice, white, cooked",
+            "items": [
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+                "catalogFoodRevisionId": 13,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "unverified",
+                "marks": [
+                  {
+                    "facet": "gluten",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "dairy",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "apple",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  }
+                ],
+                "grams": 1,
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "itemId": "c7a849e8-e8ed-440f-b7f1-e607f0df286f:0",
+                      "kind": "portion",
+                      "level": "tiny",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "actionId": "ec833f6d-c4c8-4709-9f58-3873252adc41",
+            "flagged": [],
+            "kind": "log_meal",
+            "date": "2026-10-17",
+            "slot": "meal-1",
+            "title": "Rice, white, cooked",
+            "items": [
+              {
+                "name": "Rice, white, cooked",
+                "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+                "catalogFoodRevisionId": 13,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "unverified",
+                "marks": [
+                  {
+                    "facet": "gluten",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "dairy",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "apple",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  }
+                ],
+                "grams": 1,
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "itemId": "ec833f6d-c4c8-4709-9f58-3873252adc41:0",
+                      "kind": "portion",
+                      "level": "tiny",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

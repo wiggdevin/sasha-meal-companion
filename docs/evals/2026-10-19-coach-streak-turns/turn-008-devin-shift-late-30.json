@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-10-17T11:36:30.223Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 8,
+  "case": {
+    "id": "devin-shift-late-30",
+    "category": "devin",
+    "sentence": "I woke up late, can you move all my meals by 30 minutes?",
+    "expected_path": "either",
+    "note": "argument-confidence rule: direction and scope are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [
+      "shift_schedule"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3340,
+    "actions": [
+      "shift_schedule"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.12,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [shift_schedule]; got [shift_schedule]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3340 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.12"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Moved all your meals 30 minutes later. They are now at 08:30, 12:00, 15:30 and 19:00.\""
+    },
+    {
+      "name": "C11 +30 remaining shift",
+      "passed": false,
+      "detail": "{\"kind\":\"shift_schedule\",\"date\":\"2026-10-17\",\"minutes\":30,\"scope\":\"all\",\"actionId\":\"1f58ff12-8c69-4a57-b82f-08f9bc452439\",\"flagged\":[]}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "f0f3ea03-695d-41b2-bec3-9800ece53b7a",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "shift_schedule",
+        "date": "2026-10-17",
+        "minutes": 30,
+        "scope": "all",
+        "actionId": "1f58ff12-8c69-4a57-b82f-08f9bc452439",
+        "flagged": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 6,
+      "model": 2183,
+      "ground": 12
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "d167045d-12cf-4212-acc7-f7a02c970e86",
+        "role": "user",
+        "content": "I woke up late, can you move all my meals by 30 minutes?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "46439ea0-1b05-41c0-9295-8628c6db9be0",
+        "role": "assistant",
+        "content": "Moved all your meals 30 minutes later. They are now at 08:30, 12:00, 15:30 and 19:00.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "1f58ff12-8c69-4a57-b82f-08f9bc452439",
+            "flagged": [],
+            "kind": "shift_schedule",
+            "date": "2026-10-17",
+            "minutes": 30,
+            "scope": "all"
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

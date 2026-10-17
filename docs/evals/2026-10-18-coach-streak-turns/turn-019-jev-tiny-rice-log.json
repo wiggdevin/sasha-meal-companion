@@ -1,0 +1,542 @@
+{
+  "generatedAt": "2026-10-17T11:28:32.140Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 19,
+  "case": {
+    "id": "jev-tiny-rice-log",
+    "category": "jev",
+    "sentence": "log 1 g of rice",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "log_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "tiny_log_commit",
+      "grams": 1
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4241,
+    "actions": [
+      "log_meal"
+    ],
+    "blocks": [
+      "next_action_chip"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "88d0eb2d-2d47-4621-9651-9729731baf23",
+        "kind": "next_action_chip",
+        "label": "Pick from your suggestions",
+        "action": "pick_suggestion"
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.06,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "Logged 1 g of rice for Meal 2.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [
+          {
+            "v": 1,
+            "id": "88d0eb2d-2d47-4621-9651-9729731baf23",
+            "kind": "next_action_chip",
+            "label": "Pick from your suggestions",
+            "action": "pick_suggestion"
+          }
+        ],
+        "actions": [
+          {
+            "date": "2026-10-17",
+            "kind": "log_meal",
+            "slot": "meal-2",
+            "items": [
+              {
+                "name": "rice",
+                "grams": 1,
+                "marks": [
+                  {
+                    "facet": "gluten",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "dairy",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "apple",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  }
+                ],
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "kind": "portion",
+                      "level": "tiny",
+                      "itemId": "55f2267d-afc2-42ce-8306-828433682f0e:0",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                },
+                "verdict": "unverified",
+                "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+                "fatPer100g": 0.3,
+                "kcalPer100g": 130,
+                "carbsPer100g": 28,
+                "proteinPer100g": 2.7,
+                "catalogFoodRevisionId": 13
+              }
+            ],
+            "title": "Rice",
+            "flagged": [],
+            "actionId": "55f2267d-afc2-42ce-8306-828433682f0e"
+          }
+        ],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": [
+          {
+            "name": "rice",
+            "grams": 1,
+            "reason": null,
+            "verdict": "allowed",
+            "foodRefId": null
+          }
+        ]
+      },
+      "actions": [
+        {
+          "date": "2026-10-17",
+          "kind": "log_meal",
+          "slot": "meal-2",
+          "items": [
+            {
+              "name": "rice",
+              "grams": 1,
+              "marks": [
+                {
+                  "facet": "gluten",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "dairy",
+                  "source": "floor",
+                  "outcome": "unknown"
+                },
+                {
+                  "facet": "apple",
+                  "source": "floor",
+                  "outcome": "unknown"
+                }
+              ],
+              "sanity": {
+                "status": "warn",
+                "warnings": [
+                  {
+                    "kind": "portion",
+                    "level": "tiny",
+                    "itemId": "55f2267d-afc2-42ce-8306-828433682f0e:0",
+                    "message": "This serving is under 2 g."
+                  }
+                ]
+              },
+              "verdict": "unverified",
+              "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+              "fatPer100g": 0.3,
+              "kcalPer100g": 130,
+              "carbsPer100g": 28,
+              "proteinPer100g": 2.7,
+              "catalogFoodRevisionId": 13
+            }
+          ],
+          "title": "Rice",
+          "flagged": [],
+          "actionId": "55f2267d-afc2-42ce-8306-828433682f0e"
+        }
+      ],
+      "blocks": [
+        {
+          "v": 1,
+          "id": "88d0eb2d-2d47-4621-9651-9729731baf23",
+          "kind": "next_action_chip",
+          "label": "Pick from your suggestions",
+          "action": "pick_suggestion"
+        }
+      ],
+      "commit": {
+        "status": "ok",
+        "entry_id": "0a7d0cf9-de2a-444a-bffa-aaa36cafca33",
+        "rev": 1,
+        "items": [
+          {
+            "id": "539aeeb3-0fa4-4bd2-9493-10f554949053",
+            "entry_id": "0a7d0cf9-de2a-444a-bffa-aaa36cafca33",
+            "seq": 1,
+            "food_ref_id": "067ea2d7-0597-4847-a380-d8841b799bf1",
+            "qty": 1,
+            "unit": "g",
+            "grams": 1,
+            "portion_id": null,
+            "food_revision_id": 13,
+            "was_edited": false,
+            "confidence": null,
+            "snapshot": {
+              "protein": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.027,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              },
+              "fat_total": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.003,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              },
+              "energy_kcal": {
+                "unit": "kcal",
+                "basis": "per_100g",
+                "amount": 1.3,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              },
+              "carbohydrate": {
+                "unit": "g",
+                "basis": "per_100g",
+                "amount": 0.28,
+                "source": "fdc_branded",
+                "revision_id": 13,
+                "source_version": "test-1"
+              }
+            },
+            "nutrition_partial": null
+          }
+        ],
+        "totals": {
+          "local_date": "2026-10-17",
+          "nutrients": [
+            {
+              "code": "energy_kcal_calc",
+              "amount": 420,
+              "unit": "kcal",
+              "itemsWithValue": 1,
+              "itemsTotal": 2,
+              "coverage": 0.5
+            },
+            {
+              "code": "protein",
+              "amount": 18.027,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "carbohydrate",
+              "amount": 72.28,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "energy_kcal",
+              "amount": 421.3,
+              "unit": "kcal",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            },
+            {
+              "code": "fat_total",
+              "amount": 8.003,
+              "unit": "g",
+              "itemsWithValue": 2,
+              "itemsTotal": 2,
+              "coverage": 1
+            }
+          ],
+          "micro_coverage_pct": 0
+        },
+        "flagged": [
+          {
+            "path": "items.0",
+            "message": "unverified:allergen:gluten"
+          },
+          {
+            "path": "items.0",
+            "message": "unverified:allergen:dairy"
+          },
+          {
+            "path": "items.0",
+            "message": "unverified:allergen:apple"
+          }
+        ]
+      },
+      "logEntry": {
+        "id": "0a7d0cf9-de2a-444a-bffa-aaa36cafca33",
+        "grams": [
+          1
+        ]
+      },
+      "rankingPurposes": [
+        "coach-intent",
+        "coach-openrouter"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_meal]; got [log_meal]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4241 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.06"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 1 g of rice for Meal 2.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected []; got [next_action_chip]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "Jev persisted tiny-portion warning",
+      "passed": true,
+      "detail": "{\"name\":\"rice\",\"grams\":1,\"marks\":[{\"facet\":\"gluten\",\"source\":\"floor\",\"outcome\":\"unknown\"},{\"facet\":\"dairy\",\"source\":\"floor\",\"outcome\":\"unknown\"},{\"facet\":\"apple\",\"source\":\"floor\",\"outcome\":\"unknown\"}],\"sanity\":{\"status\":\"warn\",\"warnings\":[{\"kind\":\"portion\",\"level\":\"tiny\",\"itemId\":\"55f2267d-afc2-42ce-8306-828433682f0e:0\",\"message\":\"This serving is under 2 g.\"}]},\"verdict\":\"unverified\",\"foodRefId\":\"067ea2d7-0597-4847-a380-d8841b799bf1\",\"fatPer100g\":0.3,\"kcalPer100g\":130,\"carbsPer100g\":28,\"proteinPer100g\":2.7,\"catalogFoodRevisionId\":13}"
+    },
+    {
+      "name": "Jev tiny log committed",
+      "passed": true,
+      "detail": "{\"status\":\"ok\",\"entry_id\":\"0a7d0cf9-de2a-444a-bffa-aaa36cafca33\",\"rev\":1,\"items\":[{\"id\":\"539aeeb3-0fa4-4bd2-9493-10f554949053\",\"entry_id\":\"0a7d0cf9-de2a-444a-bffa-aaa36cafca33\",\"seq\":1,\"food_ref_id\":\"067ea2d7-0597-4847-a380-d8841b799bf1\",\"qty\":1,\"unit\":\"g\",\"grams\":1,\"portion_id\":null,\"food_revision_id\":13,\"was_edited\":false,\"confidence\":null,\"snapshot\":{\"protein\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.027,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"fat_total\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.003,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"energy_kcal\":{\"unit\":\"kcal\",\"basis\":\"per_100g\",\"amount\":1.3,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"},\"carbohydrate\":{\"unit\":\"g\",\"basis\":\"per_100g\",\"amount\":0.28,\"source\":\"fdc_branded\",\"revision_id\":13,\"source_version\":\"test-1\"}},\"nutrition_partial\":null}],\"totals\":{\"local_date\":\"2026-10-17\",\"nutrients\":[{\"code\":\"energy_kcal_calc\",\"amount\":420,\"unit\":\"kcal\",\"itemsWithValue\":1,\"itemsTotal\":2,\"coverage\":0.5},{\"code\":\"protein\",\"amount\":18.027,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"carbohydrate\",\"amount\":72.28,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"energy_kcal\",\"amount\":421.3,\"unit\":\"kcal\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1},{\"code\":\"fat_total\",\"amount\":8.003,\"unit\":\"g\",\"itemsWithValue\":2,\"itemsTotal\":2,\"coverage\":1}],\"micro_coverage_pct\":0},\"flagged\":[{\"path\":\"items.0\",\"message\":\"unverified:allergen:gluten\"},{\"path\":\"items.0\",\"message\":\"unverified:allergen:dairy\"},{\"path\":\"items.0\",\"message\":\"unverified:allergen:apple\"}]}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "b4496b98-309d-4114-9fbb-1daeb2152dcd",
+    "suggestions": [
+      {
+        "foodRefId": null,
+        "name": "rice",
+        "grams": 1,
+        "reason": null,
+        "verdict": "allowed"
+      }
+    ],
+    "actions": [
+      {
+        "date": "2026-10-17",
+        "kind": "log_meal",
+        "slot": "meal-2",
+        "items": [
+          {
+            "name": "rice",
+            "grams": 1,
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "sanity": {
+              "status": "warn",
+              "warnings": [
+                {
+                  "kind": "portion",
+                  "level": "tiny",
+                  "itemId": "55f2267d-afc2-42ce-8306-828433682f0e:0",
+                  "message": "This serving is under 2 g."
+                }
+              ]
+            },
+            "verdict": "unverified",
+            "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+            "fatPer100g": 0.3,
+            "kcalPer100g": 130,
+            "carbsPer100g": 28,
+            "proteinPer100g": 2.7,
+            "catalogFoodRevisionId": 13
+          }
+        ],
+        "title": "Rice",
+        "flagged": [],
+        "actionId": "55f2267d-afc2-42ce-8306-828433682f0e"
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 406,
+      "model": 2655,
+      "ground": 397
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "7e26b4c2-83d3-4f4b-bd92-b104389009ad",
+        "role": "user",
+        "content": "log 1 g of rice",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "bf5b30fa-4154-4e01-b3f4-5e0d8704f3c6",
+        "role": "assistant",
+        "content": "Logged 1 g of rice for Meal 2.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "next_action_chip",
+            "v": 1,
+            "id": "88d0eb2d-2d47-4621-9651-9729731baf23",
+            "action": "pick_suggestion",
+            "label": "Pick from your suggestions",
+            "provenance": {
+              "ai": false,
+              "source": "app"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "actionId": "55f2267d-afc2-42ce-8306-828433682f0e",
+            "flagged": [],
+            "kind": "log_meal",
+            "date": "2026-10-17",
+            "slot": "meal-2",
+            "title": "Rice",
+            "items": [
+              {
+                "name": "rice",
+                "foodRefId": "067ea2d7-0597-4847-a380-d8841b799bf1",
+                "catalogFoodRevisionId": 13,
+                "kcalPer100g": 130,
+                "proteinPer100g": 2.7,
+                "carbsPer100g": 28,
+                "fatPer100g": 0.3,
+                "verdict": "unverified",
+                "marks": [
+                  {
+                    "facet": "gluten",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "dairy",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  },
+                  {
+                    "facet": "apple",
+                    "source": "floor",
+                    "outcome": "unknown"
+                  }
+                ],
+                "grams": 1,
+                "sanity": {
+                  "status": "warn",
+                  "warnings": [
+                    {
+                      "itemId": "55f2267d-afc2-42ce-8306-828433682f0e:0",
+                      "kind": "portion",
+                      "level": "tiny",
+                      "message": "This serving is under 2 g."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "generatedAt": "2026-10-17T11:40:30.676Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 23,
+  "case": {
+    "id": "list-eggs-cant-do",
+    "category": "list_edit",
+    "sentence": "I can't do eggs anymore",
+    "expected_path": "either",
+    "note": "argument-confidence rule: implicit list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3982,
+    "actions": [
+      "add_to_avoid"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.09,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_avoid]; got [add_to_avoid]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3982 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.09"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Eggs are on your avoid list now.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "15fa2fa0-89f1-4d1f-bd7b-d0f9e103e241",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "add_to_avoid",
+        "name": "Eggs, cooked",
+        "foodRefId": "257a291e-6d18-453e-8e5d-e3557b12a9b3",
+        "catalogFoodRevisionId": 7,
+        "kcalPer100g": 155,
+        "proteinPer100g": 12.6,
+        "carbsPer100g": 1.1,
+        "fatPer100g": 10.6,
+        "verdict": "unverified",
+        "marks": [
+          {
+            "facet": "gluten",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "dairy",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "apple",
+            "source": "floor",
+            "outcome": "unknown"
+          }
+        ],
+        "actionId": "79ff6678-26a3-447f-852a-1f15ebbf6e28",
+        "flagged": [],
+        "alsoFoodRefIds": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 7,
+      "model": 2784,
+      "ground": 428
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "d976448e-c6f0-4a50-843b-ca28d7b2ba66",
+        "role": "user",
+        "content": "I can't do eggs anymore",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "19d4e177-99c2-4d1e-9e2f-83933ccd965c",
+        "role": "assistant",
+        "content": "Eggs are on your avoid list now.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "name": "Eggs, cooked",
+            "foodRefId": "257a291e-6d18-453e-8e5d-e3557b12a9b3",
+            "catalogFoodRevisionId": 7,
+            "kcalPer100g": 155,
+            "proteinPer100g": 12.6,
+            "carbsPer100g": 1.1,
+            "fatPer100g": 10.6,
+            "verdict": "unverified",
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "actionId": "79ff6678-26a3-447f-852a-1f15ebbf6e28",
+            "flagged": [],
+            "kind": "add_to_avoid",
+            "alsoFoodRefIds": []
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

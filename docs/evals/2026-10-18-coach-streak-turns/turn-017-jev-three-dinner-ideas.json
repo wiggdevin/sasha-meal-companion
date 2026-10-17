@@ -1,0 +1,174 @@
+{
+  "generatedAt": "2026-10-17T11:28:01.372Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 17,
+  "case": {
+    "id": "jev-three-dinner-ideas",
+    "category": "jev",
+    "sentence": "give me three dinner ideas that fit my preferences",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 3,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_ideas"
+    ],
+    "expected_jev": {
+      "kind": "ranked_suggestions",
+      "purpose": "suggest-options",
+      "calls": 1
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6990,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "Some foods are hidden until their labels are checked",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "suggest_options"
+          }
+        ],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 3-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6990 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Some foods are hidden until their labels are checked\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_ideas]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev exactly one persisted ranking call",
+      "passed": false,
+      "detail": "[\"coach-openrouter\",\"coach-openrouter\",\"coach-verify\"]"
+    },
+    {
+      "name": "Jev persisted cards are policy-clean",
+      "passed": false,
+      "detail": "{\"ideas\":0,\"verdicts\":[]}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "3d0901cd-a322-49dd-8e8c-a9fb801b9881",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 3,
+      "model": 4182,
+      "ground": 4
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "2d7b6819-d189-4aae-bb25-b5701715147c",
+        "role": "user",
+        "content": "give me three dinner ideas that fit my preferences",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "31c2973d-b2fa-4bfe-b9e8-3e64a11abfd8",
+        "role": "assistant",
+        "content": "Some foods are hidden until their labels are checked",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

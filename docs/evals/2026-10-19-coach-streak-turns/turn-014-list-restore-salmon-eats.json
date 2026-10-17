@@ -1,0 +1,183 @@
+{
+  "generatedAt": "2026-10-17T11:38:21.146Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 14,
+  "case": {
+    "id": "list-restore-salmon-eats",
+    "category": "list_edit",
+    "sentence": "put salmon back on eats",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4070,
+    "actions": [
+      "add_to_eats"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.34,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [add_to_eats]; got [add_to_eats]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4070 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.34"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Salmon is on your Favored list.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "b1f2e1a4-fc50-4835-b751-50f74103c4ee",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "add_to_eats",
+        "name": "Salmon, cooked",
+        "foodRefId": "158512be-73dd-46bb-b72e-0f3dc110c11b",
+        "catalogFoodRevisionId": 4,
+        "kcalPer100g": 206,
+        "proteinPer100g": 22,
+        "carbsPer100g": 0,
+        "fatPer100g": 12,
+        "verdict": "unverified",
+        "marks": [
+          {
+            "facet": "gluten",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "dairy",
+            "source": "floor",
+            "outcome": "unknown"
+          },
+          {
+            "facet": "apple",
+            "source": "floor",
+            "outcome": "unknown"
+          }
+        ],
+        "actionId": "18628435-befb-4c74-b82f-979a6cb484d1",
+        "flagged": [],
+        "alsoFoodRefIds": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 5,
+      "model": 2862,
+      "ground": 335
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "407502d5-dacd-4971-9e1a-9f8950e956a4",
+        "role": "user",
+        "content": "put salmon back on eats",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "71a81dd4-afc2-4226-8823-9451eb5ee76b",
+        "role": "assistant",
+        "content": "Salmon is on your Favored list.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "name": "Salmon, cooked",
+            "foodRefId": "158512be-73dd-46bb-b72e-0f3dc110c11b",
+            "catalogFoodRevisionId": 4,
+            "kcalPer100g": 206,
+            "proteinPer100g": 22,
+            "carbsPer100g": 0,
+            "fatPer100g": 12,
+            "verdict": "unverified",
+            "marks": [
+              {
+                "facet": "gluten",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "dairy",
+                "source": "floor",
+                "outcome": "unknown"
+              },
+              {
+                "facet": "apple",
+                "source": "floor",
+                "outcome": "unknown"
+              }
+            ],
+            "actionId": "18628435-befb-4c74-b82f-979a6cb484d1",
+            "flagged": [],
+            "kind": "add_to_eats",
+            "alsoFoodRefIds": []
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

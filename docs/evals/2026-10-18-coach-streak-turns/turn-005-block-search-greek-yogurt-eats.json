@@ -1,0 +1,144 @@
+{
+  "generatedAt": "2026-10-17T11:24:43.933Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 5,
+  "case": {
+    "id": "block-search-greek-yogurt-eats",
+    "category": "block",
+    "sentence": "find greek yogurt and put it on my eats",
+    "expected_path": "either",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "eats"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6336,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_eats]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6336 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Greek yogurt, plain has dairy, which your rules exclude. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_search]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected food-search intent",
+      "passed": false,
+      "detail": "expected eats; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "68d0ac6e-5d8d-44d1-94bd-94fadb9e7586",
+    "suggestions": [
+      {
+        "foodRefId": "c49cae8e-fb70-4d77-abc6-41055870d753",
+        "name": "Greek yogurt, plain",
+        "grams": null,
+        "reason": "allergen:dairy",
+        "verdict": "blocked"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 6,
+      "model": 4335,
+      "ground": 890
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "59dde379-f5d6-46cb-838f-a69d4d6b005d",
+        "role": "user",
+        "content": "find greek yogurt and put it on my eats",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "183fe159-e13c-4e08-824c-8098453e80d5",
+        "role": "assistant",
+        "content": "Greek yogurt, plain has dairy, which your rules exclude. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

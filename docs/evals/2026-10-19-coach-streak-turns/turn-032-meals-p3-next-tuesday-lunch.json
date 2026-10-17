@@ -1,0 +1,148 @@
+{
+  "generatedAt": "2026-10-17T11:42:39.106Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 32,
+  "case": {
+    "id": "meals-p3-next-tuesday-lunch",
+    "category": "meals",
+    "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+    "expected_path": "llm",
+    "note": "P3: one set_slot_meal for meal-2 with title Grilled chicken & rice",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6333,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [set_slot_meal]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6333 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"How much chicken breast, grilled? How much rice, white, cooked?\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": false,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": false,
+      "detail": "{\"expected\":\"meal-2\",\"actual\":null}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": false,
+      "detail": "{\"expected\":\"Grilled chicken & rice\",\"actual\":\"\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": false,
+      "detail": "{\"expected\":[\"2026-10-20\"],\"actual\":null}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": false,
+      "detail": "{\"expected\":{\"min\":250,\"max\":450},\"actual\":null}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "01fa359a-8f17-488c-b45f-6b480f28bcaf",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "get_plan"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 435,
+      "model": 4608,
+      "ground": 341
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "65936a83-6eb6-413e-a691-ba3819c5f56f",
+        "role": "user",
+        "content": "Change next Tuesday's lunch to grilled chicken and rice.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "1ecfd268-38ea-4628-88b9-ff73b81640b5",
+        "role": "assistant",
+        "content": "How much chicken breast, grilled? How much rice, white, cooked?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}
