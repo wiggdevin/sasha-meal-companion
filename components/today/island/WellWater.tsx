@@ -25,7 +25,7 @@ const SIZE = { w: 350, h: 230 };
 const DROPS = 14;
 const SPLASH = 32;
 const COLUMNS = 48;
-/** Every so often the water stirs by itself a little, so it is never a still picture. */
+/** Every so often the water stirs by itself a little while it is busy; once calm a moment it rests. */
 const STIR_EVERY_S = 1.6;
 /** Seconds of calm (the stir alone) before the frame loop sleeps; a splash, a pour, a tilt wakes it. */
 const SETTLE_S = 4;
@@ -129,7 +129,8 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     setGlReady(Boolean(gl.current));
     // A rebuilt context starts blank, and a sleeping loop would leave it so.
     wake.current();
-    const onLost = (event: Event) => { event.preventDefault(); gl.current = null; setGlReady(false); };
+    // The SVG fallback shows from here on; a sleeping loop would leave it at an old level.
+    const onLost = (event: Event) => { event.preventDefault(); gl.current = null; setGlReady(false); wake.current(); };
     const onRestored = () => setGlAttempt((n) => n + 1);
     el.addEventListener("webglcontextlost", onLost);
     el.addEventListener("webglcontextrestored", onRestored);
@@ -177,8 +178,8 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     let stir = 0;
     let calmFor = 0;
     // Calm water (no drops, no ink, the level settled, only the gentle stir) draws every other frame:
-    // the water always moves a little, by design, but at rest it needs half the work. The last
-    // frame's state decides, and a skipped frame's time carries into the next.
+    // at rest it needs half the work, and after SETTLE_S of calm it sleeps. The last frame's state
+    // decides, and a skipped frame's time carries into the next.
     let calm = false;
     let skip = false;
     const ysFront = new Array<number>(COLUMNS).fill(0);

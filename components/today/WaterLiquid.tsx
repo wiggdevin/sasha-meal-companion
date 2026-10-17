@@ -99,7 +99,7 @@ export default function WaterLiquid({ level, tilt, animate }: {
     let t = 0;
     let lean = 0;
     // Settled: the level has landed, the slosh has died and the lean has caught the phone. The loop
-    // sleeps a moment after that (the bubbles stop where they are) and wakes on a new level, a tilt or a resize.
+    // sleeps a moment after that (the bubbles clear) and wakes on a new level, a tilt or a resize.
     let quiet = 0;
     const draw = (now: number): boolean => {
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
@@ -129,7 +129,10 @@ export default function WaterLiquid({ level, tilt, animate }: {
       const calm = energy <= 0.001 && Math.abs(s.target - s.y) < 0.002 && Math.abs(s.v) < 0.01
         && Math.abs(lean - (tilt.current ?? 0)) < 0.05;
       quiet = calm ? quiet + dt : 0;
-      return quiet < SETTLE_S;
+      if (quiet < SETTLE_S) return true;
+      // The settled frame: no bubbles left hanging part-way up still water.
+      bubbles.current.forEach((el) => el?.setAttribute("opacity", "0"));
+      return false;
     };
     const loop = runFrames(draw);
     wake.current = () => { quiet = 0; loop.wake(); };
