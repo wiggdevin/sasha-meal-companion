@@ -27,8 +27,8 @@ export async function POST(
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`proposals:decide:${userId}`, 30, 60);
 
-    const body = await readJson(req, bodySchema, MAX_BYTES);
     const id = parseUuid((await ctx.params).id, "proposal id");
+    const body = await readJson(req, bodySchema, MAX_BYTES);
     return Response.json(await decideProposal(client, userId, id, body));
   } catch (e) {
     if (e instanceof ProposalConflictError) {
