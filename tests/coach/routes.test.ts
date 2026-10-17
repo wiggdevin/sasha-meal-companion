@@ -79,8 +79,6 @@ describe("POST /api/coach", () => {
 
   it("shares three logical Jev calls inside one POST and resets them for the next POST", async () => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-typesafe-key");
-    // OD12: coach-verify payloads are health-bearing; this case counts the request budget.
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
     const providerAnswer = {
       model: "jev-test",
       answers: { claims_unlisted_action: { type: "noul", noul: 1 } },

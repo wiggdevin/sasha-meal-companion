@@ -34,7 +34,7 @@ import { NOT_HUMAN_FOOD_QUESTION, PORTION_LEVEL_QUESTION } from "@/lib/log/sanit
 import { PREF_QUESTIONS } from "@/lib/profile/pref-questions";
 import { chipFamily, tasteQuestions } from "@/lib/profile/taste-chips";
 import { tasteTextRoute } from "@/lib/profile/taste-safety";
-import { jevHealthAttested, jevTextCleared } from "@/lib/ai/jev-health";
+import { jevHealthGateOn, jevTextCleared } from "@/lib/ai/jev-health";
 
 declare const JEV_BRAND: unique symbol;
 declare const GEMINI_BRAND: unique symbol;
@@ -65,7 +65,7 @@ const provenance = new WeakMap<object, JevPurpose>();
 
 /**
  * OD12 (lib/ai/jev-health.ts): payloads whose free text the local check did not clear. Private:
- * only this module's builders write it; lib/ai/typesafe.ts refuses these unless attested.
+ * only this module's builders write it; lib/ai/typesafe.ts refuses these while the gate is on.
  */
 const healthBearing = new WeakSet<object>();
 
@@ -165,8 +165,8 @@ export type VerifyState = {
 /**
  * `coach-verify` (D1): the reply, one line per action, and the read-only tool names. OD12: a coach
  * reply is long, free text that often talks about the user's own conditions and notes, so it is
- * always health-bearing; until TypeSafe's terms are attested, reply verification uses the
- * deterministic heuristic (lib/coach/verify.ts).
+ * always health-bearing; while the health gate is on, reply verification uses the deterministic
+ * heuristic (lib/coach/verify.ts).
  */
 export function verifyPayload(input: VerifyState) {
   return jev("coach-verify", {
@@ -189,8 +189,8 @@ export type SuggestState = {
 /**
  * `suggest-options` (D1): the slot, the wish text and the sized candidate meals. One fixed
  * plausibility question per candidate; the kind picks the wording from a closed set. OD12: a wish
- * the local check does not clear is left out (`wish: null`, Jev ranks on the slot alone) unless
- * TypeSafe's health terms are attested, when it is sent and the payload is marked health-bearing.
+ * the local check does not clear is left out (`wish: null`, Jev ranks on the slot alone) while the
+ * health gate is on; with it off the wish is sent and the payload is marked health-bearing.
  */
 export function suggestPayload(input: SuggestState, kind: "meal" | "snack" | "recipe") {
   const candidates = input.candidates.map((candidate) => ({
@@ -200,7 +200,7 @@ export function suggestPayload(input: SuggestState, kind: "meal" | "snack" | "re
       carbs: candidate.macros.carbs, fat: candidate.macros.fat },
   }));
   const wishHealth = input.wish !== null && !jevTextCleared(input.wish);
-  const wish = wishHealth && !jevHealthAttested() ? null : input.wish;
+  const wish = wishHealth && jevHealthGateOn() ? null : input.wish;
   return jev("suggest-options", {
     slot: { id: input.slot.id, label: input.slot.label },
     wish,

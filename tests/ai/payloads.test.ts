@@ -240,8 +240,6 @@ describe("capturePayload carries only its purpose's own fields (spec §9 R3, rev
 describe("systemOne accepts only builder output", () => {
   beforeEach(() => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-typesafe-key");
-    // OD12: these cases exercise the transport, not the health gate (tests/ai/jev-health-gate.test.ts).
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
     vi.stubGlobal("fetch", vi.fn());
     adminClientMock.mockReset();
     adminClientMock.mockReturnValue(spendAdmin([]));

@@ -12,7 +12,7 @@ export const PROCESSORS: readonly { name: string; what: string }[] = [
   { name: "Vercel", what: "Runs the app's servers." },
   { name: "Google Gemini", what: "Reads coach messages, meals you describe, voice notes, photos and plan documents, and writes the weekly review." },
   { name: "OpenRouter", what: "Reads meals you describe, meal and label photos and plan documents, and can answer the coach. It passes each request to the model it names." },
-  { name: "TypeSafe (Jev)", what: "Sorts short text: what a coach message asks for, your likes and dislikes, food facts and the order of suggestions. It only gets text a check on your phone finds free of health details, plus food names." },
+  { name: "TypeSafe (Jev)", what: "Sorts short text: what a coach message asks for, your likes and dislikes, food facts, the order of suggestions, and whether a coach reply matches what it did." },
   { name: "USDA FoodData Central and Open Food Facts", what: "Receive the barcode number when you scan a product." },
   { name: "Oura", what: "Only if you connect it: the app reads your sleep and activity from your Oura account." },
 ];

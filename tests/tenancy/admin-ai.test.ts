@@ -125,7 +125,6 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB)("the AI layer writes and counts only its
 
     it("TypeSafe: A's call is written under A, and B's spend never blocks it", async () => {
       vi.stubEnv("TYPESAFE_API_KEY", "tenancy-key");
-      vi.stubEnv("JEV_HEALTH_ATTESTED", "1"); // OD12: a coach-verify payload is health-bearing
       const real = globalThis.fetch;
       vi.stubGlobal("fetch", (async (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input instanceof Request ? input.url : input);

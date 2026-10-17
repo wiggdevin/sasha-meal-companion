@@ -1,7 +1,7 @@
 /**
- * OD12 (docs/decisions/2026-10-12-owner-decisions.md): health-bearing Jev payloads never leave
- * unless `JEV_HEALTH_ATTESTED=1`. Free text counts as health-bearing unless the W5b local check
- * clears it; a coach reply always does.
+ * OD12 (docs/decisions/2026-10-12-owner-decisions.md): with `JEV_HEALTH_GATE=1`, health-bearing Jev
+ * payloads never leave. The gate is off by default (in-house testing keeps Jev on every path). Free
+ * text counts as health-bearing unless the W5b local check clears it; a coach reply always does.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,7 +51,12 @@ describe("which Jev payloads are health-bearing", () => {
     expect(jevCarriesHealth({ purpose: "coach-verify", state: {}, questions: {} })).toBe(true);
   });
 
-  it("an uncleared wish is dropped unless attested", () => {
+  it("an uncleared wish is sent and marked while the gate is off, dropped while it is on", () => {
+    const sent = suggest("something low sodium for my blood pressure");
+    expect(sent.state.wish).toBe("something low sodium for my blood pressure");
+    expect(jevCarriesHealth(sent)).toBe(true);
+
+    vi.stubEnv("JEV_HEALTH_GATE", "1");
     const dropped = suggest("something low sodium for my blood pressure");
     expect(dropped.state.wish).toBeNull();
     expect(jevCarriesHealth(dropped)).toBe(false);
@@ -59,15 +64,10 @@ describe("which Jev payloads are health-bearing", () => {
     const kept = suggest("i love spicy food");
     expect(kept.state.wish).toBe("i love spicy food");
     expect(jevCarriesHealth(kept)).toBe(false);
-
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
-    const attested = suggest("something low sodium for my blood pressure");
-    expect(attested.state.wish).toBe("something low sodium for my blood pressure");
-    expect(jevCarriesHealth(attested)).toBe(true);
   });
 });
 
-describe("the TypeSafe adapter refuses health-bearing payloads", () => {
+describe("the TypeSafe adapter and the health gate", () => {
   let warn: ReturnType<typeof vi.spyOn>;
   const answer = () => new Response(JSON.stringify({
     model: "jev-1.13.0",
@@ -89,25 +89,27 @@ describe("the TypeSafe adapter refuses health-bearing payloads", () => {
     warn.mockRestore();
   });
 
-  it("sends nothing and returns null when JEV_HEALTH_ATTESTED is unset", async () => {
-    await expect(withJevBudget(() => systemOne(verify("Logged your lunch."), { userId: "user-1" })))
-      .resolves.toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledWith(
-      "[typesafe] health-bearing payload: JEV_HEALTH_ATTESTED is not set");
-  });
-
-  it("any value other than 1 keeps it closed", async () => {
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "true");
-    await expect(withJevBudget(() => systemOne(verify("Logged your lunch."), { userId: "user-1" })))
-      .resolves.toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("sends once attested", async () => {
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
+  it("sends a health-bearing payload while the gate is off (the default)", async () => {
     await expect(withJevBudget(() => systemOne(verify("Logged your lunch."), { userId: "user-1" })))
       .resolves.toEqual({ claims_unlisted_action: { type: "noul", noul: 0.1 } });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("sends nothing and returns null while JEV_HEALTH_GATE is 1", async () => {
+    vi.stubEnv("JEV_HEALTH_GATE", "1");
+    await expect(withJevBudget(() => systemOne(verify("Logged your lunch."), { userId: "user-1" })))
+      .resolves.toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith("[typesafe] health-bearing payload: JEV_HEALTH_GATE is on");
+  });
+
+  it("still sends a payload with no health text while the gate is on", async () => {
+    vi.stubEnv("JEV_HEALTH_GATE", "1");
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      model: "jev-1.13.0", usage: { input_tokens: 10, output_tokens: 2 },
+      answers: { which_intent: { type: "choice", choice: "other", probabilities: {}, confidence: 0.5 } },
+    }), { status: 200 }));
+    await withJevBudget(() => systemOne(intent("i love spicy food"), { userId: "user-1" }));
     expect(fetch).toHaveBeenCalledOnce();
   });
 });

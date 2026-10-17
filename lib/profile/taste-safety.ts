@@ -172,7 +172,7 @@ export const TASTE_WORD = /\b(like|likes|love|loves|hate|hates|dislike|dislikes|
  * (lib/profile/coach-commands.ts). Anything else the check did not clear makes no intent Jev call.
  * Scope (coordinator decision): this gates the taste/preference purposes and the intent pre-pass.
  * OD12 (lib/ai/jev-health.ts) also uses it for the `suggest-options` wish, and treats every
- * `coach-verify` reply as health text; both stay off Jev until `JEV_HEALTH_ATTESTED=1`.
+ * `coach-verify` reply as health text; both stay off Jev while `JEV_HEALTH_GATE=1`.
  */
 export function mayReachJev(text: string): boolean {
   if (tasteTextRoute(text).route === "send") return true;

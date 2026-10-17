@@ -29,14 +29,12 @@ function answer(p: number) {
 describe("coach reply verification", () => {
   beforeEach(() => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
-    // OD12: a reply reaches Jev only once TypeSafe's health terms are attested.
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
     systemOneMock.mockReset();
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it("uses the deterministic check, with no Jev call, until JEV_HEALTH_ATTESTED is set", async () => {
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "");
+  it("uses the deterministic check, with no Jev call, while JEV_HEALTH_GATE is 1 (OD12)", async () => {
+    vi.stubEnv("JEV_HEALTH_GATE", "1");
     await expect(verifyReply({
       reply: "Logged your lunch — 620 kcal.", actions: [], toolResults: [],
     }, { userId: "u1" })).resolves.toEqual({ flagged: true, p: null });

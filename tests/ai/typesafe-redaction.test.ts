@@ -20,8 +20,6 @@ describe("redacted Jev errors", () => {
   let warn: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-typesafe-key");
-    // OD12: these cases exercise the transport, not the health gate (tests/ai/jev-health-gate.test.ts).
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
     vi.stubGlobal("fetch", vi.fn());
     warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
