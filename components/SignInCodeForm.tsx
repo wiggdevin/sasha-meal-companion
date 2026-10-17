@@ -10,6 +10,8 @@ type SignInCodeFormProps = {
   /** Verifies the code against Supabase. Returns an error message on
    * failure, or null on success (the caller handles the redirect). */
   onVerify: (code: string) => Promise<string | null>;
+  /** Show the code field at once (a re-auth step, where the code is the only way on). */
+  startOpen?: boolean;
 };
 
 /**
@@ -23,8 +25,8 @@ type SignInCodeFormProps = {
  * sends 8 (mailer_otp_length, matching app/sign-in/code.ts). A 6-digit cap
  * here silently refused every real code before it could be submitted.
  */
-export function SignInCodeForm({ onVerify }: SignInCodeFormProps) {
-  const [stage, setStage] = useState<Stage>("collapsed");
+export function SignInCodeForm({ onVerify, startOpen = false }: SignInCodeFormProps) {
+  const [stage, setStage] = useState<Stage>(startOpen ? "entering" : "collapsed");
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
 
