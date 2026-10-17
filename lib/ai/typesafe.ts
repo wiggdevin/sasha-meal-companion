@@ -234,9 +234,9 @@ export async function systemOne<P extends JevPurpose, Q extends Questions>(
       ledger: () => jevLedger(options.userId),
       inputHash: () => `\\x${createHash("sha256").update(body).digest("hex")}`,
       signal: options.signal,
-      // A deadline shorter than the default is the caller's own latency budget (a chip's ranking),
-      // so missing it is not counted against Jev's circuit (W068).
-      callerDeadline: deadlineMs < DEFAULT_DEADLINE_MS,
+      // The suggestion ranking's deadline is the caller's own latency budget (a plan chip holds it
+      // to 450 ms), so missing it is not counted against Jev's circuit (W068).
+      callerDeadline: options.noRetry === true,
       policy: {
         attempts: options.noRetry ? 1 : 2, budgetMs: deadlineMs, attemptMs: deadlineMs,
         backoffMs: [RETRY_BACKOFF_MS],

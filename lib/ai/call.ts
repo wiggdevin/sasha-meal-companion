@@ -259,6 +259,11 @@ export async function callModel<R extends Billed, T>(call: ModelCall<R, T>): Pro
       // assertCircuitClosed (lib/ai/circuit.ts) to find, so a project-wide denial on this path
       // alone never opened the circuit. Same classify+record attempt()'s own catch-all does, with
       // no billed tokens (no attempt reached send()) and no retry (open() is not per-attempt).
+      // A caller that stopped during the upload is not a provider failure (W068).
+      if (call.signal?.aborted) {
+        await settled("timeout", null, CALLER_ABORT_ERROR, 0);
+        throw abortError();
+      }
       const message = e instanceof Error ? e.message : "unknown";
       await settled(classifyFailure(e), null, message, 0);
       throw e;
@@ -289,11 +294,16 @@ async function attempt<R extends Billed, T>(
   // `send` and got a result is "answered", whether or not `accept` went on to take it.
   let surchargeUsd = 0;
   let lastError: unknown = null;
+  // The last failure that was the provider's own, kept even when the caller stops later: an
+  // abort never hides a real 503 from the circuit (W068).
+  let providerError: unknown = null;
+  const callersStop = (e: unknown): boolean => signal?.aborted === true
+    || (call.callerDeadline === true && classifyFailure(e) === "timeout");
   for (let n = 0; n < policy.attempts; n++) {
     if (signal?.aborted || deadlineAt - Date.now() <= 0) break;
     if (n > 0 && policy.beforeRetry && !(await policy.beforeRetry())) break;
     const remainingMs = deadlineAt - Date.now();
-    if (remainingMs <= 0) break;
+    if (signal?.aborted || remainingMs <= 0) break;
     try {
       const result = await withDeadline(Math.min(policy.attemptMs, remainingMs), (deadline) =>
         untilAborted(call.transport.send(signal ? AbortSignal.any([deadline, signal]) : deadline,
@@ -310,6 +320,7 @@ async function attempt<R extends Billed, T>(
       return value;
     } catch (e) {
       lastError = e;
+      if (!callersStop(e)) providerError = e;
       // A caller that stopped waiting gets no further attempt (W068).
       if (signal?.aborted || !policy.retryable(e)) break;
       // Back off only if there is budget left to back off into.
@@ -322,12 +333,13 @@ async function attempt<R extends Billed, T>(
   }
   // No separate failure counter: this row (status != "ok") IS the durable record the circuit
   // breaker reads next time. A caller's own stop is recorded as one, but never counted there.
-  const stoppedByCaller = signal?.aborted === true
-    || (call.callerDeadline === true && classifyFailure(lastError) === "timeout");
+  const aborted = signal?.aborted === true;
+  const failure = providerError ?? lastError;
+  const stoppedByCaller = providerError === null && callersStop(lastError);
   const message = stoppedByCaller ? CALLER_ABORT_ERROR
-    : lastError instanceof Error ? lastError.message : "unknown";
-  await record(stoppedByCaller ? "timeout" : classifyFailure(lastError), billed, message,
+    : failure instanceof Error ? failure.message : "unknown";
+  await record(stoppedByCaller ? "timeout" : classifyFailure(failure), billed, message,
     billed ? call.price(model, billed) + surchargeUsd : 0);
-  if (signal?.aborted) throw abortError();
+  if (aborted) throw abortError();
   throw lastError instanceof Error ? lastError : new Error(message);
 }

@@ -72,7 +72,8 @@ describe("a caller abort (W068)", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(send).toHaveBeenCalledTimes(1);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ status: "timeout", error: CALLER_ABORT_ERROR });
+    // The first attempt's 503 was the provider's own: the later abort does not hide it.
+    expect(rows[0]).toMatchObject({ status: "provider_error", error: "HTTP 503" });
     expect(unhandled).toEqual([]);
   });
 
@@ -107,10 +108,10 @@ describe("a caller abort (W068)", () => {
     const rows: Row[] = [];
     for (let i = 0; i < 5; i++) {
       const controller = new AbortController();
-      const sleep = () => { controller.abort(); return new Promise<void>(() => undefined); };
-      await callModel(call(rows, { signal: controller.signal, policy: { attempts: 2, budgetMs: 5_000,
-        attemptMs: 5_000, backoffMs: [400], retryable: () => true, sleep } })).catch(() => undefined);
+      const send = () => { setTimeout(() => controller.abort(), 0); return new Promise<Result>(() => undefined); };
+      await callModel(call(rows, { signal: controller.signal, transport: { send } })).catch(() => undefined);
     }
+    expect(rows.every((row) => row.error === CALLER_ABORT_ERROR)).toBe(true);
     expect(rows).toHaveLength(5);
     const admin = fakeAdmin(rows) as never;
     await expect(assertCircuitClosed(admin, "typesafe", "jev-test")).resolves.toBeUndefined();
@@ -129,6 +130,18 @@ describe("a caller abort (W068)", () => {
       policy: { attempts: 1, budgetMs: 20, attemptMs: 20, backoffMs: [], retryable: () => false } })))
       .rejects.toMatchObject({ name: "AbortError" });
     expect(rows[0]).toMatchObject({ status: "timeout", error: CALLER_ABORT_ERROR });
+  });
+
+  it("a provider failure before a caller-deadline timeout is still recorded as the provider's", async () => {
+    const rows: Row[] = [];
+    let n = 0;
+    const send = vi.fn(() => (n++ === 0 ? Promise.reject(new ProviderHttpError(529, "HTTP 529"))
+      : new Promise<Result>(() => undefined)));
+    await callModel(call(rows, { callerDeadline: true, transport: { send },
+      policy: { attempts: 2, budgetMs: 200, attemptMs: 50, backoffMs: [0], retryable: () => true } }))
+      .catch(() => undefined);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(rows[0]).toMatchObject({ status: "provider_error", error: "HTTP 529" });
   });
 
   it("an ordinary deadline still counts as a provider timeout", async () => {
