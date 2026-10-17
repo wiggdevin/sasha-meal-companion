@@ -42,6 +42,8 @@ The earlier bounded RLS harness repair remains valid: the first attempt lacked b
 3. Supply a non-production AI credential for the one live F10 branch turn.
 4. Resolve the environment-name drift and triage the 15 security WARNs plus 37 performance INFO items.
 
+**Update 2026-10-17 (W122):** cron 2xx runs, a stored Lighthouse run and the advisor triage are in [../2026-10-17/README.md](../2026-10-17/README.md). All ten cron routes return 200; the four repaired routes are live. Signed-in phone checks moved to W061.
+
 ## Branch and mutation ledger
 
 - Supabase branches created: **none**.
