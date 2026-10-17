@@ -55,13 +55,9 @@ const EXEMPT: Record<string, Partial<Record<Property, string>>> = {
   "app/api/client-errors/route.ts": { identity: "Crash reports from a signed-out page too; allowlisted fields only, 4 KB cap, 30 per minute per IP." },
   "app/api/health/oura/callback/route.ts": { identity: "Oura redirects the browser here without a session; identity is the single-use oauth_states row bound to the state, and the call is limited per IP." },
   "app/auth/callback/route.ts": { identity: "Magic-link landing: the one-time code in the URL is the credential, exchanged for a session; limited per IP." },
-  "app/api/health/oura/start/route.ts": { bodyLimit: "Known gap: behind the session and limited to 10 per hour, but the returnTo body is read with req.text() and no size cap. Follow-up to switch it to readJson." },
   "app/api/foods/world/invitation/route.ts": { rateLimit: "A short per-account read behind the session; no model call, no fan-out." },
   "app/api/recipes/[id]/route.ts": { rateLimit: "One recipe read by primary key behind the session and the recipe pilot gate; no model call." },
   "app/api/recipes/favorites/route.ts": { rateLimit: "The caller's own favourites list behind the session and the pilot gate; no model call." },
-  "app/api/recipes/[id]/favorite/route.ts": { rateLimit: "Known gap, not an offset: a session-scoped write of one row the caller owns (RLS) with a capped body (readJson, 1 KB) and no model call, but no per-route limiter. Follow-up." },
-  "app/api/shopping/pantry/[id]/route.ts": { rateLimit: "Known gap, not an offset: a session-scoped write of one row the caller owns (RLS) with a capped body (readJson, 1 KB) and no model call, but no per-route limiter. Follow-up." },
-  "app/api/shopping/periods/[id]/purchase-windows/[windowId]/route.ts": { rateLimit: "Known gap, not an offset: a session-scoped write of one row the caller owns (RLS) with a capped body (readJson, 1 KB) and no model call, but no per-route limiter. Follow-up." },
 };
 
 function routeFiles(): string[] {

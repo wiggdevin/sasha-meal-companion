@@ -3,6 +3,7 @@ import { getCatalogRecipe } from "@/lib/recipe-catalog/repository";
 import { HttpError } from "@/lib/server/auth";
 import { requireRecipeUser } from "@/lib/server/recipe-access";
 import { jsonError, readJson } from "@/lib/server/http";
+import { enforceRateLimit } from "@/lib/server/ratelimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export async function GET(req: Request, context: Context): Promise<Response> {
 export async function PUT(req: Request, context: Context): Promise<Response> {
   try {
     const { client, userId } = await requireRecipeUser(req);
+    await enforceRateLimit(`recipe-favorite:${userId}`, 60, 60);
     const id = await idOf(context);
     const body = await readJson(req, Body, 1024);
     if (body.favorite && !(await getCatalogRecipe(client, id))) {
