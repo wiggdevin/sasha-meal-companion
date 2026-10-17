@@ -6,6 +6,7 @@ import { MacroFigure, MacroLine } from "@/components/nutrition/MacroText";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import Button from "@/components/ui/Button";
 import { canonicalNote } from "@/lib/log/note-text";
+import { useEntryPhoto } from "@/lib/media/thumbnail-client";
 import { eatenBound } from "@/lib/nutrition-display";
 import type { LoggedFood } from "@/lib/types";
 
@@ -54,6 +55,8 @@ export default function NoteSheet({
   /** The note this sheet opened with (stored form); the prop follows the store after each save. */
   const [opened] = useState(() => canonicalNote(note));
   const feedback = useActionFeedback();
+  // A plate photo's kept thumbnail (W125, T2); a slot note or a non-photo entry asks nothing.
+  const thumb = useEntryPhoto(entry?.id ?? null);
   /** A close tried to save this exact text and failed; the next close just leaves. */
   const closeFailed = useRef(false);
   const close = () => {
@@ -96,6 +99,8 @@ export default function NoteSheet({
       <div className="flex flex-col gap-4 px-0.5">
         {entry && (
           <section className="olive-panel flex flex-col gap-1.5 p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed Storage URL */}
+            {thumb && <img src={thumb} alt="Your photo of this meal" className="mb-1.5 aspect-[4/3] w-full rounded-[12px] object-cover" />}
             <p className="m-0 text-body font-medium text-on-charcoal tabular-nums">
               <MacroLine values={entry.macros} bound={eatenBound(entry.nutritionPartial === true)} />
             </p>

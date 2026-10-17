@@ -10,7 +10,8 @@ import { CaptureGlyph } from "@/components/CaptureGlyph";
 import { captureMetaFrom, type CaptureMeta } from "@/lib/capture-client";
 import { entryMacros } from "@/lib/resolve";
 import { illustrativeMealImage } from "@/lib/today/meal-art";
-import Image from "next/image";
+import EntryArt from "@/components/EntryArt";
+import { useEntryThumbnail } from "@/lib/media/thumbnail-client";
 import { ALERT_PILL, formatTime } from "@/components/SlotCard";
 import { feedbackStateProps, type ActionFeedbackPhase } from "@/components/ui/ActionFeedback";
 import KcalText from "@/components/ui/KcalText";
@@ -291,7 +292,8 @@ export function LoggedExtraCard({
   const meta = useCaptureMeta(e.id)[e.id];
   const m = entryMacros(e);
   const measured = hasMeasuredSnapshot(e);
-  const snackImage = e.slot === "snack" ? illustrativeMealImage(e.name, e.items ?? []) : null;
+  const thumb = useEntryThumbnail(meta?.method === "photo" && !pending ? e.id : null);
+  const snackImage = e.slot === "snack" && !thumb ? illustrativeMealImage(e.name, e.items ?? []) : null;
   const gesture = useMealReschedule(localClock(e.at), onTimeChange);
   const shownTime = gesture.preview ?? localClock(e.at);
   // The same card props SlotCard builds for the timeline drag; a save in flight is shared-pending.
@@ -319,9 +321,7 @@ export function LoggedExtraCard({
       {/* A card on the ground is E1 (DESIGN.md §Elevation): the face carries the drop, not the wrapper,
           which also holds the retry line under the card. The snack ticket brings its own. */}
       <span className={`logged-card-in items-center gap-[14px] px-[18px] py-4 ${e.slot === "snack" ? "" : "elev-1"}`}>
-        {e.slot === "snack" && <span className={dark.snackArt} aria-hidden="true">
-          {snackImage && <Image src={snackImage} alt="" fill sizes="56px" />}
-        </span>}
+        <EntryArt snack={e.slot === "snack"} thumb={thumb} image={snackImage} />
         <button
           type="button"
           data-card-edit="true"
