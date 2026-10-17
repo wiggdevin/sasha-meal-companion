@@ -165,7 +165,22 @@ describe("acceptance 1: O4 regression cases, through the real composeMeal", () =
     const meal = await composeMeal("u1", { wish: "rice", target: TARGET }, OPEN_PROFILE,
       portsFor({ rice: [rice] }));
     expect(meal.incomplete).toBeDefined();
+    expect(meal.incomplete?.reason).toMatch(/protein fits yet/);
     expect(meal.items.map((item) => item.name)).toEqual(["Rice, white, cooked"]);
+  });
+
+  it("tuna with banana: names the clashing foods, not a missing part (W156)", async () => {
+    const meal = await composeMeal("u1", { wish: "tuna with banana", target: TARGET }, OPEN_PROFILE,
+      portsFor({ tuna: [tuna], banana: [banana] }));
+    expect(meal.incomplete?.reason).toMatch(/Tuna and Banana don't go together/);
+  });
+
+  it("a plate whose protein falls short is not reported as fitting (W156)", async () => {
+    const meal = await composeMeal("u1", { wish: "chicken with rice", target: { kcal: 500, protein: 400, carbs: 50, fat: 15 } },
+      OPEN_PROFILE, portsFor({ chicken: [chicken], rice: [rice] }));
+    expect(meal.incomplete).toBeUndefined();
+    expect(meal.fitsTarget).toBe(false);
+    expect(meal.fitNote).toMatch(/protein/i);
   });
 
   it("rice needing chicken: a starch named alone fills its anchor FROM THE POOL (D12, W9 re-plan)", async () => {
