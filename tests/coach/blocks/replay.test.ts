@@ -95,4 +95,17 @@ describe("GET /api/coach/threads/[id] replay", () => {
       createdAt: "2026-09-19T16:00:00.000Z", composed: [legacyMeal],
     }]);
   });
+
+  it.each(["abc", "2.5", "0", "51", "-1"])("400s a bad ?limit=%s", async (limit) => {
+    const id = "3f1b1a2c-0000-4000-8000-000000000001";
+    const response = await GET(new Request(`https://app.test/api/coach/threads/${id}?limit=${limit}`),
+      { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(400);
+  });
+
+  it("400s a malformed thread id", async () => {
+    const response = await GET(new Request("https://app.test/api/coach/threads/thread-1"),
+      { params: Promise.resolve({ id: "thread-1" }) });
+    expect(response.status).toBe(400);
+  });
 });
