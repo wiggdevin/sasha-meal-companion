@@ -8,19 +8,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { MAX_DAILY_WINDOW_DAYS } from "@/lib/health/contract";
 import { mergedDays } from "@/lib/server/health-daily";
+import { isCalendarDate } from "@/lib/server/validate";
 
 export type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 
 export const HEALTH_TOOL_SCOPES: Record<"get_body_data", "read"> = { get_body_data: "read" };
 
-/** A real calendar date: the shape alone lets 2026-02-31 roll over and 2026-13-01 throw (A104). */
-export function isCalendarDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const time = Date.parse(`${value}T00:00:00Z`);
-  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
-}
-
 const isoDate = z.string().refine(isCalendarDate, "Expected a real calendar date, YYYY-MM-DD.");
+
+export { isCalendarDate };
 
 export function registerHealthTools(server: McpServerLike,
     ctx: { userId: string; admin: SupabaseClient }): void {

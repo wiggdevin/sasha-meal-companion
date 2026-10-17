@@ -18,8 +18,8 @@ const MAX_URL_BYTES = 8 * 1024;
 const WINDOW_SECONDS = 60;
 
 const Query = z.object({
-  q: z.string().min(1).max(120),
-  brand: z.string().min(1).max(120).optional(),
+  q: z.string().trim().min(1).max(120),
+  brand: z.string().trim().min(1).max(120).optional(),
   prep: z.enum(PREP_STATES).optional(),
   limit: z.coerce.number().int().min(1).max(25).default(25),
 });

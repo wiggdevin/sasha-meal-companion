@@ -60,8 +60,17 @@ describe("the source-token routes", () => {
 
   it("revokes by setting revoked_at, scoped to the caller", async () => {
     const res = await DELETE(new Request("https://app.test/api/health/tokens/src-9",
-      { method: "DELETE" }), { params: Promise.resolve({ id: "src-9" }) });
+      { method: "DELETE" }), { params: Promise.resolve({ id: "00000000-0000-4000-8000-000000000009" }) });
     expect(res.status).toBe(200);
     expect(update.mock.calls[0][0]).toMatchObject({ revoked_at: expect.any(String) });
+  });
+});
+
+describe("the revoke route input check", () => {
+  it("answers 400 for a malformed source id", async () => {
+    user.mockResolvedValue({ userId: "user-1", client: {} as never });
+    const res = await DELETE(new Request("https://app.test/api/health/tokens/x", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "x" }) });
+    expect(res.status).toBe(400);
   });
 });
