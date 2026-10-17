@@ -5,6 +5,9 @@ import type { CoachAction } from "@/lib/coach/actions";
 import type { ComposedMeal } from "@/lib/coach/compose";
 import type { CoachTurnResponse } from "@/lib/coach/types";
 import type { Assertion } from "./coach-streak-state";
+import {
+  LEGACY_STREAK_SOURCE, STREAK_FOODS, STREAK_PREFIX, STREAK_RULES, STREAK_SOURCE,
+} from "./coach-streak-foods";
 import { targetRevisionFixture } from "./coach-streak-target-fixture";
 import type { Fixture } from "@/tests/log/fixtures";
 
@@ -16,14 +19,6 @@ const ADMIN_KEY_ENV = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
 const FORBIDDEN_ITEM = /apple|gluten|dairy|pouch|honey|syrup|sugar/i;
 
 type Macros = { kcal: number; protein: number; carbs: number; fat: number };
-type FoodSeed = {
-  sourceId: string;
-  description: string;
-  role: "protein" | "carb" | "fat";
-  per100g: Record<string, number>;
-  list?: "eats" | "avoid";
-  allergenTags?: string[];
-};
 export type SeedContext = {
   /** Null when the seeded account has no target revision: there is nothing left to spend. */
   remaining: Macros | null;
@@ -38,46 +33,6 @@ export type LiveHarness = {
   date: string;
   seed: () => Promise<SeedContext>;
 };
-
-const FOODS: FoodSeed[] = [
-  { sourceId: "streak-chicken", description: "Chicken breast, roasted", role: "protein",
-    per100g: { energy_kcal: 165, protein: 31, carbohydrate: 0, fat_total: 3.6 }, list: "eats" },
-  { sourceId: "streak-turkey", description: "Turkey breast, roasted", role: "protein",
-    per100g: { energy_kcal: 135, protein: 30, carbohydrate: 0, fat_total: 1 }, list: "eats" },
-  { sourceId: "streak-tuna", description: "Tuna, light, canned in water", role: "protein",
-    per100g: { energy_kcal: 116, protein: 25.5, carbohydrate: 0, fat_total: 0.8 }, list: "eats" },
-  { sourceId: "streak-salmon", description: "Salmon, cooked", role: "protein",
-    per100g: { energy_kcal: 206, protein: 22, carbohydrate: 0, fat_total: 12 }, list: "eats" },
-  { sourceId: "streak-shrimp", description: "Shrimp, cooked", role: "protein",
-    per100g: { energy_kcal: 99, protein: 24, carbohydrate: 0.2, fat_total: 0.3 }, list: "eats" },
-  { sourceId: "streak-beef", description: "Beef sirloin, grilled", role: "protein",
-    per100g: { energy_kcal: 217, protein: 27, carbohydrate: 0, fat_total: 12 }, list: "eats" },
-  { sourceId: "streak-eggs", description: "Eggs, cooked", role: "protein",
-    per100g: { energy_kcal: 155, protein: 12.6, carbohydrate: 1.1, fat_total: 10.6 }, list: "eats" },
-  { sourceId: "streak-egg-whites", description: "Egg whites, cooked", role: "protein",
-    per100g: { energy_kcal: 52, protein: 10.9, carbohydrate: 0.7, fat_total: 0.2 }, list: "eats" },
-  { sourceId: "streak-pork", description: "Pork tenderloin, roasted", role: "protein",
-    per100g: { energy_kcal: 143, protein: 26, carbohydrate: 0, fat_total: 3.5 }, list: "eats" },
-  { sourceId: "streak-tofu", description: "Tofu, firm", role: "protein",
-    per100g: { energy_kcal: 144, protein: 17.3, carbohydrate: 2.8, fat_total: 8.7 } },
-  { sourceId: "streak-smoked-tofu", description: "Smoked tofu", role: "protein",
-    per100g: { energy_kcal: 170, protein: 19, carbohydrate: 3, fat_total: 9 } },
-  { sourceId: "streak-greek-yogurt", description: "Greek yogurt, plain", role: "protein",
-    per100g: { energy_kcal: 97, protein: 9, carbohydrate: 3.9, fat_total: 5 },
-    allergenTags: ["dairy"] },
-  { sourceId: "streak-rice", description: "Rice, white, cooked", role: "carb",
-    per100g: { energy_kcal: 130, protein: 2.7, carbohydrate: 28, fat_total: 0.3 }, list: "eats" },
-  { sourceId: "streak-sweet-potato", description: "Sweet potato, baked", role: "carb",
-    per100g: { energy_kcal: 90, protein: 2, carbohydrate: 20.7, fat_total: 0.2 }, list: "eats" },
-  { sourceId: "streak-banana", description: "Banana, raw", role: "carb",
-    per100g: { energy_kcal: 89, protein: 1.1, carbohydrate: 22.8, fat_total: 0.3 }, list: "eats" },
-  { sourceId: "streak-tortilla", description: "Corn tortilla", role: "carb",
-    per100g: { energy_kcal: 218, protein: 5.7, carbohydrate: 44.6, fat_total: 2.9 }, list: "eats" },
-  { sourceId: "streak-avocado", description: "Avocado, raw", role: "fat",
-    per100g: { energy_kcal: 160, protein: 2, carbohydrate: 8.5, fat_total: 14.7 }, list: "eats" },
-  { sourceId: "streak-olive-oil", description: "Olive oil", role: "fat",
-    per100g: { energy_kcal: 884, protein: 0, carbohydrate: 0, fat_total: 100 }, list: "eats" },
-];
 
 export function loadProviderKeys(): void {
   const allowed = new Set(["GEMINI_API_KEY", "TYPESAFE_API_KEY"]);
@@ -170,6 +125,29 @@ async function signedInClient(): Promise<SupabaseClient> {
   );
 }
 
+/**
+ * Earlier seeds wrote the streak foods as packaged `fdc_branded` rows. They stay in the branch
+ * catalog (other rows may still reference them), so their revisions are made inactive: catalog
+ * search and the same-name reads only see active revisions.
+ */
+async function retireLegacyStreakFoods(db: SupabaseClient): Promise<void> {
+  const legacy = await db.from("catalog_foods").select("id")
+    .eq("source", LEGACY_STREAK_SOURCE).like("source_id", `${STREAK_PREFIX}%`);
+  must("legacy streak foods", legacy.error);
+  const ids = (legacy.data ?? []).map((row) => (row as { id: number }).id);
+  if (ids.length === 0) return;
+  must("retire legacy streak foods", (await db.from("catalog_food_revisions")
+    .update({ is_active: false }).in("catalog_food_id", ids).eq("is_active", true)).error);
+}
+
+/** One active catalog version per source: reuse the branch's active label, else make one. */
+async function streakVersionLabel(db: SupabaseClient): Promise<string> {
+  const active = await db.from("catalog_versions").select("version_label")
+    .eq("source", STREAK_SOURCE).eq("is_active", true).maybeSingle();
+  must("catalog_versions", active.error);
+  return (active.data as { version_label: string } | null)?.version_label ?? "coach-streak-1";
+}
+
 async function seedRehearsal(
   db: SupabaseClient,
   userId: string,
@@ -177,26 +155,35 @@ async function seedRehearsal(
 ): Promise<{ legacyDaySeeded: boolean; fixtures: Map<string, Fixture> }> {
   must("test_reset_user", (await db.rpc("test_reset_user", { p_user_id: userId })).error);
   const { seedCatalogFood } = await import("@/tests/log/fixtures");
+  await retireLegacyStreakFoods(db);
+  const versionLabel = await streakVersionLabel(db);
   const fixtures = new Map<string, Awaited<ReturnType<typeof seedCatalogFood>>>();
-  for (const food of FOODS) {
+  for (const food of STREAK_FOODS) {
     const fixture = await seedCatalogFood(db, userId, {
       sourceId: food.sourceId,
       description: food.description,
-      // Local Docker already carries the shared active fixture version. A second active label for
-      // fdc_branded violates catalog_versions_one_active_per_source before any live turn can run.
-      versionLabel: "test-1",
+      source: STREAK_SOURCE,
+      versionLabel,
       per100g: food.per100g,
       ...(food.allergenTags ? { allergenTags: food.allergenTags } : {}),
     });
     fixtures.set(food.sourceId, fixture);
-    if (food.sourceId === "streak-smoked-tofu") {
+    if (food.ingredients) {
       must("catalog_ingredients", (await db.from("catalog_ingredients").upsert({
+        // Seq 1 holds the verbatim statement, as the catalog import writes it; seq 0 is the
+        // provider's declared-allergen line, which never counts toward a complete label.
         food_revision_id: fixture.revisionId,
-        seq: 0,
-        name: "soybeans",
-        raw_text: "soybeans, water, salt",
-        allergen_tags: [],
+        seq: 1,
+        name: food.ingredients.split(/,(?![^(]*\))/)[0].trim(),
+        raw_text: food.ingredients,
+        allergen_tags: food.allergenTags ?? [],
       }, { onConflict: "food_revision_id,seq" })).error);
+    }
+    if (food.checked?.length) {
+      must("user_allergen_checks", (await db.from("user_allergen_checks").upsert(
+        food.checked.map((allergen) => ({
+          user_id: userId, food_key: `catalog_revision:${fixture.revisionId}`, allergen,
+        })), { onConflict: "user_id,food_key,allergen" })).error);
     }
     if (food.list) {
       must("user_food_prefs", (await db.from("user_food_prefs").upsert({
@@ -205,21 +192,13 @@ async function seedRehearsal(
       })).error);
     }
   }
-  for (const suffix of ["a", "b"]) {
-    await seedCatalogFood(db, userId, {
-      sourceId: `streak-watermelon-${suffix}`,
-      description: "Watermelon, raw",
-      versionLabel: "test-1",
-      per100g: { energy_kcal: 30, protein: 0.6, carbohydrate: 7.6, fat_total: 0.2 },
-    });
-  }
   must("constraint_profiles", (await db.from("constraint_profiles").upsert({
     user_id: userId,
-    conditions: ["ulcerative colitis"],
+    conditions: STREAK_RULES.conditions,
     notes: null,
-    avoid_allergens: ["gluten", "dairy", "apple"],
+    avoid_allergens: STREAK_RULES.avoid_allergens,
     avoid_food_ref_ids: [],
-    banned_categories: ["simple_sugars", "pouches", "ultra_processed", "onion_garlic", "legumes"],
+    banned_categories: STREAK_RULES.banned_categories,
     rev: 1,
   })).error);
   must("user_settings", (await db.from("user_settings").upsert({
