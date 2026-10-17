@@ -1,7 +1,8 @@
 /**
  * OD06 / W091: a Gemini structured call, streamed. The same request as `generateContent`; each
  * chunk carries the next piece of the reply text, which `onText` sees whole so far, and the usage
- * rides on the last chunk. Provider I/O only, like the rest of the lane (lib/ai/adapter.ts).
+ * rides on the last chunk. `onText("")` opens each attempt, so a retry clears what the failed
+ * attempt showed. Provider I/O only, like the rest of the lane (lib/ai/adapter.ts).
  */
 import type { GoogleGenAI } from "@google/genai";
 import type { ProviderResult } from "@/lib/ai/call-ledger";
@@ -14,6 +15,7 @@ export async function streamGemini(
 ): Promise<ProviderResult> {
   let text = "";
   let usage: Parameters<typeof geminiUsage>[0];
+  try { onText(""); } catch { /* a watcher's failure never fails the call */ }
   for await (const chunk of await ai.models.generateContentStream(request)) {
     const piece = chunk.text ?? "";
     if (piece !== "") {

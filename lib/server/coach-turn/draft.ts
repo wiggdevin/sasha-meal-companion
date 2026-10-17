@@ -9,7 +9,10 @@
  * arrive in the turn itself, which replaces it.
  *
  * An empty string clears a draft already shown: a new model step (a retry, a correction round) or
- * a held draft. Once held, the turn sends no more drafts.
+ * a held draft. Once held, the turn sends no more drafts. A raw `""` from the provider opens a new
+ * attempt and clears too. A draft shows whole words only: a word still being written waits for
+ * the space or punctuation after it, while the guard reads the text as written, so a fragment of
+ * a blocked word never reaches the screen.
  */
 
 import { draftNamesBlocked, draftsHeldFor } from "@/lib/coach/draft-guard";
@@ -65,30 +68,34 @@ export function draftStream(
     pending = null;
     send(text);
   };
+  const hold = () => {
+    held = true;
+    pending = null;
+    cancelTimer?.();
+    cancelTimer = null;
+    send("");
+  };
   const offer = (text: string) => {
     if (closed || held) return;
-    if (text !== "" && draftNamesBlocked(text, profile, evidence())) {
-      held = true;
-      pending = null;
-      cancelTimer?.();
-      cancelTimer = null;
-      send("");
-      return;
-    }
     pending = text;
     const wait = lastSent + DRAFT_INTERVAL_MS - clock.now();
     if (wait <= 0) { cancelTimer?.(); flush(); return; }
     cancelTimer ??= clock.setTimer(flush, wait);
   };
 
+  const reset = () => { if (shown !== "" || pending !== null) offer(""); };
+
   return {
     onText: (raw) => {
-      const text = draftTextOf(raw);
-      if (text === null) return;
-      const clean = text.trim() === "" ? "" : sanitiseReply(text);
+      if (raw === "") { reset(); return; }
+      const written = draftTextOf(raw);
+      if (written === null || closed || held) return;
+      if (draftNamesBlocked(written, profile, evidence())) { hold(); return; }
+      const whole = written.replace(/[\p{L}\p{N}'’]+$/u, "");
+      const clean = whole.trim() === "" ? "" : sanitiseReply(whole);
       if (clean !== (pending ?? shown)) offer(clean);
     },
-    reset: () => { if (shown !== "" || pending !== null) offer(""); },
+    reset,
     flush: () => { cancelTimer?.(); flush(); },
     close: () => {
       closed = true;

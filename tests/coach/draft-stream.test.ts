@@ -39,30 +39,49 @@ function setup(profile: ConstraintProfile = EMPTY_PROFILE, evidence: EvidenceByN
 describe("draftStream", () => {
   it("sends the first text at once, then at most one draft per interval, ending on the last text", () => {
     const { sent, clock, stream } = setup();
-    stream.onText(raw("Oats"));
-    stream.onText(raw("Oats with"));
-    stream.onText(raw("Oats with berries"));
-    expect(sent).toEqual(["Oats"]);
+    stream.onText(raw("Oats, "));
+    stream.onText(raw("Oats with "));
+    stream.onText(raw("Oats with berries."));
+    expect(sent).toEqual(["Oats,"]);
     clock.advance(DRAFT_INTERVAL_MS);
-    expect(sent).toEqual(["Oats", "Oats with berries"]);
+    expect(sent).toEqual(["Oats,", "Oats with berries."]);
   });
 
   it("flushes the step's last text when the step answers", () => {
     const { sent, stream } = setup();
-    stream.onText(raw("Oats"));
+    stream.onText(raw("Oats, "));
     stream.onText(raw("Oats with berries."));
     stream.flush();
-    expect(sent).toEqual(["Oats", "Oats with berries."]);
+    expect(sent).toEqual(["Oats,", "Oats with berries."]);
+  });
+
+  it("shows whole words only: a word still being written waits for what follows it", () => {
+    const { sent, clock, stream } = setup();
+    stream.onText(raw("Oats wi"));
+    clock.advance(DRAFT_INTERVAL_MS);
+    stream.onText(raw("Oats with ber"));
+    clock.advance(DRAFT_INTERVAL_MS);
+    stream.onText(raw("Oats with berries!"));
+    stream.flush();
+    expect(sent).toEqual(["Oats", "Oats with", "Oats with berries!"]);
   });
 
   it("sends nothing for a tool step, and clears the draft when a new step starts", () => {
     const { sent, clock, stream } = setup();
-    stream.onText(raw("looking", "tool"));
+    stream.onText(raw("looking ", "tool"));
     expect(sent).toEqual([]);
-    stream.onText(raw("I logged it"));
+    stream.onText(raw("I logged it."));
     clock.advance(DRAFT_INTERVAL_MS);
     stream.reset();
-    expect(sent).toEqual(["I logged it", ""]);
+    expect(sent).toEqual(["I logged it.", ""]);
+  });
+
+  it("clears the draft when the provider opens a new attempt (a retry)", () => {
+    const { sent, clock, stream } = setup();
+    stream.onText(raw("I logged it."));
+    stream.onText("");
+    clock.advance(DRAFT_INTERVAL_MS);
+    expect(sent).toEqual(["I logged it.", ""]);
   });
 
   it("cleans the draft like the saved reply (tool names never show)", () => {
@@ -73,30 +92,32 @@ describe("draftStream", () => {
 
   it("drops a pending draft once closed", () => {
     const { sent, clock, stream } = setup();
-    stream.onText(raw("A"));
-    stream.onText(raw("AB"));
+    stream.onText(raw("A "));
+    stream.onText(raw("A B "));
     stream.close();
     clock.advance(DRAFT_INTERVAL_MS);
-    stream.onText(raw("ABC"));
+    stream.onText(raw("A B C "));
     expect(sent).toEqual(["A"]);
   });
 
   it("clears and stops for the rest of the turn when a draft names an avoided allergen", () => {
     const { sent, clock, stream } = setup({ ...EMPTY_PROFILE, avoid_allergens: ["peanut"] });
-    stream.onText(raw("Try a"));
+    stream.onText(raw("Try a "));
     clock.advance(DRAFT_INTERVAL_MS);
+    stream.onText(raw("Try a peanu"));
     stream.onText(raw("Try a peanut"));
     stream.onText(raw("Try a peanut satay"));
     clock.advance(DRAFT_INTERVAL_MS);
     stream.reset();
-    stream.onText(raw("Try oats"));
+    stream.onText(raw("Try oats."));
     stream.flush();
     expect(sent).toEqual(["Try a", ""]);
+    expect(sent.some((text) => text.includes("pean"))).toBe(false);
   });
 
   it("holds every draft for an account with a rule the guard cannot read from text", () => {
     const { sent, stream } = setup({ ...EMPTY_PROFILE, conditions: ["pregnant"] });
-    stream.onText(raw("Hello"));
+    stream.onText(raw("Hello."));
     stream.flush();
     expect(sent).toEqual([]);
   });
@@ -108,13 +129,16 @@ describe("draftStream", () => {
 });
 
 describe("draft guard", () => {
-  it("holds a whole turn for profile rules, conditions or custom rules, not for an empty profile", () => {
+  it("holds a whole turn for rules it cannot read from text, not for allergens or an empty profile", () => {
     expect(draftsHeldFor(EMPTY_PROFILE)).toBe(false);
     expect(draftsHeldFor({ ...EMPTY_PROFILE, conditions: ["  "] })).toBe(false);
     expect(draftsHeldFor({ ...EMPTY_PROFILE, conditions: ["kidney disease"] })).toBe(true);
     expect(draftsHeldFor({ ...EMPTY_PROFILE,
       profileRules: { items: [{}] as never, asOf: new Date() } })).toBe(true);
     expect(draftsHeldFor({ ...EMPTY_PROFILE, custom_rules: [{}] as never })).toBe(true);
+    expect(draftsHeldFor({ ...EMPTY_PROFILE, avoid_food_ref_ids: ["r1"] })).toBe(true);
+    expect(draftsHeldFor({ ...EMPTY_PROFILE, banned_categories: ["beans"] })).toBe(true);
+    expect(draftsHeldFor({ ...EMPTY_PROFILE, avoid_allergens: ["peanut"] })).toBe(false);
   });
 
   it("finds an avoided allergen by its keywords and a blocked food this turn looked up", () => {

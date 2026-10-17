@@ -29,11 +29,14 @@ any cards and actions appear then, never in the draft.
   `generateContentStream`). Everything else about the call is unchanged: callModel's gates, spend
   reservation, attempts, deadline and the one `ai_calls` row, billed from the last chunk's usage.
   The reply is still parsed and judged whole, once. A mid-stream provider error is a
-  `ProviderHttpError` with its status only, like a non-2xx.
+  `ProviderHttpError` with its status only, like a non-2xx; an OpenRouter stream that ends before
+  its usage chunk or `[DONE]` is a retryable 502, so no reply is ever billed at 0.
 - **Draft** (`lib/server/coach-turn/draft.ts`, `lib/coach/draft-text.ts`). Each chunk is read for
   the top-level `text` of a `kind: "final"` step (a tool step's text never shows), cleaned by the
-  same `sanitiseReply` as the saved reply, and sent at most every 80 ms. A new model step (a
-  correction round, a fallback model) clears the draft.
+  same `sanitiseReply` as the saved reply, and sent at most every 80 ms. Only whole words show: a
+  word still being written waits for the space or punctuation after it. A new model step (a
+  correction round, a fallback model) or a provider retry clears the draft; the phone ignores
+  drafts from any turn but the one it is waiting on.
 - **Phone** (`lib/coach-client.ts` `postTurn(…, { onDraft })`, `components/coach/CoachDraftBubble.tsx`).
   The body is bounded by what is left of the coach's 40 s budget; a stream that ends without its
   turn is the retryable 503. `first-text` in `client_timings` is now the first draft on screen.
@@ -46,10 +49,12 @@ reads it as an answer; a draft arrives before them. `lib/coach/draft-guard.ts` h
 is always safe because the checked reply still arrives:
 
 - for the whole turn when the account has a confirmed dietary-profile hard rule, a stated
-  condition or a custom rule (none can be judged from text cheaply);
+  condition, a custom rule, a food on its Avoid list or a banned food category (none can be judged
+  from text cheaply; new accounts start with none, so this holds only once a person sets one);
 - from the moment a draft names an avoided allergen (the allergen scan's own whole-word keywords),
   or a food this turn looked up that the policy blocks; the draft is cleared and no other draft
-  is sent that turn.
+  is sent that turn. The guard reads the text as written, ahead of what is shown, so not even a
+  fragment of the word appears.
 
 A draft can still say something the final checks change (a claim with no action, a food the full
 catalog scan catches). That is the "draft until verification passes" OD06 accepted; it is labelled

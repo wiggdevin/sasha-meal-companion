@@ -133,7 +133,7 @@ describe("readOpenRouterStream", () => {
     ]), (text) => seen.push(text));
     expect(result).toEqual({ text: "{\"kind\":\"final\"}", inputTokens: 10, outputTokens: 4,
       costUsd: 0.002 });
-    expect(seen).toEqual(["{\"kind\":", "{\"kind\":\"final\"}"]);
+    expect(seen).toEqual(["", "{\"kind\":", "{\"kind\":\"final\"}"]);
   });
 
   it("throws a provider error sent mid-stream as a ProviderHttpError with its status only", async () => {
@@ -146,9 +146,14 @@ describe("readOpenRouterStream", () => {
     expect(error.message).not.toContain("prompt");
   });
 
-  it("returns what arrived when the stream ends early (the parse then refuses it)", async () => {
-    const result = await readOpenRouterStream(sse([
-      "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"kind\"}}]}"]), () => {});
-    expect(result).toMatchObject({ text: "{\"kind", inputTokens: 0, costUsd: 0 });
+  it("refuses a stream cut off before its usage or [DONE] as a retryable 502, even with whole JSON", async () => {
+    for (const lines of [
+      ["data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"kind\"}}]}"],
+      ["data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"kind\\\":\\\"final\\\"}\"}}]}"],
+    ]) {
+      const error = await readOpenRouterStream(sse(lines), () => {}).catch((e) => e);
+      expect(error).toBeInstanceOf(ProviderHttpError);
+      expect(error.status).toBe(502);
+    }
   });
 });

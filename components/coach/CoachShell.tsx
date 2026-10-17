@@ -87,6 +87,8 @@ export default function CoachShell({
   const [followVersion, setFollowVersion] = useState(0); const runSendFeedback = sendFeedback.run;
   // OD06: the reply being written, until the saved turn replaces it.
   const [draft, setDraft] = useState("");
+  /** The turn whose drafts may show: an older turn still streaming never writes over a newer one. */
+  const draftTurn = useRef<string | null>(null);
   const transcript = useRef<TranscriptHandle>(null);
   const olderInFlight = useRef(false); const olderPageCommitted = useRef(false);
   const alive = useRef(true);
@@ -203,8 +205,9 @@ export default function CoachShell({
     }
     // A Retry sends the failed turn's own id, so the server replays it if it did save.
     const messageId = retryOf ?? crypto.randomUUID();
-    setDraft("");
+    setDraft(""); draftTurn.current = messageId;
     followDispatch({ type: "send", messageId, text });
+    const clearDraft = () => { if (draftTurn.current === messageId) setDraft(""); };
     void (async () => {
       try {
         const now = new Date();
@@ -216,20 +219,20 @@ export default function CoachShell({
           ...(scope ? { scope } : {}),
         };
         const onDraft = (next: string) => {
-          if (!alive.current) return;
+          if (!alive.current || draftTurn.current !== messageId) return;
           transcript.current?.captureBeforeUpdate();
           setDraft(next);
           setFollowVersion((version) => version + 1);
         };
         const result = await runSendFeedback(() => postTurn(request, { onDraft }));
-        if (!alive.current) return; setDraft(""); if (!result.ok) throw result.error;
+        if (!alive.current) return; clearDraft(); if (!result.ok) throw result.error;
         const response = result.value;
         followDispatch({ type: "turn", response });
         onThreadSaved(response.threadId);
         if (historySourceThreadId) onClearHistorySource?.();
       } catch (caught) {
         if (!alive.current) return;
-        setDraft("");
+        clearDraft();
         const error = caught instanceof CoachError
           ? caught : new CoachError(0, "network", NO_CONNECTION_COPY);
         followDispatch({ type: "error", status: error.status, code: error.code,

@@ -7,7 +7,8 @@
  * thing the full check would replace:
  *
  * - the account has a rule this module cannot judge from text alone (a confirmed dietary-profile
- *   hard rule, a stated condition, a custom rule): no draft for the whole turn;
+ *   hard rule, a stated condition, a custom rule, a food on its Avoid list, a banned food
+ *   category): no draft for the whole turn;
  * - the draft names an allergen the account avoids, by the same whole-word keywords the allergen
  *   scan uses (lib/policy/allergens.ts `textNames`);
  * - the draft names a food this turn already looked up that the policy blocks for this account.
@@ -23,7 +24,9 @@ import { textNames } from "@/lib/policy/allergens";
 export function draftsHeldFor(profile: ConstraintProfile): boolean {
   return (profile.profileRules?.items.length ?? 0) > 0
     || (profile.conditions ?? []).some((text) => text.trim() !== "")
-    || (profile.custom_rules?.length ?? 0) > 0;
+    || (profile.custom_rules?.length ?? 0) > 0
+    || profile.avoid_food_ref_ids.length > 0
+    || profile.banned_categories.length > 0;
 }
 
 /** True when this draft names something the account must not be shown before the check. */

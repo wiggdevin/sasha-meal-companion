@@ -167,8 +167,10 @@ type StreamChunk = {
  * appended and `onText` sees the whole text so far; the usage (tokens and billed cost) rides on
  * the last chunk. A provider error after the headers arrives as a chunk carrying `error`, and is
  * thrown as the same ProviderHttpError a non-2xx would be (only its code crosses, never its body).
- * A stream that ends without its usage chunk or `[DONE]` is a cut-off reply: the JSON parse in
- * `accept` refuses it as schema_invalid, exactly like a non-streamed reply cut off mid-JSON.
+ * A stream that ends without its usage chunk or `[DONE]` is a cut-off reply, thrown as a
+ * retryable 502 even when its JSON looks whole: its tokens and cost are unknown, and a reply that
+ * billed 0 would let the spend caps under-count. `onText("")` opens each attempt, so a retry
+ * clears what the failed attempt showed.
  */
 export async function readOpenRouterStream(
   response: Response, onText: (raw: string) => void,
@@ -179,10 +181,13 @@ export async function readOpenRouterStream(
   let buffered = "";
   let text = "";
   let usage: StreamChunk["usage"];
+  let ended = false;
+  const watch = (soFar: string) => { try { onText(soFar); } catch { /* never fails the call */ } };
+  watch("");
   const take = (line: string): boolean => {
     if (!line.startsWith("data:")) return false;
     const data = line.slice(5).trim();
-    if (data === "[DONE]") return true;
+    if (data === "[DONE]") { ended = true; return true; }
     let chunk: StreamChunk;
     try { chunk = JSON.parse(data) as StreamChunk; } catch { return false; }
     if (chunk.error) {
@@ -193,9 +198,9 @@ export async function readOpenRouterStream(
     const delta = chunk.choices?.[0]?.delta?.content;
     if (typeof delta === "string" && delta !== "") {
       text += delta;
-      try { onText(text); } catch { /* a watcher's failure never fails the call */ }
+      watch(text);
     }
-    if (chunk.usage) usage = chunk.usage;
+    if (chunk.usage) { usage = chunk.usage; ended = true; }
     return false;
   };
   try {
@@ -211,6 +216,7 @@ export async function readOpenRouterStream(
     reader.cancel().catch(() => undefined);
   }
   function finished(): OpenRouterResult {
+    if (!ended) throw new ProviderHttpError(502, "openrouter 502");
     return {
       text,
       inputTokens: usage?.prompt_tokens ?? 0,
