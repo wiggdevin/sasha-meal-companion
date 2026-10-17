@@ -23,6 +23,8 @@ describe("the deadline table", () => {
       ideas: 9_000,
       // Sign-in through the app's IP-limited routes (lib/sign-in-client.ts), W052.
       signIn: 10_000,
+      // The advisory check before "Day fully logged" (lib/day-completeness-client.ts), W142.
+      nudge: 4_000,
     });
   });
 });
