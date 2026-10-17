@@ -46,6 +46,22 @@ function callbackErrorMessage(): string {
   return "That link didn't work — try again, or use the code from the email.";
 }
 
+/** `?deleted=1`: the phone lands here after the account was deleted (lib/device/erase.ts). */
+function accountDeleted(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("deleted") === "1";
+}
+
+function DeletedNotice() {
+  const [deleted] = useState(accountDeleted);
+  if (!deleted) return null;
+  return (
+    <p role="status" className="ground-muted text-caption font-normal">
+      Your account and its data were deleted, and this phone is signed out.
+    </p>
+  );
+}
+
 /**
  * Leaves /sign-in with a full document load once the session exists.
  *
@@ -120,6 +136,7 @@ export default function SignInPage() {
   return (
     <main className="flex min-h-dvh flex-col justify-center gap-6 px-5 text-charcoal">
       <SignInHeading creating={mode === "create"} />
+      <DeletedNotice />
 
       <div className="shell">
         <div className="surface flex flex-col gap-3.5 p-6">

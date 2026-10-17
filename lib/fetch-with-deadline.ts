@@ -15,7 +15,7 @@
 /** The kinds of call spec §2 gives a deadline to. One name per hop the user waits on. */
 export type Budget =
   "sign" | "upload" | "propose" | "barcode" | "commit" | "coach" | "search" | "timings"
-  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn";
+  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn" | "accountDelete";
 
 /**
  * Spec §2's table, in milliseconds: how long one call of each kind may take before the client
@@ -61,6 +61,12 @@ export const DEADLINES: Record<Budget, number> = {
    * one Supabase Auth call; past this the screen offers to try again.
    */
   signIn: 10_000,
+  /**
+   * Self-serve account deletion (lib/account-delete-client.ts): the server removes the account's
+   * files, then its rows in one transaction. Rare and deliberate. Longer than the route's own
+   * `maxDuration` (60 s), so the phone never gives up on a delete the server is still finishing.
+   */
+  accountDelete: 65_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */
