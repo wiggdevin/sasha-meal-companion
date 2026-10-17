@@ -298,6 +298,8 @@ export class HoldController {
   private abandon(notice: DictationNotice | null): void {
     this.typed = this.ports.readBox();
     this.gen += 1;
+    this.clipAbort?.abort();
+    this.clipAbort = null;
     this.ports.writeBox(this.typed);
     if (this.timingPath) discardRun(this.timingPath);
     this.showNotice(notice);
