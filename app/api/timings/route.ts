@@ -1,15 +1,17 @@
 /**
  * POST /api/timings — JWT, 8 KB, 60/min (T0 §1).
  *
- * The batched client marks from lib/timing.ts. The rows are inserted with THEIR client, so
- * `client_timings`' insert policy is the tenancy boundary and `user_id` is stamped here from the
- * session, never read off the body. Answers 202 whatever the insert does: a lost measurement is
- * a gap in a p95 table, not something to fail a phone tap over.
+ * The batched client marks from lib/timing.ts. `authenticated` cannot insert into
+ * `client_timings` (W070, migration 20270105140300), so the rows go through the service-role store
+ * (lib/server/client-timings.ts) after both rate limits, and `user_id` is stamped from the session,
+ * never read off the body. Answers 202 whatever the insert does: a lost measurement is a gap in a
+ * p95 table, not something to fail a phone tap over.
  */
 
 import { z } from "zod";
 import { TIMING_PATHS, TIMING_STEPS } from "@/lib/timing";
 import { requireUser } from "@/lib/server/auth";
+import { recordClientTimings } from "@/lib/server/client-timings";
 import { jsonError, readJson } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
@@ -36,16 +38,14 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const ip = requestIp(req);
     await enforceRateLimit(`timings:ip:${ip}`, 120, 60);
-    const { userId, client } = await requireUser(req);
+    const { userId } = await requireUser(req);
     await enforceRateLimit(`timings:user:${userId}`, 60, 60);
     const body = await readJson(req, Body, MAX_BYTES);
-    const { error } = await client.from("client_timings").insert(
-      body.rows.map((row) => ({
-        user_id: userId, run_id: row.run_id, path: row.path, step: row.step,
-        ms: row.ms, at: row.at, device: row.device ?? null,
-      })),
-    );
-    if (error) console.error("client_timings insert failed", { userId, error });
+    const code = await recordClientTimings(userId, body.rows.map((row) => ({
+      run_id: row.run_id, path: row.path, step: row.step, ms: row.ms, at: row.at,
+      device: row.device ?? null,
+    })));
+    if (code) console.error("client_timings insert failed", { userId, code });
     return new Response(null, { status: 202 });
   } catch (e) {
     return jsonError(e);

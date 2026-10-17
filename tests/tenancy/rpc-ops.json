@@ -29,7 +29,6 @@
   "recipe_consumed_snapshot_valid(jsonb)": { "class": "pure", "reason": "Validates a recipe consumption JSON shape without account reads." },
   "recipe_log_consumed(uuid,date,text,uuid,integer,numeric)": { "class": "account", "case": "recipe_consumed" },
   "recipe_undo_consumed(uuid,date,text,timestamp with time zone)": { "class": "account", "case": "recipe_undo" },
-  "record_food_signals(jsonb)": { "class": "account", "case": "food_signals" },
   "recompute_unit_snapshot(jsonb,numeric)": { "class": "pure", "reason": "Recomputes a per-unit snapshot from its own exact per_unit numbers; reads no table." },
   "record_coach_undo(text,text,jsonb,bigint,uuid,boolean,uuid,integer)": { "class": "account", "case": "coach_undo_record" },
   "revoke_api_token(uuid,uuid)": { "class": "account", "case": "revoke_token" },
@@ -51,7 +50,6 @@
   "care_message_mark(uuid,uuid,text)": { "class": "account", "case": "care_message_mark" },
   "care_log_grew(uuid,uuid,text)": { "class": "account", "case": "care_log_grew" },
   "onboarding_event_shape_valid(text,text,text,text,integer)": { "class": "pure", "reason": "Followups #18: validates which of step/question/pilot_arm/duration_ms a kind may carry for a check constraint; reads no table." },
-  "record_onboarding_events(jsonb)": { "class": "account", "case": "onboarding_events" },
   "taste_dislike_remove(uuid,uuid,text)": { "class": "account", "case": "taste_dislike_remove" },
   "taste_dislike_remove_undo(uuid,uuid)": { "class": "account", "case": "taste_dislike_undo" }
 }

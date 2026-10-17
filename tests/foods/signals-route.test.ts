@@ -3,7 +3,8 @@
  * 202 whatever the insert does, an unoffered food never reaches the store, zod refuses any other
  * shape (bounded slate and batch, no extra fields, so no free text or PII), a failed insert is
  * logged by error code only, and the per-account limit holds. The store runs on the local stack in
- * tests/migrations/food-signal-events-db.test.ts.
+ * tests/migrations/food-signal-events-db.test.ts. Since W070 the store writes with the admin
+ * client and the session's user id; the owner check still reads with the session client.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetRateLimits } from "@/lib/server/ratelimit";
@@ -15,10 +16,12 @@ vi.mock("@/lib/server/auth", async (original) => ({
   requireUser: vi.fn(),
 }));
 
+const { rpc, sessionRpc } = vi.hoisted(() => ({ rpc: vi.fn(), sessionRpc: vi.fn() }));
+vi.mock("@/lib/server/admin", () => ({ adminClient: () => ({ rpc }) }));
+
 const { requireUser } = await import("@/lib/server/auth");
 const { POST } = await import("@/app/api/foods/signals/route");
 
-const rpc = vi.fn();
 const USER = "6f1d0c1e-4a52-4c39-9a8e-3b2c1d0e9f11";
 const OWN = "food:6f1d0c1e-4a52-4c39-9a8e-3b2c1d0e9f12";
 /** Another account's food: present in user_foods, but not under USER. */
@@ -64,22 +67,24 @@ function post(body: unknown, raw?: string): Request {
 beforeEach(() => {
   resetRateLimits();
   rpc.mockReset();
+  sessionRpc.mockReset();
   rpc.mockResolvedValue({ data: [{ inserted: 1, duplicates: 0, rejected: 0 }], error: null });
   foodReads.length = 0;
   foodReadError = null;
-  vi.mocked(requireUser).mockResolvedValue({ userId: USER, client: { rpc, from } as never });
+  vi.mocked(requireUser).mockResolvedValue({ userId: USER, client: { rpc: sessionRpc, from } as never });
 });
 
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("POST /api/foods/signals", () => {
-  it("answers 202 and hands the events to record_food_signals as rows", async () => {
+  it("answers 202 and hands the events to record_food_signals_for as rows, under the session user", async () => {
     const sent = event({ kind: "not_this", surface: "plan_sheet", chosenKey: "catalog:42" });
     const res = await POST(post({ events: [sent] }));
     expect(res.status).toBe(202);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ accepted: 1, rejected: 0 });
-    expect(rpc).toHaveBeenCalledWith("record_food_signals", { p_events: [{
+    expect(sessionRpc).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("record_food_signals_for", { p_user_id: USER, p_events: [{
       client_event_id: sent.clientEventId, slate_id: sent.slateId, at: sent.at, local_date: sent.localDate,
       surface: "plan_sheet", kind: "not_this", occasion: "lunch", chosen_key: "catalog:42",
       offered_keys: ["food:smoked-salmon", "catalog:42"], ranking_version: "o2.1",

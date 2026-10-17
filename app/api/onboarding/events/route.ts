@@ -28,13 +28,13 @@ const NO_STORE = { "Cache-Control": "no-store" };
 export async function POST(req: Request): Promise<Response> {
   try {
     await enforceRateLimit(`onboarding-events:pre:ip:${requestIp(req)}`, 120, 60);
-    const { userId, client } = await requireUser(req);
+    const { userId } = await requireUser(req);
     await enforceRateLimit(`onboarding-events:${userId}`, 60, 60);
     const { events } = await readJson(req, OnboardingEventBatch, ONBOARDING_EVENTS_BODY_MAX_BYTES);
     let accepted = 0;
     let rejected = 0;
     try {
-      const result = await recordOnboardingEvents(client, events);
+      const result = await recordOnboardingEvents(userId, events);
       accepted = result.inserted + result.duplicates;
       rejected = result.rejected;
     } catch (error) {
