@@ -1,5 +1,7 @@
 # Slice 5 — Shared rate limit, invite codes, the hook and the account claim
 
+> **Later, not built (needs a product decision).** See the banner in `README.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Every public sign-up path is refused at the database unless a live reservation exists for that email and that sign-up's nonce; a successful sign-up is finalized by `claim_account(nonce)`, which spends one use and writes the default template in one transaction. Scripts and tests create users only through the gated helper. The UI stays hidden behind `NEXT_PUBLIC_INVITE_SIGNUP=1`.

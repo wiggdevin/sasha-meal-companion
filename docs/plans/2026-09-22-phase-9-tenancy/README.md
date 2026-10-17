@@ -1,5 +1,12 @@
 # Phase 9 — Tenancy and a blank slate: implementation plan
 
+> **Superseded in part / Later (owner decision, 2026-10-08).** Slices 1-3 are the tenancy work that
+> shipped. Slices 4-8 (per-user day templates, invite codes, resolver, migration proof, key
+> validation) are Later, not built and need a product decision: see
+> `docs/specs/phase-9-tenancy-blank-slate.md`. Self-serve sign-up replaced invite codes
+> (`docs/decisions/2026-09-25-self-serve-signup.md`).
+> Unbuilt slices: [4](slice-4-templates-m1.md), [5](slice-5-invites-and-claim.md), [6](slice-6-resolver-and-consumers.md), [7](slice-7-migration-proof.md), [8](slice-8-key-validation-m2.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Every account is its own, on the server and on a shared phone; a new account signs up with an invite code and sees a blank slate; Sasha's account keeps exactly what it has today.

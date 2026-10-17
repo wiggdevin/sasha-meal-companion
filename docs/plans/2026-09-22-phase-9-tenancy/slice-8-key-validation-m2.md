@@ -1,5 +1,7 @@
 # Slice 8 — Key validation M2 (`plan_days` keys come from the owner's templates)
 
+> **Later, not built (needs a product decision).** See the banner in `README.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `plan_days.day_type_override` must be a key of one of the owner's templates, and the keys of `eaten_slots`, `swaps`, `slot_notes` and `item_overrides` must be slot keys of the owner's templates, so an invited account can store `breakfast` and nobody can store another account's keys.

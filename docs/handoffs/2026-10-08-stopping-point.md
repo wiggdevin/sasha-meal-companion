@@ -55,7 +55,7 @@ The Sasha orchestrator's handoff at the owner-requested stop. It records what la
 | `wip/2026-10-08-account-deletion` | Settings delete flow, `/api/account/delete`, `delete_account()` migration, behind `ACCOUNT_DELETION_ENABLED` (default off). Stopped mid-build, unreviewed. | Finish, review, renumber the migration. Apply the migration to prod before turning the flag on. |
 | `wip/2026-10-08-voice-retire-account-zone` | Phase-14 retirement note, `voice_ears` cleanup migration, account-zone precedence and the two `it.todo` tests. Stopped in tests, unreviewed. | Finish, review, renumber the migration. |
 | `wip/2026-10-08-app-hardening` | Security headers, `app/error.tsx` + `global-error.tsx`, vendor-free `/api/client-errors`, ExportCard copy, shopping-apply account-switch fix. **Sol BLOCK.** | **BLOCK:** crash reports can still carry free-text PII. Move to an allowlist of error codes and route patterns. **WARN:** the 4 KB cap is checked after the body is read. **WARN:** a partial shopping add has no Undo. |
-| `wip/2026-10-08-down-migrations` | Down files for `20261023092000`, `20261126090000`, `20261210090100`. **Sol BLOCK.** | All three destroy data (they delete plan threads with their transcripts, delete `attach` timings, and break role-only writes). Redesign them to preserve data. |
+| `wip/2026-10-08-down-migrations` | Down files for `20261023092000`, `20261126090000`, `20261210090100`. **Sol BLOCK.** | **Update 2026-10-17:** the branch is gone from origin. The down-migration item is replaced by W134 (down files that preserve data); W134 is held by Devin and the down migrations stay unported, so there is no W134 PR yet. Ask the Mac session whether a local copy of the branch exists. Original BLOCK: all three destroy data (they delete plan threads with their transcripts, delete `attach` timings, and break role-only writes). |
 | `feat/cards-redesign-v4` | Meal Cards lane: pass 1 of 4, unreviewed. **Do not merge.** | See `~/Inbox/notes/handoffs/2026-10-08-sasha-meal-cards.md`. |
 | `wip/2026-10-08-onb2-p0-{chat,save,ui}`, `wip/2026-10-08-onb2-voice` | Older local onboarding-v2 branches, backed up only; most of their work has since landed. | Compare with main before reusing; delete if empty. |
 
@@ -96,3 +96,15 @@ Rules:
 - Never reset the shared local Supabase stack.
 - No reviews or QA in EGO Lite; use headless Playwright.
 - Push worktree branches with an explicit refspec (`git push origin B:B`).
+
+## Branch check, 2026-10-17 (W132)
+
+As of main `31b041b`, every W132 target branch (`wip/2026-10-08-week-entry-scan-notice`,
+`fix/week-entry-scan-notice`, `wip/2026-10-08-onb2-p0-{chat,save,ui}`, `wip/2026-10-08-onb2-voice`,
+`proto/wet-island`, `fix/well-open-glare`) was already gone from `origin`, so no diff was recorded
+and nothing was deleted. `wip/2026-10-08-down-migrations` is also gone (see the table above).
+Heads still on origin, listed with no retire or revive decision:
+`wip/2026-10-08-account-deletion`, `wip/2026-10-08-duplicate-card`,
+`wip/2026-10-08-voice-retire-account-zone`, `feat/cards-redesign-v4`, `feat/day-completeness-nudge`,
+`fix/coach-save-turn`, `chore/cloud-auto-merge`, `chore/genai-2-28-0`,
+`chore/w146-canary-catalog-cadence`, and two Dependabot branches.

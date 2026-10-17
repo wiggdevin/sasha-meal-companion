@@ -1,5 +1,7 @@
 # Slice 7 — Migration proof tooling and the proof on `p9-tenancy`
 
+> **Later, not built (needs a product decision).** See the banner in `README.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the proof tooling, and prove on a restore of production what M1 alone can prove: M1 and the seed change no resolved day for the production code, every seeded option renders back to its authored meal, row counts are exact, and the M1 rollback drills behave. The comparison with the resolver code (Sasha's days identical under slice 6) is slice 6's gate.

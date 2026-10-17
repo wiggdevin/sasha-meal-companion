@@ -1,5 +1,7 @@
 # Slice 6 — The template resolver and every consumer; minimum-client gate
 
+> **Later, not built (needs a product decision).** See the banner in `README.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Every day is resolved from the account's own templates; runtime code never reads Sasha's constants; an account with only the default template gets Breakfast, Lunch, Snack and Dinner everywhere (Today, Week, completion, adherence, water, export, calendar, capture, coach, MCP); an invited account on an old build gets `426` and no templates.
