@@ -66,6 +66,7 @@ export function reaskMessage(failures: readonly ReaskFailure[]): string {
   if (parts.length === 0) {
     return incomplete ? REASK_INCOMPLETE : abortMessage("unverified_text_food");
   }
+  if (incomplete) parts.push("I couldn’t finish checking the rest of that answer either.");
   parts.push(REASK_TAIL);
   return parts.join(" ");
 }

@@ -20,6 +20,7 @@
  * Timing: the caller starts `startReplyScan` alongside coach-verify, with its own deadline
  * (REPLY_CHECK_BUDGET_MS, the Jev verify window), and `checkReplyLive` only awaits it.
  */
+import { withoutListMarkConfirmations } from "@/lib/coach/list-mark-confirmation";
 import { shoppingItemNames, withoutShoppingConfirmations } from "@/lib/coach/shopping-confirmation";
 import type { CoachAction } from "@/lib/coach/actions";
 import { allergenFacts, checkItem, type EvidenceByName } from "@/lib/coach/policy";
@@ -74,7 +75,7 @@ export type ReplyScanInput = {
   loggedNames?: readonly string[];
   /** The model's own final-step actions before grounding: the scan starts before `actions` holds
    *  them, and a shopping add's confirmation sentence is set aside from them (2026-10-02). */
-  pendingActions?: readonly { kind: string; names?: unknown }[];
+  pendingActions?: readonly { kind: string; names?: unknown; name?: unknown }[];
   /**
    * 2026-10-02 DeepSeek audit (finding #3): the turn's actually-GROUNDED log_meal identities,
    * resolved once lib/server/coach-turn/final-step.ts's groundAll() settles — not the raw,
@@ -354,8 +355,11 @@ export function startReplyScan(
   input: ReplyScanInput, ports: ReplyCheckPorts, deadlineAt: number,
 ): Promise<ReplyScan> {
   // The reply's own "added X to your list" sentences are not advice (lib/coach/shopping-confirmation.ts).
-  input = { ...input, text: withoutShoppingConfirmations(input.text,
-    [...(input.actions ?? []), ...(input.pendingActions ?? [])]) };
+  // W087: so are the sentences that only confirm this turn's Eats or Avoid marks; every other
+  // mention of those foods is still judged (lib/coach/list-mark-confirmation.ts).
+  const turnActions = [...(input.actions ?? []), ...(input.pendingActions ?? [])];
+  input = { ...input, text: withoutShoppingConfirmations(
+    withoutListMarkConfirmations(input.text, turnActions), turnActions) };
   const legacyActive = hasActiveHardRules(input.profile);
   // A scan that never finishes cannot prove a profile rule is absent either (owner ruling above).
   const fallback: ReplyScan = { hardRulesActive: legacyActive || ports.profileRules !== undefined,

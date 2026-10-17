@@ -4,6 +4,7 @@
  * (lib/server/reply-check.ts, §9 R7), and the next-best-action chip.
  */
 
+import { withoutListMarkMirrors } from "@/lib/coach/list-mark-confirmation";
 import { shoppingItemNames, withoutShoppingMirrors } from "@/lib/coach/shopping-confirmation";
 import { hydrateNextActionChip } from "@/lib/coach/blocks/hydrate-next-action";
 import { accountFoodNames, nextMemory } from "@/lib/coach/memory";
@@ -48,9 +49,10 @@ export async function modelReply(
     && (recipeRefusals.length > 0 || claimCorrectionRequested || replyClaimDropped
       || !/\?\s*$/.test(text));
 
-  // The cards beside the reply; a card that only mirrors a shopping add is not advice.
+  // The cards beside the reply; a card that only mirrors a shopping add or a list mark is not advice.
   let named = step.kind === "final" && !groundingLate
-    ? withoutShoppingMirrors(step.suggestions ?? [], step.actions ?? []) : [];
+    ? withoutListMarkMirrors(withoutShoppingMirrors(step.suggestions ?? [], step.actions ?? []),
+      [...(step.actions ?? []), ...actions]) : [];
 
   // The prose scan judges this turn's shopping items and cards too; with no prose left to scan,
   // they are judged on their own (DeepSeek audit round 10), before any copy counts the actions.

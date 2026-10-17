@@ -6,6 +6,7 @@
  */
 
 import { actionsInScope, scopeDropNotice } from "@/lib/coach/scope";
+import { withoutListMarkMirrors } from "@/lib/coach/list-mark-confirmation";
 import { withoutShoppingMirrors } from "@/lib/coach/shopping-confirmation";
 import { claimsAction, groundAndExpandActions } from "@/lib/coach/actions";
 import { hydrateComparison } from "@/lib/coach/blocks/hydrate-comparison";
@@ -100,7 +101,8 @@ export async function settleFinalStep(
   });
   // Runs beside grounding and coach-verify, never after them (§6 row 5).
   state.replyScan = scanReply(turn, kit, state, sanitiseReply(finalStep.text),
-    withoutShoppingMirrors(finalStep.suggestions ?? [], finalStep.actions ?? []),
+    withoutListMarkMirrors(withoutShoppingMirrors(finalStep.suggestions ?? [], finalStep.actions ?? []),
+      finalStep.actions ?? []),
     loggedNamesOf(finalStep.actions ?? []), groundedLogged, finalStep.actions ?? []);
   const groundAll = async () => {
     const grounded = await groundAndExpandActions(userId, finalStep.actions ?? [], profile, {

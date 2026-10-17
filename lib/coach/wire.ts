@@ -10,6 +10,7 @@
 
 import { z } from "zod";
 import {
+  actionSpecFor,
   coachActionWireSchemaFor,
   flatCoachActionSchema,
   providerActionSchema,
@@ -111,8 +112,16 @@ function blank(value: unknown): boolean {
  */
 const PLACEHOLDER_KEYS = new Set(["kind", "slot", "date"]);
 
-/** A refused action that carries nothing but its kind, a slot and a date: a placeholder. */
+/**
+ * A refused action that carries nothing but its kind, a slot and a date: a placeholder. Never for a
+ * kind whose whole action IS a date and a slot (skip_slot, restore_slot): a refused one of those
+ * is a real action the model got wrong, and still refuses the turn.
+ */
 function placeholderAction(action: Record<string, unknown>): boolean {
+  const wire = actionSpecFor(String(action.kind))?.wire;
+  const own = [...(wire?.named ?? []), ...(wire?.numbers ?? []), ...(wire?.strings ?? []),
+    ...Object.keys(wire?.fields ?? {}), wire?.numbersRest?.field, wire?.stringsRest?.field];
+  if (!own.some((key) => key !== undefined && !PLACEHOLDER_KEYS.has(key))) return false;
   return Object.entries(action).every(([key, value]) => PLACEHOLDER_KEYS.has(key) || blank(value));
 }
 

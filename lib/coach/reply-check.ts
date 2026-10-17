@@ -11,7 +11,7 @@
 import { shoppingItemNames, withoutShoppingConfirmations } from "@/lib/coach/shopping-confirmation";
 import type { CoachAction } from "@/lib/coach/actions";
 import { checkDraft, checkItem, type EvidenceByName, allergenFacts } from "@/lib/coach/policy";
-import { LIST_MARK_KINDS } from "@/lib/coach/actions/food-lists";
+import { withoutListMarkConfirmations } from "@/lib/coach/list-mark-confirmation";
 import { reaskMessage, reaskReasonCode } from "@/lib/coach/reask";
 import type { RawSuggestion } from "@/lib/coach/turn";
 import type { CoachDraft, CoachSuggestion } from "@/lib/coach/types";
@@ -66,21 +66,6 @@ export function loggedFoodIdentities(
         refs.add(item.foodRefId);
       }
     }
-    // W087: an Eats or Avoid mark is the person's own instruction about that food, and its
-    // grounding already says a blocked verdict is no reason to hold the mark back
-    // (lib/coach/actions/food-lists.ts). The reply confirming it ("Adding Greek yogurt to your
-    // Favored list") is not advice, so it no longer turns the turn into a re-ask that also drops
-    // the mark — the fast path already answers the same sentence with the mark.
-    if ((LIST_MARK_KINDS as readonly string[]).includes(action.kind)) {
-      const mark = action as Extract<CoachAction, { kind: (typeof LIST_MARK_KINDS)[number] }>;
-      const name = mark.name.toLowerCase();
-      names.add(name);
-      // The catalog's name is "Greek yogurt, plain"; the reply and its card say "greek yogurt".
-      const base = name.split(",")[0].trim();
-      if (base !== "") names.add(base);
-      refs.add(mark.foodRefId);
-      for (const id of mark.alsoFoodRefIds ?? []) refs.add(id);
-    }
   }
   return { names, refs };
 }
@@ -129,7 +114,8 @@ export function checkReply(input: ReplyCheckInput): ReplyCheckResult {
   const namedNames = new Set(named.map((s) => s.name.toLowerCase()));
   // The confirmation sentence leaves the scan, but each item it put on the list is still judged
   // (DeepSeek audit round 9, HIGH): a blocked food never goes on the list unremarked.
-  const lowerText = [withoutShoppingConfirmations(text, input.actions ?? []),
+  const lowerText = [withoutShoppingConfirmations(
+    withoutListMarkConfirmations(text, input.actions ?? []), input.actions ?? []),
     ...shoppingItemNames(input.actions ?? [])].join(" ").toLowerCase();
   // finding #6: a food this turn's own log_meal already logged is exempt from this blocking scan —
   // it is the user's record of what they ate, not advice the reply is offering them.

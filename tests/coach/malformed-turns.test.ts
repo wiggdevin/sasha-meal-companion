@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseModelJson, schemaIssueSummary } from "@/lib/ai/call";
 import type { CoachAction } from "@/lib/coach/actions";
 import { isReask, reaskMessage, reaskReasonCode, REASK_INCOMPLETE, REASK_TAIL } from "@/lib/coach/reask";
+import { withoutListMarkConfirmations, withoutListMarkMirrors } from "@/lib/coach/list-mark-confirmation";
 import { checkReply, loggedFoodIdentities } from "@/lib/coach/reply-check";
 import { ABORT_CORRECTION, abortMessage } from "@/lib/coach/turn";
 import { turnStepWireSchemaFor } from "@/lib/coach/wire";
@@ -61,6 +62,13 @@ describe("the turn step wire parse (W087 failing shapes)", () => {
     expect(summary).not.toContain("tofu");
   });
 
+  it("never drops a skip_slot as a placeholder: its whole action is a date and a slot", () => {
+    const parsed = wire.safeParse({ ...EMPTY, kind: "final", text: "Skipped your snack.",
+      actions: [{ ...PLACEHOLDER_ACTION, kind: "skip_slot", slot: "snack", date: "not a date" }] });
+    expect(parsed.success).toBe(false);
+    expect(schemaIssueSummary(parsed.error!)).toBe("(root):custom(action_0_skip_slot_unsupported)");
+  });
+
   it("names a tool step with no named call", () => {
     const parsed = wire.safeParse({ ...EMPTY, kind: "tool", calls: [{ name: "", args: "{}" }] });
     expect(parsed.success).toBe(false);
@@ -101,6 +109,9 @@ describe("reaskMessage", () => {
 
   it("falls back to the plain lines when there is no food to name", () => {
     expect(reaskMessage([{ name: "reply", reason: "reply_check_incomplete" }])).toBe(REASK_INCOMPLETE);
+    expect(reaskMessage([{ name: "tofu", reason: null }, { name: "reply", reason: "reply_check_incomplete" }]))
+      .toBe("I couldn’t check tofu against your food rules yet, so I left it out. I couldn’t finish"
+        + ` checking the rest of that answer either. ${REASK_TAIL}`);
     expect(reaskMessage([])).toBe(abortMessage("unverified_text_food"));
   });
 
@@ -122,31 +133,55 @@ describe("an Eats or Avoid mark is not advice (F001, F010, F022)", () => {
   const yogurt = "3f1b1a2c-0000-4000-8000-0000000000a1";
   const evidence = { "greek yogurt": { foodRefId: yogurt, allergenTags: ["dairy"], category: [],
     onEatsList: false, onAvoidList: false } };
-  const mark = (kind: "add_to_eats" | "add_to_avoid") => ({
+  const mark = (kind: "add_to_eats" | "add_to_avoid" | "remove_from_avoid") => ({
     kind, actionId: "a1", flagged: [], name: "Greek yogurt, plain", foodRefId: yogurt,
     catalogFoodRevisionId: 1, kcalPer100g: 59, proteinPer100g: 10, carbsPer100g: 4, fatPer100g: 0,
     verdict: "blocked", alsoFoodRefIds: ["3f1b1a2c-0000-4000-8000-0000000000a2"],
   }) as unknown as CoachAction;
+  const check = (text: string, actions: CoachAction[]) =>
+    checkReply({ text, named: [], draft: null, actions, evidence, profile: TEST_PROFILE });
 
-  it("exempts the marked food by its catalog name, its base name and every ref it reached", () => {
-    const ids = loggedFoodIdentities([mark("add_to_eats")]);
-    expect([...ids.names]).toEqual(["greek yogurt, plain", "greek yogurt"]);
-    expect([...ids.refs]).toEqual([yogurt, "3f1b1a2c-0000-4000-8000-0000000000a2"]);
+  it("never exempts the marked food by name or id", () => {
+    expect(loggedFoodIdentities([mark("add_to_eats")])).toEqual({ names: new Set(), refs: new Set() });
   });
 
-  it.each(["add_to_eats", "add_to_avoid"] as const)("keeps the %s reply and its mark", (kind) => {
+  it.each([
+    ["add_to_eats", "Adding Greek yogurt to your Favored list."],
+    ["add_to_eats", "Done, I've added Greek yogurt to your Eats."],
+    ["add_to_avoid", "Greek yogurt is now on your Avoid list."],
+    ["remove_from_avoid", "I took Greek yogurt off your Avoid list."],
+  ] as const)("keeps the %s confirmation and its mark: %s", (kind, text) => {
     const action = mark(kind);
-    const result = checkReply({ text: "Done, Greek yogurt is on your list.", named: [], draft: null,
-      actions: [action], evidence, profile: TEST_PROFILE });
-    expect(isReask(result.content)).toBe(false);
+    const result = check(text, [action]);
+    expect(result.content).toBe(text);
     expect(result.actions).toEqual([action]);
   });
 
+  it("still re-asks when the same reply also recommends the marked food", () => {
+    for (const text of ["Added Greek yogurt to your Favored list. Have Greek yogurt with honey for breakfast.",
+      "Added Greek yogurt to your Favored list, it's a great snack."]) {
+      const result = check(text, [mark("add_to_eats")]);
+      expect(result.content).toBe(`Greek yogurt has dairy, which your rules exclude. ${REASK_TAIL}`);
+      expect(result.actions).toEqual([]);
+    }
+  });
+
+  it("does not let a mark's head name clear a longer food", () => {
+    const bread = { kind: "add_to_eats", name: "Bread, wheat" };
+    expect(withoutListMarkConfirmations("Added garlic bread to your Favored list.", [bread]))
+      .toBe("Added garlic bread to your Favored list.");
+    expect(withoutListMarkConfirmations("Added bread to your Favored list.", [bread])).toBe("");
+  });
+
   it("control: the same reply with no mark still re-asks, naming the rule", () => {
-    const result = checkReply({ text: "Greek yogurt is a good snack.", named: [], draft: null,
-      actions: [], evidence, profile: TEST_PROFILE });
-    expect(result.content).toBe(`Greek yogurt has dairy, which your rules exclude. ${REASK_TAIL}`);
+    const result = check("Adding Greek yogurt to your Favored list.", []);
+    expect(isReask(result.content)).toBe(true);
     expect(result.replaced).toEqual({ by: "text_check", reasons: ["allergen:dairy"], incomplete: false });
+  });
+
+  it("drops only the card that mirrors the mark", () => {
+    expect(withoutListMarkMirrors([{ name: "greek yogurt" }, { name: "honey" }],
+      [{ kind: "add_to_eats", name: "Greek yogurt, plain" }])).toEqual([{ name: "honey" }]);
   });
 });
 
