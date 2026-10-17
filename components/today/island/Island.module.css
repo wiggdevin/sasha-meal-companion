@@ -571,7 +571,8 @@
 .stopHi { stop-color: color-mix(in oklab, currentColor 58%, white); }
 .stopMid { stop-color: currentColor; }
 .stopLo { stop-color: color-mix(in oklab, currentColor 70%, black); }
-.ringTrackLight { stroke: rgb(var(--ink-rgb) / 0.08); }
+/* The Overview ring's track on light cards: the hairline token (OD17). */
+.ringTrackLight { stroke: var(--color-hairline); }
 /* Light trapped in a jelly tube: one tight colour bloom (one filter on an animated arc, for Safari). */
 .ringArc { filter: drop-shadow(0 0 3px currentColor); }
 .arcCurrent { /* the gauge colour comes from the fill class on the ring's svg */ }

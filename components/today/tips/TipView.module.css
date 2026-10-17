@@ -130,6 +130,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Previous, "n of N" and Next under the steps (OD17): the system's small secondary circles. */
+.paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.position {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The tile's face, carried at the tile's own size in the view's upper corner while the view grows
    out of the tile and as it lands back in it (TipView.tsx). Above the content, never a target. */
 .face {
