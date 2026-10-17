@@ -31,7 +31,8 @@ function db(tables: Record<string, unknown[]>, writes: Writes) {
     const chain: Record<string, unknown> = {};
     Object.assign(chain, {
       select: () => chain, eq: () => chain, neq: () => chain, lte: () => chain,
-      in: () => chain, is: () => chain, gte: () => chain, order: () => chain, limit: () => chain,
+      in: () => chain, is: () => chain, gte: () => chain, gt: () => chain, lt: () => chain,
+      order: () => chain, limit: () => chain, range: () => chain,
       maybeSingle: async () => ({ data: (tables[table] ?? [])[0] ?? null, error: null }),
       single: async () => ({ data: (tables[table] ?? [])[0] ?? null, error: null }),
       then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
@@ -113,6 +114,48 @@ describe("runTurn — the live reply check (§6 row 5, §9 R7)", () => {
     expect(isReask(row.content)).toBe(true);
     expect(row.tool_calls.blocks.filter((b) => b.kind !== "dietary_profile_proposal")).toEqual([]);
     expect(row.tool_calls.composed).toEqual([]);
+  });
+
+  it("offers to add a food nothing checked yet to Eats, with quick replies", async () => {
+    // A card whose id came only from the model: no search checked it (unchecked_id).
+    const generate = vi.fn().mockResolvedValueOnce({ kind: "final", text: "Here is an idea.",
+      suggestions: [{ name: "watermelon", foodRefId: "3f1b1a2c-0000-4000-8000-00000000002c", grams: 150 }] });
+    const writes: Writes = { rows: [] };
+    await runTurn(db({ constraint_profiles: FISH }, writes), db({}, writes), "u1", REQ, {
+      generate: generate as never, ports, now: () => 0, newId: () => "id-1",
+    });
+    const row = assistantRow(writes);
+    expect(isReask(row.content)).toBe(true);
+    expect(row.content).toContain("so I left it out. Add it to your Eats and it gets checked");
+    expect(row.tool_calls.blocks).toEqual([expect.objectContaining({ kind: "quick_replies",
+      options: ["Add watermelon to Eats", "Suggest something else"] })]);
+    expect(row.tool_calls.composed).toEqual([]);
+  });
+
+  it("offers no Eats step for a model-only card a rule names", async () => {
+    const generate = vi.fn().mockResolvedValueOnce({ kind: "final", text: "Here is an idea.",
+      suggestions: [{ name: "salmon", foodRefId: "3f1b1a2c-0000-4000-8000-00000000002d", grams: 150 }] });
+    const writes: Writes = { rows: [] };
+    await runTurn(db({ constraint_profiles: FISH }, writes), db({}, writes), "u1", REQ, {
+      generate: generate as never, ports, now: () => 0, newId: () => "id-1",
+    });
+    const row = assistantRow(writes);
+    // Policy blocks the card by its name, so it shows as blocked and nothing offers it for Eats.
+    expect(row.content).not.toContain("Eats");
+    expect(row.tool_calls.blocks.filter((b) => b.kind === "quick_replies")).toEqual([]);
+  });
+
+  it("offers no Eats step for a food a rule blocks", async () => {
+    const generate = vi.fn().mockResolvedValueOnce({ kind: "final", text: "Try grilled salmon." });
+    const writes: Writes = { rows: [] };
+    await runTurn(db({ constraint_profiles: FISH }, writes), db({}, writes), "u1", REQ, {
+      generate: generate as never, ports: { ...ports, searchFoods: async () => [salmon] },
+      now: () => 0, newId: () => "id-1",
+    });
+    const row = assistantRow(writes);
+    expect(isReask(row.content)).toBe(true);
+    expect(row.content).not.toContain("Eats");
+    expect(row.tool_calls.blocks).toEqual([]);
   });
 
   // Live smoke, 2026-10-02: "I had a banana as a snack" was logged by the model, then the reply

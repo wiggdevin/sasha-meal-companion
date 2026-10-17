@@ -36,6 +36,7 @@ import type { RawSuggestion } from "@/lib/coach/turn";
 import type { FoodHit } from "@/lib/coach/executors";
 import type { CoachSuggestion } from "@/lib/coach/types";
 import { LANES } from "@/lib/ai/lanes";
+import { allergenKey, namedAllergenHints } from "@/lib/policy/allergens";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
 import type { DietEvidence } from "@/lib/policy/diet-evidence";
 import type { ProfileRuleSet } from "@/lib/policy/profiles/hard-rules";
@@ -89,7 +90,12 @@ export type ReplyScanInput = {
   groundedLogged?: Promise<LoggedIdentities>;
 };
 
-export type ReplyFailure = { name: string; reason: string | null };
+/**
+ * `offerEats`: the scan found nothing against this food except that it could not check it — no
+ * rule matches its name, it is not on Avoid as far as the scan read, and no other failure names
+ * it — so the re-ask may offer adding it to Eats to get it checked (lib/coach/reask.ts).
+ */
+export type ReplyFailure = { name: string; reason: string | null; offerEats?: true };
 export type ReplyScan = { hardRulesActive: boolean; complete: boolean; failing: ReplyFailure[] };
 
 type Entry = EvidenceByName[string];
@@ -344,7 +350,31 @@ async function scan(
     const failure = judge(mention, input.profile, legacyActive, rules, evidenceFor);
     if (failure) failing.push(failure);
   }
+  if (live.complete) markOfferable(failing, mentions, input.profile, rules);
   return { hardRulesActive: true, complete: live.complete, failing };
+}
+
+/** Only a food held as unchecked, with nothing against it, may be offered for Eats (`offerEats`). */
+function markOfferable(
+  failing: ReplyFailure[], mentions: readonly Mention[], profile: ConstraintProfile,
+  rules: ProfileRuleSet | null,
+): void {
+  const unchecked = (f: ReplyFailure) => f.reason === null || f.reason === "unchecked_id";
+  const against = new Set([
+    ...failing.filter((f) => !unchecked(f)).map((f) => normalizeFoodText(f.name)),
+    ...mentions.filter((m) => m.entry.onAvoidList).map((m) => normalizeFoodText(m.name)),
+  ]);
+  for (const failure of failing) {
+    if (!unchecked(failure) || against.has(normalizeFoodText(failure.name))) continue;
+    // The name alone, with no evidence: an allergen keyword ("salmon" under a fish rule) or a
+    // profile rule that names it (pork, a custom ingredient) rules the offer out.
+    if (namedAllergenHints(failure.name, profile.avoid_allergens).some((key) =>
+      profile.avoid_allergens.some((allergen) => allergenKey(allergen) === key))) continue;
+    if (rules && profileMarksFor(rules, failure.name, null).some((mark) => mark.outcome === "present")) continue;
+    const verdict = checkItem({ foodRefId: null, name: failure.name, grams: null, allergenTags: null,
+      category: null, onEatsList: false, onAvoidList: false }, profile, true);
+    if (verdict.verdict !== "blocked") failure.offerEats = true;
+  }
 }
 
 /**
@@ -391,7 +421,7 @@ function reask(base: ReplyCheckResult, failures: readonly ReplyFailure[]): Reply
     content: reaskMessage(held), suggestions, draft: null, actions: [],
     draftChecks: base.draftChecks, textChecks: [...base.textChecks, ...extra],
     replaced: { by: "reply_scan", reasons: held.map((f) => reaskReasonCode(f.reason)),
-      incomplete: failures.some((f) => f.reason === REPLY_CHECK_INCOMPLETE) },
+      incomplete: failures.some((f) => f.reason === REPLY_CHECK_INCOMPLETE), held },
   };
 }
 

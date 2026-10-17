@@ -12,7 +12,7 @@ import { shoppingItemNames, withoutShoppingConfirmations } from "@/lib/coach/sho
 import type { CoachAction } from "@/lib/coach/actions";
 import { checkDraft, checkItem, type EvidenceByName, allergenFacts } from "@/lib/coach/policy";
 import { withoutListMarkConfirmations } from "@/lib/coach/list-mark-confirmation";
-import { reaskMessage, reaskReasonCode } from "@/lib/coach/reask";
+import { reaskMessage, reaskReasonCode, type ReaskFailure } from "@/lib/coach/reask";
 import type { RawSuggestion } from "@/lib/coach/turn";
 import type { CoachDraft, CoachSuggestion } from "@/lib/coach/types";
 import type { ConstraintProfile } from "@/lib/policy/constraints";
@@ -38,7 +38,9 @@ export type ReplyCheckResult = {
    * Set when the check replaced the reply, for the turn's fallback log (W087): which check did it,
    * the policy code of each food it held back (never a name), and whether the live scan finished.
    */
-  replaced?: { by: "text_check" | "reply_scan"; reasons: string[]; incomplete: boolean };
+  replaced?: { by: "text_check" | "reply_scan"; reasons: string[]; incomplete: boolean;
+    /** The foods it held back, names included, for the re-ask's next step; never logged. */
+    held?: ReaskFailure[] };
 };
 
 /** The food identities an exemption (finding #6) is keyed on: by name, or by grounded foodRefId. */

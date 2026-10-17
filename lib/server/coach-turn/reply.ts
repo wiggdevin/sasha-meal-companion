@@ -7,6 +7,8 @@
 import { withoutListMarkMirrors } from "@/lib/coach/list-mark-confirmation";
 import { shoppingItemNames, withoutShoppingMirrors } from "@/lib/coach/shopping-confirmation";
 import { hydrateNextActionChip } from "@/lib/coach/blocks/hydrate-next-action";
+import { hydrateQuickReplies } from "@/lib/coach/blocks/quick-replies";
+import { reaskMessage, reaskNextStep } from "@/lib/coach/reask";
 import { accountFoodNames, nextMemory } from "@/lib/coach/memory";
 import { appendLookupSources } from "@/lib/coach/lookup-sources";
 import { nextBestAction } from "@/lib/coach/next-action";
@@ -133,7 +135,8 @@ export async function modelReply(
   const scan = scanText === null ? null
     : replyScan?.text === scanText ? replyScan.scan : scanReply(turn, kit, state, scanText, named).scan;
   const checked = await checkReplyLive({ text, named, draft, actions, evidence, profile }, scan);
-  const { content, suggestions, draftChecks, textChecks } = checked;
+  const { suggestions, draftChecks, textChecks } = checked;
+  let { content } = checked;
   logFallback(state, claimWithoutAction, checked.replaced);
   draft = checked.draft;
   actions = checked.actions;
@@ -141,6 +144,18 @@ export async function modelReply(
     // A re-ask carries no food: no composed meal, no food card beside it (§9 R7).
     composed = [];
     blocks = blocks.filter((b) => b.kind === "dietary_profile_proposal");
+    // 2026-10-17 rerun item 2: a food held only because nothing checked it yet gets a way to be
+    // checked (add it to Eats) instead of a dead end. It stays held in this reply; a food a rule
+    // blocks, or one already on Eats or Avoid, is never offered.
+    // A kept rule proposal holds the one content-block slot, so the chips could not show.
+    const held = checked.replaced?.by === "reply_scan" && blocks.length === 0
+      ? checked.replaced.held ?? [] : [];
+    const next = held.length > 0 ? reaskNextStep(held, accountFoodNames(env.context?.lists)) : null;
+    const chips = next ? hydrateQuickReplies(newId(), next.options) : null;
+    if (next && chips) {
+      content = reaskMessage(held, next.foods);
+      blocks = [...blocks, chips];
+    }
   }
 
   // Phase 18 W5b-2 (D9 item 3): a stated taste — a texture or flavour the user cannot stand, a
