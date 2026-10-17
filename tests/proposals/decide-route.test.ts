@@ -21,7 +21,7 @@ const CURRENT = { id: "pr1", weekStart: "2026-09-14", createdAt: "2026-09-13T21:
   proposed: { kcalTrain: 2250, kcalRest: 1800, proteinG: 135, fatG: 85, carbG: 210,
     deltaKcalTrain: 50, deltaKcalRest: 50, raisedToFloor: false } };
 
-const call = (body: unknown, id = "pr1") => POST(
+const call = (body: unknown, id = "5f1b1a2c-0000-4000-8000-0000000000a1") => POST(
   new Request(`https://x.test/api/proposals/${id}/decide`, { method: "POST",
     headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
   { params: Promise.resolve({ id }) });
@@ -63,6 +63,14 @@ describe("POST /api/proposals/[id]/decide", () => {
   });
   it("404s another user's proposal id", async () => {
     decide.mockRejectedValue(new HttpError(404, "not_found"));
-    expect((await call({ decision: "reject", expectedStatus: "pending" }, "pr9")).status).toBe(404);
+    expect((await call({ decision: "reject", expectedStatus: "pending" }, "5f1b1a2c-0000-4000-8000-0000000000a9")).status).toBe(404);
+  });
+});
+
+describe("decide route id check", () => {
+  it("answers 400 for a malformed proposal id", async () => {
+    const res = await call({ decision: "approve", expectedStatus: "pending" }, "pr1");
+    expect(res.status).toBe(400);
+    expect(decide).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@
  * the schema has no clock and a body that is merely late is still well-formed.
  */
 import { z } from "zod";
+import { isCalendarDate } from "@/lib/server/validate";
 
 export const SAMPLE_TYPES = ["body_mass", "step_count", "active_energy", "basal_energy",
   "sleep_asleep", "sleep_in_bed", "resting_heart_rate", "hrv_sdnn", "readiness_score"] as const;
@@ -23,7 +24,7 @@ export const MAX_SAMPLES_PER_PAYLOAD = 5000;
 
 const isoInstant = z.string().min(1).max(64)
   .refine((s) => !Number.isNaN(Date.parse(s)), "not an ISO 8601 timestamp");
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
+const isoDate = z.string().refine(isCalendarDate, "expected a real date, YYYY-MM-DD");
 
 export function isIanaTimeZone(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false;
