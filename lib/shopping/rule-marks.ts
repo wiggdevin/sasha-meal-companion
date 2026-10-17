@@ -40,6 +40,7 @@ import {
   EMPTY_PROFILE, evaluatePolicy, type ConstraintProfile, type PolicyVerdict,
 } from "@/lib/policy/constraints";
 import { reasonFragment } from "@/lib/policy/reason-words";
+import { unknownAllergenFragment } from "@/lib/policy/held-allergens";
 import type { RuleMark } from "@/lib/types";
 import type { IngredientIdentity } from "./types";
 
@@ -212,18 +213,13 @@ function bundledCategories(foodDbId: string | null): string[] | null {
   return policyCategoriesFor({ description: food.sr, category: food.category });
 }
 
-function words(code: string): string {
-  return code.replace(/_/g, " ");
-}
-
 function blockedWords(name: string, verdict: PolicyVerdict): string {
   return `${name} ${reasonFragment(verdict.reason)}`;
 }
 
 function unknownWords(name: string, verdict: PolicyVerdict): string {
-  const open = (verdict.allergens ?? []).filter((finding) => finding.outcome === "unknown")
-    .map((finding) => words(finding.allergen));
-  return open.length > 0 ? `${name} cannot be checked for ${open.join(", ")}.`
+  const allergens = unknownAllergenFragment(verdict.allergens ?? []);
+  return allergens ? `${name} ${allergens}`
     : `${name} cannot be checked against your current food rules.`;
 }
 

@@ -27,6 +27,13 @@
  * a repeat tap) or simply holding nothing left to remove (`removed` empty on its first real call,
  * because the keys left the row some other way) — two different facts, worded differently.
  *
+ * The card also re-reads the account's pulled settings (the confirmed taste dislikes and cuisines in
+ * the mirror `applyServerUserSettings` writes, read by `savedTasteKeys`) on every `SYNCED_EVENT` (W103). An idle card with nothing
+ * in flight shows a chip another device (or Settings) already saved as saved, never as a pick; when
+ * every chip is saved it rests as "Already in your taste preferences" with nothing to send. An
+ * applied card whose added keys this mount saw in the mirror and that have all since left it (another
+ * device's Undo, a Settings edit) hides Undo and says so; the server receipt still decides any Undo.
+ *
  * The outcome is remembered locally (account + proposal id), so a reopened conversation shows the
  * card's resting state instead of asking again — the same durable-decision pattern as
  * components/coach/RoleConfirm.tsx. `confirm`/`undo` are test (and dev-fixture) seams, same shape
@@ -41,6 +48,8 @@ import {
 import { confirmHaptic } from "@/lib/haptics";
 import { AccountChanged, currentAccountOrNull } from "@/lib/device/account";
 import { coachConfirmRequest, type TasteChipsProposal } from "@/lib/coach/taste-chips-card";
+import { loadStore } from "@/lib/store";
+import { savedTasteKeys } from "@/lib/sync/user-settings";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 import {
   confirmTasteChips, newTasteActionId, undoTasteChips, type TasteWriteOutcome,
@@ -65,6 +74,16 @@ const mergeKeys = (a: Picks, b: Picks): Picks => ({
   dislikes: [...new Set([...a.dislikes, ...b.dislikes])],
   cuisines: [...new Set([...a.cuisines, ...b.cuisines])],
 });
+
+/** The prefixed keys the account's pulled settings hold now; null when they cannot be read. */
+function savedPicks(): Set<string> | null {
+  try {
+    const keys = savedTasteKeys(loadStore().settings);
+    return new Set([...keys.dislikes.map((key) => pick("d", key)), ...keys.cuisines.map((key) => pick("c", key))]);
+  } catch {
+    return null;
+  }
+}
 
 export default function TasteChipsCard({ card, messageId, confirm = confirmTasteChips, undo = undoTasteChips }: {
   card: TasteChipsProposal;
@@ -91,6 +110,10 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     stored && stored.status !== "pending" ? { dislikes: stored.dislikes, cuisines: stored.cuisines }
       : { dislikes: [], cuisines: [] });
   const [noop, setNoop] = useState<AppliedNoop | UndoneNoop | false>(stored?.noop ?? false);
+  /** What the settings mirror holds (W103), re-read on every sync pass. */
+  const [saved, setSaved] = useState<Set<string>>(() => savedPicks() ?? new Set());
+  /** Every key this mount has seen in the mirror: only a key seen there can be said to have left. */
+  const [seenSaved, setSeenSaved] = useState<Set<string>>(() => new Set(saved));
 
   /**
    * Replace this card's state with what storage now holds (`stored`), the same reading
@@ -121,6 +144,17 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
   }
 
   useEffect(() => {
+    function onSettings() {
+      const now = savedPicks();
+      if (!now) return; // an unreadable mirror keeps the last good read rather than hide a valid Undo
+      setSaved(now);
+      setSeenSaved((current) => new Set([...current, ...now]));
+    }
+    window.addEventListener(SYNCED_EVENT, onSettings);
+    return () => window.removeEventListener(SYNCED_EVENT, onSettings);
+  }, []);
+
+  useEffect(() => {
     if (!account) return;
     // A sync pass just landed (this device's own write settling, or another tab's / another
     // device's write arriving through the normal settings pull) -- never while THIS card has a
@@ -137,8 +171,12 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account, card.id, pendingActionId, status]);
 
+  /** Idle with nothing of this card's in flight: a chip the mirror already holds is saved, not a pick. */
+  const settledIdle = status === "idle" && attempted === null;
+  const alreadySaved = (prefixed: string) => settledIdle && saved.has(prefixed);
+
   function toggle(prefixed: string) {
-    if (status !== "idle") return;
+    if (status !== "idle" || alreadySaved(prefixed)) return;
     setPicked((current) => {
       const next = new Set(current);
       if (next.has(prefixed)) next.delete(prefixed); else next.add(prefixed);
@@ -151,7 +189,8 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
    *  so the exact same final selection always sends the exact same array regardless of toggle path. */
   function pickedOf(prefix: "d" | "c"): string[] {
     const offered = prefix === "d" ? card.dislikes : card.cuisines;
-    return offered.filter((c) => picked.has(pick(prefix, c.key))).map((c) => c.key);
+    return offered.filter((c) => picked.has(pick(prefix, c.key)) && !alreadySaved(pick(prefix, c.key)))
+      .map((c) => c.key);
   }
 
   async function onConfirm() {
@@ -301,9 +340,16 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     ...card.cuisines.map((c) => ({ prefixed: pick("c", c.key), label: c.label })),
   ];
   const selectable = status === "idle";
-  const nothingPicked = picked.size === 0;
+  const nothingPicked = count({ dislikes: pickedOf("d"), cuisines: pickedOf("c") }) === 0;
+  const allSaved = settledIdle && chips.length > 0 && chips.every(({ prefixed }) => saved.has(prefixed));
+  // Every key this card added was seen in the mirror and has since left it: changed elsewhere.
+  const appliedPrefixed = [...appliedKeys.dislikes.map((k) => pick("d", k)), ...appliedKeys.cuisines.map((k) => pick("c", k))];
+  const changedElsewhere = status === "applied" && !noop && appliedPrefixed.length > 0
+    && appliedPrefixed.every((key) => seenSaved.has(key) && !saved.has(key));
 
-  const title = status === "applied" ? (
+  const title = allSaved ? "Already in your taste preferences"
+    : changedElsewhere ? "No longer in your taste preferences"
+    : status === "applied" ? (
     noop === "present" ? "Already in your taste preferences"
       : noop === "capped" ? "Could not add — your taste preferences are full"
       : noop === "mixed" ? "Some were already saved; others couldn't fit"
@@ -317,28 +363,32 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
   return <section aria-label="Suggested taste preferences" className="shell mx-3">
     <div className="surface flex flex-col gap-3 rounded-2xl p-4">
       <h3 className="m-0 text-caption font-medium text-charcoal">{title}</h3>
-      {status === "idle" && <p className="m-0 text-tiny text-muted">
+      {changedElsewhere && <p className="m-0 text-tiny text-muted">
+        These changed in your settings since, so there is nothing here to undo.
+      </p>}
+      {status === "idle" && !allSaved && <p className="m-0 text-tiny text-muted">
         A dislike only means less of it in your plans — it never takes a food off the table.
       </p>}
       <div className="flex flex-wrap gap-2">
         {chips.map(({ prefixed, label }) => {
-          const active = status === "idle" ? picked.has(prefixed) : appliedKeys.dislikes.includes(unpick(prefixed))
-            || appliedKeys.cuisines.includes(unpick(prefixed));
+          const isSaved = alreadySaved(prefixed);
+          const active = isSaved || (status === "idle" ? picked.has(prefixed) : appliedKeys.dislikes.includes(unpick(prefixed))
+            || appliedKeys.cuisines.includes(unpick(prefixed)));
           if (status !== "idle" && !active) return null;
           return <Button key={prefixed} type="button" variant={active ? "primary" : "tertiary"} size="sm"
-            aria-pressed={active} disabled={!selectable} onClick={() => toggle(prefixed)}>
-            {label}
+            aria-pressed={active} disabled={!selectable || isSaved} onClick={() => toggle(prefixed)}>
+            {isSaved ? `${label} (saved)` : label}
           </Button>;
         })}
       </div>
       {message && <Notice tone={message.tone} title={message.title} onDismiss={() => setMessage(null)} />}
-      {status === "idle" && <div className="self-start">
+      {status === "idle" && !allSaved && <div className="self-start">
         <Button variant="primary" size="sm" status={buttonStatus} confirmLabel="Added"
           disabled={nothingPicked} onClick={() => { void onConfirm(); }}>
           Add to my taste preferences
         </Button>
       </div>}
-      {!noop && (status === "applied" || status === "undoing") && <div className="self-start">
+      {!noop && !changedElsewhere && (status === "applied" || status === "undoing") && <div className="self-start">
         <Button variant="tertiary" size="sm" onClick={() => { void onUndo(); }} disabled={status === "undoing"}>
           {status === "undoing" ? "Undoing…" : "Undo"}
         </Button>

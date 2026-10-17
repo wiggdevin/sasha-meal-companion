@@ -11,8 +11,10 @@ import type { AccountHandle } from "@/lib/device/account";
 import { SYNCED_EVENT } from "@/lib/foods/rules-epoch";
 import { resetTestAccount } from "@/tests/helpers/account";
 
-const { applyServerUserSettings } = vi.hoisted(() => ({ applyServerUserSettings: vi.fn(async () => true) }));
-vi.mock("@/lib/sync/client", () => ({ applyServerUserSettings }));
+const { applyServerUserSettings, flushOutboxNow } = vi.hoisted(() => ({
+  applyServerUserSettings: vi.fn(async () => true), flushOutboxNow: vi.fn(async () => true),
+}));
+vi.mock("@/lib/sync/client", () => ({ applyServerUserSettings, flushOutboxNow }));
 
 const { confirmTasteChips, newTasteActionId, undoTasteChips } = await import("@/lib/profile/taste-confirm-client");
 
@@ -26,6 +28,7 @@ beforeEach(async () => {
   globalThis.indexedDB = new IDBFactory();
   h = await resetTestAccount();
   applyServerUserSettings.mockClear();
+  flushOutboxNow.mockClear();
   synced.mockClear();
   window.removeEventListener(SYNCED_EVENT, synced);
   window.addEventListener(SYNCED_EVENT, synced);
@@ -35,6 +38,50 @@ const json = (status: number, body: unknown) => async () =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 describe("confirmTasteChips", () => {
+  // W103: a first-time account's settings row is still queued when its first confirm is tapped.
+  // The server refuses a confirm with no row (409 settings_not_synced), so the queued settings
+  // write goes first and the confirm, sent once, then lands.
+  it("a first-time account: the queued settings row is sent first, so no settings_not_synced", async () => {
+    let rowOnServer = false;
+    flushOutboxNow.mockImplementationOnce(async () => { rowOnServer = true; return true; });
+    const body = { status: "applied", actionId: ACTION, added: { dislikes: ["t:soft"], cuisines: [] },
+      present: { dislikes: [], cuisines: [] }, capped: { dislikes: [], cuisines: [] }, undoneAt: null, settings: ROW };
+    const fetchImpl = vi.fn(async () => rowOnServer ? json(200, body)()
+      : json(409, { error: "settings_not_synced", message: "not yet" })());
+    const outcome = await confirmTasteChips(REQUEST, { account: h, fetchImpl, online: () => true });
+    expect(outcome).toEqual({ ok: true, result: body });
+    expect(flushOutboxNow).toHaveBeenCalledWith(h);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("a settings write that cannot be sent still lets the confirm go out once", async () => {
+    flushOutboxNow.mockResolvedValueOnce(false);
+    const fetchImpl = vi.fn(json(409, { error: "settings_not_synced", message: "not yet" }));
+    expect(await confirmTasteChips(REQUEST, { account: h, fetchImpl, online: () => true }))
+      .toMatchObject({ ok: false, reason: "refused", code: "settings_not_synced" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("a settings flush that stalls does not hold the confirm past the prefs budget", async () => {
+    vi.useFakeTimers();
+    try {
+      flushOutboxNow.mockImplementationOnce(() => new Promise<boolean>(() => {}));
+      const fetchImpl = vi.fn(json(409, { error: "settings_not_synced", message: "not yet" }));
+      const sent = confirmTasteChips(REQUEST, { account: h, fetchImpl, online: () => true });
+      await vi.advanceTimersByTimeAsync(6_000);
+      vi.useRealTimers();
+      expect(await sent).toMatchObject({ ok: false, reason: "refused", code: "settings_not_synced" });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("offline: flushes nothing", async () => {
+    await confirmTasteChips(REQUEST, { account: h, fetchImpl: vi.fn(), online: () => false });
+    expect(flushOutboxNow).not.toHaveBeenCalled();
+  });
+
   it("offline: sends nothing and says the confirm waits", async () => {
     const fetchImpl = vi.fn();
     expect(await confirmTasteChips(REQUEST, { account: h, fetchImpl, online: () => false }))
