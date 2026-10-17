@@ -170,8 +170,9 @@ export const TASTE_WORD = /\b(like|likes|love|loves|hate|hates|dislike|dislikes|
  * Whether a coach message may reach a Jev classifier (Sol r1 BLOCK 2, r2 BLOCK 1, r3 BLOCK 1): text
  * the check sends, or a message that is WHOLLY one of the app's command forms with allowed arguments
  * (lib/profile/coach-commands.ts). Anything else the check did not clear makes no intent Jev call.
- * Scope (coordinator decision): this gates the taste/preference purposes and the intent pre-pass;
- * the main coach reply, `suggest-options` and `coach-verify` are the consented coach pipeline.
+ * Scope (coordinator decision): this gates the taste/preference purposes and the intent pre-pass.
+ * OD12 (lib/ai/jev-health.ts) also uses it for the `suggest-options` wish, and treats every
+ * `coach-verify` reply as health text; both stay off Jev until `JEV_HEALTH_ATTESTED=1`.
  */
 export function mayReachJev(text: string): boolean {
   if (tasteTextRoute(text).route === "send") return true;

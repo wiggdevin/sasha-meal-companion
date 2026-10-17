@@ -29,9 +29,19 @@ function answer(p: number) {
 describe("coach reply verification", () => {
   beforeEach(() => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    // OD12: a reply reaches Jev only once TypeSafe's health terms are attested.
+    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
     systemOneMock.mockReset();
   });
   afterEach(() => vi.unstubAllEnvs());
+
+  it("uses the deterministic check, with no Jev call, until JEV_HEALTH_ATTESTED is set", async () => {
+    vi.stubEnv("JEV_HEALTH_ATTESTED", "");
+    await expect(verifyReply({
+      reply: "Logged your lunch — 620 kcal.", actions: [], toolResults: [],
+    }, { userId: "u1" })).resolves.toEqual({ flagged: true, p: null });
+    expect(systemOneMock).not.toHaveBeenCalled();
+  });
 
   it("flags a claimed log with no covering action", async () => {
     systemOneMock.mockResolvedValue(answer(0.94));

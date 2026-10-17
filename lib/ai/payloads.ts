@@ -34,6 +34,7 @@ import { NOT_HUMAN_FOOD_QUESTION, PORTION_LEVEL_QUESTION } from "@/lib/log/sanit
 import { PREF_QUESTIONS } from "@/lib/profile/pref-questions";
 import { chipFamily, tasteQuestions } from "@/lib/profile/taste-chips";
 import { tasteTextRoute } from "@/lib/profile/taste-safety";
+import { jevHealthAttested, jevTextCleared } from "@/lib/ai/jev-health";
 
 declare const JEV_BRAND: unique symbol;
 declare const GEMINI_BRAND: unique symbol;
@@ -62,17 +63,33 @@ export type GeminiPayload<P extends GeminiPurpose = GeminiPurpose> = {
 /** The purpose each Jev payload was minted for. Private: only this module's builders write it. */
 const provenance = new WeakMap<object, JevPurpose>();
 
+/**
+ * OD12 (lib/ai/jev-health.ts): payloads whose free text the local check did not clear. Private:
+ * only this module's builders write it; lib/ai/typesafe.ts refuses these unless attested.
+ */
+const healthBearing = new WeakSet<object>();
+
 function jev<P extends JevPurpose, Q>(
-  purpose: P, state: Record<string, unknown>, questions: Q,
+  purpose: P, state: Record<string, unknown>, questions: Q, carriesHealth = false,
 ): JevPayload<P, Q> {
   const payload = deepFreeze({ purpose, state, questions: structuredClone(questions) });
   provenance.set(payload, purpose);
+  if (carriesHealth) healthBearing.add(payload);
   return payload as unknown as JevPayload<P, Q>;
 }
 
 /** The purpose a Jev builder minted this value for, or null for anything else. */
 export function jevProvenance(value: unknown): JevPurpose | null {
   return typeof value === "object" && value !== null ? provenance.get(value) ?? null : null;
+}
+
+/**
+ * OD12: true when a builder marked this payload as possibly carrying health context. A value no
+ * builder minted counts as health-bearing (fail closed); callModel refuses it anyway.
+ */
+export function jevCarriesHealth(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || !provenance.has(value)) return true;
+  return healthBearing.has(value);
 }
 
 const optional = <K extends string, V>(key: K, value: V | undefined): Partial<Record<K, V>> =>
@@ -113,12 +130,12 @@ export function intentPayload(input: IntentState) {
     now: input.now,
     ...optional("foodsMentioned", input.foodsMentioned ? [...input.foodsMentioned] : undefined),
     numbers,
-  }, intentQuestions(numbers));
+  }, intentQuestions(numbers), !jevTextCleared(input.message));
 }
 
 /** `profile-prefs` (D1): the dietary preference text the user typed, against the fixed flag set. */
 export function prefsPayload(input: { text: string }) {
-  return jev("profile-prefs", { text: input.text }, PREF_QUESTIONS);
+  return jev("profile-prefs", { text: input.text }, PREF_QUESTIONS, !jevTextCleared(input.text));
 }
 
 /**
@@ -145,13 +162,18 @@ export type VerifyState = {
   toolNames: readonly string[];
 };
 
-/** `coach-verify` (D1): the reply, one line per action, and the read-only tool names. */
+/**
+ * `coach-verify` (D1): the reply, one line per action, and the read-only tool names. OD12: a coach
+ * reply is long, free text that often talks about the user's own conditions and notes, so it is
+ * always health-bearing; until TypeSafe's terms are attested, reply verification uses the
+ * deterministic heuristic (lib/coach/verify.ts).
+ */
 export function verifyPayload(input: VerifyState) {
   return jev("coach-verify", {
     reply: input.reply,
     actions: input.actions.map((action) => ({ kind: action.kind, summary: action.summary })),
     tools_ran: { access: "read_only", names: [...input.toolNames] },
-  }, VERIFY_QUESTIONS);
+  }, VERIFY_QUESTIONS, true);
 }
 
 export type SuggestState = {
@@ -166,7 +188,9 @@ export type SuggestState = {
 
 /**
  * `suggest-options` (D1): the slot, the wish text and the sized candidate meals. One fixed
- * plausibility question per candidate; the kind picks the wording from a closed set.
+ * plausibility question per candidate; the kind picks the wording from a closed set. OD12: a wish
+ * the local check does not clear is left out (`wish: null`, Jev ranks on the slot alone) unless
+ * TypeSafe's health terms are attested, when it is sent and the payload is marked health-bearing.
  */
 export function suggestPayload(input: SuggestState, kind: "meal" | "snack" | "recipe") {
   const candidates = input.candidates.map((candidate) => ({
@@ -175,11 +199,13 @@ export function suggestPayload(input: SuggestState, kind: "meal" | "snack" | "re
     macros: { kcal: candidate.macros.kcal, protein: candidate.macros.protein,
       carbs: candidate.macros.carbs, fat: candidate.macros.fat },
   }));
+  const wishHealth = input.wish !== null && !jevTextCleared(input.wish);
+  const wish = wishHealth && !jevHealthAttested() ? null : input.wish;
   return jev("suggest-options", {
     slot: { id: input.slot.id, label: input.slot.label },
-    wish: input.wish,
+    wish,
     candidates,
-  }, questionsFor(kind, candidates.length));
+  }, questionsFor(kind, candidates.length), wish !== null && wishHealth);
 }
 
 export type RoleState = {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const moduleSpies = vi.hoisted(() => ({
   adminFrom: vi.fn(),
@@ -172,6 +172,8 @@ beforeEach(() => {
 });
 
 describe("suggestion facet gate", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("removes blocked and applicable unknown candidates before the single ranking call", async () => {
     const foods = [protein(1), protein(2), protein(3)];
     // W2c: names decide; the Jev facets are inverted to prove they no longer block or clear.
@@ -198,6 +200,8 @@ describe("suggestion facet gate", () => {
   it("serializes only the current wish, slot, candidate foods, and code-owned macros", async () => {
     // W10b: at least 5 admitted candidates, the shortlist floor (D9 item 4 / acceptance 2), so
     // Jev is actually called here.
+    // OD12: an uncleared wish reaches Jev only when attested (tests/ai/jev-health-gate.test.ts).
+    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
     const { ports, rank } = fixture(
       [protein(1), protein(2), protein(3), protein(4), protein(5)], () => facts(),
     );
