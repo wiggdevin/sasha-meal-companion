@@ -29,7 +29,7 @@ export type StreakFood = {
   list?: "eats" | "avoid";
   /** Legacy ingredient tags (catalog_ingredients.allergen_tags). */
   allergenTags?: string[];
-  /** The full ingredient statement, stored as the label's verbatim text. */
+  /** The full ingredient statement, stored as the label's verbatim text (catalog_ingredients seq 1). */
   ingredients?: string;
   /** Allergens the test user has checked on this product's label (user_allergen_checks). */
   checked?: string[];
@@ -108,7 +108,7 @@ export const STREAK_FOODS: StreakFood[] = [
     per100g: m(57, 0.7, 14.5, 0.3) },
   { sourceId: "streak-tomato", description: "Tomatoes, raw", role: "carb",
     per100g: m(18, 0.9, 3.9, 0.2) },
-  { sourceId: "streak-oats", description: "Oats, rolled, gluten-free", role: "carb",
+  { sourceId: "streak-oats", description: "Oats, rolled", role: "carb",
     per100g: m(379, 13.2, 67.7, 6.5),
     ingredients: "Gluten-free whole grain rolled oats.", checked: LABEL_CHECKED },
   { sourceId: "streak-oatmeal", description: "Oatmeal, cooked with water", role: "carb",

@@ -170,9 +170,11 @@ async function seedRehearsal(
     fixtures.set(food.sourceId, fixture);
     if (food.ingredients) {
       must("catalog_ingredients", (await db.from("catalog_ingredients").upsert({
+        // Seq 1 holds the verbatim statement, as the catalog import writes it; seq 0 is the
+        // provider's declared-allergen line, which never counts toward a complete label.
         food_revision_id: fixture.revisionId,
-        seq: 0,
-        name: food.ingredients.split(",")[0].trim(),
+        seq: 1,
+        name: food.ingredients.split(/,(?![^(]*\))/)[0].trim(),
         raw_text: food.ingredients,
         allergen_tags: food.allergenTags ?? [],
       }, { onConflict: "food_revision_id,seq" })).error);

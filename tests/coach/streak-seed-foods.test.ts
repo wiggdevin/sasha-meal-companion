@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isPackagedCatalogSource, policyCategoriesFor } from "@/lib/catalog/category-map";
+import { namedAllergenHints } from "@/lib/policy/allergens";
 import { evaluatePolicy, loadProfile } from "@/lib/policy/constraints";
 import {
   STREAK_FOODS, STREAK_PREFIX, STREAK_RULES, STREAK_SOURCE,
@@ -12,10 +13,14 @@ import {
 const profile = loadProfile({ ...STREAK_RULES, avoid_food_ref_ids: [] });
 
 function verdictOf(food: (typeof STREAK_FOODS)[number]) {
+  // As searchFoods reads the seed: one seq-1 row whose raw text is the verbatim label, plus the
+  // allergens its first ingredient's name names.
   const hasRows = food.ingredients !== undefined || (food.allergenTags?.length ?? 0) > 0;
+  const firstName = food.ingredients?.split(/,(?![^(]*\))/)[0].trim() ?? food.description;
+  const hints = hasRows ? namedAllergenHints(firstName, STREAK_RULES.avoid_allergens) : [];
   return evaluatePolicy(profile, {
     foodRefId: null,
-    allergenTags: hasRows ? food.allergenTags ?? [] : null,
+    allergenTags: hasRows ? [...(food.allergenTags ?? []), ...hints] : null,
     ingredientsText: food.ingredients ?? null,
     ingredientsTextIsLabel: true,
     checkedAllergens: food.checked ?? [],
@@ -60,7 +65,7 @@ describe("coach streak seed foods", () => {
   it("names every food the corpus and the off-plan probe rely on", () => {
     const names = STREAK_FOODS.map((f) => f.description.toLowerCase()).join("|");
     for (const word of ["watermelon", "spaghetti", "chicken", "rice", "avocado", "cheddar",
-      "pizza", "croissant", "bacon", "sourdough", "salmon", "tofu", "oatmeal", "blueberries",
+      "pizza", "croissant", "bacon", "sourdough", "salmon", "tofu", "oatmeal", "oats", "blueberries",
       "eggs", "tortilla", "greek yogurt"]) {
       expect(names).toContain(word);
     }
