@@ -61,11 +61,13 @@ describe("Ask Sasha payload", () => {
     expect(payload?.affectedIds).toEqual(ids.slice(0, ASK_SASHA_MAX_MEALS));
   });
 
-  it("says when only the first meals are sent: nothing checked and more than the limit affected", () => {
+  it("says when only the first meals are sent: more than the limit is covered", () => {
     expect(askCapNotice(30, 0)).toBe(
       "Asking about the first 12 of 30 affected meals; select specific meals to choose which");
     expect(askCapNotice(12, 0)).toBeNull();
     expect(askCapNotice(30, 3)).toBeNull();
+    expect(askCapNotice(30, 15)).toBe(
+      "Asking about the first 12 of 15 selected meals; select fewer to choose which");
   });
 
   it("sends nothing for blank wording and bounds a long one", () => {
