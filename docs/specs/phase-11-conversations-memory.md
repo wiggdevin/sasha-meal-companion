@@ -708,7 +708,7 @@ reusing, not re-deriving):
   refuses (fail-closed). A `goal_context` memory needs the CURRENT profile/target state injected
   alongside it whenever it is shown, or it can read as authoritative when it is stale — and the
   write-time judge must also refuse a candidate that restates a number or rule a structured field
-  (`target_profiles`, `day_templates`, `constraint_profiles`) already owns, checked at EVERY write
+  (`target_profiles`, `day_templates` (does not exist; phase 9 §2 is Later), `constraint_profiles`) already owns, checked at EVERY write
   path (create, Edit, and any future bulk path), not only where it was first specified (round 6
   finding 7).
 - Atomicity: dedupe (`same`/`updates`/`contradicts`) plus cap eviction is 2-3 related writes that

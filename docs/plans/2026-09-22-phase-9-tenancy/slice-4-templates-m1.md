@@ -1,5 +1,7 @@
 # Slice 4 — Templates M1 (tables, `account_claims`, server writers, fixture, read endpoint)
 
+> **Later, not built (needs a product decision).** See the banner in `README.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Per-user day templates exist in the database, readable only by their owner and written only by three `security definer` functions; Sasha's plan is captured as a generated fixture; `GET /api/plan/templates` returns an account's templates as `{ templates, version }` (no floor verdicts; Floor Day is unchanged in Phase 9, round 10). Nothing in the app reads them yet (slice 6).

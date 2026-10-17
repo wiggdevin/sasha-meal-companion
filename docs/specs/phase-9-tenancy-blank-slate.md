@@ -6,10 +6,10 @@
   `/sign-in` has a "Create an account" mode with no invite required. No `account_claims`,
   `invite_codes` or `invite_claims` migration or code exists in this repo. Do not resurrect §1
   unless a new abuse/spam reason appears.
-- **§2, per-user day templates, is Later — not implemented.** No `day_templates`,
-  `template_slots` or `template_key_validation` migration exists; nothing in `lib/` or `app/`
-  reads or writes them. `docs/plans/2026-09-22-phase-9-tenancy/README.md:53` already called this
-  out as parked for Devin; this is the formal mark in the phase spec itself.
+- **§2, per-user day templates, is Later: not built, and it needs a product decision first.**
+  No `day_templates`, `template_slots` or `template_key_validation` migration exists; nothing in
+  `lib/` or `app/` reads or writes them. Slices 4-8 in
+  `docs/plans/2026-09-22-phase-9-tenancy/` describe this unbuilt work and are not scheduled.
 
 Revision 4 (2026-09-22). Audit history, all by GPT-6 Sol:
 - Round 1 (`docs/audit/specs/2026-09-22-phase-9-gpt6-sol.md`): DO NOT SHIP, 11 BLOCK, 4 FIX, 1 NIT.
