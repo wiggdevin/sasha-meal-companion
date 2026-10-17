@@ -88,8 +88,17 @@ describe("label scan dedupe (W124)", () => {
     expect(store.inserts).toHaveLength(2);
   });
 
+  it("saves a new food when the ingredient list changed (a reformulation)", async () => {
+    const store = db();
+    await commitLabelFood(store.client, "u1", request("11111111-1111-4111-8111-111111111111"), BAR);
+    await commitLabelFood(store.client, "u1", request("11111111-1111-4111-8111-222222222222"),
+      { ...BAR, ingredientsText: "oats, peanuts, honey, gelatin" });
+    expect(store.inserts).toHaveLength(2);
+  });
+
   it("treats a core code read on one scan and missing on the other as a different food", () => {
     const row = { id: "f1", name: BAR.name, brand: BAR.brand ?? null, allergen_tags: ["peanut"],
+      ingredients_text: BAR.ingredientsText,
       per_100g: { ...BAR.per100g, protein: null } as Record<string, number | null> };
     expect(sameLabelFood(BAR, ["peanut"], row)).toBe(false);
     expect(sameLabelFood(BAR, ["peanut"], { ...row, per_100g: BAR.per100g as never })).toBe(true);

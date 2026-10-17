@@ -7,8 +7,8 @@ import { signAndUpload } from "@/lib/capture-client";
 import { rethrowAccountChanged, type AccountHandle } from "@/lib/device/account";
 
 /**
- * Uploads a plate photo's 512 px copy (W125) while the photo is being read, so Save waits for
- * nothing. Its path goes on the commit; an unsaved capture's copy is swept with the rest at 24 h.
+ * Uploads a plate photo's 512 px copy (W125) while the photo is being read, so Save rarely waits
+ * (at most a second: CaptureSheet's `settledWithin`). Its path goes on the commit; an unsaved capture's copy is swept with the rest at 24 h.
  * Null on any failure: a meal never fails to log for want of its thumbnail.
  */
 export async function uploadThumbnail(

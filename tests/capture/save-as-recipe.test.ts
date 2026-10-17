@@ -57,6 +57,16 @@ describe("captureRecipe", () => {
     expect(left).toEqual(["Peanut sauce", "Mystery"]);
   });
 
+  it("leaves out a food the commit's answer flagged, whatever the draft said", () => {
+    const kept = keptItems(applyEdits(ITEMS.slice(0, 2), {}));
+    const result = { ...(ok([{ seq: 1, ref: "ref-chicken", grams: 50, rev: 101 },
+      { seq: 2, ref: "ref-rice", grams: 100, rev: 102 }]) as object),
+    flagged: [{ path: "items.1", message: "blocked:allergen:peanut" }] } as unknown as CommitResult;
+    const { input, left } = captureRecipe(kept, result, { labelSeq: null });
+    expect(input?.items.map((i) => i.foodRefId)).toEqual(["ref-chicken"]);
+    expect(left).toEqual(["Rice"]);
+  });
+
   it("names an untitled recipe from its foods", () => {
     const kept = keptItems(applyEdits(ITEMS, {}));
     expect(recipeName(undefined, kept)).toBe("Chicken, Rice and Broccoli");

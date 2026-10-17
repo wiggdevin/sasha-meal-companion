@@ -73,15 +73,18 @@ function closeEnough(a: number, b: number): boolean {
 export type StoredLabelFood = {
   id: string; name: string; brand: string | null;
   per_100g: Record<string, number | null> | null; allergen_tags: string[] | null;
+  ingredients_text?: string | null;
 };
 
 /**
  * W124: the same product scanned again. Brand and name match after `labelKey`; every core code is
- * present on both or absent on both; every code both carry agrees within `closeEnough`. A rescan
- * naming an allergen the stored food lacks is a new food, never a quiet reuse of a row with less.
+ * present on both or absent on both; every code both carry agrees within `closeEnough`; the
+ * ingredient text reads the same. A rescan naming an allergen the stored food lacks, or a
+ * reformulated list (W2c reads the text for diet rules), is a new food, never a quiet reuse.
  */
 export function sameLabelFood(label: LabelFoodInput, allergenTags: string[], row: StoredLabelFood): boolean {
-  if (labelKey(row.name) !== labelKey(label.name) || labelKey(row.brand) !== labelKey(label.brand)) {
+  if (labelKey(row.name) !== labelKey(label.name) || labelKey(row.brand) !== labelKey(label.brand)
+    || labelKey(row.ingredients_text) !== labelKey(label.ingredientsText)) {
     return false;
   }
   const stored = row.per_100g ?? {};
@@ -99,7 +102,7 @@ export function sameLabelFood(label: LabelFoodInput, allergenTags: string[], row
 }
 
 /**
- * The account's live label food this scan repeats, oldest first, or null. A failed read is not a
+ * The account's live label food this scan repeats (the oldest of its last 500), or null. A failed read is not a
  * refusal: the scan saves a row of its own, as it did before W124.
  */
 async function repeatLabelFood(
@@ -107,15 +110,16 @@ async function repeatLabelFood(
 ): Promise<string | null> {
   try {
     const found = await client.from("user_foods")
-      .select("id, name, brand, per_100g, allergen_tags, created_at")
+      .select("id, name, brand, per_100g, allergen_tags, ingredients_text, created_at")
       .eq("user_id", userId).eq("kind", "label_scan").is("deleted_at", null)
-      .order("created_at", { ascending: true }).limit(500);
+      .order("created_at", { ascending: false }).limit(500);
     if (found.error) {
       console.error("label food repeat lookup failed", { code: found.error.code });
       return null;
     }
     const rows = (found.data ?? []) as StoredLabelFood[];
-    return rows.find((row) => sameLabelFood(label, allergenTags, row))?.id ?? null;
+    // Newest first, so a long scan history still meets its recent products; the oldest match wins.
+    return rows.filter((row) => sameLabelFood(label, allergenTags, row)).at(-1)?.id ?? null;
   } catch (error) {
     console.error("label food repeat lookup failed", { error: error instanceof Error ? error.name : "unknown" });
     return null;

@@ -245,6 +245,16 @@ async function commitAndReport(
   return saved;
 }
 
+/** A thumbnail upload still running when Save is tapped is left behind (and swept), never waited on. */
+const THUMBNAIL_WAIT_MS = 1_000;
+
+async function settledWithin(upload: Promise<string | null> | null | undefined): Promise<string | null> {
+  if (!upload) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), THUMBNAIL_WAIT_MS); });
+  try { return await Promise.race([upload, late]); } finally { clearTimeout(timer); }
+}
+
 /** The time a capture's meal starts at on the confirm sheet: the photo's, else the viewed day's. */
 function detailsFor(draft: ProposeResponse, photoAt: Date | null, when: { at?: Date; tz: string }):
   CaptureDetailsSpec {
@@ -313,9 +323,10 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
       thumbnail: mode === "photo" && meta.thumbnail ? uploadThumbnail(meta.thumbnail) : null };
   }
 
-  /** The photo's shot time on this capture's day, else null. */
+  /** The plate photo's shot time on this capture's day, else null. A label's photo says nothing
+   *  about when the food was eaten. */
   function photoAt(): Date | null {
-    const times = photoRef.current?.times;
+    const times = method === "photo" ? photoRef.current?.times : undefined;
     return times ? photoEatenAt(times, { localDate: when.localDate, tz: when.tz, now: new Date() })?.at ?? null
       : null;
   }
@@ -327,7 +338,7 @@ function useCaptureFlow(initialMode: CaptureMethod | "confirm", initialDraft: Pr
     const entryId = crypto.randomUUID();
     setSaving(true);
     const edited = details?.clock ? atClock(when.localDate, details.clock, when.tz) : null;
-    const thumbnailPath = draft.method === "photo" ? await (photoRef.current?.thumbnail ?? null) : null;
+    const thumbnailPath = draft.method === "photo" ? await settledWithin(photoRef.current?.thumbnail) : null;
     const outcome = await commitAndReport(draft, edits, entryId, when.tz, slotNow(), saveLabelAsFood, {
       eatenAt: edited ?? photoAt() ?? when.at, title: details?.title.trim() || undefined,
       thumbnailPath, saveAsRecipe: details?.saveAsRecipe === true,

@@ -8,8 +8,8 @@
  * ref until the server makes one, is left out.
  *
  * A recipe still refuses an off-plan ingredient (R6, docs/decisions/2026-09-14): only foods whose
- * verdict is `allowed` go in, as the coach's `save_recipe` does; the rest are named so the sheet
- * can say so. Pure.
+ * verdict is `allowed` go in, as the coach's `save_recipe` does, and none the commit's own answer
+ * flagged (the server re-reads the label and the account's rules); the rest are named. Pure.
  */
 import type { EditedItem } from "@/lib/capture-client";
 import { LABEL_FOOD_PLACEHOLDER_REF } from "@/lib/capture/label-food";
@@ -31,6 +31,7 @@ export function captureRecipe(
 ): { input: RecipeInput | null; left: string[] } {
   const stored = result.status === "ok"
     ? [...result.items].sort((a, b) => a.seq - b.seq) : null;
+  const flagged = result.status === "ok" ? (result.flagged ?? []).map((f) => f.path) : [];
   const items: RecipeInput["items"] = [];
   const left: string[] = [];
   kept.forEach((item, i) => {
@@ -38,7 +39,8 @@ export function captureRecipe(
     const row = stored?.find((s) => s.seq === i + 1);
     const foodRefId = row?.food_ref_id ?? (item.seq === opts.labelSeq ? null : item.foodRefId);
     const grams = row?.grams ?? item.grams;
-    if (item.policy.verdict !== "allowed" || foodRefId === null
+    const marked = flagged.some((path) => path === `items.${i}` || path.startsWith(`items.${i}.`));
+    if (item.policy.verdict !== "allowed" || marked || foodRefId === null
       || foodRefId === LABEL_FOOD_PLACEHOLDER_REF || !(grams > 0)) {
       left.push(item.label);
       return;
