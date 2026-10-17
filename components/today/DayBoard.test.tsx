@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import DayBoard from "./DayBoard";
 import { DAY_CARD_EXPLAINER } from "./ExplainerPlayer";
@@ -112,8 +112,14 @@ describe("DayBoard · the tip opens in place", () => {
     const region = await screen.findByRole("region", { name: first.title });
     const paging = within(region).getByRole("navigation", { name: "Tips" });
     expect(paging.textContent).toContain(`1 of ${APP_TIPS.length}`);
-    fireEvent.click(within(region).getByRole("button", { name: "Next tip" }));
+    // Nothing is said on open: focus on the X names the tip already.
+    expect(region.querySelector('[aria-live="polite"]')?.textContent).toBe("");
+    const nextButton = within(region).getByRole("button", { name: "Next tip" });
+    nextButton.focus();
+    fireEvent.click(nextButton);
     const second = await screen.findByRole("region", { name: /./ });
+    // The same view and the same button: focus stays on Next across the page turn.
+    expect(document.activeElement).toBe(nextButton);
     expect(second.textContent).toContain(`2 of ${APP_TIPS.length}`);
     expect(second.querySelector('[aria-live="polite"]')?.textContent).toMatch(new RegExp(`^Tip 2 of ${APP_TIPS.length}\\.`));
     const shownTitle = second.querySelector("h3")!.textContent!;
@@ -127,6 +133,21 @@ describe("DayBoard · the tip opens in place", () => {
     fireEvent.click(within(view() as HTMLElement).getByRole("button", { name: "Close tip" }));
     await waitFor(() => expect(anyView()).toBeNull(), { timeout: 200 });
     expect(screen.getByRole("button", { name: /^Open tip: / }).getAttribute("aria-label")).toBe(`Open tip: ${lastTitle}`);
+  });
+
+  it("moves two tips for two Next taps in one batch, and a reopen says nothing until it pages", async () => {
+    mount({ reduced: true });
+    fireEvent.click(openButton());
+    const region = await screen.findByRole("region", { name: /./ });
+    const next = within(region).getByRole("button", { name: "Next tip" });
+    act(() => { fireEvent.click(next); fireEvent.click(next); });
+    await waitFor(() => expect(view()?.textContent).toContain(`3 of ${APP_TIPS.length}`));
+    fireEvent.click(within(view() as HTMLElement).getByRole("button", { name: "Close tip" }));
+    await waitFor(() => expect(anyView()).toBeNull(), { timeout: 200 });
+    fireEvent.click(openButton());
+    const again = await screen.findByRole("region", { name: /./ });
+    expect(again.querySelector('[aria-live="polite"]')?.textContent).toBe("");
+    expect(document.activeElement).toBe(within(again).getByRole("button", { name: "Close tip" }));
   });
 
   it("leads with the tip that matters now: no water yet today puts the water tip first", () => {

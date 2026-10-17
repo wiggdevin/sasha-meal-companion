@@ -87,7 +87,6 @@ describe("DayCard · explainer", () => {
     mount();
     fireEvent.click(tab("Board"));
     const board = panel("Board");
-    fireEvent.click(within(board).getByRole("button", { name: "Next tip" }));
     const button = eat(board);
     const tip = live(board).textContent;
     fireEvent.click(within(board).getByRole("button", { name: "Play How your Day card works, 0:20" }));

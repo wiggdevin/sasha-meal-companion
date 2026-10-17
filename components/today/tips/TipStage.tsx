@@ -46,6 +46,8 @@ export default function TipStage({ tips, active, children }: {
   const reduce = useReducedMotionConfig() ?? false;
   const t = boardMorph(reduce);
   const [openId, setOpenId] = useState<string | null>(null);
+  // One key per opening: a page turn keeps the view, a new opening always mounts a fresh one.
+  const [opening, setOpening] = useState(0);
   // Held by id, from the first tip the board had: a reorder never switches the tile's tip.
   const [shownId, setShownId] = useState<string | null>(() => tips[0]?.id ?? null);
   const [room, setRoom] = useState(0);
@@ -56,6 +58,9 @@ export default function TipStage({ tips, active, children }: {
   // The tiles are covered while the view is open; closing, they are back in the flow and fading in.
   const covered = shown !== null && closing === null;
   const stage = useRef<HTMLDivElement | null>(null);
+  // The tip the last page turn went to, until the render that shows it.
+  const pagedTo = useRef<string | null>(null);
+  useEffect(() => { pagedTo.current = null; }, [openId]);
   // Closing hands focus back to the tile the tip grew from; a board that left the screen does not.
   const returnFocus = useRef(false);
   useEffect(() => {
@@ -87,16 +92,20 @@ export default function TipStage({ tips, active, children }: {
     setClosing(null);
     setOpenId(tip.id);
     setShownId(tip.id);
+    setOpening((n) => n + 1);
   };
   // A page turn swaps the tip in the open view; the tile and the face it lands on follow.
   const page = (step: 1 | -1) => {
     if (!shown || closing || tips.length < 2) return;
-    const at = tips.indexOf(shown);
+    // From the latest page turn, not this render's tip, so two taps in one batch move two tips.
+    const at = tips.findIndex((tip) => tip.id === (pagedTo.current ?? shown.id));
     const index = ((at < 0 ? 0 : at) + step + tips.length) % tips.length;
+    pagedTo.current = tips[index].id;
     setOpenId(tips[index].id);
     setShownId(tips[index].id);
-    setFace((prev) => prev && { ...prev, tips, index });
+    setFace((box) => box && { ...box, tips, index });
   };
+
   const close = () => {
     if (closing) return;
     returnFocus.current = true;
@@ -116,8 +125,8 @@ export default function TipStage({ tips, active, children }: {
         {children(open, shownId)}
       </motion.div>
       <AnimatePresence initial={false}>
-        {/* One key for the open view: a page turn swaps its tip in place, never re-grows it. */}
-        {shown && <TipView key="tip-view" tip={shown} minHeight={room} face={face} closing={closing}
+        {/* One key per opening: a page turn swaps its tip in place, never re-grows it. */}
+        {shown && <TipView key={`tip-view-${opening}`} tip={shown} minHeight={room} face={face} closing={closing}
           paging={{ index: Math.max(0, tips.indexOf(shown)), count: tips.length, onPage: page }}
           onClose={close} onClosed={finish} />}
       </AnimatePresence>
