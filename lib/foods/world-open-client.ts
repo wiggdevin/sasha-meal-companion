@@ -141,3 +141,57 @@ export async function openFoodWorldAtOnboarding(h: AccountHandle): Promise<World
   if (!await flushOutboxNow(h)) return "retry";
   return drainWorldOpenPending(h);
 }
+
+export type FoodWorldView = { world: "open" | "closed"; eligible: boolean };
+
+/**
+ * Settings and the invitation: this account's world, and whether it may be invited into the open
+ * one. `null` when either read fails; the callers then show nothing (fail closed, never a guess).
+ * `eligible` comes from the server's own allowlist, so a held account and an unreleased open world
+ * read the same: not eligible.
+ */
+export async function readFoodWorldView(h: AccountHandle): Promise<FoodWorldView | null> {
+  try {
+    const [stateRes, inviteRes] = await Promise.all([
+      accountFetch(h, "/api/foods/world", { cache: "no-store" }, { budget: "prefs" }),
+      accountFetch(h, "/api/foods/world/invitation", { cache: "no-store" }, { budget: "prefs" }),
+    ]);
+    if (!stateRes.ok || !inviteRes.ok) return null;
+    const state = await accountJson<{ world?: unknown } | null>(h, stateRes);
+    const invite = await accountJson<{ eligible?: unknown } | null>(h, inviteRes);
+    if (state?.world !== "open" && state?.world !== "closed") return null;
+    return { world: state.world, eligible: invite?.eligible === true };
+  } catch {
+    return null;
+  }
+}
+
+export type FoodWorldChoice =
+  | { ok: true; world: "open" | "closed" }
+  | { ok: false; reason: "condition_review" | "unavailable" | "retry" };
+
+/**
+ * A deliberate choice (Settings switch or the invitation's button). Sends no `intent`, so the
+ * server always applies and restamps it, and clears any pending onboarding default first so a late
+ * retry cannot override it. Opening is never forced: 423 and 409 come back as reasons.
+ */
+export async function chooseFoodWorld(h: AccountHandle, world: "open" | "closed"): Promise<FoodWorldChoice> {
+  try {
+    await clearWorldOpenPending(h);
+    const res = await accountFetch(h, "/api/foods/world", { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ world }) }, { budget: "prefs" });
+    if (res.ok) {
+      const body = await accountJson<{ world?: unknown } | null>(h, res);
+      return body?.world === "open" || body?.world === "closed"
+        ? { ok: true, world: body.world } : { ok: false, reason: "retry" };
+    }
+    if (res.status === 423) return { ok: false, reason: "unavailable" };
+    if (res.status === 409) {
+      return (await errorCode(h, res)) === "condition_review"
+        ? { ok: false, reason: "condition_review" } : { ok: false, reason: "retry" };
+    }
+    return { ok: false, reason: "retry" };
+  } catch {
+    return { ok: false, reason: "retry" };
+  }
+}

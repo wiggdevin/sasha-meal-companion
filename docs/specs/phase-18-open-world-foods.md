@@ -1425,6 +1425,8 @@ Acceptance:
 One-line criterion: focus mode takes the highest list coverage inside the bands, boosts start and
 stop on their boundaries, and the coach toggles focus with Undo.
 
+**As built (UI, W100).** `components/ShoppingFocusToggle.tsx`, inside Shopping's plan notice: "Use my list" calls `writeShoppingFocus` (`POST /api/shopping/focus`, the server picks the end), shows "until <day>", and offers Undo for the last write. Undo answering `superseded` leaves the newer choice in place and says so. It only exists inside Shopping, so an account without Shopping access never sees it. Tests: `components/ShoppingFocusToggle.test.tsx`.
+
 ### W12. Pantry from a photo
 
 Builds the photo route, migration 7, and a privacy boundary before any byte leaves the server.
@@ -1493,6 +1495,8 @@ Acceptance:
 
 One-line criterion: no user-visible "Eats" remains, wire names are unchanged, the star merge is
 idempotent and never overrides Avoid, and new accounts start open with no default Favored foods.
+
+**As built (UI, W098).** Settings › Food ideas (`components/settings/FoodWorldSection.tsx`) and a dismissible card on the Foods first tab (`components/foods/OpenWorldInvitation.tsx`) read `GET /api/foods/world` and `GET /api/foods/world/invitation` through `readFoodWorldView`, and write with `chooseFoodWorld` (`POST /api/foods/world`, no `intent`, pending onboarding default cleared first). Both render nothing while the account is closed and not eligible (held, unreleased, or a failed read). A 409 `condition_review` shows a plain review line; the confirmation flow itself is not built here. Copy says "Favored", never "Eats"; the wire name is unchanged. The star toggle is covered by `tests/favorites/food-star-toggle.test.tsx`; no account is opened by this change.
 
 ### W15. Onboarding question ablation
 

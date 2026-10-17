@@ -19,6 +19,7 @@ import SettingsSection from "@/components/settings/Section";
 import { CAPTION, CARD_TITLE } from "@/components/settings/settings-styles";
 import TargetsSection from "@/components/settings/TargetsSection";
 import CuisinesSection from "@/components/settings/CuisinesSection";
+import FoodWorldSection from "@/components/settings/FoodWorldSection";
 import BackgroundSection from "@/components/settings/BackgroundSection";
 import CompanionSection from "@/components/settings/CompanionSection";
 import ProcessorsSection from "@/components/settings/ProcessorsSection";
@@ -130,6 +131,8 @@ export default function SettingsPage() {
       <WaterSection settings={settings} />
 
       <CuisinesSection settings={settings} />
+
+      <FoodWorldSection />
 
       <CompanionSection />
 
