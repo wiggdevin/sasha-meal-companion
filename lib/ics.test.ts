@@ -186,6 +186,31 @@ describe("shiftMinutes and slotTimes", () => {
   });
 });
 
+// Audit A090, A100: the calendar uses the app's clamped resolution and never ends before it starts.
+describe("times near midnight", () => {
+  const NOW = new Date("2026-09-07T12:00:00Z");
+  const field = (ics: string, name: string) => logicalLines(ics)
+    .filter((line) => line.startsWith(`${name}:`)).map((line) => line.slice(name.length + 1));
+
+  it("clamps a late shifted meal to 23:59 like Today, instead of wrapping to the next morning", () => {
+    const ics = generateMealPlanIcs({ shiftMinutes: 330, now: NOW });
+    expect(field(ics, "DTSTART")).toEqual(["20260101T133000", "20260101T180000", "20260101T235900"]);
+    // The last event ends 15 minutes later, on the next date.
+    expect(field(ics, "DTEND").at(-1)).toBe("20260102T001400");
+  });
+
+  it("clamps an early negative shift to 00:00 instead of wrapping to the night before", () => {
+    const ics = generateMealPlanIcs({ shiftMinutes: -480, now: NOW });
+    expect(field(ics, "DTSTART")[0]).toBe("20260101T000000");
+  });
+
+  it("ends a 23:55 meal at 00:10 on the following date", () => {
+    const ics = generateMealPlanIcs({ slotTimes: { "meal-3": "23:55" }, now: NOW });
+    expect(field(ics, "DTSTART")[2]).toBe("20260101T235500");
+    expect(field(ics, "DTEND")[2]).toBe("20260102T001000");
+  });
+});
+
 describe("icsDataUri", () => {
   it("produces a base64 data URI that decodes back to the source", () => {
     const ics = generateMealPlanIcs({ now: new Date("2026-09-07T12:00:00Z") });

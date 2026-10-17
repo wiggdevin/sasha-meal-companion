@@ -86,7 +86,7 @@ function historicalOption(dayType: DayType, slot: SlotId, date: string, swapId?:
 
 /** An old client might have saved an added meal without its time; keep the card usable. */
 function timesForLayout(ids: SlotId[], store: Store, date: string, dayType: DayType): Map<SlotId, string> {
-  const scheduled = new Map(resolveSlotTimes(dayType, store.settings)
+  const scheduled = new Map(resolveSlotTimes(dayType, store.settings, date)
     .map(({ slot, time }) => [slot, time]));
   const times = new Map<SlotId, string>();
   let previous = "";

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetTestAccount } from "@/tests/helpers/account";
 import type { AccountHandle } from "@/lib/device/account";
 const enqueue = vi.fn();
@@ -51,6 +51,29 @@ describe("caches", () => {
     writeCache(h, EXPENDITURE_CACHE_NAME, { status: "estimating" }, "2026-09-10");
     const out = await fetchExpenditure(h, async () => { throw new Error("offline"); });
     expect(out).toEqual({ asOf: "2026-09-10", value: { status: "estimating" }, stale: true });
+  });
+});
+
+// Audit A051: "Saved on" is the phone's day. 19:30 Oct 5 in Denver is already Oct 6 in UTC.
+describe("the cache stamp", () => {
+  let savedTz: string | undefined;
+  beforeEach(() => {
+    savedTz = process.env.TZ;
+    process.env.TZ = "America/Denver";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-06T01:30:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    if (savedTz === undefined) delete process.env.TZ;
+    else process.env.TZ = savedTz;
+  });
+
+  it("is the local day on a US evening, not the UTC date", async () => {
+    const out = await fetchExpenditure(h, async () =>
+      new Response(JSON.stringify({ status: "estimating" }), { status: 200 }));
+    expect(out?.asOf).toBe("2026-10-05");
+    expect(readCache(h, EXPENDITURE_CACHE_NAME)?.asOf).toBe("2026-10-05");
   });
 });
 
