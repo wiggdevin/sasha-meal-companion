@@ -201,7 +201,7 @@ export const CARD_MANIFEST: CardManifestEntry[] = [
     states: ["a companion chosen", "a save that fails goes back", "a pull moves the picker"],
     renderTest: "components/today/island/companion-today.test.tsx" },
   { path: "components/settings/BackgroundSection.tsx", card: "BackgroundSection",
-    states: ["Oat on", "a ground chosen", "arrow keys move the choice"],
+    states: ["Oat on", "paints and keeps the choice", "moves with the arrow keys"],
     renderTest: "components/settings/BackgroundSection.test.tsx" },
   { path: "components/settings/ProcessorsSection.tsx", card: "ProcessorsSection",
     states: ["every model provider", "each processor"],
