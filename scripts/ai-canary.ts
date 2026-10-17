@@ -1,5 +1,7 @@
 /**
- * Phase 0 AI canary. Runs OUTSIDE CI, against the real providers.
+ * Phase 0 AI canary. Runs OUTSIDE the push/PR CI, against the real providers. The weekly
+ * `.github/workflows/ai-canary.yml` (schedule + manual dispatch, never on push) runs it with the
+ * repo's GEMINI_API_KEY secret and skips cleanly when that secret is not set.
  *
  *   pnpm exec tsx scripts/ai-canary.ts
  *   pnpm ai:canary        # once the integration branch adds the package.json script
