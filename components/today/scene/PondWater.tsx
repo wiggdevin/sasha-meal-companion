@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { BOX, CLOUDS, HORIZON, KEY, RAINBOW, groundFromBox, type Band } from "@/components/today/scene/scene-geometry";
 import { createPondGl, type PondGl } from "@/components/today/scene/pond-gl";
+import { runFrames } from "@/components/today/frame-loop";
+import { subscribeTilt } from "@/components/today/useWaterTilt";
 import styles from "@/components/today/scene/PondScene.module.css";
 
 /** What the scene can ask of the water. */
@@ -19,6 +21,9 @@ const NORMAL_GAIN = 0.55;
 /** The water redraws at 30 frames a second; the controls on top keep their own 60. */
 const FRAME_MS = 1000 / 30;
 const MIRROR = 0.55;
+/** Seconds without a splash or a tilt before the stirring stops, and the ripples' speed under which the loop sleeps. */
+const QUIET_S = 6;
+const STILL_SPEED = 0.02;
 const BAND_TOKEN: Record<Band, string> = {
   kcal: "--color-gauge-calories", protein: "--color-gauge-protein", carbs: "--color-gauge-carbs", fat: "--color-gauge-fat",
 };
@@ -79,6 +84,8 @@ export default function PondWater({ shares, bands, keyRows, animate, tilt, contr
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const gl = useRef<PondGl | null>(null);
   const mirror = useRef<HTMLCanvasElement | null>(null);
+  const wake = useRef<() => void>(() => {});
+  const stirring = useRef(false);
   const clouds = useRef<HTMLImageElement[]>([]);
   const sim = useRef({ h: new Float32Array(COLS * ROWS), v: new Float32Array(COLS * ROWS),
     normals: new Uint8Array(COLS * ROWS * 4).fill(128), lean: 0 });
@@ -168,6 +175,7 @@ export default function PondWater({ shares, bands, keyRows, animate, tilt, contr
       splash(x, y, strength) {
         const at = groundFromBox(x, y);
         if (!at) return;
+        if (!stirring.current) wake.current();
         const i0 = Math.round(at.gx * (COLS - 1));
         const j0 = Math.round(at.gz * (ROWS - 1));
         for (let dj = -2; dj <= 2; dj += 1) for (let di = -2; di <= 2; di += 1) {
@@ -211,26 +219,36 @@ export default function PondWater({ shares, bands, keyRows, animate, tilt, contr
     const render = (time: number) => gl.current?.draw(s.normals, COLS, ROWS, time, s.lean);
     drawOnce.current = () => render(performance.now() / 1000);
     if (!animate) { render(0); return; }
-    let frame = 0;
     let last = performance.now();
     let stir = 0;
-    const loop = (now: number) => {
-      frame = requestAnimationFrame(loop);
-      if (now - last < FRAME_MS) return;
+    // Settled: nothing has disturbed the water for QUIET_S (the stirring stops), the ripples have
+    // died and the lean has caught the phone. The loop then sleeps until a splash or a tilt.
+    let quiet = 0;
+    const frame = (now: number): boolean => {
+      if (now - last < FRAME_MS) return true;
       const dt = Math.min(0.06, (now - last) / 1000);
       last = now;
       // The phone's lean eases in, so a turn sends a slow sway rather than a jump.
       s.lean += ((tilt.current ?? 0) / 15 - s.lean) * (1 - Math.exp(-dt / 0.55));
       // Now and then a small stir, so the lake is alive without busy rings everywhere.
-      if ((stir += dt) > 3.2) {
+      quiet += dt;
+      if (quiet < QUIET_S && (stir += dt) > 3.2) {
         stir = 0;
+        stirring.current = true;
         controlRef.current?.splash(40 + Math.random() * 280, HORIZON + 50 + Math.random() * 130, 2 + Math.random() * 2);
+        stirring.current = false;
       }
       step(dt);
       render(now / 1000);
+      if (quiet < QUIET_S) return true;
+      let fastest = 0;
+      for (let k = 0; k < s.v.length; k += 1) fastest = Math.max(fastest, Math.abs(s.v[k]));
+      return fastest > STILL_SPEED || Math.abs((tilt.current ?? 0) / 15 - s.lean) > 0.005;
     };
-    frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
+    const loop = runFrames(frame);
+    wake.current = () => { quiet = 0; loop.wake(); };
+    const unsubscribe = subscribeTilt(() => wake.current());
+    return () => { unsubscribe(); wake.current = () => {}; loop.stop(); };
   }, [ready, animate, tilt, controlRef]);
 
   return <canvas ref={canvas} aria-hidden="true" className={styles.water} data-ready={ready || undefined} />;

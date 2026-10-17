@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import Button from "@/components/ui/Button";
-import { requestTiltPermission, useWaterTilt } from "@/components/today/useWaterTilt";
+import { requestTiltPermission, subscribeTilt, useWaterTilt } from "@/components/today/useWaterTilt";
+import { runFrames } from "@/components/today/frame-loop";
 import { createSurface, heightAt, splash, stepSurface, surfaceEnergy } from "@/components/today/island/water-surface";
 import { createWaterGl, tokenColour, type WaterColours, type WaterGl } from "@/components/today/island/water-gl";
 import { createDye, dyeBusy, pack, squirt, stepDye } from "@/components/today/island/water-dye";
@@ -24,8 +25,10 @@ const SIZE = { w: 350, h: 230 };
 const DROPS = 14;
 const SPLASH = 32;
 const COLUMNS = 48;
-/** Every so often the water stirs by itself a little, so it is never a still picture. */
+/** Every so often the water stirs by itself a little while it is busy; once calm a moment it rests. */
 const STIR_EVERY_S = 1.6;
+/** Seconds of calm (the stir alone) before the frame loop sleeps; a splash, a pour, a tilt wakes it. */
+const SETTLE_S = 4;
 
 type Drop = { x: number; y: number; vy: number; r: number; at: number; live: boolean };
 type Spray = { x: number; y: number; vx: number; vy: number; life: number; live: boolean };
@@ -77,6 +80,7 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     dye: createDye(), inksAt: 0, heightBytes: new Uint8Array(COLUMNS),
     drops: Array.from({ length: DROPS }, (): Drop => ({ x: 0, y: 0, vy: 0, r: 0, at: 0, live: false })),
     sprays: Array.from({ length: SPLASH }, (): Spray => ({ x: 0, y: 0, vx: 0, vy: 0, life: 0, live: false })) });
+  const wake = useRef<() => void>(() => {});
   const lastCups = useRef(cups);
   const animate = !reduce && onScreen && !paused;
   const tilt = useWaterTilt(animate);
@@ -94,7 +98,7 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      if (width > 0 && height > 0) sim.current.size = { w: width, h: height };
+      if (width > 0 && height > 0) { sim.current.size = { w: width, h: height }; wake.current(); }
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -123,12 +127,15 @@ export default function WellWater({ water, onAddCup, paused = false }: {
       plumEnd: tokenColour(el, "--color-gauge-protein-end", [0.7, 0.65, 0.81]),
     };
     setGlReady(Boolean(gl.current));
-    const onLost = (event: Event) => { event.preventDefault(); gl.current = null; setGlReady(false); };
+    // A rebuilt context starts blank, and a sleeping loop would leave it so.
+    wake.current();
+    // The SVG fallback shows from here on; a sleeping loop would leave it at an old level.
+    const onLost = (event: Event) => { event.preventDefault(); gl.current = null; setGlReady(false); wake.current(); };
     const onRestored = () => setGlAttempt((n) => n + 1);
     el.addEventListener("webglcontextlost", onLost);
     el.addEventListener("webglcontextrestored", onRestored);
     // Resizing a canvas clears it; with no frame loop running (still water) redraw the one frame.
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { fit(); drawStill.current(); });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { fit(); drawStill.current(); wake.current(); });
     observer?.observe(el);
     return () => {
       observer?.disconnect();
@@ -145,6 +152,7 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     const before = lastCups.current;
     lastCups.current = cups;
     s.target = level;
+    wake.current();
     if (!animate || cups <= before || typeof performance === "undefined") return;
     const now = performance.now();
     const { w, h } = s.size;
@@ -165,13 +173,13 @@ export default function WellWater({ water, onAddCup, paused = false }: {
   useEffect(() => {
     if (!animate || typeof requestAnimationFrame === "undefined") return;
     const s = sim.current;
-    let frame = 0;
     let last = performance.now();
     let t = 0;
     let stir = 0;
+    let calmFor = 0;
     // Calm water (no drops, no ink, the level settled, only the gentle stir) draws every other frame:
-    // the water always moves a little, by design, but at rest it needs half the work. The last
-    // frame's state decides, and a skipped frame's time carries into the next.
+    // at rest it needs half the work, and after SETTLE_S of calm it sleeps. The last frame's state
+    // decides, and a skipped frame's time carries into the next.
     let calm = false;
     let skip = false;
     const ysFront = new Array<number>(COLUMNS).fill(0);
@@ -179,10 +187,9 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     const glFrame = { heights: s.heightBytes, columns: COLUMNS, dye: null as Uint8Array | null,
       dyeSize: [s.dye.nx, s.dye.ny] as [number, number], base: 0, size: [0, 0] as [number, number], time: 0,
       colours: null as WaterColours | null };
-    const draw = (now: number) => {
-      frame = requestAnimationFrame(draw);
+    const draw = (now: number): boolean => {
       skip = calm && !skip;
-      if (skip) return;
+      if (skip) return true;
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
       t += dt;
@@ -190,7 +197,8 @@ export default function WellWater({ water, onAddCup, paused = false }: {
       s.y += s.v * dt;
       const { w, h } = s.size;
       const baseY = h * (1 - s.y);
-      if ((stir += dt) > STIR_EVERY_S) {
+      // The stir stops once the water has been calm a moment, so the loop can settle.
+      if ((stir += dt) > STIR_EVERY_S && calmFor < 1) {
         stir = 0;
         splash(s.surface, Math.random() * w, w, (Math.random() - 0.5) * 50);
       }
@@ -289,9 +297,13 @@ export default function WellWater({ water, onAddCup, paused = false }: {
       // Below 4 (surfaceEnergy's units) is the stir alone; a tap's splash runs 10-20 for a second.
       calm = energy < 4 && !dyeOn && !s.inksAt && Math.abs(s.target - s.y) < 0.002 && Math.abs(s.v) < 0.01
         && !s.drops.some((drop) => drop.live) && !s.sprays.some((spray) => spray.live);
+      calmFor = calm ? calmFor + dt : 0;
+      return calmFor < SETTLE_S;
     };
-    frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
+    const loop = runFrames(draw);
+    wake.current = () => { calmFor = 0; calm = false; loop.wake(); };
+    const unsubscribe = subscribeTilt(() => wake.current());
+    return () => { unsubscribe(); wake.current = () => {}; loop.stop(); };
   }, [animate, tilt]);
 
   // Still water: the level at once, flat, nothing falling. Kept in `drawStill` so a resize, which
@@ -325,7 +337,7 @@ export default function WellWater({ water, onAddCup, paused = false }: {
   // Sprout swims through the glass (WaterSwim): on a double tap in the water, and now and then on its own.
   const [swims, setSwims] = useState(0);
   const lastTap = useRef(Number.NEGATIVE_INFINITY);
-  const splashAt = (x: number, strength: number) => { const s = sim.current; splash(s.surface, x * s.size.w, s.size.w, strength); };
+  const splashAt = (x: number, strength: number) => { const s = sim.current; splash(s.surface, x * s.size.w, s.size.w, strength); wake.current(); };
 
   const unit = water?.unit ?? "cups";
   const reached = water ? water.cups >= water.goal && water.goal > 0 : false;
@@ -341,6 +353,7 @@ export default function WellWater({ water, onAddCup, paused = false }: {
     if (event.clientY - rect.top < waterline - 8) return;
     event.stopPropagation();
     splash(s.surface, x, rect.width, 120);
+    wake.current();
     if (event.timeStamp - lastTap.current < 350) setSwims((n) => n + 1);
     lastTap.current = event.timeStamp;
   };

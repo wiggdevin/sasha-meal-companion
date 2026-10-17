@@ -18,6 +18,16 @@ type OrientationGate = { requestPermission?: () => Promise<string> };
 let permission: Permission | null = null;
 let asked = false;
 const listeners = new Set<() => void>();
+/** Loops that sleep when settled are woken by a turn of the phone. */
+const tiltListeners = new Set<() => void>();
+/** The roll the sleeping loops were last told about: a slow turn is many small steps. */
+let notifiedTilt = 0;
+
+/** Call `onTilt` when the phone's roll changes by about a degree; returns the unsubscribe. */
+export function subscribeTilt(onTilt: () => void): () => void {
+  tiltListeners.add(onTilt);
+  return () => { tiltListeners.delete(onTilt); };
+}
 
 function gate(): OrientationGate | null {
   if (typeof window === "undefined") return null;
@@ -68,8 +78,15 @@ export function useWaterTilt(enabled: boolean): RefObject<number> {
   const tilt = useRef(0);
   useEffect(() => {
     tilt.current = 0;
+    notifiedTilt = 0;
     if (!enabled || state !== "granted") return;
-    const onOrientation = (event: DeviceOrientationEvent) => { tilt.current = clampTilt(event.gamma); };
+    const onOrientation = (event: DeviceOrientationEvent) => {
+      const next = clampTilt(event.gamma);
+      tilt.current = next;
+      if (Math.abs(next - notifiedTilt) < 1) return;
+      notifiedTilt = next;
+      for (const listener of tiltListeners) listener();
+    };
     window.addEventListener("deviceorientation", onOrientation);
     return () => window.removeEventListener("deviceorientation", onOrientation);
   }, [enabled, state]);
