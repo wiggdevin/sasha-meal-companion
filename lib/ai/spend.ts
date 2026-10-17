@@ -37,6 +37,10 @@ const DEFAULT_HARD = 100;
 const DEFAULT_SPEND_CAP_USD = 2;
 /** The whole deployment's daily ceiling across every account (scale S2), when the env is unset. */
 export const DEFAULT_GLOBAL_SPEND_CAP_USD = 50;
+/** OD01: what background calls, across every account, may commit in a UTC day, when the env is unset. */
+export const DEFAULT_BACKGROUND_SPEND_CAP_USD = 10;
+/** OD01: the part of each account's daily cap background calls may never use, when the env is unset. */
+export const DEFAULT_INTERACTIVE_RESERVE_USD = 1;
 /** How long a reservation holds its amount when the function that made it never settles. */
 export const RESERVATION_TTL_SECONDS = 300;
 
@@ -80,6 +84,19 @@ export function globalSpendCapUsd(): number {
   return usdFromEnv("AI_GLOBAL_DAILY_SPEND_CAP_USD", DEFAULT_GLOBAL_SPEND_CAP_USD);
 }
 
+/** OD01: background calls' UTC-day ceiling across every account (`AI_BACKGROUND_DAILY_SPEND_CAP_USD`,
+ *  default $10). 0 stops background spend and leaves interactive turns alone. */
+export function backgroundSpendCapUsd(): number {
+  return usdFromEnv("AI_BACKGROUND_DAILY_SPEND_CAP_USD", DEFAULT_BACKGROUND_SPEND_CAP_USD);
+}
+
+/** OD01: the share of each account's cap kept for its own interactive turns
+ *  (`AI_INTERACTIVE_RESERVE_USD`, default $1 of $2). Background calls for an account may commit at
+ *  most its cap less this. */
+export function interactiveReserveUsd(): number {
+  return usdFromEnv("AI_INTERACTIVE_RESERVE_USD", DEFAULT_INTERACTIVE_RESERVE_USD);
+}
+
 /** A hold on the daily caps for one model call, released to its actual cost by `settleSpend`. */
 export type SpendReservation = { id: string; amountUsd: number };
 
@@ -96,22 +113,27 @@ const usd = (n: unknown): number => (typeof n === "number" ? n : Number(n));
 /**
  * Shared Gemini/OpenRouter/Jev brake (scale S2): before any provider I/O, reserve the call's
  * maximum estimated cost against BOTH the user's daily cap and the global daily ceiling, in one
- * database transaction (`ai_spend_reserve`, migration 20261218090100) that every instance shares.
+ * database transaction (`ai_spend_reserve_split`, migrations 20261218090100 and 20270103090000) that every instance shares.
  * Refused when either would be exceeded (429 `spend_cap`, the copy the clients already show).
+ * A background call (`background: true`, OD01, migration 20270103090000) also has to fit the
+ * background ceiling and leave the account's interactive reserve untouched (both count open holds).
  * Any failure to reserve refuses the call (503 `spend_unavailable`): a model call is never made
  * blind to the caps.
  */
 export async function reserveSpend(
-  admin: SupabaseClient, userId: string, amountUsd: number,
+  admin: SupabaseClient, userId: string, amountUsd: number, opts: { background?: boolean } = {},
 ): Promise<SpendReservation> {
   const amount = Number.isFinite(amountUsd) && amountUsd > 0 ? amountUsd : 0;
   const cap = spendCapUsd();
   const globalCap = globalSpendCapUsd();
+  const background = opts.background === true;
   let result: { data: unknown; error: unknown };
   try {
-    result = await admin.rpc("ai_spend_reserve", {
+    result = await admin.rpc("ai_spend_reserve_split", {
       p_user_id: userId, p_amount_usd: amount, p_user_cap_usd: cap,
       p_global_cap_usd: globalCap, p_ttl_seconds: RESERVATION_TTL_SECONDS,
+      p_background: background, p_background_cap_usd: backgroundSpendCapUsd(),
+      p_interactive_reserve_usd: interactiveReserveUsd(),
     });
   } catch (error) {
     throw unavailable(userId, error);
@@ -121,7 +143,7 @@ export async function reserveSpend(
     reservation_id?: unknown; allowed?: unknown; reason?: unknown; user_committed_usd?: unknown;
   } | null | undefined;
   if (!row || typeof row.allowed !== "boolean") {
-    throw unavailable(userId, new Error("ai_spend_reserve returned an unexpected row"));
+    throw unavailable(userId, new Error("ai_spend_reserve_split returned an unexpected row"));
   }
   if (!row.allowed) {
     if (row.reason === "global_cap") {
@@ -130,12 +152,19 @@ export async function reserveSpend(
       });
       throw new HttpError(429, "spend_cap", "daily AI spend cap reached for today. Try again tomorrow.");
     }
+    if (row.reason === "background_cap" || row.reason === "background_user_cap") {
+      // Background work stops for the day; the account's own turns keep their reserve.
+      console.warn("background AI spend limit reached; refusing the background call", {
+        reason: row.reason, user_id: userId,
+      });
+      throw new HttpError(429, "spend_cap", "daily background AI spend limit reached for today.");
+    }
     const spent = usd(row.user_committed_usd);
     throw new HttpError(429, "spend_cap",
       `daily AI spend cap reached: $${(Number.isFinite(spent) ? spent : cap).toFixed(2)} of $${cap.toFixed(2)}`);
   }
   if (typeof row.reservation_id !== "string") {
-    throw unavailable(userId, new Error("ai_spend_reserve allowed without a reservation id"));
+    throw unavailable(userId, new Error("ai_spend_reserve_split allowed without a reservation id"));
   }
   return { id: row.reservation_id, amountUsd: amount };
 }

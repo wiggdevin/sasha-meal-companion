@@ -52,7 +52,7 @@ import { z } from "zod";
 import { HttpError } from "@/lib/server/auth";
 import { generateStructured, inputHashFor, ProviderHttpError } from "./adapter";
 import { generateGrounded } from "./gemini-grounded";
-import { capturePayload, coachTurnPayload, lookupPayload } from "./gemini-payloads";
+import { capturePayload, coachTurnPayload, lookupPayload, weeklyReviewPayload } from "./gemini-payloads";
 import { estimateCostUsd } from "./models";
 import { withSpendRpc } from "@/tests/ai/spend-admin";
 import type { Media } from "./payloads";
@@ -262,6 +262,19 @@ describe("generateStructured", () => {
     expect(calls).toHaveLength(0);
   });
 
+  // OD01: a background purpose reserves as background; a person's own call never does.
+  it("marks the weekly review's reservation as background and a capture's as interactive", async () => {
+    const seen: boolean[] = [];
+    for (const payload of [P("textToItems", [{ text: "two eggs" }]), weeklyReviewPayload("week")]) {
+      const probe = fakeAdmin().client as unknown as { rpc: (fn: string, args: Record<string, unknown>) => unknown };
+      const rpc = vi.spyOn(probe, "rpc");
+      await generateStructured({ payload, userId: "u1", schema, admin: probe as never },
+        { sleep: noSleep, callGemini: okResult({ items: [] }, 10, 10) }).catch(() => undefined);
+      seen.push((rpc.mock.calls.find(([fn]) => fn === "ai_spend_reserve_split")?.[1] as { p_background: boolean }).p_background);
+    }
+    expect(seen).toEqual([false, true]);
+  });
+
   // Finding 94, now across instances (scale S2): each call reserves its maximum estimated cost
   // in one database transaction before any provider I/O, so two concurrent calls from the same
   // user cannot both clear a cap their combined holds would break. The fake answers the
@@ -276,7 +289,7 @@ describe("generateStructured", () => {
     const probe = fakeAdmin().client as unknown as { rpc: (fn: string, args: Record<string, unknown>) => unknown };
     const rpc = vi.spyOn(probe, "rpc");
     await oneCall(probe);
-    const hold = Number((rpc.mock.calls.find(([fn]) => fn === "ai_spend_reserve")?.[1] ?? {}).p_amount_usd);
+    const hold = Number((rpc.mock.calls.find(([fn]) => fn === "ai_spend_reserve_split")?.[1] ?? {}).p_amount_usd);
     expect(hold).toBeGreaterThan(0);
     const { client, calls } = fakeAdmin([2 - 1.5 * hold]);
 
