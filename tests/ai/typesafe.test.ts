@@ -4,7 +4,6 @@ const { adminClientMock } = vi.hoisted(() => ({ adminClientMock: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/server/admin", () => ({ adminClient: adminClientMock }));
-
 import { withJevBudget } from "@/lib/ai/request-budget";
 import { facetPayload, suggestPayload, verifyPayload } from "@/lib/ai/payloads";
 import { VERIFY_QUESTIONS } from "@/lib/coach/verify-question";
@@ -52,8 +51,7 @@ describe("TypeSafe SystemOne adapter", () => {
 
   beforeEach(() => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-typesafe-key");
-    // OD12: these cases exercise the transport, not the health gate (tests/ai/jev-health-gate.test.ts).
-    vi.stubEnv("JEV_HEALTH_ATTESTED", "1");
+    vi.stubEnv("JEV_HEALTH_ATTESTED", "1"); // OD12: transport cases (gate: jev-health-gate.test.ts)
     vi.stubGlobal("fetch", vi.fn());
     adminClientMock.mockReset();
     adminClientMock.mockReturnValue(spendAdmin([]));
