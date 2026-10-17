@@ -29,6 +29,7 @@ import {
 import type { FacetFoodInput } from "@/lib/foods/facet-keys";
 import { facetQuestions } from "@/lib/foods/facet-questions";
 import { OCCASION_FACETS, type Facet } from "@/lib/foods/facet-vocabulary";
+import { DAY_INCOMPLETE_QUESTION, type DayCompletenessState } from "@/lib/day-completeness";
 import { pairItemQuestion, pairItemState, type PairItem } from "@/lib/foods/pairing/questions";
 import { NOT_HUMAN_FOOD_QUESTION, PORTION_LEVEL_QUESTION } from "@/lib/log/sanity-questions";
 import { PREF_QUESTIONS } from "@/lib/profile/pref-questions";
@@ -221,6 +222,14 @@ export function rolePayload(input: RoleState) {
     nutrientBuckets: { protein: input.nutrientBuckets.protein, carb: input.nutrientBuckets.carb,
       fat: input.nutrientBuckets.fat },
   }, { meal_component_role: ROLE_QUESTION });
+}
+
+/** `day_completeness` (D1, W142): counts and clock hours of one day; one fixed question. */
+export function dayCompletenessPayload(input: DayCompletenessState) {
+  return jev("day_completeness", {
+    day: { isToday: input.isToday, localHour: input.localHour, mealsEaten: input.mealsEaten,
+      entryCount: input.entryCount, lastEntryHour: input.lastEntryHour },
+  }, { day_incomplete: DAY_INCOMPLETE_QUESTION });
 }
 
 export type SanityQuestions = { not_human_food?: NoulQuestion; portion_level?: ScoreQuestion };

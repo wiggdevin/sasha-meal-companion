@@ -15,7 +15,7 @@
 /** The kinds of call spec §2 gives a deadline to. One name per hop the user waits on. */
 export type Budget =
   "sign" | "upload" | "propose" | "barcode" | "commit" | "coach" | "search" | "timings"
-  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn";
+  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn" | "nudge";
 
 /**
  * Spec §2's table, in milliseconds: how long one call of each kind may take before the client
@@ -61,6 +61,8 @@ export const DEADLINES: Record<Budget, number> = {
    * one Supabase Auth call; past this the screen offers to try again.
    */
   signIn: 10_000,
+  /** W142: the advisory check before "Day fully logged". The server's Jev deadline is 2.5 s. */
+  nudge: 4_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */

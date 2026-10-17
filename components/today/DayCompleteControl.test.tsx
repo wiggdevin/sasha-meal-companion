@@ -107,3 +107,36 @@ describe("day fully logged: the control", () => {
     expect(h.save).toHaveBeenLastCalledWith(TODAY, true);
   });
 });
+
+describe("day fully logged: the Jev nudge (W142)", () => {
+  it("asks once above threshold, and Mark anyway marks the day", async () => {
+    const h = harness(LOGGED);
+    const checkNudge = vi.fn().mockResolvedValue(true);
+    render(<DayCompleteControl date={TODAY} today={TODAY} readDay={h.readDay} save={h.save}
+      checkNudge={checkNudge} />);
+    await waitFor(() => expect(checkNudge).toHaveBeenCalledTimes(1));
+    // Counts only: no food name leaves the phone.
+    expect(Object.keys(checkNudge.mock.calls[0][0]).sort())
+      .toEqual(["entryCount", "isToday", "lastEntryHour", "localHour", "mealsEaten"]);
+    const box = screen.getByRole("checkbox", { name: "I logged everything I ate today" });
+    await act(async () => {});
+    fireEvent.click(box);
+    expect(await screen.findByText("This day may be missing a meal.")).toBeTruthy();
+    expect(h.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Mark anyway" }));
+    await waitFor(() => expect(h.save).toHaveBeenCalledWith(TODAY, true));
+  });
+
+  it("marks straight away below threshold, on a Jev error, and when the answer has not arrived", async () => {
+    for (const check of [vi.fn().mockResolvedValue(false), vi.fn().mockRejectedValue(new Error("x")),
+      vi.fn(() => new Promise<boolean>(() => {}))]) {
+      const h = harness(LOGGED);
+      render(<DayCompleteControl date={TODAY} today={TODAY} readDay={h.readDay} save={h.save} checkNudge={check} />);
+      await act(async () => {});
+      fireEvent.click(screen.getByRole("checkbox", { name: "I logged everything I ate today" }));
+      await waitFor(() => expect(h.save).toHaveBeenCalledWith(TODAY, true));
+      expect(screen.queryByText("This day may be missing a meal.")).toBeNull();
+      cleanup();
+    }
+  });
+});
