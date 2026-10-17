@@ -75,18 +75,25 @@ export default function ServiceWorkerRegistrar({ reload = reloadPage }: {
       if (live && container.controller && candidate && !settled(candidate)) watch(candidate);
     };
     const onStateChange = () => { if (installing?.state === "installed") offer(); };
-    const onUpdateFound = () => {
+    // Waiting-worker race: a worker can finish installing before this page listens (it was already
+    // installing when register() resolved, or installed between updatefound and the listener), so
+    // the state is read once after attaching and the registration is re-read on every look.
+    const trackInstalling = () => {
       installing?.removeEventListener("statechange", onStateChange);
       installing = registrationRef.current?.installing ?? null;
       installing?.addEventListener("statechange", onStateChange);
+      onStateChange();
     };
+    const onUpdateFound = trackInstalling;
     const onControllerChange = () => {
       if (reloadRequested) reloadOnce(reload);
       else if (watched && settled(watched)) watch(null);
     };
     // An installed app can stay open for days; it looks for a new build when it comes back.
     const onVisible = () => {
-      if (document.visibilityState === "visible") registrationRef.current?.update().catch(() => {});
+      if (document.visibilityState !== "visible") return;
+      // A worker that installed while the app was hidden is waiting without an event this page saw.
+      registrationRef.current?.update().catch(() => {}).finally(() => { if (live) { trackInstalling(); offer(); } });
     };
 
     container.addEventListener("controllerchange", onControllerChange);
@@ -95,6 +102,7 @@ export default function ServiceWorkerRegistrar({ reload = reloadPage }: {
       if (!live) return;
       registrationRef.current = found;
       found.addEventListener("updatefound", onUpdateFound);
+      trackInstalling();
       offer();
     }).catch(() => {
       // No backend, no telemetry, no one to report this to: the app runs without the worker.
