@@ -19,6 +19,12 @@ vi.mock("@/lib/foods/prefs-client", async (importOriginal) => {
   return { ...actual, setFoodMembership: membership.set, saveFoodEdits: vi.fn() };
 });
 
+/** The hide path (W148): a synced Other row is hidden and restored through these two. */
+const hide = vi.hoisted(() => ({ can: vi.fn(async (..._args: unknown[]) => false),
+  hide: vi.fn(async (..._args: unknown[]) => true), unhide: vi.fn(async (..._args: unknown[]) => true) }));
+vi.mock("@/lib/foods/hide-client", () => ({
+  canHideFood: hide.can, hideFood: hide.hide, unhideFood: hide.unhide }));
+
 /** The phone projection, pinned: the rows under test and the status writes against them. */
 const seeded = vi.hoisted(() => ({ foods: {} as Record<string, Food> }));
 vi.mock("@/lib/store", async (importOriginal) => {
@@ -65,6 +71,7 @@ function seed(...foods: Food[]): void {
 beforeEach(() => {
   unbindAccount(); bindAccount(TEST_USER);
   membership.set.mockClear();
+  hide.can.mockClear(); hide.hide.mockClear(); hide.unhide.mockClear();
   seed(food({ note: "fine in the morning" }),
     food({ id: "rice", name: "Rice", role: "carb", status: "neutral", note: "hurt on 9/12" }));
 });
@@ -148,10 +155,9 @@ describe("a food row", () => {
     render(<EatsFoods />);
     swipe(rowOf("Rice"), -100);
     await act(async () => {});
-    const clear = screen.getByRole("button", { name: "Clear marks for Rice" });
-    expect(clear.textContent).toBe("Clear marks");
+    const clear = screen.getByRole("button", { name: "Remove Rice from Other foods" });
+    expect(clear.textContent).toBe("Remove");
     expect(clear.getAttribute("data-revealed")).toBe("true");
-    expect(screen.queryByRole("button", { name: /Remove .*Rice/ })).toBeNull();
     swipe(rowOf("Rice"), -200);
     await act(async () => {});
     expect(membership.set).toHaveBeenCalledTimes(1);
@@ -275,7 +281,7 @@ describe("removeDragStyle", () => {
 /**
  * FluidVoice F01-F09 carry-forward: Eats membership writes use the shared ActionFeedback. A
  * removal confirms in violet with Undo, a failure rolls the row back and shows the shared alert,
- * and the neutral row's "Clear marks" stays idempotent and keeps the row and its note.
+ * and the neutral row without a synced row keeps its older clear-marks path, which stays idempotent and keeps the row and its note.
  */
 describe("Eats membership feedback", () => {
   const vibrate = vi.fn(() => true);
@@ -310,7 +316,7 @@ describe("Eats membership feedback", () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 
-  it("confirms Clear marks on a neutral row without Undo, keeping the row and its note", async () => {
+  it("clears marks on a neutral row with no synced row, without Undo, keeping the row and its note", async () => {
     render(<EatsFoods />);
     swipe(rowOf("Rice"), -200);
     await act(async () => {});
@@ -324,6 +330,28 @@ describe("Eats membership feedback", () => {
     expect(membership.set.mock.calls.map((call) => call.slice(0, 2)))
       .toEqual([["Rice", null], ["Rice", null]]);
     expect(rowOf("Rice")).toBeTruthy();
+  });
+
+  it("hides a synced Other row with Undo, writing no membership", async () => {
+    hide.can.mockImplementationOnce(async () => true);
+    hide.hide.mockImplementationOnce(async () => {
+      const { rice: _rice, ...rest } = seeded.foods; seeded.foods = rest; return true;
+    });
+    render(<EatsFoods />);
+    swipe(rowOf("Rice"), -200);
+    await act(async () => {});
+    const status = screen.getByRole("status");
+    expect(status.textContent).toContain("Rice removed from Other foods.");
+    expect(hide.hide).toHaveBeenCalledTimes(1);
+    expect(membership.set).not.toHaveBeenCalled();
+    expect(screen.queryByText("hurt on 9/12")).toBeNull();
+    hide.unhide.mockImplementationOnce(async () => {
+      seeded.foods = { ...seeded.foods, rice: food({ id: "rice", name: "Rice", status: "neutral", note: "hurt on 9/12" }) };
+      return true;
+    });
+    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
+    expect(hide.unhide).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("hurt on 9/12")).toBeTruthy();
   });
 
   it("confirms a sheet status change with Undo that restores the earlier membership", async () => {

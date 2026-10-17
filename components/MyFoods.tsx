@@ -14,6 +14,7 @@ import {
   FoodMembershipSaveError, FoodPartialSaveError, isLatestFoodMembershipIntent, reserveFoodMembershipIntent,
   saveFoodEdits, setFoodMembership, type FoodEditFields,
 } from "@/lib/foods/prefs-client";
+import { canHideFood, hideFood, unhideFood } from "@/lib/foods/hide-client";
 import { loadStore, setFoodNote, setFoodStatus, upsertFood } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 import { accountHandle, assertCurrent, currentAccountOrNull, isCurrent, onAccountGone, onAccountReady } from "@/lib/device/account";
@@ -126,13 +127,13 @@ export function removeDragStyle(pull: number, width: number): {
 }
 
 /**
- * The row action's visible text and name. Other foods are already neutral, so the same idempotent
- * operation only clears any mark left on a same-name ref; the row and its note stay. It says so.
+ * The row action's visible text and name. An Other food has no mark of its own: Remove hides it
+ * from the list (W148, `lib/foods/hide-client.ts`) and Undo brings it back.
  */
 function removeCopy(food: Food): { text: string; label: string } {
   if (food.status === "avoid") return { text: "Remove", label: `Remove ${food.name} from Avoid` };
   if (food.status === "eats") return { text: "Remove", label: `Remove ${food.name} from Favorites` };
-  return { text: "Clear marks", label: `Clear marks for ${food.name}` };
+  return { text: "Remove", label: `Remove ${food.name} from Other foods` };
 }
 
 function FoodRow({ food, last, editing, onOpen, onRemove, renderStatus, describe, stars }: { food: Food; last: boolean;
@@ -472,9 +473,27 @@ export default function EatsFoods() {
     all.filter((f) => f.status === "eats" && f.role === role).sort(byName);
   const other = all.filter((f) => f.status === "neutral").sort(byName);
   const openFood = open ? foods[open] : null;
-  // The one removal path for a role group and Other alike: the durable neutral-membership op.
-  // Notes stay on the food; nothing is deleted.
-  const remove = (id: string) => membership.change(id, "neutral");
+  // A role group's row goes back to neutral (the durable membership op). An Other row has no mark to
+  // clear, so Remove hides it for good, with Undo (W148); a food this phone holds no synced row for
+  // keeps the older membership path. Notes stay on the food; nothing is deleted.
+  const remove = (id: string) => {
+    const food = foods[id];
+    if (!food || food.status !== "neutral") { membership.change(id, "neutral"); return; }
+    const h = accountHandle();
+    void canHideFood(food).then(async (hideable) => {
+      if (!isCurrent(h)) return;
+      if (!hideable) { membership.change(id, "neutral"); return; }
+      const outcome = await membership.feedback.run(() => hideFood(food), {
+        kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h),
+        successMessage: `${food.name} removed from Other foods.`,
+        failureMessage: () => `Couldn't remove ${food.name}. Try again.`,
+        undo: { action: () => {
+          void unhideFood(food).then(() => { if (isCurrent(h)) setFoods(loadStore().foods); });
+        } },
+      });
+      if (outcome.ok && isCurrent(h)) setFoods(loadStore().foods);
+    });
+  };
 
   return (
     <MotionConfig reducedMotion="user">
