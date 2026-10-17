@@ -1,0 +1,42 @@
+name: Ops check
+
+# OD02 (docs/decisions/2026-10-12-owner-decisions.md): no new vendor. Every 15 minutes this checks
+# /api/health, the JSON and hosted backups, and unfinished job passes (scripts/ops-check.py), and
+# keeps one `ops-alert` issue per problem: opened when it starts, closed when it clears. Issue
+# bodies carry no personal data. The database checks are a no-op until the SUPABASE_ACCESS_TOKEN
+# and SUPABASE_PROJECT_REF secrets exist (the same pair migration-drift.yml reads).
+#
+# GitHub turns scheduled workflows off after 60 days without repository activity; re-enable this
+# one from the Actions tab if that ever happens.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+# One check at a time, so two overlapping runs can never both open an issue.
+concurrency:
+  group: ops-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Standard library only: no install step on a job that runs 96 times a day.
+      - name: Check health, backups and job passes
+        run: python3 scripts/ops-check.py
+        env:
+          HEALTH_URL: ${{ vars.HEALTH_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
