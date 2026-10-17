@@ -143,9 +143,10 @@ describe("the draft while typing", () => {
       .toEqual({ heightCm: "165", birthYear: "", bodyFatPct: "25", sex: "" });
   });
 
-  it("only accepts the two sexes the column's check allows", () => {
+  it("only accepts the sexes the column's check allows", () => {
     expect(sexOrNull("female")).toBe("female");
     expect(sexOrNull("male")).toBe("male");
+    expect(sexOrNull("unspecified")).toBe("unspecified");
     expect(sexOrNull("")).toBeNull();
     expect(sexOrNull("other")).toBeUndefined();
   });

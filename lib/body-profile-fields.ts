@@ -140,7 +140,7 @@ export function commitPlan(field: NumberField, raw: string, stored: number | nul
 
 export function sexOrNull(raw: string): Sex | null | undefined {
   if (raw === "") return null;
-  return raw === "female" || raw === "male" ? raw : undefined;
+  return raw === "female" || raw === "male" || raw === "unspecified" ? raw : undefined;
 }
 
 /** The controlled picker's current draft and the write its selection requests. */

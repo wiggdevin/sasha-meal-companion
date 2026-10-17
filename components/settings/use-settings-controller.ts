@@ -10,6 +10,7 @@ import type { ApplyResult } from "@/lib/coach/apply-shared";
 import { canOpenTargetsSheet, postTargets, targetsToSheetInitial }
   from "@/lib/estimator-client";
 import { fetchDaily, type DailyFetch } from "@/lib/health-client";
+import { probeBodyCapability, readBodyCapability } from "@/lib/health/capability";
 import { formatKcal, isoDaysBefore, isSameLocalDay, todayIso } from "@/lib/settings/date";
 import { loadStore, saveStore, saveStoreFor } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
@@ -107,6 +108,15 @@ export async function persistTargetPin(
   return deps.load();
 }
 
+/** Health reads go only where the account has health on: a cached "disabled" answer, or one shared
+ *  probe that says so, means no `/api/health/daily` window request (and no 503) from Settings. */
+export async function fetchDailyIfEnabled(h: AccountHandle, from: string, to: string): Promise<DailyFetch | null> {
+  const known = readBodyCapability();
+  const capability = known !== "unknown" ? known : await probeBodyCapability();
+  if (capability === "disabled") return null;
+  return fetchDaily(h, from, to);
+}
+
 function localPatch(h: AccountHandle | null, current: Store, patch: Partial<Settings>): Store {
   const next = { ...current, settings: { ...current.settings, ...patch } };
   if (h === null) saveStore(next);
@@ -128,7 +138,8 @@ export function useSettingsController() {
     const to = todayIso();
     const h = currentAccountOrNull();
     if (h === null) return;
-    void fetchDaily(h, isoDaysBefore(to, 21), to).then(setDaily).catch(() => {});
+    void fetchDailyIfEnabled(h, isoDaysBefore(to, 21), to)
+      .then((result) => { if (result !== null) setDaily(result); }).catch(() => {});
   }
 
   useEffect(() => {
@@ -136,8 +147,8 @@ export function useSettingsController() {
     if (h === null) return;
     let live = true;
     const to = todayIso();
-    void fetchDaily(h, isoDaysBefore(to, 21), to)
-      .then((result) => { if (live) setDaily(result); }).catch(() => {});
+    void fetchDailyIfEnabled(h, isoDaysBefore(to, 21), to)
+      .then((result) => { if (live && result !== null) setDaily(result); }).catch(() => {});
     return () => { live = false; };
   }, []);
 
