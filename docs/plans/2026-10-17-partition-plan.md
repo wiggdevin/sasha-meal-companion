@@ -45,9 +45,14 @@ The catalog clock sits third for two reasons:
 - The same mint's membership backfill then writes `user_food_prefs`, which moves that account's
   `recipe_plan_state`. That comes after.
 
-So the previews take the catalog clock `FOR SHARE` before their `recipe_plan_state` row. Taking it
-after would deadlock against that mint. `tests/migrations/lock-order-db.test.ts` runs the pair and
-checks the order in each function's source.
+The previews (`recipe_store_preview`, `recipe_accept_preview`) never lock the catalog clock. They
+lock their account's `recipe_plan_state` row and then read the committed catalog rev. A catalog
+write still in flight is ordered after the preview, whose build could not see its rows either. A
+preview therefore never holds the clock while waiting for a state row a writer holds. Review r1
+found that pair: an account's allergen evidence row followed by a shared one in one statement
+(facet warming). `recordAllergenEvidence` also writes shared rows first, so two writers take the
+clock before any state row. `tests/migrations/lock-order-db.test.ts` runs that pair and checks the
+function sources.
 
 ## 2. Triggers on shared tables
 

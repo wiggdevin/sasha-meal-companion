@@ -13,8 +13,12 @@
 -- Why 3 sits between the rules row and the state row: a catalog writer already takes
 -- evidence_clock (and, minting a first ref, the caller's rules row) before its catalog trigger
 -- fires, and get_or_create_food_ref's membership backfill then moves the account's
--- recipe_plan_state. So the catalog clock comes after 1 and 2 and before 4. recipe_store_preview
--- and recipe_accept_preview take it FOR SHARE before their recipe_plan_state row, never after.
+-- recipe_plan_state. So the catalog clock comes after 1 and 2 and before 4.
+-- recipe_store_preview and recipe_accept_preview never lock the clock: they lock their state row
+-- and then READ the committed catalog rev. A catalog write still in flight is simply ordered after
+-- the preview (its rows were not visible to the preview's build either), and a preview can never
+-- hold the clock while it waits for a state row a writer holds (review r1: an account's allergen
+-- evidence row followed by a shared one in one statement would otherwise deadlock against it).
 --
 -- A preview's freshness is now "this account's rev plus the catalog rev": both only ever grow, so
 -- the sum moves exactly when either does. recipe_plan_previews.state_rev stores that sum (the
@@ -28,8 +32,9 @@
 -- recipe_store_preview is its latest body (20261128090000) with the catalog clock added;
 -- recipe_accept_preview is anchor-patched (the 20261231100000 pattern, refusing a partial patch).
 -- Order: APPLY TO PRODUCTION BEFORE THIS CODE DEPLOYS. While the old build runs, its previews
--- compare the account rev alone; they stay valid until the first catalog write after this file,
--- then answer 409 "Preview again" until the new build is live.
+-- compare the account rev alone, so after the first catalog write (any first use of a catalog
+-- food or a barcode scan moves the clock) nearly every recipe and shopping preview answers 409
+-- "Preview again" until the new build is live. Both surfaces are pilot-gated; deploy promptly.
 -- Down: supabase/migrations/down/20270105110100_recipe_catalog_global_clock.down.sql.
 set local lock_timeout = '3s';
 set local statement_timeout = '30s';
@@ -144,10 +149,10 @@ begin
   if v_expiry is null or v_expiry <= pg_catalog.clock_timestamp() then
     raise exception 'preview authority expired' using errcode = '40001';
   end if;
-  -- W072 lock order: the catalog clock (step 3) before this account's state row (step 4).
-  select rev into v_catalog_rev from public.recipe_catalog_clock where id = 1 for share;
   insert into public.recipe_plan_state(user_id) values (p_user_id) on conflict do nothing;
   select rev into v_rev from public.recipe_plan_state where user_id = p_user_id for update;
+  -- W072: the committed catalog rev, read and never locked (see the header).
+  select rev into v_catalog_rev from public.recipe_catalog_clock where id = 1;
   if v_rev + v_catalog_rev <> p_state_rev then raise exception 'stale preview' using errcode = '40001'; end if;
   insert into public.recipe_plan_previews(user_id, kind, proof, state_rev, catalog_rev, expires_at)
     values (p_user_id, p_kind, p_proof, p_state_rev, v_catalog_rev, v_expiry) returning id into v_id;
@@ -161,9 +166,8 @@ declare
   definition text;
   anchor text := $a$  select rev into v_rev from public.recipe_plan_state where user_id = v_user for update;
   if v_rev is distinct from v_preview.state_rev then$a$;
-  patched text := $a$  -- W072 lock order: the catalog clock (step 3) before this account's state row (step 4).
-  perform 1 from public.recipe_catalog_clock where id = 1 for share;
-  select rev into v_rev from public.recipe_plan_state where user_id = v_user for update;
+  patched text := $a$  select rev into v_rev from public.recipe_plan_state where user_id = v_user for update;
+  -- W072: plus the committed catalog rev, read and never locked (20270105110100 header).
   if v_rev + (select c.rev from public.recipe_catalog_clock c where c.id = 1)
     is distinct from v_preview.state_rev then$a$;
   occurrences integer;

@@ -3,15 +3,16 @@
 -- account's recipe_plan_state row again (their 20261231200000 bodies), then the clock, its bump
 -- function and recipe_plan_previews.catalog_rev go. A preview stored under this file holds the sum
 -- of both revs, so it answers "stale preview" once and is rebuilt; nothing else changes.
+-- Order: roll the code back FIRST. The new build's stateRevision reads recipe_catalog_clock, so
+-- every preview answers 503 once this has dropped it.
 set local lock_timeout = '3s';
 set local statement_timeout = '30s';
 
 do $migration$
 declare
   definition text;
-  patched text := $a$  -- W072 lock order: the catalog clock (step 3) before this account's state row (step 4).
-  perform 1 from public.recipe_catalog_clock where id = 1 for share;
-  select rev into v_rev from public.recipe_plan_state where user_id = v_user for update;
+  patched text := $a$  select rev into v_rev from public.recipe_plan_state where user_id = v_user for update;
+  -- W072: plus the committed catalog rev, read and never locked (20270105110100 header).
   if v_rev + (select c.rev from public.recipe_catalog_clock c where c.id = 1)
     is distinct from v_preview.state_rev then$a$;
   original text := $a$  select rev into v_rev from public.recipe_plan_state where user_id = v_user for update;

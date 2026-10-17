@@ -157,29 +157,40 @@ describe.skipIf(!HAS_DB)("one clock lock order (W034): the audited deadlock pair
     expect(listed).toEqual(both);
   });
 
-  // W072: a first catalog ref holds the catalog clock, then its membership backfill moves the
-  // account's recipe_plan_state; a preview takes the catalog clock FOR SHARE before that row. The
-  // gate holds the state row, so the mint waits there holding the catalog clock and the preview
-  // queues behind it on the catalog clock (it never holds the state row the mint wants). The
-  // preview's revision was read before the mint, so it answers "stale preview", never a deadlock.
-  it("W072: a first catalog ref and the same account's recipe preview", async () => {
-    const a = favorAccount();
-    const plum = catalogFood("W034 Plum");  // the family favorAccount marked Avoid: the mint backfills it
-    const sum = Number(runSql(`select coalesce((select rev from public.recipe_plan_state where user_id = '${a}'), 0)
+  // W072: previews never lock the catalog clock; they lock their state row and read the committed
+  // catalog rev. So a writer that holds an account's state row and then moves the clock (an
+  // account's allergen evidence row, then a shared one, in one transaction) never meets a preview
+  // that holds the clock: the preview waits for the state row and then sees the bump (review r1).
+  it("W072: an account's evidence then shared evidence, and the same account's recipe preview", async () => {
+    const a = account();
+    const food = userFood(a, "W072 granola");
+    const shared = catalogFood("W072 Plum");
+    const revision = runSql(`select id from public.catalog_food_revisions where catalog_food_id = ${shared}`);
+    drops.unshift(() => runSql(`delete from public.food_allergen_evidence
+      where food_key in ('user_food:${food.foodId}:1', 'catalog_revision:${revision}')`));
+    runSql(`insert into public.recipe_plan_state (user_id, rev) values ('${a}', 1) on conflict (user_id) do nothing`);
+    const sum = Number(runSql(`select (select rev from public.recipe_plan_state where user_id = '${a}')
       + (select rev from public.recipe_catalog_clock where id = 1)`));
-    const preview = `begin; set local request.jwt.claim.role = 'service_role';
+    const writer = background(`begin;
+      insert into public.food_allergen_evidence (food_key, allergen, level, source, user_id)
+        values ('user_food:${food.foodId}:1', 'peanut', 'no_evidence', 'ingredients', '${a}');
+      select pg_sleep(${HOLD_S});
+      insert into public.food_allergen_evidence (food_key, allergen, level, source)
+        values ('catalog_revision:${revision}', 'peanut', 'no_evidence', 'ingredients');
+      commit;`);
+    await sleep(300);
+    const preview = background(`begin; set local request.jwt.claim.role = 'service_role';
       set local request.jwt.claims = '{"role": "service_role"}';
       select public.recipe_store_preview('${a}', 'recipe', '{"choices": [], "blockingIssues": []}'::jsonb,
-        ${sum}, now() + interval '10 minutes'); commit;`;
-    const [gate, mintResult, previewResult] = await race(recipeStateOf(a), mint(a, plum), preview);
-    expect([gate, mintResult]).toEqual(["ok", "ok"]);
-    expect(previewResult).toMatch(/stale preview/);
-    expect(previewResult).not.toMatch(/deadlock/i);
-    expect(runSql(`select p.status from public.user_food_prefs p join public.food_refs r on r.id = p.food_ref_id
-      where p.user_id = '${a}' and r.catalog_food_id = ${plum}`)).toBe("avoid");
+        ${sum}, now() + interval '10 minutes'); commit;`);
+    const [w, p] = await Promise.all([writer, preview]);
+    expect(w.err).not.toMatch(/deadlock/i);
+    expect(w.code).toBe(0);
+    expect(p.err).not.toMatch(/deadlock/i);
+    expect(p.err).toMatch(/stale preview/);
   });
 
-  it("W072: the catalog triggers bump one clock row and the previews take it before recipe_plan_state", () => {
+  it("W072: the catalog triggers bump one clock row; the previews read it and never lock it", () => {
     for (const fn of ["recipe_plan_bump_global_state", "recipe_plan_bump_food_ref_state",
       "recipe_plan_bump_allergen_evidence"]) {
       const source = runSql(`select prosrc from pg_proc where oid = 'public.${fn}()'::regprocedure`);
@@ -190,9 +201,8 @@ describe.skipIf(!HAS_DB)("one clock lock order (W034): the audited deadlock pair
     for (const fn of ["recipe_store_preview(uuid,text,jsonb,bigint,timestamptz)",
       "recipe_accept_preview(uuid,uuid,boolean)"]) {
       const source = runSql(`select prosrc from pg_proc where oid = 'public.${fn}'::regprocedure`);
-      const clock = source.indexOf("from public.recipe_catalog_clock where id = 1 for share");
-      expect(clock, fn).toBeGreaterThan(0);
-      expect(clock, fn).toBeLessThan(source.indexOf("from public.recipe_plan_state where user_id"));
+      expect(source, fn).toMatch(/recipe_catalog_clock c? ?where (c\.)?id = 1/);
+      expect(source, fn).not.toMatch(/recipe_catalog_clock[^;]*for (share|update|no key update)/i);
     }
   });
 
