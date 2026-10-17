@@ -1,0 +1,146 @@
+{
+  "generatedAt": "2026-10-17T13:50:40.778Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 30,
+  "case": {
+    "id": "meals-p1-month-breakfast",
+    "category": "meals",
+    "sentence": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+    "expected_path": "llm",
+    "note": "P1: exactly one set_slot_meal with 31 dates and title Sourdough toast, bacon & eggs",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4715,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.05,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [set_slot_meal]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4715 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.05"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I didn't put sourdough toast in your plan — your food rules or Avoid list block it. Pick something else, or change the rule first.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": false,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": false,
+      "detail": "{\"expected\":\"meal-1\",\"actual\":null}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": false,
+      "detail": "{\"expected\":\"Sourdough toast, bacon & eggs\",\"actual\":\"\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": false,
+      "detail": "{\"expected\":[\"2026-10-17\",\"2026-10-18\",\"2026-10-19\",\"2026-10-20\",\"2026-10-21\",\"2026-10-22\",\"2026-10-23\",\"2026-10-24\",\"2026-10-25\",\"2026-10-26\",\"2026-10-27\",\"2026-10-28\",\"2026-10-29\",\"2026-10-30\",\"2026-10-31\",\"2026-11-01\",\"2026-11-02\",\"2026-11-03\",\"2026-11-04\",\"2026-11-05\",\"2026-11-06\",\"2026-11-07\",\"2026-11-08\",\"2026-11-09\",\"2026-11-10\",\"2026-11-11\",\"2026-11-12\",\"2026-11-13\",\"2026-11-14\",\"2026-11-15\",\"2026-11-16\"],\"actual\":null}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": false,
+      "detail": "{\"expected\":{\"min\":570,\"max\":700},\"actual\":null}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "fafbfc9b-5518-4f73-9e54-f9f3617aa7cc",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 5,
+      "model": 2995,
+      "ground": 480
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "a434f7c2-a9de-4ea5-98b9-f7f2182bb85e",
+        "role": "user",
+        "content": "I want you to set two slices of sourdough toast, two slices of bacon, and four eggs as my breakfast for the next month.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "3bb17dc1-d446-40b2-a205-b261356d60c1",
+        "role": "assistant",
+        "content": "I didn't put sourdough toast in your plan — your food rules or Avoid list block it. Pick something else, or change the rule first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

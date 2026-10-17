@@ -1,0 +1,166 @@
+{
+  "generatedAt": "2026-10-17T13:48:59.533Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 25,
+  "case": {
+    "id": "jev-recipe-excludes-soy",
+    "category": "jev",
+    "sentence": "make a recipe from smoked tofu, rice, and avocado",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "recipe_exclusion",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3448,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.06,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "Tofu does not fit your food rules. I couldn’t check smoked tofu, rice and avocado against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3448 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.06"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Tofu does not fit your food rules. I couldn’t check smoked tofu, rice and avocado against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted recipe excludes soy",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted recipe names facet and preference",
+      "passed": false,
+      "detail": "Tofu does not fit your food rules. I couldn’t check smoked tofu, rice and avocado against your food rules yet, so I left them out. Ask me for something else and I’ll check it first."
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "911ec27c-ea96-4366-9703-4e97c1ce4abe",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 7,
+      "model": 2150,
+      "ground": 10
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "9b0ca01d-ce62-4151-8b7f-753ee2c413e7",
+        "role": "user",
+        "content": "make a recipe from smoked tofu, rice, and avocado",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "f6c0c935-a4f0-4cb8-8a43-ae0bea25c300",
+        "role": "assistant",
+        "content": "Tofu does not fit your food rules. I couldn’t check smoked tofu, rice and avocado against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-10-17T13:46:41.018Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 18,
+  "case": {
+    "id": "block-search-watermelon-avoid",
+    "category": "block",
+    "sentence": "show me watermelon in the catalog so I can decide whether to avoid it",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_search"
+    ],
+    "expected_block_intent": "avoid"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6180,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.13,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6180 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.13"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Watermelon, raw is on your Avoid list. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_search]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected food-search intent",
+      "passed": false,
+      "detail": "expected avoid; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "3abc6897-613a-4c25-9091-24785de3be26",
+    "suggestions": [
+      {
+        "foodRefId": "0b9aa552-1547-4780-a9ea-10e664d3128c",
+        "name": "Watermelon, raw",
+        "grams": null,
+        "reason": "avoid_list",
+        "verdict": "blocked"
+      }
+    ],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "search_foods"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 2,
+      "model": 4706,
+      "ground": 11
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "9502d687-295f-4cc6-8651-dc4d63c55976",
+        "role": "user",
+        "content": "show me watermelon in the catalog so I can decide whether to avoid it",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "48be5892-ebd7-4f23-8250-b1550581961e",
+        "role": "assistant",
+        "content": "Watermelon, raw is on your Avoid list. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,236 @@
+{
+  "generatedAt": "2026-10-17T13:46:19.319Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 17,
+  "case": {
+    "id": "jev-three-dinner-ideas",
+    "category": "jev",
+    "sentence": "give me three dinner ideas that fit my preferences",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 3,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "food_ideas"
+    ],
+    "expected_jev": {
+      "kind": "ranked_suggestions",
+      "purpose": "suggest-options",
+      "calls": 1
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 8705,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.08,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "I couldn’t check Salmon, cooked, Rice, white, cooked and Shrimp, cooked against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "suggest_options",
+            "result": {
+              "ok": true,
+              "block": "food_ideas",
+              "ideas": [
+                {
+                  "slot": "meal-4",
+                  "wish": "dinner",
+                  "itemNames": [
+                    "Salmon, cooked",
+                    "Rice, white, cooked"
+                  ],
+                  "fitsTarget": true,
+                  "composerAdded": [
+                    {
+                      "for": "carbs",
+                      "name": "Rice, white, cooked"
+                    }
+                  ]
+                },
+                {
+                  "slot": "meal-4",
+                  "wish": "dinner",
+                  "itemNames": [
+                    "Shrimp, cooked",
+                    "Rice, white, cooked",
+                    "Olive oil"
+                  ],
+                  "fitsTarget": true,
+                  "composerAdded": [
+                    {
+                      "for": "carbs",
+                      "name": "Rice, white, cooked"
+                    },
+                    {
+                      "for": "fat",
+                      "name": "Olive oil"
+                    }
+                  ]
+                },
+                {
+                  "slot": "meal-4",
+                  "wish": "dinner",
+                  "itemNames": [
+                    "Turkey breast, roasted",
+                    "Rice, white, cooked",
+                    "Olive oil"
+                  ],
+                  "fitsTarget": true,
+                  "composerAdded": [
+                    {
+                      "for": "carbs",
+                      "name": "Rice, white, cooked"
+                    },
+                    {
+                      "for": "fat",
+                      "name": "Olive oil"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "suggest-options",
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 3-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 8705 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.08"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check Salmon, cooked, Rice, white, cooked and Shrimp, cooked against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [food_ideas]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev exactly one persisted ranking call",
+      "passed": true,
+      "detail": "[\"coach-openrouter\",\"suggest-options\",\"coach-openrouter\",\"coach-verify\"]"
+    },
+    {
+      "name": "Jev persisted cards are policy-clean",
+      "passed": false,
+      "detail": "{\"ideas\":0,\"verdicts\":[]}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "198ea224-cf62-4f5a-8c8b-05d00e79999f",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 3,
+      "model": 4815,
+      "ground": 11
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "335f07d7-b70d-4c32-b929-7de829e66b9d",
+        "role": "user",
+        "content": "give me three dinner ideas that fit my preferences",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "0ec8e22f-ccd5-4add-bee5-ca0ebfa0b98a",
+        "role": "assistant",
+        "content": "I couldn’t check Salmon, cooked, Rice, white, cooked and Shrimp, cooked against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}
