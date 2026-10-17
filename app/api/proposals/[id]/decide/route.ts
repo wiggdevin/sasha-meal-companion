@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/server/auth";
 import { jsonError, readJson } from "@/lib/server/http";
+import { parseUuid } from "@/lib/server/validate";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
 import { decideProposal, ProposalConflictError } from "@/lib/server/proposals";
@@ -26,8 +27,8 @@ export async function POST(
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`proposals:decide:${userId}`, 30, 60);
 
+    const id = parseUuid((await ctx.params).id, "proposal id");
     const body = await readJson(req, bodySchema, MAX_BYTES);
-    const { id } = await ctx.params;
     return Response.json(await decideProposal(client, userId, id, body));
   } catch (e) {
     if (e instanceof ProposalConflictError) {

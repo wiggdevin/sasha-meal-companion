@@ -17,6 +17,7 @@ import { z } from "zod";
 import { HttpError, requireUser } from "@/lib/server/auth";
 import { toMessageView } from "@/lib/coach/message-view";
 import { jsonError, readJson } from "@/lib/server/http";
+import { parseLimit, parseUuid } from "@/lib/server/validate";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { requestIp } from "@/lib/server/request-ip";
 import { coachEnabled } from "@/lib/capabilities";
@@ -39,10 +40,10 @@ export async function GET(req: Request, ctx: Ctx): Promise<Response> {
     await enforceRateLimit(`coach:thread:pre:ip:${requestIp(req)}`, 120, 60);
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`coach:thread:${userId}`, 60, 60);
-    const { id } = await ctx.params;
+    const id = parseUuid((await ctx.params).id, "thread id");
     const url = new URL(req.url);
     const before = seqCeiling(url.searchParams.get("before"));
-    const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? 50)));
+    const limit = parseLimit(url.searchParams.get("limit"), { max: 50, fallback: 50 });
 
     const thread = await client.from("coach_threads")
       .select("id, title, kind, last_message_at, unread_at").eq("user_id", userId).eq("id", id)
@@ -93,7 +94,7 @@ export async function DELETE(req: Request, ctx: Ctx): Promise<Response> {
     await enforceRateLimit(`coach:thread:pre:ip:${requestIp(req)}`, 120, 60);
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`coach:thread:${userId}`, 60, 60);
-    const { id } = await ctx.params;
+    const id = parseUuid((await ctx.params).id, "thread id");
     await deleteChatThread(client, userId, id);
     return Response.json({ ok: true });
   } catch (e) {
@@ -108,7 +109,7 @@ export async function PATCH(req: Request, ctx: Ctx): Promise<Response> {
     await enforceRateLimit(`coach:thread:pre:ip:${requestIp(req)}`, 120, 60);
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`coach:thread:${userId}`, 60, 60);
-    const { id } = await ctx.params;
+    const id = parseUuid((await ctx.params).id, "thread id");
     const body = await readJson(req, renameSchema, 4 * 1024);
     const thread = await renameChatThread(client, userId, id, body.title);
     return Response.json(thread);

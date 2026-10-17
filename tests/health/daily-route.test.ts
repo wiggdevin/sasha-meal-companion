@@ -43,6 +43,12 @@ describe("GET /api/health/daily", () => {
     expect((await GET(get("?from=2026-01-01&to=2026-09-15"))).status).toBe(400);
   });
 
+  it("400s an impossible calendar date that has the right shape", async () => {
+    expect((await GET(get("?from=2026-13-45&to=2026-09-15"))).status).toBe(400);
+    expect((await GET(get("?from=2026-02-31&to=2026-03-01"))).status).toBe(400);
+    expect(vi.mocked(mergedDays)).not.toHaveBeenCalled();
+  });
+
   it("returns merged days and sources for the caller's own id", async () => {
     const res = await GET(get("?from=2026-09-15&to=2026-09-15"));
     expect(res.status).toBe(200);
