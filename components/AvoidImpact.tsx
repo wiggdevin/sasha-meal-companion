@@ -95,6 +95,16 @@ export function askSashaPayload(question: string, affectedIds: readonly string[]
     affectedIds: [...new Set(affectedIds)].slice(0, ASK_SASHA_MAX_MEALS) };
 }
 
+/** Said when "Send" would cover only the first meals: the checked meals, or every affected one when
+ *  none is checked, exceed what one request carries. */
+export function askCapNotice(affected: number, checked: number): string | null {
+  const total = checked > 0 ? checked : affected;
+  if (total <= ASK_SASHA_MAX_MEALS) return null;
+  return checked > 0
+    ? `Asking about the first ${ASK_SASHA_MAX_MEALS} of ${total} selected meals; select fewer to choose which`
+    : `Asking about the first ${ASK_SASHA_MAX_MEALS} of ${total} affected meals; select specific meals to choose which`;
+}
+
 export function impactSwipe(dx: number, dy: number): "remove" | "remix" | null {
   if (Math.abs(dx) <= 60 || Math.abs(dx) <= Math.abs(dy)) return null;
   return dx < 0 ? "remove" : "remix";
@@ -401,7 +411,7 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
   {/* A card standing on the ground: E1 (U11). */}
   <div className="shell"><section className="surface flex flex-col gap-3 p-4" aria-label="Affected future meals">
     <h2 className="m-0 text-caption font-medium text-charcoal">Affected future meals</h2>
-    <p className="m-0 text-caption text-graphite">Check a food or cuisine against saved future meals. Eaten meals stay as recorded.</p>
+    <p role="status" className="m-0 text-caption text-graphite">Check a food or cuisine against saved future meals. Eaten meals stay as recorded.</p>
     {badgeError && <Notice tone="error" title={badgeError} />}
     <div role="group" aria-label="Impact type" className="flex gap-2">
       {(["ingredient", "cuisine"] as const).map((value) => <Button key={value} size="sm"
@@ -498,6 +508,10 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
           onClick={() => void askInOwnWords(result)}>
           Send to {ASSISTANT_NAME}
         </Button>
+        {askCapNotice(result.instances.length, selectedKeys.length) && askText.trim() &&
+          <p className="m-0 text-caption text-graphite">
+            {askCapNotice(result.instances.length, selectedKeys.length)}
+          </p>}
       </div>
       {verifiedOptions && <div className="well my-3 flex flex-col gap-3 rounded-xl p-3 text-caption"
         aria-label="Verified recipe options for selected meals">
