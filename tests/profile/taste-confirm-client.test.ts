@@ -62,6 +62,21 @@ describe("confirmTasteChips", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("a settings flush that stalls does not hold the confirm past the prefs budget", async () => {
+    vi.useFakeTimers();
+    try {
+      flushOutboxNow.mockImplementationOnce(() => new Promise<boolean>(() => {}));
+      const fetchImpl = vi.fn(json(409, { error: "settings_not_synced", message: "not yet" }));
+      const sent = confirmTasteChips(REQUEST, { account: h, fetchImpl, online: () => true });
+      await vi.advanceTimersByTimeAsync(6_000);
+      vi.useRealTimers();
+      expect(await sent).toMatchObject({ ok: false, reason: "refused", code: "settings_not_synced" });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("offline: flushes nothing", async () => {
     await confirmTasteChips(REQUEST, { account: h, fetchImpl: vi.fn(), online: () => false });
     expect(flushOutboxNow).not.toHaveBeenCalled();

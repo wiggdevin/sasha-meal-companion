@@ -75,13 +75,13 @@ const mergeKeys = (a: Picks, b: Picks): Picks => ({
   cuisines: [...new Set([...a.cuisines, ...b.cuisines])],
 });
 
-/** The prefixed keys the account's pulled settings hold now; empty when they cannot be read. */
-function savedPicks(): Set<string> {
+/** The prefixed keys the account's pulled settings hold now; null when they cannot be read. */
+function savedPicks(): Set<string> | null {
   try {
     const keys = savedTasteKeys(loadStore().settings);
     return new Set([...keys.dislikes.map((key) => pick("d", key)), ...keys.cuisines.map((key) => pick("c", key))]);
   } catch {
-    return new Set();
+    return null;
   }
 }
 
@@ -111,7 +111,7 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
       : { dislikes: [], cuisines: [] });
   const [noop, setNoop] = useState<AppliedNoop | UndoneNoop | false>(stored?.noop ?? false);
   /** What the settings mirror holds (W103), re-read on every sync pass. */
-  const [saved, setSaved] = useState<Set<string>>(savedPicks);
+  const [saved, setSaved] = useState<Set<string>>(() => savedPicks() ?? new Set());
   /** Every key this mount has seen in the mirror: only a key seen there can be said to have left. */
   const [seenSaved, setSeenSaved] = useState<Set<string>>(() => new Set(saved));
 
@@ -146,6 +146,7 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
   useEffect(() => {
     function onSettings() {
       const now = savedPicks();
+      if (!now) return; // an unreadable mirror keeps the last good read rather than hide a valid Undo
       setSaved(now);
       setSeenSaved((current) => new Set([...current, ...now]));
     }

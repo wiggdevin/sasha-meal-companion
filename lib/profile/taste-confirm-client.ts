@@ -22,6 +22,7 @@
 import {
   accountFetch, accountHandle, accountJson, rethrowAccountChanged, type AccountHandle,
 } from "@/lib/device/account";
+import { DEADLINES } from "@/lib/fetch-with-deadline";
 import { SYNCED_EVENT } from "@/lib/foods/rules-epoch";
 import { applyServerUserSettings, flushOutboxNow } from "@/lib/sync/client";
 import type {
@@ -92,7 +93,14 @@ export async function confirmTasteChips(request: TasteConfirmRequest,
   if (!(opts.online ?? defaultOnline)()) return { ok: false, reason: "offline" };
   const h = opts.account ?? accountHandle();
   // Never throws: a write that is still queued afterwards leaves the server to answer as before.
-  await (opts.flushSettings ?? flushOutboxNow)(h);
+  // Bounded by the prefs budget, since a stalled sync pass has no deadline of its own; the pass
+  // keeps running, and the confirm goes out once either way.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    (opts.flushSettings ?? flushOutboxNow)(h).catch(() => false),
+    new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), DEADLINES.prefs); }),
+  ]);
+  clearTimeout(timer);
   return post<TasteConfirmResult>("/api/profile/taste/confirm", request, { ...opts, account: h });
 }
 

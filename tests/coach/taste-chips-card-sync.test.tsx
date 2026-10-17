@@ -16,6 +16,7 @@ vi.mock("@/lib/profile/taste-confirm-client", async (importOriginal) => ({
 
 import TasteChipsCard from "@/components/coach/TasteChipsCard";
 import { bindAccount, unbindAccount } from "@/lib/device/account";
+import { writeStoredTasteChips } from "@/components/coach/taste-chips-storage";
 import type { TasteChipsProposal } from "@/lib/coach/taste-chips-card";
 import { loadStore, resetStoreCache, saveStore } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
@@ -92,6 +93,22 @@ describe("the taste-chip card re-reads pulled settings", () => {
     expect(screen.getByText("No longer in your taste preferences")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
     expect(mocked.undo).not.toHaveBeenCalled();
+  });
+
+  it("a lost-answer retry resends the same picks under the same id, even once the mirror holds them", async () => {
+    writeStoredTasteChips(bindAccount("user-a"), "proposal-1",
+      { actionId: "sent-action-id", dislikes: ["t:soft"], cuisines: ["latin_american"], status: "pending" });
+    mocked.confirm.mockResolvedValueOnce({ ok: true, result: { status: "existing", actionId: "sent-action-id",
+      added: { dislikes: ["t:soft"], cuisines: ["latin_american"] }, present: { dislikes: [], cuisines: [] },
+      capped: { dislikes: [], cuisines: [] }, undoneAt: null, settings: {} } });
+    render(<TasteChipsCard card={card} messageId={MESSAGE} />);
+    pulled(["t:soft"], ["latin_american"]); // the first send landed; its row was pulled
+    syncPass();
+    expect(screen.queryByText("Already in your taste preferences")).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add to my taste preferences" })); });
+    expect(mocked.confirm).toHaveBeenCalledWith(expect.objectContaining({
+      actionId: "sent-action-id", dislikes: ["t:soft"], cuisines: ["latin_american"] }), expect.anything());
+    expect(await screen.findByRole("button", { name: "Undo" })).toBeTruthy();
   });
 
   it("keeps Undo while the mirror never held the chips (nothing seen, nothing claimed)", async () => {
