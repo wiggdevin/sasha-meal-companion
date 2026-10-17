@@ -12,8 +12,10 @@ export const PX_PER_CUP = 28;
 /** Nobody drinks more cups than this in a day; the slider stops here. */
 export const MAX_CUPS = 30;
 
-export function cupsFromDrag(startCups: number, dx: number): number {
+export function cupsFromDrag(startCups: number, dx: number, goal = 0): number {
   const next = Math.round(startCups + dx / PX_PER_CUP);
+  // OD10: the dial snaps to the day's goal when the finger lands within a cup of it.
+  if (goal > 0 && Math.abs(next - goal) <= 1 && goal <= MAX_CUPS) return goal;
   return Math.min(MAX_CUPS, Math.max(0, next));
 }
 
@@ -69,9 +71,9 @@ export function createWaterPress(ports: WaterPressPorts, clock: WaterPressClock 
         ports.onHoldStart(startCups);
       }, HOLD_MS);
     },
-    move(x: number) {
+    move(x: number, goal = 0) {
       if (phase !== "adjusting") return;
-      const next = cupsFromDrag(startCups, x - startX);
+      const next = cupsFromDrag(startCups, x - startX, goal);
       if (next === shown) return;
       shown = next;
       ports.onAdjust(next);

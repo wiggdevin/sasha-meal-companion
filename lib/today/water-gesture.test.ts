@@ -129,3 +129,11 @@ describe("water press — selection guard while the slider is open", () => {
     expect(doc.fire("touchmove")).toBe(false);
   });
 });
+
+describe("snap to goal (OD10)", () => {
+  it("lands on the goal when the drag ends within a cup of it", () => {
+    expect(cupsFromDrag(0, 7 * PX_PER_CUP, 8)).toBe(8);
+    expect(cupsFromDrag(0, 9 * PX_PER_CUP, 8)).toBe(8);
+    expect(cupsFromDrag(0, 5 * PX_PER_CUP, 8)).toBe(5);
+  });
+});

@@ -105,6 +105,8 @@ export type WeekStats = {
   /** null when no day in the week logged a weight. */
   weight: { first: number; last: number; count: number } | null;
   floorDays: { count: number; days: string[] };
+  /** OD10: past days logged more than 10 % above their calorie target. A neutral note, never a score. */
+  overTargetDays: string[];
   /** "Sat Meal 2" style entries, oldest first. */
   missed: string[];
 };
@@ -122,6 +124,9 @@ export type WeekStats = {
  * regardless of `today`, because those are explicitly logged —
  * there is nothing to wait on.
  */
+/** A day counts as over target above 110 % of its calories, so rounding and a logged snack do not flag it. */
+const OVER_TARGET_RATIO = 1.1;
+
 export function computeWeekStats(weekDays: ResolvedDay[], today: string): WeekStats {
   if (weekDays.length === 0) {
     return {
@@ -133,6 +138,7 @@ export function computeWeekStats(weekDays: ResolvedDay[], today: string): WeekSt
       gut: null,
       weight: null,
       floorDays: { count: 0, days: [] },
+      overTargetDays: [],
       missed: [],
     };
   }
@@ -189,13 +195,17 @@ export function computeWeekStats(weekDays: ResolvedDay[], today: string): WeekSt
   const floorDayList = weekDays.filter((d) => d.isFloorDay);
   const floorDays = { count: floorDayList.length, days: floorDayList.map((d) => weekdayAbbrev(d.date)) };
 
+  const overTargetDays = targetDays
+    .filter((d) => d.targets.kcal > 0 && d.consumed.kcal > d.targets.kcal * OVER_TARGET_RATIO)
+    .map((d) => weekdayAbbrev(d.date));
+
   const missed = scoreableDays.flatMap((d) =>
     d.slots
       .filter((s) => MEAL_SLOTS.includes(s.slot) && !s.eaten)
       .map((s) => `${weekdayAbbrev(d.date)} ${s.label}`)
   );
 
-  return { rangeLabel, meals, protein, calories, proteinHitRate, gut, weight, floorDays, missed };
+  return { rangeLabel, meals, protein, calories, proteinHitRate, gut, weight, floorDays, overTargetDays, missed };
 }
 
 /**

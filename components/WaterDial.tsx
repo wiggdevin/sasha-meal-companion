@@ -65,7 +65,7 @@ export default function WaterDial({ cups, goal, unit = "cups", onAddCup, onSetCu
           e.currentTarget.setPointerCapture?.(e.pointerId);
           press.down(e.clientX, rig.cups());
         }}
-        onPointerMove={(e) => press.move(e.clientX)}
+        onPointerMove={(e) => press.move(e.clientX, goal)}
         onPointerUp={() => press.up()}
         onPointerCancel={() => press.cancel()}
         onLostPointerCapture={() => { if (press.phase !== "idle") press.cancel(); }}
