@@ -12,6 +12,7 @@
  * a non-default value resets the module registry and re-imports — the same pattern
  * tests/coach/provider-selection.test.ts already uses.
  */
+import { withCoachSaveTurn } from "@/tests/helpers/coach-save-turn";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ai/lanes", async (importOriginal) => {
@@ -94,7 +95,7 @@ describe("the coach turn's model-loop attestation gate follows COACH_PROVIDER, n
       });
       return chain;
     };
-    const db = () => ({ from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) }) as never;
+    const db = () => withCoachSaveTurn({ from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) }) as never;
     const ports = {
       dayTotals: async () => ({ local_date: "2026-09-16", nutrients: [] }),
       weekTotals: async () => [], activeTargets: async () => ({ kcal_train: 2200 }),

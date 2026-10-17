@@ -1,3 +1,4 @@
+import { withCoachSaveTurn } from "@/tests/helpers/coach-save-turn";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runTurn } from "@/lib/server/coach-turn";
 
@@ -26,7 +27,7 @@ function db(tables: Record<string, unknown[]>, writes: { rows: { table: string; 
     });
     return chain;
   };
-  return { from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) } as never;
+  return withCoachSaveTurn({ from: (t: string) => api(t), rpc: async () => ({ data: [], error: null }) }) as never;
 }
 
 const ports = {

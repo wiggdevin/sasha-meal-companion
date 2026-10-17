@@ -6,6 +6,7 @@
  * isOpenRouterModelId expression lib/server/coach-turn/reply.ts already uses for the ordinary
  * model loop.
  */
+import { withCoachSaveTurn } from "@/tests/helpers/coach-save-turn";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ai/lanes", async (importOriginal) => {
@@ -70,7 +71,7 @@ function database() {
     };
     return chain;
   };
-  return { client: { from, rpc: async () => ({ data: [], error: null }) } as never, tables };
+  return { client: withCoachSaveTurn({ from, rpc: async () => ({ data: [], error: null }) }) as never, tables };
 }
 
 describe("history-recall synthesis records which provider actually answered (2026-10-02 DeepSeek audit)", () => {

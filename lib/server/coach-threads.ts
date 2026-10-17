@@ -456,100 +456,56 @@ async function threadMatches(
     messageId: row.id, snippet: searchSnippet(row.content, q), at: row.created_at }));
 }
 
-/** Inserts tried when another turn takes the seq this turn read (W035, audit A151). */
-const SEQ_ATTEMPTS = 3;
-
-/** A unique refusal on (thread_id, seq), as opposed to the same message id already saved. */
-function isSeqConflict(error: { code?: string; message?: string; details?: string } | null): boolean {
-  return error?.code === "23505"
-    && `${error.message ?? ""} ${error.details ?? ""}`.includes("coach_messages_thread_seq");
-}
-
 const IN_PROGRESS = "Still working on that one. Try again in a moment.";
 
 /**
- * One insert per row, not one array insert: each row's error is checked, and the second (the
- * assistant) row lands as its own coach_messages record, which is what the turn recorder reads.
+ * Saves one turn in one transaction (W088, migration 20270104120000): `coach_save_turn` creates the
+ * thread when `newThreadTitle` is given, appends the rows at consecutive seqs and touches the thread
+ * (last_message_at, and the summary when given), all or nothing — a failure leaves no empty thread
+ * and no half turn. Returns the rows as saved.
  *
  * The rows hold consecutive seqs (a replay pairs the user row at N with the reply at N+1). When
- * another turn on the same thread took one of them first, nothing of this turn stays saved — a
- * user row that landed is removed — and the rows are saved again after the thread's new last seq.
- * Returns the rows as saved.
+ * another writer took one of them first, the function saves the rows again after the thread's new
+ * last seq (W035, audit A151); only the same message id already saved is still "in progress".
  *
- * W018: the user's question is written with the caller's session client, so RLS proves the thread
- * belongs to that account; every other row (the reply) is written with the service-role client,
- * because a signed-in user may insert only `role = 'user'` rows (migration 20261231170000). A reply
- * is saved only beside a user row of the same thread and account in the same call, and every retry
- * after a seq conflict writes each row with that same writer.
+ * W018: the function is service-role only and is called with the session-verified user id. It
+ * makes the checks the session client's RLS made on the user's own question (the thread is this
+ * account's, the question carries no model fields), and the reply is still written by the server.
  */
 export async function persist(
-  client: SupabaseClient, threadId: string, rows: MessageRow[], newThreadTitle: string | null,
+  _client: SupabaseClient, threadId: string, rows: MessageRow[], newThreadTitle: string | null,
   summary: string | null | undefined,
   kind: "chat" | "plan", admin: SupabaseClient,
 ): Promise<MessageRow[]> {
   const unanchored = rows.some((row, at) => row.role !== "user" && !rows.slice(0, at).some((user) =>
     user.role === "user" && user.thread_id === row.thread_id && user.user_id === row.user_id));
   if (unanchored) throw new HttpError(500, "internal", "Could not save the turn.");
-  if (newThreadTitle !== null) {
-    const owner = kind === "plan" ? admin : client;
-    const { error } = await owner.from("coach_threads").insert({
-      id: threadId, user_id: rows[0].user_id, title: newThreadTitle.slice(0, 80), kind,
-    });
-    if (error?.message.includes("coach_chat_limit")) {
-      throw new HttpError(409, "chat_limit", "You have eight chats. Continue an existing chat.");
-    }
-    if (error) throw new HttpError(500, "internal", "Could not start a thread.");
+  const { data, error } = await admin.rpc("coach_save_turn", {
+    p_user_id: rows[0].user_id, p_thread_id: threadId, p_kind: kind,
+    p_new_title: newThreadTitle === null ? null : newThreadTitle.slice(0, 80),
+    p_rows: rows, p_summary: summary ?? null,
+  });
+  if (error) throw saveError(error, newThreadTitle !== null);
+  const seqs = new Map(((data ?? []) as { id: string; seq: number }[])
+    .map((saved) => [saved.id, saved.seq]));
+  if (rows.some((row) => typeof seqs.get(row.id) !== "number")) {
+    throw new HttpError(500, "internal", "Could not save the turn.");
   }
-  let saved = rows;
-  for (let attempt = 1; ; attempt += 1) {
-    const conflict = await insertRows(client, admin, saved);
-    if (!conflict) break;
-    if (attempt >= SEQ_ATTEMPTS) throw new HttpError(503, "in_progress", IN_PROGRESS);
-    const first = await nextSeq(client, threadId);
-    saved = saved.map((row, i) => ({ ...row, seq: first + i }));
-  }
-  const patch: Record<string, unknown> = { last_message_at: new Date().toISOString() };
-  if (summary !== undefined && summary !== null) patch.summary = summary;
-  // The turn is already saved, so a failed patch must not fail it — but a summary that silently
-  // never lands is a thread that silently stops remembering (Grok pass 1, MEDIUM 15).
-  const { error } = await client.from("coach_threads").update(patch).eq("id", threadId);
-  if (error) {
-    console.error("coach thread patch failed", {
-      threadId, wroteSummary: patch.summary !== undefined, error: error.message.slice(0, 200) });
-  }
-  return saved;
+  return rows.map((row) => ({ ...row, seq: seqs.get(row.id) as number }));
 }
 
-/**
- * Inserts the rows in order, the user's own row with the session client and every other row with
- * the service role (W018). "seq" when another turn holds one of their seqs (any row of these that
- * already landed is removed again, so a retry starts clean); null when all are saved.
- *
- * The removal runs on the session client: migration 20261231170000 keeps `delete` for a signed-in
- * user on the caller's own rows in the caller's own threads (`coach_messages_delete`, any role),
- * and only rows of this turn are removed, filtered by its account.
- */
-async function insertRows(
-  client: SupabaseClient, admin: SupabaseClient, rows: MessageRow[],
-): Promise<"seq" | null> {
-  const landed: string[] = [];
-  for (const row of rows) {
-    const writer = row.role === "user" ? client : admin;
-    const { error } = await writer.from("coach_messages").insert(row);
-    const failure = error as { code?: string; message?: string; details?: string } | null;
-    if (isSeqConflict(failure)) {
-      if (landed.length > 0) {
-        const { error: undoError } = await client.from("coach_messages").delete()
-          .eq("user_id", row.user_id).in("id", landed);
-        if (undoError) throw new HttpError(503, "in_progress", IN_PROGRESS);
-      }
-      return "seq";
-    }
-    // The same message id is already saved: a retry raced an attempt still running. Retryable,
-    // and the next retry replays whichever attempt won (Sol review, 2026-09-23).
-    if (failure?.code === "23505") throw new HttpError(503, "in_progress", IN_PROGRESS);
-    if (error) throw new HttpError(500, "internal", "Could not save the turn.");
-    landed.push(row.id);
+/** The function's named refusals, as the turn answers them. */
+function saveError(error: { message?: string }, newThread: boolean): HttpError {
+  const message = error.message ?? "";
+  if (message.includes("coach_chat_limit")) {
+    return new HttpError(409, "chat_limit", "You have eight chats. Continue an existing chat.");
   }
-  return null;
+  // The same message id already saved: a retry raced an attempt still running. Retryable, and
+  // the next retry replays whichever attempt won (Sol review, 2026-09-23). A seq still taken after
+  // the function's own retries is the same: another turn is mid-save on this thread.
+  if (message.includes("coach_message_exists") || message.includes("coach_seq_busy")) {
+    return new HttpError(503, "in_progress", IN_PROGRESS);
+  }
+  if (newThread) return new HttpError(500, "internal", "Could not start a thread.");
+  return new HttpError(500, "internal", "Could not save the turn.");
 }
