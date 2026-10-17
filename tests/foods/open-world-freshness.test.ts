@@ -16,7 +16,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bindAccount } from "@/lib/device/account";
 import { baseFoodName } from "@/lib/foods/base-name";
-import { loadEligibleLocalFoodIds, recheckHeldOpenSet, StampedEligibleSet } from "@/lib/foods/eligible-client";
+import { loadEligibleLocalFoodIds, recheckHeldOpenSet, resetEligibleCache, StampedEligibleSet } from "@/lib/foods/eligible-client";
 import { MEAL_SNAPSHOT_KEY, readMealSnapshot, saveMealSnapshot, snapshotEpoch } from "@/lib/foods/meal-snapshot-store";
 import { currentEligibleView, openWorldOf } from "@/lib/foods/rule-marks";
 import { ownPlateEvidence } from "@/lib/foods/world/plate-evidence";
@@ -71,6 +71,7 @@ const SLOTS: DaySlot[] = ["08:00", "12:30", "19:00"].map((clock, i) => ({ id: `m
 beforeEach(async () => {
   await resetTestAccount(A);
   globalThis.indexedDB = new IDBFactory();
+  resetEligibleCache();
   server = { token: { rulesVersion: 7, evidenceVersion: 3 }, body: body(7, 3), asked: [] };
   serve();
 });
@@ -301,12 +302,17 @@ describe("acceptance 6: no new suggestion from a stale, old or foreign snapshot"
     await expect(pool()).rejects.toThrow("Couldn’t check your food rules");
   });
 
-  it("a closed account (v2 answer) never asks for the token", async () => {
+  it("a closed account (v2 answer) reads the token only for its cache, and an older server's caches nothing", async () => {
+    server.world = "closed";
     server.body = { schemaVersion: 2, rankingVersion: "o2.1", accountId: A, computedAt: new Date().toISOString(),
       inputsHash: "h", foods: {}, eligible: { eligibleRefIds: [], eligibleFoodIds: [], eligibleCatalogFoodIds: [],
         excluded: [], rulesRevision: 1, preferenceFlags: [] } };
     const set = await loadEligibleLocalFoodIds(bindAccount(A), {});
     expect(openWorldOf(set)).toBeUndefined();
-    expect(server.asked).toEqual(["/api/foods/eligible?v=3"]);
+    // W047 (d): the token before the body. This server reports no rule boundary, so no cache.
+    expect(server.asked).toEqual(["/api/foods/rules-version", "/api/foods/eligible?v=3"]);
+    server.asked = [];
+    await loadEligibleLocalFoodIds(bindAccount(A), {});
+    expect(server.asked).toEqual(["/api/foods/rules-version", "/api/foods/eligible?v=3"]);
   });
 });

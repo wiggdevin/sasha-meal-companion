@@ -5,8 +5,9 @@
  * suggestion refetches its admission, and an admission still stamped with the old token is never
  * used. Offline, nothing new is suggested; the last plan stays on screen (owner question 6).
  *
- * W8 calls `freshAdmission` before layout fill, swaps, coach cards and recipes. Nothing on a closed
- * account calls it yet, so its requests and answers are exactly main's.
+ * W8 calls `freshAdmission` before layout fill, swaps, coach cards and recipes. A closed account
+ * reads the token only for its eligible cache (W047 d, lib/foods/eligible-client.ts); its answers
+ * are unchanged.
  */
 import { accountFetch, accountJson, type AccountHandle } from "@/lib/device/account";
 import { freshness, parseRulesToken, sameRulesToken, type RulesToken } from "@/lib/foods/world/freshness";
@@ -29,8 +30,17 @@ export async function readRulesToken(account: AccountHandle): Promise<RulesToken
  * `closed`. A held open snapshot is used only while this says `open`; a missing or unknown value
  * (an older server) is never `open`. Null when the token cannot be read.
  */
-export async function readRulesState(account: AccountHandle):
-  Promise<{ token: RulesToken; world: "open" | "closed" | null } | null> {
+export type RulesState = {
+  token: RulesToken; world: "open" | "closed" | null;
+  /**
+   * W047 (d): the next instant (ms) a confirmed hard rule opens, closes or expires; null when none
+   * will; undefined when the server did not say (an older server, an unreadable profile, a bad
+   * value), which allows no cache.
+   */
+  ruleBoundaryAt?: number | null;
+};
+
+export async function readRulesState(account: AccountHandle): Promise<RulesState | null> {
   try {
     const res = await accountFetch(account, "/api/foods/rules-version", { cache: "no-store" },
       { budget: "prefs" });
@@ -39,7 +49,10 @@ export async function readRulesState(account: AccountHandle):
     const token = parseRulesToken(raw);
     if (!token) return null;
     const world = (raw as { world?: unknown }).world;
-    return { token, world: world === "open" || world === "closed" ? world : null };
+    const boundary = (raw as { ruleBoundaryAt?: unknown }).ruleBoundaryAt;
+    const at = typeof boundary === "string" ? Date.parse(boundary) : NaN;
+    return { token, world: world === "open" || world === "closed" ? world : null,
+      ...(boundary === null ? { ruleBoundaryAt: null } : Number.isFinite(at) ? { ruleBoundaryAt: at } : {}) };
   } catch {
     return null;
   }
