@@ -1,7 +1,9 @@
 // t24b: the server dates target revisions, and reads the revision in force, by the account's day
-// (the phone's own day when the request carries it), never by the UTC date. Fake clocks around
-// local midnight in America/Denver (UTC−6 in October) and Pacific/Auckland (UTC+13 in October).
-// Run under TZ=UTC and TZ=America/Denver: nothing here may depend on the process zone.
+// (the account's stored zone, when one is on file — owner ruling 2026-10-08, reconciliation audit
+// §2 "device-vs-account-timezone-ruling-open" — else the phone's own day), never by the UTC date.
+// Fake clocks around local midnight in America/Denver (UTC−6 in October) and Pacific/Auckland
+// (UTC+13 in October). Run under TZ=UTC and TZ=America/Denver: nothing here may depend on the
+// process zone.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TargetProfile } from "@/lib/api-types";
 import {
@@ -81,12 +83,21 @@ describe("resolveAccountDay", () => {
       .toBe("2026-10-06");
   });
 
-  it("honours a plausible phone day before every zone (travel keeps the device day)", () => {
+  it("the account's stored zone wins over a travelling phone's own day", () => {
     // The account lives in Auckland (already Oct 6); the phone travels in Denver (still Oct 5).
     const now = new Date(DENVER.before);
     expect(resolveAccountDay({ purpose: "t", storedZone: AUCKLAND.zone, now }).date)
       .toBe("2026-10-06");
+    // Even though the phone reports Oct 5, the stored zone is read first and wins outright.
     expect(resolveAccountDay({ purpose: "t", storedZone: AUCKLAND.zone, clientDay: "2026-10-05",
+      now })).toEqual({ date: "2026-10-06", zone: AUCKLAND.zone, source: "account_zone" });
+  });
+
+  it("falls back to the phone's own day only for an account with no usable stored zone", () => {
+    const now = new Date(DENVER.before);
+    expect(resolveAccountDay({ purpose: "t", storedZone: null, clientDay: "2026-10-05", now }))
+      .toEqual({ date: "2026-10-05", zone: null, source: "client_day" });
+    expect(resolveAccountDay({ purpose: "t", storedZone: "Not/AZone", clientDay: "2026-10-05",
       now })).toEqual({ date: "2026-10-05", zone: null, source: "client_day" });
   });
 
@@ -114,15 +125,24 @@ describe("server recompute (POST /api/sync/ops) day", () => {
     }
   });
 
-  it("never dates a write after the phone's day for the same edit (travel)", async () => {
-    at(DENVER.before); // Auckland: Oct 6 18:30. The travelling phone: Oct 5 23:30.
-    const fake = fakeClient(settingsRow({ time_zone: AUCKLAND.zone }), [staleTarget()]);
+  it("dates a write by the account's stored zone, even when the phone reports an earlier day (travel)",
+    async () => {
+      at(DENVER.before); // Auckland: Oct 6 18:30. The travelling phone: Oct 5 23:30.
+      const fake = fakeClient(settingsRow({ time_zone: AUCKLAND.zone }), [staleTarget()]);
+      await recomputeDerivedTarget(fake.client, USER, { clientDay: "2026-10-05",
+        requestZone: DENVER.zone });
+      expect(fake.writes[0].effective_from).toBe("2026-10-06");
+    });
+
+  it("falls back to the phone's own day when the account has no stored zone", async () => {
+    at(DENVER.before);
+    const fake = fakeClient(settingsRow({ time_zone: null }), [staleTarget()]);
     await recomputeDerivedTarget(fake.client, USER, { clientDay: "2026-10-05",
       requestZone: DENVER.zone });
     expect(fake.writes[0].effective_from).toBe("2026-10-05");
   });
 
-  it("dates by the request's zone when the account stored none", async () => {
+  it("dates by the request's zone when the account stored none and the phone sent no day", async () => {
     at(AUCKLAND.after);
     const fake = fakeClient(settingsRow({ time_zone: null }), [staleTarget()]);
     await recomputeDerivedTarget(fake.client, USER, { requestZone: AUCKLAND.zone });
@@ -146,14 +166,25 @@ describe("revision in force on the account's day", () => {
     expect((await latestEstimate(fake.client, USER)).localDate).toBe("2026-10-05");
   });
 
-  it("GET /api/targets answers the phone's own day when it sends one", async () => {
+  it("GET /api/targets answers the account's stored day regardless of ?date=", async () => {
     at(DENVER.before);
     const fake = fakeClient(settingsRow({ time_zone: AUCKLAND.zone }), twoDays());
     requireUser.mockResolvedValue({ userId: USER, client: fake.client });
     const read = async (query: string) => (await (await GET(
       new Request(`https://x.test/api/targets${query}`))).json()).target.id;
     expect(await read("")).toBe("oct6");
-    expect(await read("?date=2026-10-05")).toBe("oct5");
+    expect(await read("?date=2026-10-05")).toBe("oct6");
     expect(await read("?date=1999-01-01")).toBe("oct6");
   });
+
+  it("GET /api/targets falls back to the phone's own day for an account with no stored zone",
+    async () => {
+      at(DENVER.before); // UTC day is already 2026-10-06 at this instant.
+      const fake = fakeClient(settingsRow({ time_zone: null }), twoDays());
+      requireUser.mockResolvedValue({ userId: USER, client: fake.client });
+      const read = async (query: string) => (await (await GET(
+        new Request(`https://x.test/api/targets${query}`))).json()).target.id;
+      expect(await read("?date=2026-10-05")).toBe("oct5");
+      expect(await read("")).toBe("oct6"); // no client day sent, no request zone: UTC last resort
+    });
 });

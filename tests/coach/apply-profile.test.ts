@@ -5,6 +5,7 @@ import { deriveTargetRevision } from "@/lib/profile/derive";
 import { defaultStore, __resetStoreCache, loadStore, saveStore } from "@/lib/store";
 import { resolveTargets } from "@/lib/targets";
 import { targetRevisionOn } from "@/lib/targets/revision";
+import { resolveAccountDay } from "@/lib/server/account-day";
 import { resetTestAccount } from "@/tests/helpers/account";
 import type { ProfileSettings } from "@/lib/sync/user-settings";
 import type { AccountHandle } from "@/lib/device/account";
@@ -655,11 +656,29 @@ describe("deferred server responses crossing local midnight (round 3 regression)
   });
 });
 
-// Follow-up t24b, deliberately out of scope here: the phone dates every target by the device's
-// local day. These record the open cases rather than assert a rule nobody has ruled on yet.
-describe("t24b follow-up: account zone versus device zone", () => {
-  it.todo("a device travelling away from the account's saved zone (user_settings.time_zone)");
-  it.todo("server activeProfile/activeTargets callers that fall back to the UTC day");
+// t24b, ruled 2026-10-08 (reconciliation audit §2 "device-vs-account-timezone-ruling-open"): the
+// account's stored zone (user_settings.time_zone) takes precedence over a device's own local day,
+// and the server never falls to the UTC day while either the account or the request carries a
+// usable zone (lib/server/account-day.ts `resolveAccountDay`).
+describe("t24b: account zone versus device zone (owner ruling 2026-10-08)", () => {
+  it("a device travelling away from the account's saved zone (user_settings.time_zone) keeps the account's day", () => {
+    // Auckland has already turned Oct 6; a phone travelling in Denver is still on Oct 5 by its
+    // own clock. The account's stored zone wins outright.
+    const now = new Date("2026-10-06T05:30:00Z");
+    expect(resolveAccountDay({ purpose: "t", storedZone: "Pacific/Auckland",
+      clientDay: "2026-10-05", now })).toEqual(
+      { date: "2026-10-06", zone: "Pacific/Auckland", source: "account_zone" });
+  });
+
+  it("server activeProfile/activeTargets callers fall back to the UTC day only when neither the account nor the request carries a usable zone", () => {
+    const now = new Date("2026-10-06T05:30:00Z");
+    expect(resolveAccountDay({ purpose: "activeProfile", now }))
+      .toEqual({ date: "2026-10-06", zone: "UTC", source: "utc_last_resort" });
+    expect(resolveAccountDay({ purpose: "activeProfile", requestZone: "Pacific/Auckland", now }).source)
+      .toBe("request_zone");
+    expect(resolveAccountDay({ purpose: "activeProfile", storedZone: "Pacific/Auckland", now }).source)
+      .toBe("account_zone");
+  });
 });
 
 describe("body-fat provenance on the profile path (step C)", () => {

@@ -31,9 +31,9 @@
  *   derivations, so no date after the hold has a pace; under kidney disease so is every one
  *   above standard protein, a protein pin included (audit 2026-10-10 A003, A094). A profile that
  *   can no longer derive gets a 0-pace copy of the paced revision, its macros kept.
- * - The run's date is the phone's own day when the batch carries one (t24b, owner ruling "phone's
- *   local day everywhere"), else the account's stored zone, the request's zone, and UTC as
- *   the logged last resort (lib/server/account-day.ts).
+ * - The run's date is the account's stored zone when one is on file (t24b, owner ruling
+ *   2026-10-08: account-zone precedence), else the phone's own day when the batch carries one,
+ *   else the request's zone, and UTC as the logged last resort (lib/server/account-day.ts).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -88,8 +88,8 @@ export type RecomputeOutcome =
 export type RecomputeOptions = {
   /** Local calendar date the revision takes effect; defaults to the account's day (below). */
   today?: string;
-  /** The phone's own day, sent with the batch (t24b): honoured when plausible, so a travelling
-   *  phone's edit is never dated after the day the phone dated it by. */
+  /** The phone's own day, sent with the batch (t24b): used only when the account has no usable
+   *  stored zone — the account's zone wins over a travelling phone's own clock. */
   clientDay?: string | null;
   /** The zone the request carries; used only when the account has no stored zone. */
   requestZone?: string | null;

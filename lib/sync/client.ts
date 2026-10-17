@@ -416,8 +416,8 @@ export async function pushOutbox(h: AccountHandle, options: SyncOptions = {}): P
     const res = await accountFetch(h, "/api/sync/ops", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      // t24b: the phone's own day and zone, so the server's target recompute never dates a
-      // revision after the day this phone is on (travel keeps the device day).
+      // t24b: the phone's own day and zone, read by the server's target recompute only for an
+      // account with no stored zone (owner ruling 2026-10-08: the account's zone wins).
       body: JSON.stringify({ ops, local_date: targetDayFor(), time_zone: deviceTimeZone() }),
     }, { fetchImpl: fetchFn });
     if (!res.ok) {
