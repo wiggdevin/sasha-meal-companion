@@ -235,6 +235,12 @@ export default function WeekPage() {
         </div>
       </div>
 
+      {weekHasTargets && stats.overTargetDays.length > 0 && (
+        <p className={`m-0 px-1 ${STAT_CAPTION}`}>
+          Above calorie target: {stats.overTargetDays.join(", ")}
+        </p>
+      )}
+
       {(stats.gut || stats.weight) && (
         <div className="flex flex-wrap gap-2 px-1">
           {stats.gut && (
