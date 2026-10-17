@@ -15,9 +15,12 @@ export type ToolResult =
   | { name: ToolName; ok: true; data: Untrusted }
   | { name: ToolName; ok: false; error: string };
 
+/** Where and why an argument failed: the schema path and zod's issue code, never the value. */
+export type ArgIssue = { path: string; code: string };
+
 export type ValidatedCall =
   | { ok: true; tool: CoachTool; args: unknown }
-  | { ok: false; error: string };
+  | { ok: false; error: string; issues?: ArgIssue[] };
 
 export const UNKNOWN_TOOL_PREFIX = "unknown_tool: ";
 export const INVALID_ARGS_PREFIX = "invalid_arguments: ";
@@ -36,7 +39,9 @@ export function validateToolCall(name: string, rawArgs: unknown): ValidatedCall 
     const detail = parsed.error.issues
       .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
       .join("; ");
-    return { ok: false, error: `${INVALID_ARGS_PREFIX}${echo(detail)}` };
+    const issues = parsed.error.issues.slice(0, 8)
+      .map((issue) => ({ path: issue.path.join(".") || "(root)", code: String(issue.code) }));
+    return { ok: false, error: `${INVALID_ARGS_PREFIX}${echo(detail)}`, issues };
   }
   // parsed.data, not rawArgs: zod strips unknown keys, so an extra "userId" never
   // reaches an executor even as a property it happens to ignore.

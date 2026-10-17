@@ -4,6 +4,7 @@
  */
 
 import type { CoachAction } from "@/lib/coach/actions";
+import type { ArgIssue } from "@/lib/coach/dispatch";
 import type { BlockHydrationContext } from "@/lib/coach/blocks";
 import type { ComposedMeal } from "@/lib/coach/compose";
 import type { LookupSource } from "@/lib/coach/lookup-types";
@@ -29,13 +30,22 @@ export type ModelEnv = {
   lastCoachMessage?: string | null;
 };
 
+/** A failed tool call, described without any of the person's words. */
+export type ToolFailure =
+  | { kind: "invalid_args"; args: ArgIssue[] }
+  | { kind: "refused" } // per-turn cap or bad-args limit reached
+  | { kind: "unknown_tool" }
+  | { kind: "threw"; errorName: string; status?: number };
+
 export type ModelState = {
   transcript: string[];
   /** Which model actually answered. It starts as the coach pin, and T6 §5 may move it once. */
   modelId: string;
   /** Why the turn left the pinned model, when it did — reported beside the model it answered on. */
   fallbackReason: "capacity" | "failed" | null;
-  toolCalls: { name: string; ok: boolean; error?: string; result?: unknown }[];
+  toolCalls: { name: string; ok: boolean; error?: string; result?: unknown;
+    /** Why a failed call failed, as codes only (no values, no error text); logged by logFallback. */
+    failure?: ToolFailure }[];
   toolsUsed: string[];
   /** Per tool, the calls that ran and the calls refused for bad arguments, against its cap. */
   toolRuns: Record<string, { ran: number; invalid: number }>;
