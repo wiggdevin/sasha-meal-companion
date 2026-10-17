@@ -62,6 +62,29 @@ describe("GET /api/sync/changes", () => {
     expect(body.changes).toHaveLength(2);
   });
 
+  it("cuts a page past the byte cap at its last whole row, with has_more (W045)", async () => {
+    const big = (seq: number): ChangeRow => ({ ...change(seq), current: { note: "x".repeat(700_000) } });
+    rpc.mockResolvedValue({ data: [big(8), big(9), big(10), big(11)], error: null });
+    const body = await (await get("?since=7&limit=50")).json();
+    expect(body.changes.map((c: ChangeRow) => c.seq)).toEqual([8, 9]);
+    expect(body).toMatchObject({ next_cursor: 9, has_more: true });
+  });
+
+  it("always sends the first row, even one past the cap, so the cursor moves", async () => {
+    const huge: ChangeRow = { ...change(8), current: { note: "é".repeat(1_200_000) } };
+    rpc.mockResolvedValue({ data: [huge, change(9)], error: null });
+    const body = await (await get("?since=7&limit=50")).json();
+    expect(body.changes.map((c: ChangeRow) => c.seq)).toEqual([8]);
+    expect(body).toMatchObject({ next_cursor: 8, has_more: true });
+  });
+
+  it("leaves a short page under the cap whole, with has_more false", async () => {
+    rpc.mockResolvedValue({ data: [change(8), change(9)], error: null });
+    const body = await (await get("?since=7&limit=50")).json();
+    expect(body).toMatchObject({ next_cursor: 9, has_more: false });
+    expect(body.changes).toHaveLength(2);
+  });
+
   it("keeps the caller's cursor when the page is empty", async () => {
     await expect((await get("?since=7")).json()).resolves.toMatchObject({
       changes: [], next_cursor: 7, has_more: false,

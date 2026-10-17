@@ -93,6 +93,10 @@ python3 scripts/backup-storage.py --verify <private-drill-directory>/<stamp>-med
 - **JSON backup stale:** no `backup_runs` row with status ok in the last 36 hours.
 - **Hosted backup stale:** the newest `hosted/*/receipt.json` older than 36 hours (quiet until the first hosted backup exists).
 - **Job pass unfinished:** a job whose newest `job_cursors` pass of the last 7 days started over 12 hours ago and is not done.
+- **AI spend:** today's committed spend (UTC day, settled cost plus open holds) over 60 % of the all-accounts, background or any one account's cap. The body counts accounts and never names one. The caps are the app's defaults ($50, $10, $2) unless the repository variables `AI_GLOBAL_DAILY_SPEND_CAP_USD`, `AI_BACKGROUND_DAILY_SPEND_CAP_USD` or `AI_DAILY_SPEND_CAP_USD` say otherwise; set them to match Vercel when the caps change.
+- **Grounding:** the `lookup` lane past 5,000 search queries this UTC month (the free allowance; $14 per 1,000 after it). Query counts are not stored, so the check divides the lookup rows' recorded cost by $0.014: an upper bound, so it errs early.
+
+To test a rule, run the workflow by hand with a **test alert** rule (or `python3 scripts/ops-check.py --test-alert <rule>`): it files one issue titled "Test alert: <rule>" with that rule's sample text and closes it in the same run, without reading production or touching the real alert's issue.
 
 The database checks are one read-only select through the Management API with `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` (the pair `migration-drift.yml` reads); without them only the health check runs. GitHub emails issue activity to repository watchers. GitHub disables scheduled workflows after 60 days with no repository activity; re-enable both from the Actions tab if that happens. Crash reports (W053, `[client-error]` in Vercel runtime logs) and Vercel's own runtime logs stay the error trail; there is no third-party tracker.
 

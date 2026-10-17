@@ -15,7 +15,7 @@
  */
 import "server-only";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parseManifest, parsePriorRows, parseSubstituteGraph } from "@/lib/foods/universe/artifact-schema";
 import {
@@ -63,7 +63,35 @@ function neutral(reason: NeutralReason): PopulationPrior {
   return { status: "neutral", reason };
 }
 
+/**
+ * The three files the prior reads, by identity (inode, size, mtime in ns), never by content: a
+ * changed, replaced or deleted file gives another key. Missing reads as "-".
+ */
+function priorFilesKey(root: string): string {
+  return [join(root, NHANES_RULING_PATH), join(root, ARTIFACT_DIR, MANIFEST_FILE), join(root, ARTIFACT_DIR, PRIOR_FILE)]
+    .map((path) => {
+      const stat = statSync(path, { bigint: true, throwIfNoEntry: false });
+      return stat ? `${stat.ino}:${stat.size}:${stat.mtimeNs}` : "-";
+    }).join("|");
+}
+
+/**
+ * W045: the loaded prior per root, so each snapshot build does not re-read and re-hash the ruling
+ * and re-parse the table. Reused only while the files' identities are unchanged, so the gate still
+ * shuts the moment the ruling is edited, replaced or removed.
+ */
+const priorCache = new Map<string, { key: string; prior: PopulationPrior }>();
+
 export function loadPopulationPrior(root: string = process.cwd()): PopulationPrior {
+  const key = priorFilesKey(root);
+  const cached = priorCache.get(root);
+  if (cached?.key === key) return cached.prior;
+  const prior = readPopulationPrior(root);
+  priorCache.set(root, { key, prior });
+  return prior;
+}
+
+function readPopulationPrior(root: string): PopulationPrior {
   const reason = nchsGateReason(root);
   if (reason) return neutral(reason);
   const path = join(root, ARTIFACT_DIR, PRIOR_FILE);
