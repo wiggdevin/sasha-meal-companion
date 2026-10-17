@@ -112,3 +112,13 @@ describe("coach reply verification", () => {
     });
   });
 });
+
+describe("chart claims without a block", () => {
+  it("flags a reply that points at a chart or breakdown when no block came with it", async () => {
+    const { claimsChart } = await import("@/lib/coach/verify");
+    expect(claimsChart("Here's the breakdown below.", 0)).toBe(true);
+    expect(claimsChart("See the chart for your week.", 0)).toBe(true);
+    expect(claimsChart("Here's the breakdown below.", 1)).toBe(false);
+    expect(claimsChart("You ate 1,800 kcal today.", 0)).toBe(false);
+  });
+});
