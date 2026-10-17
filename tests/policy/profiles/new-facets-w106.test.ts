@@ -63,7 +63,7 @@ describe("W106 keyword facets", () => {
       hardBasis: "user_confirmed_safety", evidenceStrength: "strong", confirmation: "confirmed",
       expiresAt: null,
     }] } as const;
-    const judge = (foodName: string) => evaluatePolicy({ ...TEST_PROFILE, allergens: [] }, {
+    const judge = (foodName: string) => evaluatePolicy({ ...TEST_PROFILE, avoid_allergens: [] }, {
       foodRefId: null, allergenTags: [], category: [], onEatsList: true, onAvoidList: false,
       foodName, profileRules,
     }).verdict;

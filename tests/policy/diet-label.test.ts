@@ -14,7 +14,7 @@ import {
 } from "@/lib/policy/diet-label";
 import type { PolicyPreferenceFlag } from "@/lib/policy/facet-rules";
 
-const label = (text: string): DietEvidence => ({ ingredientsText: text, ingredientsTextIsLabel: true });
+const label = (text: string) => ({ ingredientsText: text, ingredientsTextIsLabel: true as const });
 
 function verdict(foodName: string, flags: PolicyPreferenceFlag[], extra: Partial<PolicyEvidence> = {}) {
   return evaluatePolicy(EMPTY_PROFILE, {

@@ -10,7 +10,7 @@ import { ruleId, type RuleItem } from "@/lib/policy/profiles/types";
 import { TEST_PROFILE } from "@/tests/helpers/constraint-profile";
 
 const AS_OF = new Date("2026-10-17T12:00:00Z");
-const NO_ALLERGENS = { ...TEST_PROFILE, allergens: [] };
+const NO_ALLERGENS = { ...TEST_PROFILE, avoid_allergens: [] };
 
 function never(facet: string): RuleItem {
   return { id: ruleId("user_rule", facet), profileId: "user_rule", facet, strength: "never",
