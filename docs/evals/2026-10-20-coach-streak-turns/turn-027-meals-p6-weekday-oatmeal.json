@@ -1,0 +1,176 @@
+{
+  "generatedAt": "2026-10-17T13:49:40.284Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 27,
+  "case": {
+    "id": "meals-p6-weekday-oatmeal",
+    "category": "meals",
+    "sentence": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+    "expected_path": "llm",
+    "note": "P6: one set_slot_meal with weekdays 1-5, 10 dates, and title Oatmeal with blueberries",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4474,
+    "actions": [],
+    "blocks": [
+      "quick_replies"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "d42fa949-7467-42a1-8f2c-73e4981754f1",
+        "kind": "quick_replies",
+        "options": [
+          "Add oatmeal to Eats",
+          "Add blueberries to Eats",
+          "Suggest something else"
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.12,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [set_slot_meal]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4474 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.12"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check oatmeal and blueberries against your food rules yet, so I left them out. Add oatmeal and blueberries to your Eats and they get checked against your food rules. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": false,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": false,
+      "detail": "{\"expected\":\"meal-1\",\"actual\":null}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": false,
+      "detail": "{\"expected\":\"Oatmeal with blueberries\",\"actual\":\"\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": false,
+      "detail": "{\"expected\":[\"2026-10-19\",\"2026-10-20\",\"2026-10-21\",\"2026-10-22\",\"2026-10-23\",\"2026-10-26\",\"2026-10-27\",\"2026-10-28\",\"2026-10-29\",\"2026-10-30\"],\"actual\":null}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": false,
+      "detail": "{\"expected\":{\"min\":150,\"max\":400},\"actual\":null}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "0e162ce6-7eb1-473f-a995-aa414788fb68",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 389,
+      "model": 2838,
+      "ground": 422
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "bf490d98-f143-430f-a954-9fb58bead6de",
+        "role": "user",
+        "content": "Set my breakfast to oatmeal with blueberries every weekday for the next two weeks.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "19a405cb-7e18-4749-b23b-b4f95ba0d95a",
+        "role": "assistant",
+        "content": "I couldn’t check oatmeal and blueberries against your food rules yet, so I left them out. Add oatmeal and blueberries to your Eats and they get checked against your food rules. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "quick_replies",
+            "v": 1,
+            "id": "d42fa949-7467-42a1-8f2c-73e4981754f1",
+            "options": [
+              "Add oatmeal to Eats",
+              "Add blueberries to Eats",
+              "Suggest something else"
+            ],
+            "provenance": {
+              "ai": true,
+              "source": "model",
+              "purpose": "coach-openrouter"
+            }
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

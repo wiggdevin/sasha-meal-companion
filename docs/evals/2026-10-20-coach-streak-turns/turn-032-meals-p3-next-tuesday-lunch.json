@@ -1,0 +1,176 @@
+{
+  "generatedAt": "2026-10-17T13:51:17.607Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 32,
+  "case": {
+    "id": "meals-p3-next-tuesday-lunch",
+    "category": "meals",
+    "sentence": "Change next Tuesday's lunch to grilled chicken and rice.",
+    "expected_path": "llm",
+    "note": "P3: one set_slot_meal for meal-2 with title Grilled chicken & rice",
+    "expected_action_kinds": [
+      "set_slot_meal"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 7493,
+    "actions": [],
+    "blocks": [
+      "quick_replies"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "40c58cbc-e8ab-41af-b325-d340d901a7cd",
+        "kind": "quick_replies",
+        "options": [
+          "Add chicken and rice to Eats",
+          "Suggest something else"
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.11,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [set_slot_meal]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 7493 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.11"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check Chicken breast, roasted, Rice, white, cooked and chicken and rice against your food rules yet, so I left them out. Add chicken and rice to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "C9 server turn kept user state read-only",
+      "passed": true,
+      "detail": "unchanged"
+    },
+    {
+      "name": "C9 meal action",
+      "passed": false,
+      "detail": "{\"expected\":\"set_slot_meal\",\"actual\":null}"
+    },
+    {
+      "name": "C9 meal slot",
+      "passed": false,
+      "detail": "{\"expected\":\"meal-2\",\"actual\":null}"
+    },
+    {
+      "name": "C9 dish title",
+      "passed": false,
+      "detail": "{\"expected\":\"Grilled chicken & rice\",\"actual\":\"\"}"
+    },
+    {
+      "name": "C9 selected dates",
+      "passed": false,
+      "detail": "{\"expected\":[\"2026-10-20\"],\"actual\":null}"
+    },
+    {
+      "name": "C9 calorie range",
+      "passed": false,
+      "detail": "{\"expected\":{\"min\":250,\"max\":450},\"actual\":null}"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "c5b55977-40e4-4d60-9871-f6978907309b",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "quick_replies"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 383,
+      "model": 5977,
+      "ground": 554
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "19639eb3-04cf-4e88-876d-8943b16f0559",
+        "role": "user",
+        "content": "Change next Tuesday's lunch to grilled chicken and rice.",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "d9685e99-1c64-40c3-b87a-fd858aafa6c1",
+        "role": "assistant",
+        "content": "I couldn’t check Chicken breast, roasted, Rice, white, cooked and chicken and rice against your food rules yet, so I left them out. Add chicken and rice to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "quick_replies",
+            "v": 1,
+            "id": "40c58cbc-e8ab-41af-b325-d340d901a7cd",
+            "options": [
+              "Add chicken and rice to Eats",
+              "Suggest something else"
+            ],
+            "provenance": {
+              "ai": true,
+              "source": "model",
+              "purpose": "coach-openrouter"
+            }
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

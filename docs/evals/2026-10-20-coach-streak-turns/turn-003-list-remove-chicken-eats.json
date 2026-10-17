@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-10-17T13:41:10.208Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 3,
+  "case": {
+    "id": "list-remove-chicken-eats",
+    "category": "list_edit",
+    "sentence": "take chicken off my eats list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "remove_from_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 1030,
+    "actions": [
+      "remove_from_eats"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.08,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [remove_from_eats]; got [remove_from_eats]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 2000 ms; got 1030 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.08"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Chicken breast, roasted is no longer favored.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "05704b7e-1e9f-48c9-9a46-485ce5cd8b4b",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "remove_from_eats",
+        "name": "Chicken breast, roasted",
+        "foodRefId": "ea986c92-37f6-4e92-bc67-7fa28c39db5c",
+        "catalogFoodRevisionId": 3161,
+        "kcalPer100g": 165,
+        "proteinPer100g": 31,
+        "carbsPer100g": 0,
+        "fatPer100g": 3.6,
+        "verdict": "allowed",
+        "actionId": "0b75b982-61c3-418f-b6e6-ef725a132cdc",
+        "flagged": [],
+        "alsoFoodRefIds": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "intent": "remove_from_eats",
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 417,
+      "model": 0,
+      "ground": 316
+    },
+    "provenance": {
+      "ai": true,
+      "source": "jev",
+      "purpose": "coach-intent"
+    },
+    "messages": [
+      {
+        "id": "7c5d2d3b-cb79-4b9c-8783-f24b2fe492ca",
+        "role": "user",
+        "content": "take chicken off my eats list",
+        "seq": 1
+      },
+      {
+        "id": "a42b667b-2920-4a4d-b6a4-95ea6c1dc10f",
+        "role": "assistant",
+        "content": "Chicken breast, roasted is no longer favored.",
+        "seq": 2,
+        "provenance": {
+          "ai": true,
+          "source": "jev",
+          "purpose": "coach-intent"
+        }
+      }
+    ]
+  }
+}

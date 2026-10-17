@@ -1,0 +1,195 @@
+{
+  "generatedAt": "2026-10-17T13:43:23.639Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 9,
+  "case": {
+    "id": "block-weight-trend",
+    "category": "block",
+    "sentence": "how's my weight trending?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "weight_trend"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5319,
+    "actions": [],
+    "blocks": [
+      "chart"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "056d39b7-53cd-4dd5-83cc-ed6c36a73578",
+        "days": 30,
+        "kind": "chart",
+        "unit": "lb",
+        "chart": "weight_trend",
+        "series": [
+          {
+            "label": "Weight",
+            "points": [
+              {
+                "x": "2026-10-03",
+                "y": 130.5
+              },
+              {
+                "x": "2026-10-10",
+                "y": 131.4
+              },
+              {
+                "x": "2026-10-17",
+                "y": 132.3
+              }
+            ]
+          }
+        ],
+        "caption": "Weight over the last 30 days"
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5319 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Here is your weight trend.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected [chart]; got [chart]"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got [1]"
+    },
+    {
+      "name": "expected chart subtype",
+      "passed": true,
+      "detail": "expected weight_trend; got [\"weight_trend\"]"
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "ce189786-ec4a-4957-9197-cdc377b4c351",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "show_chart"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 5,
+      "model": 4065,
+      "ground": 100
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "2f94b251-1aa7-44f8-a6b2-d62977154a86",
+        "role": "user",
+        "content": "how's my weight trending?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "2c756ca6-94e0-4fb9-af16-ac57ef89c453",
+        "role": "assistant",
+        "content": "Here is your weight trend.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "chart",
+            "v": 1,
+            "id": "056d39b7-53cd-4dd5-83cc-ed6c36a73578",
+            "chart": "weight_trend",
+            "days": 30,
+            "series": [
+              {
+                "label": "Weight",
+                "points": [
+                  {
+                    "x": "2026-10-03",
+                    "y": 130.5
+                  },
+                  {
+                    "x": "2026-10-10",
+                    "y": 131.4
+                  },
+                  {
+                    "x": "2026-10-17",
+                    "y": 132.3
+                  }
+                ]
+              }
+            ],
+            "unit": "lb",
+            "caption": "Weight over the last 30 days"
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

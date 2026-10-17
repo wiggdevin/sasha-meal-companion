@@ -1,0 +1,115 @@
+{
+  "generatedAt": "2026-10-17T13:45:35.959Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 15,
+  "case": {
+    "id": "suggest-chicken-wrap-wish",
+    "category": "suggestion",
+    "sentence": "a chicken wrap that fits my macros",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 7613,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.09,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 1-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 7613 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.09"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check Chicken breast, roasted, Corn tortilla and chicken against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "b242dcc7-25a8-4a26-a42b-36170c33f73b",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "compose_meal"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 392,
+      "model": 4141,
+      "ground": 114
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "279778a0-f7a2-4165-a8f9-ff8770d22287",
+        "role": "user",
+        "content": "a chicken wrap that fits my macros",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "30d94808-cf41-4b35-bd35-c7de354555ea",
+        "role": "assistant",
+        "content": "I couldn’t check Chicken breast, roasted, Corn tortilla and chicken against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

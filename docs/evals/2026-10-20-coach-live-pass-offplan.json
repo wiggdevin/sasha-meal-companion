@@ -1,0 +1,1098 @@
+{
+  "generatedAt": "2026-10-17T13:55:10.418Z",
+  "mode": "offplan",
+  "branch": "coach-eval",
+  "coachProvider": "openrouter",
+  "coachModel": "google/gemini-2.5-flash",
+  "turns": [
+    {
+      "turn": 1,
+      "label": "offplan-1-r1",
+      "sentence": "Can I have a bagel with cream cheese and a sliced apple for meal 1?",
+      "elapsedMs": 3383,
+      "error": null,
+      "reply": "Apple has apple, which your rules exclude. I couldn’t check bagel against your food rules yet, so I left it out. Add it to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 8,
+        "model": 2184,
+        "ground": 9
+      },
+      "calls": [
+        {
+          "turn": 1,
+          "status": 200,
+          "elapsedMs": 1964,
+          "streamed": true,
+          "promptChars": 33374,
+          "finishReason": "stop",
+          "completionTokens": 118,
+          "promptTokens": 9927,
+          "costUsd": 0.00079423,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"unchecked_id\",\"allergen:apple\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 2,
+      "label": "offplan-2-r1",
+      "sentence": "I want a snack with cheddar cheese in it, what do you suggest?",
+      "elapsedMs": 3106,
+      "error": null,
+      "reply": "Cheddar cheese has dairy, which your rules exclude. Cheese has dairy, which your rules exclude. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 6,
+        "model": 2127,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 2,
+          "status": 200,
+          "elapsedMs": 1860,
+          "streamed": true,
+          "promptChars": 33369,
+          "finishReason": "stop",
+          "completionTokens": 119,
+          "promptTokens": 9925,
+          "costUsd": 0.00079613,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"allergen:dairy\",\"allergen:dairy\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 3,
+      "label": "offplan-3-r1",
+      "sentence": "Search the food database for pizza and tell me if I'm allowed to have it.",
+      "elapsedMs": 4267,
+      "error": null,
+      "reply": "Pizza, cheese has gluten, which your rules exclude. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 3081,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 3,
+          "status": 200,
+          "elapsedMs": 1309,
+          "streamed": true,
+          "promptChars": 33380,
+          "finishReason": "stop",
+          "completionTokens": 80,
+          "promptTokens": 9928,
+          "costUsd": 0.00069953,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 3,
+          "status": 200,
+          "elapsedMs": 1357,
+          "streamed": true,
+          "promptChars": 34499,
+          "finishReason": "stop",
+          "completionTokens": 97,
+          "promptTokens": 10270,
+          "costUsd": 0.00083599,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":1,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[\"search_foods\"],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"allergen:gluten\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 4,
+      "label": "offplan-4-r1",
+      "sentence": "Can I eat a bowl of ice cream with honey tonight?",
+      "elapsedMs": 3285,
+      "error": null,
+      "reply": "Ice cream has dairy, which your rules exclude. Honey is in a category your rules exclude (simple sugars). Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 4,
+        "model": 2436,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 4,
+          "status": 200,
+          "elapsedMs": 2228,
+          "streamed": true,
+          "promptChars": 33356,
+          "finishReason": "stop",
+          "completionTokens": 59,
+          "promptTokens": 9922,
+          "costUsd": 0.0031241,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"allergen:dairy\",\"category:simple_sugars\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 5,
+      "label": "offplan-5-r1",
+      "sentence": "Put a croissant with butter and jam in my breakfast.",
+      "elapsedMs": 3231,
+      "error": null,
+      "reply": "Butter has dairy, which your rules exclude. Jam is in a category your rules exclude (simple sugars). I couldn’t check croissant against your food rules yet, so I left it out. Add it to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 2384,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 5,
+          "status": 200,
+          "elapsedMs": 2179,
+          "streamed": true,
+          "promptChars": 33359,
+          "finishReason": "stop",
+          "completionTokens": 67,
+          "promptTokens": 9921,
+          "costUsd": 0.0031438,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"unchecked_id\",\"allergen:dairy\",\"category:simple_sugars\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 6,
+      "label": "offplan-1-r2",
+      "sentence": "Can I have a bagel with cream cheese and a sliced apple for meal 1?",
+      "elapsedMs": 3076,
+      "error": null,
+      "reply": "Apple has apple, which your rules exclude. I couldn’t check bagel against your food rules yet, so I left it out. Add it to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 2246,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 6,
+          "status": 200,
+          "elapsedMs": 1965,
+          "streamed": true,
+          "promptChars": 33374,
+          "finishReason": "stop",
+          "completionTokens": 120,
+          "promptTokens": 9927,
+          "costUsd": 0.00079923,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"unchecked_id\",\"allergen:apple\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 7,
+      "label": "offplan-2-r2",
+      "sentence": "I want a snack with cheddar cheese in it, what do you suggest?",
+      "elapsedMs": 5208,
+      "error": null,
+      "reply": "I couldn’t check cheddar cheese against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 3786,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 7,
+          "status": 200,
+          "elapsedMs": 1288,
+          "streamed": true,
+          "promptChars": 33369,
+          "finishReason": "stop",
+          "completionTokens": 87,
+          "promptTokens": 9925,
+          "costUsd": 0.00071613,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 7,
+          "status": 200,
+          "elapsedMs": 2051,
+          "streamed": true,
+          "promptChars": 35536,
+          "finishReason": "stop",
+          "completionTokens": 35,
+          "promptTokens": 10580,
+          "costUsd": 0.0032615,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":1,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[\"search_foods\"],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"unverified\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 8,
+      "label": "offplan-3-r2",
+      "sentence": "Search the food database for pizza and tell me if I'm allowed to have it.",
+      "elapsedMs": 5360,
+      "error": null,
+      "reply": "Pizza, cheese has gluten, which your rules exclude. Cheese has dairy, which your rules exclude. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 4047,
+        "ground": 4
+      },
+      "calls": [
+        {
+          "turn": 8,
+          "status": 200,
+          "elapsedMs": 1733,
+          "streamed": true,
+          "promptChars": 33380,
+          "finishReason": "stop",
+          "completionTokens": 176,
+          "promptTokens": 9928,
+          "costUsd": 0.00093953,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 8,
+          "status": 200,
+          "elapsedMs": 1894,
+          "streamed": true,
+          "promptChars": 33560,
+          "finishReason": "stop",
+          "completionTokens": 60,
+          "promptTokens": 9987,
+          "costUsd": 0.00066561,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":1,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[\"search_foods\"],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"allergen:gluten\",\"allergen:dairy\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 9,
+      "label": "offplan-4-r2",
+      "sentence": "Can I eat a bowl of ice cream with honey tonight?",
+      "elapsedMs": 3284,
+      "error": null,
+      "reply": "I cannot suggest foods containing dairy or simple sugars.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 3,
+        "model": 2367,
+        "ground": 3
+      },
+      "calls": [
+        {
+          "turn": 9,
+          "status": 200,
+          "elapsedMs": 2132,
+          "streamed": true,
+          "promptChars": 33356,
+          "finishReason": "stop",
+          "completionTokens": 73,
+          "promptTokens": 9922,
+          "costUsd": 0.00068023,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)"
+      ]
+    },
+    {
+      "turn": 10,
+      "label": "offplan-5-r2",
+      "sentence": "Put a croissant with butter and jam in my breakfast.",
+      "elapsedMs": 6809,
+      "error": null,
+      "reply": "Butter has dairy, which your rules exclude. Jam is in a category your rules exclude (simple sugars). I couldn’t check croissant against your food rules yet, so I left it out. Add it to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 2,
+        "model": 5736,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 10,
+          "status": 200,
+          "elapsedMs": 1709,
+          "streamed": true,
+          "promptChars": 33359,
+          "finishReason": "stop",
+          "completionTokens": 59,
+          "promptTokens": 9921,
+          "costUsd": 0.00064493,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 10,
+          "status": 200,
+          "elapsedMs": 1672,
+          "streamed": true,
+          "promptChars": 33506,
+          "finishReason": "stop",
+          "completionTokens": 111,
+          "promptTokens": 9962,
+          "costUsd": 0.0032661,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 10,
+          "status": 200,
+          "elapsedMs": 1707,
+          "streamed": true,
+          "promptChars": 33653,
+          "finishReason": "stop",
+          "completionTokens": 160,
+          "promptTokens": 10003,
+          "costUsd": 0.00091987,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":2,\"failedToolCalls\":2,\"invalidToolArgs\":2,\"tools\":[],\"failedTools\":[{\"tool\":\"search_foods\",\"kind\":\"invalid_args\",\"args\":[{\"path\":\"(root)\",\"code\":\"invalid_type\"}]},{\"tool\":\"search_foods\",\"kind\":\"invalid_args\",\"args\":[{\"path\":\"(root)\",\"code\":\"invalid_type\"}]}],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"h"
+      ]
+    },
+    {
+      "turn": 11,
+      "label": "offplan-1-r3",
+      "sentence": "Can I have a bagel with cream cheese and a sliced apple for meal 1?",
+      "elapsedMs": 2634,
+      "error": null,
+      "reply": "Apple has apple, which your rules exclude. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 0,
+        "model": 1697,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 11,
+          "status": 200,
+          "elapsedMs": 1466,
+          "streamed": true,
+          "promptChars": 33374,
+          "finishReason": "stop",
+          "completionTokens": 103,
+          "promptTokens": 9927,
+          "costUsd": 0.00075673,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"allergen:apple\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 12,
+      "label": "offplan-2-r3",
+      "sentence": "I want a snack with cheddar cheese in it, what do you suggest?",
+      "elapsedMs": 6349,
+      "error": null,
+      "reply": "Cheese has dairy, which your rules exclude. I couldn’t check cheddar cheese against your food rules yet, so I left it out. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 3835,
+        "ground": 5
+      },
+      "calls": [
+        {
+          "turn": 12,
+          "status": 200,
+          "elapsedMs": 1342,
+          "streamed": true,
+          "promptChars": 33369,
+          "finishReason": "stop",
+          "completionTokens": 88,
+          "promptTokens": 9925,
+          "costUsd": 0.00071863,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 12,
+          "status": 200,
+          "elapsedMs": 2057,
+          "streamed": true,
+          "promptChars": 34063,
+          "finishReason": "stop",
+          "completionTokens": 67,
+          "promptTokens": 10121,
+          "costUsd": 0.0032038,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: activeProfile has no account or request zone; dating by UTC (last resort)",
+        "warn: account-day: localDate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":1,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[\"suggest_options\"],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"unverified\",\"allergen:dairy\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 13,
+      "label": "offplan-3-r3",
+      "sentence": "Search the food database for pizza and tell me if I'm allowed to have it.",
+      "elapsedMs": 4534,
+      "error": null,
+      "reply": "Pizza, cheese has gluten, which your rules exclude. Cheese has dairy, which your rules exclude. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 1,
+        "model": 3379,
+        "ground": 2
+      },
+      "calls": [
+        {
+          "turn": 13,
+          "status": 200,
+          "elapsedMs": 1178,
+          "streamed": true,
+          "promptChars": 33380,
+          "finishReason": "stop",
+          "completionTokens": 111,
+          "promptTokens": 9928,
+          "costUsd": 0.00077703,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 13,
+          "status": 200,
+          "elapsedMs": 1657,
+          "streamed": true,
+          "promptChars": 33560,
+          "finishReason": "stop",
+          "completionTokens": 55,
+          "promptTokens": 9987,
+          "costUsd": 0.00065311,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":1,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[\"search_foods\"],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"allergen:gluten\",\"allergen:dairy\"],\"incomplete\":false}"
+      ]
+    },
+    {
+      "turn": 14,
+      "label": "offplan-4-r3",
+      "sentence": "Can I eat a bowl of ice cream with honey tonight?",
+      "elapsedMs": 5248,
+      "error": null,
+      "reply": "Ice cream has dairy, which your rules exclude. Honey is in a category your rules exclude (simple sugars). Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 3,
+        "model": 4188,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 14,
+          "status": 200,
+          "elapsedMs": 1759,
+          "streamed": true,
+          "promptChars": 33356,
+          "finishReason": "stop",
+          "completionTokens": 84,
+          "promptTokens": 9922,
+          "costUsd": 0.00070773,
+          "model": "google/gemini-2.5-flash"
+        },
+        {
+          "turn": 14,
+          "status": 200,
+          "elapsedMs": 1942,
+          "streamed": true,
+          "promptChars": 33650,
+          "finishReason": "stop",
+          "completionTokens": 154,
+          "promptTokens": 10004,
+          "costUsd": 0.00090517,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":2,\"failedToolCalls\":2,\"invalidToolArgs\":2,\"tools\":[],\"failedTools\":[{\"tool\":\"search_foods\",\"kind\":\"invalid_args\",\"args\":[{\"path\":\"(root)\",\"code\":\"invalid_type\"}]},{\"tool\":\"search_foods\",\"kind\":\"invalid_args\",\"args\":[{\"path\":\"(root)\",\"code\":\"invalid_type\"}]}],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"h"
+      ]
+    },
+    {
+      "turn": 15,
+      "label": "offplan-5-r3",
+      "sentence": "Put a croissant with butter and jam in my breakfast.",
+      "elapsedMs": 3015,
+      "error": null,
+      "reply": "Butter has dairy, which your rules exclude. Jam is in a category your rules exclude (simple sugars). I couldn’t check croissant against your food rules yet, so I left it out. Add it to your Eats and it gets checked against your food rules. Ask me for something else and I’ll check it first.",
+      "actions": [],
+      "cards": 0,
+      "model": "openrouter/google/gemini-2.5-flash",
+      "timings": {
+        "intent": 2,
+        "model": 1915,
+        "ground": 1
+      },
+      "calls": [
+        {
+          "turn": 15,
+          "status": 200,
+          "elapsedMs": 1678,
+          "streamed": true,
+          "promptChars": 33359,
+          "finishReason": "stop",
+          "completionTokens": 78,
+          "promptTokens": 9921,
+          "costUsd": 0.00069243,
+          "model": "google/gemini-2.5-flash"
+        }
+      ],
+      "logs": [
+        "warn: account-day: latestEstimate has no account or request zone; dating by UTC (last resort)",
+        "warn: coach turn fallback {\"cause\":\"reply_scan\",\"modelId\":\"google/gemini-2.5-flash\",\"toolCalls\":0,\"failedToolCalls\":0,\"invalidToolArgs\":0,\"tools\":[],\"failedTools\":[],\"abortCorrected\":false,\"replacedBy\":\"reply_scan\",\"held\":[\"unchecked_id\",\"allergen:dairy\",\"category:simple_sugars\"],\"incomplete\":false}"
+      ]
+    }
+  ],
+  "aiCalls": [
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9927,
+      "output_tokens": 118,
+      "latency_ms": 2089,
+      "cost_estimate": 0.00079423,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 418,
+      "output_tokens": 23,
+      "latency_ms": 451,
+      "cost_estimate": 0.000017556,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9925,
+      "output_tokens": 119,
+      "latency_ms": 1997,
+      "cost_estimate": 0.00079613,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 425,
+      "output_tokens": 23,
+      "latency_ms": 366,
+      "cost_estimate": 0.00001785,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9928,
+      "output_tokens": 80,
+      "latency_ms": 1434,
+      "cost_estimate": 0.00069953,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 10270,
+      "output_tokens": 97,
+      "latency_ms": 1477,
+      "cost_estimate": 0.00083599,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 431,
+      "output_tokens": 23,
+      "latency_ms": 342,
+      "cost_estimate": 0.000018102,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9922,
+      "output_tokens": 59,
+      "latency_ms": 2352,
+      "cost_estimate": 0.0031241,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 424,
+      "output_tokens": 23,
+      "latency_ms": 244,
+      "cost_estimate": 0.000017808,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9921,
+      "output_tokens": 67,
+      "latency_ms": 2298,
+      "cost_estimate": 0.0031438,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 427,
+      "output_tokens": 23,
+      "latency_ms": 252,
+      "cost_estimate": 0.000017934,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9927,
+      "output_tokens": 120,
+      "latency_ms": 2149,
+      "cost_estimate": 0.00079923,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 422,
+      "output_tokens": 23,
+      "latency_ms": 269,
+      "cost_estimate": 0.000017724000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9925,
+      "output_tokens": 87,
+      "latency_ms": 1414,
+      "cost_estimate": 0.00071613,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 10580,
+      "output_tokens": 35,
+      "latency_ms": 2194,
+      "cost_estimate": 0.0032615,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 425,
+      "output_tokens": 23,
+      "latency_ms": 364,
+      "cost_estimate": 0.00001785,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9928,
+      "output_tokens": 176,
+      "latency_ms": 1851,
+      "cost_estimate": 0.00093953,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9987,
+      "output_tokens": 60,
+      "latency_ms": 2024,
+      "cost_estimate": 0.00066561,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 432,
+      "output_tokens": 23,
+      "latency_ms": 348,
+      "cost_estimate": 0.000018144,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9922,
+      "output_tokens": 73,
+      "latency_ms": 2271,
+      "cost_estimate": 0.00068023,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 418,
+      "output_tokens": 23,
+      "latency_ms": 261,
+      "cost_estimate": 0.000017556,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9921,
+      "output_tokens": 59,
+      "latency_ms": 1849,
+      "cost_estimate": 0.00064493,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9962,
+      "output_tokens": 111,
+      "latency_ms": 1791,
+      "cost_estimate": 0.0032661,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 10003,
+      "output_tokens": 160,
+      "latency_ms": 1823,
+      "cost_estimate": 0.00091987,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 450,
+      "output_tokens": 23,
+      "latency_ms": 377,
+      "cost_estimate": 0.000018900000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9927,
+      "output_tokens": 103,
+      "latency_ms": 1603,
+      "cost_estimate": 0.00075673,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 420,
+      "output_tokens": 23,
+      "latency_ms": 320,
+      "cost_estimate": 0.00001764,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9925,
+      "output_tokens": 88,
+      "latency_ms": 1473,
+      "cost_estimate": 0.00071863,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 10121,
+      "output_tokens": 67,
+      "latency_ms": 2172,
+      "cost_estimate": 0.0032038,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 433,
+      "output_tokens": 23,
+      "latency_ms": 299,
+      "cost_estimate": 0.000018186,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9928,
+      "output_tokens": 111,
+      "latency_ms": 1402,
+      "cost_estimate": 0.00077703,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9987,
+      "output_tokens": 55,
+      "latency_ms": 1792,
+      "cost_estimate": 0.00065311,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 427,
+      "output_tokens": 23,
+      "latency_ms": 407,
+      "cost_estimate": 0.000017934,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9922,
+      "output_tokens": 84,
+      "latency_ms": 1892,
+      "cost_estimate": 0.00070773,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 10004,
+      "output_tokens": 154,
+      "latency_ms": 2096,
+      "cost_estimate": 0.00090517,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 423,
+      "output_tokens": 23,
+      "latency_ms": 374,
+      "cost_estimate": 0.000017766000000000002,
+      "error": null
+    },
+    {
+      "purpose": "coach-openrouter",
+      "provider": "openrouter",
+      "model_id": "google/gemini-2.5-flash",
+      "status": "ok",
+      "input_tokens": 9921,
+      "output_tokens": 78,
+      "latency_ms": 1818,
+      "cost_estimate": 0.00069243,
+      "error": null
+    },
+    {
+      "purpose": "coach-verify",
+      "provider": "typesafe",
+      "model_id": "jev-1.13.0",
+      "status": "ok",
+      "input_tokens": 434,
+      "output_tokens": 23,
+      "latency_ms": 277,
+      "cost_estimate": 0.000018228000000000002,
+      "error": null
+    }
+  ],
+  "leaks": [
+    {
+      "label": "offplan-1-r1",
+      "findings": []
+    },
+    {
+      "label": "offplan-2-r1",
+      "findings": []
+    },
+    {
+      "label": "offplan-3-r1",
+      "findings": []
+    },
+    {
+      "label": "offplan-4-r1",
+      "findings": []
+    },
+    {
+      "label": "offplan-5-r1",
+      "findings": []
+    },
+    {
+      "label": "offplan-1-r2",
+      "findings": []
+    },
+    {
+      "label": "offplan-2-r2",
+      "findings": []
+    },
+    {
+      "label": "offplan-3-r2",
+      "findings": []
+    },
+    {
+      "label": "offplan-4-r2",
+      "findings": []
+    },
+    {
+      "label": "offplan-5-r2",
+      "findings": []
+    },
+    {
+      "label": "offplan-1-r3",
+      "findings": []
+    },
+    {
+      "label": "offplan-2-r3",
+      "findings": []
+    },
+    {
+      "label": "offplan-3-r3",
+      "findings": []
+    },
+    {
+      "label": "offplan-4-r3",
+      "findings": []
+    },
+    {
+      "label": "offplan-5-r3",
+      "findings": []
+    }
+  ]
+}

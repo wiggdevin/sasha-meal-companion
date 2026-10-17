@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-10-17T13:47:18.134Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 20,
+  "case": {
+    "id": "weight-127-pounds",
+    "category": "schedule_body",
+    "sentence": "I weigh 127 pounds this morning",
+    "expected_path": "fast",
+    "expected_action_kinds": [
+      "log_weight"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "fast",
+    "elapsedMs": 861,
+    "actions": [
+      "log_weight"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.06,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected fast; got fast"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_weight]; got [log_weight]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 2000 ms; got 861 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.06"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logging 57.6 kg.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "e0b1c38e-8da1-492e-81cc-3c31271c622e",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "log_weight",
+        "kg": 57.61,
+        "actionId": "b25f4f5f-666a-4a55-80b1-33efe1139f4e",
+        "flagged": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "fastPath": true,
+    "intent": "log_weight",
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "gemini",
+      "modelId": ""
+    },
+    "timings": {
+      "intent": 419,
+      "model": 0,
+      "ground": 1
+    },
+    "provenance": {
+      "ai": true,
+      "source": "jev",
+      "purpose": "coach-intent"
+    },
+    "messages": [
+      {
+        "id": "ab664709-ae76-4621-896e-05615384b93f",
+        "role": "user",
+        "content": "I weigh 127 pounds this morning",
+        "seq": 1
+      },
+      {
+        "id": "f88bd44c-8bcd-4a8a-828f-865114724ce0",
+        "role": "assistant",
+        "content": "Logging 57.6 kg.",
+        "seq": 2,
+        "provenance": {
+          "ai": true,
+          "source": "jev",
+          "purpose": "coach-intent"
+        }
+      }
+    ]
+  }
+}

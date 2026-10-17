@@ -1,0 +1,178 @@
+{
+  "generatedAt": "2026-10-17T13:48:15.427Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 23,
+  "case": {
+    "id": "list-eggs-cant-do",
+    "category": "list_edit",
+    "sentence": "I can't do eggs anymore",
+    "expected_path": "either",
+    "note": "argument-confidence rule: implicit list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3634,
+    "actions": [
+      "remove_from_eats",
+      "remove_from_eats"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.08,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_avoid]; got [remove_from_eats, remove_from_eats]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3634 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.08"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Eggs are no longer favored.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "4ed310bc-2651-4b2d-b759-aa11c5f2a6b9",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "remove_from_eats",
+        "name": "Eggs, cooked",
+        "foodRefId": "36c624d3-add3-4be5-a51e-849bd3433d6f",
+        "catalogFoodRevisionId": 3167,
+        "kcalPer100g": 155,
+        "proteinPer100g": 12.6,
+        "carbsPer100g": 1.1,
+        "fatPer100g": 10.6,
+        "verdict": "allowed",
+        "actionId": "8702f0aa-710f-4df3-89b8-bdcfb48521a0",
+        "flagged": [],
+        "alsoFoodRefIds": []
+      },
+      {
+        "kind": "remove_from_eats",
+        "name": "Egg whites, cooked",
+        "foodRefId": "79277492-b85c-49de-b093-83140b2589ec",
+        "catalogFoodRevisionId": 3168,
+        "kcalPer100g": 52,
+        "proteinPer100g": 10.9,
+        "carbsPer100g": 0.7,
+        "fatPer100g": 0.2,
+        "verdict": "allowed",
+        "actionId": "39cd78fd-08c0-48b2-bf89-226d02f8a266",
+        "flagged": [],
+        "alsoFoodRefIds": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 9,
+      "model": 2451,
+      "ground": 404
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "83be9d5a-0f7f-4452-8ed0-34b072088a21",
+        "role": "user",
+        "content": "I can't do eggs anymore",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "45963252-75ae-4d97-8f40-452e7767143e",
+        "role": "assistant",
+        "content": "Eggs are no longer favored.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "name": "Eggs, cooked",
+            "foodRefId": "36c624d3-add3-4be5-a51e-849bd3433d6f",
+            "catalogFoodRevisionId": 3167,
+            "kcalPer100g": 155,
+            "proteinPer100g": 12.6,
+            "carbsPer100g": 1.1,
+            "fatPer100g": 10.6,
+            "verdict": "allowed",
+            "actionId": "8702f0aa-710f-4df3-89b8-bdcfb48521a0",
+            "flagged": [],
+            "kind": "remove_from_eats",
+            "alsoFoodRefIds": []
+          },
+          {
+            "name": "Egg whites, cooked",
+            "foodRefId": "79277492-b85c-49de-b093-83140b2589ec",
+            "catalogFoodRevisionId": 3168,
+            "kcalPer100g": 52,
+            "proteinPer100g": 10.9,
+            "carbsPer100g": 0.7,
+            "fatPer100g": 0.2,
+            "verdict": "allowed",
+            "actionId": "39cd78fd-08c0-48b2-bf89-226d02f8a266",
+            "flagged": [],
+            "kind": "remove_from_eats",
+            "alsoFoodRefIds": []
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

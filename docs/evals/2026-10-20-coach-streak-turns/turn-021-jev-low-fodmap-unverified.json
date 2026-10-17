@@ -1,0 +1,165 @@
+{
+  "generatedAt": "2026-10-17T13:47:35.310Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 21,
+  "case": {
+    "id": "jev-low-fodmap-unverified",
+    "category": "jev",
+    "sentence": "make a recipe from mystery broth, rice, and chicken",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "unverified_recipe",
+      "preference": "low_fodmap"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3633,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.1,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "I couldn’t check Mystery broth, Rice and Chicken against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+      "toolCalls": {
+        "calls": [],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3633 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.1"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t check Mystery broth, Rice and Chicken against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted recipe excludes unverified food",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted Not verified low-FODMAP copy",
+      "passed": false,
+      "detail": "I couldn’t check Mystery broth, Rice and Chicken against your food rules yet, so I left them out. Ask me for something else and I’ll check it first."
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "616cee01-f62a-4c30-8d25-eca5cee50a67",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 2,
+      "model": 2587,
+      "ground": 9
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "532ee3ae-491b-45a9-b5e5-58570293c4e0",
+        "role": "user",
+        "content": "make a recipe from mystery broth, rice, and chicken",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "b5fc87c3-d7ca-4f92-bdb7-8696ebdd4244",
+        "role": "assistant",
+        "content": "I couldn’t check Mystery broth, Rice and Chicken against your food rules yet, so I left them out. Ask me for something else and I’ll check it first.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}
