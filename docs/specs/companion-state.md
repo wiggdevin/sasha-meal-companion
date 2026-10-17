@@ -18,11 +18,13 @@ Per-companion pond, water and outfit art is a separate art step (B267) and waits
 
 `care_items.mascots` means **can wear**: the companions whose art has a place for the item. It
 matches `canWear` in `components/today/care/shop/catalog.ts` (Sprout's `places` plus each other
-companion's `fits`). After `20270105120000`: the leaf pin, mittens, both glasses and the shorts
+companion's `fits`); a widen-only update keeps any companion a row already listed, so a hand-edited
+row can list more than `canWear`. After `20270105120000`: the leaf pin, mittens, both glasses and the shorts
 list all four; the bucket hat and knitted hat list Sprout, Blu and Button (Pod has no head). The
 server never enforces the column: `care_equip` does not read it and `GET /api/care/shop` only
 reports it, so the phone decides from `catalog.ts`. `tests/migrations/care-items-mascots.test.ts`
-holds the SQL and the catalog equal.
+freezes the migration's lists as `canWear` stood on 2026-10-17; a later catalog change that adds a
+fit ships its own widening migration.
 
 ## Stored fields (design for the follow-up build)
 
@@ -36,15 +38,21 @@ Decisions:
    build adds a read function, not a table:
    - **Streak days**: consecutive local dates, ending at the account's day (or the day before,
      while today is still open), that carry a settled or pending `day_recorded` row in
-     `care_points_ledger`. The same evidence earns Seeds, so the two can never disagree. A gap ends
-     the streak; nothing is taken away for it.
-   - **The 7-day beads**: the last seven local dates of the account's week, each true when that
-     date has a `day_recorded` row. This is the `days: boolean[7]` the `streak` note already draws
+     `care_points_ledger`. The same evidence earns Seeds, so the two never disagree. A gap ends
+     the streak; nothing is taken away for it. Known gap: `care_points_sync` only awards a date
+     the phone syncs on (or one date either side, `20270104090000_care_ledger_fixes.sql`), so a
+     day that was recorded but never synced near its own date has no row and breaks the streak.
+     Accepted for v1; the follow-up build can backfill a closed week's `day_recorded` rows from
+     `log_entries` when it reads progress.
+   - **The 7-day beads**: Monday to Sunday of the account's current local week (the week
+     `five_day_week` counts), each true when that date has a `day_recorded` row. This is the `days: boolean[7]` the `streak` note already draws
      (`components/today/care/CareNotes.tsx`, parsed in `useCare.ts`).
    - **Growth stage**: lifetime count of distinct dates with a `day_recorded` row, bucketed into
-     stages (proposed: 1 seedling at 0, 2 sprouting at 7, 3 leafy at 30, 4 blooming at 90). Growth
-     only goes up: a quiet stretch never shrinks the companion, and a reversed ledger row
-     (`status = 'reversed'`) does not count.
+     stages (proposed: 1 seedling at 0, 2 sprouting at 7, 3 leafy at 30, 4 blooming at 90). A quiet
+     stretch never shrinks the companion. A reversed ledger row (`status = 'reversed'`) does not
+     count, so a correction that removes a recorded day can, rarely, drop a stage; computed on
+     read, that is accepted rather than stored. If it ever shows, the stored row below keeps the
+     highest stage reached.
 3. **Stored only if reading gets slow.** If the read ever has to scan too far, add one row per
    account (`care_progress (user_id pk, longest_streak, stage, stage_reached_at, rev)`), written
    only by the server function that already holds the `:care_points` lock. Not built now.
@@ -56,12 +64,13 @@ days: boolean[]; stage: 1 | 2 | 3 | 4; countedDays: number }`, returned as a `pr
 ## Sync path
 
 - The companion choice syncs through the op log: `user_settings` op → `/api/sync/ops` →
-  `_sync_upsert` (`mascot` branch from `20261225090000`).
+  `_sync_upsert` (the `mascot` branch added in `20261225090000`, still in the current body,
+  `20261230090400_recipe_energy_rule.sql`).
 - Everything else in care is server-computed and read through `app/api/care/*`, never written by
   the phone: `GET /api/care/points` runs `care_points_sync` for the account's day (`resolveCareDay`,
   `lib/server/care-zone.ts`) and answers `{ balance, pending, recent }`; `GET /api/care/shop`
   answers items, owned, equipped and `rev`; purchases and equips go through `care_purchase` and
-  `care_equip`; messages through `GET /api/care/messages` and `care_message_mark`. Shapes live in
+  `care_equip` (the shop read also carries `balance`); messages through `GET /api/care/messages` and `care_message_mark`. Shapes live in
   `lib/care/contract.ts`; the phone reads them in `components/today/care/care-api.ts` and
   `useCare.ts`.
 - Streak and growth follow the same path: derived in SQL from the ledger under the account's own
@@ -71,10 +80,11 @@ days: boolean[]; stage: 1 | 2 | 3 | 4; countedDays: number }`, returned as a `pr
 
 Only the server. `care_messages` grants `authenticated` select only; inserts are the service role
 or a `security definer` function. The proposed writer is `care_points_sync` itself, right after it
-awards a `day_recorded` row, at most one `streak` message per account per local week:
+awards a `day_recorded` row, at most one `streak` message per milestone per local week (so at most
+three a week):
 
-- when the week's beads reach 3, 5 and 7 recorded days (one message each, keyed so a repeat sync
-  writes nothing);
+- when the week's beads reach 3, 5 and 7 recorded days (one message each, keyed by week and count so
+  a repeat sync writes nothing);
 - payload `{ text, days }`, where `days` is the 7-bead array and `text` is one line from the
   approved copy list below.
 
@@ -84,8 +94,9 @@ No message is written for a missed day, a broken streak or a falling count.
 
 From OD19 (`docs/decisions/2026-10-12-owner-decisions.md`) and the existing care modules:
 
-- A shortfall never makes the companion sad. It reacts negatively only when poked
-  (`components/today/scene/sulk.ts`); food, water or a missed day never do it.
+- OD19: a food or water shortfall never makes the companion sad. It reacts negatively only when
+  poked (`components/today/scene/sulk.ts`).
+- Care rule (this spec): a missed or unrecorded day never makes it sad either.
 - The words observe. They never tell anyone to eat, eat less, drink or log, and never mention
   weight, calories or a target missed.
 - No loss framing: no "don't break your streak", no "you lost", no countdowns, no decay. A streak
