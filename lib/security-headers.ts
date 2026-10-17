@@ -32,7 +32,9 @@ export function securityHeaderRules(): { source: string; headers: SecurityHeader
  * W079: whether the nonce policy is enforced. Report-only first: the browser reports what the policy
  * would block (in the console) and blocks nothing, so the installed PWA, Supabase sign-in and sync,
  * the barcode worker and voice capture cannot break on a directive this file got wrong. Turn it on
- * once a signed-in walkthrough on a phone shows no reports.
+ * once a signed-in walkthrough on a phone shows no reports: the CI page gate loads only the
+ * signed-out sign-in page, so a green gate alone does not make enforcing safe. Enforced, a page
+ * gets two policies (this one and next.config's static `frame-ancestors`); browsers apply both.
  */
 export const CSP_ENFORCE = false;
 
@@ -66,8 +68,8 @@ function supabaseOrigins(url: string | undefined): string[] {
 /**
  * The page policy for one request. Scripts: Next's own scripts carry the nonce (it reads the nonce
  * from this header), and `'strict-dynamic'` lets them load their chunks and the barcode worker.
- * `'wasm-unsafe-eval'` is the barcode decoder; `'unsafe-eval'` is development only (React's dev
- * stacks). Styles stay `'unsafe-inline'`: the app's motion and layout write inline style attributes,
+ * `'wasm-unsafe-eval'` keeps WebAssembly compiling on the page (the barcode decoder runs in a
+ * worker under its own policy today); `'unsafe-eval'` is development only (React's dev stacks). Styles stay `'unsafe-inline'`: the app's motion and layout write inline style attributes,
  * which a nonce cannot cover. Everything the browser fetches is this origin or Supabase; model calls
  * go through our own API routes.
  */

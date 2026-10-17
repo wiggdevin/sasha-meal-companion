@@ -5,6 +5,21 @@
 import { NextRequest } from "next/server";
 import { expect, it, vi } from "vitest";
 import middleware from "@/middleware";
+
+// The session refresh, played without the network: claims as set per test, and one refreshed cookie.
+const auth = vi.hoisted(() => ({ sub: undefined as string | undefined }));
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: (_url: string, _key: string, opts: {
+    cookies: { setAll: (c: { name: string; value: string; options: object }[], h: Record<string, string>) => void };
+  }) => ({
+    auth: {
+      getClaims: async () => {
+        opts.cookies.setAll([{ name: "sb-session", value: "fresh", options: { path: "/" } }], {});
+        return { data: auth.sub ? { claims: { sub: auth.sub } } : null };
+      },
+    },
+  }),
+}));
 import {
   CSP_ENFORCE, NONCE_HEADER, PAGE_CSP_HEADER, SECURITY_HEADERS, makeNonce, pagePolicy,
 } from "@/lib/security-headers";
@@ -99,6 +114,33 @@ it("sends the policy and its nonce on the request (where Next reads it) and on t
       expect(res.headers.get(`x-middleware-request-${NONCE_HEADER}`)).toBe(nonce);
     }
   } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
+it("keeps the policy through the session refresh and never sends /sign-in to itself", async () => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "pk");
+  try {
+    auth.sub = undefined;
+    const signIn = await middleware(new NextRequest("https://example.test/sign-in?next=%2F"));
+    expect(signIn.headers.get("location")).toBeNull();
+    expect(signIn.headers.get(PAGE_CSP_HEADER)).toMatch(/'nonce-/);
+
+    const out = await middleware(new NextRequest("https://example.test/foods"));
+    expect(new URL(out.headers.get("location") ?? "").pathname).toBe("/sign-in");
+
+    auth.sub = "user-1";
+    const res = await middleware(new NextRequest("https://example.test/foods"));
+    expect(res.headers.get("location")).toBeNull();
+    const policy = res.headers.get(PAGE_CSP_HEADER) ?? "";
+    expect(policy).toContain("connect-src 'self' https://abc.supabase.co wss://abc.supabase.co");
+    expect(res.headers.get(`x-middleware-request-${PAGE_CSP_HEADER.toLowerCase()}`)).toBe(policy);
+    // The refreshed cookie reaches the page render (request) and the browser (response).
+    expect(res.headers.get("x-middleware-request-cookie")).toContain("sb-session=fresh");
+    expect(res.cookies.get("sb-session")?.value).toBe("fresh");
+  } finally {
+    auth.sub = undefined;
     vi.unstubAllEnvs();
   }
 });

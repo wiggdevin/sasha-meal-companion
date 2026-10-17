@@ -238,6 +238,7 @@ jobs:
         run: |
           pnpm start --port 3000 > "$RUNNER_TEMP/next-start.log" 2>&1 &
           for _ in $(seq 1 60); do curl -fsS -o /dev/null http://localhost:3000/sign-in && break; sleep 1; done
+          curl -fsS -o /dev/null http://localhost:3000/sign-in || { cat "$RUNNER_TEMP/next-start.log"; exit 1; }
           node scripts/page-gate/gate.mjs http://localhost:3000
         env:
           CHROME_PATH: /usr/bin/google-chrome
