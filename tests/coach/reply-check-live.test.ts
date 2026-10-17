@@ -205,6 +205,34 @@ describe("checkReplyLive — mixed replies (blocks + prose)", () => {
   });
 });
 
+/** 2026-10-17 rerun item 2: only a food held as unchecked, with nothing against it, may be offered. */
+describe("startReplyScan — offerEats", () => {
+  const scanOf = (input: Input) => startReplyScan(input, { searchFoods: vi.fn(async () => [] as FoodHit[]) },
+    Date.now() + 1_000);
+
+  it("marks a model-only card nothing rules out", async () => {
+    const result = await scanOf(baseInput({ text: "Here is an idea.", profile: FISH,
+      named: [{ name: "watermelon", foodRefId: REF(3) }] }));
+    expect(result.failing).toEqual([{ name: "watermelon", reason: "unchecked_id", offerEats: true }]);
+  });
+
+  it("never marks a model-only card whose name a rule blocks", async () => {
+    const result = await scanOf(baseInput({ text: "Here is an idea.", profile: FISH,
+      named: [{ name: "salmon", foodRefId: REF(3) }] }));
+    // Policy already blocks the card by its name, so it is checked, not unchecked; never offered.
+    expect(result.failing.some((f) => f.offerEats)).toBe(false);
+  });
+
+  it("never marks anything when the scan did not finish", async () => {
+    const searchFoods = vi.fn(async () => { throw new Error("down"); });
+    const result = await startReplyScan(baseInput({ text: "Have some natto and watermelon.",
+      profile: FISH, named: [{ name: "watermelon", foodRefId: REF(3) }] }), { searchFoods },
+    Date.now() + 1_000);
+    expect(result.complete).toBe(false);
+    expect(result.failing.some((f) => f.offerEats)).toBe(false);
+  });
+});
+
 describe("checkReplyLive — cards policy already blocked (§6 block ids first, Phase 7)", () => {
   const DAIRY_REF = REF(5);
   const NO_DAIRY = { ...EMPTY_PROFILE, avoid_allergens: ["dairy"], avoid_food_ref_ids: [DAIRY_REF] };

@@ -146,9 +146,10 @@ export async function modelReply(
     // 2026-10-17 rerun item 2: a food held only because nothing checked it yet gets a way to be
     // checked (add it to Eats) instead of a dead end. It stays held in this reply; a food a rule
     // blocks, or one already on Eats or Avoid, is never offered.
-    const held = checked.replaced?.by === "reply_scan" ? checked.replaced.held ?? [] : [];
-    const next = held.length > 0
-      ? reaskNextStep(held, accountFoodNames(env.context?.lists).names) : null;
+    // A kept rule proposal holds the one content-block slot, so the chips could not show.
+    const held = checked.replaced?.by === "reply_scan" && blocks.length === 0
+      ? checked.replaced.held ?? [] : [];
+    const next = held.length > 0 ? reaskNextStep(held, accountFoodNames(env.context?.lists)) : null;
     const chips = next ? hydrateQuickReplies(newId(), next.options) : null;
     if (next && chips) {
       content = reaskMessage(held, next.foods);
