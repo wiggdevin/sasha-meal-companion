@@ -16,7 +16,8 @@ recorded all six feature migrations below ([receipt](../audit/2026-09-27-foods-a
 The integrated release then merged in PR #284. Production seed preflight reported 0 recipes to
 create and 12 existing. PR #286 deployed main SHA `2dcceea`; one approved QA account was added to
 the production allowlist, and an authenticated 390 px Foods → Shopping smoke passed. See the
-[rollout receipt](../audit/2026-09-27-foods-annotations/pilot-rollout.md). Recheck drift before any
+[rollout receipt](../audit/2026-09-27-foods-annotations/pilot-rollout.md). On 2026-10-17 the read-only production preflight reported 0 to create and 24 existing, covering all
+24 recipes ([W084 receipt](../audit/2026-10-17-w084-pilot-seed-and-deploy.md)). Recheck drift before any
 release operation; in an environment missing these migrations, apply them in this order:
 
 1. `20261127090000_recipe_catalog_shopping` — shared catalog and account shopping data.
