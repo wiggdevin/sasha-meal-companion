@@ -1,6 +1,6 @@
 # Phase 11 — Conversations and memory
 
-**Audited: GPT-6 Sol round 13 — 0 BLOCK; FIXes applied 2026-09-23.** This build ships the
+**Audited: GPT-6 Sol round 13 — 0 BLOCK; FIXes applied 2026-09-23.** **Re-audited against the build 2026-10-17 (W126):** see "Re-audit 2026-10-17". This build ships the
 conversations list only (new chat, open, rename, server-stamped irreversible soft delete via a
 `kind = 'chat'`-scoped, idempotent RPC, user-driven search capped at 50 with no pagination, paginated
 list with its own dedicated resume query); see "Open for Devin" before planning implementation.
@@ -1417,6 +1417,54 @@ left behind. None rejected.
 
 **Rejected: none.** Every finding pointed at a real gap once checked against the code.
 
+## Re-audit 2026-10-17 (W126): triggers and RPCs as built
+
+The round-13 FIXes were written against a design (a `last_message_preview` column, a
+`refresh_thread_preview()` maintenance trigger, a `soft_delete_thread()` RPC) that the build did
+not ship. Phase 11 landed a smaller core: the eight-chat cap guard, a plain soft delete from
+`lib/server/coach-threads.ts`, and, since W088, one service-role `coach_save_turn` per turn. This
+pass reads every trigger, function, policy and grant on `coach_threads` and `coach_messages` on a
+local database migrated from `main` (all 185 migrations plus this PR's two) and judges each
+against what the round-13 text asked of it. A row's verdict is **Holds** (the build meets the
+spec's intent), **Fixed here** (migration `20270106090200`), **Not built** (the spec's mechanism
+does not exist; the intent is met another way or not at all) or **Gap, later** (listed below).
+
+| Object | What it does as built | Spec intent (round) | Verdict |
+|---|---|---|---|
+| `coach_chat_insert_guard` trigger, `_coach_chat_insert_guard()` (definer, `search_path = ''`, `20261231170000`) | BEFORE INSERT OR UPDATE on `coach_threads`. Insert: an advisory lock per account, then at most eight live chats; a signed-in caller inserting another account's id returns early so RLS answers (W018, A146). Update: `kind` is fixed and `deleted_at` never goes back to null. | Eight-chat cap; tombstone irreversible (rounds 10, 11) | Holds |
+| `owner_fixed` trigger, `_owner_fixed()` | BEFORE UPDATE OF `user_id`: refuses an owner change. | Rows stay with their account (Phase 9) | Holds |
+| `same_owner` trigger, `_same_owner_coach_messages()` (definer, `20261103090100`) | BEFORE INSERT OR UPDATE OF `thread_id`, `user_id`, `ai_call_id` on `coach_messages`: the thread and the ledger row belong to the message's account. | No cross-account message (round 9) | Holds |
+| `coach_save_turn(uuid, uuid, text, text, jsonb, text)` (definer, service role only, `20270104120000`) | Creates the thread when asked, appends the turn after the thread's last seq under `FOR NO KEY UPDATE`, touches `last_message_at` and the summary, all in one transaction. It made the ownership and question-shape checks, but read `deleted_at` nowhere. | Commit order: once a delete commits, no second message (round 13 finding 3) | **Fixed here.** A turn whose pre-read saw a live thread and whose save ran after another device's delete committed still appended to the deleted thread. It now reads `deleted_at` under the same row lock (the delete's UPDATE takes the same lock, so the two serialize) and raises `coach_thread_deleted`, which `persist` answers 404 `not_found`, as the pre-read does. Proof: `tests/migrations/fk-indexes-db.test.ts`, `tests/coach/persist-deleted-thread.test.ts`. |
+| Soft delete, `deleteChatThread` (session client `.update({ deleted_at })`, scoped to `chat` and `weekly_review`) | The app's delete route. A second delete answers 404. | A `kind = 'chat'`-scoped, server-stamped, idempotent `soft_delete_thread()` RPC (rounds 11, 12) | Not built. The route's own `.in("kind", …)` keeps plan threads out; the guard trigger keeps the tombstone irreversible. A direct PostgREST update can tombstone the caller's own plan thread, and the timestamp is the app server's clock, not the database's. Own account only: Gap, later (G2). |
+| `refresh_thread_preview()` and `last_message_preview` | Do not exist. The list shows the title and `last_message_at`. | A security-definer trigger owns the preview and the time on every insert, update and delete (rounds 11-13) | Not built. `last_message_at` has three writers, all server code: `coach_save_turn` (`now()`), `writeWeeklyReview` (admin client) and `clearChatThread` (null). No backfill is needed because no app writer stamps a wrong time any more (round 13 finding 2's cause, the manual writes in `persist`, is gone since W088). |
+| `coach_threads` policies `select`/`insert`/`update`/`delete` and the table grant | Owner only. Insert only `kind = 'chat'`. Update and delete of any own row; `authenticated` holds UPDATE on every column. | Derived list columns not writable by the client (round 13 finding 1) | Gap, later (G1). |
+| `coach_messages` policies `select`/`insert_user`/`delete`; no UPDATE grant (`20261231170000`) | Owner only; a direct insert is the user's own question only (no model fields); no client update. | Server proof for assistant rows (W018); search over the retained transcript | Holds |
+| `coach_messages_content_fts` GIN index | Full-text search on `content` (english). | User-driven search capped at 50 (round 10) | Holds. The route caps at 20 threads and 3 matches each. |
+| `record_coach_undo`, `perform_coach_undo`, `taste_chips_confirm` | Read `coach_messages` to bind a record to the account's own message. | Out of Phase 11 scope (coach Undo, W5b-2) | Not judged here; covered by their own specs and tests. |
+| `ai_calls_purge` (`20270105100100`) | Keeps an `ai_calls` row a coach message cites. | Billing history outlives conversation state | Holds |
+
+Gaps, listed for later (none is a cross-account exposure; each touches only the caller's own
+rows, so none blocks the in-house prototype):
+
+- **G1.** `authenticated` may update `title`, `summary`, `last_message_at`, `unread_at`, `rev` and
+  `created_at` on its own threads straight through PostgREST. The worst case is the caller
+  reordering its own list, clearing its own unread mark, or writing its own rolling summary (text
+  the coach then reads as context, no more than the user can already type). Fix: column-level
+  UPDATE grants (`title`, `deleted_at` only) and move `clearChatThread` and the unread-clear write
+  in `app/api/coach/threads/[id]/route.ts` to the admin client. A migration plus route changes, so
+  its own PR.
+- **G2.** No database-side soft-delete RPC. A direct PostgREST call can soft-delete (or, through
+  `coach_threads_delete`, hard-delete) the caller's own plan or weekly-review thread. Either leaves
+  that account without the thread until the next turn or review opens a new one; nothing
+  else breaks. Fix if it matters: a `soft_delete_thread(id)` RPC scoped to `kind in ('chat',
+  'weekly_review')`, and revoke the hard-delete policy.
+- **G3.** Direct inserts can still reach a deleted thread: a user's own question through the
+  `coach_messages_insert_user` policy, the weekly review's and the abandoned-turn reply's admin
+  inserts (none reads `deleted_at` under the thread lock). The rows stay out of sight, because
+  the thread list and the transcript read only live threads. Fix if it matters:
+  a BEFORE INSERT trigger on `coach_messages` that refuses a deleted thread, which would also cover
+  `coach_save_turn`.
+
 ## Open for Devin
 
 Updated after round 13 — the first non-blocking verdict (SHIP WITH FIXES, 0 BLOCK). Rounds 10
@@ -1443,6 +1491,8 @@ behind a prose description of the mechanism it just replaced.
 
 **Still open:** none. This spec has cleared 0-BLOCK; the four FIXes above are resolved but, like
 every prior round's fixes, not yet independently re-audited — see "Next audit."
+The 2026-10-17 re-audit (W126, above) checked the build instead: one gap fixed in migration
+`20270106090200`, three own-account gaps listed for later.
 
 ## Next audit
 

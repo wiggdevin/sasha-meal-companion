@@ -506,6 +506,11 @@ function saveError(error: { message?: string }, newThread: boolean): HttpError {
   if (message.includes("coach_message_exists") || message.includes("coach_seq_busy")) {
     return new HttpError(503, "in_progress", IN_PROGRESS);
   }
+  // W126 (migration 20270106090200): the thread was deleted after the turn's pre-read, on this or
+  // another device. Answered as the pre-read answers a deleted thread.
+  if (message.includes("coach_thread_deleted")) {
+    return new HttpError(404, "not_found", "No such thread.");
+  }
   if (newThread && message.includes("coach_thread_exists")) {
     return new HttpError(500, "internal", "Could not start a thread.");
   }
