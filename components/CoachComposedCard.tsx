@@ -92,6 +92,20 @@ export function fitLine(
   return meal.fitNote ?? FIT_FALLBACK;
 }
 
+/** OD26: names the foods the user asked for that this meal does not hold; null when none. */
+export function leftOutLine(meal: Pick<ComposedMeal, "leftOut">): string | null {
+  const out = meal.leftOut ?? [];
+  const named = (why: "over_limit" | "not_found") =>
+    out.filter((entry) => entry.why === why).map((entry) => entry.term).join(", ");
+  const over = named("over_limit");
+  const missing = named("not_found");
+  const parts = [
+    over && `Left out ${over}: I use up to 4 foods per meal.`,
+    missing && `Left out ${missing}: no match you can eat.`,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
 /**
  * True for `meal.incomplete` (D12: every named food kept with grams/macros at 0, nothing added)
  * or any other all-zero-gram draft — nothing here was ever sized, so none of the three actions
@@ -191,6 +205,10 @@ export default function CoachComposedCard({
           <p className="m-0 text-tiny font-normal text-warning">
             {fitLine(meal)}
           </p>
+        )}
+
+        {leftOutLine(meal) && (
+          <p className="m-0 text-tiny font-normal text-warning">{leftOutLine(meal)}</p>
         )}
 
         {/* The card's one AI label sits in its tag slot, beside the rank note it explains. */}

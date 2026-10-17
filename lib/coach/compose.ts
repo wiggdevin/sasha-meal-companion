@@ -79,6 +79,12 @@ export type ComposedMeal = {
    * card shows the reason instead of a fit line.
    */
   incomplete?: { reason: string };
+  /**
+   * OD26 (W156): foods the user named that are not in this meal, so the card can say so instead
+   * of staying silent. `over_limit`: past the four-food cap, never searched. `not_found`: searched,
+   * nothing usable came back. Direct wishes only; absent when nothing was left out.
+   */
+  leftOut?: { term: string; why: "over_limit" | "not_found" }[];
   /** Why this option ranked where it did when it came from `suggest_options`. */
   rankNote?: string | null;
   /** Plan-sheet chips (lib/plan/chips.ts): the idea's id for refills, its foods' source line, its prep minutes. */
@@ -214,9 +220,18 @@ export function eatsMatch(term: string, eats: string[]): string | null {
 
 /** The foods a wish asks for. A refused food ("no banana", "without chicken") is not one of them. */
 export function wishTerms(wish: string): string[] {
+  return allWishTerms(wish).slice(0, MAX_TERMS);
+}
+
+function allWishTerms(wish: string): string[] {
   const words = splitWish(wish).positive.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/)
     .filter((word) => word.length > 2 && !STOP_WORDS.has(word));
-  return [...new Set(words)].slice(0, MAX_TERMS);
+  return [...new Set(words)];
+}
+
+/** Foods the wish named past the four-term cap (OD26): they are not searched, so the card says so. */
+export function wishTermsOverCap(wish: string): string[] {
+  return allWishTerms(wish).slice(MAX_TERMS);
 }
 
 export function sum(items: ComposedItem[]): MealMacros {
@@ -282,6 +297,8 @@ export async function composeMeal(
   // never phrase-parsed.
   const occasionPhrase = isDirectComposition ? parseOccasionPhrase(args.wish) : { occasion: null, rest: args.wish };
   const terms = wishTerms(occasionPhrase.rest);
+  const leftOut: NonNullable<ComposedMeal["leftOut"]> = isDirectComposition
+    ? wishTermsOverCap(occasionPhrase.rest).map((term) => ({ term, why: "over_limit" as const })) : [];
   const eats = (await ports.eatsNames?.(userId)) ?? [];
   const chosen: { hit: FoodHit; insteadOf?: string }[] = [];
   const excluded = new Set((args.exclude ?? []).map((name) => name.toLowerCase()));
@@ -312,7 +329,10 @@ export async function composeMeal(
     const fromEats = own === null ? [] : (await ports.searchFoods(userId, own, 3)).filter(usable);
     const searched = fromEats.length > 0
       ? fromEats : (await ports.searchFoods(userId, term, 3)).filter(usable);
-    if (searched.length === 0) continue;
+    if (searched.length === 0) {
+      if (isDirectComposition) leftOut.push({ term, why: "not_found" });
+      continue;
+    }
     // D12 "resolves to the user's marked row first": a catalog twin of the same name can still
     // outrank the account's own row in `searched`'s order. Move a marked hit to the front.
     const hits = own === null ? searched
@@ -326,7 +346,8 @@ export async function composeMeal(
   }
 
   if (isDirectComposition) {
-    return composeDirectPlate(userId, args, occasionPhrase, chosen, eats, ports, verdictOf);
+    const direct = await composeDirectPlate(userId, args, occasionPhrase, chosen, eats, ports, verdictOf);
+    return leftOut.length > 0 ? { ...direct, leftOut } : direct;
   }
 
   const grams = sizeItems(chosen, args.target);

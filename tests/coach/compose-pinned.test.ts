@@ -312,3 +312,20 @@ describe("acceptance 4: the four-term cap, and the occasion phrase never counts 
       expect.arrayContaining(["Salmon, Atlantic, cooked", "Rice, white, cooked"]));
   });
 });
+
+describe("OD26: foods left out are named", () => {
+  it("names a food past the four-food cap", async () => {
+    const meal = await composeMeal("u1", { wish: "chicken rice apple banana yogurt", target: TARGET },
+      OPEN_PROFILE, portsFor({ chicken: [chicken], rice: [rice], apple: [apple], banana: [banana] }));
+    expect(meal.leftOut).toEqual([{ term: "yogurt", why: "over_limit" }]);
+  });
+
+  it("names a food nothing usable matched, and omits the field when all were used", async () => {
+    const missing = await composeMeal("u1", { wish: "chicken with zzzfood", target: TARGET },
+      OPEN_PROFILE, portsFor({ chicken: [chicken] }));
+    expect(missing.leftOut).toEqual([{ term: "zzzfood", why: "not_found" }]);
+    const full = await composeMeal("u1", { wish: "paneer with rice", target: TARGET }, OPEN_PROFILE,
+      portsFor({ paneer: [paneer], rice: [rice] }));
+    expect(full.leftOut).toBeUndefined();
+  });
+});
