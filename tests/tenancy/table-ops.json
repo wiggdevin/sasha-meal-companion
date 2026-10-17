@@ -59,6 +59,7 @@
   "user_allergen_checks": { "ops": ["select", "insert", "delete"], "owner": "user_id", "seed": "user_allergen_checks" },
   "user_dietary_profiles": { "ops": ["select", "insert", "update", "delete"], "owner": "user_id", "seed": "user_dietary_profiles" },
   "user_food_prefs": { "ops": ["select", "insert", "update", "delete"], "owner": "user_id", "seed": "user_food_prefs" },
+  "sync_op_receipts": { "ops": ["select"], "owner": "user_id", "seed": "sync_op_receipts" },
   "taste_chip_holds": { "ops": [], "owner": "user_id", "seed": "taste_chip_holds" },
   "taste_chip_receipts": { "ops": ["select"], "owner": "user_id", "seed": "taste_chip_receipts" },
   "taste_dislike_removals": { "ops": ["select"], "owner": "user_id", "seed": "taste_dislike_removals" },

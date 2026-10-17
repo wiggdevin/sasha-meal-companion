@@ -35,6 +35,10 @@ export const BACKUP_TABLES: readonly BackupTable[] = [
   table("target_proposals"), table("constraint_profiles", "user_id"), table("coach_threads"),
   table("ai_calls"), table("api_tokens"), table("health_sources"), table("ingest_events"),
   table("health_samples"), table("change_seq", "user_id"), table("change_log", "user_id", "seq"),
+  // W048: one row per applied sync op id, so a replay after a restore stays a duplicate. The
+  // change_log insert trigger writes them too: a table-by-table replay must insert these with
+  // ON CONFLICT DO NOTHING (or disable change_log_op_receipt while it loads change_log).
+  table("sync_op_receipts", "op_id"),
   table("duplicate_groups"), table("media_objects", "path"),
   // Child tables reached through their parent.
   table("log_items"), table("duplicate_group_members", "group_id", "entry_id"),
