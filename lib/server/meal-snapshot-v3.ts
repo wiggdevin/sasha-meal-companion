@@ -101,6 +101,7 @@ export function checkByteBudget(body: MealSnapshotV3, maxBytes: number = SNAPSHO
     + "the body is sent complete rather than risk ranking or admission correctness", {
     metric: "snapshot_v3_overage", count: overageCount, bytes: size.bytes, maxBytes,
     sections: size.sections, counts: size.counts,
+    admittedRefIds: body.admittedRefIds.length, admittedUniverseIds: body.admittedUniverseIds.length,
   });
   return body;
 }

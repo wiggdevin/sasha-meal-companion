@@ -91,6 +91,11 @@ class Cdp {
       if (message.error) waiter.reject(new Error(message.error.message));
       else waiter.resolve(message.result);
     });
+    // Chromium crashed or the socket dropped: fail every waiting call rather than hang.
+    socket.addEventListener("close", () => {
+      for (const waiter of this.pending.values()) waiter.reject(new Error("DevTools socket closed"));
+      this.pending.clear();
+    });
   }
   static open(url: string): Promise<Cdp> {
     return new Promise((resolve, reject) => {

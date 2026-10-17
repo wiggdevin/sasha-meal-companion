@@ -20,7 +20,9 @@ person today; these numbers gate opening it.
   **p95 ≤ 500 ms**, body ≤ 250 KB. A body over 250 KB also logs `snapshot_v3_overage` with the same
   sizes. Neither line carries a food name, an id or the account (`snapshotV3Size` in
   `lib/meals/snapshot-v3.ts` reads lengths and counts only; `tests/meals/snapshot-v3-size.test.ts`).
-  No `lib/timing.ts` step is added.
+  No `lib/timing.ts` step is added. A request that ends in `409 rules_changed` or `503`, or whose
+  world closed mid-build, logs no build line, so the `buildMs` p95 covers completed bodies only;
+  count those failures from their own status codes.
 
 ## Commands
 
