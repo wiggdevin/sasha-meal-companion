@@ -147,6 +147,11 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20270105100100 scale4 retention purge (
              ('${TAG}', 'new', '${a.id}', now() - interval '59 days', 'ok')`);
     await purge("job_runs_purge");
     expect(runSql(`select string_agg(run_key, ',') from public.job_runs where job = '${TAG}'`)).toBe("new");
+    runSql(`insert into public.job_runs (job, run_key, user_id, started_at, status)
+      values ('weekly-proposal', '${TAG}', '${a.id}', now() - interval '400 days', 'ok')`);
+    await purge("job_runs_purge");
+    expect(runSql(`select count(*) from public.job_runs where job = 'weekly-proposal' and run_key = '${TAG}'`)).toBe("1");
+    runSql(`delete from public.job_runs where job = 'weekly-proposal' and run_key = '${TAG}'`);
 
     runSql(`insert into public.recipe_plan_previews (user_id, kind, proof, state_rev, created_at, expires_at)
       values ('${a.id}', 'recipe', '{"tag": "${TAG}", "age": "old"}', 0, now() - interval '9 days',

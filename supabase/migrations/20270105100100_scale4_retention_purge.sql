@@ -17,7 +17,8 @@
 --     background calls; the cited ones go when their thread or account is deleted.
 --     The spend caps read their own day tables (40 days), the circuit breaker minutes, and the
 --     capture duplicate probe hours, so nothing reads ai_calls past 90 days.
---   * job_runs, 60 days by started_at. Every lock key is the current date or week (oura-pull,
+--   * job_runs, 60 days by started_at, except the week-keyed weekly-* locks (kept: an authorized
+--     run can name an old week). Other lock keys are the current date or week (oura-pull,
 --     estimate, facet-warm, weekly-proposal, weekly-review and its `#retry` key), so a lock that
 --     old is never claimed again.
 --   * recipe_plan_previews, 7 days after expires_at (a preview lives at most 30 minutes). An
@@ -74,6 +75,9 @@ begin
    where j.ctid = any (array(
      select x.ctid from public.job_runs x
       where x.started_at < now() - interval '60 days'
+        -- Week-keyed locks stay: an authorized run can name an old weekStart, and with its lock
+        -- gone weekly-proposal would run again and reject the current pending proposal.
+        and x.job not like 'weekly-%'
       order by x.started_at
       limit greatest(1, least(coalesce(p_max, 5000), 20000))
       for update skip locked));
