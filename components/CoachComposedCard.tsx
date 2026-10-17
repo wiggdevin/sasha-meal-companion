@@ -10,6 +10,7 @@
  */
 
 import Button from "@/components/ui/Button";
+import ReasonChips from "@/components/meals/ReasonChips";
 import { useState } from "react";
 import type { CoachAction, GroundedActionItem } from "@/lib/coach/actions";
 import { clockNow, localDate } from "@/lib/coach/chat-state";
@@ -175,6 +176,8 @@ export default function CoachComposedCard({
       <div className="surface flex flex-col gap-3 rounded-2xl! p-3.5">
         {/* Every meal card names its meal (KIT §14); a composed plate has no name of its own. */}
         <h3 className={`m-0 ${MEAL_TITLE.compact}`}>Your meal</h3>
+        {/* W099: why these foods (open food world only), shown on a complete and an incomplete card alike. */}
+        <ReasonChips reasons={meal.reasons} className="self-start" />
         <ul className="m-0 list-none p-0">
           {meal.items.map((item) => (
             <li key={item.foodRefId} className="flex items-baseline justify-between gap-3 text-caption font-normal text-charcoal">

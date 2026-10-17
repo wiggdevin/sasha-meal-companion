@@ -9,10 +9,13 @@
  * Pure. No I/O.
  */
 
+import type { PolicyVerdict } from "@/lib/policy/constraints";
 import { shouldAutoResolve } from "@/lib/search/thresholds";
 
 export type ScoredHit = {
   catalogFoodId: number; revisionId: number; description: string; brand: string | null; score: number;
+  /** The verdict catalog search already judged for this hit under the account's rules. */
+  policy?: PolicyVerdict;
 };
 
 export function pickCandidate(

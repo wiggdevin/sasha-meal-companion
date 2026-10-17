@@ -212,6 +212,14 @@ describe("draft edits", () => {
     });
   });
 
+  it("takes the chosen alternative's own search verdict on a swap (W139)", () => {
+    const draft = twoItemDraft();
+    draft.items[1].alternatives = [{ foodRefId: REF_B, label: "Rice, white, long-grain, cooked", score: 0.72,
+      policy: { verdict: "blocked", reason: "avoid_list" } }];
+    const items = applyEdits(draft.items, { 2: { foodRefId: REF_B, label: "Rice, white" } });
+    expect(items[1].policy).toEqual({ verdict: "blocked", reason: "avoid_list" });
+  });
+
   it("keeps the selected source revision but clears the old source's portion", () => {
     const items = applyEdits(DRAFT.items, { 1: {
       foodRefId: REF_B, catalogFoodRevisionId: 80, label: "Banana, raw",

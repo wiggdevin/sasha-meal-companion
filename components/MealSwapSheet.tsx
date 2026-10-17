@@ -5,6 +5,7 @@ import Sheet from "@/components/Sheet";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/ui/Notice";
 import Tag from "@/components/ui/Tag";
+import ReasonChips from "@/components/meals/ReasonChips";
 import { CONFIRM_MS, useButtonStatus } from "@/components/ui/useButtonStatus";
 import { portionLine, suggestionPhoto } from "@/components/recipes-hub/SuggestionCard";
 import SuggestionCarousel from "@/components/recipes-hub/SuggestionCarousel";
@@ -217,7 +218,10 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
         items={options.map((option) => ({ id: option.id, name: option.name,
           image: suggestionPhoto(option.name, option.components),
           description: portionLine(option.components), values: option.macros,
-          tag: <Tag size="md" tone={option.source === "Your foods" ? "neutral" : "olive"}>{option.source}</Tag>,
+          tag: <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
+            <Tag size="md" tone={option.source === "Your foods" ? "neutral" : "olive"}>{option.source}</Tag>
+            <ReasonChips reasons={option.reasons} size="md" />
+          </span>,
           detail: <SwapDetail option={option} saving={saving} status={swap.status}
             onSwap={() => { void swapTo(option); }} /> }))} />}
       {recent.length > 0 && <p className="m-0 text-overline text-graphite">Recent meals</p>}

@@ -25,6 +25,7 @@ import { isFoodKey } from "@/lib/meals/food-key";
 import type { Food } from "@/lib/foods";
 import { parseOccasionPhrase } from "@/lib/meals/occasion-phrase";
 import type { OpenWorldInputs } from "@/lib/meals/open-world";
+import type { MealReasonChip } from "@/lib/meals/reason-chips";
 import type { FocusRanking } from "@/lib/meals/plate";
 export type ComposedItem = {
   name: string; foodRefId: string; catalogFoodRevisionId: number | null;
@@ -79,6 +80,12 @@ export type ComposedMeal = {
    * card shows the reason instead of a fit line.
    */
   incomplete?: { reason: string };
+  /**
+   * W099: why an open food-world plate holds what it holds ("You eat this often", "Favorite"),
+   * from the snapshot chips of its foods (lib/meals/open-world.ts `plateChips`). Absent on a
+   * closed account and whenever no food earns one. Never a verdict.
+   */
+  reasons?: MealReasonChip[];
   /**
    * OD26 (W156): foods the user named that are not in this meal, so the card can say so instead
    * of staying silent. `over_limit`: past the four-food cap, never searched. `not_found`: searched,

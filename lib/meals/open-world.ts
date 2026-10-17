@@ -41,15 +41,9 @@ import type { TasteEntry, TasteValues } from "@/lib/meals/preference";
 import type { LocalRefs, MealEvidence } from "@/lib/meals/snapshot";
 import { snapshotToken, type MealSnapshotV3, type SnapshotFoodV3 } from "@/lib/meals/snapshot-v3";
 import { checkPlateRules, type PlateFoodEvidence } from "@/lib/policy/plate-rules";
-import type { Meal } from "@/lib/types";
-
+import { REASON_CHIPS, type MealReasonChip } from "@/lib/meals/reason-chips";
 /** The reason chips a generated open-world meal may carry (lib/types.ts `Meal.reasons`). */
-export type MealReasonChip = NonNullable<Meal["reasons"]>[number];
-export const REASON_CHIPS: readonly MealReasonChip[] = ["eaten_often", "on_list"];
-export const REASON_CHIP_COPY: Readonly<Record<MealReasonChip, string>> = {
-  eaten_often: "You eat this often",
-  on_list: "Favorite",
-};
+export { REASON_CHIPS, REASON_CHIP_COPY, type MealReasonChip } from "@/lib/meals/reason-chips";
 
 export type OpenWorldInputs = {
   accountId: string;

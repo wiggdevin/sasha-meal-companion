@@ -62,6 +62,8 @@ export function useActionFeedback() {
   const activeRun = useRef<Promise<ActionFeedbackResult<unknown>> | null>(null);
   /** The notice on screen, read synchronously: an error stays until dismissed (queued writes too). */
   const shown = useRef<ActionFeedbackNotice | null>(null);
+  /** A standing error shown with a queued success's Undo beside it, mapped back to the error alone. */
+  const errorUnder = useRef(new WeakMap<ActionFeedbackNotice, ActionFeedbackNotice>());
 
   /** Shows a notice; a timed one clears itself only if it is still the one on screen. */
   const show = useCallback((next: ActionFeedbackNotice | null, ms?: number) => {
@@ -126,14 +128,24 @@ export function useActionFeedback() {
         setPhase(nextPhase);
         if (options.kind === "commit") confirmHaptic();
         const toast = options.undo !== undefined || options.confirm === "notice";
-        if (toast && options.successMessage && !(keepError && shown.current?.tone === "error")) {
-          show({
-            tone: nextPhase,
-            message: options.successMessage,
-            action: options.undo
-              ? { label: options.undo.label ?? "Undo", action: options.undo.action }
-              : undefined,
-          }, options.undo ? NOTICE_MS : duration);
+        const undo = options.undo ? { label: options.undo.label ?? "Undo", action: options.undo.action } : undefined;
+        const current = shown.current;
+        const standing = keepError && current?.tone === "error" ? errorUnder.current.get(current) ?? current : null;
+        if (toast && options.successMessage && !standing) {
+          show({ tone: nextPhase, message: options.successMessage, action: undo }, undo ? NOTICE_MS : duration);
+        } else if (toast && options.successMessage && standing && undo && !standing.action) {
+          // W139: a success queued behind a standing error still offers its Undo. The error stays
+          // on screen with the success beside it for the Undo window, then stands alone again.
+          // The Undo puts the error back afterwards: the toast dismisses itself before the action,
+          // and the error still stays until the user dismisses it (unless the Undo raised its own).
+          const both: ActionFeedbackNotice = { tone: "error", message: `${standing.message} ${options.successMessage}`,
+            action: { label: undo.label, action: () => {
+              undo.action();
+              if (shown.current === null || shown.current === both) show(standing);
+            } } };
+          errorUnder.current.set(both, standing);
+          show(both);
+          noticeTimer.current = setTimeout(() => { if (shown.current === both) show(standing); }, NOTICE_MS);
         }
         phaseTimer.current = setTimeout(() => setPhase("idle"), duration);
         return { ok: true, value };
