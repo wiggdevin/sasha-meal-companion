@@ -104,7 +104,7 @@ describe("ServiceWorkerRegistrar update notice", () => {
   it("offers a worker that finished installing before the update-found listener could see it", async () => {
     await mount();
     const next = worker("installed");
-    registration.installing = next;
+    registration.installing = null;
     registration.waiting = next;
     act(() => registration.emit("updatefound"));
     expect(screen.getByText("Update available")).toBeTruthy();

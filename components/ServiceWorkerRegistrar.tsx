@@ -82,7 +82,8 @@ export default function ServiceWorkerRegistrar({ reload = reloadPage }: {
       installing?.removeEventListener("statechange", onStateChange);
       installing = registrationRef.current?.installing ?? null;
       installing?.addEventListener("statechange", onStateChange);
-      onStateChange();
+      // A worker that already finished is no longer `installing`: it is the registration's waiting one.
+      offer();
     };
     const onUpdateFound = trackInstalling;
     const onControllerChange = () => {
