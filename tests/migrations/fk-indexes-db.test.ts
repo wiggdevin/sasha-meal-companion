@@ -56,7 +56,7 @@ describe("20270106090200 extensions schema and deleted-thread refusal (text)", (
   it("moves both extensions and names extensions.unaccent; the down file moves them back", () => {
     expect(code(UP)).toContain("set local lock_timeout = '3s';");
     for (const ext of ["pg_trgm", "unaccent"]) {
-      expect(code(UP)).toContain(`alter extension ${ext} set schema extensions;`);
+      expect(code(UP)).toContain(`    alter extension ${ext} set schema extensions;`);
       expect(code(DOWN)).toContain(`alter extension ${ext} set schema public;`);
     }
     expect(code(UP)).not.toContain("public.unaccent");
@@ -89,8 +89,9 @@ describe.skipIf(!HAS_DB)("20270106090000 + 20270106090200 (database)", () => {
       from pg_extension where extname in ('pg_trgm', 'unaccent')`)).toBe("pg_trgm:extensions,unaccent:extensions");
     expect(runSql("select public.food_name_norm('Crème Brûlée, vanilla')")).toBe("creme brulee");
     expect(runSql("select public.catalog_search_doc('Jalapeño', null, null)::text")).toContain("'jalapeno':1A");
-    expect(runSql("begin; set local role authenticated; select count(*) >= 0 from public.catalog_search('creme', null, null, 5); rollback;"))
-      .toContain("t");
+    // As the app's role, the trigram and unaccent calls inside catalog_search still resolve.
+    expect(runSql("begin; set local role authenticated; select 'ok' from (select count(*) from public.catalog_search('creme', null, null, 5)) s; rollback;")
+      .split("\n")).toContain("ok");
   });
 
   it("refuses a turn on a deleted thread and writes nothing", () => {

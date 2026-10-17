@@ -28,8 +28,15 @@ set local lock_timeout = '3s';
 create schema if not exists extensions;
 grant usage on schema extensions to anon, authenticated, service_role;
 
-alter extension pg_trgm set schema extensions;
-alter extension unaccent set schema extensions;
+-- Guarded, so a rerun (or a database that already has them there) is a no-op.
+do $$ begin
+  if (select extnamespace from pg_extension where extname = 'pg_trgm') <> 'extensions'::regnamespace then
+    alter extension pg_trgm set schema extensions;
+  end if;
+  if (select extnamespace from pg_extension where extname = 'unaccent') <> 'extensions'::regnamespace then
+    alter extension unaccent set schema extensions;
+  end if;
+end $$;
 
 create or replace function public.catalog_search_doc(p_description text, p_brand text, p_category text)
 returns tsvector language sql immutable set search_path = public, pg_temp as $$
