@@ -26,8 +26,8 @@ is held for the life of the Undo toast and nothing is written until it runs, bec
 tombstone the server cannot reverse. `lib/duplicates/read.ts` reads the group from the sync mirror
 and finds its members by recomputing the shared fingerprint over the mirrored entries;
 `lib/duplicates/actions.ts` writes each decision as a `duplicate_groups` update through the outbox.
-Cross-device: `recordFingerprint` (`lib/server/log-duplicates.ts`) touches a group through
-`apply_sync_op` once it holds two members, which writes the `change_log` row every device pulls. An
+Cross-device: `recordFingerprint` (`lib/server/log-duplicates.ts`) touches a group once through
+`apply_sync_op` when it gets its second member, which writes the `change_log` row every device pulls. An
 entry that reaches the server through `/api/sync/ops` instead of `/api/log/commit` opens no group.
 
 **Out.** Barcode, recipes, favorites, water UI and the export kinds `recipes`, `favorites`, `water`

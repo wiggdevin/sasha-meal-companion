@@ -130,8 +130,10 @@ describe("mergeGroup", () => {
 describe("scheduleMerge (exact Undo, OD16)", () => {
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  it("holds for the life of the Undo toast by default", () => {
-    expect(MERGE_UNDO_MS).toBe(5_000);
+  afterEach(async () => { await flushHeldMerges(); });
+
+  it("holds past the life of the Undo toast by default", () => {
+    expect(MERGE_UNDO_MS).toBeGreaterThan(5_000);
   });
 
   it("writes nothing until the Undo window closes, then merges", async () => {

@@ -1,5 +1,5 @@
 // OD16: a duplicate group reaches every device's change feed once it holds two members.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { recordFingerprint } from "@/lib/server/log-duplicates";
 import { toBytea } from "@/lib/server/tokens";
 import { entryFingerprint } from "@/lib/sync/fingerprint";
@@ -45,6 +45,20 @@ describe("recordFingerprint publishes a duplicated group (OD16)", () => {
   it("leaves a one-member group off the feed", async () => {
     const db = await setup([OTHER]);
     await recordFingerprint(db.client, "u1", body);
+    expect(publishes(db)).toHaveLength(0);
+  });
+
+  it("does not touch a group again for a third copy", async () => {
+    const db = await setup([ENTRY_ID, OTHER, "20000000-0000-4000-8000-000000000003"]);
+    await recordFingerprint(db.client, "u1", body);
+    expect(publishes(db)).toHaveLength(0);
+  });
+
+  it("opens a new group with no extra read and no publish", async () => {
+    const db = fakeClient({ tables: { duplicate_groups: [] }, rpc: { apply_sync_op: { status: "applied" } } });
+    await recordFingerprint(db.client, "u1", body);
+    expect(vi.mocked(db.client.from).mock.calls.map((c) => c[0])).toEqual(["duplicate_groups", "duplicate_groups",
+      "duplicate_group_members"]);
     expect(publishes(db)).toHaveLength(0);
   });
 

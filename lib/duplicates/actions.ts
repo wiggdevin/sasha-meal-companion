@@ -14,7 +14,7 @@
  *   `merged` with `merged_into_entry_id` = the oldest entry, whose items are left untouched. A
  *   delete is a durable tombstone on the server (`apply_sync_op` has no un-delete for an entry the
  *   user removed), so an exact Undo cannot come after it. `scheduleMerge` therefore holds the merge
- *   for `MERGE_UNDO_MS`, the life of the Undo toast, and writes nothing until it runs: Undo inside
+ *   for `MERGE_UNDO_MS`, past the life of the Undo toast, and writes nothing until it runs: Undo inside
  *   that window leaves both entries and the group exactly as they were (OD16). Leaving the page
  *   runs a held merge at once; a page killed outright drops it, and the card comes back.
  *
@@ -97,8 +97,9 @@ export function undoKeepBoth(h: AccountHandle, groupId: string, now: number = Da
 
 const merging = new Set<string>();
 
-/** As long as the Undo toast lives (`NOTICE_MS` in components/ui/ActionFeedback.tsx). */
-export const MERGE_UNDO_MS = 5_000;
+/** A second past the Undo toast (`NOTICE_MS`, 5 s, in components/ui/ActionFeedback.tsx), whose
+ *  clock starts only after the hold does: Undo is never shown for a merge already running. */
+export const MERGE_UNDO_MS = 6_000;
 /** Fired whenever a held merge starts, is undone or runs, so the card re-reads. */
 export const MERGE_PENDING_EVENT = "duplicates:merge-pending";
 
