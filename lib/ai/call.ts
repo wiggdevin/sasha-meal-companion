@@ -29,8 +29,10 @@ import { aiCallRow, type AiStatus, type Billed, writeAiCall } from "@/lib/ai/cal
 import { assertCircuitClosed } from "@/lib/ai/circuit";
 import { isPermissionDeniedFailure } from "@/lib/ai/failures";
 import { reserveSpend, settleSpend } from "@/lib/ai/spend";
+import { CALLER_ABORT_ERROR } from "@/lib/ai/call-abort";
 
 export type { Billed } from "@/lib/ai/call-ledger";
+export { CALLER_ABORT_ERROR } from "@/lib/ai/call-abort";
 
 export class SchemaRejection extends Error {}
 
@@ -116,13 +118,29 @@ function untilAborted<T>(run: Promise<T>, signal: AbortSignal | undefined, abort
   if (!signal) return run;
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(abortError());
-    if (signal.aborted) return onAbort();
+    if (signal.aborted) {
+      // The send is already in flight: keep its later rejection from going unhandled (W068).
+      run.catch(() => undefined);
+      return onAbort();
+    }
     signal.addEventListener("abort", onAbort, { once: true });
     run.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
   });
 }
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** A backoff that ends early when the caller aborts, so a stopped call never waits it out. */
+function sleepUnlessAborted(sleep: (ms: number) => Promise<void>, ms: number,
+  signal: AbortSignal | undefined): Promise<void> {
+  if (!signal) return sleep(ms);
+  if (signal.aborted) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const done = () => { signal.removeEventListener("abort", done); resolve(); };
+    signal.addEventListener("abort", done, { once: true });
+    sleep(ms).then(done, done);
+  });
+}
 
 export type RetryPolicy = {
   /** Total attempts, at least 1. */
@@ -174,6 +192,12 @@ export type ModelCall<R extends Billed, T> = {
   maxAttemptCostUsd: (model: string) => number;
   /** The caller's own abort. No attempt starts after it fires; a running one rejects at once. */
   signal?: AbortSignal;
+  /**
+   * True when `policy.attemptMs` is the caller's own latency budget rather than a bound on a
+   * healthy provider (a Jev ranking held to a few hundred ms). A deadline then records as a
+   * caller abort, which the circuit does not count (W068).
+   */
+  callerDeadline?: boolean;
   abortError?: () => Error;
   policy: RetryPolicy;
   transport: Transport<R>;
@@ -235,6 +259,11 @@ export async function callModel<R extends Billed, T>(call: ModelCall<R, T>): Pro
       // assertCircuitClosed (lib/ai/circuit.ts) to find, so a project-wide denial on this path
       // alone never opened the circuit. Same classify+record attempt()'s own catch-all does, with
       // no billed tokens (no attempt reached send()) and no retry (open() is not per-attempt).
+      // A caller that stopped during the upload is not a provider failure (W068).
+      if (call.signal?.aborted) {
+        await settled("timeout", null, CALLER_ABORT_ERROR, 0);
+        throw abortError();
+      }
       const message = e instanceof Error ? e.message : "unknown";
       await settled(classifyFailure(e), null, message, 0);
       throw e;
@@ -265,11 +294,16 @@ async function attempt<R extends Billed, T>(
   // `send` and got a result is "answered", whether or not `accept` went on to take it.
   let surchargeUsd = 0;
   let lastError: unknown = null;
+  // The last failure that was the provider's own, kept even when the caller stops later: an
+  // abort never hides a real 503 from the circuit (W068).
+  let providerError: unknown = null;
+  const callersStop = (e: unknown): boolean => signal?.aborted === true
+    || (call.callerDeadline === true && classifyFailure(e) === "timeout");
   for (let n = 0; n < policy.attempts; n++) {
-    if (deadlineAt - Date.now() <= 0) break;
+    if (signal?.aborted || deadlineAt - Date.now() <= 0) break;
     if (n > 0 && policy.beforeRetry && !(await policy.beforeRetry())) break;
     const remainingMs = deadlineAt - Date.now();
-    if (remainingMs <= 0) break;
+    if (signal?.aborted || remainingMs <= 0) break;
     try {
       const result = await withDeadline(Math.min(policy.attemptMs, remainingMs), (deadline) =>
         untilAborted(call.transport.send(signal ? AbortSignal.any([deadline, signal]) : deadline,
@@ -286,16 +320,26 @@ async function attempt<R extends Billed, T>(
       return value;
     } catch (e) {
       lastError = e;
-      if (!policy.retryable(e)) break;
+      if (!callersStop(e)) providerError = e;
+      // A caller that stopped waiting gets no further attempt (W068).
+      if (signal?.aborted || !policy.retryable(e)) break;
       // Back off only if there is budget left to back off into.
       const backoff = policy.backoffMs[n] ?? 0;
-      if (n < policy.attempts - 1 && deadlineAt - Date.now() > backoff) await sleep(backoff);
+      if (n < policy.attempts - 1 && deadlineAt - Date.now() > backoff) {
+        await sleepUnlessAborted(sleep, backoff, signal);
+      }
+      if (signal?.aborted) break;
     }
   }
   // No separate failure counter: this row (status != "ok") IS the durable record the circuit
-  // breaker reads next time.
-  const message = lastError instanceof Error ? lastError.message : "unknown";
-  await record(classifyFailure(lastError), billed, message,
+  // breaker reads next time. A caller's own stop is recorded as one, but never counted there.
+  const aborted = signal?.aborted === true;
+  const failure = providerError ?? lastError;
+  const stoppedByCaller = providerError === null && callersStop(lastError);
+  const message = stoppedByCaller ? CALLER_ABORT_ERROR
+    : failure instanceof Error ? failure.message : "unknown";
+  await record(stoppedByCaller ? "timeout" : classifyFailure(failure), billed, message,
     billed ? call.price(model, billed) + surchargeUsd : 0);
+  if (aborted) throw abortError();
   throw lastError instanceof Error ? lastError : new Error(message);
 }
