@@ -6,6 +6,7 @@ import GlassSelect from "@/components/ui/GlassSelect";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import ShoppingView from "@/components/ShoppingView";
 import RuleReviewCard from "@/components/RuleReviewCard";
+import ShoppingFocusToggle from "@/components/ShoppingFocusToggle";
 import { defaultShoppingDraft, realCalendarDate, type ShoppingDraft } from "@/components/ShoppingControls";
 import type { ShoppingPreviewData } from "@/components/ShoppingPreview";
 import type { ShoppingViewActions, ShoppingPreviewInput } from "@/components/ShoppingView";
@@ -342,7 +343,7 @@ export default function ShoppingRoot() {
         <Button onClick={() => { void refresh(owner, null).catch((cause) =>
           setError(cause instanceof Error ? cause.message : "Could not start a new list.")); }}>New list</Button>
       </div> : null}
-      planNotice={<RuleReviewCard />}
+      planNotice={<><RuleReviewCard /><ShoppingFocusToggle /></>}
       emptyList={<div className="flex flex-col items-start gap-2">
         <Notice tone="neutral" title={<>{periods.length === 0 ? "No saved lists yet. " : ""}Add items above,
           tap a Favorite, or plan meals below to fill your list.</>} />

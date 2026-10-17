@@ -1,5 +1,6 @@
 import FavoritesStrip from "@/components/FavoritesStrip";
 import CatalogFavorites from "@/components/CatalogFavorites";
+import OpenWorldInvitation from "@/components/foods/OpenWorldInvitation";
 import EatenOften from "@/components/EatenOften";
 import EatsFoods from "@/components/MyFoods";
 import RecipesSection from "@/components/RecipesSection";
@@ -17,6 +18,7 @@ export default function EatsView({ recipeAccess = { enabled: false, loading: fal
 }) {
   return (
     <>
+      <OpenWorldInvitation />
       <section aria-label="Favorites">
         <FavoritesStrip limit={LIST_LIMIT} />
         {recipeAccess.enabled && <CatalogFavorites />}
