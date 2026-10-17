@@ -7,7 +7,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { composeMeal } from "@/lib/coach/compose";
-import { coveredMacros, fitNote, sizeItems } from "@/lib/coach/compose-size";
+import { coveredMacros, fitNote, fitsTarget, sizeItems } from "@/lib/coach/compose-size";
 import { fitLine } from "@/components/CoachComposedCard";
 import { TEST_PROFILE as DEFAULT_PROFILE } from "@/tests/helpers/constraint-profile";
 import type { FoodHit } from "@/lib/coach/executors";
@@ -106,6 +106,33 @@ describe("the floor under the named main", () => {
     const grams = sizeItems([{ hit: cornWrap }, { hit: chicken }, { hit: chicken }],
       { kcal: 600, protein: 22, carbs: 95, fat: 15 });
     expect(grams[1]).toBeGreaterThan(grams[2]);
+  });
+});
+
+describe("a small slot's bar has a floor", () => {
+  // Integration run 2026-10-17: 10 % of 10 g fat is 1 g, so the Plan sheet hid a tuna plate that
+  // missed fat by 2 g and showed one idea of three for an ordinary lunch.
+  const lunch = { kcal: 528, protein: 39, carbs: 72, fat: 10 };
+
+  it("fits a miss inside 3 g or 30 kcal whatever the target", () => {
+    expect(fitsTarget({ kcal: 512, protein: 40, carbs: 70, fat: 8 }, lunch)).toBe(true);
+    expect(fitNote({ kcal: 512, protein: 40, carbs: 70, fat: 8 }, lunch)).toBeNull();
+    expect(fitsTarget({ kcal: 60, protein: 7, carbs: 6, fat: 2 }, { kcal: 85, protein: 7, carbs: 8, fat: 4 }))
+      .toBe(true);
+  });
+
+  it("never lets protein run short past 10 %", () => {
+    const snack = { kcal: 120, protein: 10, carbs: 10, fat: 4 };
+    expect(fitsTarget({ kcal: 112, protein: 7, carbs: 10, fat: 4 }, snack)).toBe(false);
+    expect(fitsTarget({ kcal: 120, protein: 9.5, carbs: 10, fat: 4 }, snack)).toBe(true);
+    expect(fitsTarget({ kcal: 130, protein: 12.5, carbs: 10, fat: 4 }, snack)).toBe(true);
+  });
+
+  it("still misses past the floor, and past 10 % on a big target", () => {
+    expect(fitsTarget({ kcal: 528, protein: 39, carbs: 72, fat: 14 }, lunch)).toBe(false);
+    expect(fitsTarget({ kcal: 488, protein: 39, carbs: 47, fat: 16 }, lunch)).toBe(false);
+    expect(fitsTarget({ kcal: 900, protein: 80, carbs: 100, fat: 30 },
+      { kcal: 900, protein: 100, carbs: 100, fat: 30 })).toBe(false);
   });
 });
 

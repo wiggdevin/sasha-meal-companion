@@ -59,6 +59,5 @@ describe("meal rows on the right SR rows (A021)", () => {
     expect(oats.sr).not.toMatch(/cooked with water/);
     expect(oats.per100g.kcal).toBeGreaterThan(100);
     expect(oats.per100g.protein).toBeGreaterThan(4);
-    expect(oats.flags).toContain("dairy");
   });
 });

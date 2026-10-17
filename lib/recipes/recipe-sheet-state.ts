@@ -92,8 +92,6 @@ async function resolveBundled(
   // A "mine" hit from the bundled search has no bundled id (the sheet offers no own foods), so it
   // reads the same as an unknown one: the user gets the line, not a row that cannot be saved.
   if (!food) return { ok: false, notice: ADD_FAILED_COPY };
-  // The bundled row's own flags are the mark the user sees; the same list is what refuses the tap.
-  if (food.flags.length > 0) return { ok: false, notice: offPlanCopy(food.flags) };
   const adopted = await deps.adopt(food.id);
   if (!adopted) return { ok: false, notice: ADD_FAILED_COPY };
   return {

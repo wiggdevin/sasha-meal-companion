@@ -16,7 +16,7 @@ import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFe
 import Button from "@/components/ui/Button";
 import SearchField from "@/components/ui/SearchField";
 import { beginRun } from "@/lib/timing";
-import { catalogSearchEnabled, getFoodDetail, offPlanFlags, toCachedRevision, type CatalogRow } from "@/lib/catalog-client";
+import { catalogSearchEnabled, getFoodDetail, toCachedRevision, type CatalogRow } from "@/lib/catalog-client";
 import { captureActions } from "@/lib/capture-client";
 import { portionPill, rowServingLine } from "@/lib/catalog/serving";
 import type { CaptureMethod } from "@/lib/capture/flags";
@@ -151,6 +151,8 @@ export default function LogFoodSheet({
   // ------------------------------------------------------- catalog (Phase 2)
   const useCatalog = catalogSearchEnabled();
   const [revision, setRevision] = useState<CachedRevision | null>(null);
+  // The picked catalog hit's own off-plan tags: the server's verdict under this account's rules.
+  const [revisionOffPlan, setRevisionOffPlan] = useState<string[]>([]);
   const [catPortion, setCatPortion] = useState<CachedPortion | null>(null);
   const [grams, setGrams] = useState(100);
   const [typedPer, setTypedPer] = useState<number | null>(null);
@@ -202,6 +204,7 @@ export default function LogFoodSheet({
     const seq = ++pickSeq.current;
     setBlocked(null);
     setRevision(null);
+    setRevisionOffPlan(row.offPlan);
     setFoodRefId(null);
     setRefFailureReason(null);
     if (row.offline || row.catalogFoodId === null) {
@@ -353,7 +356,7 @@ export default function LogFoodSheet({
     // The same card the scan sheet draws, from the same numbers the portion view is showing.
     const entry = catalogCard({
       revision, entryId, itemId, foodRefId: foodRefId, grams, qty, portion: catPortion, at: at ?? new Date(),
-      flags: offPlanFlags(`${revision.description} ${revision.brand ?? ""}`),
+      flags: revisionOffPlan,
     });
     const pick: LogPick = { source: "catalog", card: entry, itemId, foodRefId, revision, grams,
       qty: entry.qty, unit: catPortion ? "portion" : "g", portionId: catPortion?.id ?? null };
@@ -492,7 +495,7 @@ export default function LogFoodSheet({
 
   // ------------------------------------------------- catalog portion view
   if (view === "portion" && revision) {
-    const offPlan = offPlanFlags(`${revision.description} ${revision.brand ?? ""}`);
+    const offPlan = revisionOffPlan;
     if (detail && detailsOpen) {
       return <FoodDetailSheet detail={detail} onClose={() => setDetailsOpen(false)} />;
     }
@@ -545,7 +548,6 @@ export default function LogFoodSheet({
     return (
       <Sheet
         title={picked.name}
-        subtitle={picked.flags.length ? offPlanLine(picked.flags) : undefined}
         onClose={onClose}
         footer={
           <div className="flex flex-col gap-2.5">
@@ -691,7 +693,6 @@ export default function LogFoodSheet({
                 <span className={`tabular-nums ${ROW_META_CLASS}`}>
                   <KcalText text={rowServingLine({ offline: true, offlineSource: h.source, offlineFoodId: h.id }, mine)
                     ?? (h.source === "mine" ? "Your food" : "USDA")} />
-                  {h.flags.length > 0 && <span className="text-alert"> · off-plan: {h.flags.join(", ")}</span>}
                 </span>
               </span>
             </button>

@@ -15,9 +15,6 @@
  * these words still escalates.
  */
 import { describe, expect, it, vi } from "vitest";
-import { offPlanFlags } from "@/lib/catalog-client";
-import { searchFoods as searchLocalFoods } from "@/lib/food-db";
-import type { Food } from "@/lib/foods";
 import { deriveItem } from "@/lib/foods/universe/derive";
 import { universeEntry } from "@/lib/foods/universe/manifest";
 import { allergenFinding, deriveEvidence, textNames } from "@/lib/policy/allergens";
@@ -61,27 +58,6 @@ describe("tahini is not a dairy listing", () => {
       foodRefId: null, allergenTags: null, category: [], onEatsList: false, onAvoidList: false,
       foodName: TAHINI_SR,
     }).verdict).toBe("unverified");
-  });
-
-  it("carries no dairy off-plan marker on a catalog search row", () => {
-    expect(offPlanFlags(TAHINI_SR)).not.toContain("dairy");
-    expect(offPlanFlags("Butter, salted")).toContain("dairy");
-  });
-
-  it("keeps the off-plan dairy marker when an excluded phrase sits beside real dairy", () => {
-    // Sol review (WARN): the exclusion list used to veto the whole name, so a seed or nut butter
-    // hid the whey or milk next to it. Each excluded phrase is now removed and the rest is read.
-    expect(offPlanFlags("Sesame butter, whey, salt")).toContain("dairy");
-    expect(offPlanFlags("Peanut butter with milk chocolate")).toContain("dairy");
-    expect(offPlanFlags("Oat milk latte, with whipped cream")).toContain("dairy");
-    expect(offPlanFlags("Oat milk latte")).not.toContain("dairy");
-    expect(offPlanFlags("Almond milk, unsweetened")).not.toContain("dairy");
-    expect(offPlanFlags("Butternut squash soup")).not.toContain("dairy");
-    const mine: Record<string, Food> = { sbw: { id: "sbw", name: "Sesame butter, whey", role: "fat",
-      unit: "g", perUnit: { protein: 0.2, carbs: 0.1, fat: 0.5 }, status: "eats",
-      updatedAt: "2026-10-10T00:00:00.000Z" } };
-    expect(searchLocalFoods("sesame butter whey", mine).find((hit) => hit.id === "sbw")?.flags)
-      .toContain("dairy");
   });
 });
 

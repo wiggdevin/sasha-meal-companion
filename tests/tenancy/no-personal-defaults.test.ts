@@ -68,8 +68,6 @@ describe("tenant-neutral active source", () => {
       "components/SlotCard.tsx": "documents the compact variant a saved ritual slot renders as",
       "components/week/WeekGrid.tsx": "keeps an optional saved slot from blocking a done day",
       "lib/catalog/category-map.ts": FOOD_TEXT,
-      "lib/catalog-client.ts": FOOD_TEXT,
-      "lib/food-db.ts": FOOD_TEXT,
       "lib/units.ts": FOOD_TEXT,
       "lib/coach/profile-synonyms.generated.ts": FOOD_TEXT,
       "lib/log/contract.ts": SLOT_ALLOWLIST,

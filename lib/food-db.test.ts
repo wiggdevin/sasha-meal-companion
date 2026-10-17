@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { offPlanFlags } from "./catalog-client";
 import { dbFood, FOOD_DB, gramsForDbPortion, loggedFoodFor, logPortionsFor, macrosForGrams, macrosForPortion, mineAsDb,
   portionsFor, searchFoods } from "./food-db";
 import { rowServingLine, servingOf, servingOfDbFood } from "./catalog/serving";
@@ -39,70 +38,13 @@ describe("food database", () => {
     expect(two.protein).toBe(12.6);
   });
 
-  it("flags gluten, dairy and apple foods but still lists them", () => {
-    expect(dbFood("white-bread")!.flags).toContain("gluten");
-    expect(dbFood("cheddar-cheese")!.flags).toContain("dairy");
-    expect(dbFood("apple-with-skin")!.flags).toContain("apple");
-    expect(dbFood("almond-butter")!.flags).toEqual([]);
-    expect(dbFood("oat-milk")!.flags).toEqual([]);
-  });
-
-  it("flags well-known gluten/dairy foods whose own sr text names the ingredient", () => {
-    // These entries' own `sr` description names wheat/dairy ingredients directly
-    // (audit 2026-09-13 finding #23), but shipped with flags: [].
-    expect(dbFood("egg-noodles-cooked")!.flags).toContain("gluten"); // "Noodles, egg, enriched, cooked"
-    expect(dbFood("saltine-crackers")!.flags).toContain("gluten"); // "Crackers, saltines"
-    expect(dbFood("wheat-crackers")!.flags).toContain("gluten"); // "Crackers, wheat, regular"
-    expect(dbFood("half-and-half")!.flags).toContain("dairy"); // "Cream, fluid, half and half"
-    expect(dbFood("m-m-s")!.flags).toContain("dairy"); // "...Milk Chocolate Candies"
-    expect(dbFood("clam-chowder")!.flags).toContain("dairy"); // "...prepared with...2% milk"
-    expect(dbFood("cheeseburger-fast-food")!.flags).toEqual(expect.arrayContaining(["gluten", "dairy"])); // bun + cheese
-    expect(dbFood("egg-mcmuffin")!.flags).toEqual(expect.arrayContaining(["gluten", "dairy"])); // muffin + cheese
-  });
-
-  it("flags the remaining sr-confirmed misses found by a full-array sweep (finding #23 follow-up)", () => {
-    // A second pass over every shipped entry (not just the first 8 spot-checked ids) found
-    // these still shipping without a flag their own sr text names directly.
-    expect(dbFood("mashed-potatoes")!.flags).toContain("dairy"); // "...whole milk and butter added"
-    expect(dbFood("croissant")!.flags).toContain("dairy"); // "Croissants, butter"
-    expect(dbFood("cornbread")!.flags).toContain("dairy"); // "...made with low fat (2%) milk"
-    expect(dbFood("french-toast")!.flags).toContain("dairy"); // "...made with low fat (2%) milk"
-    expect(dbFood("breakfast-burrito")!.flags).toContain("dairy"); // "...with egg, cheese, and sausage"
-    expect(dbFood("taco-beef")!.flags).toContain("dairy"); // "...taco with beef, cheese and lettuce"
-    expect(dbFood("pop-tart")!.flags).toContain("apple"); // "...(include apples, blueberry, cherry, strawberry)"
-    expect(dbFood("cheesecake")!.flags).toContain("gluten"); // commercially prepared cheesecake's crust
-    expect(dbFood("chicken-parmesan")!.flags).toContain("gluten"); // breaded, fried cutlet
-  });
-
-  it("carries every off-plan flag its own name + USDA description implies, for the whole array", () => {
-    // Finding #23's own fix note warns that pinning 8 hand-picked ids leaves the rest of the
-    // 460-entry array uncovered, and that a future regeneration would reintroduce identical
-    // gaps invisibly. This runs the same off-plan detector already used for the online catalog
-    // and account foods (lib/catalog-client.ts's offPlanFlags) over every entry's name + sr, and
-    // requires it as a FLOOR: whatever the detector would flag from the food's own description
-    // must already be shipped. It is not a ceiling — an entry may carry additional flags the
-    // detector cannot see (plural word forms it doesn't match, recipe knowledge) without failing.
-    //
-    // A small number of USDA description artifacts read as an off-plan word without the food
-    // containing that ingredient; each is named and reasoned about here rather than silently
-    // dropped, so a new one appearing after a future regeneration still fails loudly.
-    const KNOWN_FALSE_POSITIVES: Record<string, string[]> = {
-      // "Sauce, pasta, spaghetti/marinara..." is USDA's category label for this style of sauce,
-      // not an ingredient list — marinara itself (tomato, garlic, herbs) has no wheat.
-      "marinara-sauce": ["gluten"],
-      // Our own label note "typical apple-free pouch label" — the word "apple" appears only in
-      // "apple-free", i.e. the label says this food does NOT contain apple.
-      "fruit-pouch": ["apple"],
-    };
-
-    for (const f of FOOD_DB) {
-      const computed = offPlanFlags(`${f.name} ${f.sr}`);
-      const suppressed = KNOWN_FALSE_POSITIVES[f.id] ?? [];
-      for (const flag of computed) {
-        if (suppressed.includes(flag)) continue;
-        expect(f.flags, `${f.id}: expected "${flag}" from "${f.sr}"`).toContain(flag);
-      }
-    }
+  it("lists gluten, dairy and apple foods with no default off-plan mark", () => {
+    // The JSON's legacy `flags` were the original client's plan. No account inherits them: what a
+    // food breaks for an account comes from that account's rules (server verdict, log commit).
+    for (const f of FOOD_DB) expect(f, f.id).not.toHaveProperty("flags");
+    const hits = searchFoods("bread", {});
+    expect(hits.length).toBeGreaterThan(0);
+    for (const h of hits) expect(h).not.toHaveProperty("flags");
   });
 
   it("always offers 1 oz and 100 g portions, and everyday portions first", () => {
@@ -195,39 +137,13 @@ describe("logged extras", () => {
     expect(Math.round(db.per100g.protein)).toBe(31);
   });
 
-  it("flags a bare wheat/rye/semolina/malt food the same way the online catalog does (audit gap-recipes-build-meal-8)", () => {
-    // lib/catalog-client.ts's GLUTEN regex includes wheat|rye|semolina|malt; the bundled/offline
-    // "mine" branch (this file's own offPlanFlags, used by mineAsDb and searchFoods) must flag
-    // the same names the same way, or a food with no other trigger word ships unflagged offline.
-    const wheatBerries = {
-      id: "custom-wheat-berries",
-      name: "Wheat berries, cooked",
-      role: "carb" as const,
-      unit: "oz" as const,
-      perUnit: { protein: 2, carbs: 17, fat: 0.5 },
-      status: "eats" as const,
-      updatedAt: "2026-09-13T00:00:00.000Z",
-    };
-    expect(mineAsDb(wheatBerries).flags).toContain("gluten");
-    const hits = searchFoods("wheat berries", { [wheatBerries.id]: wheatBerries });
-    const hit = hits.find((h) => h.id === wheatBerries.id);
-    expect(hit?.flags).toContain("gluten");
-  });
-
-  it("flags an account food whose name names an off-plan ingredient (audit finding #28)", () => {
-    const cheesyFood = {
-      id: "custom-cheddar-cheese",
-      name: "Cheddar cheese",
-      role: "fat" as const,
-      unit: "oz" as const,
-      perUnit: { protein: 7, carbs: 0.4, fat: 9.3 },
-      status: "eats" as const,
-      updatedAt: "2026-09-13T00:00:00.000Z",
-    };
-    expect(mineAsDb(cheesyFood).flags).toContain("dairy");
-    const hits = searchFoods("cheddar", { [cheesyFood.id]: cheesyFood });
-    const hit = hits.find((h) => h.id === cheesyFood.id);
-    expect(hit?.flags).toContain("dairy");
+  it("marks no account food off-plan by its name alone (audit finding #28 reversed)", () => {
+    const cheesyFood: Food = { id: "custom-cheddar-cheese", name: "Cheddar cheese", role: "fat", unit: "oz",
+      perUnit: { protein: 7, carbs: 0.4, fat: 9.3 }, status: "eats", updatedAt: "2026-09-13T00:00:00.000Z" };
+    expect(mineAsDb(cheesyFood)).not.toHaveProperty("flags");
+    const hit = searchFoods("cheddar", { [cheesyFood.id]: cheesyFood }).find((h) => h.id === cheesyFood.id);
+    expect(hit).toBeDefined();
+    expect(hit).not.toHaveProperty("flags");
   });
 });
 
