@@ -76,8 +76,7 @@ export const SyncOpSchema = z.object({
 export const OpsRequestSchema = z.object({
   ops: z.array(SyncOpSchema).min(1).max(200),
   /** t24b: the phone's local day and zone when it sent the batch. Optional, so an old build's
-   *  batch still parses; the server's target recompute dates by the account's stored zone first,
-   *  these only as a fallback (lib/server/account-day.ts, owner ruling 2026-10-08). */
+   *  batch still parses; the server's target recompute dates by them (lib/server/account-day.ts). */
   /** A malformed value is dropped (`catch`), never a 400 for the whole batch. */
   local_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
   time_zone: z.string().min(1).max(64).optional().catch(undefined),

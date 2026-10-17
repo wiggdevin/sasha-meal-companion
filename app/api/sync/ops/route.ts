@@ -158,7 +158,7 @@ export async function POST(req: Request): Promise<Response> {
 
     if (settingsTouched) {
       try {
-        // t24b: dated by the account's stored zone when one is on file, else the phone's own day.
+        // t24b: dated by the phone's own day when the batch carries it, never after it.
         const outcome = await recomputeDerivedTarget(client, userId,
           { clientDay: body.local_date ?? null, requestZone: body.time_zone ?? null });
         if (outcome.status === "unsettled") {

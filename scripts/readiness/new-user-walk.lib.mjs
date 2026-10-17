@@ -28,7 +28,7 @@ export const WALK_USER_TABLES = [
   "food_membership_revisions", "gut_log", "health_samples", "health_source_status",
   "health_sources", "ingest_events", "job_runs", "log_entries", "media_objects", "oauth_states",
   "plan_days", "recipes", "target_profiles", "target_proposals", "user_food_prefs",
-  "user_foods", "user_settings", "voice_ears", "water_log", "weigh_ins",
+  "user_foods", "user_settings", "water_log", "weigh_ins",
 ];
 
 export function parseArgs(argv) {

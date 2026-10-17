@@ -1,4 +1,4 @@
--- Undo 20261229090000_voice_ears_cleanup.sql: restore voice_ears and its three functions exactly
+-- Undo 20270102090000_voice_ears_cleanup.sql: restore voice_ears and its three functions exactly
 -- as 20261117090000_voice_ears.sql created them.
 create table if not exists voice_ears (
   id uuid primary key default gen_random_uuid(),

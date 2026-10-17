@@ -1,16 +1,12 @@
 /**
- * The server's "today" for target revisions (t24b). Owner ruling (2026-10-08, reconciliation
- * audit §2 "device-vs-account-timezone-ruling-open"): the account's stored zone takes precedence
- * — the simpler, more consistent default, and the one every other account-scoped read in this
- * file already used once a zone was on file. A revision is dated, and the revision in force is
- * read, by this chain:
+ * The server's "today" for target revisions (t24b). Owner ruling: the phone's local day
+ * everywhere. A revision is dated, and the revision in force is read, by this chain:
  *
- * 1. the account's stored zone (`user_settings.time_zone`) — a travelling phone's own clock never
- *    overrides the account's home zone;
- * 2. the phone's own day (`clientDay`), when the request carries one and it is plausible, for an
- *    account with no usable stored zone;
- * 3. the zone the request carries (`requestZone`), for an account with neither a stored zone nor
- *    a usable phone day;
+ * 1. the phone's own day, when the request carries one (`clientDay`) and it is plausible: a
+ *    travelling phone keeps its device day, so the server never dates a revision after the day
+ *    the phone dated the same action by;
+ * 2. the account's stored zone (`user_settings.time_zone`);
+ * 3. the zone the request carries (`requestZone`), for an account with no stored zone;
  * 4. UTC, the last resort (`ACCOUNT_DAY_LAST_RESORT_ZONE`). It is logged every time it is used.
  *
  * No deployment-wide zone (`HEALTH_TZ`) is consulted: it would be one account's zone applied to
@@ -65,13 +61,14 @@ export function plausibleClientDay(day: unknown, now: Date = new Date()): string
 /** The chain above, with the zone already read. Pure apart from the last-resort log line. */
 export function resolveAccountDay(input: AccountDayInput): AccountDay {
   const now = input.now ?? new Date();
-  if (isIanaTimeZone(input.storedZone)) {
-    return { date: isoDateIn(input.storedZone, now), zone: input.storedZone, source: "account_zone" };
-  }
   const clientDay = plausibleClientDay(input.clientDay, now);
   if (clientDay) return { date: clientDay, zone: null, source: "client_day" };
-  if (isIanaTimeZone(input.requestZone)) {
-    return { date: isoDateIn(input.requestZone, now), zone: input.requestZone, source: "request_zone" };
+  const steps: [unknown, AccountDaySource][] = [
+    [input.storedZone, "account_zone"],
+    [input.requestZone, "request_zone"],
+  ];
+  for (const [zone, source] of steps) {
+    if (isIanaTimeZone(zone)) return { date: isoDateIn(zone, now), zone, source };
   }
   console.warn(`account-day: ${input.purpose} has no account or request zone; `
     + `dating by ${ACCOUNT_DAY_LAST_RESORT_ZONE} (last resort)`);
@@ -96,10 +93,10 @@ export async function readAccountZone(
   }
 }
 
-/** The account's day: the stored zone wins, so it is always read first — there is no shortcut
- *  that skips it just because the request also carries a plausible phone day. */
+/** The account's day: the phone's when plausible (no read), else from the stored zone onward. */
 export async function accountDay(
   client: SupabaseClient, userId: string, input: Omit<AccountDayInput, "storedZone">,
 ): Promise<AccountDay> {
+  if (plausibleClientDay(input.clientDay, input.now ?? new Date())) return resolveAccountDay(input);
   return resolveAccountDay({ ...input, storedZone: await readAccountZone(client, userId) });
 }

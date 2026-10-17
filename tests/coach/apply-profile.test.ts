@@ -656,18 +656,18 @@ describe("deferred server responses crossing local midnight (round 3 regression)
   });
 });
 
-// t24b, ruled 2026-10-08 (reconciliation audit §2 "device-vs-account-timezone-ruling-open"): the
-// account's stored zone (user_settings.time_zone) takes precedence over a device's own local day,
-// and the server never falls to the UTC day while either the account or the request carries a
-// usable zone (lib/server/account-day.ts `resolveAccountDay`).
-describe("t24b: account zone versus device zone (owner ruling 2026-10-08)", () => {
-  it("a device travelling away from the account's saved zone (user_settings.time_zone) keeps the account's day", () => {
-    // Auckland has already turned Oct 6; a phone travelling in Denver is still on Oct 5 by its
-    // own clock. The account's stored zone wins outright.
+// t24b: the phone's own day comes first, so a travelling phone never sees a revision dated after
+// the day it dated the edit by; the account's stored zone dates a request that carries no day, and
+// the server falls to the UTC day only when neither the account nor the request has a usable zone
+// (lib/server/account-day.ts `resolveAccountDay`).
+describe("t24b: account zone versus device zone", () => {
+  it("a device travelling away from the account's saved zone (user_settings.time_zone) keeps its own day", () => {
+    // Auckland has already turned Oct 6; a phone travelling in Denver is still on Oct 5.
     const now = new Date("2026-10-06T05:30:00Z");
     expect(resolveAccountDay({ purpose: "t", storedZone: "Pacific/Auckland",
-      clientDay: "2026-10-05", now })).toEqual(
-      { date: "2026-10-06", zone: "Pacific/Auckland", source: "account_zone" });
+      clientDay: "2026-10-05", now })).toEqual({ date: "2026-10-05", zone: null, source: "client_day" });
+    expect(resolveAccountDay({ purpose: "t", storedZone: "Pacific/Auckland", now }))
+      .toEqual({ date: "2026-10-06", zone: "Pacific/Auckland", source: "account_zone" });
   });
 
   it("server activeProfile/activeTargets callers fall back to the UTC day only when neither the account nor the request carries a usable zone", () => {

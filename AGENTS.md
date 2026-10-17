@@ -22,12 +22,10 @@ the same rule (a future-dated revision waits in the history; with every revision
 cache is `needs_profile`), never simply the highest `rev`. A row with any malformed number is rejected, never read as 0;
 a pass with no parseable row returns a cached revision to `needs_profile`, and a pulled delete leaves
 the cache. The only cached revisions kept without a mirrored row are saved ones not yet pulled.
-The server's "today" for target revisions is `lib/server/account-day.ts` (t24b, owner ruling
-2026-10-08: account-zone precedence): the account's stored `time_zone` when one is on file, else
-the phone's own day when the request carries one (sync batches and `GET /api/targets?date=` send
-it), else the request's zone, and UTC only as the logged last resort (never the deployment-wide
-`HEALTH_TZ`, which would be a personal default); the phone re-resolves its cache at local midnight
-(`lib/targets/day-roll.ts`).
+The server's "today" for target revisions is `lib/server/account-day.ts` (t24b): the phone's own
+day when the request carries one (sync batches and `GET /api/targets?date=` send it), else the
+account's stored `time_zone`, the request's zone, and UTC only as the logged last resort (never
+the deployment-wide `HEALTH_TZ`, which would be a personal default); the phone re-resolves its cache at local midnight (`lib/targets/day-roll.ts`).
 `lib/profile/derive.ts` may create a candidate only from a complete profile;
 `lib/targets/{client,revision}.ts` persists and reads it. No ramp or numeric fallback exists. A
 missing revision means `needs_profile`; plan resolution and the coach never invent targets.

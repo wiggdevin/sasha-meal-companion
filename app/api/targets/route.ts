@@ -124,8 +124,7 @@ async function limits(req: Request): Promise<{ userId: string; client: Parameter
 export async function GET(req: Request): Promise<Response> {
   try {
     const { userId, client } = await limits(req);
-    // t24b: the account's stored zone wins; `?date=` (the phone's own local day) is honoured
-    // only for an account with no usable stored zone.
+    // t24b: the phone sends its own local day (`?date=`); without one, the account's day.
     const day = await accountDay(client, userId, { purpose: "GET /api/targets",
       clientDay: new URL(req.url).searchParams.get("date") });
     const target = await activeTargets(client, userId, day.date);
