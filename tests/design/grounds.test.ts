@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_GROUND, GROUNDS, isGroundId } from "@/lib/design/grounds";
+import { GROUND_BOOT_SCRIPT } from "@/lib/design/ground-boot";
 import { THEME_COLOR, themeColorFor } from "@/lib/design/theme-color";
 import { contrast, hexToRgb, MIN, over, ROLES, ROOT, token } from "./contrast-table";
 
@@ -27,6 +28,10 @@ describe("selectable grounds (DESIGN.md §Grounds)", () => {
 
   it("the browser chrome colour follows the ground", () => {
     for (const g of GROUNDS) expect(themeColorFor(g.id)).toBe(g.base);
+  });
+
+  it("the pre-paint script knows every ground's chrome colour", () => {
+    for (const g of GROUNDS) expect(GROUND_BOOT_SCRIPT).toContain(`"${g.id}":"${g.base}"`);
   });
 
   it("globals.css writes the same colours as grounds.ts", () => {

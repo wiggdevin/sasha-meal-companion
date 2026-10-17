@@ -27,17 +27,26 @@ export default function BackgroundSection() {
     if (!h) return;
     saveGround(h, id);
   };
+  const onKey = (e: React.KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1
+      : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = GROUNDS[(i + step + GROUNDS.length) % GROUNDS.length];
+    choose(next.id);
+    document.getElementById(`ground-${next.id}`)?.focus();
+  };
   return <SettingsSection title="Background">
     <Card>
       <p className={`m-0 ${CAPTION}`}>The colour behind your cards. It stays on this phone.</p>
       <div role="radiogroup" aria-label="Background" className="grid grid-cols-4 gap-3">
-        {GROUNDS.map((g) => {
+        {GROUNDS.map((g, i) => {
           const on = g.id === value;
-          return <button key={g.id} type="button" role="radio" aria-checked={on}
-            onClick={() => choose(g.id)}
-            className="flex min-h-11 flex-col items-center gap-2 bg-transparent p-0 text-center">
+          return <button key={g.id} id={`ground-${g.id}`} type="button" role="radio" aria-checked={on}
+            tabIndex={on ? 0 : -1} onClick={() => choose(g.id)} onKeyDown={(e) => onKey(e, i)}
+            className="flex min-h-11 flex-col items-center gap-2 rounded-2xl bg-transparent p-0 text-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             <span aria-hidden="true"
-              className={`ground-swatch-${g.id} block h-14 w-full rounded-2xl ${on ? "ring-2 ring-primary" : "ring-1 ring-charcoal/10"}`} />
+              className={`ground-swatch-${g.id} block h-14 w-full rounded-2xl ${on ? "ring-2 ring-primary" : "ring-1 ring-charcoal/30"}`} />
             <span className={`text-body-sm ${on ? "font-semibold text-charcoal" : "text-muted"}`}>{g.label}</span>
           </button>;
         })}

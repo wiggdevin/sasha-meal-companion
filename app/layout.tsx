@@ -9,6 +9,7 @@ import InstallPromptCapture from "@/components/InstallPromptCapture";
 import SyncBootstrap from "@/components/SyncBootstrap";
 import AuthGate from "@/components/AuthGate";
 import DevFreshnessBanner from "@/components/DevFreshnessBanner";
+import { GROUND_BOOT_SCRIPT } from "@/lib/design/ground-boot";
 import GroundTheme from "@/components/GroundTheme";
 import { THEME_COLOR } from "@/lib/design/theme-color";
 import { readAppCapabilities } from "@/lib/capabilities";
@@ -66,8 +67,9 @@ export default function RootLayout({
   const capabilities = readAppCapabilities(process.env);
 
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
       <body className="bg-paper text-charcoal antialiased">
+        <script dangerouslySetInnerHTML={{ __html: GROUND_BOOT_SCRIPT }} />
         <ClientErrorHook />
         <DevFreshnessBanner />
         <CapabilitiesProvider value={capabilities}>

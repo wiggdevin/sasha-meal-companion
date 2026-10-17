@@ -4,11 +4,12 @@
  */
 import { type AccountHandle } from "@/lib/device/account";
 import { readAccountItem, writeAccountItem } from "@/lib/device/account-storage";
+import { GROUND_DEVICE_KEY } from "./ground-boot";
 import { DEFAULT_GROUND, isGroundId, type GroundId } from "./grounds";
 import { themeColorFor } from "./theme-color";
 
 const NAME = "ground";
-export const GROUND_EVENT = "smc:ground";
+export const GROUND_EVENT = "ground-changed";
 
 export function readGround(h: AccountHandle): GroundId {
   const raw = readAccountItem(h, NAME);
@@ -24,6 +25,7 @@ export function saveGround(h: AccountHandle, id: GroundId): void {
 export function applyGround(id: GroundId): void {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.ground = id;
+  try { localStorage.setItem(GROUND_DEVICE_KEY, id); } catch { /* private mode: only the next cold start flashes */ }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", themeColorFor(id));
   window.dispatchEvent(new Event(GROUND_EVENT));

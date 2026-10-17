@@ -72,6 +72,8 @@ const STORAGE_FILES: Record<string, string> = {
   "lib/device/legacy-recovery.ts": "device: smc:device:legacy-recovered:<op id> → owner id (W055 owner-run recovery; reads the legacy smc database, never writes it)",
   "lib/device/legacy-adoption.ts": "legacy: moves old keys under smc:legacy:, holds the smc database",
   "lib/device/tab-signal.ts": "device: smc:device:signal",
+  "lib/design/ground-boot.ts": "device: smc:device:ground (pre-paint read)",
+  "lib/design/ground-pref.ts": "account: ground; device: smc:device:ground",
   "lib/device/writer-lock.ts": "device, per account id: smc:device:writer:<id>",
   "lib/foods/prefs-client.ts": "account by value: meal-companion:food-pref-refs { <id>: … }",
   "lib/foods/starter-seed.ts": "account: smc:u:<id>:starter-suggestions-seeded-v1",

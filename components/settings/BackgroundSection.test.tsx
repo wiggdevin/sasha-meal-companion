@@ -30,4 +30,15 @@ describe("Settings › Background", () => {
     unbindAccount();
     expect(readGround(bindAccount("user-b"))).toBe("oat");
   });
+
+  it("moves with the arrow keys and keeps one tab stop", () => {
+    render(<BackgroundSection />);
+    const radios = screen.getAllByRole("radio");
+    expect(radios.map((r) => r.tabIndex)).toEqual([0, -1, -1, -1]);
+    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
+    expect(document.documentElement.dataset.ground).toBe("sage");
+    expect(screen.getByRole("radio", { name: "Sage" }).tabIndex).toBe(0);
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Sage" }), { key: "ArrowLeft" });
+    expect(document.documentElement.dataset.ground).toBe("oat");
+  });
 });
