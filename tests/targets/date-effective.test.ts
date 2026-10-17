@@ -4,8 +4,10 @@
  */
 import { describe, expect, it } from "vitest";
 import type { TargetProfile } from "@/lib/api-types";
-import { ratiosFor } from "@/lib/plan/slot-share";
-import { defaultSettings } from "@/lib/store";
+import { mealCountFor, resolveSlotTimes } from "@/lib/plan";
+import { plannedSlotIds, ratiosFor } from "@/lib/plan/slot-share";
+import { resolveDay } from "@/lib/resolve";
+import { defaultSettings, defaultStore } from "@/lib/store";
 import { resolveTargets, targetDayType } from "@/lib/targets";
 import {
   mergeTargetHistory, settingsFromTargetMirror, settingsWithoutTargetRevision,
@@ -359,5 +361,33 @@ describe("a malformed revision is rejected, never coerced (audit #23)", () => {
       bmr_kcal: 1300, bmr_method: "mifflin", activity_model_version: "a",
       derivation_version: "d" }));
     expect(revision?.seed).toBeNull();
+  });
+});
+
+// Audit A063: a viewed date's meal count and slot clocks come from the revision in force on it.
+describe("the viewed date's meal layout", () => {
+  // OCT_1 trains at 1,900 kcal (four meals); a 1,700 kcal revision before it gives three.
+  const SEP_1 = targetRevisionFromProfile(row({
+    id: "00000000-0000-4000-8000-000000000003", effective_from: "2026-09-01", rev: 3,
+    training_macros: { kcal: 1700, protein: 120, carbs: 180, fat: 60 },
+  }))!;
+  const layoutStore = (): Store => ({ ...defaultStore(), settings: settingsWith(SEP_1, OCT_1) });
+  const meals = (date: string) => resolveDay(layoutStore(), date).slots
+    .filter((slot) => slot.slot.startsWith("meal-")).map((slot) => `${slot.slot}@${slot.time}`);
+
+  it("gives a past date its own revision's count and clocks, not today's", () => {
+    expect(layoutStore().settings.activeTargetProfile?.id).toBe(OCT_1_ID);
+    expect(meals("2026-09-15")).toEqual(["meal-1@08:00", "meal-2@12:30", "meal-3@18:30"]);
+    expect(meals(TODAY)).toEqual(["meal-1@08:00", "meal-2@11:30", "meal-3@15:00", "meal-4@18:30"]);
+    expect(plannedSlotIds(layoutStore(), "2026-09-15", "rest")).toEqual(["meal-1", "meal-2", "meal-3"]);
+  });
+
+  it("reads the same layout through mealCountFor and resolveSlotTimes with the date", () => {
+    const settings = layoutStore().settings;
+    expect(mealCountFor(settings, "2026-09-15")).toBe(3);
+    expect(mealCountFor(settings, TODAY)).toBe(4);
+    expect(mealCountFor(settings)).toBe(4);
+    expect(resolveSlotTimes("rest", settings, "2026-09-15").map((row) => row.time))
+      .toEqual(["08:00", "12:30", "18:30"]);
   });
 });

@@ -25,7 +25,7 @@ export async function recallHistory(
   if (!(req.historySourceThreadId || currentThreadRecall)) return null;
   const lookup = await beforeDeadline(() => recallSavedMessages(
     client, userId, (req.historySourceThreadId ?? req.threadId) as string, req.text,
-    { includeNeighbors: !!currentThreadRecall }), replyDeadlineAt);
+    { includeNeighbors: !!currentThreadRecall, requestZone: req.tz ?? null }), replyDeadlineAt);
   if (lookup === LATE) throw new HttpError(503, "timeout", TIMEOUT_MESSAGE);
   let content = lookup.answer;
   let synthesisModel = "";

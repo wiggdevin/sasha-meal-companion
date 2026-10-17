@@ -1,6 +1,6 @@
 // tests/targets/target-mode-preview.test.ts
-import { describe, expect, it } from "vitest";
-import { previewGrams } from "@/components/TargetModeSheet";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { previewGrams, targetModeRequest } from "@/components/TargetModeSheet";
 import { toPounds, WEIGHT_LB_PER_KG } from "@/components/WeightTrend";
 import { CARB_G_MIN, FAT_G_MIN, type MacroFloors } from "@/lib/targets/percent";
 
@@ -34,5 +34,23 @@ describe("toPounds", () => {
   it("converts kilograms for display and keeps nulls as gaps", () => {
     expect(WEIGHT_LB_PER_KG).toBeCloseTo(2.2046226218, 10);
     expect(toPounds([57.6, null, 57.4])).toEqual([127, null, 126.5]);
+  });
+});
+
+// Audit A054: a manual revision is dated by the phone's day, not the UTC date.
+describe("targetModeRequest", () => {
+  let savedTz: string | undefined;
+  beforeEach(() => { savedTz = process.env.TZ; process.env.TZ = "America/Los_Angeles"; });
+  afterEach(() => {
+    if (savedTz === undefined) delete process.env.TZ;
+    else process.env.TZ = savedTz;
+  });
+
+  it("dates a save at 6 pm Pacific by that evening's date, not the next UTC day", () => {
+    const evening = new Date("2026-10-11T01:00:00.000Z"); // 18:00 Oct 10 in Los Angeles
+    const grams = { proteinG: 140, fatG: 70, carbG: 200 };
+    expect(targetModeRequest("grams", { kcalTrain: 2200, kcalRest: 1800 },
+      { proteinPct: 30, fatPct: 30, carbPct: 40 }, grams, evening))
+      .toEqual({ mode: "grams", effectiveFrom: "2026-10-10", kcalTrain: 2200, kcalRest: 1800, grams });
   });
 });

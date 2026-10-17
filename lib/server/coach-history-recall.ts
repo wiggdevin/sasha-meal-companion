@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { historyAnswer, historySearchTerms, isPastThreadQuestion, type HistorySource }
   from "@/lib/coach/history-recall";
+import {
+  ACCOUNT_DAY_LAST_RESORT_ZONE, readAccountZone, resolveAccountDay,
+} from "@/lib/server/account-day";
 import { HttpError } from "@/lib/server/auth";
 import { z } from "zod";
 import { historyExcerpt } from "@/lib/coach/history-recall";
@@ -55,7 +58,8 @@ export function citedHistoryAnswer(
 /** Source ownership and chat kind are checked before any message read. No model or action path. */
 export async function recallSavedMessages(
   client: SupabaseClient, userId: string, sourceThreadId: string, question: string,
-  { includeNeighbors = false }: { includeNeighbors?: boolean } = {},
+  { includeNeighbors = false, requestZone = null }:
+    { includeNeighbors?: boolean; requestZone?: string | null } = {},
 ): Promise<HistoryRecall> {
   const thread = await client.from("coach_threads").select("id, title, kind")
     .eq("id", sourceThreadId).eq("user_id", userId).eq("kind", "chat")
@@ -101,6 +105,10 @@ export async function recallSavedMessages(
     id: row.id, threadId: row.thread_id, seq: row.seq, role: row.role,
     content: row.content, createdAt: row.created_at,
   }));
-  return { answer: historyAnswer(title, sources, question), sources, title,
+  // The account's day for each message: its stored zone, else the turn's zone, else UTC.
+  const zone = resolveAccountDay({ purpose: "history recall",
+    storedZone: sources.length ? await readAccountZone(client, userId) : null, requestZone }).zone
+    ?? ACCOUNT_DAY_LAST_RESORT_ZONE;
+  return { answer: historyAnswer(title, sources, question, zone), sources, title,
     matchTerms: terms?.split(" OR ") ?? [] };
 }

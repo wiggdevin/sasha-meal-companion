@@ -15,6 +15,7 @@ import {
   type GramTargets, type MacroFloors, type MacroPercents,
 } from "@/lib/targets/percent";
 import type { TargetsRequest } from "@/lib/api-types";
+import { targetDayFor } from "@/lib/targets/revision";
 
 export type Preview =
   | { ok: true; training: GramTargets; rest: GramTargets;
@@ -34,6 +35,18 @@ export function previewGrams(
         minFatPct: check.minFatPct, training, rest };
 }
 
+/** The request a save sends, dated by the phone's own day at the tap like every other target
+ *  writer: the UTC date is tomorrow every US evening, which would leave today on the old numbers
+ *  (audit A054). */
+export function targetModeRequest(
+  mode: "grams" | "percent", initial: { kcalTrain: number; kcalRest: number },
+  percent: MacroPercents, grams: GramTargets, now: Date = new Date(),
+): TargetsRequest {
+  const base = { effectiveFrom: targetDayFor(now), kcalTrain: initial.kcalTrain,
+    kcalRest: initial.kcalRest };
+  return mode === "percent" ? { mode, ...base, percent } : { mode, ...base, grams };
+}
+
 const line = (label: string, g: GramTargets) =>
   `${label}: ${g.proteinG} g protein · ${g.fatG} g fat · ${g.carbG} g carbs`;
 
@@ -50,15 +63,10 @@ export default function TargetModeSheet({ initial, floors, saveError, onClose, o
   const [grams, setGrams] = useState<GramTargets>(initial.grams);
 
   const preview = previewGrams(initial.kcalTrain, initial.kcalRest, pct, floors);
-  const today = new Date().toISOString().slice(0, 10);
   const panelId = useId();
 
   function save() {
-    onSave(mode === "percent"
-      ? { mode, effectiveFrom: today, kcalTrain: initial.kcalTrain,
-          kcalRest: initial.kcalRest, percent: pct }
-      : { mode, effectiveFrom: today, kcalTrain: initial.kcalTrain,
-          kcalRest: initial.kcalRest, grams });
+    onSave(targetModeRequest(mode, initial, pct, grams));
   }
 
   return (

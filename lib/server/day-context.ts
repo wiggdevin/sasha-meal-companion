@@ -292,8 +292,11 @@ export async function serverStoreFor(
     proteinG: normalized.protein_g ?? null,
     ruleReviewReady: !ruleReview.required,
   };
+  // The cache is the revision in force on the VIEWED date, not on the server's UTC today: the
+  // meal count and slot clocks read it, and an east-of-UTC account's revision dated its own today
+  // is still in the server's future (audit A167).
   const settings = targets?.revision
-    ? settingsWithTargetRevision(baseSettings, targets.revision)
+    ? settingsWithTargetRevision(baseSettings, targets.revision, date)
     : baseSettings;
   return {
     version: 1,

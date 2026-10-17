@@ -58,6 +58,18 @@ const twoZones = () => listOf([
 const admin = {
   from: (table: string) => {
     if (table === "job_cursors") return jobCursors();
+    // Each account's stored zone (the jobs read it strictly; a failed read retries the account).
+    if (table === "user_settings") {
+      return { select: () => {
+        const chain = {
+          eq: () => ({ maybeSingle: async () => ({ data: { time_zone: "UTC" }, error: null }) }),
+          order: () => chain,
+          range: async () => ({ data: [], error: null }),
+          limit: async () => ({ data: [], error: null }),
+        };
+        return chain;
+      } };
+    }
     if (table === "media_objects") {
       return { select: () => listingChain([{
         path: "media/user-1/11111111-1111-4111-8111-111111111111.jpg", user_id: "user-1" }]) };

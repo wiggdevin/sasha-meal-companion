@@ -6,7 +6,7 @@ const MEALS: SlotId[] = ["meal-1", "meal-2", "meal-3", "meal-4", "meal-5", "meal
 
 /** The first extra slot absent on this date; removing an added card makes it available again. */
 export function nextMealSlot(store: Store, date: string, dayType: DayType): SlotId | null {
-  const regular = new Set(slotListFor(dayType, store.settings));
+  const regular = new Set(slotListFor(dayType, store.settings, date));
   const visible = new Set(plannedSlotIds(store, date, dayType));
   return MEALS.find((id) => !regular.has(id) && !visible.has(id)) ?? null;
 }

@@ -22,7 +22,7 @@ export async function applyShiftSchedule(action: ShiftAction): Promise<ApplyResu
   const dayType = targetDayType(action.date, stored?.dayTypeOverride, store.settings);
   const resolved = resolveDay(store, action.date);
   const slotById = new Map(resolved.slots.map((slot) => [slot.slot, slot]));
-  const baseTimes = resolveSlotTimes(dayType, store.settings);
+  const baseTimes = resolveSlotTimes(dayType, store.settings, action.date);
   const tokenSlots: ShiftToken["slots"] = [];
   const itemOverrides = { ...(stored?.itemOverrides ?? {}) };
 
