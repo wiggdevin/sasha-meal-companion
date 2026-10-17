@@ -1,0 +1,135 @@
+{
+  "generatedAt": "2026-10-17T08:33:05.175Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 12,
+  "case": {
+    "id": "block-protein-or-fibre",
+    "category": "block",
+    "sentence": "can you change my breakfast?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "quick_replies"
+    ],
+    "expected_quick_replies": {
+      "min": 2,
+      "max": 4
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 6800,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 6800 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"What would you like to change your breakfast to?\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [quick_replies]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected quick-reply count",
+      "passed": false,
+      "detail": "expected 2-4; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "86b7295e-fdf3-42f2-aecc-8e18daf1243c",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 6,
+      "model": 5440,
+      "ground": 10
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "0b20c289-81fe-47cd-b4f7-a581b937fbbc",
+        "role": "user",
+        "content": "can you change my breakfast?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "bfff9d34-52bb-4a0a-b685-462dd082bb8d",
+        "role": "assistant",
+        "content": "What would you like to change your breakfast to?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-10-17T08:31:25.928Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 6,
+  "case": {
+    "id": "devin-five-eats-suggestions",
+    "category": "devin",
+    "sentence": "make me 5 suggestions from my eats list",
+    "expected_path": "either",
+    "note": "argument-confidence rule: suggestion scope and list target are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 5,
+      "max": 5
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 10463,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.02,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 5-5; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 10463 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.02"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can suggest meals, but I need to know what kind of meal you are looking for. What would you like?\""
+    },
+    {
+      "name": "C11 distinct protein anchors",
+      "passed": false,
+      "detail": "[]"
+    },
+    {
+      "name": "C11 policy-clean cards",
+      "passed": true,
+      "detail": "[]"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "f1d05f15-1f8b-4a46-b8ec-bc1af69c65ea",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 438,
+      "model": 8667,
+      "ground": 11
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "18f10fa6-969a-4a4a-9363-b01101ef292d",
+        "role": "user",
+        "content": "make me 5 suggestions from my eats list",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "76d3b652-583b-42f5-8a6d-3aa74d89747a",
+        "role": "assistant",
+        "content": "I can suggest meals, but I need to know what kind of meal you are looking for. What would you like?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

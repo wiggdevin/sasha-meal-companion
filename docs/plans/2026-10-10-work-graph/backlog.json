@@ -1152,10 +1152,10 @@
   },
   {
    "title": "Coach prompt-fragment leaks and 3-minute hang on off-plan requests",
-   "description": "Loop 010 found short prompt/schema leaks the degeneration guard misses and a ~3 min hang. Pipeline changed a lot since; needs a fresh production check.",
+   "description": "Loop 010 found short prompt/schema leaks the degeneration guard misses and a ~3 min hang. Pipeline changed a lot since; needs a fresh production check. W087 (2026-10-17, docs/evals/2026-10-17-coach-live-pass.md) re-ran the off-plan prompts live on the coach-eval branch: 15 turns, 0 prompt/schema leaks, slowest turn 10.9 s, so the leak and hang bug is superseded. The same run shows every off-plan reply is the generic 'I couldn't work that one out' text; that quality gap is tracked in the W087 eval doc, not here.",
    "kind": "bug",
    "theme": "coach-ai",
-   "status": "unclear",
+   "status": "superseded",
    "sources": [
     "idx326"
    ],
@@ -1186,10 +1186,10 @@
   },
   {
    "title": "Verify full AI chat exchange in production (synthetic Gemini test)",
-   "description": "A complete production-UI coach exchange with persistence was left pending (approval for up to two synthetic messages, $0.10 cap). No recorded outcome; likely superseded. Confirm with one production check.",
+   "description": "A complete production-UI coach exchange with persistence was left pending (approval for up to two synthetic messages, $0.10 cap). No recorded outcome; likely superseded. Confirm with one production check. W087 (2026-10-17) dropped the production check: 57 live coach turns (115 provider calls) with persistence ran on the coach-eval branch instead, and production is off limits to agents. Superseded by docs/evals/2026-10-17-coach-live-pass.md.",
    "kind": "test-gap",
    "theme": "coach-ai",
-   "status": "unclear",
+   "status": "superseded",
    "sources": [
     "idx385",
     "idx390"

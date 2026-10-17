@@ -1,0 +1,184 @@
+{
+  "generatedAt": "2026-10-17T08:35:36.088Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 21,
+  "case": {
+    "id": "jev-low-fodmap-unverified",
+    "category": "jev",
+    "sentence": "make a recipe from mystery broth, rice, and chicken",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "unverified_recipe",
+      "preference": "low_fodmap"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 9035,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "I can help you create a recipe. What would you like to call this recipe?",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": false,
+            "name": "suggest_options",
+            "error": "invalid_arguments: (root): Invalid input: expected object, received string"
+          },
+          {
+            "ok": false,
+            "name": "suggest_options",
+            "error": "invalid_arguments: (root): Invalid input: expected object, received string"
+          },
+          {
+            "ok": false,
+            "name": "suggest_options",
+            "error": "already called suggest_options with bad arguments twice this turn; ask the person for what is missing instead"
+          }
+        ],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "coach-openrouter",
+        "coach-openrouter",
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 9035 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can help you create a recipe. What would you like to call this recipe?\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted recipe excludes unverified food",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted Not verified low-FODMAP copy",
+      "passed": false,
+      "detail": "I can help you create a recipe. What would you like to call this recipe?"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "50ef8f2d-b336-4c63-9d2c-d3384a103dc6",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 1,
+      "model": 7734,
+      "ground": 11
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "793b92a1-102d-4cbb-b66d-7021fc00fa4b",
+        "role": "user",
+        "content": "make a recipe from mystery broth, rice, and chicken",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "2aa67aa2-11b7-4427-84b7-811173d70dac",
+        "role": "assistant",
+        "content": "I can help you create a recipe. What would you like to call this recipe?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

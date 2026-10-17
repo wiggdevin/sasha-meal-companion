@@ -1,0 +1,138 @@
+{
+  "generatedAt": "2026-10-17T08:36:23.559Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 24,
+  "case": {
+    "id": "suggest-no-cook-recipes-wish",
+    "category": "suggestion",
+    "sentence": "recipes I can make without cooking",
+    "expected_path": "llm",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 1,
+      "max": 3
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5830,
+    "actions": [],
+    "blocks": [
+      "recipe_results"
+    ],
+    "persistedBlocks": [
+      {
+        "v": 1,
+        "id": "889b6357-2f9a-4d6a-bd03-37beff6c38a5",
+        "kind": "recipe_results",
+        "recipes": [],
+        "limitations": [
+          "Shared recipe discovery is not available for this account yet."
+        ]
+      }
+    ],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": false,
+      "detail": "expected 1-3; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5830 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can't find any recipes that fit that description.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "e6c4bec4-4946-4c5a-b796-cb73bf177fce",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 6,
+      "model": 4466,
+      "ground": 15
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "a35dda1f-6bc4-4eeb-b104-316dc0fe5762",
+        "role": "user",
+        "content": "recipes I can make without cooking",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "003b4c70-bf5d-4f1d-b4e6-7c4893937c25",
+        "role": "assistant",
+        "content": "I can't find any recipes that fit that description.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "blocks": [
+          {
+            "kind": "recipe_results",
+            "v": 1,
+            "id": "889b6357-2f9a-4d6a-bd03-37beff6c38a5",
+            "recipes": [],
+            "limitations": [
+              "Shared recipe discovery is not available for this account yet."
+            ]
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

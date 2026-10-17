@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-10-17T08:37:28.685Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 28,
+  "case": {
+    "id": "list-add-tofu-eats",
+    "category": "list_edit",
+    "sentence": "add tofu to the foods I eat",
+    "expected_path": "either",
+    "note": "argument-confidence rule: paraphrased list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_eats"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 3938,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_eats]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 3938 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t work that one out. Try naming the meal or food you mean.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "e32aca5c-b47c-4941-be09-5ab2146ef8db",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 8,
+      "model": 2251,
+      "ground": 789
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "d75d347f-0a13-4b04-abae-b000ecd1a223",
+        "role": "user",
+        "content": "add tofu to the foods I eat",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "47aa55da-54b9-4717-83e2-3bd0dde99921",
+        "role": "assistant",
+        "content": "I couldn’t work that one out. Try naming the meal or food you mean.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

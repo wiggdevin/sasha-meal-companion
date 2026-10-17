@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-10-17T08:36:07.549Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 23,
+  "case": {
+    "id": "list-eggs-cant-do",
+    "category": "list_edit",
+    "sentence": "I can't do eggs anymore",
+    "expected_path": "either",
+    "note": "argument-confidence rule: implicit list target is classifier-selected and may fall below 0.90",
+    "expected_action_kinds": [
+      "add_to_avoid"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4250,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [add_to_avoid]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4250 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t work that one out. Try naming the meal or food you mean.\""
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "ce74f5bd-0def-4faa-9717-f220fe18c4ab",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 7,
+      "model": 2861,
+      "ground": 427
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "ef7dbbe1-1398-44c1-876a-f25f21cf6e26",
+        "role": "user",
+        "content": "I can't do eggs anymore",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "2655a6fc-b4f9-4de0-9fac-bae11afbcba7",
+        "role": "assistant",
+        "content": "I couldn’t work that one out. Try naming the meal or food you mean.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

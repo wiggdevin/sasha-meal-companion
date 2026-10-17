@@ -1,0 +1,134 @@
+{
+  "generatedAt": "2026-10-17T08:39:40.234Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 38,
+  "case": {
+    "id": "water-two-cups",
+    "category": "schedule_body",
+    "sentence": "log two cups of water",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "log_water"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4675,
+    "actions": [
+      "log_water"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.04,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [log_water]; got [log_water]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4675 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.04"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Logged 2 cups (16 oz) of water.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "096aea99-8197-43c4-af92-593be5cde38e",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "log_water",
+        "date": "2026-10-17",
+        "ml": 480,
+        "actionId": "46eb692e-ad97-4833-9d20-7119cdbcfd46",
+        "flagged": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 489,
+      "model": 3271,
+      "ground": 3
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "6f68803f-8bfd-4d4f-9e04-b51e8e9d6676",
+        "role": "user",
+        "content": "log two cups of water",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "b8116b75-c27e-4aa8-bde1-6058945075ea",
+        "role": "assistant",
+        "content": "Logged 2 cups (16 oz) of water.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "46eb692e-ad97-4833-9d20-7119cdbcfd46",
+            "flagged": [],
+            "kind": "log_water",
+            "date": "2026-10-17",
+            "ml": 480
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

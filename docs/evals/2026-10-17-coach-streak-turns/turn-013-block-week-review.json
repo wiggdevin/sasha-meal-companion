@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-10-17T08:33:28.933Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 13,
+  "case": {
+    "id": "block-week-review",
+    "category": "block",
+    "sentence": "how did this week go?",
+    "expected_path": "either",
+    "expected_action_kinds": [],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [
+      "chart"
+    ],
+    "expected_chart": "kcal_week"
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 13295,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 13295 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I can show you your weight trend, your macros for today, or your calories over this week. Which would you like to see?\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": false,
+      "detail": "expected [chart]; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "expected chart subtype",
+      "passed": false,
+      "detail": "expected kcal_week; got []"
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "b3c0dbda-9008-4311-bd14-fe72a4af67b1",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 8,
+      "model": 11846,
+      "ground": 11
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "6996b0cb-8038-4523-b475-894ac8d5fd16",
+        "role": "user",
+        "content": "how did this week go?",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "5219deac-fdd1-47f9-8212-ccf61dc7f09f",
+        "role": "assistant",
+        "content": "I can show you your weight trend, your macros for today, or your calories over this week. Which would you like to see?",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

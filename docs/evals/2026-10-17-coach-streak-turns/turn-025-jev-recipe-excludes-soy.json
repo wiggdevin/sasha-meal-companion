@@ -1,0 +1,182 @@
+{
+  "generatedAt": "2026-10-17T08:36:40.033Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 25,
+  "case": {
+    "id": "jev-recipe-excludes-soy",
+    "category": "jev",
+    "sentence": "make a recipe from smoked tofu, rice, and avocado",
+    "expected_path": "llm",
+    "expected_action_kinds": [
+      "save_recipe"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true,
+    "expected_block_kinds": [],
+    "expected_jev": {
+      "kind": "recipe_exclusion",
+      "facet": "contains_soy",
+      "preference": "no_soy"
+    }
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 5882,
+    "actions": [],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.03,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true,
+    "jev": {
+      "assistantContent": "I couldn’t work that one out. Try naming the meal or food you mean.",
+      "toolCalls": {
+        "calls": [
+          {
+            "ok": true,
+            "name": "suggest_options",
+            "result": {
+              "ok": true,
+              "block": "recipe_results",
+              "recipes": [],
+              "limitations": [
+                "Shared recipe discovery is not available for this account yet."
+              ]
+            }
+          }
+        ],
+        "blocks": [],
+        "actions": [],
+        "composed": [],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        },
+        "suggestions": []
+      },
+      "actions": [],
+      "blocks": [],
+      "commit": null,
+      "logEntry": null,
+      "rankingPurposes": [
+        "coach-openrouter",
+        "coach-openrouter",
+        "coach-verify"
+      ],
+      "membershipBefore": null,
+      "membershipAfter": null
+    }
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected llm; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": false,
+      "detail": "expected [save_recipe]; got []"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 5882 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.03"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"I couldn’t work that one out. Try naming the meal or food you mean.\""
+    },
+    {
+      "name": "expected block-kind set",
+      "passed": true,
+      "detail": "expected []; got []"
+    },
+    {
+      "name": "expected block version",
+      "passed": true,
+      "detail": "expected every persisted block at v1; got []"
+    },
+    {
+      "name": "Jev persisted recipe excludes soy",
+      "passed": false,
+      "detail": "null"
+    },
+    {
+      "name": "Jev persisted recipe names facet and preference",
+      "passed": false,
+      "detail": "I couldn’t work that one out. Try naming the meal or food you mean."
+    }
+  ],
+  "passed": false,
+  "response": {
+    "threadId": "ef059cc6-3bfc-4e60-b8d0-a2dd8766faf4",
+    "suggestions": [],
+    "actions": [],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [
+      "suggest_options"
+    ],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 7,
+      "model": 4467,
+      "ground": 14
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "80c43aaa-997c-466c-a6f7-23bf67171e55",
+        "role": "user",
+        "content": "make a recipe from smoked tofu, rice, and avocado",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "708ef36b-c833-4fab-b980-e1f9e8e9f5d9",
+        "role": "assistant",
+        "content": "I couldn’t work that one out. Try naming the meal or food you mean.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

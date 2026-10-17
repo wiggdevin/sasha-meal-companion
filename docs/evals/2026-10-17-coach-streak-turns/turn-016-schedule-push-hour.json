@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-10-17T08:34:17.627Z",
+  "branch": "coach-eval",
+  "seed": "20260919",
+  "turn": 16,
+  "case": {
+    "id": "schedule-push-hour",
+    "category": "schedule_body",
+    "sentence": "push everything back an hour",
+    "expected_path": "either",
+    "note": "argument-confidence rule: direction and scope are classifier-scored arguments that may fall below 0.90",
+    "expected_action_kinds": [
+      "shift_schedule"
+    ],
+    "expected_card_count": {
+      "min": 0,
+      "max": 0
+    },
+    "latency_bound_ms": {
+      "fast": 2000,
+      "llm": 15000
+    },
+    "no_unsupported_claim": true
+  },
+  "actual": {
+    "path": "llm",
+    "elapsedMs": 4161,
+    "actions": [
+      "shift_schedule"
+    ],
+    "blocks": [],
+    "persistedBlocks": [],
+    "cards": 0,
+    "unsupportedClaim": {
+      "flagged": false,
+      "p": 0.11,
+      "verifier": "jev"
+    },
+    "activityContextPresent": true
+  },
+  "assertions": [
+    {
+      "name": "expected path",
+      "passed": true,
+      "detail": "expected either; got llm"
+    },
+    {
+      "name": "expected action-kind set",
+      "passed": true,
+      "detail": "expected [shift_schedule]; got [shift_schedule]"
+    },
+    {
+      "name": "expected card-count range",
+      "passed": true,
+      "detail": "expected 0-0; got 0"
+    },
+    {
+      "name": "latency bound",
+      "passed": true,
+      "detail": "expected < 15000 ms; got 4161 ms"
+    },
+    {
+      "name": "no unsupported action claim",
+      "passed": true,
+      "detail": "verifier flagged=false; p=0.11"
+    },
+    {
+      "name": "not medically deflected",
+      "passed": true,
+      "detail": "deflected=false; reply=\"Moved all your meals 60 minutes later. They are now at 09:00, 12:30, 16:00 and 19:30.\""
+    }
+  ],
+  "passed": true,
+  "response": {
+    "threadId": "e63eb3c8-c5c5-492f-9437-2d4c3b323a44",
+    "suggestions": [],
+    "actions": [
+      {
+        "kind": "shift_schedule",
+        "date": "2026-10-17",
+        "minutes": 60,
+        "scope": "all",
+        "actionId": "09bbcb69-8cf7-4d85-b08e-86309c974c9d",
+        "flagged": []
+      }
+    ],
+    "draft": null,
+    "composed": [],
+    "deflected": false,
+    "toolsUsed": [],
+    "model": {
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "timings": {
+      "intent": 452,
+      "model": 2511,
+      "ground": 5
+    },
+    "provenance": {
+      "ai": true,
+      "source": "model",
+      "purpose": "coach-openrouter"
+    },
+    "messages": [
+      {
+        "id": "32d72fc9-de06-433b-9d7e-653220eb514a",
+        "role": "user",
+        "content": "push everything back an hour",
+        "seq": 1,
+        "createdAt": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "0158d1c6-f8bc-47bd-9906-70a2868ee55d",
+        "role": "assistant",
+        "content": "Moved all your meals 60 minutes later. They are now at 09:00, 12:30, 16:00 and 19:30.",
+        "seq": 2,
+        "createdAt": "1970-01-01T00:00:00.000Z",
+        "actions": [
+          {
+            "actionId": "09bbcb69-8cf7-4d85-b08e-86309c974c9d",
+            "flagged": [],
+            "kind": "shift_schedule",
+            "date": "2026-10-17",
+            "minutes": 60,
+            "scope": "all"
+          }
+        ],
+        "provenance": {
+          "ai": true,
+          "source": "model",
+          "purpose": "coach-openrouter"
+        }
+      }
+    ]
+  }
+}

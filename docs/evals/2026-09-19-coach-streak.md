@@ -1,5 +1,7 @@
 # Coach quality streak — 2026-09-19
 
+> Later run: 2026-10-17 on the OpenRouter lane, see `docs/evals/2026-10-17-coach-live-pass.md`.
+
 - Terminal state: **exhausted**
 - Supabase branch: `coach-eval` (shared; not reset or destroyed)
 - Category: **all**

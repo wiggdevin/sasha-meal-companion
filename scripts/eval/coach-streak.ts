@@ -42,6 +42,7 @@ import {
   type TurnRecord,
 } from "./coach-streak-state";
 import { defaultBranch, needsActivityContext } from "./coach-streak-branch";
+import { withRunDate } from "./coach-streak-run-date";
 import {
   evaluateRunnerTurn,
   type VerificationRecord,
@@ -88,7 +89,7 @@ function configFromCli(): StreakRunConfig {
   const branchFlag = option("--branch");
   if (has("--branch") && branchFlag === null) throw new Error("--branch requires a name.");
   const category = parseCategory(categoryFlag);
-  return runConfig(category, category === null ? defaultBranch(branchFlag) : branchFlag);
+  return withRunDate(runConfig(category, category === null ? defaultBranch(branchFlag) : branchFlag));
 }
 
 function printSummary(state: StreakState, config: StreakRunConfig): void {
@@ -249,6 +250,10 @@ async function runCase(
   if (corpus.length === 0) throw new Error(`No corpus cases for category ${config.category}.`);
   const item = drawCase(corpus, state.seed, state.totalTurns);
   const context = seededContext ?? await harness.seed();
+  // The coach allows 10 turns an hour per user; a 40-turn streak on one test user trips it at turn
+  // 10 (W087, 2026-10-17: 429s from turn 10). Clear only this branch test user's counters.
+  const limits = await harness.db.from("rate_limits").delete().like("key", `coach:turn:%:user:${harness.userId}`);
+  if (limits.error) throw new Error(`rate_limits reset: ${limits.error.message}`);
   const jevContext = item.category === "jev"
     ? await seedJevCase(harness, context, item) : null;
   const started = Date.now();
