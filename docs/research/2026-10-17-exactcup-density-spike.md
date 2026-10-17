@@ -55,14 +55,14 @@ The sandbox this was written in cannot reach `exactcup.com` (the egress proxy re
 
 ## Findings from the data
 
-- **Dry baking staples are absent.** There is no flour, sugar, cocoa, baking powder, salt, honey or oil row in `lib/food-db.json`. Those are the ingredients where a cup is the usual recipe unit and a density table matters most. Cooked grains, dairy, and chopped vegetables are covered.
+- **Dry baking staples are absent.** There is no flour, sugar, cocoa, baking powder, table salt or honey row in `lib/food-db.json` (oils are present: olive and avocado). Those are the ingredients where a cup is the usual recipe unit and a density table matters most. Cooked grains, dairy, and chopped vegetables are covered.
 - **Cup weights depend on the preparation** ("1 cup, shredded", "1 cup, whipped", "1 cup, chopped", "not packed"). A single g/cup value per ingredient would erase that, so any external table must be matched on the preparation as well as the name.
 - **tbsp and tsp coverage is thin**: most rows have only a cup, so a tbsp or tsp amount is today derived by volume ratio (1 cup = 16 tbsp = 48 tsp) at best.
 
 ## Recommendation
 
 1. Do not add a runtime call to any external density site. The app is offline-first and the proxy shows such hosts are not reliably reachable.
-2. If ExactCup's terms allow it, take a one-off, hand-checked subset limited to the missing dry staples (about 15 ingredients: flours, sugars, cocoa, salt, baking powder, honey, oils, nut butters) and bundle it as a reviewed JSON next to the build script, with the source and retrieval date recorded per row. Do not scrape the site.
+2. If ExactCup's terms allow it, take a one-off, hand-checked subset limited to the missing dry staples (about 15 ingredients: flours, sugars, cocoa, salt, baking powder, honey, nut butters) and bundle it as a reviewed JSON next to the build script, with the source and retrieval date recorded per row. Do not scrape the site.
 3. If the terms do not allow it or are unclear, use the USDA SR Legacy rows for those staples instead; they are public domain and already flow through `food_portion.csv`, so the existing build can take them with a keyword list and no new source.
 4. Either way, keep the preparation in the label and keep USDA as the source of truth where both exist.
 
