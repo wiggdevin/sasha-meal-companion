@@ -14,7 +14,7 @@ Standing guards that apply to every row:
 - No safe background-write primitive exists (`lib/server/after-response.ts` is best-effort), so
   nothing is written for the user without an explicit action and an Undo.
 - Jev is never on the allergy, diet or religious rule path (see AGENTS.md).
-- Anything that adds a vendor, a cost or a new data flow to a model needs Devin's approval first.
+- Anything that adds a vendor, a cost or a new data flow to a model needs the owner's approval first.
 
 | Idea | Status | Revisit when | First spec file | Lessons live in |
 |---|---|---|---|---|
@@ -26,7 +26,7 @@ Standing guards that apply to every row:
 | Insights and placements with typed facts and a number check | Parked | Reply verification can check numbers deterministically | `docs/specs/coach-insights.md` (new) | `phase-12-coach-tools.md` Later 6 |
 | Plateau adjustment (7 %) | Parked | `clampFactor` is exported and the proposal lock order is settled (`base_revision_id` checked after the advisory lock) | `docs/specs/coach-plateau-adjust.md` (new) | `phase-12-coach-tools.md` Later 7 |
 | Sleep-driven carbohydrate timing, and re-engagement | Parked | Sleep data is trusted and the nudge is informational or one atomic paired action; re-engagement stamps and event are atomic | `docs/specs/coach-sleep-reengage.md` (new) | `phase-12-coach-tools.md` Later 8 |
-| Stored files, PDF, push notifications, the action audit log | Parked; push prerequisites are in `docs/features.md` F-114 | Devin approves the vendor or cost, and a privacy review is done for push | `docs/specs/coach-files-push-audit.md` (new) | `phase-12-coach-tools.md` Later 9 |
+| Stored files, PDF, push notifications, the action audit log | Parked; push prerequisites are in `docs/features.md` F-114 | the owner approves the vendor or cost, and a privacy review is done for push | `docs/specs/coach-files-push-audit.md` (new) | `phase-12-coach-tools.md` Later 9 |
 | Exports from chat | Parked | Every consumer, including `ExportCard`, checks truncation against the 1,000-row cap | `docs/specs/coach-chat-exports.md` (new) | `phase-12-coach-tools.md` Later 10 |
 | Meal times and display name from chat | Parked | The schedule write path has a single owner | `docs/specs/coach-schedule-name.md` (new) | `phase-12-coach-tools.md` Later 11 |
 | Web research | Parked | Mode-first routing, two-source evidence and isolation from history and memory are specified together | `docs/specs/coach-web-research.md` (new) | `phase-12-coach-tools.md` Later 12 and "Design lessons from web research" |
