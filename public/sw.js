@@ -30,7 +30,11 @@ const SHELL_URLS = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.pn
 // (not a redirect to /sign-in, which a signed-out visit gets) and every build chunk its HTML loads.
 // Otherwise install fails and the old worker keeps its cache. Activation deletes the old cache, and
 // every account change ends in a reload that may be offline. The icons stay best effort.
-const ASSET_PATTERN = /\/_next\/static\/[^"'\s)]+/g;
+// A match stops at a backslash too: Next 16 repeats each chunk URL inside the inline RSC flight
+// strings (`self.__next_f.push(...)`) as `\"/_next/static/chunks/<id>.js\"`. Read through the
+// backslash, that URL ends in `\`, which the browser fetches as `<id>.js/`; the server answers 308,
+// requireOk rejects it and the whole install fails. Stopping there still caches the chunk itself.
+const ASSET_PATTERN = /\/_next\/static\/[^"'\s)\\]+/g;
 
 function requireOk(response) {
   if (!response || !response.ok || response.redirected) throw new Error("shell_not_cached");
