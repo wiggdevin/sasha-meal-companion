@@ -225,6 +225,9 @@ Phase 9 (revision 4, final) facts this spec builds on:
 - Invite sign-up ends in `claim_account`, which calls the internal `create_default_template(user_id)`
   in the claim's transaction (Phase 9 §1.4, §2.6, slice 5). `account_claims` is created in slice 4
   (`20261030090000_day_templates.sql`). A new account has no `user_settings` row, so it is `force`.
+  **As built: none of this exists on `main`.** No `account_claims`, `day_templates`,
+  `template_slots` or `slot_meals` table, no `claim_account` and no `20261030090000` migration
+  were ever shipped; the facts in this list describe the planned Phase 9, not the app.
 - Every client `/api/` call goes through `accountFetch(handle, url, init)`, which sends
   `x-smc-account` and `x-smc-client`. `requireUser` answers `409 account_mismatch` on a wrong
   account, and `426 client_upgrade_required` for a `default` (invited) account on a missing or old
@@ -1243,7 +1246,8 @@ Check `ls supabase/migrations | sort | tail -1` at implementation time.
   `onboarding_drafts`, `onboarding_builds`, `onboarding_turns`, the existing
   `food_membership_revisions`, and — because the build writes the user's own schedule — the Phase 9
   tables `account_claims`, `day_templates`, `template_slots`, `slot_meals` and
-  `slot_meal_components` (today none of these is in the list). `COMPOSITE_KEYS` entries
+  `slot_meal_components` (today none of these is in the list, and none of these tables exists on
+  `main`: this paragraph is not built). `COMPOSITE_KEYS` entries
   (`:55-63`): `onboarding_drafts: ["user_id"]`, `onboarding_turns: ["user_id",
   "client_turn_id"]`, `food_membership_revisions: ["user_id", "name_norm"]`, `account_claims:
   ["user_id"]`, `slot_meal_components: ["slot_meal_id", "seq"]` (the others have `id`). If Phase 9
@@ -1262,7 +1266,8 @@ Check `ls supabase/migrations | sort | tail -1` at implementation time.
     from `COMPOSITE_KEYS` without an `id` fails the test (no failed nightly run).
   - `tests/integration/onboarding-dump-restore.test.ts` (local stack, uses the real
     `scripts/backup.sh` and restore to a disposable local database): complete onboarding with a
-    custom rhythm (no breakfast, two snacks), dump, restore, and assert `day_templates`,
+    custom rhythm (no breakfast, two snacks), dump, restore, and assert `day_templates`
+    (not built: no such tables on `main`),
     `template_slots`, `user_settings`, `account_claims`, the onboarding tables and
     `food_membership_revisions` equal the source. A second case holds `complete_onboarding` open
     (paused before commit), runs the dump, then commits: the dump holds either none or all of that

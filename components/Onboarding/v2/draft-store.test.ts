@@ -72,8 +72,6 @@ describe("onboarding draft store", () => {
   });
 });
 
-// GPT-6 Sol BLOCK (onb2-p0): the save's one target request id survives a failed attempt, a
-// reload and the beat autosave, and a changed request gets a new one.
 describe("draft expiry (W150)", () => {
   const DAY = 24 * 60 * 60 * 1000;
   afterEach(() => { vi.useRealTimers(); });
@@ -106,6 +104,8 @@ describe("draft expiry (W150)", () => {
   });
 });
 
+// GPT-6 Sol BLOCK (onb2-p0): the save's one target request id survives a failed attempt, a
+// reload and the beat autosave, and a changed request gets a new one.
 describe("the onboarding save's target request id", () => {
   it("is the same id for the same request, after a reload and an autosave", async () => {
     const { onboardingTargetRequestId } = await import("./draft-store");

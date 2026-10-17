@@ -119,38 +119,42 @@ async function readDraft(key: string): Promise<OnboardingDraft | null> {
   }
 }
 
-/** Replace the stored record (or delete it with `null`). Best-effort, never throws. */
-async function writeDraft(key: string, draft: OnboardingDraft | null): Promise<void> {
+/**
+ * `null` on any failure, an empty store or a draft older than 21 days — never thrown, same
+ * fail-soft contract as the save. A stale draft is deleted, except that a pending `targetRequest`
+ * is kept on its own (no beat, no answers), so a lost "Use this plan" save is not posted twice.
+ * The age check and the delete are one readwrite transaction, so an autosave landing between them
+ * is never overwritten.
+ */
+export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
+  const key = draftKey();
+  if (key === null) return null;
   try {
     const db = await openDb();
     try {
-      await new Promise<void>((resolve, reject) => {
+      return await new Promise<OnboardingDraft | null>((resolve, reject) => {
         const tx = db.transaction(STORE, "readwrite");
-        if (draft === null) tx.objectStore(STORE).delete(key); else tx.objectStore(STORE).put(draft, key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error ?? new Error("indexedDB write failed"));
+        const store = tx.objectStore(STORE);
+        const request = store.get(key);
+        let result: OnboardingDraft | null = null;
+        request.onsuccess = () => {
+          const draft = (request.result as OnboardingDraft | undefined) ?? null;
+          if (draft === null) return;
+          if (!isStale(draft)) { result = draft; return; }
+          if (draft.targetRequest) {
+            store.put({ beat: "", settings: {}, targetRequest: draft.targetRequest, savedAt: draft.savedAt }, key);
+          } else store.delete(key);
+        };
+        tx.oncomplete = () => resolve(result);
+        tx.onerror = () => reject(tx.error ?? new Error("indexedDB read failed"));
+        tx.onabort = () => reject(tx.error ?? new Error("indexedDB read aborted"));
       });
     } finally {
       db.close();
     }
   } catch {
-    // Best-effort only — see module doc.
+    return null;
   }
-}
-
-/**
- * `null` on any failure, an empty store or a draft older than 21 days — never thrown, same
- * fail-soft contract as the save. A stale draft is deleted, except that a pending `targetRequest`
- * is kept on its own (no beat, no answers), so a lost "Use this plan" save is not posted twice.
- */
-export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {
-  const key = draftKey();
-  if (key === null) return null;
-  const draft = await readDraft(key);
-  if (draft === null || !isStale(draft)) return draft;
-  await writeDraft(key, draft.targetRequest
-    ? { beat: "", settings: {}, targetRequest: draft.targetRequest, savedAt: draft.savedAt } : null);
-  return null;
 }
 
 /**
