@@ -1,8 +1,9 @@
 /**
  * W018 (audit 2026-10-10 P16): migration 20261231170000 lets a signed-in user insert only the caller's own
  * `role = 'user'` coach rows and never update one. So the code must write every assistant row, and
- * the sanity write-back that patches one, with the service-role client; the user's own question
- * stays on the caller's session client, where RLS proves the thread is that account's.
+ * the sanity write-back that patches one, with the service-role client. Since W088 the whole turn,
+ * the user's own question included, is saved by the service-role `coach_save_turn`, which makes the
+ * thread-ownership and question-shape checks RLS used to make.
  */
 import { describe, expect, it } from "vitest";
 import { persist, storedTurn, type MessageRow } from "@/lib/server/coach-threads";
@@ -34,12 +35,17 @@ const row = (role: "user" | "assistant", id: string, seq: number, user = "u1"): 
 });
 
 describe("assistant coach rows go through the service role (W018)", () => {
-  it("persist writes the question with the session client and the reply with the admin client", async () => {
+  it("persist saves the turn through the service-role coach_save_turn, never the session client (W088)", async () => {
     const writes: Write[] = [];
+    const calls: string[] = [];
+    const admin = { rpc: async (fn: string) => {
+      calls.push(fn);
+      return { data: [{ id: "q", seq: 1 }, { id: "a", seq: 2 }], error: null };
+    } } as never;
     await persist(recorder("user", writes), THREAD, [row("user", "q", 1), row("assistant", "a", 2)],
-      null, undefined, "chat", recorder("admin", writes));
-    expect(writes.filter((w) => w.table === "coach_messages").map((w) => [w.side, (w.row as MessageRow).role]))
-      .toEqual([["user", "user"], ["admin", "assistant"]]);
+      null, undefined, "chat", admin);
+    expect(calls).toEqual(["coach_save_turn"]);
+    expect(writes).toEqual([]);
   });
 
   it("persist saves no reply that is not anchored by an earlier question of the same thread and account", async () => {

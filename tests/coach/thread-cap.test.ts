@@ -22,32 +22,25 @@ describe("saved chat cap and private plan kind", () => {
   });
 
   it("maps the database's atomic-cap failure to an actionable 409 without saving messages", async () => {
-    const writes: string[] = [];
-    const client = { from: (table: string) => ({
-      insert: () => { writes.push(table); return Promise.resolve({ error: {
-        code: "P0001", message: "coach_chat_limit",
-      } }); },
-    }) } as never;
-    await expect(persist(client, THREAD, rows, "hi", undefined, "chat", client))
+    // W088: the thread and the turn are one transaction, so the cap's refusal saves neither.
+    const calls: string[] = [];
+    const admin = { rpc: async (fn: string) => { calls.push(fn); return { data: null, error: {
+      code: "P0001", message: "coach_chat_limit",
+    } }; } } as never;
+    await expect(persist({} as never, THREAD, rows, "hi", undefined, "chat", admin))
       .rejects.toMatchObject({ status: 409, code: "chat_limit" });
-    expect(writes).toEqual(["coach_threads"]);
+    expect(calls).toEqual(["coach_save_turn"]);
   });
 
   it("creates a PlanSheet thread through the server client, outside the chat cap", async () => {
-    const writes: { side: string; table: string; row: unknown }[] = [];
-    const database = (side: string) => ({ from: (table: string) => {
-      const chain = {
-        insert: (row: unknown) => { writes.push({ side, table, row }); return Promise.resolve({ error: null }); },
-        update: (row: unknown) => { writes.push({ side, table, row }); return chain; },
-        eq: () => Promise.resolve({ error: null }),
-      };
-      return chain;
-    } });
-    await persist(database("user") as never, THREAD, rows, "Meal ideas", null,
-      "plan", database("admin") as never);
-    expect(writes[0]).toMatchObject({ side: "admin", table: "coach_threads",
-      row: { kind: "plan", user_id: "u1" } });
-    expect(writes[1]).toMatchObject({ side: "user", table: "coach_messages" });
+    const calls: { fn: string; args: Record<string, unknown> }[] = [];
+    const admin = { rpc: async (fn: string, args: Record<string, unknown>) => {
+      calls.push({ fn, args });
+      return { data: [{ id: "m1", seq: 1 }], error: null };
+    } } as never;
+    await persist({} as never, THREAD, rows, "Meal ideas", null, "plan", admin);
+    expect(calls).toEqual([{ fn: "coach_save_turn", args: { p_user_id: "u1", p_thread_id: THREAD,
+      p_kind: "plan", p_new_title: "Meal ideas", p_rows: rows, p_summary: null } }]);
   });
 
   it("cannot continue a plan thread as an ordinary chat", async () => {

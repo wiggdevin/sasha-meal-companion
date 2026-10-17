@@ -87,7 +87,9 @@ describe("a concurrent attempt at the same message", () => {
     const rows = [{ id: MESSAGE, thread_id: THREAD, user_id: "u1", role: "user", content: "hi",
       seq: 1, tool_calls: [], policy_checks: [], deflected: false, model_id: null,
       ai_call_id: null }] as MessageRow[];
-    const taken = db({}, { code: "23505", message: "duplicate key" });
+    // W088: coach_save_turn names a message id that is already saved.
+    const taken = { rpc: async () => ({ data: null, error: { code: "P0001",
+      message: "coach_message_exists" } }) } as never;
     await expect(persist(taken, THREAD, rows, null, undefined, "chat", taken))
       .rejects.toMatchObject({ status: 503, code: "in_progress" });
   });
