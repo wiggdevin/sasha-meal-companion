@@ -76,6 +76,21 @@ describe("20261218090100 ai_spend_reservations (text)", () => {
   });
 });
 
+describe("20270104140000 ai_spend_seed_unreserved (text)", () => {
+  const SEED = read("supabase/migrations/20270104140000_ai_spend_seed_unreserved.sql");
+  const SEED_DOWN = read("supabase/migrations/down/20270104140000_ai_spend_seed_unreserved.down.sql");
+
+  it("seeds the global and user rows from unreserved ai_calls only, and the down restores both reads", () => {
+    for (const file of [SEED, SEED_DOWN]) {
+      expect(file).toContain("set local lock_timeout = '3s';");
+      expect(file).toContain("set local statement_timeout = '30s';");
+    }
+    expect(code(SEED).match(/c\.spend_reservation_id is null/g)).toHaveLength(2);
+    expect(code(SEED)).toContain("create or replace function public._ai_spend_lock_day");
+    expect(code(SEED_DOWN)).not.toContain("spend_reservation_id");
+  });
+});
+
 describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261218090100 ai_spend_reservations (database)", () => {
   let a: TestUser;
   let b: TestUser;
@@ -314,6 +329,27 @@ describe.skipIf(!HAS_DB || !HAS_BRANCH)("20261218090100 ai_spend_reservations (d
     expect(r).toMatchObject({ allowed: false, reason: "user_cap" });
     expect(Number(r.user_committed_usd)).toBeCloseTo(0.95, 6);
     expect((await reserve(a.id, 0.01, 0, 1000)).reason).toBe("user_cap");
+  });
+
+  // W068, migration 20270104140000: a call that reserved before UTC midnight and logged after it
+  // is charged to the day it reserved on, so the new day's seed must not count it again.
+  it("seeds a new day only from ai_calls rows with no reservation (UTC midnight)", () => {
+    clean();
+    const day = "2020-01-02";
+    runSql(`delete from public.ai_spend_user_days where user_id = '${b.id}' and day = '${day}';
+      delete from public.ai_spend_global_days where day = '${day}';
+      delete from public.ai_calls where user_id = '${b.id}';
+      insert into public.ai_calls (user_id, purpose, provider, model_id, sdk_version, cost_estimate,
+        created_at, spend_reservation_id) values
+        ('${b.id}', 'spend-db-test', 'test', 'm', '1', 0.40, '${day} 00:05:00+00', gen_random_uuid()),
+        ('${b.id}', 'spend-db-test', 'test', 'm', '1', 0.10, '${day} 00:06:00+00', null)`);
+    const out = runSql(`select user_spent from public._ai_spend_lock_day('${b.id}', date '${day}', true)`);
+    expect(Number(out.trim())).toBeCloseTo(0.1, 6);
+    const global = runSql(`select sum(spent_usd) from public.ai_spend_global_days where day = '${day}'`);
+    expect(Number(global.trim())).toBeCloseTo(0.1, 6);
+    runSql(`delete from public.ai_calls where user_id = '${b.id}' and purpose = 'spend-db-test';
+      delete from public.ai_spend_user_days where user_id = '${b.id}' and day = '${day}';
+      delete from public.ai_spend_global_days where day = '${day}'`);
   });
 
   it("no client role can reserve, settle or read the tables", async () => {
