@@ -274,9 +274,28 @@ describe("TasteChipsField", () => {
     lib.request.mockResolvedValue({ ok: false, reason: "failed" });
     await renderEnabled();
     await type("whatever flips the route to send");
-    expect(await screen.findByText("No suggestions right now. Try again.")).toBeTruthy();
+    expect(await screen.findByText("No suggestions right now.")).toBeTruthy();
     // The field itself (and anything else on the page) stays mounted and usable.
     expect(screen.getByLabelText("A taste, in your own words")).toBeTruthy();
+  });
+
+  it("checks the text when Return is pressed on the phone keyboard (UI audit 2026-10-18)", async () => {
+    lib.request.mockResolvedValue({ ok: false, reason: "failed" });
+    await renderEnabled();
+    const field = screen.getByLabelText("A taste, in your own words") as HTMLInputElement;
+    expect(field.getAttribute("enterkeyhint")).toBe("done");
+    field.focus();
+    fireEvent.change(field, { target: { value: "okra" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(lib.request).toHaveBeenCalledTimes(1));
+  });
+
+  it("offers Try again after a failed check, and it checks the same text again", async () => {
+    lib.request.mockResolvedValue({ ok: false, reason: "failed" });
+    await renderEnabled();
+    await type("okra");
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(lib.request).toHaveBeenCalledTimes(2));
   });
 
   it("hides the whole block once requestTasteChips itself reports the flag disabled", async () => {
@@ -290,11 +309,11 @@ describe("TasteChipsField", () => {
     lib.request.mockResolvedValueOnce({ ok: false, reason: "failed" });
     await renderEnabled();
     await type("okra");
-    await screen.findByText("No suggestions right now. Try again.");
+    await screen.findByText("No suggestions right now.");
     lib.request.mockResolvedValueOnce({ ok: true, suggestion: SEND });
     await type("okra and tex-mex");
     await screen.findByRole("button", { name: "Okra" });
-    expect(screen.queryByText("No suggestions right now. Try again.")).toBeNull();
+    expect(screen.queryByText("No suggestions right now.")).toBeNull();
   });
 
   it("never lets a stale in-flight check answer for text that was cleared", async () => {

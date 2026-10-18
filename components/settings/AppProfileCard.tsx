@@ -11,6 +11,7 @@ import { kgToLb } from "@/lib/health/units";
 import { formatHeight } from "@/lib/units/height";
 import type { Goal, Macros, Settings } from "@/lib/types";
 import styles from "./AppProfileCard.module.css";
+import type { TargetsStatus } from "./use-settings-controller";
 
 const GOAL_LABEL: Record<Goal, string> = {
   lose_fat: "Fat loss",
@@ -31,6 +32,28 @@ export function profileDetails(settings: Settings, year = new Date().getFullYear
       : settings.sex === "unspecified" ? "Prefer not to say" : "—" },
     { label: "Body fat", value: settings.bodyFatPct == null ? "—" : `${settings.bodyFatPct}%` },
   ];
+}
+
+/** How much of the profile the targets need is filled in, for the ring: real, never a stand-in. */
+export function profileProgress(settings: Settings): number {
+  const filled = [
+    settings.sex === "female" || settings.sex === "male" || settings.sex === "unspecified",
+    typeof settings.birthYear === "number",
+    typeof settings.heightCm === "number",
+    typeof settings.weightKg === "number",
+    settings.activityLevel != null,
+    settings.goal != null,
+  ];
+  return Math.round((filled.filter(Boolean).length / filled.length) * 100);
+}
+
+/** The tag beside "Your profile". Nothing while the targets load, so no false "unavailable" flashes. */
+export function profileStatusLabel(ready: boolean, targetsStatus: TargetsStatus): string | null {
+  if (!ready) return "Setup needed";
+  if (targetsStatus === "ready") return "Plan ready";
+  if (targetsStatus === "loading") return null;
+  if (targetsStatus === "needs_profile") return "No targets yet";
+  return "Targets unavailable";
 }
 
 function formatKcal(target: Macros | null): string {
@@ -61,11 +84,17 @@ export default function AppProfileCard({
   setup,
   training,
   rest,
+  targetsStatus,
+  onProfileSaved,
 }: {
   settings: Settings;
   setup: boolean;
   training: Macros | null;
   rest: Macros | null;
+  /** Defaults from the numbers handed in: both set is ready, else unavailable. */
+  targetsStatus?: TargetsStatus;
+  /** Read the targets again after the editor saves (a finished profile can make the first ones). */
+  onProfileSaved?: () => void;
 }) {
   const reducedMotion = useReducedMotion();
   const [email, setEmail] = useState<string | null>(null);
@@ -92,12 +121,14 @@ export default function AppProfileCard({
   function finishEditor(): void {
     setEditorOpen(false);
     globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+    onProfileSaved?.();
   }
 
   const protein = training?.protein ?? rest?.protein ?? null;
   const actionLabel = setup || !ready ? "Finish profile" : "Edit profile";
-  const progress = ready ? "100%" : "58%";
-  const statusLabel = !ready ? "Setup needed" : targetsReady ? "Plan ready" : "Targets unavailable";
+  const progress = `${ready ? 100 : profileProgress(settings)}%`;
+  const statusLabel = profileStatusLabel(ready,
+    targetsReady ? "ready" : targetsStatus ?? "failed");
 
   return (
     <>
@@ -119,9 +150,11 @@ export default function AppProfileCard({
                 <h3 className="m-0 min-w-0 text-subheading font-medium leading-tight tracking-tight text-charcoal [text-wrap:balance]">
                   Your profile
                 </h3>
-                <span className={`${styles.tag} shrink-0 rounded-full px-2.5 py-1 text-caption font-medium text-graphite`}>
-                  {statusLabel}
-                </span>
+                {statusLabel && (
+                  <span className={`${styles.tag} shrink-0 rounded-full px-2.5 py-1 text-caption font-medium text-graphite`}>
+                    {statusLabel}
+                  </span>
+                )}
               </div>
               {/* The address takes the full width under the title, so the tag never cuts it short. */}
               <p className="m-0 mt-1 truncate text-caption text-muted">
@@ -131,7 +164,11 @@ export default function AppProfileCard({
                 {ready && targetsReady
                   ? "Your targets stay connected to the profile and food rules that shape your day."
                   : ready
-                    ? "Your body profile is complete. Targets appear when the server revision is available."
+                    ? targetsStatus === "loading"
+                      ? "Your body profile is complete. Loading your targets…"
+                      : targetsStatus === "needs_profile"
+                        ? "Your body profile is complete. Your targets are still being worked out."
+                        : "Your body profile is complete. Your targets will show once you’re back online."
                   : "Finish your details so every meal can be sized to you."}
               </p>
             </div>
