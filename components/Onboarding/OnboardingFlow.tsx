@@ -1,6 +1,7 @@
 "use client";
 
-import { accountHandle, currentAccountOrNull } from "@/lib/device/account";
+import { accountHandle, currentAccountOrNull, type AccountHandle } from "@/lib/device/account";
+import { readAccountItem, removeAccountItem, writeAccountItem } from "@/lib/device/account-storage";
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { motion, useIsPresent, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
@@ -90,44 +91,41 @@ export const LEGACY_CONSTRAINT_WARNING = "Your allergy rules didn’t save. Tap 
 /** Answers kept on this device while the first-run form is open, so a system Back, a reload or a
  *  tab eviction does not send the account back to a blank Body step. Per account, never synced,
  *  cleared once setup finishes or is skipped; a draft older than three weeks is ignored. */
-const DRAFT_PREFIX = "onboarding-legacy-draft:";
+const DRAFT_NAME = "onboarding-legacy-draft";
 const DRAFT_MAX_AGE_MS = 21 * 24 * 60 * 60 * 1000;
+/** The safety round's answers are not in the draft, so a restored form never starts past Goal
+ *  (step 2), where the round is asked again before anything can be saved. */
+const DRAFT_MAX_STEP = 2;
 
-function draftKey(): string | null {
-  const userId = currentAccountOrNull()?.userId;
-  return userId ? `${DRAFT_PREFIX}${userId}` : null;
-}
-
-export function readLegacyDraft(now = Date.now()): Partial<OnboardingState> | null {
-  const key = draftKey();
-  if (!key) return null;
+/** The draft for this account, laid over a fresh state field by field (a body key a later build
+ *  added keeps its fresh value). Null when there is none, it is stale, or it does not parse. */
+export function readLegacyDraft(handle: AccountHandle, fresh: OnboardingState,
+  now = Date.now()): OnboardingState | null {
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = readAccountItem(handle, DRAFT_NAME);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { savedAt?: unknown; state?: unknown };
     const savedAt = typeof parsed.savedAt === "number" ? parsed.savedAt : NaN;
     if (!Number.isFinite(savedAt) || now - savedAt > DRAFT_MAX_AGE_MS) return null;
-    if (!parsed.state || typeof parsed.state !== "object" || Array.isArray(parsed.state)) return null;
-    return parsed.state as Partial<OnboardingState>;
+    const draft = parsed.state;
+    if (!draft || typeof draft !== "object" || Array.isArray(draft)) return null;
+    const saved = draft as Partial<OnboardingState>;
+    const body = saved.body && typeof saved.body === "object" && !Array.isArray(saved.body)
+      ? { ...fresh.body, ...saved.body } : fresh.body;
+    const step = typeof saved.step === "number" && Number.isInteger(saved.step)
+      ? Math.max(0, Math.min(DRAFT_MAX_STEP, saved.step)) : fresh.step;
+    return { ...fresh, ...saved, body, step };
   } catch {
     return null;
   }
 }
 
-function writeLegacyDraft(state: OnboardingState): void {
-  const key = draftKey();
-  if (!key) return;
+function writeLegacyDraft(handle: AccountHandle, state: OnboardingState): void {
   try {
-    window.localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), state }));
+    writeAccountItem(handle, DRAFT_NAME, JSON.stringify({ savedAt: Date.now(), state }));
   } catch {
-    // Best effort: a private window or a full store just means no draft.
+    // The account changed under this form: its answers are never filed under the new one.
   }
-}
-
-function clearLegacyDraft(): void {
-  const key = draftKey();
-  if (!key) return;
-  try { window.localStorage.removeItem(key); } catch { /* nothing to clear */ }
 }
 
 /** A reason the plan cannot finish yet: the shared alert says it, and the account stays put. */
@@ -180,6 +178,11 @@ export default function OnboardingFlow({
   const [edited, setEdited] = useState(false);
   // The step the skip confirm was asked on: moving to another step drops the question.
   const [confirmSkipAt, setConfirmSkipAt] = useState<string | null>(null);
+  /** The account the draft belongs to, captured when the form loaded. */
+  const draftHandle = useRef<AccountHandle | null>(null);
+  /** A skip already went out (its retry goes at once, even when the first attempt failed). */
+  const skipTried = useRef(false);
+  const footerRef = useRef<HTMLElement>(null);
   const [leaving, setLeaving] = useState(false);
   const leaveTo = useRef<(() => void) | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -279,16 +282,20 @@ export default function OnboardingFlow({
       if (!live) return;
       setBase(settings);
       const fresh = createOnboardingState(settings, initial);
-      const draft = keepsDraft ? readLegacyDraft() : null;
+      const handle = keepsDraft ? currentAccountOrNull() : null;
+      draftHandle.current = handle;
+      const draft = handle ? readLegacyDraft(handle, fresh) : null;
       if (draft) setRestored(true);
-      dispatch({ type: "replace", state: draft ? { ...fresh, ...draft } : fresh });
+      dispatch({ type: "replace", state: draft ?? fresh });
     });
     return () => { live = false; };
   }, [initial, initialSettings, keepsDraft, dispatch]);
 
   useEffect(() => {
-    if (keepsDraft && state) writeLegacyDraft(state);
-  }, [keepsDraft, state]);
+    // Only once something was answered or a step taken: an untouched form leaves no draft.
+    const handle = draftHandle.current;
+    if (handle && state && (edited || restored || state.step > 0)) writeLegacyDraft(handle, state);
+  }, [state, edited, restored]);
 
   // A new step (or the cuisine question) opens at its top with focus on its heading, so the
   // screen and a screen reader both start at the new step rather than part-way down the last one.
@@ -390,7 +397,7 @@ export default function OnboardingFlow({
     const outcome = await feedback.run(savePlan, { kind: "commit", key: "save",
       failureMessage: (cause) => cause instanceof Blocked ? cause.message : "Couldn’t save your plan. Try again." });
     if (!outcome.ok) return;
-    if (keepsDraft) clearLegacyDraft();
+    if (draftHandle.current) removeAccountItem(draftHandle.current, DRAFT_NAME);
     if (offerDevice && activeDeviceCapability?.enabled) setShowDevice(true);
     else finish();
   }
@@ -455,6 +462,7 @@ export default function OnboardingFlow({
 
   async function skip(): Promise<void> {
     setConfirmSkipAt(null);
+    skipTried.current = true;
     const outcome = await feedback.run(async () => {
       if (!skipPersisted) {
         await persistSkippedOnboarding(currentBase);
@@ -464,7 +472,7 @@ export default function OnboardingFlow({
     }, { kind: "commit", key: "skip",
       failureMessage: (cause) => cause instanceof Blocked ? cause.message : "Couldn’t finish setup. Try again." });
     if (outcome.ok) {
-      if (keepsDraft) clearLegacyDraft();
+      if (draftHandle.current) removeAccountItem(draftHandle.current, DRAFT_NAME);
       finish();
     }
   }
@@ -473,7 +481,12 @@ export default function OnboardingFlow({
    *  a slipped thumb never throws the answers away. A skip already sent (its retry) goes at once. */
   function requestSkip(): void {
     const answered = edited || restored || currentState.step > 0;
-    if (answered && !skipPersisted && !confirmSkip) { setConfirmSkipAt(stepKey); return; }
+    if (answered && !skipTried.current && !confirmSkip) {
+      setConfirmSkipAt(stepKey);
+      // The header close can ask from the top of a long step: bring the question into view.
+      footerRef.current?.scrollIntoView?.({ block: "nearest" });
+      return;
+    }
     void skip();
   }
 
@@ -487,7 +500,10 @@ export default function OnboardingFlow({
     if (deviceShown) { finish(); return; }
     if (embedded) { leave(onClose ?? onFinished ?? (() => undefined)); return; }
     if (saving) return;
-    if (completed) void save(); else requestSkip();
+    if (completed) void save();
+    // The under-18 stop has no footer to confirm in: its close is its own "Look around".
+    else if (minorStop) lookAround();
+    else requestSkip();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
@@ -623,7 +639,7 @@ export default function OnboardingFlow({
           <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
           {/* Back is the quieter neighbour, Next / Use this plan the flow's one primary; md, so the
               two sit level (DESIGN.md §Buttons). Each write lights only its own control (keyed). */}
-          {!minorStop && <footer className="flex flex-col gap-2">
+          {!minorStop && <footer ref={footerRef} className="flex flex-col gap-2">
             <div className="flex gap-2">
               {step > 0 && (
                 <Button variant="tertiary" className="flex-1" disabled={saving || completed}

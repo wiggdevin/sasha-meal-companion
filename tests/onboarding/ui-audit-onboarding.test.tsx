@@ -79,3 +79,24 @@ describe("the reward card", () => {
     expect(screen.queryByText(/18:30/)).toBeNull();
   });
 });
+
+describe("the legacy form's draft", () => {
+  it("restores answers but never past Goal, where the safety round is asked again", async () => {
+    const { readLegacyDraft } = await import("@/components/Onboarding/OnboardingFlow");
+    const { accountKey } = await import("@/lib/device/account");
+    const { createOnboardingState } = await import("@/lib/profile/onboarding-state");
+    const { defaultSettings } = await import("@/lib/store");
+    const handle = { userId: "u-draft", epoch: 1 };
+    const fresh = createOnboardingState(defaultSettings());
+    window.localStorage.setItem(accountKey(handle, "onboarding-legacy-draft"), JSON.stringify({
+      savedAt: Date.now(), state: { ...fresh, step: 4, prefsText: "no mushrooms", body: { heightCm: "170" } },
+    }));
+    const draft = readLegacyDraft(handle, fresh)!;
+    expect(draft.step).toBe(2);
+    expect(draft.prefsText).toBe("no mushrooms");
+    expect(draft.body.heightCm).toBe("170");
+    // A body key the draft lacks keeps its fresh value instead of going missing.
+    expect(draft.body.birthYear).toBe(fresh.body.birthYear);
+    expect(readLegacyDraft({ userId: "someone-else", epoch: 1 }, fresh)).toBeNull();
+  });
+});
