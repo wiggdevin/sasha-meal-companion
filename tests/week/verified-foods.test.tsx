@@ -34,7 +34,8 @@ describe("the Week screen's plan inputs", () => {
     await waitFor(() => expect(resolveStripDay).toHaveBeenCalled());
     expect(screen.queryByText("Loading your week…")).toBeNull();
     for (const call of resolveStripDay.mock.calls) {
-      expect(call[2]).toMatchObject({ eligibleFoodIds: ids, ruleReviewReady: true });
+      // A fresh store has no rule review recorded, so generation still waits, as on Today.
+      expect(call[2]).toMatchObject({ eligibleFoodIds: ids, ruleReviewReady: false });
     }
     expect(resolveStripDay.mock.calls.length % 7).toBe(0);
   });

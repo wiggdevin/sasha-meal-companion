@@ -161,13 +161,16 @@ export default function WeekPage() {
     if (!storeLoaded) return;
     const account = currentAccountOrNull();
     let live = true;
+    // A burst of sync passes starts several reads; only the latest one's answer is kept.
+    let latest = 0;
     const read = async () => {
       if (!account) { setEligible({ state: "failed" }); return; }
+      const mine = ++latest;
       try {
         const ids = await loadEligibleLocalFoodIds(account, loadStore().foods);
-        if (live && currentAccountOrNull()?.epoch === account.epoch) setEligible({ state: "ready", ids });
+        if (live && mine === latest && currentAccountOrNull()?.epoch === account.epoch) setEligible({ state: "ready", ids });
       } catch {
-        if (live) setEligible((previous) => previous.state === "ready" ? previous : { state: "failed" });
+        if (live && mine === latest) setEligible((previous) => previous.state === "ready" ? previous : { state: "failed" });
       }
     };
     void read();
@@ -181,7 +184,9 @@ export default function WeekPage() {
   const weekDays = useMemo(
     () => (store && eligible.state !== "loading"
       ? weekDates.map((date) => resolveStripDay(store, date, eligible.state === "ready"
-        ? { eligibleFoodIds: eligible.ids, accepted: null, recipeAccessEnabled: false, ruleReviewReady: true }
+        // Generation still waits for rule review: the stored gate decides, as on Today.
+        ? { eligibleFoodIds: eligible.ids, accepted: null, recipeAccessEnabled: false,
+          ruleReviewReady: store.settings.ruleReviewReady === true }
         : undefined))
       : []),
     [store, weekDates, eligible]

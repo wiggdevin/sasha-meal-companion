@@ -101,8 +101,8 @@ export default function NoteSheet({
           {onRemove && confirmingRemove && <div role="group" aria-label="Confirm remove" className="flex flex-col gap-2">
             <p className="m-0 px-0.5 text-caption text-graphite">Remove this entry? It comes off the day and its calories leave your totals.</p>
             <div className="flex gap-2.5">
-              <Button block onClick={() => setConfirmingRemove(false)}>Keep it</Button>
-              <Button variant="danger" block autoFocus onClick={onRemove}>Remove</Button>
+              <Button block autoFocus onClick={() => setConfirmingRemove(false)}>Keep it</Button>
+              <Button variant="danger" block onClick={onRemove}>Remove</Button>
             </div>
           </div>}
         </div>

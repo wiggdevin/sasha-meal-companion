@@ -208,6 +208,14 @@
   bottom: 56px;
   flex-direction: column-reverse;
 }
+/* Kept to its fixed height there, so a long award line on a 320 px phone never grows it up over Add
+   a cup: one line of words, the rest is in the player. */
+.notes[data-place="bottom"] .noteTitle,
+.notes[data-place="bottom"] .noteText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .note {
   pointer-events: auto;
   display: flex;

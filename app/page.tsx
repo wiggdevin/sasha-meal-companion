@@ -1249,7 +1249,7 @@ export default function Today() {
                 onSave={(n) => noteEntry(openEntry, n)}
                 onSaved={(before, after) => noteSaved(openEntry, before, after)}
                 onRemove={() => unlogFood(openEntry)}
-                removeLabel={viewedDate === todayIso ? "Remove from today" : "Remove from this day"}
+                removeLabel={isToday ? "Remove from today" : "Remove from this day"}
                 onLogAgain={canLogAgain(e) ? () => { void logEntryAgain(e); } : undefined}
                 onClose={() => setOpenEntry(null)}
               />
