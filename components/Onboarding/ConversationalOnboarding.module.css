@@ -132,6 +132,12 @@
   padding: 4px 0 8px;
 }
 
+/* No dock below it (BEAT_DOCK null): the link is the shell's last row, so it clears the iPhone
+   home indicator itself. */
+.skipLink[data-last] {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+
 /* The full-screen saving state (SavingStage.tsx): over the stream, the skip link and the dock. */
 .saving {
   position: absolute;

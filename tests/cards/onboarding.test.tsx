@@ -40,7 +40,7 @@ describe("the Body step", () => {
     expect(markup).toContain("Used to calculate your starting plan.");
     expect(markup).toContain('aria-label="Height"');
     expect(markup).toContain('aria-label="Birth year"');
-    expect(markup).toContain("Stored in kilograms.");
+    expect(markup).not.toContain("Stored in kilograms.");
   });
 
   it("shows the age only once the birth year is plausible", () => {
@@ -133,8 +133,9 @@ describe("the Plan step", () => {
     const markup = plan(COMPLETE);
     expect(markup).toContain("Training day");
     expect(markup).toContain("Rest day");
-    expect(markup).toContain("Reset to derived");
-    expect(markup).toMatch(/Mifflin-St Jeor|Katch-McArdle/);
+    expect(markup).toContain("Reset to suggested");
+    expect(markup).toContain("Estimated from your body and activity: about");
+    expect(markup).not.toMatch(/Mifflin-St Jeor|Katch-McArdle|BMR/);
     expect(markup).not.toContain("Your profile needs");
   });
 });
