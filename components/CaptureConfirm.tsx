@@ -51,7 +51,7 @@ export default function CaptureConfirm({
     draft={{ proposal: draft, portions, revisions, alternativeRevisions,
       ...(slot === undefined ? {} : { slot }), ...(details ? { details } : {}),
       saving: saving || feedback.phase === "pending", message, commitLabel: "save",
-      canSearchManually: false, canEditSlot: false, showDismiss: false }}
+      canSearchManually: onSearchManually ? "unmatched" : false, canEditSlot: false, showDismiss: false }}
     projection={projection}
     onCommit={commit}
     onSearchManually={() => onSearchManually?.()}

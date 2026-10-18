@@ -120,7 +120,7 @@ describe("coach attachment turns", () => {
     fireEvent.click(screen.getByRole("button", { name: "Decode" }));
     expect(onAttachment).toHaveBeenCalledWith(expect.objectContaining({
       kind: "barcode", v: 1, gtin14: "00012345678905", revisionId: "71",
-    }), "Scanned Rice crackers");
+    }), "Scanned Rice crackers", expect.objectContaining({ onDispatched: expect.any(Function) }));
 
     cleanup();
     onAttachment.mockClear();

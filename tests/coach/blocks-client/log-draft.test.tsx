@@ -57,7 +57,10 @@ describe("log_draft block", () => {
     render(<LogDraftBlock block={barcodeBlock}
       ctx={context({ commitBarcode, onBlockStatus, deleteEntry })} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Increase How many" }));
+    // Quarter steps (UI audit 2026-10-18 §6): four taps make one more pack.
+    for (let tap = 0; tap < 4; tap += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "Increase How many" }));
+    }
     fireEvent.click(screen.getByRole("button", { name: "Meal 3" }));
     fireEvent.click(screen.getByRole("button", { name: "Log it" }));
 

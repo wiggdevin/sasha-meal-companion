@@ -12,10 +12,16 @@ export type CoachShellControls = {
   scanDisabled: boolean;
   retryableAttachmentMessageId: string | null;
   sendText: (text: string) => void;
-  sendAttachment: (attachment: CoachAttachment, optimisticText: string) => Promise<boolean>;
+  /** Resolves when the whole turn settles. `onDispatched` fires the moment the message is in the
+   *  chat, so a sheet can close then instead of waiting on the reply (UI audit 2026-10-18 §6); a
+   *  false that comes without it means the send was refused and nothing was posted. */
+  sendAttachment: (attachment: CoachAttachment, optimisticText: string,
+    opts?: AttachmentSendOptions) => Promise<boolean>;
   retryAttachment: () => Promise<boolean>;
   onBlockStatus: (blockId: string, status: LogDraftBlockV1["status"], entryIds?: string[]) => void;
 };
+
+export type AttachmentSendOptions = { onDispatched?: () => void };
 
 type PendingAttachment = {
   threadId: string | null;
@@ -41,7 +47,7 @@ export function useAttachmentControls({
   const [failedMessageId, setFailedMessageId] = useState<string | null>(null);
 
   const post = useCallback(async (
-    turn: PendingAttachment, firstAttempt: boolean,
+    turn: PendingAttachment, firstAttempt: boolean, onDispatched?: () => void,
   ): Promise<boolean> => {
     const attachmentBlocked = turn.attachment.kind === "barcode" ? scanBlocked : blocked;
     if (attachmentBlocked || inFlight.current !== null) return false;
@@ -50,6 +56,7 @@ export function useAttachmentControls({
       ? { type: "send", messageId: turn.messageId, text: turn.optimisticText,
         attachment: turn.attachment }
       : { type: "attachment_retry" });
+    onDispatched?.();
     try {
       const response = await postAttachmentTurn({ threadId: turn.threadId, messageId: turn.messageId,
         text: "", attachment: turn.attachment, tz, ...(scope ? { scope } : {}) } as Parameters<typeof postAttachmentTurn>[0]);
@@ -72,13 +79,15 @@ export function useAttachmentControls({
     }
   }, [alive, blocked, dispatch, onThreadSaved, scanBlocked, scope, tz]);
 
-  const sendAttachment = useCallback((attachment: CoachAttachment, optimisticText: string) => {
+  const sendAttachment = useCallback((
+    attachment: CoachAttachment, optimisticText: string, opts?: AttachmentSendOptions,
+  ) => {
     const attachmentBlocked = attachment.kind === "barcode" ? scanBlocked : blocked;
     if (attachmentBlocked || newTurnBlocked) return Promise.resolve(false);
     const turn = { threadId, messageId: crypto.randomUUID(), attachment, optimisticText };
     pending.current.set(turn.messageId, turn);
     setFailedMessageId(null);
-    return post(turn, true);
+    return post(turn, true, opts?.onDispatched);
   }, [blocked, newTurnBlocked, post, scanBlocked, threadId]);
   const retryAttachment = useCallback(() => {
     const turn = failedMessageId ? pending.current.get(failedMessageId) : undefined;

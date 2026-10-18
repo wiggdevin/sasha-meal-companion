@@ -32,7 +32,9 @@ describe("legacy confirmation sheets", () => {
     render(<ScanConfirmSheet response={barcodeResponse} slot="meal-2"
       projection={projection} onLogged={noop} onClose={noop} />);
     expect(screen.getByText("Fat 69 → 70 / 70 g")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Increase How many" }));
+    for (let tap = 0; tap < 4; tap += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "Increase How many" }));
+    }
     expect(screen.getByText("Fat 69 → 71 / 70 g")).toBeTruthy();
     expect(screen.getByLabelText("Fat 69 to 71 of 70 g, 1 g over")
       .getAttribute("data-over-goal")).toBe("fat");
