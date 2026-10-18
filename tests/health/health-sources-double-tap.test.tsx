@@ -27,8 +27,10 @@ describe("the health connections sheet", () => {
     render(<MotionConfig reducedMotion="always"><HealthSourcesSheet appleOnly onClose={() => {}} onChanged={onChanged}
       sources={[{ id: "s1", kind: "apple_health_shortcut", device_label: "Apple Health Shortcut",
         revoked: false } as never]} /></MotionConfig>);
-    const revoke = screen.getByRole("button", { name: "Revoke" });
-    // Both taps land before React repaints the disabled state.
+    // The first tap arms the confirm (UI audit 2026-10-18); both confirming taps then land before
+    // React repaints the disabled state.
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Revoke Apple Health Shortcut" })); });
+    const revoke = screen.getByRole("button", { name: "Tap again to revoke Apple Health Shortcut" });
     act(() => { fireEvent.click(revoke); fireEvent.click(revoke); });
     await act(async () => { done(); });
     expect(health.revoke).toHaveBeenCalledOnce();

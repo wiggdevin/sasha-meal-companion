@@ -25,6 +25,9 @@ import type { DailyHealthResponse, DailyHealthRow } from "@/lib/health/contract"
 import { PROFILE_UNAVAILABLE, type ProfileState } from "@/lib/tdee";
 import type { ExpenditureResponse, ProposalSummary } from "@/lib/api-types";
 import type { ActivityContextV1 } from "@/lib/activity/summary";
+import { lastSeen } from "@/lib/health/last-seen";
+import type { EstimateStatus } from "@/lib/health/body-page";
+import Notice from "@/components/ui/Notice";
 
 /** Storage is kilograms; this compatibility export converts one value to pounds. */
 export function kgToLb(kg: number): number {
@@ -41,15 +44,7 @@ export function daysWithData(points: (number | null)[]): number {
   return points.filter((p) => p !== null).length;
 }
 
-export function lastSeen(iso: string | null, now: Date = new Date()): string {
-  if (!iso) return "never";
-  const minutes = Math.floor((now.getTime() - Date.parse(iso)) / 60_000);
-  if (!Number.isFinite(minutes) || minutes < 0) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours} h ago`;
-  return `${Math.floor(hours / 24)} d ago`;
-}
+export { lastSeen } from "@/lib/health/last-seen";
 
 /* DESIGN.md's fixed per-macro gauge colours, by token rather than by literal: calories orange,
    protein blue, carbs olive, fat gold. They belong to the four macro cards and are never
@@ -142,13 +137,25 @@ function MetricCards({ series }: { series: MetricCardSpec[] }) {
   );
 }
 
-function TdeePanel({ estimate, profile, days }: { estimate: ExpenditureResponse | null;
+/** Before the estimate lands, or when its read failed with nothing cached, the panel says which,
+ *  instead of drawing a heading over nothing (UI audit 2026-10-18). */
+function EstimatePending({ status, onRetry }: { status: EstimateStatus; onRetry?: () => void }) {
+  if (status === "error") {
+    return <Notice tone="error" title="Couldn't load your burn estimate"
+      action={onRetry ? { label: "Try again", onClick: onRetry } : undefined} />;
+  }
+  return <p role="status" className={`m-0 ${MUTED}`}>Loading your burn estimate…</p>;
+}
+
+function TdeePanel({ estimate, status, onRetry, profile, days }: {
+    estimate: ExpenditureResponse | null; status: EstimateStatus; onRetry?: () => void;
     profile: ProfileState; days: DailyHealthRow[] }) {
   return (
     <section className="shell">
       <div className="surface flex flex-col gap-3 p-4">
         <h2 className={`m-0 ${PANEL_TITLE}`}>What you burn</h2>
-        <TdeeLines estimate={estimate} profile={profile} days={days} />
+        {estimate === null ? <EstimatePending status={status} onRetry={onRetry} />
+          : <TdeeLines estimate={estimate} profile={profile} days={days} />}
       </div>
     </section>
   );
@@ -194,6 +201,8 @@ export type BodyDashboardProps = {
   /** The fetched 15-day window: `response.days` feeds the TDEE lines. */
   response: DailyHealthResponse; chart: DailyHealthRow[]; fetchedAt: string | null;
   offline: boolean; onOpenSources: () => void; estimate?: ExpenditureResponse | null;
+  /** The estimate read's state; without it a missing estimate reads as still loading. */
+  estimateStatus?: EstimateStatus; onRetryEstimate?: () => void;
   pendingProposal?: Fresh<ProposalSummary[]> | null;
   onProposalDecided?: (decision: "approve" | "reject") => void;
   /** The profile as the shared read left it; `unavailable` when that read failed (finding 5). */
@@ -201,7 +210,7 @@ export type BodyDashboardProps = {
 } & ProfileFailureProps;
 
 export default function BodyDashboard({ response, chart, fetchedAt, offline, onOpenSources,
-  estimate = null, pendingProposal = null, onProposalDecided, profile = PROFILE_UNAVAILABLE,
+  estimate = null, estimateStatus, onRetryEstimate, pendingProposal = null, onProposalDecided, profile = PROFILE_UNAVAILABLE,
   profileFailed, onRetryProfile }: BodyDashboardProps) {
   const weightUnit = loadStore().settings.weightUnit ?? "lb";
   const proposal = visibleProposal(pendingProposal);
@@ -231,8 +240,11 @@ export default function BodyDashboard({ response, chart, fetchedAt, offline, onO
           asOf={pendingProposal?.stale ? pendingProposal.asOf : undefined}
           onDecided={onProposalDecided} />
       )}
-      <MovementPanel context={estimate?.activityContext} />
-      <TdeePanel estimate={estimate} profile={profile} days={response.days} />
+      {/* Mounted only once the estimate is here: before then "0 of 7 days" would read as a broken
+          sync (UI audit 2026-10-18). */}
+      {estimate && <MovementPanel context={estimate.activityContext} />}
+      <TdeePanel estimate={estimate} profile={profile} days={response.days}
+        status={estimateStatus ?? (estimate ? "ready" : "loading")} onRetry={onRetryEstimate} />
       <SourcesPanel sources={response.sources} onOpenSources={onOpenSources} />
     </div>
   );

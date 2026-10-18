@@ -142,7 +142,7 @@ function startingLine(estimate: ExpenditureResponse): TdeeLine {
   if (typeof seed !== "number") {
     return { key: "profile", label: "No estimate yet", value: "Not yet", kcal: null, range: null,
       detail: sentence(estimate.reason, "Finish your profile to start the estimate"),
-      action: { label: "Set up your profile", href: "/onboarding" } };
+      action: { label: "Set up your profile", href: "/settings" } };
   }
   return { key: "profile", label: "From your profile", value: `about ${kcal(seed)}`, kcal: seed,
     range: rangeAround(estimate, seed),

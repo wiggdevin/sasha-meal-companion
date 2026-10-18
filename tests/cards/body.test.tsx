@@ -69,7 +69,8 @@ vi.mock("@/lib/health/body-page", async (importOriginal) => {
   return {
     ...actual,
     useBodyDashboard: (): BodyDashboardData => ({
-      daily: hook.daily as DailyState, chart: [DAY], estimate: null, pendingProposal: null,
+      daily: hook.daily as DailyState, chart: [DAY], estimate: null, estimateStatus: "loading",
+      retryEstimate: () => {}, pendingProposal: null,
       profile: { profile: null, state: PROFILE_UNAVAILABLE, status: "ready", error: null,
         retry: () => {} },
       reload: () => {}, onProposalDecided: () => {},
@@ -114,6 +115,28 @@ describe("/body's shell states — skeleton, empty, loaded, offline and profile 
     expect(markup).toContain("Profile starting estimate");
   });
 
+  it("says it cannot reach the server, with a retry, when offline with nothing cached", () => {
+    const markup = page({ disabled: false, response: null, fetchedAt: null, offline: true });
+    expect(markup).toContain("Couldn&#x27;t reach the server");
+    expect(markup).toContain("Nothing has changed with your connected sources.");
+    expect(markup).toContain("Try again");
+    expect(markup).not.toContain("Nothing here yet");
+  });
+
+  it("says the estimate is loading, and draws no movement panel, before it lands", () => {
+    const markup = dashboard({ estimate: null, estimateStatus: "loading" });
+    expect(markup).toContain("Loading your burn estimate");
+    expect(markup).not.toContain("Movement pattern");
+    expect(markup).not.toContain("Keep syncing");
+  });
+
+  it("says the estimate failed, with a retry, when its read failed", () => {
+    const markup = dashboard({ estimate: null, estimateStatus: "error", onRetryEstimate: () => {} });
+    expect(markup).toContain("Couldn&#x27;t load your burn estimate");
+    expect(markup).toContain("Try again");
+    expect(markup).not.toContain("Movement pattern");
+  });
+
   it("draws no TDEE line at all before the first estimate lands", () => {
     const markup = dashboard({ estimate: null });
     expect(markup).toContain("What you burn");
@@ -145,7 +168,7 @@ describe("/body's shell states — skeleton, empty, loaded, offline and profile 
 
   it("draws the dashboard, and neither shell, once a response has landed", () => {
     const markup = page({ disabled: false, response: RESPONSE, fetchedAt: null, offline: false });
-    expect(markup).toContain("Movement pattern");
+    expect(markup).toContain("What you burn");
     expect(markup).not.toContain("Nothing here yet");
     expect(markup).not.toContain('class="h-80 rounded-[32px] bg-fog"');
   });

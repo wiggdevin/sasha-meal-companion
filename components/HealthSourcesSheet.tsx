@@ -2,16 +2,19 @@
 
 import { accountHandle } from "@/lib/device/account";
 import Disclosure from "@/components/ui/Disclosure";
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Sheet from "@/components/Sheet";
 import { connectOura, disconnectOura, issueToken, revokeToken } from "@/lib/health-client";
 import type { DailyHealthResponse } from "@/lib/health/contract";
 import { APP_NAME } from "@/lib/brand";
 import Notice from "@/components/ui/Notice";
 import Button, { buttonClasses } from "@/components/ui/Button";
+import { lastSeen } from "@/lib/health/last-seen";
+import { useOnline } from "@/lib/use-online";
 
 type CopyStatus = "idle" | "copied" | "error";
 type AppleSourceKind = "apple_health_shortcut" | "health_auto_export";
+type IssuedCode = { kind: AppleSourceKind; token: string };
 
 const SHORTCUT_SAMPLE_JSON = JSON.stringify({
   source_kind: "apple_health_shortcut",
@@ -70,21 +73,88 @@ export function healthSourceLabel(source: DailyHealthResponse["sources"][number]
   return `${label}${source.revoked ? " · revoked" : ""}`;
 }
 
-function IssueCodeButton({ kind, busy, online, onIssue }: {
-  kind: AppleSourceKind;
-  busy: boolean;
-  online: boolean;
-  onIssue: (kind: AppleSourceKind) => void;
-}) {
+/** The issued code, shown in the section whose button made it: scrolled into view and focused
+ *  when it appears, and announced, so a tap never looks like it did nothing (UI audit 2026-10-18). */
+function IssuedCodeBlock({ token }: { token: string }) {
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
+  const ref = useRef<HTMLDivElement>(null);
+  const headingId = useId();
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    node.focus({ preventScroll: true });
+  }, [token]);
   return (
-    <Button disabled={busy || !online} onClick={() => onIssue(kind)}>Create connection code</Button>
+    <div ref={ref} tabIndex={-1} role="group" aria-labelledby={headingId}
+      className="flex flex-col gap-2 border-t border-hairline pt-3 outline-none">
+      <span id={headingId} role="status" className="text-tiny font-medium uppercase tracking-widest text-muted">
+        Copy this connection code now — it is shown once
+      </span>
+      <code className="break-all text-tiny text-charcoal">{token}</code>
+      <CopyTokenButton status={copyStatus}
+        onCopy={() => { void copyIssuedToken(token).then(setCopyStatus); }} />
+    </div>
   );
 }
 
-export function HealthSourceRecipes({ shortcutUrl, busy, online, onIssue }: {
+function IssueCodeButton({ kind, busy, online, issued, onIssue }: {
+  kind: AppleSourceKind;
+  busy: boolean;
+  online: boolean;
+  issued: IssuedCode | null;
+  onIssue: (kind: AppleSourceKind) => void;
+}) {
+  const mine = issued?.kind === kind ? issued.token : null;
+  // Once a code is out, a second tap would make a second source and hide the first code.
+  return (
+    <>
+      <Button disabled={busy || !online || mine !== null} onClick={() => onIssue(kind)}>
+        {mine !== null ? "Code created, copy it below" : "Create connection code"}
+      </Button>
+      {mine !== null && <IssuedCodeBlock key={mine} token={mine} />}
+    </>
+  );
+}
+
+/** A destructive action that asks twice: the first tap arms it for a few seconds and says what the
+ *  second tap does, so a stray tap while scrolling cannot break the sync (UI audit 2026-10-18). */
+export function ConfirmButton({ label, confirmLabel, disabled, className = "", ariaLabel, onConfirm }: {
+  label: string; confirmLabel: string; disabled: boolean; className?: string;
+  /** Names what the button acts on when several rows share a label. */
+  ariaLabel?: (armed: boolean) => string;
+  onConfirm: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  // Busy elsewhere disarms it, so one tap after that action ends cannot confirm.
+  const [wasDisabled, setWasDisabled] = useState(disabled);
+  if (wasDisabled !== disabled) {
+    setWasDisabled(disabled);
+    if (disabled && armed) setArmed(false);
+  }
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  return (
+    <Button variant="danger" size="sm" className={`shrink-0 whitespace-nowrap ${className}`.trim()}
+      disabled={disabled} aria-label={ariaLabel?.(armed)}
+      onClick={() => {
+        if (!armed) { setArmed(true); return; }
+        setArmed(false);
+        onConfirm();
+      }}>
+      {armed ? confirmLabel : label}
+    </Button>
+  );
+}
+
+export function HealthSourceRecipes({ shortcutUrl, busy, online, issued = null, onIssue }: {
   shortcutUrl: string | null;
   busy: boolean;
   online: boolean;
+  issued?: IssuedCode | null;
   onIssue: (kind: AppleSourceKind) => void;
 }) {
   return (
@@ -94,7 +164,7 @@ export function HealthSourceRecipes({ shortcutUrl, busy, online, onIssue }: {
           Free (Shortcut) · needs your phone unlocked at the sync time
         </h3>
         <IssueCodeButton kind="apple_health_shortcut" busy={busy} online={online}
-          onIssue={onIssue} />
+          issued={issued} onIssue={onIssue} />
         {shortcutUrl ? (
           // A link keeps link semantics, so it wears the secondary recipe through buttonClasses.
           <a href={shortcutUrl} target="_blank" rel="noreferrer"
@@ -161,7 +231,7 @@ export function HealthSourceRecipes({ shortcutUrl, busy, online, onIssue }: {
           Premium is $1.99/month, $6.99/year, or $24.99 lifetime.
         </p>
         <IssueCodeButton kind="health_auto_export" busy={busy} online={online}
-          onIssue={onIssue} />
+          issued={issued} onIssue={onIssue} />
         <ol className="m-0 flex flex-col gap-2 pl-5 text-caption leading-5">
           <li>Install Health Auto Export and Premium. Grant Steps, Active Energy,
             Weight &amp; Body Mass, and Sleep Analysis.</li>
@@ -185,25 +255,24 @@ export default function HealthSourcesSheet({ sources, onClose, onChanged, appleO
   sources: DailyHealthResponse["sources"]; onClose: () => void; onChanged: () => void;
   appleOnly?: boolean;
 }) {
-  const [issued, setIssued] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
+  const [issued, setIssued] = useState<IssuedCode | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const online = typeof navigator === "undefined" ? true : navigator.onLine;
+  const online = useOnline();
   const oura = sources.find((s) => s.kind === "oura" && !s.revoked);
   const shortcutUrl = process.env.NEXT_PUBLIC_APPLE_HEALTH_SHORTCUT_URL?.trim() || null;
 
   // `busy` disables the buttons only after a repaint; a second tap before then must not send twice
   // (two connection codes, one never shown).
   const running = useRef(false);
-  async function run(action: () => Promise<void>): Promise<void> {
+  async function run(action: () => Promise<void>, notify = true): Promise<void> {
     if (running.current) return;
     running.current = true;
     setBusy(true);
     setError(null);
     try {
       await action();
-      onChanged();
+      if (notify) onChanged();
     } catch {
       setError("That did not go through. Try again when you have a connection.");
     } finally {
@@ -219,53 +288,40 @@ export default function HealthSourcesSheet({ sources, onClose, onChanged, appleO
       <div className="flex flex-col gap-4">
         {!online && <Notice tone="attention" title="These need a connection." />}
 
-        <HealthSourceRecipes shortcutUrl={shortcutUrl} busy={busy} online={online}
+        <HealthSourceRecipes shortcutUrl={shortcutUrl} busy={busy} online={online} issued={issued}
           onIssue={(kind) => { void run(async () => {
             const { token } = await issueToken({ kind,
               device_label: kind === "apple_health_shortcut" ? "Apple Health Shortcut"
                 : "Health Auto Export",
               time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone });
-            setIssued(token);
-            setCopyStatus("idle");
+            setIssued({ kind, token });
           }); }} />
-
-        {issued && (
-          <div className="well flex flex-col gap-2 p-4">
-            <span className="text-tiny font-medium uppercase tracking-widest text-muted">
-              Copy this connection code now — it is shown once
-            </span>
-            <code className="break-all text-tiny text-charcoal">{issued}</code>
-            <CopyTokenButton status={copyStatus}
-              onCopy={() => { void copyIssuedToken(issued).then(setCopyStatus); }} />
-          </div>
-        )}
 
         {sources.filter((s) => s.kind !== "oura").map((source) => (
           <div key={source.id} className="flex items-center justify-between gap-3">
-            <span className="text-caption font-normal text-graphite">
-              {healthSourceLabel(source)}
+            {/* When it last sent is what tells two same-named sources apart (UI audit 2026-10-18). */}
+            <span className="flex min-w-0 flex-col">
+              <span className="text-caption font-normal text-graphite">{healthSourceLabel(source)}</span>
+              {!source.revoked && <span className="text-tiny text-muted">
+                last received {lastSeen(source.last_received_at)}</span>}
             </span>
             {!source.revoked && (
-              <Button variant="danger" size="sm" disabled={busy || !online}
-                onClick={() => run(() => revokeToken(source.id))}>
-                Revoke
-              </Button>
+              <ConfirmButton label="Revoke" confirmLabel="Tap again to revoke"
+                ariaLabel={(armed) => `${armed ? "Tap again to revoke" : "Revoke"} ${healthSourceLabel(source)}`}
+                disabled={busy || !online} onConfirm={() => { void run(() => revokeToken(source.id)); }} />
             )}
           </div>
         ))}
 
         {!appleOnly && (oura ? (
-          <Button variant="danger" size="sm" className="self-start" disabled={busy || !online}
-            onClick={() => run(() => disconnectOura())}>
-            Disconnect Oura
-          </Button>
+          <ConfirmButton label="Disconnect Oura" confirmLabel="Tap again to disconnect"
+            className="self-start" disabled={busy || !online}
+            onConfirm={() => { void run(() => disconnectOura()); }} />
         ) : (
-          <Button disabled={!online}
-            onClick={() => {
-              if (running.current) return;
-              running.current = true;
-              void connectOura(accountHandle()).catch(() => {}).finally(() => { running.current = false; });
-            }}>
+          // The start request goes through `run`, so it shows busy and a failure says so; success
+          // leaves the page for Oura, so there is nothing to refresh.
+          <Button disabled={busy || !online} status={busy ? "pending" : "idle"}
+            onClick={() => { void run(() => connectOura(accountHandle()), false); }}>
             Connect Oura
           </Button>
         ))}

@@ -13,6 +13,7 @@
  */
 import { useState } from "react";
 import { AnimatePresence, MotionConfig } from "motion/react";
+import Notice from "@/components/ui/Notice";
 import BodyDashboard, { type ProfileFailureProps } from "@/components/BodyDashboard";
 import HealthSourcesSheet from "@/components/HealthSourcesSheet";
 import { useBodyDashboard } from "@/lib/health/body-page";
@@ -33,10 +34,22 @@ function BodyEmptyState() {
   );
 }
 
+/** The read failed and nothing is cached: say so, and never claim no source is connected
+ *  (UI audit 2026-10-18). */
+function BodyOfflineState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Notice tone="attention" title="Couldn't reach the server"
+      action={{ label: "Try again", onClick: onRetry }}>
+      Nothing has changed with your connected sources. Your body data shows here once you are back online.
+    </Notice>
+  );
+}
+
 export default function BodyPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const { daily: state, chart, estimate, pendingProposal, profile, reload,
-    onProposalDecided } = useBodyDashboard();
+  const { daily: state, chart, estimate, estimateStatus, retryEstimate, pendingProposal, profile,
+    reload, onProposalDecided } = useBodyDashboard();
+  const unreachable = state !== null && !state.disabled && state.offline && state.response === null;
   // The retry travels with the flag, so the dashboard can never draw a button that does nothing
   // (split audit, finding 2). An unread profile is not a failure — it is just not answered yet.
   const profileFailure: ProfileFailureProps = profile.status === "error"
@@ -54,11 +67,15 @@ export default function BodyPage() {
         {/* Loading: the card it becomes, at E1 (a beige block on the ground read as sunken). */}
         {state === null && <div className="shell" aria-hidden="true"><div className="surface h-80" /></div>}
 
-        {state !== null && (state.disabled || state.response === null) && <BodyEmptyState />}
+        {unreachable && <BodyOfflineState onRetry={() => { void reload(); }} />}
+
+        {state !== null && !unreachable && (state.disabled || state.response === null)
+          && <BodyEmptyState />}
 
         {state !== null && !state.disabled && state.response !== null && (
           <BodyDashboard response={state.response} chart={chart}
             fetchedAt={state.fetchedAt} offline={state.offline} estimate={estimate}
+            estimateStatus={estimateStatus} onRetryEstimate={retryEstimate}
             pendingProposal={pendingProposal} onProposalDecided={onProposalDecided}
             profile={profile.state} {...profileFailure} onOpenSources={() => setSheetOpen(true)} />
         )}
