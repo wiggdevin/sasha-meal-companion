@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import AvoidRules from "@/components/AvoidRules";
 import RuleReviewCard from "@/components/RuleReviewCard";
 import { loadDiet, saveDiet, type DietState } from "@/lib/foods/diet-client";
-import AvoidImpact from "@/components/AvoidImpact";
+import AvoidImpact, { FOOD_SETTINGS_ID } from "@/components/AvoidImpact";
 import { PREFERENCE_FLAGS, type PreferenceFlag } from "@/lib/profile/onboarding-state";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import Notice from "@/components/ui/Notice";
@@ -105,11 +105,14 @@ export default function AvoidsView() {
   const [rulesVersion, setRulesVersion] = useState(0);
   return (
     <>
-      <AvoidImpact dietEditor={<DietStyleCard />} />
+      <AvoidImpact />
       <RuleReviewCard onCompleted={() => setRulesVersion((value) => value + 1)} />
-      {/* On the ground it is a card (E1); inside the impact sheet's editor it stays a nested face. */}
-      <div className="shell"><DietStyleCard /></div>
-      <AvoidRules key={rulesVersion} />
+      {/* The one copy of the diet and rules editors; the affected-meals sheet scrolls here. */}
+      <div id={FOOD_SETTINGS_ID} tabIndex={-1} aria-label="Food settings"
+        className="flex scroll-mt-4 flex-col gap-5 outline-none">
+        <div className="shell"><DietStyleCard /></div>
+        <AvoidRules key={rulesVersion} />
+      </div>
     </>
   );
 }

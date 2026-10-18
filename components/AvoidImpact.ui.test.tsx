@@ -34,7 +34,7 @@ vi.mock("@/components/MyFoods", () => ({ AvoidFoods: () => <section aria-label="
 vi.mock("@/components/AvoidRules", () => ({ default: () => null }));
 vi.mock("@/components/RecipePlanFlow", () => ({ default: () => null }));
 
-const { default: AvoidImpact } = await import("./AvoidImpact");
+const { default: AvoidImpact, instanceWhen } = await import("./AvoidImpact");
 
 type Instance = { date: string; slot: string; title: string; source: "recipe" | "edited"; matched: string };
 const instance = (day: number, slot = "meal-1"): Instance => ({
@@ -74,7 +74,7 @@ describe("affected meals review", () => {
   it("opens the matching instance list with Edit, Remove and Remix on each", async () => {
     const dialog = await openAffected();
     for (const item of instances) {
-      const card = within(dialog).getByText(`${item.date} · ${item.slot} · ${item.title}`)
+      const card = within(dialog).getByText(`${instanceWhen(item)} · ${item.title}`)
         .closest("div") as HTMLElement;
       for (const action of ["Remove", "Remix", "Edit"]) {
         expect(within(card).getByRole("button", { name: action })).toBeTruthy();
@@ -117,7 +117,7 @@ describe("affected meals review", () => {
   it("keeps the fixed shortcut working without any typed question", async () => {
     await openAffected();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Ask Sasha for selected replacements" }));
+      fireEvent.click(screen.getByRole("button", { name: "Ask Sasha about selected" }));
     });
     expect(io.postTurn).toHaveBeenCalledTimes(1);
     const text = (io.postTurn.mock.calls[0][0] as { text: string }).text;
@@ -127,7 +127,7 @@ describe("affected meals review", () => {
   it("keeps an eaten affected meal's protection: Remove refuses and writes nothing", async () => {
     io.days = { "2026-10-01": { eaten: { "meal-1": true } } };
     const dialog = await openAffected();
-    const card = within(dialog).getByText("2026-10-01 · meal-1 · Garlic pasta 1")
+    const card = within(dialog).getByText("Thu, Oct 1 · Meal 1 · Garlic pasta 1")
       .closest("div") as HTMLElement;
     expect(["Remove", "Remix", "Edit"].every((name) =>
       within(card).queryByRole("button", { name }))).toBe(true);
@@ -175,7 +175,7 @@ describe("the Ask Sasha request at its worst case", () => {
   it("keeps the fixed shortcut inside the limit too", async () => {
     await openAffected();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Ask Sasha for selected replacements" }));
+      fireEvent.click(screen.getByRole("button", { name: "Ask Sasha about selected" }));
     });
     const request = io.postTurn.mock.calls[0][0] as { text: string };
     expect(coachTurnRequestSchema.safeParse(request).success).toBe(true);

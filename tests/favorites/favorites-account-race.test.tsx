@@ -49,15 +49,15 @@ describe("the favourites strip across an account switch", () => {
     const late = deferred();
     favorites.list.mockResolvedValueOnce([row("a", "A's oats")]);
     render(<FavoritesStrip limit={6} />);
-    expect(await screen.findByRole("link", { name: "A's oats" })).toBeTruthy();
+    expect(await screen.findByText("A's oats")).toBeTruthy();
 
     favorites.list.mockReturnValueOnce(late.promise);
     act(() => { window.dispatchEvent(new Event("favorites-changed")); });
     act(() => { bindAccount(OTHER); });
-    expect(screen.queryByRole("link", { name: "A's oats" })).toBeNull();
+    expect(screen.queryByText("A's oats")).toBeNull();
 
     await act(async () => { late.resolve([row("a", "A's oats"), row("b", "A's rice")]); });
-    expect(screen.queryByRole("link", { name: /A's/ })).toBeNull();
+    expect(screen.queryByText(/A's/)).toBeNull();
   });
 
   it("lets only the newest read land, so a slow older read never overwrites it", async () => {
@@ -65,9 +65,9 @@ describe("the favourites strip across an account switch", () => {
     favorites.list.mockReturnValueOnce(slow.promise).mockResolvedValueOnce([row("n", "New star")]);
     render(<FavoritesStrip limit={6} />);
     act(() => { window.dispatchEvent(new Event("favorites-changed")); });
-    expect(await screen.findByRole("link", { name: "New star" })).toBeTruthy();
+    expect(await screen.findByText("New star")).toBeTruthy();
     await act(async () => { slow.resolve([]); });
-    expect(screen.getByRole("link", { name: "New star" })).toBeTruthy();
+    expect(screen.getByText("New star")).toBeTruthy();
   });
 
   it("reads the new account's favourites once it is ready", async () => {
@@ -75,7 +75,7 @@ describe("the favourites strip across an account switch", () => {
     await waitFor(() => expect(favorites.list).toHaveBeenCalledTimes(1));
     favorites.list.mockResolvedValue([row("b", "B's soup")]);
     act(() => { markAccountReady(bindAccount(OTHER)); });
-    expect(await screen.findByRole("link", { name: "B's soup" })).toBeTruthy();
+    expect(await screen.findByText("B's soup")).toBeTruthy();
   });
 });
 
