@@ -114,7 +114,8 @@ describe("coach shell lifecycle", () => {
     expect(view.getByText("Thinking…")).not.toBeNull();
     expect(scroller.scrollTop).toBe(600);
 
-    scroller.scrollTop = 250;
+    // A reply follows a reader who is still at the bottom (within FOLLOW_SLACK of it).
+    scroller.scrollTop = 270;
     await act(async () => replied.resolve({
       threadId: "thread-1",
       suggestions: [], actions: [], draft: null, deflected: false, toolsUsed: [],

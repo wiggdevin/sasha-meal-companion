@@ -7,9 +7,7 @@ import {
   type PrependAnchor,
 } from "@/lib/coach/thread-history";
 
-const BOTTOM_EPSILON = 1;
-/** How far above the bottom a reader may sit and still be carried along by new content. Further up
- *  they are re-reading, so a streamed reply never pulls them down; the New message pill offers it. */
+const BOTTOM_EPSILON = 1; /** Further up than this a reader is re-reading: new content never pulls them down (the pill offers it). */
 export const FOLLOW_SLACK = 48;
 
 function gap(element: HTMLElement): number { return element.scrollHeight - element.scrollTop - element.clientHeight; }
@@ -30,12 +28,11 @@ export function useBottomFollow(contentVersion: unknown) {
     isPinned.current = true;
     setHasNewMessage(false);
   }, []);
-  /** `force`: the update is the reader's own doing (their send, a restore), so it always follows. */
   const captureBeforeUpdate = useCallback((force = false) => {
     const element = scroller.current;
     if (prependInFlight.current) return;
     prependAnchor.current = null;
-    shouldFollow.current = force || !element || gap(element) <= FOLLOW_SLACK;
+    shouldFollow.current = force || !element || isPinned.current || gap(element) <= FOLLOW_SLACK;
   }, []);
   const capturePrependAnchor = useCallback(() => {
     const element = scroller.current;

@@ -163,7 +163,7 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
   const [inputHeight, setInputHeight] = useState(INPUT_MIN);
   useLayoutEffect(() => {
     if (input.current) setInputHeight(textHeight(input.current));
-  }, [draft, width, open, input]);
+  }, [draft, width, open, input, showClear, showMic, canSend]);
   const textGrow = open ? inputHeight - INPUT_MIN : 0;
   const base = useMotionValue(BUBBLE);
   const pull = useMotionValue(0);
@@ -171,6 +171,7 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
   const trayHeight = useTransform(() => base.get() + pull.get());
   const height = useTransform(() => trayHeight.get() + grow.get());
   const trayBottom = useTransform(grow, (value) => BUBBLE + value);
+  const formHeight = trayBottom;
   const trayReveal = useTransform(trayHeight, [BUBBLE + 20, TRAY_OPEN], [0, 1]);
   const trayRise = useTransform(trayReveal, [0, 1], [12, 0]);
   useEffect(() => {
@@ -351,11 +352,11 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
       })}
     </motion.div>
 
-    <form role="search" aria-label={`Ask ${ASSISTANT_NAME}`} aria-current={live ? "page" : undefined}
+    <motion.form role="search" aria-label={`Ask ${ASSISTANT_NAME}`} aria-current={live ? "page" : undefined}
       inert={!open} onSubmit={submit} onBlur={blurred}
       // Bottom-aligned, so the controls stay on the last line while the text grows above them.
       className="absolute inset-x-0 bottom-0 flex items-end py-2.5 pl-2.5 pr-2.5"
-      style={{ height: BUBBLE + textGrow }}>
+      style={{ height: formHeight }}>
       {/* One glyph slot for both states: the closed bubble's mark becomes the + control. */}
       <button ref={attach} type="button" aria-label={tray ? "Hide attach options" : "Attach"} aria-expanded={tray}
         tabIndex={open ? 0 : -1} onClick={() => { setWeighing(false); setTrayFor((out) => !out); }}
@@ -404,7 +405,7 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
           sendFeedbackState={dockState.sendFeedbackState}
           sendFeedbackClassName={dockState.sendFeedbackClassName} />
       </motion.div>}
-    </form>
+    </motion.form>
 
     <AnimatePresence initial={false}>
       {!open && <motion.button key="ask" type="button" onClick={onOpen}

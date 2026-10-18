@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TabBar from "@/components/TabBar";
-import { useCoachDockSubmit } from "@/components/coach/use-dock-submit";
+import { clearCoachDockText, useCoachDockSubmit } from "@/components/coach/use-dock-submit";
 import { useDockIntents, type DockIntent } from "@/components/coach/attachments/dock-handoff";
 import { useBroadcastDockComposerState, type DockComposerState } from "@/components/coach/use-dock-composer-state";
 import { COMPOSER_OFFLINE_COPY } from "@/lib/coach/chat-state";
@@ -65,6 +65,7 @@ afterEach(() => {
   // cleanup() unmounts every Broadcaster this file rendered too, which resets the dock-composer-
   // state broadcast exactly as unmounting CoachShell does — nothing leaks into the next test.
   cleanup();
+  clearCoachDockText();
   speech.handlers.length = 0;
   nav.path = "/coach";
   nav.push.mockReset();
@@ -145,6 +146,10 @@ describe("the Sasha bubble on /coach", () => {
   it("clears the text from its own control", async () => {
     render(<TabBar />);
     fireEvent.change(field(), { target: { value: "never mind" } });
+    // While typing at the end Send shows and Clear steps aside (UI audit 2026-10-18: four round
+    // controls left the text ~18 px at 320); once the field is left, Clear is back.
+    expect(screen.queryByRole("button", { name: "Clear text" })).toBeNull();
+    fireEvent.blur(field());
     fireEvent.click(screen.getByRole("button", { name: "Clear text" }));
     expect(field().value).toBe("");
     expect(screen.getByRole("button", { name: "Record message" })).toBeTruthy();

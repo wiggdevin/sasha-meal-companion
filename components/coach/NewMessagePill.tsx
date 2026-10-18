@@ -1,6 +1,5 @@
 export default function NewMessagePill({ onClick }: { onClick: () => void }) {
-  // The fill lives on the inner `pill-in`, as on every other coach pill, so the cue reads over any
-  // bubble (an olive user bubble included).
+  // The fill is the inner `pill-in`, as on every coach pill, so it reads over any bubble.
   return (
     <button
       type="button"

@@ -93,10 +93,10 @@ export default function ChatOverlay({ scope, dock, onClose, onOpenFull }: {
           <div className={styles.head}>
             <CoachHeader variant="overlay" scope={scope} thinking={thinking} trailing={<>
               {/* Under 360 px the words would crush the title, so the control becomes an icon. */}
-              <Button variant="ghost" size="sm" onClick={onOpenFull} className="max-[359px]:hidden">
-                Open full chat</Button>
-              <Button variant="ghost" shape="circle" onClick={onOpenFull} aria-label="Open full chat"
-                className="min-[360px]:hidden"><Maximize2 size={18} strokeWidth={1.75} aria-hidden="true" /></Button>
+              <Button variant="ghost" size="sm" onClick={onOpenFull} aria-label="Open full chat">
+                <Maximize2 size={18} strokeWidth={1.75} aria-hidden="true" className="min-[360px]:hidden" />
+                <span className="max-[359px]:hidden">Open full chat</span>
+              </Button>
               <CloseButton label="Close chat" onClick={onClose} />
             </>} />
           </div>} />
