@@ -32,14 +32,20 @@ export function windowRange(now: Date = new Date()): { from: string; to: string 
 /** `fetchDaily`'s settled result, or null before the first one lands. */
 export type DailyResult = Awaited<ReturnType<typeof fetchDaily>> | null;
 
+/** Where the nightly estimate read stands, so the page can tell "still loading" from "failed". */
+export type EstimateStatus = "loading" | "ready" | "error";
+
 export type BodyDashboardData = { daily: DailyResult; chart: DailyHealthRow[];
-  estimate: ExpenditureResponse | null; pendingProposal: Fresh<ProposalSummary[]> | null;
+  estimate: ExpenditureResponse | null; estimateStatus: EstimateStatus;
+  retryEstimate: () => void; pendingProposal: Fresh<ProposalSummary[]> | null;
   profile: BodyProfileRead; reload: () => void;
   onProposalDecided: (decision: "approve" | "reject") => void };
 
 export function useBodyDashboard(): BodyDashboardData {
   const [daily, setDaily] = useState<DailyResult>(null);
   const [estimate, setEstimate] = useState<ExpenditureResponse | null>(null);
+  const [estimateStatus, setEstimateStatus] = useState<EstimateStatus>("loading");
+  const [estimateRead, setEstimateRead] = useState(0);
   const [pendingProposal, setPendingProposal] = useState<Fresh<ProposalSummary[]> | null>(null);
   const profile = useBodyProfile();
   /** Only the newest daily read may land: a slow answer never paints over a newer one. */
@@ -84,9 +90,18 @@ export function useBodyDashboard(): BodyDashboardData {
     const h = currentAccountOrNull();
     if (h === null) return;
     let live = true;
-    void fetchExpenditure(h)
-      .then((fresh) => { if (live) setEstimate(fresh?.value ?? null); }).catch(() => {});
+    // No answer and no cached copy is a failure, never an empty panel (UI audit 2026-10-18).
+    void fetchExpenditure(h).then((fresh) => {
+      if (!live) return;
+      setEstimate(fresh?.value ?? null);
+      setEstimateStatus(fresh ? "ready" : "error");
+    }, () => { if (live) setEstimateStatus("error"); });
     return () => { live = false; };
+  }, [estimateRead]);
+
+  const retryEstimate = useCallback(() => {
+    setEstimateStatus("loading");
+    setEstimateRead((n) => n + 1);
   }, []);
 
   useEffect(() => {
@@ -114,6 +129,7 @@ export function useBodyDashboard(): BodyDashboardData {
     });
   }, []);
 
-  return { daily, chart: chartDays(daily?.response?.days ?? []), estimate, pendingProposal,
+  return { daily, chart: chartDays(daily?.response?.days ?? []), estimate, estimateStatus,
+    retryEstimate, pendingProposal,
     profile, reload, onProposalDecided };
 }
