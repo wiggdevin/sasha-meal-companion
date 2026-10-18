@@ -467,3 +467,15 @@
   .heroPhoto { height: 116px; }
   .snackArt { width: 44px; }
 }
+
+/* A logged entry's row (components/LoggedExtras.tsx): the text column keeps a 10rem basis, and the
+   Nutrients / note pills wrap to their own line, right-aligned, when the card is too narrow for both. */
+.loggedRow {
+  flex-wrap: wrap;
+}
+.loggedText {
+  flex: 1 1 10rem;
+}
+.loggedPills {
+  margin-left: auto;
+}

@@ -47,7 +47,8 @@ function SwapDetail({ option, saving, status, onSwap }: {
     <ul aria-label={`${option.name} foods`} className="m-0 flex list-none flex-col p-0">
       {option.components.map((item, index) => <li key={`${item.name}-${index}`}
         className="flex min-h-11 items-center gap-3 border-b border-hairline last:border-transparent">
-        <span className="min-w-0 flex-1 truncate text-caption text-charcoal">{item.name}</span>
+        {/* The full name wraps: "drained" or "in oil" is the part that tells two foods apart. */}
+        <span className="min-w-0 flex-1 break-words py-1 text-caption text-charcoal">{item.name}</span>
         <span className="shrink-0 text-tiny tabular-nums text-muted">{Math.round(item.macros.kcal)} kcal</span>
       </li>)}
     </ul>
@@ -83,6 +84,10 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
   const [loading, setLoading] = useState(!!account && !!target);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The opening load failed outright (not a swap's own error): its notice offers Try again. */
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const retryLoad = () => { setError(null); setLoadFailed(false); setLoading(true); setAttempt((n) => n + 1); };
   const swap = useButtonStatus();
   /** The user closed the flow while a save ran: the save still lands, the flow does not reclose. */
   const dismissed = useRef(false);
@@ -133,12 +138,14 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       if (!live) return;
       if (caught instanceof AccountChanged) { onClose(); return; }
       setOptions([]);
-      setError(caught instanceof Error ? caught.message : "Couldn’t check your food rules. Try again.");
+      setLoadFailed(true);
+      setError(caught instanceof Error && caught.message ? caught.message : "Couldn’t check your food rules. Try again.");
     }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-    // This flow is keyed by slot and date on Today; its opening snapshot is fixed.
+    // This flow is keyed by slot and date on Today; its opening snapshot is fixed, and only a retry
+    // after a failed load reads it again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
 
   /** The write behind a choice, checked against the account and its current food rules first. */
   async function write(option: SwapAlternative) {
@@ -206,8 +213,9 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
     subtitle="Other meals sized to this slot’s plan, from your foods and saved meals." onClose={dismiss}>
     <div className="flex min-w-0 flex-col gap-3">
       {loading && <p role="status" className="m-0 text-caption text-graphite">Checking your food rules and saved meals…</p>}
-      {error && <Notice tone="error" title={error} />}
-      {target && options.length === 0 && recent.length === 0 && !loading && <Notice tone="neutral"
+      {error && <Notice tone="error" title={error}
+        action={loadFailed ? { label: "Try again", onClick: retryLoad } : undefined} />}
+      {target && options.length === 0 && recent.length === 0 && !loading && !error && <Notice tone="neutral"
         title="No close matches for this slot yet. Check your food rules, or edit this meal." />}
       {/* Swaps are sized to the slot's target: with none (no target revision in force, or a slot that
           carries no target) there is nothing to size them to, and the sheet says so rather than

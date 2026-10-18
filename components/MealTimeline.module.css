@@ -1,4 +1,7 @@
 .card, .card * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* The card hosts real fields (ingredient search, the flows opened in its tray): they keep selection,
+   the caret and long-press paste. */
+.card :is(input, textarea, [contenteditable]:not([contenteditable="false"])) { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .card { touch-action: pan-y; }
 .overlay { position: fixed; inset: 0; z-index: 1000; pointer-events: none; background: color-mix(in srgb, var(--color-paper) 72%, rgb(var(--section-rgb) / .28)); backdrop-filter: blur(18px) saturate(145%); -webkit-user-select: none; user-select: none; }
 .heading, .footer { position: absolute; left: 16px; right: 16px; text-align: center; color: var(--color-on-charcoal); background: var(--color-charcoal); border-radius: 24px; padding: 12px; }
