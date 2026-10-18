@@ -53,9 +53,10 @@ describe("a shopping tick", () => {
     expect(summary()).toBe("1 of 1 in cart · This week");
     await act(async () => { failFirst(new Error("offline")); });
     // The newest tick (in cart) stands; the failed first one neither flips it nor speaks over it.
+    // Taps made while the first save was out wait for it, and only the newest is then sent.
     expect(summary()).toBe("1 of 1 in cart · This week");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText("offline")).toBeNull();
-    expect(setChecked.mock.calls.map((call) => call[1])).toEqual([true, false, true]);
+    expect(setChecked.mock.calls.map((call) => call[1])).toEqual([true, true]);
   });
 });

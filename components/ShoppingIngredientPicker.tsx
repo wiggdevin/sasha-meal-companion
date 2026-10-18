@@ -11,6 +11,7 @@ import type { IngredientIdentity, PantryItem, ShoppingLine } from "@/lib/shoppin
 import RuleMark from "@/components/ui/RuleMark";
 import type { RuleMark as RuleMarkValue } from "@/lib/types";
 import { worseRuleMark } from "@/lib/rule-mark";
+import { SOURCE_LABEL } from "@/lib/shopping/labels";
 
 export type IngredientOption = { name: string; identity: IngredientIdentity; source: "favorite" | "list" | "pantry" | "search";
   /** The server's mark on the list line or pantry item it came from; favorites and search have none. */
@@ -98,9 +99,9 @@ export default function ShoppingIngredientPicker({ lines, pantry, selected, onCh
     {[...unique].map(([key, option]) => <label key={key} className="flex min-h-11 items-center gap-3 text-sm">
       <input type="checkbox" checked={selectedKeys.has(key)}
         onChange={(event) => toggle(option.identity, event.target.checked)} />
-      <span className="min-w-0">{option.name} <span className="ground-muted">· {option.source}</span>
+      <span className="min-w-0">{option.name} <span className="ground-muted">· {SOURCE_LABEL[option.source] ?? option.source}</span>
         {option.ruleMark && <> <RuleMark mark={option.ruleMark} variant="tag" className="align-middle" /></>}</span>
     </label>)}
-    {query && searched.length === 0 && <p className="ground-muted m-0 text-sm">No canonical food matched. Try another name.</p>}
+    {query && searched.length === 0 && <p className="ground-muted m-0 text-sm">No food matched. Try another name.</p>}
   </div></section>;
 }

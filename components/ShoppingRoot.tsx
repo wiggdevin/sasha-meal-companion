@@ -7,7 +7,7 @@ import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFe
 import ShoppingView from "@/components/ShoppingView";
 import RuleReviewCard from "@/components/RuleReviewCard";
 import ShoppingFocusToggle from "@/components/ShoppingFocusToggle";
-import { defaultShoppingDraft, realCalendarDate, type ShoppingDraft } from "@/components/ShoppingControls";
+import { defaultShoppingDraft, draftProblem, type ShoppingDraft } from "@/components/ShoppingControls";
 import type { ShoppingPreviewData } from "@/components/ShoppingPreview";
 import type { ShoppingViewActions, ShoppingPreviewInput } from "@/components/ShoppingView";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
@@ -21,6 +21,7 @@ import { acceptShopping, addManualShoppingLine, confirmPantryForLine, createShop
 import type { PantryItem, ShoppingLine, ShoppingPeriod } from "@/lib/shopping/types";
 import Notice from "@/components/ui/Notice";
 import { ruleMarkKey } from "@/lib/rule-mark";
+import { shoppingRange } from "@/lib/shopping/labels";
 import type { RuleMark as RuleMarkValue } from "@/lib/types";
 
 function dateInZone(timezone: string): string {
@@ -72,11 +73,14 @@ function snapshotFingerprint(next: ShoppingSnapshot, stock: PantryItem[]): strin
     versions(next.lines), versions(next.purchaseWindows ?? []), versions(stock)]);
 }
 
-function BlankListFeedback({ enabled, disabled, busy, onSave }: {
+function BlankListFeedback({ enabled, disabled, problem, busy, onSave }: {
   enabled: boolean; disabled: boolean; busy: boolean; onSave: () => Promise<void>;
+  /** Why the list cannot start yet, said beside the button rather than leaving it grey. */
+  problem?: string | null;
 }) {
   const feedback = useActionFeedback();
   return <>
+    {enabled && problem && <p className="m-0 text-tiny text-muted">{problem} Fix it in the planner below.</p>}
     {enabled && <Button disabled={disabled || feedback.controlProps.disabled}
       className={feedback.controlProps.className} data-feedback-state={feedback.controlProps["data-feedback-state"]}
       aria-busy={feedback.controlProps["aria-busy"]}
@@ -253,6 +257,7 @@ export default function ShoppingRoot() {
       try { await update(); }
       catch { if (currentAccountOrNull()?.epoch === account.epoch)
         setError("Item saved. The latest shopping list could not refresh yet."); }
+      return saved;
     },
     patchWindow: async (window, patch) => {
       const account = accountHandle();
@@ -339,7 +344,7 @@ export default function ShoppingRoot() {
           onChange={(id) => { void refresh(owner, id === "new" ? null : id).catch((cause) =>
             setError(cause instanceof Error ? cause.message : "Could not open this list.")); }}
           options={[{ value: "new", label: "New list" }, ...periods.map((row) => ({
-            value: row.id, label: `${row.startDate} – ${row.endDate}` }))]} /></div>
+            value: row.id, label: shoppingRange(row.startDate, row.endDate) }))]} /></div>
         <Button onClick={() => { void refresh(owner, null).catch((cause) =>
           setError(cause instanceof Error ? cause.message : "Could not start a new list.")); }}>New list</Button>
       </div> : null}
@@ -348,8 +353,8 @@ export default function ShoppingRoot() {
         <Notice tone="neutral" title={<>{periods.length === 0 ? "No saved lists yet. " : ""}Add items above,
           tap a Favorite, or plan meals below to fill your list.</>} />
         <BlankListFeedback key={owner.epoch} enabled={!snapshot.period} busy={blankBusy}
-          disabled={blankBusy || !draft || !realCalendarDate(draft.startDate) ||
-            !realCalendarDate(draft.endDate) || draft.endDate < draft.startDate || draft.people < 1}
+          problem={draft ? draftProblem(draft, { needMeals: false }) : null}
+          disabled={blankBusy || !draft || draftProblem(draft, { needMeals: false }) !== null}
           onSave={saveBlankList} />
       </div>} />
   </>;

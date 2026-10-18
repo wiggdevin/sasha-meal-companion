@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { bindAccount, markAccountReady, unbindAccount } from "@/lib/device/account";
 import ShoppingRoot from "@/components/ShoppingRoot";
+import { shoppingDate, shoppingRange } from "@/lib/shopping/labels";
 import { defaultShoppingDraft } from "@/components/ShoppingControls";
 
 const mocks = vi.hoisted(() => ({
@@ -46,7 +47,7 @@ it("lists saved periods outside the current date window and reopens one without 
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
   expect(mocks.listPeriods).toHaveBeenCalledWith();
   fireEvent.click(screen.getByRole("combobox", { name: "Open shopping list" }));
-  fireEvent.click(screen.getByRole("option", { name: "2026-07-01 – 2026-07-07" }));
+  fireEvent.click(screen.getByRole("option", { name: shoppingRange("2026-07-01", "2026-07-07") }));
   await waitFor(() => expect(mocks.getPeriod).toHaveBeenCalledWith(older.id));
   await waitFor(() => expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("2026-07-01"));
   expect(mocks.preview).not.toHaveBeenCalled();
@@ -64,10 +65,10 @@ it("keeps the latest list selection when an earlier open finishes late", async (
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
   fireEvent.click(screen.getByRole("combobox", { name: "Open shopping list" }));
-  fireEvent.click(screen.getByRole("option", { name: "2026-07-01 – 2026-07-07" }));
+  fireEvent.click(screen.getByRole("option", { name: shoppingRange("2026-07-01", "2026-07-07") }));
   await waitFor(() => expect(mocks.getPeriod).toHaveBeenCalledWith(older.id));
   fireEvent.click(screen.getByRole("combobox", { name: "Open shopping list" }));
-  fireEvent.click(screen.getByRole("option", { name: "2026-09-27 – 2026-10-03" }));
+  fireEvent.click(screen.getByRole("option", { name: shoppingRange("2026-09-27", "2026-10-03") }));
   await waitFor(() => expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("2026-09-27"));
   await act(async () => { rejectOlder(new Error("Late failed request")); });
   expect(screen.queryByText("Late failed request")).toBeNull();
@@ -163,7 +164,7 @@ it("loads the account period and pantry, then asks the preview API without writi
   expect(mocks.listPeriods).toHaveBeenCalledOnce();
   expect(mocks.getPeriod).toHaveBeenCalledOnce();
   expect(mocks.listPantry).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   await waitFor(() => expect(mocks.preview).toHaveBeenCalledOnce());
   expect(mocks.preview.mock.calls[0][0]).toMatchObject({ draft: expect.objectContaining({
     effort: "standard", mealCoverage: ["dinner"],
@@ -179,7 +180,7 @@ it("reports an accepted commit honestly when the follow-up refresh fails", async
   window.addEventListener("recipe-plan-accepted", updated);
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   expect(await screen.findByRole("button", { name: "Accept plan and list" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Accept plan and list" }));
   await waitFor(() => expect(mocks.accept).toHaveBeenCalledOnce());
@@ -196,18 +197,18 @@ it("keeps a just-accepted list selected after its first refresh fails", async ()
   mocks.accept.mockResolvedValue({ period: saved, lines: [] });
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   fireEvent.click(await screen.findByRole("button", { name: "Accept plan and list" }));
   expect(await screen.findByText(/Plan accepted\. The latest shopping list could not refresh yet/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(mocks.getPeriod).toHaveBeenCalledWith(saved.id));
-  expect(screen.getByRole("combobox", { name: "Open shopping list" }).textContent).toContain("2026-09-27");
+  expect(screen.getByRole("combobox", { name: "Open shopping list" }).textContent).toContain(shoppingDate("2026-09-27"));
 });
 
 it("keeps an unchanged preview open after a tab-return refresh", async () => {
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   expect(await screen.findByText("Review the list change")).toBeTruthy();
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   fireEvent(document, new Event("visibilitychange"));
@@ -221,7 +222,7 @@ it("ignores a late plan acceptance after the account switches", async () => {
   mocks.accept.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   fireEvent.click(await screen.findByRole("button", { name: "Accept plan and list" }));
   await waitFor(() => expect(mocks.accept).toHaveBeenCalledOnce());
   unbindAccount();
