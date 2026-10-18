@@ -40,8 +40,36 @@ export type DayTotals = { consumed: Macros; targets: Macros | null };
 type IngredientEditor = {
   foods: Record<string, Food>;
   onSave: (components: FoodComponent[]) => void | Promise<void>;
-  onPreview: (macros: Macros | null) => void;
+  /** The unsaved draft, held by the card (components/SlotCard.tsx) so it outlives a collapse or a
+   *  flow opening on the card; null when nothing is changed. */
+  draft: FoodComponent[] | null;
+  onDraft: (next: FoodComponent[] | null) => void;
+  /** A save in flight, held with the draft so a fold and reopen cannot send it twice. */
+  saving: boolean;
+  setSaving: (saving: boolean) => void;
 };
+
+/**
+ * The ingredient editor, with its unsaved draft held by the card rather than the detail, so a stray tap
+ * that folds the card or a flow opening on it never throws the draft away. The draft is tied to the
+ * components it was made from: once the saved meal changes (a save, a swap, another device) it is
+ * dropped. `draftMacros` is the draft's total, for the hero while the editor is on screen.
+ */
+export function useIngredientDraft(components: FoodComponent[], foods: Record<string, Food> | undefined,
+  onSave: IngredientEditor["onSave"] | undefined) {
+  const base = JSON.stringify(components);
+  const [held, setHeld] = useState<{ base: string; components: FoodComponent[] } | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Dropped, not just hidden: a meal that later returns to the same components must not bring an
+  // abandoned draft back.
+  if (held && held.base !== base) setHeld(null);
+  const draft = held && held.base === base ? held.components : null;
+  const editor: IngredientEditor | undefined = onSave ? {
+    foods: foods ?? {}, onSave, draft, saving, setSaving,
+    onDraft: (next) => setHeld(next ? { base, components: next } : null),
+  } : undefined;
+  return { editor, draftMacros: editor && draft ? sumComponents(draft) : null };
+}
 
 /* The step itself is lib/plan/ingredient-step.ts: by the food's portion when one is known (U8). */
 
@@ -74,9 +102,9 @@ type MarkedSlot = Pick<ResolvedSlot, "components" | "componentRuleMarks" | "eate
 
 function Ingredients({ id, components, editor, marked }: { id: string; components: FoodComponent[];
   editor?: IngredientEditor; marked?: MarkedSlot }) {
-  const [working, setWorking] = useState(components);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const working = editor?.draft ?? components;
+  const dirty = !!editor?.draft;
+  const saving = editor?.saving ?? false;
   const [searchError, setSearchError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ component: FoodComponent; index: number } | null>(null);
@@ -88,10 +116,8 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
 
   function change(next: FoodComponent[]) {
     shownRef.current = next;
-    setWorking(next);
-    setDirty(true);
     setSaveError(null);
-    editor?.onPreview(sumComponents(next));
+    editor?.onDraft(next);
   }
 
   // Removal is reversible for 5 seconds (DESIGN.md: reversible change → Undo).
@@ -124,7 +150,7 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
   }
 
   async function add(row: CatalogRow) {
-    if (!editor) return;
+    if (!editor || saving) return;
     setSearchError(null);
     let next: FoodComponent | null = null;
     if (row.offline && row.offlineFoodId) {
@@ -168,17 +194,16 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
 
   async function save() {
     if (!editor || saving || !dirty) return;
-    setSaving(true);
+    editor.setSaving(true);
     setSaveError(null);
     try {
       await editor.onSave(working);
-      setDirty(false);
+      editor.onDraft(null);
       setRemoved(null);
-      editor.onPreview(null);
     } catch {
       setSaveError("Changes were not saved. Try again.");
     } finally {
-      setSaving(false);
+      editor.setSaving(false);
     }
   }
 
@@ -221,8 +246,11 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
         <CatalogSearch mine={editor.foods} maxResults={5} onPick={(row) => { void add(row); }} />
         {searchError && <Notice tone="error" title={searchError} />}
         {saveError && <Notice tone="error" title={saveError} />}
-        {dirty && <Button variant="primary" block status={saving ? "pending" : undefined}
-          onClick={() => { void save(); }}>Save ingredients</Button>}
+        {dirty && <div className="flex gap-2">
+          <Button variant="tertiary" disabled={saving} onClick={() => { editor.onDraft(null); setRemoved(null); }}>Discard</Button>
+          <Button variant="primary" className="flex-1" status={saving ? "pending" : undefined}
+            onClick={() => { void save(); }}>Save ingredients</Button>
+        </div>}
       </div>}
     </AutoHeight>
   </section>;
@@ -367,10 +395,8 @@ export function useMealDetail(slot: ResolvedSlot, onOpenEdit: (() => void) | und
   strip?: { eatenControl?: ReactNode; onSwap?: () => void; returnTo?: "swap" | "toggle" }) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
-  const toggle = () => {
-    if (expanded) editor?.onPreview(null);
-    setExpanded((open) => !open);
-  };
+  // Collapsing keeps an unsaved draft (the card holds it): reopening shows it with its Save button.
+  const toggle = () => setExpanded((open) => !open);
   return {
     expanded,
     toggle,

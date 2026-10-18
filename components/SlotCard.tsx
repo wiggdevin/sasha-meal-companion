@@ -18,11 +18,11 @@ import Fold from "@/components/ui/Fold";
 import { useCardAttachScroll } from "@/components/useCardAttachScroll";
 import { SPRINGS } from "@/lib/design/motion";
 import { EmptyCardFlow, TrayFace } from "@/components/MealCardTray";
-import type { Macros, ResolvedSlot, FoodComponent } from "@/lib/types";
+import type { ResolvedSlot, FoodComponent } from "@/lib/types";
 import type { Food } from "@/lib/foods";
 import { illustrativeMealImage } from "@/lib/today/meal-art";
 import MealCardActions, { SWIPE_SETTLE } from "./MealCardActions";
-import { useMealDetail, type DayTotals } from "./SlotCardDetail";
+import { useIngredientDraft, useMealDetail, type DayTotals } from "./SlotCardDetail";
 import { feedbackStateProps, type ActionFeedbackPhase } from "@/components/ui/ActionFeedback";
 import { InsetSheetHost } from "@/components/Sheet";
 import { SlotRuleMarkLine } from "@/components/SlotRuleMarks";
@@ -166,12 +166,8 @@ export default function SlotCard({
   /** The plate as a favorite meal; no heart is drawn without it (meal cards v3). */
   favorite?: MealFavorite;
 }) {
-  const [previewMacros, setPreviewMacros] = useState<Macros | null>(null);
   const reduceMotion = useReducedMotion();
-  const shownMacros = previewMacros ?? slot.macros;
-  const editor = onSaveComponents ? {
-    foods: foods ?? {}, onSave: onSaveComponents, onPreview: setPreviewMacros,
-  } : undefined;
+  const { editor, draftMacros } = useIngredientDraft(slot.components, foods, onSaveComponents);
   const attached = attachment != null && attachment !== false;
   const groupRef = useRef<HTMLDivElement | null>(null);
   // A flow closing takes the control that opened it away with it (the footer was its face), so focus
@@ -201,13 +197,16 @@ export default function SlotCard({
   const logEmpty = () => { openedBy.current = "log"; onLogWhatYouAte?.(); };
   const eatenControl = <MealEatenButton eaten={slot.eaten} label={slot.label} feedback={eatenFeedback}
     onToggleEaten={onToggleEaten} className={dark.zoneButton} />;
-  const meal = useMealDetail(slot, onOpenEdit, dayTotals, onPlanWithCoach, editor, previewMacros,
+  const meal = useMealDetail(slot, onOpenEdit, dayTotals, onPlanWithCoach, editor, draftMacros,
     slot.eaten ? undefined : onAteSomethingElse, footerFocus,
     { eatenControl, onSwap: canSwap && !slot.eaten ? () => { openedBy.current = "swap"; onOpenSwap(); } : undefined,
       returnTo });
   // While a flow is open the card takes its compact hero, so the meal it acts on stays at the top and
   // the flow sits right under it on one screen (2026-10-04).
   const expanded = meal.expanded && !attached;
+  // The hero previews the draft only while the editor is on screen: folded, or under a flow, the card
+  // shows what is saved.
+  const shownMacros = (expanded && draftMacros) || slot.macros;
   // One flow giving way to another (Swap → Edit this meal) crossfades like the detail does.
   const flowKey = isValidElement(attachment) && attachment.key != null ? String(attachment.key) : "flow";
   // Closing runs in order: the tray folds first, then the card takes its compact shape, so the photo
@@ -224,7 +223,7 @@ export default function SlotCard({
     return () => clearTimeout(timer);
   }, [folding]);
   useCardAttachScroll(groupRef, attached, !!reduceMotion);
-  const gesture = useMealReschedule(slot.time, onTimeChange, canSwap ? onOpenSwap : undefined,
+  const gesture = useMealReschedule(slot.time, onTimeChange, canSwap && !slot.eaten ? onOpenSwap : undefined,
     slot.eaten ? undefined : onDelete);
   const shownTime = gesture.preview ?? slot.time;
   const mealProps = feedbackStateProps(mealFeedback);
@@ -235,7 +234,6 @@ export default function SlotCard({
     "data-rescheduling": gesture.preview !== null ? "true" : undefined,
     style: {
       position: "relative" as const,
-      userSelect: "none" as const,
       translate: `${gesture.swipeX}px 0`,
       transition: gesture.dragging ? "none" : SWIPE_SETTLE,
       opacity: gesture.preview !== null ? .35 : undefined,
