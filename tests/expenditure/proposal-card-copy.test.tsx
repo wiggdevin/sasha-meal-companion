@@ -39,17 +39,17 @@ function card(props: { offline?: boolean; onDecided?: (decision: "approve" | "re
 describe("deltaSentence — the delta sentence the card leads with", () => {
   it("states the training number and that protein does not move", () => {
     expect(deltaSentence(proposed()))
-      .toBe("Your training days could go to 2,250 — protein unchanged.");
+      .toBe("Your training days could go to 2,250 kcal, protein unchanged.");
   });
 
   it("says down when the proposal lowers calories", () => {
     expect(deltaSentence(proposed({ kcalTrain: 2150, deltaKcalTrain: -50 })))
-      .toBe("Your training days could come down to 2,150 — protein unchanged.");
+      .toBe("Your training days could come down to 2,150 kcal, protein unchanged.");
   });
 
   it("says nothing moves when the delta is zero", () => {
     expect(deltaSentence(proposed({ deltaKcalTrain: 0, deltaKcalRest: 0 })))
-      .toBe("Your training days stay at 2,250 — protein unchanged.");
+      .toBe("Your training days stay at 2,250 kcal, protein unchanged.");
   });
 });
 
@@ -59,7 +59,7 @@ describe("ProposalCard's states", () => {
   it("is pending: it offers both decisions, and says nothing changes until one is tapped", () => {
     const markup = renderToStaticMarkup(
       <ProposalCard proposal={PROPOSAL} offline={false} onDecided={() => {}} />);
-    expect(markup).toContain("Your training days could go to 2,250 — protein unchanged.");
+    expect(markup).toContain("Your training days could go to 2,250 kcal, protein unchanged.");
     expect(markup).toContain("Nothing changes until you tap.");
     expect(markup).toContain("var(--color-feedback-pending)");
     expect(markup).not.toMatch(/<button[^>]*\sdisabled(="")?[\s>]/);

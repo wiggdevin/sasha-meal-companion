@@ -18,6 +18,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { motion, useIsPresent, useReducedMotion } from "motion/react";
+import { Maximize2 } from "lucide-react";
 import CoachConversation from "@/components/coach/CoachConversation";
 import CoachHeader from "@/components/coach/CoachHeader";
 import CloseButton from "@/components/ui/CloseButton";
@@ -76,7 +77,9 @@ export default function ChatOverlay({ scope, dock, onClose, onOpenFull }: {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: reduce ? INSTANT : { ...fade("base", false), delay: 0.1 } }}
       transition={fade("base", reduce)} />
+    {/* The card stops above the dock as tall as it is now (its text grows; --dock-height, TabBar). */}
     <motion.section className={styles.card}
+      style={{ bottom: "calc(var(--safe-bottom) + var(--dock-height, 64px) + 24px + var(--dock-lift, 0px))" }}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 32, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reduce ? { opacity: 0, transition: INSTANT }
@@ -89,7 +92,11 @@ export default function ChatOverlay({ scope, dock, onClose, onOpenFull }: {
         <CoachConversation scope={scope} variant="overlay" renderHeader={({ thinking }) =>
           <div className={styles.head}>
             <CoachHeader variant="overlay" scope={scope} thinking={thinking} trailing={<>
-              <Button variant="ghost" size="sm" onClick={onOpenFull}>Open full chat</Button>
+              {/* Under 360 px the words would crush the title, so the control becomes an icon. */}
+              <Button variant="ghost" size="sm" onClick={onOpenFull} aria-label="Open full chat">
+                <Maximize2 size={18} strokeWidth={1.75} aria-hidden="true" className="min-[360px]:hidden" />
+                <span className="max-[359px]:hidden">Open full chat</span>
+              </Button>
               <CloseButton label="Close chat" onClick={onClose} />
             </>} />
           </div>} />

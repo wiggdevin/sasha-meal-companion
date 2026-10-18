@@ -114,7 +114,8 @@ describe("coach shell lifecycle", () => {
     expect(view.getByText("Thinking…")).not.toBeNull();
     expect(scroller.scrollTop).toBe(600);
 
-    scroller.scrollTop = 250;
+    // A reply follows a reader who is still at the bottom (within FOLLOW_SLACK of it).
+    scroller.scrollTop = 270;
     await act(async () => replied.resolve({
       threadId: "thread-1",
       suggestions: [], actions: [], draft: null, deflected: false, toolsUsed: [],
@@ -183,12 +184,12 @@ describe("coach shell lifecycle", () => {
     expect(mocks.fetchOlder).toHaveBeenNthCalledWith(
       1, "thread-1", 51, HISTORY_PAGE_SIZE,
     );
-    expect(alert.textContent).toContain("Couldn’t load earlier messages —");
+    expect(alert.textContent).toContain("Couldn’t load earlier messages.");
     expect(alert.compareDocumentPosition(view.getByText("Message 51"))
       & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     fireEvent.click(view.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(mocks.fetchOlder).toHaveBeenCalledTimes(2));
-    expect(view.queryByText("Couldn’t load earlier messages —")).toBeNull();
+    expect(view.queryByText("Couldn’t load earlier messages.")).toBeNull();
   });
 
   it("preserves the reader through an in-flight reply and keeps loading full older pages", async () => {

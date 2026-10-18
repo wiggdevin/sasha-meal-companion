@@ -11,9 +11,22 @@ export const COACH_DOCK_SUBMIT_EVENT = "coach:dock-submit";
  */
 let pendingDockText: string | null = null;
 
-export function queueCoachDockText(text: string): void {
+/**
+ * Parks one question for the chat about to mount. There is one slot, and a second question never
+ * overwrites the first: it answers false, so the field keeps that draft (UI audit 2026-10-18).
+ */
+export function queueCoachDockText(text: string): boolean {
   const trimmed = text.trim();
-  if (trimmed) pendingDockText = trimmed;
+  if (!trimmed) return false;
+  if (pendingDockText !== null) return false;
+  pendingDockText = trimmed;
+  return true;
+}
+
+/** Drops a parked question: the chat it was asked into closed, or the page changed, before it was
+ *  ready. It must never turn up later in another chat with another scope. */
+export function clearCoachDockText(): void {
+  pendingDockText = null;
 }
 
 /**
@@ -25,8 +38,7 @@ export function deliverDockText(text: string): boolean {
   const detail: { text: string; accepted: boolean; received?: boolean } = { text, accepted: true };
   window.dispatchEvent(new CustomEvent(COACH_DOCK_SUBMIT_EVENT, { detail }));
   if (detail.received) return detail.accepted;
-  queueCoachDockText(text);
-  return true;
+  return queueCoachDockText(text);
 }
 
 /**

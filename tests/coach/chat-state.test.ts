@@ -319,11 +319,12 @@ describe("nextChatState", () => {
     expect(retried.messages[0]).toMatchObject({ id: "m2", pending: true });
   });
 
-  it("wraps the message transcript in a live region so new coach turns are announced", () => {
+  it("announces new coach turns through one polite status line, not the whole transcript", () => {
     const markup = renderToStaticMarkup(createElement(CoachChat, {
       userId: "u1", threadId: null, onOpenDraft: () => {}, onThreadSaved: () => {},
     }));
-    expect(markup).toContain('aria-live="polite"');
-    expect(markup).toContain('aria-atomic="false"');
+    expect(markup).toContain('role="status" aria-live="polite"');
+    expect(markup).toContain('role="region" aria-label="Conversation"');
+    expect(markup.match(/aria-live=/g)).toHaveLength(1);
   });
 });

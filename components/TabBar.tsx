@@ -47,6 +47,21 @@ function useKeyboardLift(dock: React.RefObject<HTMLElement | null>, active: bool
   }, [dock, active]);
 }
 
+/** The dock's live height (the field grows with its text and its tray) on <html> as --dock-height,
+ *  so the /coach frame and the chat overlay keep their bottom content clear of it. */
+function useDockHeight(dock: React.RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const element = dock.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const write = () => root.style.setProperty("--dock-height", `${Math.round(element.getBoundingClientRect().height)}px`);
+    write();
+    const observer = new ResizeObserver(write);
+    observer.observe(element);
+    return () => { observer.disconnect(); root.style.removeProperty("--dock-height"); };
+  }, [dock]);
+}
+
 /** A field the keyboard types into (not a checkbox, button or file picker). */
 export function isTypingField(node: EventTarget | null): boolean {
   if (!(node instanceof HTMLElement)) return false;
@@ -127,6 +142,7 @@ export default function TabBar(_props: { bodyCapability?: BodyCapability } = {})
   const [typing, setTyping] = useState(false);
   useKeyboardLift(dock, (open || chatOpen) && typing);
   useStepAsideWhileTyping(dock);
+  useDockHeight(dock);
 
   const capsuleWidth = rowWidth > 0 ? rowWidth - SPLIT - BUBBLE : 0;
   const glyphOnly = rowWidth > 0 && tabBarLayout(rowWidth + 32, TABS.length).glyphOnly;

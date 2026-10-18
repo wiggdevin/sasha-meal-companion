@@ -4,6 +4,7 @@ import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DOCK_BOTTOM_OFFSET, TRAY_OPEN } from "@/components/dock/dock-motion";
 import { CoachFrame } from "@/components/coach/CoachShell";
+import { KEYBOARD_CLEARANCE, RESTING_CLEARANCE } from "@/components/coach/CoachFrame";
 
 afterEach(() => {
   cleanup();
@@ -34,9 +35,15 @@ describe("coach shell layout", () => {
     // live there), not just the dock's folded bubble height.
     const view = render(<CoachFrame transcript={<div />} composer={<div />} />);
     const shell = view.getByTestId("coach-shell");
-    expect(shell.style.paddingBottom).toBe(
-      `calc(var(--safe-bottom) + ${TRAY_OPEN + DOCK_BOTTOM_OFFSET + 12}px)`,
-    );
+    expect(RESTING_CLEARANCE).toContain(`max(${TRAY_OPEN}px, var(--dock-height, 0px)) + ${DOCK_BOTTOM_OFFSET + 12}px`);
+    expect(shell.style.paddingBottom).toBe(RESTING_CLEARANCE);
+  });
+
+  it("is fixed to the screen, so the body's dock padding never scrolls the page under it", () => {
+    const view = render(<CoachFrame transcript={<div />} composer={<div />} />);
+    expect(view.getByTestId("coach-shell").style.position).toBe("fixed");
+    view.rerender(<CoachFrame fill="parent" transcript={<div />} composer={<div />} />);
+    expect(view.getByTestId("coach-shell").style.position).toBe("");
   });
 
   it("updates the visual viewport height on resize", () => {
@@ -61,7 +68,8 @@ describe("coach shell layout", () => {
     viewport.height = 612;
     act(() => listeners.get("resize")?.(new Event("resize")));
     expect(shell.style.getPropertyValue("--visual-viewport-height")).toBe("612px");
-    expect(shell.style.paddingBottom).toBe("0px");
+    // The raised dock still sits over the frame's foot, so its live height stays clear.
+    expect(shell.style.paddingBottom).toBe(KEYBOARD_CLEARANCE);
   });
 
   it("uses chronological column layout and never column-reverse", () => {

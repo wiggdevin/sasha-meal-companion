@@ -27,13 +27,13 @@ export default function CoachHeader({ variant, scope, thinking, trailing }: {
   return <div className={`${styles.head} ${page ? "" : styles.compact}`.trim()} data-coach-header={variant}>
     <SashaMark thinking={thinking} size={page ? 32 : 28} />
     <div className={styles.titles}>
-      <Title className={page ? "ground m-0 text-display-md font-light leading-none tracking-display-md"
-        : "m-0 font-display text-title font-normal leading-none"}>{ASSISTANT_NAME}</Title>
+      <Title className={`${styles.title} ${page ? "ground m-0 text-display-md font-light leading-none tracking-display-md"
+        : "m-0 font-display text-title font-normal leading-none"}`}>{ASSISTANT_NAME}</Title>
       {/* Where the answers are about: plain metadata, not a control (Kimi audit 2026-10-04). While a
           turn runs only its dot quickens with the mark; the transcript's own line says it in words. */}
       <span className={`${styles.scope} text-tiny font-medium`} data-scope={scope.kind}>
         <span className={styles.scopeDot} data-thinking={thinking ? "true" : undefined} aria-hidden="true" />
-        {label}
+        <span className={styles.scopeLabel}>{label}</span>
       </span>
     </div>
     {trailing}

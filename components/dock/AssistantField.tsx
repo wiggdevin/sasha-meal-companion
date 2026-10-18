@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  useEffect, useRef, useState,
+  useEffect, useLayoutEffect, useRef, useState,
   type FocusEvent, type FormEvent, type KeyboardEvent, type RefObject,
 } from "react";
 import {
@@ -13,7 +13,7 @@ import {
 import { useCapabilities } from "@/components/CapabilitiesProvider";
 import CoachMic from "@/components/CoachMic";
 import { useComposerInput } from "@/components/coach/use-composer-input";
-import { deliverDockText } from "@/components/coach/use-dock-submit";
+import { clearCoachDockText, deliverDockText } from "@/components/coach/use-dock-submit";
 import { deliverDockIntent, type DockIntent } from "@/components/coach/attachments/dock-handoff";
 import { useDockComposerState } from "@/components/coach/use-dock-composer-state";
 import WeighInField, { type WeightUnit } from "@/components/coach/attachments/WeighInField";
@@ -47,6 +47,24 @@ function preferredWeightUnit(): WeightUnit {
   const settings = loadStore().settings as unknown as { weightUnit?: unknown };
   return settings.weightUnit === "kg" ? "kg" : "lb";
 }
+
+/** The text box: one 24 px line inside 10 px padding, growing to four lines before it scrolls. */
+const INPUT_PAD = 10;
+const INPUT_LINE = 24;
+const INPUT_MIN = INPUT_LINE + 2 * INPUT_PAD;
+const INPUT_MAX = 4 * INPUT_LINE + 2 * INPUT_PAD;
+/** The height the box's text needs, between one line and INPUT_MAX. */
+function textHeight(box: HTMLTextAreaElement): number {
+  const kept = box.style.height;
+  box.style.height = "0px";
+  const needed = box.scrollHeight;
+  box.style.height = kept;
+  return Math.min(INPUT_MAX, Math.max(INPUT_MIN, needed));
+}
+
+/** Below this field width (a 320-359 px phone) Send stands in for Record while typing at the end, so
+ *  the text keeps a usable width; Record comes back once the box is empty or the caret moves. */
+const NARROW_FIELD = 240;
 
 /** A flick counts when it travels far enough or fast enough (px, px/s). */
 const FLICK_DISTANCE = 24;
@@ -93,6 +111,13 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
     if (!live) onOpenChat?.();
     return taken;
   }
+  // A question parked for a chat that never got ready is dropped when that chat goes away (the
+  // overlay closed, or the page changed), so it is not sent later in another chat.
+  const wasLive = useRef(live);
+  useEffect(() => {
+    if (wasLive.current && !live) clearCoachDockText();
+    wasLive.current = live;
+  }, [live]);
   const controls = useComposerInput(dockState.disabled, submitText);
   const {
     input, draft, editing, caretAtEnd, listening, reviewNeeded, micNotice, readBox, send, textEvents, micEvents,
@@ -106,6 +131,11 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
    * distinct Send sits beside Record only while the caret is collapsed at the draft's end; moved
    * away or not editing, CoachMic's own readyToSend (useComposerInput's micEvents) takes over. */
   const canSend = editing && caretAtEnd && hasText && !listening && !reviewNeeded;
+  // UI audit 2026-10-18: Attach, Clear, Send and Record together left the text about 18 px at 320.
+  // Clear steps aside while Send shows, and on a narrow field Send also stands in for Record.
+  const narrow = measured && width < NARROW_FIELD;
+  const showClear = open && hasText && !listening && !canSend;
+  const showMic = !(narrow && canSend);
   // A turn in flight is shown once, in the transcript above (/coach or the overlay) and by the
   // header mark's quicker motion; the field keeps its own placeholder (Kimi K5, 2026-10-04).
 
@@ -128,10 +158,21 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
     setWasOpen(open);
     if (!open) { setTrayFor(false); setWeighing(false); }
   }
+  // The box grows with its text (up to INPUT_MAX), and the field grows upward with it, the way the
+  // tray does; the tray then sits above the grown row.
+  const [inputHeight, setInputHeight] = useState(INPUT_MIN);
+  useLayoutEffect(() => {
+    if (input.current) setInputHeight(textHeight(input.current));
+  }, [draft, width, open, input, showClear, showMic, canSend]);
+  const textGrow = open ? inputHeight - INPUT_MIN : 0;
   const base = useMotionValue(BUBBLE);
   const pull = useMotionValue(0);
-  const height = useTransform(() => base.get() + pull.get());
-  const trayReveal = useTransform(height, [BUBBLE + 20, TRAY_OPEN], [0, 1]);
+  const grow = useMotionValue(textGrow);
+  const trayHeight = useTransform(() => base.get() + pull.get());
+  const height = useTransform(() => trayHeight.get() + grow.get());
+  const trayBottom = useTransform(grow, (value) => BUBBLE + value);
+  const formHeight = trayBottom;
+  const trayReveal = useTransform(trayHeight, [BUBBLE + 20, TRAY_OPEN], [0, 1]);
   const trayRise = useTransform(trayReveal, [0, 1], [12, 0]);
   useEffect(() => {
     const target = tray ? TRAY_OPEN : BUBBLE;
@@ -139,6 +180,11 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
     const motionRun = animate(base, target, GROW);
     return () => motionRun.stop();
   }, [tray, reduce, base]);
+  useEffect(() => {
+    if (reduce) { grow.jump(textGrow); return; }
+    const motionRun = animate(grow, textGrow, GROW);
+    return () => motionRun.stop();
+  }, [textGrow, reduce, grow]);
 
   // The chat over the page disables the field while it restores its thread, and a disabled field
   // drops focus to <body>. Once the chat is ready, the composer takes the focus back.
@@ -274,7 +320,7 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
 
     <motion.div role="group" aria-label="Add to your question" inert={!tray}
       className={`${styles.tray} absolute inset-x-0 top-0 grid gap-2 px-3 pt-3`}
-      style={{ opacity: trayReveal, y: trayRise, bottom: BUBBLE,
+      style={{ opacity: trayReveal, y: trayRise, bottom: trayBottom,
         gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }}>
       {tiles.map((tile, index) => {
         const Icon = tile.icon;
@@ -306,9 +352,11 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
       })}
     </motion.div>
 
-    <form role="search" aria-label={`Ask ${ASSISTANT_NAME}`} aria-current={live ? "page" : undefined}
+    <motion.form role="search" aria-label={`Ask ${ASSISTANT_NAME}`} aria-current={live ? "page" : undefined}
       inert={!open} onSubmit={submit} onBlur={blurred}
-      className="absolute inset-x-0 bottom-0 flex h-16 items-center pl-2.5 pr-2.5">
+      // Bottom-aligned, so the controls stay on the last line while the text grows above them.
+      className="absolute inset-x-0 bottom-0 flex items-end py-2.5 pl-2.5 pr-2.5"
+      style={{ height: formHeight }}>
       {/* One glyph slot for both states: the closed bubble's mark becomes the + control. */}
       <button ref={attach} type="button" aria-label={tray ? "Hide attach options" : "Attach"} aria-expanded={tray}
         tabIndex={open ? 0 : -1} onClick={() => { setWeighing(false); setTrayFor((out) => !out); }}
@@ -324,7 +372,7 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
           </motion.span>
         </AnimatePresence>
       </button>
-      <motion.div className="relative flex min-w-0 flex-1 items-center" initial={false}
+      <motion.div className="relative flex min-w-0 flex-1 items-end" initial={false}
         animate={open ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
         transition={reduce ? INSTANT : open ? { ...FADE, delay: 0.12 } : { duration: 0.1 }}>
         <textarea ref={input} rows={1} maxLength={2000} autoComplete="off" enterKeyHint="send"
@@ -334,9 +382,10 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
           readOnly={listening}
           placeholder={dockState.offline ? COMPOSER_OFFLINE_COPY : `Ask ${ASSISTANT_NAME}`}
           className={ASK_INPUT_CLASS}
+          style={{ height: inputHeight, paddingTop: INPUT_PAD, paddingBottom: INPUT_PAD }}
           {...textEvents} onKeyDown={keyDown} />
       </motion.div>
-      <AskPop show={open && hasText && !listening} popKey="clear" label="Clear text" onClick={clear}
+      <AskPop show={showClear} popKey="clear" label="Clear text" onClick={clear}
         reduce={reduce}>
         <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </AskPop>
@@ -347,7 +396,7 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
         disabled={dockState.disabled} onClick={() => send(readBox())} reduce={reduce}>
         <Round><SendGlyph /></Round>
       </AskPop>
-      <motion.div className={`${styles.micButton} flex size-11 shrink-0 items-center justify-center`} initial={false}
+      {showMic && <motion.div className={`${styles.micButton} flex size-11 shrink-0 items-center justify-center`} initial={false}
         animate={open ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.6 }}
         transition={reduce ? INSTANT : open ? { ...PRESS, delay: 0.16 } : { duration: 0.1 }}>
         {/* Record while the caret sits at the draft's end (or the box is empty); Send once it
@@ -355,8 +404,8 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
         <CoachMic {...micEvents} disabled={dockState.disabled}
           sendFeedbackState={dockState.sendFeedbackState}
           sendFeedbackClassName={dockState.sendFeedbackClassName} />
-      </motion.div>
-    </form>
+      </motion.div>}
+    </motion.form>
 
     <AnimatePresence initial={false}>
       {!open && <motion.button key="ask" type="button" onClick={onOpen}
@@ -389,10 +438,11 @@ export default function AssistantField({ open, width, onCoach, reduce, onOpen, o
     {/* Grok audit 2026-10-02, finding 2: a mic error (permission denied, no speech heard) never
      *  reached the dock at all. Rises above the field the same way the old composer's own line did
      *  (components/coach/Composer.tsx), one line, role="status" so it's announced without stealing
-     *  focus. */}
+     *  focus. It sits over the page, not the charcoal dock, so it carries its own light pill and
+     *  ink (matte-reset): the dock's cream text roles were near-invisible there (UI audit 2026-10-18). */}
     {micNotice && !weighVisible && <p role="status"
-      className="absolute inset-x-0 bottom-full z-10 mb-2 px-3 text-center text-caption text-muted">
-      {micNotice}
+      className="matte-reset pointer-events-none absolute inset-x-0 bottom-full z-10 m-0 mb-2 flex justify-center px-3">
+      <span className="pill-in elev-1 px-3 py-1.5 text-center text-caption text-charcoal">{micNotice}</span>
     </p>}
   </motion.div>;
 }

@@ -7,7 +7,8 @@ import {
   type PrependAnchor,
 } from "@/lib/coach/thread-history";
 
-const BOTTOM_EPSILON = 1;
+const BOTTOM_EPSILON = 1; /** Further up than this a reader is re-reading: new content never pulls them down (the pill offers it). */
+export const FOLLOW_SLACK = 48;
 
 function gap(element: HTMLElement): number { return element.scrollHeight - element.scrollTop - element.clientHeight; }
 
@@ -27,11 +28,11 @@ export function useBottomFollow(contentVersion: unknown) {
     isPinned.current = true;
     setHasNewMessage(false);
   }, []);
-  const captureBeforeUpdate = useCallback(() => {
+  const captureBeforeUpdate = useCallback((force = false) => {
     const element = scroller.current;
     if (prependInFlight.current) return;
     prependAnchor.current = null;
-    shouldFollow.current = !element || gap(element) <= element.clientHeight;
+    shouldFollow.current = force || !element || isPinned.current || gap(element) <= FOLLOW_SLACK;
   }, []);
   const capturePrependAnchor = useCallback(() => {
     const element = scroller.current;

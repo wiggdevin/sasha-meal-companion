@@ -101,7 +101,8 @@ export default function CoachActionCard({
           <span role="status" className="flex shrink-0 items-center gap-1.5 text-tiny font-normal text-on-charcoal-muted">
             {status === "pending" ? <Thinking size="compact" label="Applying…" hint="Still working…" announce={false} />
               : status === "applied" ? "Done" : status === "undoing" ? (reason ?? "Undoing…")
-              : status === "undone" ? "Undone" : "Failed"}
+              : status === "undone" ? "Undone"
+              : <>Failed<span className="sr-only">. {reason ?? "That did not save."}</span></>}
           </span>
         </div>
 
@@ -113,7 +114,8 @@ export default function CoachActionCard({
         {!server && <><LogMealWarnings action={action} /><RoleConfirm action={action} active={status === "applied"} /></>}
 
         {status === "failed" && <div className="flex items-center justify-between gap-3">
-          <p role="alert" className="m-0 text-tiny font-normal text-on-charcoal-muted">
+          {/* The status chip above announces the failure with its reason, once. */}
+          <p className="m-0 text-tiny font-normal text-on-charcoal-muted">
             {reason ?? "That did not save."}
           </p>
           <Button variant="ghost" size="sm" onClick={canUndo ? onUndo : onRetry} disabled={busy}>
