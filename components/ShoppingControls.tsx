@@ -17,6 +17,18 @@ export function realCalendarDate(date: string): boolean {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 
+/**
+ * Why a draft cannot be previewed (or saved as a blank list, which needs no meals), in the words
+ * the planner shows beside its button; null when it can.
+ */
+export function draftProblem(draft: ShoppingDraft, { needMeals = true }: { needMeals?: boolean } = {}): string | null {
+  if (!realCalendarDate(draft.startDate) || !realCalendarDate(draft.endDate)) return "Enter real calendar dates.";
+  if (draft.endDate < draft.startDate) return "Through must be on or after From.";
+  if (!Number.isInteger(draft.people) || draft.people < 1) return "People must be 1 or more.";
+  if (needMeals && !draft.mealCoverage.length) return "Pick at least one meal.";
+  return null;
+}
+
 function shiftDate(date: string, days: number): string {
   if (!realCalendarDate(date)) return "";
   const value = new Date(`${date}T12:00:00Z`);
@@ -64,6 +76,9 @@ export default function ShoppingControls({ draft, onChange, onPreview, busy = fa
   const [custom, setCustom] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  /** The People field as typed, so it can be cleared to retype; the draft holds the number. */
+  const [peopleText, setPeopleText] = useState({ base: draft.people, value: String(draft.people) });
+  const people = peopleText.base === draft.people ? peopleText.value : String(draft.people);
   const latestDraft = useRef(draft);
   const mounted = useRef(true);
   useEffect(() => { latestDraft.current = draft; }, [draft]);
@@ -76,7 +91,7 @@ export default function ShoppingControls({ draft, onChange, onPreview, busy = fa
   const range = draft.startDate && draft.endDate ? Math.round((new Date(`${draft.endDate}T12:00:00Z`).getTime() -
     new Date(`${draft.startDate}T12:00:00Z`).getTime()) / 86400000) + 1 : 0;
   const period = custom ? "Custom" : range === 7 ? "7 days" : range >= 28 && range <= 31 ? "Month" : "Custom";
-  const validDates = realCalendarDate(draft.startDate) && realCalendarDate(draft.endDate);
+  const problem = draftProblem(draft);
   function useLocation() {
     setLocationError(null);
     if (!navigator.geolocation) { setLocationError("This browser cannot share a location. Enter a ZIP or area instead."); return; }
@@ -95,7 +110,7 @@ export default function ShoppingControls({ draft, onChange, onPreview, busy = fa
   return <section className="shell"><div className="surface flex flex-col gap-4 p-4">
     <h2 className="m-0 text-lg font-semibold">Plan this shop</h2>
     <div className="grid grid-cols-3 gap-2" role="group" aria-label="Period">
-      {(["7 days", "Custom", "Month"] as const).map((value) => <Button key={value}
+      {(["7 days", "Custom", "Month"] as const).map((value) => <Button key={value} className="min-w-0 px-2"
         aria-pressed={period === value} variant={period === value ? "primary" : "quiet"}
         onClick={() => {
           setCustom(value === "Custom");
@@ -103,14 +118,15 @@ export default function ShoppingControls({ draft, onChange, onPreview, busy = fa
           set("endDate", value === "7 days" ? shiftDate(draft.startDate, 6) : monthEnd(draft.startDate));
         }}>{value}</Button>)}
     </div>
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm">From<DateField label="From" className="min-h-11 px-3" value={draft.startDate}
         onChange={(next) => { const startDate = next ?? ""; onChange({ ...draft, startDate,
-          endDate: period === "7 days" ? shiftDate(startDate, 6) : period === "Month" ? monthEnd(startDate) : draft.endDate }); }} /></label>
+          endDate: period === "7 days" ? shiftDate(startDate, 6) : period === "Month" ? monthEnd(startDate)
+            // A later From in Custom carries Through with it rather than leaving it before From.
+            : realCalendarDate(startDate) && draft.endDate < startDate ? startDate : draft.endDate }); }} /></label>
       <label className="flex flex-col gap-1 text-sm">Through<DateField label="Through" className="min-h-11 px-3" min={draft.startDate}
         value={draft.endDate} onChange={(next) => { setCustom(true); set("endDate", next ?? ""); }} /></label>
     </div>
-    {!validDates && <Notice tone="error" title="Enter real calendar dates before previewing." />}
     <fieldset className="m-0 border-0 p-0">
       <legend className="mb-2 text-sm">Meals covered</legend>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Meals covered">
@@ -130,7 +146,13 @@ export default function ShoppingControls({ draft, onChange, onPreview, busy = fa
     </fieldset>
     <div className="grid grid-cols-2 gap-3">
       <label className="flex flex-col gap-1 text-sm">People<input className="well min-h-11 px-3" type="number" min="1" step="1"
-        value={draft.people} onChange={(event) => set("people", Number(event.target.value))} /></label>
+        inputMode="numeric" value={people} onChange={(event) => {
+          const value = event.target.value;
+          const next = value.trim() === "" ? 0 : Number(value);
+          const count = Number.isFinite(next) ? next : 0;
+          setPeopleText({ base: count, value });
+          set("people", count);
+        }} /></label>
       <div className="flex flex-col gap-1 text-sm">Cooking effort<GlassSelect aria-label="Cooking effort" value={draft.effort}
         onChange={(value) => set("effort", value as ShoppingDraft["effort"])}
         options={[{ value: "none", label: "No cooking" }, { value: "minimal", label: "Minimal" },
@@ -158,15 +180,16 @@ export default function ShoppingControls({ draft, onChange, onPreview, busy = fa
       {locationError && <Notice tone="error" title={locationError} />}
       <p className="ground-muted m-0 text-sm">Store notes stay on this device for this account. Nearby store search and local prices are unavailable.</p>
     </div>
-    <fieldset className="m-0 border-0 p-0"><legend className="mb-2 text-sm">Ingredient boundary</legend>
+    <fieldset className="m-0 border-0 p-0"><legend className="mb-2 text-sm">Which ingredients to use</legend>
       {([ ["none", "Prefer this list"], ["ingredients", "Use only these ingredients"],
         ["available_quantities", "Use only what I have"] ] as const).map(([value, label]) =>
         <label key={value} className="flex min-h-11 items-center gap-3 text-sm">
           <input type="radio" name="shopping-lock" checked={draft.lockMode === value}
             onChange={() => set("lockMode", value)} />{label}</label>)}
     </fieldset>
-    {draft.lockMode !== "none" && <p className="ground-muted m-0 text-sm">The selected list and confirmed pantry set the boundary, including seasonings. A preview will show anything that cannot fit.</p>}
-    <Button variant="primary" disabled={busy || !validDates || draft.endDate < draft.startDate || draft.people < 1 || !draft.mealCoverage.length} onClick={onPreview}>
-      {busy ? "Preparing preview…" : "Preview plan and list changes"}</Button>
+    {draft.lockMode !== "none" && <p className="ground-muted m-0 text-sm">Meals use only the ingredients you picked below and what you have, seasonings included. The preview lists anything that won&apos;t fit.</p>}
+    {problem && <Notice tone="error" title={problem} />}
+    <Button variant="primary" disabled={busy || problem !== null} onClick={onPreview}>
+      {busy ? "Preparing preview…" : "Preview changes"}</Button>
   </div></section>;
 }

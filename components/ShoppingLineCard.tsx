@@ -7,18 +7,7 @@ import type { ShoppingLine } from "@/lib/shopping/types";
 import { displayAmount } from "@/lib/recipes/preview-display";
 import Disclosure from "@/components/ui/Disclosure";
 import RuleMark from "@/components/ui/RuleMark";
-
-function localDateLabel(date: string): string {
-  const parsed = new Date(`${date}T12:00:00Z`);
-  return Number.isNaN(parsed.getTime()) ? date : new Intl.DateTimeFormat("en-US", {
-    month: "short", day: "numeric", timeZone: "UTC",
-  }).format(parsed);
-}
-
-function mealLabel(slot: string): string {
-  return /^meal-[1-6]$/.test(slot) ? `Meal ${slot.slice(5)}`
-    : slot.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+import { CATEGORY_LABEL, mealLabel, shoppingDate } from "@/lib/shopping/labels";
 
 export type ShoppingLinePatch = Partial<Pick<ShoppingLine, "name" | "checked" | "pinned" | "note">>;
 export default function ShoppingLineCard({ line, selected = true, showBought = true,
@@ -50,7 +39,7 @@ export default function ShoppingLineCard({ line, selected = true, showBought = t
   return <article className="olive-panel flex flex-col gap-3 p-3">
     <div className="flex items-start justify-between gap-2">
       <div><strong className="block">{line.name}</strong>
-        <span className="ground-muted text-sm">{line.origin === "manual" ? "Added by you" : line.category.replaceAll("_", " ")}</span></div>
+        <span className="ground-muted text-sm">{line.origin === "manual" ? CATEGORY_LABEL.manual : CATEGORY_LABEL[line.category]}</span></div>
       {showBought && <label className="flex min-h-11 min-w-11 items-center justify-center gap-2 text-sm">
         <input type="checkbox" aria-label={`Bought ${line.name}`} checked={line.checked}
           disabled={!onPatch || busy} onChange={(event) => { const checked = event.target.checked;
@@ -75,15 +64,15 @@ export default function ShoppingLineCard({ line, selected = true, showBought = t
         {line.packageGrams !== null && <span className="ground-muted block">Package {displayAmount(line.packageGrams)} g</span>}</div>
     </div>}
     {line.purchaseConversionStatus !== "known" && line.origin === "plan" && <p className="ground-muted m-0 text-sm">
-      {line.purchaseConversionStatus === "unknown" ? "Purchase conversion unknown; the Buy amount is not exact." : "Purchase conversion is estimated."}
+      {line.purchaseConversionStatus === "unknown" ? "The package size isn't known, so the Buy amount is a guess." : "The Buy amount is estimated from a typical package."}
     </p>}
     {line.sources.length > 0 && <Disclosure variant="row" size="sm" bodyClassName="pb-2 text-sm"
       title={`Needed for ${line.sources.length} planned use${line.sources.length === 1 ? "" : "s"}`}>
       <ul className="m-0 list-disc pl-5">{line.sources.map((source, index) => <li key={`${source.recipeRevisionId}-${source.ingredientSeq}-${index}`}>
-        {localDateLabel(source.localDate)} · {mealLabel(source.slotId)}{source.requiredGrams === null ? " · amount unknown" : ` · ${displayAmount(source.requiredGrams)} g`}</li>)}</ul>
+        {shoppingDate(source.localDate)} · {mealLabel(source.slotId)}{source.requiredGrams === null ? " · amount unknown" : ` · ${displayAmount(source.requiredGrams)} g`}</li>)}</ul>
     </Disclosure>}
     {line.identity && <div className="flex flex-wrap items-end gap-2">
-      <label className="flex flex-col gap-1 text-sm">Have already (confirmed g)
+      <label className="flex flex-col gap-1 text-sm">Have already (grams)
         <input className="well min-h-11 w-36 px-3" type="number" min="0" step="any" value={stock}
           onChange={(event) => setStockDraft({ base: initialStock, value: event.target.value })} /></label>
       <Button disabled={!onConfirmPantry || busy || stock === "" || !Number.isFinite(Number(stock)) || Number(stock) < 0}

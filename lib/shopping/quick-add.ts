@@ -14,18 +14,35 @@ const key = (name: string) => name.trim().toLocaleLowerCase().replace(/\s+/g, " 
 /** "Eggs, large" and "eggs" are one item on a list. */
 const head = (name: string) => key(name.split(",")[0] ?? name);
 
+/** What one Add sends, what it leaves in the box, and how many typed names were already listed. */
+export type QuickAddPlan = {
+  items: string[];
+  /** The typed items past the first `MAX_QUICK_ITEMS`, joined back for the field ("" when none). */
+  rest: string;
+  /** Typed names skipped because the list (or the same paste) already has them. */
+  duplicates: number;
+};
+
 /** Items typed as "2 avocados, eggs; oat milk" or one per line. "and" never splits an item. */
-export function parseQuickAdd(text: string, existing: readonly ShoppingLine[] = []): string[] {
+export function planQuickAdd(text: string, existing: readonly ShoppingLine[] = []): QuickAddPlan {
   const seen = new Set(existing.map((line) => key(line.name)));
   const items: string[] = [];
+  const rest: string[] = [];
+  let duplicates = 0;
   for (const raw of text.split(/[,;\n]+/)) {
     const name = raw.trim().replace(/\s+/g, " ").slice(0, MAX_NAME);
-    if (!name || seen.has(key(name))) continue;
+    if (!name) continue;
+    if (seen.has(key(name))) { duplicates += 1; continue; }
     seen.add(key(name));
-    items.push(name);
-    if (items.length === MAX_QUICK_ITEMS) break;
+    if (items.length === MAX_QUICK_ITEMS) rest.push(name);
+    else items.push(name);
   }
-  return items;
+  return { items, rest: rest.join(", "), duplicates };
+}
+
+/** The items one Add sends: at most `MAX_QUICK_ITEMS`, none already on the list. */
+export function parseQuickAdd(text: string, existing: readonly ShoppingLine[] = []): string[] {
+  return planQuickAdd(text, existing).items;
 }
 
 /** How a food is cooked, cut or sized: not part of what you buy. */
