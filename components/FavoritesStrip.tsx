@@ -11,6 +11,8 @@ import Button from "@/components/ui/Button";
 /* A chip is the shared tertiary Button at its small size (2026-10-04 button system); a chip that
    navigates is a link drawn with the same classes. */
 const CHIP = "btn btn-tertiary btn-sm";
+/** A long food or recipe name wraps inside its chip instead of being clipped at 320 px. */
+const WRAP = "h-auto max-w-full whitespace-normal py-1.5 text-left";
 
 /** Where a chip goes when the host screen has no pick handler (the Foods tab). */
 export function favoriteHref(row: FavoriteRow): string {
@@ -83,9 +85,15 @@ export default function FavoritesStrip({ initial, onPick, limit }: {
       </div>
     );
   }
+  // With no pick handler a food chip has nowhere to go (its link would be the page it is on), so it
+  // is a plain tag, not something that looks tappable and does nothing.
   const chip = (row: FavoriteRow) => onPick
-    ? <Button variant="tertiary" size="sm" onClick={() => onPick(row)}>{row.name}</Button>
-    : <Link href={favoriteHref(row)} className={CHIP}>{row.name}</Link>;
+    ? <Button variant="tertiary" size="sm" className={WRAP} onClick={() => onPick(row)}>{row.name}</Button>
+    : row.kind === "food"
+      ? <span className="pill inline-flex max-w-full items-center break-words px-3 py-1.5 text-caption text-graphite">
+        {row.name}
+      </span>
+      : <Link href={favoriteHref(row)} className={`${CHIP} ${WRAP}`}>{row.name}</Link>;
   if (limit !== undefined) {
     const ordered = [...rows].sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));
     return (

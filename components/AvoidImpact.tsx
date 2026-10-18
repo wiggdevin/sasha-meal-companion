@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import Sheet from "@/components/Sheet";
 import Button from "@/components/ui/Button";
@@ -8,7 +8,6 @@ import Notice from "@/components/ui/Notice";
 import { accountFetch, accountHandle, accountJson, assertCurrent, isCurrent,
   onAccountGone, onAccountReady } from "@/lib/device/account";
 import { ASSISTANT_NAME } from "@/lib/brand";
-import AvoidRules from "@/components/AvoidRules";
 import { AvoidFoods } from "@/components/MyFoods";
 import type { Food } from "@/lib/foods";
 import { searchCatalogRecipes, getCatalogRecipe } from "@/lib/recipe-catalog-client";
@@ -19,6 +18,7 @@ import { SYNCED_EVENT, syncOnce } from "@/lib/sync/client";
 import { allOps } from "@/lib/sync/idb";
 import { loadStore } from "@/lib/store";
 import type { SlotId } from "@/lib/types";
+import { SLOT_LABELS } from "@/lib/meals";
 import { similarRecipeOptions } from "@/lib/foods/impact-ranking";
 import { postTurn } from "@/lib/coach-client";
 import { matchesRule, mayHaveSubingredients, type CustomRule } from "@/lib/policy/custom-rules";
@@ -105,6 +105,20 @@ export function askCapNotice(affected: number, checked: number): string | null {
     : `Asking about the first ${ASK_SASHA_MAX_MEALS} of ${total} affected meals; select specific meals to choose which`;
 }
 
+/** "Sun, Oct 19 · Meal 3": a readable date and the slot's name, never the ISO date or slot id. */
+export function instanceWhen(item: { date: string; slot: string }): string {
+  const day = new Date(`${item.date}T12:00:00Z`);
+  const date = Number.isNaN(day.getTime()) ? item.date : day.toLocaleDateString("en-US",
+    { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return `${date} · ${SLOT_LABELS[item.slot as SlotId] ?? "Meal"}`;
+}
+
+/** Element id of the ground food settings the sheet's "Edit food settings" scrolls to. */
+export const FOOD_SETTINGS_ID = "food-settings";
+
+/** A content-sized button label that may wrap instead of being clipped at 320 px. */
+const WRAP_BUTTON = "h-auto max-w-full justify-start whitespace-normal py-2 text-left";
+
 export function impactSwipe(dx: number, dy: number): "remove" | "remix" | null {
   if (Math.abs(dx) <= 60 || Math.abs(dx) <= Math.abs(dy)) return null;
   return dx < 0 ? "remove" : "remix";
@@ -129,7 +143,7 @@ export function impactRecipeOptions(
     options.filter((recipe) => !conflictsWithIntent(recipe, impact)), excludedRecipeId);
 }
 
-export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) {
+export default function AvoidImpact() {
   const [query, setQuery] = useState("");
   const [selectedCatalogFoodId, setSelectedCatalogFoodId] = useState<number | null>(null);
   const [badges, setBadges] = useState<Record<string, Badge>>({});
@@ -138,7 +152,6 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
   const [kind, setKind] = useState<"ingredient" | "cuisine">("ingredient");
   const [result, setResult] = useState<Impact | null>(null);
   const [open, setOpen] = useState(false);
-  const [editRules, setEditRules] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -181,7 +194,7 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
       if (generation === badgeGeneration.current) { setBadges(byId); setBadgeError(null); }
     } catch {
       if (generation === badgeGeneration.current) {
-        setBadges({}); setBadgeError("Could not check saved future meals. Retry below.");
+        setBadges({}); setBadgeError("Could not check saved future meals.");
       }
     }
   }
@@ -215,11 +228,13 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
     const impact = await accountJson<Omit<Impact, "q" | "kind" | "catalogFoodId">>(h, res);
     return { ...impact, q: q.trim(), kind: requestedKind, catalogFoodId };
   }
-  async function check() {
+  async function check({ keepResult = false } = {}) {
     if (query.trim().length < 2) return;
     const h = accountHandle();
     const request = ++requestSequence.current;
-    setBusy(true); setError(null); setResult(null); setVerifiedOptions(null);
+    // A refresh after planning keeps the open sheet (and its place) until the new result lands.
+    setBusy(true); setError(null); setVerifiedOptions(null);
+    if (!keepResult) setResult(null);
     try {
       const impact = await readImpact(query, kind, h);
       if (isCurrent(h) && request === requestSequence.current) setResult(impact);
@@ -249,7 +264,9 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
       Cannot check this food’s impact. Edit its name to 2–80 characters.
     </span>;
     const badge = badges[food.id];
-    if (!badge) return <span className="text-caption text-graphite">Impact check pending</span>;
+    if (!badge) return <span className="text-caption text-graphite">
+      {badgeError ? "Couldn’t check" : "Impact check pending"}
+    </span>;
     // A complete zero is good news in quiet words; an incomplete zero is unknown, never "0+".
     if (badge.count === 0 && badge.complete) return <span className="text-caption text-muted">No saved meals affected</span>;
     const label = affectedLabel(badge);
@@ -411,8 +428,14 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
   {/* A card standing on the ground: E1 (U11). */}
   <div className="shell"><section className="surface flex flex-col gap-3 p-4" aria-label="Affected future meals">
     <h2 className="m-0 text-caption font-medium text-charcoal">Affected future meals</h2>
-    <p role="status" className="m-0 text-caption text-graphite">Check a food or cuisine against saved future meals. Eaten meals stay as recorded.</p>
-    {badgeError && <Notice tone="error" title={badgeError} />}
+    <p className="m-0 text-caption text-graphite">Check a food or cuisine against saved future meals. Eaten meals stay as recorded.</p>
+    {/* Mounted from the start so the outcome of Check is announced when it lands. */}
+    <p role="status" className="sr-only">
+      {busy ? "" : result ? affectedLabel(result, result.scope)
+        : !(open && result) && error ? error : ""}
+    </p>
+    {badgeError && <Notice tone="error" title={badgeError}
+      action={{ label: "Retry", onClick: () => { setBadgeError(null); void refreshBadges(); } }} />}
     <div role="group" aria-label="Impact type" className="flex gap-2">
       {(["ingredient", "cuisine"] as const).map((value) => <Button key={value} size="sm"
         variant={kind === value ? "primary" : "tertiary"}
@@ -468,7 +491,7 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
           if (action === "remove") setConfirmRemove(keyOf(item));
           if (action === "remix") void remix(item);
         }} onTouchCancel={() => { touch.current = null; }}>
-        <strong>{item.date} · {item.slot} · {item.title}</strong>
+        <strong>{instanceWhen(item)} · {item.title}</strong>
         <span>Matched {item.matched}</span>
         <label className="flex min-h-11 items-center gap-2">
           <input type="checkbox" checked={selectedKeys.includes(keyOf(item))}
@@ -493,8 +516,9 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
         </div>}
       </div>)}
       <Button variant="secondary" disabled={selectedKeys.length === 0} status={busy ? "pending" : undefined}
+        className={WRAP_BUTTON}
         onClick={() => void askSasha(result.instances.filter((item) => selectedKeys.includes(keyOf(item))))}>
-        {`Ask ${ASSISTANT_NAME} for selected replacements`}
+        {`Ask ${ASSISTANT_NAME} about selected`}
       </Button>
       <div className="my-3 flex flex-col gap-2">
         <label className="flex flex-col gap-1.5 text-caption">
@@ -518,9 +542,9 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
         <strong>Verified recipe options</strong>
         {verifiedOptions.map(({ instance, recipes }) => <div key={keyOf(instance)}
           className="flex flex-col gap-2">
-          <span>{instance.date} · {instance.slot} · {instance.title}</span>
+          <span>{instanceWhen(instance)} · {instance.title}</span>
           {recipes.length ? recipes.map((recipe) => <Button variant="tertiary" block
-            key={recipe.revisionId} className="justify-start"
+            key={recipe.revisionId} className={WRAP_BUTTON}
             onClick={() => setFlow({ instance, recipe })}>
             Review {recipe.name} for this meal
           </Button>) : <span>No verified catalog replacement found for this meal.</span>}
@@ -528,15 +552,18 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
         <p className="m-0">Review the portion and accept to change a future meal. No plan changed here.</p>
       </div>}
       {coachIdeas && <div className="well my-3 rounded-xl p-3 text-caption" role="status">
-        <strong>{ASSISTANT_NAME} on {coachIdeas.keys.join(", ")}</strong>
+        <strong>{ASSISTANT_NAME} on {coachIdeas.keys.map((key) => {
+          const item = result.instances.find((row) => keyOf(row) === key);
+          return item ? instanceWhen(item) : null;
+        }).filter(Boolean).join(", ") || "the selected meals"}</strong>
         <p className="whitespace-pre-wrap">{coachIdeas.reply}</p>
         {coachIdeas.names.length > 0 && <p>Food ideas to review: {coachIdeas.names.join(", ")}.</p>}
         <p>These ideas are not verified against an unsaved exclusion. Save the rule and review any idea through Remix before changing a future meal. No plan changed here.</p>
       </div>}
       {replacements && <div className="my-3 flex flex-col gap-2" aria-label="Replacement recipes to review">
-        <h4 className="m-0 text-caption">Similar options for {replacements.instance.date}, {replacements.instance.slot}</h4>
+        <h4 className="m-0 text-caption">Similar options for {instanceWhen(replacements.instance)}</h4>
         {replacements.recipes.map((recipe) => <Button variant="tertiary" block key={recipe.revisionId}
-          className="justify-start"
+          className={WRAP_BUTTON}
           onClick={() => {
             if (recipe.eligibility.status !== "eligible" || conflictsWithIntent(recipe, result)) {
               setError("This replacement conflicts with the checked exclusion. Refresh options."); return;
@@ -549,12 +576,16 @@ export default function AvoidImpact({ dietEditor }: { dietEditor?: ReactNode }) 
       <p className="text-caption text-graphite">Save a new exclusion before accepting a replacement so the server can enforce it.</p>
       {flow && <RecipePlanFlow recipe={flow.recipe} initialDate={flow.instance.date}
         initialSlotId={flow.instance.slot} onClose={() => setFlow(null)}
-        onPlanned={() => { setFlow(null); void check(); }} />}
-      <Button variant="tertiary" aria-expanded={editRules}
-        onClick={() => setEditRules((value) => !value)}>
-        {editRules ? "Hide food settings" : "Edit food settings here"}
+        onPlanned={() => { setFlow(null); void check({ keepResult: true }); }} />}
+      {/* One copy of the rules and diet editors lives on the page; the sheet sends you to it, so a
+          second copy can never fall out of sync with the first. */}
+      <Button variant="tertiary" onClick={() => {
+        setOpen(false);
+        setTimeout(() => document.getElementById(FOOD_SETTINGS_ID)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+      }}>
+        Edit food settings
       </Button>
-      {editRules && <div className="mt-3 flex flex-col gap-3">{dietEditor}<AvoidRules /></div>}
       </div>
     </Sheet>}
     </AnimatePresence>

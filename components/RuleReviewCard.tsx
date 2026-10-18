@@ -29,12 +29,23 @@ export default function RuleReviewCard({ initial, onCompleted }: {
       if (!active) return;
       setReview(loaded);
       setLoading(false);
-      if (!loaded) setError("Could not check your food rules. Try again when connected.");
     });
     return () => { active = false; };
   }, [initial, retry]);
 
-  if (!loading && review && !review.required) return null;
+  // Nothing renders until the check answers: most accounts have nothing to review, and the
+  // "carried over" wording must never flash for them. A failed check says only that it failed.
+  if (loading) return null;
+  if (!review) {
+    return (
+      <div className="shell">
+        <Notice tone="error" title="Could not check your food rules."
+          action={{ label: "Try again",
+            onClick: () => { setLoading(true); setError(null); setRetry((value) => value + 1); } }} />
+      </div>
+    );
+  }
+  if (!review.required) return null;
   const all = review ? [
     ...review.candidateAllergens.map((key) => ({ group: "allergens" as const, key })),
     ...review.candidateCategories.map((key) => ({ group: "categories" as const, key })),
@@ -81,13 +92,6 @@ export default function RuleReviewCard({ initial, onCompleted }: {
             each one. Your choices will apply to future meal suggestions.
           </p>
         </div>
-        {loading && <p role="status" className="m-0 text-caption text-muted">Checking your rules…</p>}
-        {!loading && !review && (
-          <Button className="self-start"
-            onClick={() => { setLoading(true); setError(null); setRetry((value) => value + 1); }}>
-            Try again
-          </Button>
-        )}
         {all.map(({ group, key }) => (
           <div key={`${group}:${key}`} className="flex flex-col gap-2 border-t border-black/5 pt-3">
             <div>
@@ -105,7 +109,7 @@ export default function RuleReviewCard({ initial, onCompleted }: {
             </div>
           </div>
         ))}
-        {review?.required && (
+        {review.required && (
           <>
             <p role="status" className="m-0 text-caption text-muted">{all.length
               ? `${answered} of ${all.length} reviewed`

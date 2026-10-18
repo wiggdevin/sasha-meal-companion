@@ -110,17 +110,29 @@ export default function AvoidRules({ initial, children }: {
   const [conditionsDraft, setConditionsDraft] = useState<string | null>(null);
 
   useEffect(() => {
-    const sync = () => setOnline(navigator.onLine);
+    // A load that came back empty while offline is retried once the connection returns, so the
+    // card never sits on "Checking your rules…" with every control disabled.
+    let waitingForOnline = false;
+    let live = true;
+    const sync = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine && waitingForOnline) {
+        waitingForOnline = false;
+        setAttempt((value) => value + 1);
+      }
+    };
     sync();
     window.addEventListener("online", sync);
     window.addEventListener("offline", sync);
     if (initial === undefined) {
       void loadConstraints().then((loaded) => {
+        if (!live) return;
         if (!loaded) {
           // Offline the caption below already explains itself. Online, a failed load would
           // otherwise read as "nothing is avoided", which is the one wrong thing to say here —
           // so the card body says it failed and offers Retry, never "Checking your rules…".
           if (navigator.onLine) setLoadFailed(true);
+          else waitingForOnline = true;
           return;
         }
         setLoadFailed(false);
@@ -129,6 +141,7 @@ export default function AvoidRules({ initial, children }: {
       });
     }
     return () => {
+      live = false;
       window.removeEventListener("online", sync);
       window.removeEventListener("offline", sync);
     };
@@ -346,8 +359,11 @@ export default function AvoidRules({ initial, children }: {
               onClick={() => setRuleKind(kind)}>{kind === "guidance" ? "Guidance only" : kind}</Button>)}
         </div>
         <input aria-label="Custom food rule" placeholder="e.g. garlic" className="well min-h-11 px-3 text-caption"
-          disabled={!ready} value={ruleText} maxLength={80} onChange={(event) => setRuleText(event.target.value)}
+          aria-describedby={status ? "custom-rule-error" : undefined} aria-invalid={status ? true : undefined}
+          disabled={!ready} value={ruleText} maxLength={80}
+          onChange={(event) => { setRuleText(event.target.value); setStatus(null); }}
           onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} />
+        {status && <div id="custom-rule-error"><Notice tone="error" title={status} /></div>}
         <div className="flex gap-2">
           <Button variant="secondary" disabled={!ready || ruleText.trim().length < 2}
             className={ADD_RULE} onClick={async () => {
@@ -401,7 +417,6 @@ export default function AvoidRules({ initial, children }: {
       </Card>
 
       {!online && <Notice tone="attention" title="Needs a connection to change." className="px-1.5" />}
-      {status && <Notice tone="error" title={status} className="px-1.5" />}
       <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
       <ActionFeedbackToast notice={conditionsFeedback.notice} onDismiss={conditionsFeedback.dismiss} />
     </>
