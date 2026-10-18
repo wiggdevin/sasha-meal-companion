@@ -13,7 +13,7 @@ vi.mock("@/lib/favorites-client", () => ({ listFavorites: () => list() }));
 const { default: FavoritesStrip } = await import("@/components/FavoritesStrip");
 
 const rows: FavoriteRow[] = Array.from({ length: 9 }, (_, i) =>
-  ({ kind: "food", id: `f${i}`, name: `Food ${i}`, sort: i }));
+  ({ kind: "recipe", id: `f${i}`, name: `Food ${i}`, sort: i }));
 
 afterEach(cleanup);
 
