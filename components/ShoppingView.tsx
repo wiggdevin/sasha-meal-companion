@@ -83,6 +83,13 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
   const [revealSerial, setRevealSerial] = useState(0);
   const feedback = useActionFeedback();
   useEffect(() => { if (revealSerial) reveal(resultRef.current); }, [revealSerial]);
+  /** Set when a plan is accepted: the list is where to look, with any refresh notice just above it. */
+  const [acceptedSerial, setAcceptedSerial] = useState(0);
+  useEffect(() => {
+    if (!acceptedSerial || !topRef.current) return;
+    const notice = topRef.current.previousElementSibling;
+    reveal(notice instanceof HTMLElement && notice.matches("[data-tone=error]") ? notice : topRef.current);
+  }, [acceptedSerial]);
   const [basket, setBasket] = useState<IngredientIdentity[]>(() => lines.flatMap((line) => line.identity ? [line.identity] : []));
   const basketSource = useRef({ periodId: period?.id ?? null, revision: period?.revision ?? null,
     lineIds: new Set(lines.filter((line) => line.identity).map((line) => line.id)) });
@@ -182,8 +189,8 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
         onAccepted={() => {
           setPreview(null);
           // The card goes; the updated list (and any refresh notice above it) is where to look.
-          feedback.notify({ tone: "success", message: "Plan accepted. List updated." });
-          reveal(topRef.current);
+          feedback.notify({ tone: "success", message: "Plan accepted." });
+          setAcceptedSerial((value) => value + 1);
         }} />}
       {error && <Notice tone="error" title={error} />}
     </div>

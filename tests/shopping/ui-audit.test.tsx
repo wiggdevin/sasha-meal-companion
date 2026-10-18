@@ -110,7 +110,7 @@ describe("planner", () => {
     const people = screen.getByLabelText("People") as HTMLInputElement;
     fireEvent.change(people, { target: { value: "" } });
     expect(people.value).toBe("");
-    expect(screen.getByText("People must be 1 or more.")).toBeTruthy();
+    expect(screen.getByText("People must be a whole number, 1 or more.")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Preview changes" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(people, { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Dinner" }));
@@ -143,7 +143,7 @@ describe("planner", () => {
     openPlan();
     fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     fireEvent.click(await screen.findByRole("button", { name: "Accept plan and list" }));
-    expect(await screen.findByText("Plan accepted. List updated.")).toBeTruthy();
+    expect(await screen.findByText("Plan accepted.")).toBeTruthy();
   });
 
   it("removes a pantry item without touching the preview button, one tap at a time", async () => {
@@ -190,5 +190,31 @@ describe("words and dates", () => {
     fireEvent.click(screen.getByRole("button", { name: "Details for Beans" }));
     expect(screen.getAllByText("Pantry top-ups").length).toBeGreaterThan(1);
     expect(screen.queryByText("pantry top up")).toBeNull();
+  });
+});
+
+describe("review follow-ups", () => {
+  it("keeps a queued untick on screen while the first save is answered", async () => {
+    let finish!: (value: ShoppingLine) => void;
+    const actions = listActions();
+    actions.setChecked.mockImplementationOnce(() => new Promise<ShoppingLine>((resolve) => { finish = resolve; }));
+    const { rerender } = render(<ShoppingList title="This week" lines={[line()]} favorites={[]} actions={actions} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Beans, to buy/ }));
+    fireEvent.click(screen.getByRole("button", { name: /In cart/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Beans, in cart/ }));
+    // The first save's answer lands as a newer read before the save itself resolves.
+    rerender(<ShoppingList title="This week" lines={[line({ checked: true, revision: 2 })]} favorites={[]} actions={actions} />);
+    expect(screen.getByText(/0 of 1 in cart/)).toBeTruthy();
+    await act(async () => { finish(line({ checked: true, revision: 2 })); });
+    expect(screen.getByText(/0 of 1 in cart/)).toBeTruthy();
+  });
+
+  it("keeps a plan line with no weeks tickable on a monthly list", () => {
+    const month = { ...period, endDate: "2026-10-26" };
+    render(<ShoppingView period={month} initialDraft={draft}
+      lines={[line(), line({ id: "l2", name: "Rice" })]} purchaseWindows={[week()]}
+      actions={{ ...viewActions(), patchWindow: vi.fn().mockResolvedValue(undefined) }} />);
+    expect(screen.getByRole("checkbox", { name: /Rice, to buy/ })).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: /Beans, / })).toBeNull();
   });
 });

@@ -46,7 +46,7 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   const [text, setText] = useState("");
   /** A tick shows at once and holds only while the line is still the revision it was made on: any
    *  newer read of the line (this save's answer, another device) is the truth from then on. */
-  const [ticks, setTicks] = useState<Record<string, { revision: number; value: boolean; seq: number }>>({});
+  const [ticks, setTicks] = useState<Record<string, { revision: number; value: boolean; seq: number; hold?: boolean }>>({});
   const tickSeq = useRef(0);
   /** One tick save in flight per line; a tap meanwhile waits here and is sent on the saved revision. */
   const inFlight = useRef(new Map<string, { queued: boolean | null }>());
@@ -60,10 +60,11 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   const shown = lines.filter((line) => !gone.has(line.id));
   const isChecked = (line: ShoppingLine) => {
     const tick = ticks[line.id];
-    return tick && tick.revision === line.revision ? tick.value : line.checked;
+    // A held tick waits behind a save still out, so the save's own answer must not show through it.
+    return tick && (tick.hold || tick.revision === line.revision) ? tick.value : line.checked;
   };
   /** A monthly list's plan items are ticked week by week, below the list. */
-  const byWeek = (line: ShoppingLine) => !showChecks && line.origin === "plan";
+  const byWeek = (line: ShoppingLine) => !showChecks && line.origin === "plan" && (weekChecked?.(line) ?? null) !== null;
   const isDone = (line: ShoppingLine) => byWeek(line) ? weekChecked?.(line) === true : isChecked(line);
   const open = shown.filter((line) => !isDone(line));
   const done = shown.filter(isDone);
@@ -92,19 +93,37 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
     const next = !isChecked(line);
     const seq = ++tickSeq.current;
     setError(null);
-    setTicks((current) => ({ ...current, [line.id]: { revision: line.revision, value: next, seq } }));
     const pending = inFlight.current.get(line.id);
+    setTicks((current) => ({ ...current, [line.id]: { revision: line.revision, value: next, seq, hold: !!pending } }));
     // A second tap while the first save is out would send the same old revision and be refused as
     // stale: it waits, and only its final value is sent once the first save answers.
-    if (pending) { pending.queued = next; return; }
+    if (pending) { inFlight.current.set(line.id, { queued: next }); return; }
     await send(line, next, seq);
+  }
+  /** Sends the tap that waited behind a save, on the newest read of its line; false when none waits. */
+  async function sendQueued(lineId: string, queued: boolean | null, base: ShoppingLine | undefined,
+    sent: boolean): Promise<boolean> {
+    if (queued === null || !base) return false;
+    const nextSeq = ++tickSeq.current;
+    if (queued === sent) {
+      // Nothing more to send: the held tick becomes an ordinary one on the saved revision.
+      setTicks((current) => ({ ...current, [lineId]: { revision: base.revision, value: queued, seq: nextSeq } }));
+      return true;
+    }
+    setTicks((current) => ({ ...current, [lineId]: { revision: base.revision, value: queued, seq: nextSeq } }));
+    await send(base, queued, nextSeq);
+    return true;
   }
   async function send(line: ShoppingLine, value: boolean, seq: number) {
     inFlight.current.set(line.id, { queued: null });
     let saved: ShoppingLine | void;
     try { saved = await actions.setChecked(line, value); }
     catch (cause) {
+      const queued = inFlight.current.get(line.id)?.queued ?? null;
       inFlight.current.delete(line.id);
+      // A tap made meanwhile is the newest intent: send it against the line as last read.
+      const base = latest.current.get(line.id);
+      if (await sendQueued(line.id, queued, base, base?.checked ?? !queued)) return;
       // Roll back to the line as last read, and only while this is still the line's newest tick.
       setTicks((current) => {
         if (current[line.id]?.seq !== seq) return current;
@@ -117,12 +136,7 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
     }
     const queued = inFlight.current.get(line.id)?.queued ?? null;
     inFlight.current.delete(line.id);
-    if (queued === null || queued === value) return;
-    const base = saved ?? latest.current.get(line.id);
-    if (!base) return;
-    const nextSeq = ++tickSeq.current;
-    setTicks((current) => ({ ...current, [line.id]: { revision: base.revision, value: queued, seq: nextSeq } }));
-    await send(base, queued, nextSeq);
+    await sendQueued(line.id, queued, saved ?? latest.current.get(line.id), value);
   }
   async function remove(targets: ShoppingLine[]) {
     setGone((current) => new Set([...current, ...targets.map((line) => line.id)]));

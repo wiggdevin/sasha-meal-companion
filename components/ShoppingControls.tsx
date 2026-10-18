@@ -24,7 +24,7 @@ export function realCalendarDate(date: string): boolean {
 export function draftProblem(draft: ShoppingDraft, { needMeals = true }: { needMeals?: boolean } = {}): string | null {
   if (!realCalendarDate(draft.startDate) || !realCalendarDate(draft.endDate)) return "Enter real calendar dates.";
   if (draft.endDate < draft.startDate) return "Through must be on or after From.";
-  if (!Number.isInteger(draft.people) || draft.people < 1) return "People must be 1 or more.";
+  if (!Number.isInteger(draft.people) || draft.people < 1) return "People must be a whole number, 1 or more.";
   if (needMeals && !draft.mealCoverage.length) return "Pick at least one meal.";
   return null;
 }
