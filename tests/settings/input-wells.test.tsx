@@ -36,7 +36,7 @@ describe("Settings input wells", () => {
       </>,
     );
 
-    for (const label of ["Training day calories", "Rest day calories", "Protein"]) {
+    for (const label of ["Training day", "Rest day", "Protein"]) {
       const control = screen.getByRole("button", { name: `Increase ${label}` });
       expect(control.closest(".well")?.textContent).toContain(label);
     }

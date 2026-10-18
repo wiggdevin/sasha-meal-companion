@@ -50,11 +50,13 @@ export function targetModeRequest(
 const line = (label: string, g: GramTargets) =>
   `${label}: ${g.proteinG} g protein · ${g.fatG} g fat · ${g.carbG} g carbs`;
 
-export default function TargetModeSheet({ initial, floors, saveError, onClose, onSave }: {
+export default function TargetModeSheet({ initial, floors, saveError, saving = false, onClose, onSave }: {
   initial: { mode: "grams" | "percent"; kcalTrain: number; kcalRest: number;
     grams: GramTargets; percent: MacroPercents };
   floors: MacroFloors;
   saveError?: string | null;
+  /** A save is in flight: the button shows it and takes no second tap. */
+  saving?: boolean;
   onClose: () => void;
   onSave: (req: TargetsRequest) => void;
 }) {
@@ -74,11 +76,13 @@ export default function TargetModeSheet({ initial, floors, saveError, onClose, o
       footer={
         <div className="flex flex-col gap-2">
           {saveError && (
-            <p className="m-0 text-tiny font-normal text-alert">
+            <p role="alert" className="m-0 text-tiny font-normal text-alert">
               {saveError}
             </p>
           )}
-          <Button variant="primary" size="lg" block onClick={save} disabled={mode === "percent" && !preview.ok}>
+          <Button variant="primary" size="lg" block onClick={save}
+            status={saving ? "pending" : "idle"}
+            disabled={saving || (mode === "percent" && !preview.ok)}>
             Save targets
           </Button>
         </div>
@@ -120,7 +124,7 @@ export default function TargetModeSheet({ initial, floors, saveError, onClose, o
                 {line("Rest day", preview.rest)}
               </span>
               {!preview.ok && (
-                <span className="text-tiny font-normal text-charcoal">
+                <span aria-live="polite" className="text-tiny font-normal text-charcoal">
                   {preview.error === "percent_sum"
                     ? "The three percentages must add up to 100."
                     : preview.error === "protein_below_floor"

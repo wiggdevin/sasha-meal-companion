@@ -352,13 +352,25 @@ export default function TasteChipsField({ source, heading, availability, onDisab
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-2">
         <span className="text-caption font-medium text-charcoal">A taste, in your own words</span>
+        {/* Return on the phone keyboard checks the text, as leaving the field does (UI audit
+            2026-10-18 §3); before, only a blur did anything. */}
         <input value={text} onChange={(event) => setText(event.target.value)} onBlur={onBlur}
+          enterKeyHint="done"
+          onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
           placeholder="e.g. I can&rsquo;t stand cilantro, or I grew up on Tex-Mex"
           className="well px-3 py-3 outline-none min-h-11 text-caption font-normal text-charcoal" />
       </label>
       {checking && <Thinking label="Reading what you wrote…" size="compact" />}
       {!checking && failed && (
-        <p className="m-0 text-tiny font-light text-muted">No suggestions right now. Try again.</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="m-0 text-tiny font-light text-muted" role="status">No suggestions right now.</p>
+          <Button variant="tertiary" size="sm" onClick={() => {
+            const value = text.trim();
+            if (value) void check(value);
+          }}>
+            Try again
+          </Button>
+        </div>
       )}
       {!checking && suggestion?.route === "local" && <DietaryTextHint offer={suggestion.offer} />}
       {!checking && suggestion?.route === "send" && <>

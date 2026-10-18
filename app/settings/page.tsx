@@ -30,21 +30,26 @@ import { isExistingAccount } from "@/lib/profile/onboarding-state";
 import Button from "@/components/ui/Button";
 import ConfirmSheet from "@/components/ui/ConfirmSheet";
 import Notice from "@/components/ui/Notice";
+import OnboardingFlow from "@/components/Onboarding/OnboardingFlow";
+import { SYNCED_EVENT } from "@/lib/sync/client";
 
 export default function SettingsPage() {
   const state = useSettingsController();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   if (!state) return null;
 
   const {
-    store, settings, daily, targetsLoadFailed, targetSheetOpen, saveError,
-    floors, trainingResolved, restResolved,
+    store, settings, daily, targetsStatus, targetSheetOpen, saveError, targetSaving,
+    floors, trainingResolved, restResolved, shownTrainingKcal, shownRestKcal, shownProteinG,
+    targetsPending, retryTargets,
     trainingCaption, restCaption, proteinCaption, trainingAlert, restAlert, anyPinned,
     canOpenTargets, targetInitial, bodySheetOpen, setBodySheetOpen, loadSources, writeProfile,
     setTrainingKcal, setRestKcal, setProteinG, toggleProteinLock, resetTargets,
     setShiftMinutes, setSlotTime, setMealsPerDay,
     openTargetSheet, closeTargetSheet, saveTargets,
   } = state;
+  const setup = !settings.onboardedAt && isExistingAccount(store.firstOpenedAt);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 pb-8"
@@ -54,9 +59,8 @@ export default function SettingsPage() {
       </h1>
 
       <SettingsSection title="Profile">
-        <AppProfileCard settings={settings}
-          setup={!settings.onboardedAt && isExistingAccount(store.firstOpenedAt)}
-          training={trainingResolved} rest={restResolved} />
+        <AppProfileCard settings={settings} setup={setup}
+          training={trainingResolved} rest={restResolved} targetsStatus={targetsStatus} />
       </SettingsSection>
 
       {/* "Body profile & units" left (owner, 2026-10-05): it repeated what Edit profile edits; the
@@ -70,17 +74,30 @@ export default function SettingsPage() {
       )}
 
       <TargetsSection settings={settings} onProfileChange={writeProfile}>
-        {!trainingResolved || !restResolved ? (
+        {/* Loading, a failed first read and a profile with no targets are three different things:
+            only the last one asks the user to finish their profile (UI audit 2026-10-18 §3). */}
+        {targetsStatus === "loading" ? (
+          <p className={`m-0 ${CAPTION}`} role="status">Loading your targets…</p>
+        ) : targetsStatus === "failed" ? (
+          <div className="flex flex-col gap-3">
+            <Notice tone="error" title="Couldn’t load your targets — try again when you have a connection." />
+            <Button variant="secondary" size="sm" className="self-start" onClick={retryTargets}>
+              Try again
+            </Button>
+          </div>
+        ) : !trainingResolved || !restResolved ? (
           <div className="flex flex-col gap-1">
             <h3 className={`m-0 ${CARD_TITLE}`}>Finish your profile</h3>
             <p className={`m-0 ${CAPTION}`}>Add your details to get daily targets.</p>
-            <a href="/onboarding" className="tap flex min-h-11 items-center text-caption text-charcoal">
-              Profile
-            </a>
+            <Button variant="secondary" size="sm" className="mt-2 self-start"
+              onClick={() => setProfileOpen(true)}>
+              Finish profile
+            </Button>
           </div>
         ) : <>
-          <CaloriesCard trainingKcal={trainingResolved.kcal}
-            restKcal={restResolved.kcal} trainingCaption={trainingCaption}
+          <CaloriesCard trainingKcal={shownTrainingKcal ?? trainingResolved.kcal}
+            restKcal={shownRestKcal ?? restResolved.kcal} saving={targetsPending}
+            trainingCaption={trainingCaption}
             restCaption={restCaption} trainingAlert={trainingAlert} restAlert={restAlert}
             onTrainingChange={setTrainingKcal} onRestChange={setRestKcal} />
 
@@ -100,20 +117,17 @@ export default function SettingsPage() {
           <Disclosure title="Advanced targets" variant="row" divider>
           <div className="flex flex-col gap-6 pt-1">
             <ProteinLockCard proteinLocked={settings.proteinLocked}
-              proteinG={settings.proteinG ?? trainingResolved.protein} proteinCaption={proteinCaption}
+              proteinG={shownProteinG ?? trainingResolved.protein} proteinCaption={proteinCaption}
               onToggleLock={toggleProteinLock} onProteinChange={setProteinG} />
             <Button variant="secondary" block onClick={openTargetSheet} disabled={!canOpenTargets}>
               Targets — grams or percent
             </Button>
-            {targetsLoadFailed && (
-              <Notice tone="error" title="Couldn’t load your targets — try again when you have a connection." />
-            )}
           </div>
           </Disclosure>
         </>}
         {targetSheetOpen && targetInitial && floors && (
           <TargetModeSheet initial={targetInitial} floors={floors} saveError={saveError}
-            onClose={closeTargetSheet} onSave={saveTargets} />
+            saving={targetSaving} onClose={closeTargetSheet} onSave={saveTargets} />
         )}
         {anyPinned && <Button variant="tertiary" onClick={() => setConfirmReset(true)} className="self-start">
           Reset to your plan
@@ -127,6 +141,14 @@ export default function SettingsPage() {
           </ConfirmSheet>
         )}
       </TargetsSection>
+      {/* The same in-place editor as the profile card's "Finish profile": /onboarding sends an
+          onboarded account straight back to Today. */}
+      {profileOpen && <OnboardingFlow initial={0} returnTo="/settings" offerDevice={setup}
+        onFinished={() => {
+          setProfileOpen(false);
+          globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+          retryTargets();
+        }} />}
 
       <WaterSection settings={settings} />
 

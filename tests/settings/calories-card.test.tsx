@@ -50,20 +50,20 @@ function card(over: Partial<Parameters<typeof CaloriesCard>[0]> = {}) {
 describe("CaloriesCard", () => {
   it("steps the training steppers up by 50", () => {
     const { tree, onTrainingChange, onRestChange } = card();
-    findButton(tree, "Increase Training day calories")?.onClick();
+    findButton(tree, "Increase Training day")?.onClick();
     expect(onTrainingChange).toHaveBeenCalledWith(2450);
     expect(onRestChange).not.toHaveBeenCalled();
   });
 
   it("steps the training steppers down by 50", () => {
     const { tree, onTrainingChange } = card();
-    findButton(tree, "Decrease Training day calories")?.onClick();
+    findButton(tree, "Decrease Training day")?.onClick();
     expect(onTrainingChange).toHaveBeenCalledWith(2350);
   });
 
   it("wires the rest stepper to its own setter", () => {
     const { tree, onTrainingChange, onRestChange } = card();
-    findButton(tree, "Increase Rest day calories")?.onClick();
+    findButton(tree, "Increase Rest day")?.onClick();
     expect(onRestChange).toHaveBeenCalledWith(2050);
     expect(onTrainingChange).not.toHaveBeenCalled();
   });

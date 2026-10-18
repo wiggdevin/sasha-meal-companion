@@ -52,6 +52,8 @@ function settingsPage(over: Partial<ControllerState> = {}): string {
     store: { version: 1, firstOpenedAt: "2026-09-01", settings: defaultSettings(),
       days: {}, foods: {} },
     settings: defaultSettings(), daily: null, targets: null, targetsLoadFailed: false,
+    targetsStatus: "needs_profile", targetSaving: false, targetsPending: false,
+    shownTrainingKcal: null, shownRestKcal: null, shownProteinG: null, retryTargets: () => {},
     targetSheetOpen: false, saveError: null, floors: null,
     trainingResolved: null, restResolved: null,
     trainingCaption: null, restCaption: null, proteinCaption: null,
@@ -97,6 +99,26 @@ describe("the targets section", () => {
     expect(markup).not.toContain("Advanced targets");
   });
 
+  /* UI audit 2026-10-18 §3: loading and a failed read are not "Finish your profile". */
+  it("says the targets are loading, not that the profile is unfinished, before the first read", () => {
+    const markup = settingsPage({ targetsStatus: "loading" });
+    expect(markup).toContain("Loading your targets…");
+    expect(markup).not.toContain("Finish your profile");
+  });
+
+  it("shows the load failure with a retry, not the finish-your-profile card", () => {
+    const markup = settingsPage({ targetsStatus: "failed", targetsLoadFailed: true });
+    expect(markup).toContain("Couldn’t load your targets");
+    expect(markup).toContain("Try again");
+    expect(markup).not.toContain("Finish your profile");
+  });
+
+  it("finishes the profile in place, never through /onboarding (which sends an onboarded account to Today)", () => {
+    const markup = settingsPage();
+    expect(markup).not.toContain('href="/onboarding"');
+    expect(markup).toContain("Finish profile");
+  });
+
   it("is ready: draws the calorie and macro cards once a revision resolves", () => {
     const markup = settingsPage({ trainingResolved: MACROS, restResolved: { ...MACROS, kcal: 1_800 } });
     expect(markup).toContain("Your daily targets");
@@ -116,6 +138,12 @@ describe("the health connection rows", () => {
   it("says the check failed rather than checking forever", () => {
     expect(section({ response: null, fetchedAt: null, offline: true, disabled: false }))
       .toContain("Couldn’t check · try again online");
+  });
+
+  it("shows health off as not available, never a check that spins forever (UI audit 2026-10-18)", () => {
+    const markup = section({ response: null, fetchedAt: null, offline: false, disabled: true });
+    expect(markup).toContain("Not available yet");
+    expect(markup).not.toContain("Checking…");
   });
 
   it("says the feature is not available yet when the server has it off", () => {
