@@ -32,7 +32,7 @@ import { phoneRulesKey, RecipeFreshness, recipesJudgedNow, shownRecipeRuleMark, 
   from "@/lib/recipes/recipe-freshness";
 import type { RecipeSearchResponse } from "@/lib/recipe-catalog-client";
 import Button from "@/components/ui/Button";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import RecipeDetails from "@/components/RecipeDetails";
 import RecipePlanFlow from "@/components/RecipePlanFlow";
 import { canFit } from "@/components/RecipeResultCard";
@@ -96,9 +96,8 @@ export default function RecipeCarousel({ remaining, date, onPlanned }: {
     const ready = onAccountReady((next) => { reader.clear(); setAccount(next); setRecipes(null); setFailed(null); });
     return () => { gone(); ready(); };
   }, [reader]);
-  useEffect(() => {
-    if (!account) return;
-    const h = account;
+  /** One catalog read as `h`. Also Try again's, and the `online` event's while the read failed. */
+  const load = useCallback((h: AccountHandle) => {
     void reader.read((signal) => {
       if (!isCurrent(h)) return Promise.reject(new Error("Account changed."));
       return searchCatalogRecipes({ query: "", limit: CAROUSEL_LIMIT }, signal);
@@ -106,12 +105,30 @@ export default function RecipeCarousel({ remaining, date, onPlanned }: {
       // A failed read with cards already shown keeps them (still "Checking…" after a rule change).
       if (outcome.status === "failed" && isCurrent(h) && !shown.current) setFailed("error");
     });
+  }, [reader]);
+  const retry = useCallback(() => {
+    if (!account || !isCurrent(account)) return;
+    setFailed(null);
+    load(account);
+  }, [account, load]);
+  useEffect(() => {
+    if (!account) return;
+    load(account);
     // Re-runs only when the bound account actually changes; the listeners above already cleared the
     // stale state and the reader. A superseded or aborted read never speaks for the account bound now.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account?.userId, account?.epoch]);
-  if (failed) return <p role="status" className="m-0 text-caption text-graphite">{failed === "account"
-    ? "Account changed. Close and reopen." : "The recipe catalog didn’t load. Ask below instead."}</p>;
+  // A read that failed offline tries again once the phone is back online.
+  useEffect(() => {
+    if (failed !== "error") return;
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [failed, retry]);
+  if (failed === "account") return <p role="status" className="m-0 text-caption text-graphite">Account changed. Close and reopen.</p>;
+  if (failed) return <div className="flex flex-col items-start gap-2">
+    <p role="status" className="m-0 text-caption text-graphite">The recipe catalog didn’t load. Try again, or ask below.</p>
+    <Button onClick={retry}>Try again</Button>
+  </div>;
   if (!recipes) return <p role="status" className="m-0 text-caption text-graphite">Loading recipes…</p>;
   if (recipes.length === 0) return <p role="status" className="m-0 text-caption text-graphite">No catalog recipes fit your food rules yet.</p>;
   // One card system with Swap and a menu's picks: a tap grows the card in place to the whole recipe

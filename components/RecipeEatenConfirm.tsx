@@ -17,6 +17,13 @@ import { loadAcceptedRecipeSelections } from "@/lib/recipes/accepted-client";
 import type { AcceptedRecipeSelection } from "@/lib/shopping/preview-contract";
 import type { RuleMark as RuleMarkValue, SlotId } from "@/lib/types";
 import Notice from "@/components/ui/Notice";
+import { dayName, localDate } from "@/lib/recipes-hub/put-in-meal";
+
+/** "Today", "Tomorrow" or the weekday, as the rest of the app names a day. */
+function eatenDay(date: string): string {
+  const name = dayName(date, localDate());
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
 
 function sameSelection(a: AcceptedRecipeSelection, b: AcceptedRecipeSelection | null | undefined): boolean {
   return Boolean(b && a.id === b.id && a.recipeRevisionId === b.recipeRevisionId
@@ -102,7 +109,7 @@ export default function RecipeEatenConfirm({ selection, currentSelection, date, 
     } finally { setBusy(false); }
   }
   const shownMark = logged ?? ruleMark ?? null;
-  return <Sheet title={`Log ${selection.recipeName}`} subtitle={`${date} · Meal ${slotId.slice(5)}`} onClose={close}>
+  return <Sheet title={`Log ${selection.recipeName}`} subtitle={`${eatenDay(date)} · Meal ${slotId.slice(5)}`} onClose={close}>
     <div className="flex flex-col gap-3 px-1 pb-4">
       <p className="m-0 text-sm">Planned: {selection.servingFraction} serving{selection.servingFraction === 1 ? "" : "s"}. Enter what you actually ate. Your planned amount stays the same.</p>
       <label className="text-sm">Servings eaten<input type="number" className="well mt-1 min-h-11 w-full px-3"

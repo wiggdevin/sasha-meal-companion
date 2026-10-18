@@ -126,6 +126,8 @@ export default function HubAnswer({ ask, day, sourceEpoch, onPlanned, hubAlive }
   return <div className="flex min-w-0 flex-col gap-3">
     {(ask.loading || ask.reading) && <Thinking size="inline"
       label={ask.reading ? "Reading your photo…" : "Finding recipes that fit…"} />}
+    {/* Typed words being matched to foods: the confirm card is gone and the review not here yet. */}
+    {ask.matching && !portion && <Thinking size="inline" label="Matching your foods…" />}
     {ask.error && <Notice tone="error" title={ask.error.message}
       action={ask.error.retryable ? { label: "Try again", onClick: ask.retry } : undefined} />}
     {ask.logged && <Notice tone="success" title={ask.logged} />}

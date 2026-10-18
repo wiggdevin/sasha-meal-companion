@@ -12,9 +12,13 @@ import { useRef, useState } from "react";
 import Notice from "@/components/ui/Notice";
 import Button from "@/components/ui/Button";
 
-/** Phase 3 spec, "Client changes": editing shows "saving creates version N+1". */
-export function nextVersionCopy(rev: number): string {
-  return `Saving creates version ${rev + 1}.`;
+/**
+ * What a save means, in the person's words. Phase 3 showed "Saving creates version N+1"; the version
+ * number is the server's bookkeeping (UI audit 2026-10-18), so an edit says what it keeps instead and
+ * a new recipe says nothing.
+ */
+export function saveCopy(recipe?: Pick<RecipeRow, "rev">): string | undefined {
+  return recipe ? "Saving keeps your earlier logs as they were." : undefined;
 }
 
 export default function RecipeSheet({ recipe, onClose, onSaved, onDeleted }: {
@@ -34,7 +38,7 @@ export default function RecipeSheet({ recipe, onClose, onSaved, onDeleted }: {
 
   return (
     <Sheet title={recipe ? "Edit recipe" : "New recipe"}
-      subtitle={nextVersionCopy(recipe?.rev ?? 0)} onClose={onClose}
+      subtitle={saveCopy(recipe)} onClose={onClose}
       footer={<div className="flex flex-col gap-2">
         <Button variant="primary" size="lg" block disabled={!sheet.canSave}
           status={sheet.saving ? "pending" : undefined}

@@ -243,6 +243,8 @@ export function useHubAsk({ day, recipesOn, onLogged }: {
     /** Who made the answer: the turn's label, else the photo read it was built from. */
     madeBy: answerProvenance(response?.provenance, readBy),
     busy: loading || reading || photo.logging !== null,
+    /** Typed words are being matched to foods for the review (U23); nothing shows until it lands. */
+    matching: photo.logging === "text",
     /** How the kept photo was last read, for the "Not right?" line; null with no photo. */
     photoRead: photo.photo ? photoRead : null,
     send, chip, readPhoto, rereadPhoto, logIt, confirmReview, reviewDone, retry,
