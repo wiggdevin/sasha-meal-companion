@@ -25,12 +25,21 @@ export default function RuleReviewCard({ initial, onCompleted }: {
   useEffect(() => {
     if (initial !== undefined) return;
     let active = true;
+    // Offline the check cannot run: stay quiet (the rules card already says it needs a
+    // connection) and check again once the connection returns.
+    const again = () => { if (active) setRetry((value) => value + 1); };
+    let waiting = false;
     void loadRuleReview().then((loaded) => {
       if (!active) return;
+      if (!loaded && typeof navigator !== "undefined" && !navigator.onLine) {
+        waiting = true;
+        window.addEventListener("online", again, { once: true });
+        return;
+      }
       setReview(loaded);
       setLoading(false);
     });
-    return () => { active = false; };
+    return () => { active = false; if (waiting) window.removeEventListener("online", again); };
   }, [initial, retry]);
 
   // Nothing renders until the check answers: most accounts have nothing to review, and the
@@ -46,10 +55,10 @@ export default function RuleReviewCard({ initial, onCompleted }: {
     );
   }
   if (!review.required) return null;
-  const all = review ? [
+  const all = [
     ...review.candidateAllergens.map((key) => ({ group: "allergens" as const, key })),
     ...review.candidateCategories.map((key) => ({ group: "categories" as const, key })),
-  ] : [];
+  ];
   const answered = all.filter(({ group, key }) => choices[group][key]).length;
 
   function choose(group: keyof ChoiceState, key: string, choice: RuleChoice) {
@@ -70,7 +79,8 @@ export default function RuleReviewCard({ initial, onCompleted }: {
     }
     if (result.status === "conflict") {
       const fresh = await loadRuleReview();
-      setReview(fresh);
+      // A failed re-read keeps the list on screen with the conflict message below.
+      if (fresh) setReview(fresh);
       setChoices(EMPTY);
       if (fresh && !fresh.required) {
         onCompleted?.();

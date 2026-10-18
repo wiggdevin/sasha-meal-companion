@@ -90,7 +90,7 @@ export default function FavoritesStrip({ initial, onPick, limit }: {
   const chip = (row: FavoriteRow) => onPick
     ? <Button variant="tertiary" size="sm" className={WRAP} onClick={() => onPick(row)}>{row.name}</Button>
     : row.kind === "food"
-      ? <span className="pill inline-flex max-w-full items-center break-words px-3 py-1.5 text-caption text-graphite">
+      ? <span className="well inline-flex min-h-9 max-w-full items-center break-words rounded-xl px-3 py-1.5 text-caption text-graphite">
         {row.name}
       </span>
       : <Link href={favoriteHref(row)} className={`${CHIP} ${WRAP}`}>{row.name}</Link>;

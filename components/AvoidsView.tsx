@@ -108,7 +108,8 @@ export default function AvoidsView() {
       <AvoidImpact />
       <RuleReviewCard onCompleted={() => setRulesVersion((value) => value + 1)} />
       {/* The one copy of the diet and rules editors; the affected-meals sheet scrolls here. */}
-      <div id={FOOD_SETTINGS_ID} className="flex scroll-mt-4 flex-col gap-5">
+      <div id={FOOD_SETTINGS_ID} tabIndex={-1} aria-label="Food settings"
+        className="flex scroll-mt-4 flex-col gap-5 outline-none">
         <div className="shell"><DietStyleCard /></div>
         <AvoidRules key={rulesVersion} />
       </div>

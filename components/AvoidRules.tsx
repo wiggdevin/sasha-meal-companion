@@ -23,7 +23,7 @@
  * user's own avoid list leads Avoids (FluidVoice A05), before any rule control or card.
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Pill } from "@/components/Sheet";
 import type { ConstraintsPut } from "@/lib/coach/types";
 import { loadConstraints, saveConstraints, type Profile } from "@/lib/constraints-client";
@@ -108,6 +108,7 @@ export default function AvoidRules({ initial, children }: {
   const [ruleKind, setRuleKind] = useState<CustomRule["kind"]>("guidance");
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [conditionsDraft, setConditionsDraft] = useState<string | null>(null);
+  const ruleErrorId = useId();
 
   useEffect(() => {
     // A load that came back empty while offline is retried once the connection returns, so the
@@ -359,11 +360,11 @@ export default function AvoidRules({ initial, children }: {
               onClick={() => setRuleKind(kind)}>{kind === "guidance" ? "Guidance only" : kind}</Button>)}
         </div>
         <input aria-label="Custom food rule" placeholder="e.g. garlic" className="well min-h-11 px-3 text-caption"
-          aria-describedby={status ? "custom-rule-error" : undefined} aria-invalid={status ? true : undefined}
+          aria-describedby={status ? ruleErrorId : undefined} aria-invalid={status ? true : undefined}
           disabled={!ready} value={ruleText} maxLength={80}
           onChange={(event) => { setRuleText(event.target.value); setStatus(null); }}
           onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} />
-        {status && <div id="custom-rule-error"><Notice tone="error" title={status} /></div>}
+        {status && <div id={ruleErrorId}><Notice tone="error" title={status} /></div>}
         <div className="flex gap-2">
           <Button variant="secondary" disabled={!ready || ruleText.trim().length < 2}
             className={ADD_RULE} onClick={async () => {

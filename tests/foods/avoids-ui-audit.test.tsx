@@ -52,8 +52,8 @@ describe("food rules card", () => {
     const input = screen.getByRole("textbox", { name: "Custom food rule" });
     fireEvent.change(input, { target: { value: "no garlic please" } });
     fireEvent.click(screen.getByRole("button", { name: "Add rule" }));
-    await waitFor(() => expect(input.getAttribute("aria-describedby")).toBe("custom-rule-error"));
-    const error = document.getElementById("custom-rule-error");
+    await waitFor(() => expect(input.getAttribute("aria-describedby")).toBeTruthy());
+    const error = document.getElementById(input.getAttribute("aria-describedby") ?? "");
     expect(error?.closest("section")?.textContent).toContain("Custom rules");
   });
 });
@@ -71,6 +71,21 @@ describe("rule review card", () => {
     await screen.findByText("Could not check your food rules.");
     expect(screen.queryByText(/carried over/)).toBeNull();
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+});
+
+describe("rule review card offline", () => {
+  it("stays quiet offline and checks again when the connection returns", async () => {
+    let onLine = false;
+    vi.spyOn(window.navigator, "onLine", "get").mockImplementation(() => onLine);
+    review.load.mockResolvedValueOnce(null).mockResolvedValue(null);
+    const { container } = render(<RuleReviewCard />);
+    await waitFor(() => expect(review.load).toHaveBeenCalledTimes(1));
+    expect(container.textContent).toBe("");
+    onLine = true;
+    act(() => { window.dispatchEvent(new Event("online")); });
+    await screen.findByText("Could not check your food rules.");
+    expect(review.load).toHaveBeenCalledTimes(2);
   });
 });
 

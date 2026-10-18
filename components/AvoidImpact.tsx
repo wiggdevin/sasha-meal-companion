@@ -228,16 +228,29 @@ export default function AvoidImpact() {
     const impact = await accountJson<Omit<Impact, "q" | "kind" | "catalogFoodId">>(h, res);
     return { ...impact, q: q.trim(), kind: requestedKind, catalogFoodId };
   }
-  async function check({ keepResult = false } = {}) {
+  async function check() {
     if (query.trim().length < 2) return;
     const h = accountHandle();
     const request = ++requestSequence.current;
-    // A refresh after planning keeps the open sheet (and its place) until the new result lands.
-    setBusy(true); setError(null); setVerifiedOptions(null);
-    if (!keepResult) setResult(null);
+    setBusy(true); setError(null); setResult(null); setVerifiedOptions(null);
     try {
       const impact = await readImpact(query, kind, h);
       if (isCurrent(h) && request === requestSequence.current) setResult(impact);
+    } catch (cause) { if (isCurrent(h) && request === requestSequence.current) setError(cause instanceof Error ? cause.message : "Could not check future meals."); }
+    finally { if (isCurrent(h) && request === requestSequence.current) setBusy(false); }
+  }
+  /** After a replacement is planned: re-read the same check and keep the open sheet (and its
+   *  place) until the new result lands, instead of clearing it and closing the sheet. */
+  async function refreshAfterPlan() {
+    const impact = result;
+    if (!impact) return;
+    const h = accountHandle();
+    const request = ++requestSequence.current;
+    setBusy(true); setError(null); setVerifiedOptions(null);
+    try {
+      const fresh = await readImpact(impact.q, impact.kind, h, impact.catalogFoodId);
+      if (!isCurrent(h) || request !== requestSequence.current) return;
+      setResult(fresh); setSelectedKeys(fresh.instances.map(keyOf));
     } catch (cause) { if (isCurrent(h) && request === requestSequence.current) setError(cause instanceof Error ? cause.message : "Could not check future meals."); }
     finally { if (isCurrent(h) && request === requestSequence.current) setBusy(false); }
   }
@@ -429,11 +442,9 @@ export default function AvoidImpact() {
   <div className="shell"><section className="surface flex flex-col gap-3 p-4" aria-label="Affected future meals">
     <h2 className="m-0 text-caption font-medium text-charcoal">Affected future meals</h2>
     <p className="m-0 text-caption text-graphite">Check a food or cuisine against saved future meals. Eaten meals stay as recorded.</p>
-    {/* Mounted from the start so the outcome of Check is announced when it lands. */}
-    <p role="status" className="sr-only">
-      {busy ? "" : result ? affectedLabel(result, result.scope)
-        : !(open && result) && error ? error : ""}
-    </p>
+    {/* Mounted from the start so the outcome of Check is announced when it lands; errors are
+        announced by their own alert. */}
+    <p role="status" className="sr-only">{result ? affectedLabel(result, result.scope) : ""}</p>
     {badgeError && <Notice tone="error" title={badgeError}
       action={{ label: "Retry", onClick: () => { setBadgeError(null); void refreshBadges(); } }} />}
     <div role="group" aria-label="Impact type" className="flex gap-2">
@@ -576,13 +587,19 @@ export default function AvoidImpact() {
       <p className="text-caption text-graphite">Save a new exclusion before accepting a replacement so the server can enforce it.</p>
       {flow && <RecipePlanFlow recipe={flow.recipe} initialDate={flow.instance.date}
         initialSlotId={flow.instance.slot} onClose={() => setFlow(null)}
-        onPlanned={() => { setFlow(null); void check({ keepResult: true }); }} />}
+        onPlanned={() => { setFlow(null); void refreshAfterPlan(); }} />}
       {/* One copy of the rules and diet editors lives on the page; the sheet sends you to it, so a
           second copy can never fall out of sync with the first. */}
       <Button variant="tertiary" onClick={() => {
         setOpen(false);
-        setTimeout(() => document.getElementById(FOOD_SETTINGS_ID)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+        // After the sheet's exit, move focus (and the view) to the editors on the page.
+        setTimeout(() => {
+          const target = document.getElementById(FOOD_SETTINGS_ID);
+          if (!target) return;
+          const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+          target.focus({ preventScroll: true });
+          target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+        }, 300);
       }}>
         Edit food settings
       </Button>
