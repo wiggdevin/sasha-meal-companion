@@ -34,6 +34,7 @@ export default function NoteSheet({
   onSave,
   onSaved,
   onRemove,
+  removeLabel = "Remove from this day",
   onLogAgain,
   onClose,
 }: {
@@ -45,6 +46,8 @@ export default function NoteSheet({
   /** The sheet closed after changing the note: the note it opened with, and the one it saved. */
   onSaved?: (before: string, after: string) => void;
   onRemove?: () => void;
+  /** The Remove button's words, from the viewed date ("Remove from today", "Remove from this day"). */
+  removeLabel?: string;
   /** Log this entry again as a new one now (W123). Absent when the entry cannot be rebuilt. */
   onLogAgain?: () => void;
   onClose: () => void;
@@ -55,6 +58,8 @@ export default function NoteSheet({
   /** The note this sheet opened with (stored form); the prop follows the store after each save. */
   const [opened] = useState(() => canonicalNote(note));
   const feedback = useActionFeedback();
+  /** Remove asks once more before it deletes: a mis-tap on it used to delete a logged meal outright. */
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   // A plate photo's kept thumbnail (W125, T2); a slot note or a non-photo entry asks nothing.
   const thumb = useEntryPhoto(entry?.id ?? null);
   /** A close tried to save this exact text and failed; the next close just leaves. */
@@ -92,7 +97,14 @@ export default function NoteSheet({
             Save note
           </Button>
           {onLogAgain && <Button block onClick={onLogAgain}>Log again now</Button>}
-          {onRemove && <Button variant="danger" block onClick={onRemove}>Remove from today</Button>}
+          {onRemove && !confirmingRemove && <Button variant="danger" block onClick={() => setConfirmingRemove(true)}>{removeLabel}</Button>}
+          {onRemove && confirmingRemove && <div role="group" aria-label="Confirm remove" className="flex flex-col gap-2">
+            <p className="m-0 px-0.5 text-caption text-graphite">Remove this entry? It comes off the day and its calories leave your totals.</p>
+            <div className="flex gap-2.5">
+              <Button block onClick={() => setConfirmingRemove(false)}>Keep it</Button>
+              <Button variant="danger" block autoFocus onClick={onRemove}>Remove</Button>
+            </div>
+          </div>}
         </div>
       }
     >

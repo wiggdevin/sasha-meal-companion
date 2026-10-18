@@ -101,12 +101,18 @@ function GroupCard({ open, feedback, onDecided }: {
  * the viewed day, with Keep both and Merge. Renders nothing while no group is open; the Undo for
  * either outlives the card in the shared ActionFeedback toast.
  */
-export default function DuplicateEntryCard({ date, extras }: { date: string; extras: readonly LoggedFood[] }) {
+export default function DuplicateEntryCard({ date, extras, feedback: shared }: {
+  date: string; extras: readonly LoggedFood[];
+  /** The page's own feedback (Today's): its one toast carries the Undo, so a merge's Undo and a
+   *  meal's never stack in the same spot (UI audit 2026-10-18). Absent, the card keeps its own. */
+  feedback?: ReturnType<typeof useActionFeedback>;
+}) {
   const { groups, reload } = useOpenDuplicateGroups(date, extras);
-  const feedback = useActionFeedback();
+  const own = useActionFeedback();
+  const feedback = shared ?? own;
   const reduce = useReducedMotionConfig();
   const onDecided = () => void reload();
-  if (groups.length === 0 && !feedback.notice) return null;
+  if (groups.length === 0 && (shared || !feedback.notice)) return null;
   return <>
     <AnimatePresence initial={false}>
       {groups.map((open) => <motion.div key={open.group.id} className={`shell ${styles.frame}`}
@@ -117,6 +123,6 @@ export default function DuplicateEntryCard({ date, extras }: { date: string; ext
         <GroupCard open={open} feedback={feedback} onDecided={onDecided} />
       </motion.div>)}
     </AnimatePresence>
-    <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
+    {!shared && <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />}
   </>;
 }

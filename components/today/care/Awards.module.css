@@ -78,7 +78,9 @@
   position: absolute;
   left: 8%;
   right: 8%;
-  top: 66%;
+  /* Anchored above the controls (12 px gap + a 44 px row + 8 px), not at a percentage of the box: in
+     the short water view a percentage top put the award line under Done and Replay. */
+  bottom: 64px;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -199,6 +201,13 @@
   gap: 8px;
   pointer-events: none;
 }
+/* In the water view the readout and Add a cup hold the top strip: notes sit in the bottom of the
+   basin instead, above the Seeds chip and the grabber (a 44 px gutter + 12 px). */
+.notes[data-place="bottom"] {
+  top: auto;
+  bottom: 56px;
+  flex-direction: column-reverse;
+}
 .note {
   pointer-events: auto;
   display: flex;
@@ -278,6 +287,3 @@
   .glint::after { animation: none; opacity: 0; }
 }
 
-/* The night scene keeps its lamplight clear: the words sit below it, in the dark. */
-.player[data-scene="bat"] .words { top: 71%; }
-.player[data-scene="flex"] .words { top: 69%; }

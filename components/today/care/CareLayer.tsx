@@ -77,7 +77,11 @@ function useModal(box: RefObject<HTMLElement | null>, open: boolean, homes: RefO
  * fold, swipe or long-press the card). Nothing shows until the server
  * answers, and nothing at all when it cannot: a failed read is quiet, never a guessed balance.
  */
-export default function CareLayer({ active }: { active: boolean }) {
+export default function CareLayer({ active, notesAt = "top" }: {
+  active: boolean;
+  /** Where messages drop in: "bottom" in a view whose top strip holds its own controls (water). */
+  notesAt?: "top" | "bottom";
+}) {
   const reduce = useReducedMotionConfig() ?? false;
   const mascot = useMascot();
   const care = useCare(active);
@@ -117,7 +121,7 @@ export default function CareLayer({ active }: { active: boolean }) {
   const shop = care.shop;
   return <div ref={root} className={styles.layer} tabIndex={-1}
     onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-    {!open && !award && <CareNotes note={note} mascot={mascot}
+    {!open && !award && <CareNotes note={note} mascot={mascot} place={notesAt}
       onWatch={(next) => {
         unlockAudio();
         // The Watch button leaves with its note: hand focus to something that stays (the chip, else

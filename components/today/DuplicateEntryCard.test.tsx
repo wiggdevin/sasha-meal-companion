@@ -27,6 +27,16 @@ vi.mock("@/lib/duplicates/actions", () => ({
 }));
 
 import DuplicateEntryCard from "./DuplicateEntryCard";
+import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
+
+/** Today's page: one feedback, one toast, shared with the card. */
+function SharedToast() {
+  const feedback = useActionFeedback();
+  return <>
+    <DuplicateEntryCard date="2026-10-08" extras={[]} feedback={feedback} />
+    <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
+  </>;
+}
 
 const GROUP: OpenDuplicateGroup = {
   group: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", localDate: "2026-10-08", fingerprint: "ab".repeat(32),
@@ -87,6 +97,17 @@ describe("DuplicateEntryCard", () => {
     expect(actions.undoKeepBoth).toHaveBeenCalledWith(expect.anything(), GROUP.group.id);
   });
 
+  it("with the page's feedback, its Undo shows in the page's one toast, never a second one (UI audit 2026-10-18)", async () => {
+    state.groups = [GROUP];
+    await act(async () => { render(<SharedToast />); });
+    state.groups = [];
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: /Merge into one entry/ })); });
+    expect(screen.getAllByText("Merged into one entry.")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Undo" })).toHaveLength(1);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Undo" })); });
+    expect(actions.undoMerge).toHaveBeenCalledTimes(1);
+  });
+
   it("merging with undo: Merge holds the merge for this group, and Undo cancels it exactly", async () => {
     await mount([GROUP]);
     state.groups = [];
@@ -108,7 +129,7 @@ describe("DuplicateEntryCard", () => {
 
   it("open: Today mounts the card between the Day card and the day's nutrients", () => {
     const page = readFileSync("app/page.tsx", "utf8");
-    const card = page.indexOf("<DuplicateEntryCard date={viewedDate} extras={resolved.extras} />");
+    const card = page.indexOf("<DuplicateEntryCard date={viewedDate} extras={resolved.extras} feedback={todayFeedback} />");
     expect(card).toBeGreaterThan(page.indexOf("<DayCard"));
     expect(card).toBeLessThan(page.indexOf("<DayNutrients"));
   });

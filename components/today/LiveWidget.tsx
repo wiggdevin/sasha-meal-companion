@@ -356,7 +356,8 @@ export default function LiveWidget({ data, preview, when = "today", paused = fal
                       : <FullPanel panel={panel} data={panelData} />}
                   </motion.div>}
                 </AnimatePresence>
-                <CareLayer active={expanded && when === "today" && !preview} />
+                {/* The water view's readout and Add a cup hold the top strip, so messages drop in lower there. */}
+                <CareLayer active={expanded && when === "today" && !preview} notesAt={view === "water" ? "bottom" : "top"} />
                 {/* Edit is always visible when open (OD19); long-press stays as a shortcut. */}
                 {expanded && <div className={styles.editCorner}>
                   <Button variant="ghost" size="sm" className={styles.edit} onClick={() => setEditing(true)}

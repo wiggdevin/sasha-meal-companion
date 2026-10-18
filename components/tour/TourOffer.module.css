@@ -4,8 +4,9 @@
   position: relative;
   align-self: flex-start;
   min-height: 44px;
+  max-width: 100%;
   margin-top: 4px;
-  padding: 0 14px;
+  padding: 8px 14px;
   border-radius: 16px;
   display: inline-flex;
   align-items: center;
@@ -13,7 +14,11 @@
   color: var(--color-text-primary);
   font-size: 14px;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 18px;
+  text-align: left;
+  /* The well's status column is about 120 px wide on a 320 px phone: the label wraps, never clips. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   box-shadow: var(--shadow-card);
 }
 .bubble::before {

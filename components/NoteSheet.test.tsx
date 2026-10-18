@@ -199,3 +199,20 @@ describe("NoteSheet compares the note it stores, not the typed whitespace", () =
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("hurt later  ");
   });
 });
+
+describe("NoteSheet Remove (UI audit 2026-10-18)", () => {
+  afterEach(cleanup);
+
+  it("asks once more before removing, and names the day it removes from", () => {
+    const onRemove = vi.fn();
+    render(<NoteSheet title="Bread" note="" entry={catalogEntry} onSave={() => {}} onClose={() => {}}
+      onRemove={onRemove} removeLabel="Remove from this day" />);
+    fireEvent.click(screen.getByRole("button", { name: "Remove from this day" }));
+    expect(onRemove).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(onRemove).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove from this day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+});
