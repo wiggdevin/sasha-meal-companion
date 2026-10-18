@@ -128,7 +128,7 @@ export function pickLane(game: Pick<GameState, "issued" | "laneUsedAt" | "lastLa
 
 function spawnNext(queue: readonly Starter[], rand: number, lanes: number) {
   return (game: GameState): GameState => {
-    if (game.falling.length >= Math.min(MAX_CONCURRENT, lanes) || game.issued >= queue.length) return game;
+    if (game.falling.length >= MAX_CONCURRENT || game.issued >= queue.length) return game;
     const lane = pickLane(game, rand, lanes);
     if (lane === null) return game;
     const fallKey = game.issued;

@@ -302,6 +302,21 @@ describe("ConversationalOnboarding", () => {
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
+  it("asks once before skipping after an answer, and Keep going stays (UI audit 2026-10-18)", async () => {
+    const onSkip = vi.fn();
+    render(<ConversationalOnboarding onSkip={onSkip} />);
+    fireEvent.click(screen.getByRole("button", { name: "Lose weight" }));
+    await screen.findByRole("button", { name: "Skip for now" });
+    fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect(onSkip).not.toHaveBeenCalled();
+    expect(screen.getByText("Skip setup? Your answers won’t be saved.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep going" }));
+    expect(screen.queryByText("Skip setup? Your answers won’t be saved.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip setup" }));
+    expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
   it("without a supplied onSkip, Skip for now still really leaves (Sol review: no silent no-op)", async () => {
     render(<ConversationalOnboarding />);
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));

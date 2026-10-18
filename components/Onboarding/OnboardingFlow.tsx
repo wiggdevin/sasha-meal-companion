@@ -657,7 +657,8 @@ export default function OnboardingFlow({
                       onClick={() => setConfirmSkipAt(null)}>
                       Keep going
                     </Button>
-                    <Button variant="ghost" className="flex-1" {...feedback.controlPropsFor("skip")} disabled={saving}
+                    <Button variant="ghost" {...feedback.controlPropsFor("skip")}
+                      className={`flex-1 ${feedback.controlPropsFor("skip").className}`} disabled={saving}
                       onClick={() => { void skip(); }}>
                       Skip setup
                     </Button>
