@@ -39,8 +39,10 @@ export type CoachShellProps = {
   onOpenDraft: (draft: CoachDraft) => void; onThreadSaved: (threadId: string | null) => void;
   header?: ReactNode; toolbar?: ReactNode | ((controls: CoachShellControls) => ReactNode);
   /** `applyAction` queues a block's tapped action on this message's ledger (`compose_action`). */
+  /** `sendText` answers whether the chat took the message, so a tapped reply can stay when it did not. */
   renderExtras?: (message: ChatMessage, controls: CoachShellControls,
-    messages: readonly ChatMessage[], applyAction: (action: CoachAction) => void) => ReactNode;
+    messages: readonly ChatMessage[], applyAction: (action: CoachAction) => void,
+    sendText: (text: string) => boolean) => ReactNode;
   historySourceThreadId?: string | null;
   historySourceTitle?: string | null;
   onOpenHistorySource?: () => void;
@@ -95,7 +97,9 @@ export default function CoachShell({
   const actionInFlight = useRef<string | null>(null);
 
   const followDispatch = useCallback((event: CoachShellEvent) => {
-    transcript.current?.captureBeforeUpdate();
+    // The reader's own send and a whole-thread restore always land in view; anything else (a reply,
+    // a card) follows only a reader already at the bottom.
+    transcript.current?.captureBeforeUpdate(event.type === "send" || event.type === "restore" || event.type === "reset");
     dispatch(event);
     setFollowVersion((version) => version + 1);
   }, []);
@@ -176,7 +180,7 @@ export default function CoachShell({
       setHasOlder(pageMayHaveOlder(page.messages, HISTORY_PAGE_SIZE));
     } catch {
       transcript.current?.cancelPrependAnchor();
-      if (alive.current) setOlderError("Couldn’t load earlier messages —");
+      if (alive.current) setOlderError("Couldn’t load earlier messages.");
     } finally {
       olderInFlight.current = false;
       if (alive.current) setLoadingOlder(false);
@@ -302,7 +306,8 @@ export default function CoachShell({
       onRetryAction={(actionId) => dispatch({ type: "action_retry", actionId })}
       historyError={olderError} onRetryHistory={() => void loadOlder()}
       renderExtras={renderExtras ? (message) => renderExtras(message, controls, messages,
-        (action) => dispatch({ type: "compose_action", action, messageId: message.id })) : undefined}>
+        (action) => dispatch({ type: "compose_action", action, messageId: message.id }),
+        (text) => send(text)) : undefined}>
       {transcriptFooter}</Transcript>}
     composer={<div className="flex flex-col gap-2 px-4 pb-2">
       {onOpenHistorySource && <div className="flex min-w-0 flex-wrap gap-2">

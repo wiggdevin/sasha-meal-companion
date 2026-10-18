@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ASSISTANT_NAME } from "@/lib/brand";
+import { titleOf } from "@/components/coach/conversations/list";
 import type { HistoryEvidence } from "@/lib/coach-client";
 import type { HistoryCitation } from "@/lib/coach/message-view";
 
@@ -42,7 +43,7 @@ export default function HistorySourceCards({ sources, readEvidence, onOpenConver
           && candidate.threadId === source.threadId);
         return <article key={`${source.threadId}:${source.id}`} className="well rounded-2xl p-3">
           <p className="m-0 text-tiny text-muted">Source {index + 1} · {item
-            ? `${item.title || "Untitled conversation"} · ${sourceDate(item.createdAt)} · ${item.role === "user" ? "You" : ASSISTANT_NAME}`
+            ? `${titleOf(item)} · ${sourceDate(item.createdAt)} · ${item.role === "user" ? "You" : ASSISTANT_NAME}`
             : "Source no longer available"}</p>
           {item && <>
             <blockquote className="m-0 mt-2 text-caption text-charcoal">“{item.excerpt}”</blockquote>

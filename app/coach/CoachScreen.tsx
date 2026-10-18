@@ -3,6 +3,7 @@
 /* The Coach tab's mount: the chat (components/coach/CoachConversation, shared with the dock's chat
    overlay) under the assistant header, or the unavailable card when the coach is off. */
 
+import { MessagesSquare } from "lucide-react";
 import { useCapabilities } from "@/components/CapabilitiesProvider";
 import CoachConversation from "@/components/coach/CoachConversation";
 import CoachFrame from "@/components/coach/CoachFrame";
@@ -37,7 +38,10 @@ export default function CoachScreen() {
             trailing={<Button variant="secondary" size="sm" onClick={openConversations}
               aria-label={[count > 0 ? `Conversations, ${count} saved` : "Conversations",
                 unread ? UNREAD_SUFFIX : null].filter(Boolean).join(", ")}>
-              Conversations{count > 0 && <ConversationCount count={count} />}
+              {/* Under 360 px the word gives way to an icon and the count badge, so the title fits. */}
+              <MessagesSquare size={18} strokeWidth={1.75} aria-hidden="true" className="min-[360px]:hidden" />
+              <span className="max-[359px]:hidden">Conversations</span>
+              {count > 0 && <ConversationCount count={count} />}
               <UnreadDot show={unread} className="ml-1.5" />
             </Button>} /></Bar>} />
       ) : (

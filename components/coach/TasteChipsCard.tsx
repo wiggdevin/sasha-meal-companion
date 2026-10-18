@@ -372,7 +372,9 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
       <div className="flex flex-wrap gap-2">
         {chips.map(({ prefixed, label }) => {
           const isSaved = alreadySaved(prefixed);
-          const active = isSaved || (status === "idle" ? picked.has(prefixed) : appliedKeys.dislikes.includes(unpick(prefixed))
+          // While the save runs the picked chips stay up; the server's answer then names what landed.
+          const active = isSaved || (status === "idle" || status === "confirming" ? picked.has(prefixed)
+            : appliedKeys.dislikes.includes(unpick(prefixed))
             || appliedKeys.cuisines.includes(unpick(prefixed)));
           if (status !== "idle" && !active) return null;
           return <Button key={prefixed} type="button" variant={active ? "primary" : "tertiary"} size="sm"
@@ -382,7 +384,7 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
         })}
       </div>
       {message && <Notice tone={message.tone} title={message.title} onDismiss={() => setMessage(null)} />}
-      {status === "idle" && !allSaved && <div className="self-start">
+      {(status === "idle" || status === "confirming") && !allSaved && <div className="self-start">
         <Button variant="primary" size="sm" status={buttonStatus} confirmLabel="Added"
           disabled={nothingPicked} onClick={() => { void onConfirm(); }}>
           Add to my taste preferences

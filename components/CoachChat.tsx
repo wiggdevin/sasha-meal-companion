@@ -209,10 +209,10 @@ export default function CoachChat(props: Props) {
   </>;
 
   return <CoachShell {...props} toolbar={toolbar}
-    renderExtras={(message, controls, messages, applyAction) => <CoachMessageExtras
+    renderExtras={(message, controls, messages, applyAction, sendText) => <CoachMessageExtras
       message={message as CoachMessageView} messages={messages as CoachMessageView[]} tz={tz}
       onAttachment={controls.sendAttachment} onBlockStatus={controls.onBlockStatus}
-      sendText={controls.sendText} applyAction={applyAction}
+      sendText={sendText} applyAction={applyAction}
       onOpenConversation={props.onOpenConversation}
       onSearchManually={() => controls.sendText("Help me find another food match")} />} />;
 }

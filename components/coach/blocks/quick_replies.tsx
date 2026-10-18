@@ -14,7 +14,8 @@ export default function QuickRepliesBlock({ block, ctx }: {
     <div className="flex flex-wrap justify-end gap-2 pl-8" aria-label="Suggested replies">
       {block.options.map((option) => (
         <button key={option} type="button" className="tap pill shrink-0" style={{ minHeight: 44 }}
-          onClick={() => { setHidden(true); ctx.sendText(option); }}>
+          // A declined send (offline, restoring) keeps the options, so nothing vanishes unsent.
+          onClick={() => { if (ctx.sendText(option) !== false) setHidden(true); }}>
           <span className="pill-in flex h-full min-h-[42px] items-center px-4 text-caption text-charcoal">
             {option}</span>
         </button>

@@ -183,12 +183,12 @@ describe("coach shell lifecycle", () => {
     expect(mocks.fetchOlder).toHaveBeenNthCalledWith(
       1, "thread-1", 51, HISTORY_PAGE_SIZE,
     );
-    expect(alert.textContent).toContain("Couldn’t load earlier messages —");
+    expect(alert.textContent).toContain("Couldn’t load earlier messages.");
     expect(alert.compareDocumentPosition(view.getByText("Message 51"))
       & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     fireEvent.click(view.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(mocks.fetchOlder).toHaveBeenCalledTimes(2));
-    expect(view.queryByText("Couldn’t load earlier messages —")).toBeNull();
+    expect(view.queryByText("Couldn’t load earlier messages.")).toBeNull();
   });
 
   it("preserves the reader through an in-flight reply and keeps loading full older pages", async () => {
