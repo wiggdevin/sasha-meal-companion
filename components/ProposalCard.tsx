@@ -37,9 +37,9 @@ export function decideErrorMessage(err: unknown): string {
 
 export function deltaSentence(proposed: ProposedTargets): string {
   const kcal = proposed.kcalTrain.toLocaleString("en-US");
-  if (proposed.deltaKcalTrain === 0) return `Your training days stay at ${kcal} — protein unchanged.`;
+  if (proposed.deltaKcalTrain === 0) return `Your training days stay at ${kcal} kcal, protein unchanged.`;
   const verb = proposed.deltaKcalTrain > 0 ? "could go to" : "could come down to";
-  return `Your training days ${verb} ${kcal} — protein unchanged.`;
+  return `Your training days ${verb} ${kcal} kcal, protein unchanged.`;
 }
 
 export default function ProposalCard({ proposal, offline, asOf, onDecided }: {

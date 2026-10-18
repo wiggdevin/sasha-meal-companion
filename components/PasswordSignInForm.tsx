@@ -59,7 +59,7 @@ type PasswordFieldsProps = {
 };
 
 const fieldClass =
-  "well tap h-[52px] w-full rounded-[16px] bg-transparent px-4 text-body-sm font-light text-charcoal outline-none placeholder:text-muted";
+  "well tap h-[52px] w-full rounded-[16px] bg-transparent px-4 text-body-sm font-normal text-charcoal outline-none placeholder:text-muted";
 
 function PasswordFields({ email, setEmail, password, setPassword }: PasswordFieldsProps) {
   return (

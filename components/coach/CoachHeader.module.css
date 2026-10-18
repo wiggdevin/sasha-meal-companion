@@ -63,6 +63,23 @@
   gap: 4px;
 }
 
+/* The name and the scope truncate rather than paint over the buttons beside them (320-360 px). */
+.title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Room for the display face's ascenders under the clip, with no change to the row's height. */
+  padding-block: 4px;
+  margin-block: -4px;
+}
+
+/* The page title steps down a size on the narrowest phones, so the name stays whole beside its
+   control (UI audit 2026-10-18). */
+@media (max-width: 359px) {
+  .head:not(.compact) .title { font-size: 32px; }
+}
+
 /* The scope: where the next answer is about. Plain metadata (a dot and words), never a pill, so it
    does not read as a control. */
 .scope {
@@ -70,11 +87,18 @@
   align-self: flex-start;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   min-height: 20px;
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
+.scopeLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .scopeDot {
+  flex: none;
   width: 6px;
   height: 6px;
   border-radius: 9999px;

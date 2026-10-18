@@ -6,7 +6,7 @@
  * The call goes through the app's IP-limited route (lib/sign-in-client.ts, W052).
  */
 
-import { checkAttemptLimit } from "@/app/sign-in/attempt-limit";
+import { checkAttemptLimit, recordFailedAttempt } from "@/app/sign-in/attempt-limit";
 import { LIMITED_CODES, UNAVAILABLE_CODES, type SignInError } from "@/lib/sign-in-client";
 
 export type PasswordAuth = {
@@ -29,13 +29,17 @@ export async function signInWithPassword(
 ): Promise<string | null> {
   const address = email.trim();
   if (address.length === 0 || password.trim().length === 0) return EMPTY;
-  const throttled = checkAttemptLimit(`password:${address.toLowerCase()}`);
+  const limitKey = `password:${address.toLowerCase()}`;
+  const throttled = checkAttemptLimit(limitKey);
   if (throttled) return throttled;
   try {
     const { error } = await auth.signInWithPassword({ email: address, password });
     if (!error) return null;
     if (LIMITED_CODES.has(error.code)) return LIMITED;
-    return UNAVAILABLE_CODES.has(error.code) ? OFFLINE : MISMATCH;
+    if (UNAVAILABLE_CODES.has(error.code)) return OFFLINE;
+    // Only a password the server judged counts toward the floor; offline or limited tries do not.
+    recordFailedAttempt(limitKey);
+    return MISMATCH;
   } catch {
     return OFFLINE;
   }

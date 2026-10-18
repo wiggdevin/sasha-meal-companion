@@ -34,14 +34,19 @@ export default function SwapSheet({
   onUseRotation: () => void;
   onClose: () => void;
 }) {
+  // While rotation is in force the slot's meal IS today's pick: name it there, and not twice.
+  const todaysPick = isDefaultPick ? options.find((option) => option.id === currentMealId) : undefined;
   return <Sheet title={`Swap ${SLOT_LABELS[slot]}`} inset={{ label: "Swap" }}
     subtitle="Same targets either way — pick whatever’s in the kitchen." onClose={onClose}>
     <div className="flex flex-col gap-2">
       <button type="button" onClick={onUseRotation} aria-pressed={isDefaultPick}
         className={`${ROW} ${isDefaultPick ? ROW_PICKED : ROW_IDLE}`}>
-        <span className="text-caption text-charcoal">Today&apos;s pick</span>
+        <span className="text-caption text-charcoal">
+          {todaysPick ? <>Today&apos;s pick: {todaysPick.name}</> : <>Today&apos;s pick</>}
+        </span>
+        {todaysPick && <span className="text-tiny tabular-nums text-muted"><MacroLine values={todaysPick.macros} /></span>}
       </button>
-      {options.map((option) => {
+      {options.filter((option) => option !== todaysPick).map((option) => {
         const active = !isDefaultPick && option.id === currentMealId;
         return <button key={option.id} type="button" onClick={() => onSelect(option.id)} aria-pressed={active}
           className={`${ROW} ${active ? ROW_PICKED : ROW_IDLE}`}>

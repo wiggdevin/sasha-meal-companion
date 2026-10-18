@@ -25,20 +25,40 @@ export default function RuleReviewCard({ initial, onCompleted }: {
   useEffect(() => {
     if (initial !== undefined) return;
     let active = true;
+    // Offline the check cannot run: stay quiet (the rules card already says it needs a
+    // connection) and check again once the connection returns.
+    const again = () => { if (active) setRetry((value) => value + 1); };
+    let waiting = false;
     void loadRuleReview().then((loaded) => {
       if (!active) return;
+      if (!loaded && typeof navigator !== "undefined" && !navigator.onLine) {
+        waiting = true;
+        window.addEventListener("online", again, { once: true });
+        return;
+      }
       setReview(loaded);
       setLoading(false);
-      if (!loaded) setError("Could not check your food rules. Try again when connected.");
     });
-    return () => { active = false; };
+    return () => { active = false; if (waiting) window.removeEventListener("online", again); };
   }, [initial, retry]);
 
-  if (!loading && review && !review.required) return null;
-  const all = review ? [
+  // Nothing renders until the check answers: most accounts have nothing to review, and the
+  // "carried over" wording must never flash for them. A failed check says only that it failed.
+  if (loading) return null;
+  if (!review) {
+    return (
+      <div className="shell">
+        <Notice tone="error" title="Could not check your food rules."
+          action={{ label: "Try again",
+            onClick: () => { setLoading(true); setError(null); setRetry((value) => value + 1); } }} />
+      </div>
+    );
+  }
+  if (!review.required) return null;
+  const all = [
     ...review.candidateAllergens.map((key) => ({ group: "allergens" as const, key })),
     ...review.candidateCategories.map((key) => ({ group: "categories" as const, key })),
-  ] : [];
+  ];
   const answered = all.filter(({ group, key }) => choices[group][key]).length;
 
   function choose(group: keyof ChoiceState, key: string, choice: RuleChoice) {
@@ -59,7 +79,8 @@ export default function RuleReviewCard({ initial, onCompleted }: {
     }
     if (result.status === "conflict") {
       const fresh = await loadRuleReview();
-      setReview(fresh);
+      // A failed re-read keeps the list on screen with the conflict message below.
+      if (fresh) setReview(fresh);
       setChoices(EMPTY);
       if (fresh && !fresh.required) {
         onCompleted?.();
@@ -81,13 +102,6 @@ export default function RuleReviewCard({ initial, onCompleted }: {
             each one. Your choices will apply to future meal suggestions.
           </p>
         </div>
-        {loading && <p role="status" className="m-0 text-caption text-muted">Checking your rules…</p>}
-        {!loading && !review && (
-          <Button className="self-start"
-            onClick={() => { setLoading(true); setError(null); setRetry((value) => value + 1); }}>
-            Try again
-          </Button>
-        )}
         {all.map(({ group, key }) => (
           <div key={`${group}:${key}`} className="flex flex-col gap-2 border-t border-black/5 pt-3">
             <div>
@@ -105,7 +119,7 @@ export default function RuleReviewCard({ initial, onCompleted }: {
             </div>
           </div>
         ))}
-        {review?.required && (
+        {review.required && (
           <>
             <p role="status" className="m-0 text-caption text-muted">{all.length
               ? `${answered} of ${all.length} reviewed`

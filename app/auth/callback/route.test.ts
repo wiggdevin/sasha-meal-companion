@@ -65,22 +65,24 @@ describe("GET /auth/callback", () => {
     expect(res.headers.get("location")).toBe("https://app.test/sign-in?error=exchange_failed");
   });
 
-  it("returns a jsonError body instead of throwing when the exchange rejects", async () => {
+  it("302s to /sign-in?error=service_unavailable, never JSON, when the exchange rejects", async () => {
     mockedCreate.mockReturnValue({
       auth: { exchangeCodeForSession: vi.fn().mockRejectedValue(new Error("network down")) },
     } as never);
     const res = await call("https://app.test/auth/callback?code=abc&next=/week");
-    expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "internal", message: "Something went wrong." });
+    // UI audit 2026-10-18 §9: an email tap is a top-level navigation, so no failure shows JSON.
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("https://app.test/sign-in?error=service_unavailable");
   });
 
-  it("returns a jsonError body instead of throwing when createRequestClient throws", async () => {
+  it("302s to /sign-in?error=service_unavailable, never JSON, when createRequestClient throws", async () => {
     mockedCreate.mockImplementation(() => {
       throw new Error("missing env");
     });
     const res = await call("https://app.test/auth/callback?code=abc&next=/week");
-    expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "internal", message: "Something went wrong." });
+    // UI audit 2026-10-18 §9: an email tap is a top-level navigation, so no failure shows JSON.
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("https://app.test/sign-in?error=service_unavailable");
   });
 
   it("does not share one rate-limit bucket across requests with no resolvable IP", async () => {

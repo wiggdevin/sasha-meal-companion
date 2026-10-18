@@ -115,7 +115,7 @@ export default function RecipeResultCard({ recipe, expanded, onExpandedChange, f
             {!expanded && <span className="flex flex-col gap-0.5 text-tiny">
               <ServingLine recipe={recipe} />
               <span className="text-muted">{recipe.cuisine ? `${recipe.cuisine} · ` : ""}{recipe.totalMinutes === null
-                ? "Time unknown" : displayMinutes(recipe.totalMinutes)} · {recipe.servings} servings</span>
+                ? "Time unknown" : displayMinutes(recipe.totalMinutes)} · {recipe.servings} {recipe.servings === 1 ? "serving" : "servings"}</span>
               {/* Closed, the tag alone (its reason is read with it); open, RecipeDetails gives the line. */}
               <RuleMark variant="tag" mark={ruleMark} className="mt-0.5 self-start" />
             </span>}

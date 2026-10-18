@@ -217,22 +217,23 @@ describe("the recipes list", () => {
     await screen.findByText(/Nothing saved yet\./);
   });
 
-  it("is populated: it names each recipe with its servings and version", async () => {
+  it("is populated: it names each recipe with its servings, and no version", async () => {
     listRecipes.mockResolvedValue([{ id: "r1", name: "Tray bake", servings: 4, rev: 2,
       nutrients_per_serving: { energy_kcal: 520, coverage: 1 }, items: [] }]);
     render(<RecipesSection />);
     await screen.findByText("Tray bake");
-    const meta = await screen.findByText(/4 servings · version 2/);
+    const meta = await screen.findByText(/^4 servings/);
     expect(meta.textContent).toContain("520");
     expect(meta.textContent).toContain("kcal a serving");
     expect(meta.textContent).not.toContain("at least");
+    expect(meta.textContent).not.toContain("version");
   });
 
   it("has no calories clause on a recipe whose energy is not set", async () => {
     listRecipes.mockResolvedValue([{ id: "r2", name: "Soup", servings: 2, rev: 1,
       nutrients_per_serving: {}, items: [] }]);
     render(<RecipesSection />);
-    const meta = await screen.findByText(/2 servings · version 1/);
+    const meta = await screen.findByText(/^2 servings/);
     expect(meta.textContent).not.toContain("kcal a serving");
     expect(meta.textContent).not.toContain("0 kcal");
   });

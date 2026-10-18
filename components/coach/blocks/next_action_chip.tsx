@@ -22,7 +22,7 @@ export default function NextActionChipBlock({ block, ctx }: {
   return (
     <div className="flex justify-end pl-8" aria-label="Next best action">
       <button type="button" className="tap pill shrink-0" style={{ minHeight: 44 }}
-        onClick={() => { setHidden(true); ctx.sendText(PROMPT[block.action]); }}>
+        onClick={() => { if (ctx.sendText(PROMPT[block.action]) !== false) setHidden(true); }}>
         <span className="pill-in flex h-full min-h-[42px] items-center px-4 text-caption text-charcoal">
           {block.label}</span>
       </button>

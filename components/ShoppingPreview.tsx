@@ -12,6 +12,7 @@ import RuleMark from "@/components/ui/RuleMark";
 import { ProteinShort } from "@/components/nutrition/MacroText";
 import { proteinShortGrams } from "@/lib/nutrition-display";
 import { sameRuleMark } from "@/lib/rule-mark";
+import { formatMoney, mealLabel, shoppingDate, shoppingRange } from "@/lib/shopping/labels";
 
 export type ShoppingPreviewData = {
   period: ShoppingPeriod;
@@ -35,7 +36,6 @@ function amount(line: ShoppingLine): string {
   if (line.needGrams !== null) return `${displayAmount(line.needGrams)} g needed · package amount to buy unknown`;
   return "purchase amount unknown";
 }
-const mealLabel = (slot: string) => /^meal-[1-6]$/.test(slot) ? `Meal ${slot.slice(5)}` : slot;
 function lineKey(line: ShoppingLine): string {
   return line.origin === "plan" && line.identity ? `plan:${identityKey(line.identity)}` : `row:${line.id}`;
 }
@@ -80,21 +80,22 @@ export default function ShoppingPreview({ current, basket, confirmedPantry = [],
   }
   return <section className="shell" aria-label="Plan and shopping preview"><div className="surface flex flex-col gap-3 p-4">
     <h2 className="m-0 text-lg font-semibold">Review the list change</h2>
-    <p className="ground-muted m-0 text-sm">Saved plans and the current list change only after you accept. Manual items, bought marks and notes must carry through.</p>
-    {blockingIssues.length > 0 && <div role="alert"><h3 className="mb-1 text-sm font-semibold">Changes needed before acceptance</h3>
-      <ul className="m-0 list-disc pl-5 text-sm">{blockingIssues.map((issue, index) => <li key={index}>{issue}</li>)}</ul></div>}
+    <p className="ground-muted m-0 text-sm">Nothing changes until you accept. Your own items, ticks and notes are kept.</p>
+    {blockingIssues.length > 0 && <div role="alert"><h3 className="mb-1 text-sm font-semibold">Fix these before accepting</h3>
+      <ul className="m-0 list-disc pl-5 text-sm">{blockingIssues.map((issue, index) => <li key={index}>{issue}</li>)}</ul>
+      <p className="ground-muted m-0 mt-1 text-sm">Change the meals, ingredients or list above, then preview again. Or keep the current plan.</p></div>}
     {notes.length > 0 && <div><h3 className="mb-1 text-sm font-semibold">Estimates and notes</h3>
       <ul className="m-0 list-disc pl-5 text-sm">{notes.map((issue, index) => <li key={index}>{issue}</li>)}</ul></div>}
     {preview.unmetPins.length > 0 && <div role="alert"><h3 className="mb-1 text-sm font-semibold">Pins not met</h3>
       <ul className="m-0 list-disc pl-5 text-sm">{preview.unmetPins.map((pin, index) => <li key={index}>{pin}</li>)}</ul></div>}
     {preview.choices && <section aria-label="Meal choices"><h3 className="mb-1 text-sm font-semibold">Meal choices</h3>
       <ul className="m-0 list-disc pl-5 text-sm">{preview.choices.map((choice, index) => <li key={`${choice.localDate}:${choice.slotId}:${index}`}>
-        {choice.localDate} · {mealLabel(choice.slotId)}: {choice.recipeName} · {displayAmount(choice.servingFraction, 2)} serving{choice.servingFraction === 1 ? "" : "s"}
+        {shoppingDate(choice.localDate)} · {mealLabel(choice.slotId)}: {choice.recipeName} · {displayAmount(choice.servingFraction, 2)} serving{choice.servingFraction === 1 ? "" : "s"}
         {proteinShortGrams(choice.proteinGapGrams) !== null && <>{" · "}<ProteinShort gap={choice.proteinGapGrams} /></>}</li>)}</ul></section>}
     {(preview.replenishment?.length ?? 0) > 1 && <section aria-label="Weekly shopping needs">
       <h3 className="mb-1 text-sm font-semibold">Weekly shopping needs</h3>
       {preview.replenishment?.map((entry) => <div key={entry.window.startDate}>
-        <h4 className="mb-1 text-sm font-semibold">{entry.window.startDate} – {entry.window.endDate}</h4>
+        <h4 className="mb-1 text-sm font-semibold">{shoppingRange(entry.window.startDate, entry.window.endDate)}</h4>
         <ul className="m-0 list-disc pl-5 text-sm">{entry.lines.map((part) => {
           const line = preview.lines.find((item) => item.id === part.lineId);
           return <li key={part.lineId}>{line?.name ?? "Ingredient"}: {part.needGrams === null ? "need unknown" : `${displayAmount(part.needGrams)} g needed`}
@@ -109,7 +110,7 @@ export default function ShoppingPreview({ current, basket, confirmedPantry = [],
       <ul className="m-0 list-disc pl-5 text-sm">{preview.proposedAdditions?.map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
     {(preview.unfilledSlots?.length ?? 0) > 0 && <section role="alert"><h3 className="mb-1 text-sm font-semibold">Meals this plan cannot fill</h3>
       <ul className="m-0 list-disc pl-5 text-sm">{preview.unfilledSlots?.map((slot) =>
-        <li key={`${slot.localDate}:${slot.slotId}`}>{slot.localDate} · {mealLabel(slot.slotId)}: {slot.reasons.join("; ")}</li>)}</ul></section>}
+        <li key={`${slot.localDate}:${slot.slotId}`}>{shoppingDate(slot.localDate)} · {mealLabel(slot.slotId)}: {slot.reasons.join("; ")}</li>)}</ul></section>}
     {(preview.compromise?.length ?? 0) > 0 && <section><h3 className="mb-1 text-sm font-semibold">Plan tradeoffs</h3>
       <ul className="m-0 list-disc pl-5 text-sm">{preview.compromise?.map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
     <div className="grid grid-cols-3 gap-2 text-sm"><span>Add {added.length}</span><span>Change {changed.length}</span><span>Remove {removed.length}</span></div>
@@ -125,10 +126,10 @@ export default function ShoppingPreview({ current, basket, confirmedPantry = [],
       <RuleMark mark={line.ruleMark} className="mt-1 flex-wrap" /></li>)}</ul></section>}
     <p className="ground-muted m-0 text-sm">{preview.price?.estimatedCheckoutAmount !== null
       && preview.price?.estimatedCheckoutAmount !== undefined && preview.price.pricedLines === preview.price.requiredLines
-      ? `Estimated checkout: ${preview.price.currency ?? ""} ${preview.price.estimatedCheckoutAmount}.`
-      : `Price coverage: ${preview.price?.pricedLines ?? 0} of ${preview.price?.requiredLines ?? preview.lines.length} required lines. No verified checkout total.`}
+      ? `Estimated total: ${formatMoney(preview.price.estimatedCheckoutAmount, preview.price.currency ?? null)}.`
+      : `Prices aren't available yet (${preview.price?.pricedLines ?? 0} of ${preview.price?.requiredLines ?? preview.lines.length} items priced), so there is no total.`}
       {preview.price?.budgetMet === null || preview.price?.budgetMet === undefined
-        ? " Budget fit is unknown." : preview.price.budgetMet ? " Within the entered budget estimate." : " Above the entered budget estimate."}</p>
+        ? "" : preview.price.budgetMet ? " Within your budget." : " Over your budget."}</p>
     <div className="flex flex-wrap gap-2"><Button variant="primary" disabled={busy || blockingIssues.length > 0}
       onClick={() => void accept()}>{busy ? "Accepting…" : "Accept plan and list"}</Button>
       <Button disabled={busy} onClick={onCancel}>Keep current plan</Button></div>

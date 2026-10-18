@@ -80,19 +80,44 @@ describe("UI audit r1: tap order", () => {
     await waitFor(() => expect((result.current!.store!.settings as Settings).proteinG).toBe(0));
   });
 
-  it("a double tap on Save in the targets sheet sends in order, and the last save stays (UI audit r3)", async () => {
+  it("a double tap on Save in the targets sheet writes one revision while the first save is in flight (UI audit 2026-10-18)", async () => {
     store.value = { settings: { ...defaultSettings(), proteinG: 140 } } as unknown as Store;
     const { useSettingsController } = await import("@/components/settings/use-settings-controller");
     const { result } = renderHook(() => useSettingsController());
     await waitFor(() => expect(result.current).not.toBeNull());
     gates.hold = true;
     act(() => { result.current!.saveTargets({ tag: "first" } as never); });
+    expect(result.current!.targetSaving).toBe(true);
     act(() => { result.current!.saveTargets({ tag: "second" } as never); });
     await waitFor(() => expect(gates.list.length).toBe(1));
     await release(0);
+    await waitFor(() => expect((result.current!.targets as unknown as { tag: string }).tag).toBe("first"));
+    expect(result.current!.targetSaving).toBe(false);
+    expect(gates.list.length).toBe(1);
+  });
+
+  it("each stepper tap builds on the last one, before any save answers (UI audit 2026-10-18)", async () => {
+    store.value = { settings: { ...defaultSettings(), proteinG: 140 } } as unknown as Store;
+    const { useSettingsController } = await import("@/components/settings/use-settings-controller");
+    const { result } = renderHook(() => useSettingsController());
+    await waitFor(() => expect(result.current).not.toBeNull());
+    gates.hold = true;
+    act(() => { result.current!.setProteinG(145); });
+    expect(result.current!.shownProteinG).toBe(145);
+    expect(result.current!.targetsPending).toBe(false); // protein has its own card
+    act(() => { result.current!.setTrainingKcal(2050); });
+    act(() => { result.current!.setTrainingKcal(2100); });
+    expect(result.current!.shownTrainingKcal).toBe(2100);
+    expect(result.current!.targetsPending).toBe(true);
+    await waitFor(() => expect(gates.list.length).toBe(1));
+    await release(0);
     await waitFor(() => expect(gates.list.length).toBe(2));
+    // Still the last tap while later pins wait.
+    expect(result.current!.shownTrainingKcal).toBe(2100);
     await release(1);
-    await waitFor(() => expect((result.current!.targets as unknown as { tag: string }).tag).toBe("second"));
+    await waitFor(() => expect(gates.list.length).toBe(3));
+    await release(2);
+    await waitFor(() => expect(result.current!.targetsPending).toBe(false));
   });
 
   it("sends a section's edits one after another, in tap order", async () => {

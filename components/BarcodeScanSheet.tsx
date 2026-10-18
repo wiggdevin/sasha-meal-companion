@@ -13,12 +13,18 @@ import { beginRun, mark, type TimingRun } from "@/lib/timing";
 const FRAME_INTERVAL_MS = 150;
 const FRAME_WIDTH = 640;
 
-type Phase = "starting" | "scanning" | "resolving" | "denied" | "unreadable" | "offline" | "scannerError";
+type Phase = "starting" | "scanning" | "resolving" | "refused" | "denied" | "unreadable" | "offline"
+  | "scannerError";
+
+/** After a refused match the camera waits this long before it reads again, so the same pack in
+ *  view is not sent straight back into the refusal. */
+const REFUSED_PAUSE_MS = 2000;
 
 const MESSAGES: Record<Phase, string> = {
   starting: "Starting the camera…",
   scanning: "Point the camera at the barcode.",
   resolving: "Looking it up…",
+  refused: "That did not go through. Scan again in a moment.",
   denied: "The camera is blocked. Allow it in Settings, or search for the food instead.",
   unreadable: "That is not a barcode we can read. Try the other side of the pack.",
   offline: "No connection, and this one is not on the phone yet. It will retry when you are back.",
@@ -26,17 +32,23 @@ const MESSAGES: Record<Phase, string> = {
 };
 
 export default function BarcodeScanSheet({
-  onResolved, onClose, hint,
+  onResolved, onClose, hint, refusedCopy,
 }: {
-  /** The run the scan was measured under travels with the answer, so the commit closes THAT one. */
-  onResolved: (response: BarcodeResponse, run?: TimingRun) => void;
+  /** The run the scan was measured under travels with the answer, so the commit closes THAT one.
+   *  Answering false (now or later) means the page could not take the match: the sheet says so
+   *  and scans again instead of holding "Looking it up…" (UI audit 2026-10-18 §6). */
+  onResolved: (response: BarcodeResponse, run?: TimingRun) => void | boolean | Promise<boolean>;
   onClose: () => void;
   hint?: { brand?: string; name?: string };
+  /** The line shown when `onResolved` answers false. */
+  refusedCopy?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const historyRef = useRef<Reading[]>([]);
   const busyRef = useRef(false);
+  /** Frames before this time are ignored (after a refused match). */
+  const pausedUntilRef = useRef(0);
   const scanErrorsRef = useRef(0);
   /** This scan's own timing run: two scans in a session are two taps, never one row set. */
   const runRef = useRef<TimingRun | null>(null);
@@ -62,7 +74,20 @@ export default function BarcodeScanSheet({
       const run = runRef.current ?? undefined;
       const outcome = await resolveScan(h, gtin, hint, run);
       if (!here.current) return;
-      if (outcome.kind === "resolved") { onResolved(outcome.response, run); return; }
+      if (outcome.kind === "resolved") {
+        const taken = await onResolved(outcome.response, run);
+        if (taken !== false || !here.current) return;
+        busyRef.current = false;
+        historyRef.current = [];
+        pausedUntilRef.current = Date.now() + REFUSED_PAUSE_MS;
+        setPhase("refused");
+        resumeRef.current();
+        // Back to the scanning line once the pause is over, unless a new lookup took the sheet.
+        setTimeout(() => {
+          if (here.current && !busyRef.current) setPhase((p) => p === "refused" ? "scanning" : p);
+        }, REFUSED_PAUSE_MS);
+        return;
+      }
       busyRef.current = false;
       if (outcome.kind === "unreadable") setPhase("unreadable");
       else if (outcome.kind === "offline") setPhase("offline");
@@ -77,7 +102,7 @@ export default function BarcodeScanSheet({
      frame cannot be trusted. acceptReading holds the line (spec "Engines and logic"). */
   const onReply = useCallback(
     (reply: ScanReply) => {
-      if (busyRef.current) return;
+      if (busyRef.current || Date.now() < pausedUntilRef.current) return;
       if (reply.error) {
         scanErrorsRef.current += 1;
         if (isPersistentScanFailure(scanErrorsRef.current)) setPhase("scannerError");
@@ -192,7 +217,8 @@ export default function BarcodeScanSheet({
   }
 
   return (
-    <Sheet title="Scan" subtitle={MESSAGES[phase]} onClose={onClose}>
+    <Sheet title="Scan" subtitle={phase === "refused" && refusedCopy ? refusedCopy : MESSAGES[phase]}
+      onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div
           className="relative w-full overflow-hidden rounded-3xl"

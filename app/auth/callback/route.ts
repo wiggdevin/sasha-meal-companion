@@ -6,15 +6,20 @@
 
 import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/server/auth";
-import { jsonError, safeNextPath } from "@/lib/server/http";
+import { safeNextPath } from "@/lib/server/http";
 import { enforceRateLimit } from "@/lib/server/ratelimit";
 import { applyCookies, createRequestClient } from "@/lib/supabase/server";
+import type { CallbackError } from "./errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function redirect(to: URL): Response {
   return new Response(null, { status: 302, headers: { location: to.toString() } });
+}
+
+function backToSignIn(code: CallbackError, origin: string): Response {
+  return redirect(new URL(`/sign-in?error=${code}`, origin));
 }
 
 /**
@@ -38,23 +43,24 @@ export async function GET(req: Request): Promise<Response> {
 
     const code = url.searchParams.get("code");
     if (!code) {
-      return redirect(new URL("/sign-in?error=missing_code", url.origin));
+      return backToSignIn("missing_code", url.origin);
     }
 
     const next = safeNextPath(url.searchParams.get("next"));
     const client = createRequestClient(req);
     const { error } = await client.auth.exchangeCodeForSession(code);
     if (error) {
-      return redirect(new URL("/sign-in?error=exchange_failed", url.origin));
+      return backToSignIn("exchange_failed", url.origin);
     }
 
     return applyCookies(req, redirect(new URL(next, url.origin)));
   } catch (e) {
-    // A landed top-level browser navigation (the user tapped the emailed link), so
-    // a rate-limit trip must land them back on /sign-in, not a bare JSON body.
+    // A landed top-level browser navigation (the user tapped the emailed link), so every
+    // failure lands them back on /sign-in with a line to read, never a bare JSON body.
     if (e instanceof HttpError && e.code === "rate_limited") {
-      return redirect(new URL("/sign-in?error=rate_limited", url.origin));
+      return backToSignIn("rate_limited", url.origin);
     }
-    return jsonError(e);
+    console.error("[auth-callback] failed", e instanceof HttpError ? e.code : e instanceof Error ? e.name : "unknown");
+    return backToSignIn("service_unavailable", url.origin);
   }
 }

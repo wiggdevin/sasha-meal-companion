@@ -8,7 +8,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { bindAccount, unbindAccount } from "@/lib/device/account";
 import { TEST_USER } from "@/tests/helpers/account";
 import RecipeItemRow from "@/components/RecipeItemRow";
-import RecipeSheet, { nextVersionCopy } from "@/components/RecipeSheet";
+import RecipeSheet, { saveCopy } from "@/components/RecipeSheet";
 import type { RecipeRow } from "@/lib/recipes-client";
 
 vi.mock("@/components/Sheet", () => ({
@@ -47,9 +47,9 @@ const SAVED: RecipeRow = {
 };
 
 describe("RecipeSheet copy", () => {
-  it("tells you which version a save creates, for a new recipe and for an edit", () => {
-    expect(nextVersionCopy(1)).toBe("Saving creates version 2.");
-    expect(nextVersionCopy(0)).toBe("Saving creates version 1.");
+  it("says what an edit keeps, names no version, and says nothing for a new recipe", () => {
+    expect(saveCopy({ rev: 1 })).toBe("Saving keeps your earlier logs as they were.");
+    expect(saveCopy(undefined)).toBeUndefined();
   });
 });
 
@@ -86,7 +86,7 @@ describe("RecipeSheet flows that must stay intact", () => {
   it("opens a new recipe on the ingredient search, with the Add ingredient row below", () => {
     render(<RecipeSheet onClose={() => {}} onSaved={() => {}} />);
     expect(screen.getByRole("heading", { name: "New recipe" })).toBeTruthy();
-    expect(screen.getByText("Saving creates version 1.")).toBeTruthy();
+    expect(screen.queryByText(/version/i)).toBeNull();
     expect(picker()).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add ingredient" })).toBeTruthy();
     expect((screen.getByRole("button", { name: "Save recipe" }) as HTMLButtonElement).disabled).toBe(true);
@@ -104,7 +104,7 @@ describe("RecipeSheet flows that must stay intact", () => {
   it("saves an edit as the next version of the same recipe", async () => {
     const onSaved = vi.fn();
     render(<RecipeSheet recipe={SAVED} onClose={() => {}} onSaved={onSaved} />);
-    expect(screen.getByText("Saving creates version 2.")).toBeTruthy();
+    expect(screen.getByText("Saving keeps your earlier logs as they were.")).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save recipe" })); });
     expect(client.save).toHaveBeenCalledTimes(1);
     expect(client.save.mock.calls[0][0]).toMatchObject({ id: "r1", baseRev: 1, name: "Rice tray" });

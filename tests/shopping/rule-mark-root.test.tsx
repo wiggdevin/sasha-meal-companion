@@ -61,7 +61,7 @@ it("closes an open preview when a refresh brings only new marks", async () => {
   render(<ShoppingRoot />);
   await screen.findByRole("checkbox", { name: "Tahini, to buy" });
   fireEvent.click(screen.getByRole("button", { name: /Plan meals to fill this list/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   expect(await screen.findByText("Review the list change")).toBeTruthy();
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   fireEvent(document, new Event("visibilitychange"));

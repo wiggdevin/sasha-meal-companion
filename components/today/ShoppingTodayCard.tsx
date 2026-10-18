@@ -8,6 +8,7 @@ import { getShoppingPeriod, listShoppingPeriods } from "@/lib/shopping-client";
 import type { ShoppingLine } from "@/lib/shopping/types";
 import RuleMark from "@/components/ui/RuleMark";
 import { ruleMarkReason } from "@/lib/rule-mark";
+import { currentWindowChecked } from "@/lib/shopping/labels";
 import type { RuleMark as RuleMarkValue } from "@/lib/types";
 
 /** What is left to buy on the list that covers `today`, or null when there is nothing to show. */
@@ -15,7 +16,9 @@ export async function openShoppingItems(today: string): Promise<ShoppingLine[]> 
   const periods = await listShoppingPeriods();
   const covering = periods.find((row) => row.startDate <= today && row.endDate >= today);
   if (!covering) return [];
-  return (await getShoppingPeriod(covering.id)).lines.filter((line) => !line.checked);
+  const { lines, purchaseWindows = [] } = await getShoppingPeriod(covering.id);
+  // A monthly list ticks plan items week by week: one whose current week is ticked is bought.
+  return lines.filter((line) => !line.checked && currentWindowChecked(line.id, purchaseWindows, today) !== true);
 }
 
 /**

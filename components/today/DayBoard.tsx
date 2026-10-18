@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useIsPresent, useReducedMotionConfig } from "motion/react";
 import ExplainerPlayer, { ExplainerStage, type Explainer } from "@/components/today/ExplainerPlayer";
 import TipTile from "@/components/today/TipTile";
 import AutoHeight from "@/components/ui/AutoHeight";
 import Button from "@/components/ui/Button";
+import type { useActionFeedback } from "@/components/ui/ActionFeedback";
 import TipStage from "@/components/today/tips/TipStage";
 import WaterTile from "@/components/today/WaterTile";
 import { MacroFigure, MacroLine } from "@/components/nutrition/MacroText";
@@ -22,6 +23,8 @@ export type BoardData = {
   /** Planned meals on the viewed day, so "nothing next" can say whether they are all eaten. */
   planned: number;
   onMarkEaten?: (slot: NextMeal["slot"]) => void;
+  /** The page's feedback props for that slot's eaten write: the check waits while any write is pending. */
+  markEatenControl?: (slot: NextMeal["slot"]) => MarkEatenControl;
   /** This week, already summarised; or Today's plan inputs to summarise it from (read once per
    *  store): the same store and verified foods Today resolves its own day with. */
   week?: WeekSummary;
@@ -33,6 +36,11 @@ export type BoardData = {
   tips: BoardTip[];
   explainers: Explainer[];
 };
+
+type MarkEatenControl = ReturnType<ReturnType<typeof useActionFeedback>["controlPropsFor"]>;
+
+/** A tap this soon after the next meal changed was meant for the check that just left. */
+const SETTLE_MS = 400;
 
 type Props = BoardData & {
   date: string;
@@ -81,8 +89,21 @@ function Leaving({ children, className, ...motionProps }: React.ComponentProps<t
   </motion.div>;
 }
 
-function NextTile({ next, planned, onMarkEaten, date, today }: Pick<Props, "next" | "planned" | "onMarkEaten" | "date" | "today">) {
+function NextTile({ next, planned, onMarkEaten, markEatenControl, date, today }:
+  Pick<Props, "next" | "planned" | "onMarkEaten" | "markEatenControl" | "date" | "today">) {
   const reduce = useReducedMotionConfig() ?? false;
+  // When the next meal last changed under the check: a second tap of a quick double tap lands on the
+  // following meal's check in the same spot, so taps that soon are ignored (UI audit 2026-10-18).
+  const changedAt = useRef<number | null>(null);
+  const shownSlot = useRef(next?.slot ?? null);
+  useEffect(() => {
+    const slot = next?.slot ?? null;
+    if (slot !== shownSlot.current) { shownSlot.current = slot; changedAt.current = performance.now(); }
+  }, [next?.slot]);
+  const markEaten = (slot: NextMeal["slot"]) => {
+    if (changedAt.current !== null && performance.now() - changedAt.current < SETTLE_MS) return;
+    onMarkEaten?.(slot);
+  };
   const eyebrow = date === today ? "Next" : date < today ? "Still open" : "Coming up";
   const showMeal = (slot: string) => {
     const card = document.querySelector<HTMLElement>(`[data-slot-card="${slot}"]`);
@@ -111,8 +132,9 @@ function NextTile({ next, planned, onMarkEaten, date, today }: Pick<Props, "next
           </span>
         </button>
         {/* The system's primary circle (DESIGN.md §Buttons); it presses like every button. */}
-        {onMarkEaten && <Button variant="primary" shape="circle" className={styles.eat}
-          aria-label={`Mark ${next.name} eaten`} onClick={() => onMarkEaten(next.slot)}>
+        {onMarkEaten && <Button variant="primary" shape="circle" {...markEatenControl?.(next.slot)}
+          className={[styles.eat, markEatenControl?.(next.slot).className].filter(Boolean).join(" ")}
+          aria-label={`Mark ${next.name} eaten`} onClick={() => markEaten(next.slot)}>
           <CheckIcon />
         </Button>}
       </Leaving> : <motion.div key="none" className={`${styles.nextBody} ${styles.nextDone}`}
@@ -200,7 +222,8 @@ export default function DayBoard(props: Props) {
     {(openTip, shownTipId) => <ExplainerStage explainers={explainers} active={active}>
       {(play) => <>
         <motion.div className={styles.span2} {...settle(0)}>
-          <NextTile next={props.next} planned={props.planned} onMarkEaten={props.onMarkEaten} date={props.date} today={props.today} />
+          <NextTile next={props.next} planned={props.planned} onMarkEaten={props.onMarkEaten}
+            markEatenControl={props.markEatenControl} date={props.date} today={props.today} />
         </motion.div>
         <motion.div className={styles.pairCell} data-pair="water" {...settle(1)}>
           <WaterTile water={props.water} onAddCup={props.onAddCup} onSetCups={props.onSetWater} active={active} />

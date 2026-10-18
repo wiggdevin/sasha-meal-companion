@@ -134,10 +134,16 @@ export default function RecipeDiscovery({ initialDate, initialSlotId, onPlanned 
         <label className="min-w-0 text-sm">Max minutes<input type="number" min="1" className="well mt-1 min-h-11 w-full min-w-0 px-2"
           value={maxMinutes} onChange={(event) => setMaxMinutes(event.target.value)} /></label>
         <div className="min-w-0 text-sm"><span>Cooking effort</span><GlassSelect aria-label="Cooking effort" className="mt-1"
-          value={effort} onChange={(value) => setEffort(value as typeof effort)}
+          value={effort} onChange={(value) => {
+            const next = value as typeof effort;
+            setEffort(next);
+            // A pick has no Enter key: once a search has run, it searches again at once.
+            if (query) void submitSearch({ cuisine, maxMinutes, effort: next });
+          }}
           options={[{ value: "any", label: "Any" }, { value: "none", label: "No cooking" }, { value: "minimal", label: "Minimal" }]} /></div>
       </div>
-      <p className="ground-muted m-0 text-sm">Avoided foods stay out of recipe results.</p>
+      <Button type="submit" className="mt-2" disabled={busy}>Apply filters</Button>
+      <p className="ground-muted m-0 mt-2 text-sm">Avoided foods stay out of recipe results.</p>
       </div>
     </Disclosure>
     </form>

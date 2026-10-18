@@ -242,7 +242,7 @@ function EntryPills({
   onDetails?: (id: string) => void;
 }) {
   return (
-    <span className="flex shrink-0 items-center gap-2">
+    <span className={`flex shrink-0 items-center gap-2 ${dark.loggedPills}`}>
       {measured && onDetails && <Button size="sm" onClick={() => onDetails(e.id)}>Nutrients</Button>}
       <Button size="sm" onClick={() => onOpen(e.id)}>{e.note ? "Edit note" : "Add note"}</Button>
     </span>
@@ -320,7 +320,9 @@ export function LoggedExtraCard({
       </span>}
       {/* A card on the ground is E1 (DESIGN.md §Elevation): the face carries the drop, not the wrapper,
           which also holds the retry line under the card. The snack ticket brings its own. */}
-      <span className={`logged-card-in items-center gap-[14px] px-[18px] py-4 ${e.slot === "snack" ? "" : "elev-1"}`}>
+      {/* The row wraps: when the name and macros would get less than their basis, the pills drop to a
+          line of their own under them instead of squeezing the text to a sliver (320-375 px phones). */}
+      <span className={`logged-card-in items-center gap-[14px] px-[18px] py-4 ${dark.loggedRow} ${e.slot === "snack" ? "" : "elev-1"}`}>
         <EntryArt snack={e.slot === "snack"} thumb={thumb} image={snackImage} />
         <button
           type="button"
@@ -331,7 +333,7 @@ export function LoggedExtraCard({
             if (suppressed && event.detail !== 0) return;
             onOpen(e.id);
           }}
-          className="tap flex min-w-0 flex-1 flex-col gap-1.5 text-left"
+          className={`tap flex min-w-0 flex-col gap-1.5 text-left ${dark.loggedText}`}
         >
           <EntryText e={e} m={m} measured={measured} pending={pending} stale={stale}
             unsaved={unsaved} lost={lost} meta={meta} previewTime={gesture.preview} />

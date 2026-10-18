@@ -25,7 +25,7 @@ import KcalText from "@/components/ui/KcalText";
 import type { Macros } from "@/lib/types";
 import type { PlanPreviewMeal } from "@/lib/onboarding/plan-preview";
 import PlanNotes from "@/components/Onboarding/beats/PlanNotes";
-import type { PlanNote } from "@/components/Onboarding/v2/plan-answers";
+import { clock12, type PlanNote } from "@/components/Onboarding/v2/plan-answers";
 
 export type RewardPlateFood = { id: string; name: string; role: "protein" | "carb" | "fat" };
 
@@ -50,7 +50,7 @@ function MacroLine({ title, macros }: { title: string; macros: Macros }) {
 
 function MealRow({ meal }: { meal: PlanPreviewMeal }) {
   return <li className="matte-reset flex flex-col gap-0.5 rounded-[16px] bg-fog px-3 py-2.5">
-    <span className="text-tiny font-normal text-muted">{meal.label} · {meal.time}</span>
+    <span className="text-tiny font-normal text-muted">{meal.label} · {clock12(meal.time)}</span>
     <span className="text-body text-charcoal">{meal.name}</span>
   </li>;
 }

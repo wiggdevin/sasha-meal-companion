@@ -5,6 +5,7 @@ import Stepper from "@/components/Stepper";
 import WorkingLine from "@/components/WorkingLine";
 import AllergenFindingLines from "@/components/coach/editors/AllergenFindingLines";
 import EditorPill from "@/components/coach/editors/EditorPill";
+import GramsField from "@/components/coach/editors/GramsField";
 import PortionFollowUps from "@/components/coach/editors/PortionFollowUps";
 import CaptureMealDetails, {
   type CaptureDetails, type CaptureDetailsSpec,
@@ -48,7 +49,8 @@ export type CaptureEditorDraft = {
   saving?: boolean;
   message?: string | null;
   commitLabel?: "save" | "log";
-  canSearchManually?: boolean;
+  /** "unmatched": only while nothing is kept or a kept item has no match (UI audit 2026-10-18 §6). */
+  canSearchManually?: boolean | "unmatched";
   canEditSlot?: boolean;
   showDismiss?: boolean;
   blockedItemIds?: string[];
@@ -107,6 +109,8 @@ function ItemRow({ item, portions, firstRef, onEdit }: {
           onChange={(grams) => onEdit({ grams: Math.max(0, grams), qty: Math.max(0, grams),
             unit: "g", portionId: null })} />
       </div>
+      <GramsField value={item.grams} label={`Exact grams of ${item.label}`}
+        onGrams={(grams) => onEdit({ grams, qty: grams, unit: "g", portionId: null })} />
 
       <SanityNotices sanity={item.sanity} policy={item.policy}
         typicalServing={typicalServing} grams={item.grams}
@@ -247,7 +251,9 @@ export default function CaptureDraftEditor({
         </button>
         <WorkingLine active={draft.saving === true} step="commit" />
         {draft.message && <p role="status" className={`px-1.5 ${META}`}>{draft.message}</p>}
-        {draft.canSearchManually !== false && (
+        {(draft.canSearchManually === "unmatched"
+          ? kept.length === 0 || kept.some((item) => item.foodRefId === null)
+          : draft.canSearchManually !== false) && (
           <button type="button" disabled={draft.saving === true} onClick={onSearchManually}
             className={`tap h-11 self-center px-4 disabled:opacity-40 ${SECTION}`}>Search manually</button>
         )}

@@ -33,11 +33,11 @@ describe("coach transcript bottom follow", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(["restore", "send", "reply"])("follows the bottom after %s", (reason) => {
+  it.each(["restore", "send", "reply"])("follows the bottom after %s near the bottom", (reason) => {
     const ref = createRef<TranscriptHandle>();
     const view = render(<Transcript ref={ref} messages={[message(1)]} contentVersion={0} />);
     const scroller = view.getByLabelText("Conversation");
-    const geometry = setGeometry(scroller, { scrollHeight: 600, clientHeight: 300, scrollTop: 150 });
+    const geometry = setGeometry(scroller, { scrollHeight: 600, clientHeight: 300, scrollTop: 270 });
 
     act(() => ref.current?.captureBeforeUpdate());
     view.rerender(
@@ -45,6 +45,44 @@ describe("coach transcript bottom follow", () => {
     );
 
     expect(geometry.top()).toBe(600);
+  });
+
+  it("leaves a reader re-reading less than a screen up where they are while a reply streams", () => {
+    const ref = createRef<TranscriptHandle>();
+    const view = render(<Transcript ref={ref} messages={[message(1)]} contentVersion={0} />);
+    const scroller = view.getByLabelText("Conversation");
+    const geometry = setGeometry(scroller, { scrollHeight: 600, clientHeight: 300, scrollTop: 150 });
+    fireEvent.scroll(scroller);
+
+    act(() => ref.current?.captureBeforeUpdate());
+    view.rerender(<Transcript ref={ref} messages={[message(1), message(2)]} contentVersion={1} />);
+
+    expect(geometry.top()).toBe(150);
+    expect(view.getByRole("button", { name: "New message" })).not.toBeNull();
+  });
+
+  it("always follows the reader's own send", () => {
+    const ref = createRef<TranscriptHandle>();
+    const view = render(<Transcript ref={ref} messages={[message(1)]} contentVersion={0} />);
+    const scroller = view.getByLabelText("Conversation");
+    const geometry = setGeometry(scroller, { scrollHeight: 600, clientHeight: 300, scrollTop: 0 });
+    fireEvent.scroll(scroller);
+
+    act(() => ref.current?.captureBeforeUpdate(true));
+    view.rerender(<Transcript ref={ref} messages={[message(1), message(2)]} contentVersion={1} />);
+
+    expect(geometry.top()).toBe(600);
+  });
+
+  it("announces a reply that lands, never the restored history", () => {
+    const view = render(<Transcript messages={[message(1), message(2)]} contentVersion={0} />);
+    const live = view.getByRole("status");
+    expect(live.textContent).toBe("");
+    view.rerender(<Transcript messages={[message(1), message(2), message(3)]} contentVersion={1} />);
+    expect(live.textContent).toBe("");
+    view.rerender(<Transcript messages={[message(1), message(2), message(3), message(4)]} contentVersion={2} />);
+    expect(live.textContent).toContain("Message 4");
+    expect(view.getByLabelText("Conversation").getAttribute("aria-live")).toBeNull();
   });
 
   it("does not yank a reader more than one viewport away and offers a new-message pill", () => {

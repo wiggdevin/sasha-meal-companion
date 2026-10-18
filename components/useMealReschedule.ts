@@ -15,6 +15,14 @@ export function draggedMealTime(time: string, deltaY: number): string {
 }
 export type TimelinePosition = { y: number; offset: number };
 
+/** How long a refused time save stays on the card before it clears itself. */
+export const RESCHEDULE_ERROR_MS = 4000;
+
+/** A text field inside the card: its long-press menu (paste, select) is the user's, not the card's. */
+function isTextField(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest("input, textarea, [contenteditable]:not([contenteditable='false'])");
+}
+
 export { leftSwipeOutcome } from "@/lib/today/swipe-detents";
 
 /** Native touch listeners retain normal page scrolling until an intentional hold. */
@@ -36,6 +44,12 @@ export function useMealReschedule(time: string, onSave?: (time: string) => void 
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // A refused save says so briefly, then leaves the card; the time on the card is still the old one.
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), RESCHEDULE_ERROR_MS);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   useEffect(() => {
     const element = ref.current;
@@ -166,7 +180,7 @@ export function useMealReschedule(time: string, onSave?: (time: string) => void 
     };
     const pointerMove = (event: PointerEvent) => { if (gesture && !gesture.touch) move(event.clientX, event.clientY, event); };
     const pointerUp = () => { if (gesture && !gesture.touch) end(); };
-    const contextMenu = (event: Event) => { event.preventDefault(); };
+    const contextMenu = (event: Event) => { if (!isTextField(event.target)) event.preventDefault(); };
     const selectStart = (event: Event) => { if (gesture) event.preventDefault(); };
     const cancelKey = (event: KeyboardEvent) => { if (event.key === "Escape") clear(); };
     element.addEventListener("touchstart", touchStart, { passive: true });

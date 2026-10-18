@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { unbindAccount } from "@/lib/device/account";
 import ShoppingView from "@/components/ShoppingView";
 import ShoppingPreview from "@/components/ShoppingPreview";
+import { shoppingDate } from "@/lib/shopping/labels";
 import { defaultShoppingDraft } from "@/components/ShoppingControls";
 import type { ShoppingLine, ShoppingPeriod } from "@/lib/shopping/types";
 
@@ -47,8 +48,8 @@ describe("shopping UI", () => {
     a.preview.mockResolvedValue({ period, lines: [], issues: [], unmetPins: [], accept: vi.fn() });
     render(<ShoppingView period={null} lines={[]} initialDraft={draft} actions={a} />);
     fireEvent.change(screen.getByLabelText("Budget (optional)"), { target: { value: "40" } });
-    expect((screen.getByRole("button", { name: "Preview plan and list changes" }) as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    expect((screen.getByRole("button", { name: "Preview changes" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await waitFor(() => expect(a.preview).toHaveBeenCalledWith({
       draft: { ...draft, budgetAmount: 40 }, basket: [],
     }));
@@ -101,7 +102,7 @@ describe("shopping UI", () => {
       .toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Breakfast" }));
     fireEvent.click(screen.getByRole("button", { name: "Snack" }));
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await waitFor(() => expect(a.preview).toHaveBeenCalledWith({
       draft: { ...savedDraft, mealCoverage: ["meal-3", "meal-5", "breakfast", "snack"] }, basket: [],
     }));
@@ -111,7 +112,7 @@ describe("shopping UI", () => {
     const a = actions();
     render(<ShoppingView period={null} lines={[]} initialDraft={{ ...draft, mealCoverage: ["dinner"] }} actions={a} />);
     fireEvent.click(screen.getByRole("button", { name: "Dinner" }));
-    expect((screen.getByRole("button", { name: "Preview plan and list changes" }) as HTMLButtonElement).disabled)
+    expect((screen.getByRole("button", { name: "Preview changes" }) as HTMLButtonElement).disabled)
       .toBe(true);
     expect(a.preview).not.toHaveBeenCalled();
   });
@@ -123,7 +124,7 @@ describe("shopping UI", () => {
       issues: [], unmetPins: [], accept });
     render(<ShoppingView period={period} lines={[line()]} initialDraft={draft} actions={a} />);
     openPlan();
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await screen.findByText("Review the list change");
     expect(a.preview).toHaveBeenCalledWith({ draft, basket: [line().identity] });
     expect(accept).not.toHaveBeenCalled();
@@ -145,7 +146,7 @@ describe("shopping UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Details for Beans" }));
     fireEvent.click(screen.getByRole("button", { name: "Details for Rice" }));
     expect(screen.getAllByLabelText("Use in next plan", { selector: "input" })).toHaveLength(2);
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await waitFor(() => expect(a.preview).toHaveBeenCalledWith({ draft,
       basket: [beans.identity, rice.identity] }));
   });
@@ -156,9 +157,9 @@ describe("shopping UI", () => {
       .mockRejectedValueOnce(new Error("Rules changed"));
     render(<ShoppingView period={period} lines={[line()]} initialDraft={draft} actions={a} />);
     openPlan();
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await screen.findByText("Review the list change");
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await screen.findByText("Rules changed");
     expect(screen.queryByRole("button", { name: "Accept plan and list" })).toBeNull();
   });
@@ -288,7 +289,7 @@ describe("shopping UI", () => {
     expect(screen.getByText("Package 250.6 g")).toBeTruthy();
     fireEvent.click(screen.getByText("Needed for 1 planned use"));
     expect(screen.getByText((_, element) => element?.tagName === "LI"
-      && element.textContent === "Sep 28 · Meal 3 · 220.5 g")).toBeTruthy();
+      && element.textContent === `${shoppingDate("2026-09-28")} · Meal 3 · 220.5 g`)).toBeTruthy();
     expect(screen.queryByText(/4a652c4d/)).toBeNull();
   });
 
@@ -341,7 +342,7 @@ describe("shopping UI", () => {
     openPlan();
     fireEvent.click(screen.getByRole("button", { name: "Details for Beans" }));
     fireEvent.click(screen.getByLabelText("Use in next plan"));
-    fireEvent.click(screen.getByRole("button", { name: "Preview plan and list changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
     await waitFor(() => expect(a.preview).toHaveBeenCalledWith({ draft, basket: [] }));
   });
 
@@ -353,7 +354,7 @@ describe("shopping UI", () => {
     fireEvent.click(screen.getByLabelText("Keep this ingredient in my plan"));
     await waitFor(() => expect(a.patchLine).toHaveBeenCalledWith(expect.objectContaining({ id: "l1" }), { pinned: true }));
     expect(await screen.findByText("Ingredient kept in plan.")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Have already (confirmed g)"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Have already (grams)"), { target: { value: "100" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirm stock" }));
     await waitFor(() => expect(a.confirmPantry).toHaveBeenCalledWith(expect.objectContaining({ id: "l1" }), 100));
     expect(await screen.findByText("Stock confirmed.")).toBeTruthy();

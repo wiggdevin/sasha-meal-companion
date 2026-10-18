@@ -333,7 +333,7 @@ describe("leaving onboarding", () => {
     persistence.retryOnboardingConstraints.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     openPlanStep();
     click("Use this plan");
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("allergen rules"));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("allergy rules"));
     click("Continue");
     await waitFor(() => expect(persistence.retryOnboardingConstraints).toHaveBeenCalledTimes(1));
     expect(navigation.replace).not.toHaveBeenCalled();
@@ -350,6 +350,10 @@ describe("leaving onboarding", () => {
     openPlanStep();
 
     click("Skip for now");
+    // Answers are on screen, so Skip asks once before it throws them away.
+    expect(screen.getByText("Skip setup? Your answers won’t be saved.")).toBeTruthy();
+    expect(navigation.replace).not.toHaveBeenCalled();
+    click("Skip setup");
     await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/"));
     expect(order).toEqual(["drain", "navigate"]);
 
@@ -426,6 +430,8 @@ describe("closing the flow at any step (2026-10-01)", () => {
     openPlanStep();
     expect(screen.queryByRole("dialog", { name: "Profile setup" })).toBeNull();
     click("Close");
+    expect(persistence.persistSkippedOnboarding).not.toHaveBeenCalled();
+    click("Skip setup");
     await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/"));
     expect(persistence.persistSkippedOnboarding).toHaveBeenCalledTimes(1);
     expect(persistence.persistCompletedOnboarding).not.toHaveBeenCalled();

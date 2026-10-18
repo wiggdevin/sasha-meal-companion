@@ -94,6 +94,10 @@ function ShiftControls({ shiftMinutes, slotTimes, layout, onShiftChange, onSlotT
   );
 }
 
+function isShareCancel(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { name?: unknown }).name === "AbortError";
+}
+
 /** Calendar reminders, the meal-times card's last row: share or download the meal times as a calendar. */
 function CalendarRow({ shiftMinutes, slotTimes, layout }: {
   shiftMinutes: number; slotTimes: Partial<Record<SlotId, string>>;
@@ -112,8 +116,10 @@ function CalendarRow({ shiftMinutes, slotTimes, layout }: {
           return;
         }
       }
-    } catch {
-      // A cancelled or unsupported share continues to the direct calendar download.
+    } catch (error) {
+      // Backing out of the share sheet is a choice, not a failure: nothing downloads (UI audit
+      // 2026-10-18 §3). Any other share error continues to the direct calendar download.
+      if (isShareCancel(error)) throw error;
     }
     window.location.href = icsDataUri(calendar);
     setStatus("downloaded");
@@ -125,7 +131,10 @@ function CalendarRow({ shiftMinutes, slotTimes, layout }: {
         <h3 className={`m-0 ${ROW_TITLE}`}>Calendar reminders</h3>
         <Button variant="secondary" size="sm" status={button.status}
           confirmLabel={status === "shared" ? "Shared" : "Downloaded"}
-          onClick={() => void button.run(addToCalendar)}>
+          onClick={() => void button.run(addToCalendar).then((result) => {
+            // A dismissed share sheet leaves the button as it was, with no "Downloaded".
+            if (!result.ok && isShareCancel(result.error)) button.reset();
+          })}>
           Add to Calendar
         </Button>
       </div>

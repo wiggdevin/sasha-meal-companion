@@ -21,7 +21,7 @@ export type LogDraftBlockContext = {
 };
 
 export type CoachBlockContext = LogDraftBlockContext & {
-  sendText: (text: string) => void;
+  sendText: (text: string) => boolean | void; // false: the chat declined it (offline, restoring)
   logFood: (ref: FoodBlockRef) => void | Promise<string | undefined | void>; // a line to show once, if any
   markEats: (ref: FoodBlockRef) => void | Promise<void>;
   markAvoid: (ref: FoodBlockRef) => void | Promise<void>;

@@ -12,11 +12,12 @@
   mask-image: linear-gradient(to bottom, transparent 0, black 72px, black calc(100% - 16px), transparent 100%);
 }
 
-/* Lane centres stay inside the screen: the first and last lane sit one disc half-width (plus the
-   disc's padding) from each edge, the rest spread evenly between. `--lane` is 0..1. */
+/* Lane centres stay inside the screen: the first and last lane sit one disc half-width (the 96 px
+   disc plus its padding) from each edge, the rest spread evenly between. `--lane` is 0..1. Below
+   420 px the fall uses three lanes (FallingFoodPile.tsx `laneCount`), so neighbours never overlap. */
 .lane {
   position: absolute;
   top: 0;
-  left: calc(60px + (100% - 120px) * var(--lane));
+  left: calc(54px + (100% - 108px) * var(--lane));
   translate: -50% 0;
 }

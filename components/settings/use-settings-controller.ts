@@ -117,6 +117,23 @@ export async function fetchDailyIfEnabled(h: AccountHandle, from: string, to: st
   return fetchDaily(h, from, to);
 }
 
+/** What the health rows show for one read: health off says "Not available yet" and a failed read
+ *  "Couldn't check", so neither leaves the rows on "Checking…" for good (UI audit 2026-10-18 §3). */
+export async function settingsDaily(h: AccountHandle, from: string, to: string): Promise<DailyFetch> {
+  try {
+    return await fetchDailyIfEnabled(h, from, to)
+      ?? { response: null, fetchedAt: null, offline: false, disabled: true };
+  } catch (e) {
+    if (e instanceof AccountChanged) throw e;
+    return { response: null, fetchedAt: null, offline: true, disabled: false };
+  }
+}
+
+/** Calorie and protein numbers the user has tapped to but the server has not read back yet. */
+export type PendingPins = { training?: number; rest?: number; protein?: number };
+
+export type TargetsStatus = "loading" | "failed" | "needs_profile" | "ready";
+
 function localPatch(h: AccountHandle | null, current: Store, patch: Partial<Settings>): Store {
   const next = { ...current, settings: { ...current.settings, ...patch } };
   if (h === null) saveStore(next);
@@ -133,13 +150,16 @@ export function useSettingsController() {
   const [targetsLoadFailed, setTargetsLoadFailed] = useState(false);
   const [targetSheetOpen, setTargetSheetOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [targetsLoaded, setTargetsLoaded] = useState(false);
+  const [pending, setPending] = useState<PendingPins>({});
+  const pinsInFlight = useRef(0);
+  const [targetSaving, setTargetSaving] = useState(false);
 
   function loadSources(): void {
     const to = todayIso();
     const h = currentAccountOrNull();
     if (h === null) return;
-    void fetchDailyIfEnabled(h, isoDaysBefore(to, 21), to)
-      .then((result) => { if (result !== null) setDaily(result); }).catch(() => {});
+    void settingsDaily(h, isoDaysBefore(to, 21), to).then(setDaily).catch(() => {});
   }
 
   useEffect(() => {
@@ -147,8 +167,8 @@ export function useSettingsController() {
     if (h === null) return;
     let live = true;
     const to = todayIso();
-    void fetchDailyIfEnabled(h, isoDaysBefore(to, 21), to)
-      .then((result) => { if (live && result !== null) setDaily(result); }).catch(() => {});
+    void settingsDaily(h, isoDaysBefore(to, 21), to)
+      .then((result) => { if (live) setDaily(result); }).catch(() => {});
     return () => { live = false; };
   }, []);
 
@@ -175,13 +195,17 @@ export function useSettingsController() {
         if (!live.current || id !== generation.current) return;
         targetsRef.current = result.target;
         setTargets(result.target);
+        setTargetsLoaded(true);
         setTargetsLoadFailed(false);
+        // The steppers show the tapped numbers until the read after the LAST queued pin lands.
+        if (pinsInFlight.current === 0) setPending({});
       },
       () => {
         if (!live.current || id !== generation.current) return;
         // A failed re-read after a write keeps the last good numbers on screen; only a read that
         // has nothing to fall back on shows the "couldn't load" line.
         setTargetsLoadFailed((failed) => failed || targetsRef.current === null);
+        if (pinsInFlight.current === 0) setPending({});
       },
     );
   }
@@ -203,6 +227,8 @@ export function useSettingsController() {
   const settings = store.settings;
   const trainingResolved = targets?.resolved.training ?? null;
   const restResolved = targets?.resolved.rest ?? null;
+  const targetsStatus: TargetsStatus = trainingResolved && restResolved ? "ready"
+    : targetsLoaded ? "needs_profile" : targetsLoadFailed ? "failed" : "loading";
   const floors: MacroFloors | null = targets?.revision?.floors ?? null;
   const changedToday = settings.changedAt
     ? isSameLocalDay(settings.changedAt, todayIso())
@@ -233,15 +259,21 @@ export function useSettingsController() {
     );
   }
 
-  function writePin(pin: TargetPin): void {
+  function writePin(pin: TargetPin, shown: PendingPins): void {
     setSaveError(null);
+    // The tapped number shows at once, and the next tap builds on it: four quick taps of + are four
+    // steps, not one step sent four times (UI audit 2026-10-18 §3).
+    setPending((current) => ({ ...current, ...shown }));
+    pinsInFlight.current += 1;
     // In tap order: a pin waits for the one before it, so a slow first tap never lands after a later
     // one and shows its older value (UI audit r1).
     const run = pinQueue.current.catch(() => {}).then(() => persistTargetPin(pin));
     pinQueue.current = run;
     void run.then(
-      (next) => { setStore(next); refreshTargets(); },
+      (next) => { pinsInFlight.current -= 1; setStore(next); refreshTargets(); },
       (e: unknown) => {
+        pinsInFlight.current -= 1;
+        if (pinsInFlight.current === 0) setPending({});
         if (e instanceof AccountChanged) return;
         setSaveError("Couldn't save your targets — try again when you have a connection.");
       },
@@ -250,6 +282,7 @@ export function useSettingsController() {
 
   function resetTargets(): void {
     setSaveError(null);
+    setPending({});
     const h = currentAccountOrNull();
     // The same queue as the steppers: a tap still in flight never lands after the reset (UI audit r2).
     const run = pinQueue.current.catch(() => {}).then(() => persistTargetPin({ dayType: "both", kcal: null, proteinG: null }));
@@ -268,28 +301,45 @@ export function useSettingsController() {
   }
 
   function setTrainingKcal(kcal: number): void {
-    writePin({ dayType: "training", kcal });
+    writePin({ dayType: "training", kcal }, { training: kcal });
   }
 
   function setRestKcal(kcal: number): void {
-    writePin({ dayType: "rest", kcal });
+    writePin({ dayType: "rest", kcal }, { rest: kcal });
   }
 
   function saveTargets(request: TargetsRequest): void {
+    // One save at a time: the button shows it is saving and takes no second tap meanwhile, so a slow
+    // network never writes the same targets twice (UI audit 2026-10-18 §3).
+    if (targetSaving) return;
     setSaveError(null);
-    // The same queue as the steppers and the reset: a double tap on Save sends in order, and the last
-    // save is the one that stays (UI audit r3).
+    setTargetSaving(true);
+    // The same queue as the steppers and the reset, so a save never lands before a tap ahead of it.
     const run = pinQueue.current.catch(() => {}).then(() => postTargets(request));
     pinQueue.current = run;
     void run.then(
-      (updated) => { targetsRef.current = updated; setTargets(updated); setTargetSheetOpen(false); },
-      () => setSaveError("Couldn't save your targets — try again when you have a connection."),
+      (updated) => {
+        setTargetSaving(false);
+        targetsRef.current = updated; setTargets(updated); setTargetSheetOpen(false);
+      },
+      () => {
+        setTargetSaving(false);
+        setSaveError("Couldn't save your targets — try again when you have a connection.");
+      },
     );
   }
 
   return {
-    store, settings, daily, targets, targetsLoadFailed, targetSheetOpen, saveError,
-    floors, trainingResolved, restResolved,
+    store, settings, daily, targets, targetsLoadFailed, targetsStatus, targetSheetOpen, saveError,
+    targetSaving, floors, trainingResolved, restResolved,
+    /** The steppers' numbers: the last tap while it saves, else the server's. */
+    shownTrainingKcal: pending.training ?? trainingResolved?.kcal ?? null,
+    shownRestKcal: pending.rest ?? restResolved?.kcal ?? null,
+    shownProteinG: pending.protein ?? settings.proteinG ?? trainingResolved?.protein ?? null,
+    /** A calorie tap is on its way (the Calories card's "Saving…"; protein has its own card). */
+    targetsPending: pending.training !== undefined || pending.rest !== undefined,
+    /** Back to "loading" at once, so the retry shows it is working. */
+    retryTargets: () => { setTargetsLoadFailed(false); refreshTargets(); },
     trainingCaption: pinCaption(settings.trainingKcal, trainingResolved?.kcal, "kcal"),
     restCaption: pinCaption(settings.restKcal, restResolved?.kcal, "kcal"),
     proteinCaption: pinCaption(settings.proteinG, trainingResolved?.protein, "g"),
@@ -305,7 +355,7 @@ export function useSettingsController() {
     writeProfile,
     setTrainingKcal,
     setRestKcal,
-    setProteinG: (proteinG: number) => writePin({ dayType: "both", proteinG }),
+    setProteinG: (proteinG: number) => writePin({ dayType: "both", proteinG }, { protein: proteinG }),
     toggleProteinLock: () => commit({ proteinLocked: !settings.proteinLocked }),
     resetTargets,
     setShiftMinutes: (shiftMinutes: number) => commit({ shiftMinutes }),

@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { safePath } from "@/lib/supabase/client";
-import { LIMITED_CODES, signInAuth, type SignInError } from "@/lib/sign-in-client";
+import { LIMITED_CODES, UNAVAILABLE_CODES, signInAuth, type SignInError } from "@/lib/sign-in-client";
 import { SignInCodeForm } from "@/components/SignInCodeForm";
 import { PasswordSignInForm } from "@/components/PasswordSignInForm";
 import { verifyOtpCode } from "@/app/sign-in/otp";
+import { callbackErrorText } from "@/app/auth/callback/errors";
 import { APP_NAME, ASSISTANT_EXPANSION } from "@/lib/brand";
 import Button from "@/components/ui/Button";
 
@@ -13,7 +14,9 @@ type Stage = "idle" | "sending" | "sent" | "error";
 type Mode = "link" | "password" | "create";
 
 const SEND_FAILED = "That did not send. Check the address and try again.";
-const RATE_LIMITED = "Too many tries. Wait a minute, then try again.";
+// The app's IP limiter allows 10 sends per 10 minutes (lib/server/sign-in.ts), so "a minute" is too short.
+const RATE_LIMITED = "Too many tries. Wait a few minutes, then try again.";
+const UNAVAILABLE = "Could not reach the sign-in service. Check your connection and try again.";
 
 /**
  * The message a failed send shows, or null when the screen should move on to "sent".
@@ -21,11 +24,13 @@ const RATE_LIMITED = "Too many tries. Wait a minute, then try again.";
  * The server (lib/server/sign-in.ts `otpFailure`) already hides whether an address has an account:
  * a sign-in to an unknown address answers like a real send, and every other sign-in failure is one
  * generic code. A limit says to wait: the app's IP limiter in both modes (it counts this device,
- * never an address), and Supabase's own limit only in create mode, where nothing is hidden.
+ * never an address), and Supabase's own limit only in create mode, where nothing is hidden. No
+ * connection or a service outage judged nothing, so it never blames the address.
  */
 function sendErrorMessage(error: SignInError | null): string | null {
   if (!error) return null;
-  return LIMITED_CODES.has(error.code) ? RATE_LIMITED : SEND_FAILED;
+  if (LIMITED_CODES.has(error.code)) return RATE_LIMITED;
+  return UNAVAILABLE_CODES.has(error.code) ? UNAVAILABLE : SEND_FAILED;
 }
 
 function currentNext(): string {
@@ -33,17 +38,14 @@ function currentNext(): string {
 }
 
 /**
- * app/auth/callback/route.ts sends the browser back here with
- * ?error=exchange_failed whenever exchangeCodeForSession fails — the
- * documented normal case on iOS Safari vs. the installed PWA, and on any
- * reused/expired link. Read it once on load so nobody is left on a blank
- * card with no hint the link failed.
+ * app/auth/callback/route.ts sends the browser back here with ?error=<code> whenever the link
+ * fails: exchange_failed is the documented normal case on iOS Safari vs. the installed PWA and on
+ * any reused/expired link. Read it once on load so nobody is left on a blank card with no hint the
+ * link failed. Every code the route sends has its line in app/auth/callback/errors.ts.
  */
 function callbackErrorMessage(): string {
   if (typeof window === "undefined") return "";
-  const error = new URLSearchParams(window.location.search).get("error");
-  if (error !== "exchange_failed") return "";
-  return "That link didn't work — try again, or use the code from the email.";
+  return callbackErrorText(new URLSearchParams(window.location.search).get("error"));
 }
 
 /** `?deleted=1`: the phone lands here after the account was deleted (lib/device/erase.ts). */
@@ -142,7 +144,7 @@ export default function SignInPage() {
         <div className="surface flex flex-col gap-3.5 p-6">
           {stage === "sent" ? (
             <>
-              <SentMessage creating={mode === "create"} />
+              <SentMessage creating={mode === "create"} email={email.trim()} />
               <SignInCodeForm onVerify={verifyCode} />
               <Button variant="ghost" size="sm" className="self-center" onClick={() => setStage("idle")}>
                 Back
@@ -189,16 +191,22 @@ function SignInHeading({ creating }: { creating: boolean }) {
   );
 }
 
-function SentMessage({ creating }: { creating: boolean }) {
+function SentMessage({ creating, email }: { creating: boolean; email: string }) {
   // Sign in: neutral copy, true for both cases (PR #246 review r3, finding 2): an unknown address
   // never actually gets a link — Supabase refuses the request server-side — so the old "Check
   // your email. Tap the link…" claim was false for it. This wording holds either way.
   // Create: every address gets an email (a known one simply gets a sign-in email).
+  // The address is the one the person typed, so a typo shows before they wait on the inbox; it says
+  // nothing about whether it has an account. role="status" announces the change, since the button
+  // that had focus is gone; the ref moves focus here so it does not drop to the page.
+  const ref = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  const address = <span className="break-all font-medium text-charcoal">{email}</span>;
   return (
-    <p className="text-body-sm font-normal text-graphite">
+    <p ref={ref} role="status" tabIndex={-1} className="text-body-sm font-normal text-graphite outline-none">
       {creating
-        ? "We sent a link and a code to this email. Check your inbox to finish."
-        : "If this email has an account, we sent a sign-in link. Check your inbox."}
+        ? <>We sent a link and a code to {address}. Check your inbox to finish.</>
+        : <>If {address} has an account, we sent a sign-in link. Check your inbox.</>}
     </p>
   );
 }

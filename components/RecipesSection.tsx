@@ -164,7 +164,7 @@ export default function RecipesSection({ recipeAccess = { enabled: false, loadin
                           {recipe.name.trim() || "Untitled recipe"}
                         </span>
                         <span className="text-tiny font-normal text-graphite">
-                          {recipe.servings} servings · version {recipe.rev}
+                          {recipe.servings} {recipe.servings === 1 ? "serving" : "servings"}
                           {serving.kcal !== null && serving.kcal > 0 && <>
                             {" · "}<MacroFigure macro="kcal" value={serving.kcal}
                               bound={servingBound(serving.nutritionComplete)} /> a serving</>}
@@ -173,7 +173,7 @@ export default function RecipesSection({ recipeAccess = { enabled: false, loadin
                       <button type="button" onClick={() => void toggleRecipeStar(recipe)}
                         aria-pressed={favorited}
                         aria-label={favorited ? `Remove ${recipe.name} from favorites` : `Favorite ${recipe.name}`}
-                        className={`tap flex min-h-11 min-w-11 shrink-0 items-center justify-center ${favorited ? "text-primary" : "text-icon-off"}`}>
+                        className={`tap flex min-h-11 min-w-11 shrink-0 items-center justify-center ${favorited ? "text-primary" : "text-icon"}`}>
                         <StarIcon filled={favorited} />
                       </button>
                     </li>

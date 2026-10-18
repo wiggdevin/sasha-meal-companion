@@ -636,7 +636,7 @@ describe("the five onboarding steps", () => {
       onBlur: () => {},
       classifying: false,
     }));
-    const enforcedStart = markup.indexOf("Enforced exclusions");
+    const enforcedStart = markup.indexOf("Foods to block");
 
     expect(enforcedStart).toBeGreaterThanOrEqual(0);
     expect(markup).not.toContain("Preferences for coach suggestions");
@@ -714,7 +714,7 @@ describe("the five onboarding steps", () => {
       state, dispatch, onBlur: () => {}, classifying: false,
     }));
     expect(preferences).toContain("Vegetarian");
-    expect(preferences).toContain("Enforced exclusions");
+    expect(preferences).toContain("Foods to block");
     expect(preferences).not.toContain("Preferences for coach suggestions");
     expect(state.flags).not.toContain("vegetarian");
 
@@ -723,7 +723,7 @@ describe("the five onboarding steps", () => {
       state, base: defaultSettings(), dispatch,
     }));
     expect(plan).toContain(`${derived.activeTargetProfile!.training.kcal.toLocaleString()} kcal`);
-    expect(plan).toContain("Reset to derived");
+    expect(plan).toContain("Reset to suggested");
     expect(derived.weightKg).toBeCloseTo(60, 3);
 
     dispatch({ type: "edit_plan", field: "trainingKcal", value: 2300 });

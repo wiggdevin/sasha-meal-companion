@@ -10,11 +10,12 @@ import { isCoachActionApplying } from "@/lib/coach/apply-client";
 import type { ChatAction, ChatMessage } from "@/lib/coach/chat-state";
 import { useBottomFollow } from "@/lib/coach/use-bottom-follow";
 import Notice from "@/components/ui/Notice";
+import { useReplyAnnouncement } from "@/components/coach/use-reply-announcement";
 import styles from "./Transcript.module.css";
 
 export type TranscriptHandle = {
   cancelPrependAnchor: () => void;
-  captureBeforeUpdate: () => void;
+  captureBeforeUpdate: (force?: boolean) => void;
   capturePrependAnchor: () => void;
   getScroller: () => HTMLDivElement | null;
   restorePrependAnchor: () => void;
@@ -37,7 +38,7 @@ const Transcript = forwardRef<TranscriptHandle, Props>(function Transcript({
   messages, actions = [], contentVersion, children, hasOlder = false, loadingOlder = false,
   onLoadOlder, onUndo, onRetryAction, historyError, onRetryHistory, renderExtras,
 }, ref) {
-  const follow = useBottomFollow(contentVersion);
+  const follow = useBottomFollow(contentVersion); const announcement = useReplyAnnouncement(messages);
   const card = (entry: ChatAction) => (
     <CoachActionCard key={entry.action.actionId} action={entry.action} server={entry.server} status={entry.status}
       reason={entry.reason} nutritionUnchecked={entry.nutritionUnchecked} already={entry.already} notices={entry.notices}
@@ -62,8 +63,7 @@ const Transcript = forwardRef<TranscriptHandle, Props>(function Transcript({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div
-        ref={follow.scroller}
-        aria-label="Conversation"
+        ref={follow.scroller} role="region" aria-label="Conversation"
         className={`${styles.scroller} min-h-0 flex-1 overflow-y-auto`}
         style={{ overscrollBehavior: "contain" }}
         onScroll={() => {
@@ -75,7 +75,7 @@ const Transcript = forwardRef<TranscriptHandle, Props>(function Transcript({
         }}
       >
         {/* 16 px gutters (DESIGN.md §Layout): bubbles and cards never run to the screen edge. */}
-        <div ref={follow.content} className="flex flex-col gap-3 px-4 py-3" aria-live="polite" aria-atomic="false">
+        <div ref={follow.content} className="flex flex-col gap-3 px-4 py-3">
           {historyError && <Notice tone="error" title={historyError}
             action={{ label: "Retry", onClick: () => onRetryHistory?.() }} />}
           {messages.map((message) => (
@@ -90,6 +90,7 @@ const Transcript = forwardRef<TranscriptHandle, Props>(function Transcript({
           {children}
         </div>
       </div>
+      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
       {follow.hasNewMessage && <NewMessagePill onClick={follow.scrollToBottom} />}
     </div>
   );

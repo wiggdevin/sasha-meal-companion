@@ -192,10 +192,10 @@ describe("tdeeLines by phase (exp-3)", () => {
     const lines = tdeeLines({ estimate: input, profile: PROFILE_UNAVAILABLE, days: [] });
     expect(lines).toEqual([expect.objectContaining({ kcal: null, label: "No estimate yet",
       detail: "Finish your profile — the estimate starts from your own numbers.",
-      action: { label: "Set up your profile", href: "/onboarding" } })]);
+      action: { label: "Set up your profile", href: "/settings" } })]);
     expect(firstTdeeLine(lines)).toBeNull();
     const html = markup(input);
-    expect(html).toContain('href="/onboarding"');
+    expect(html).toContain('href="/settings"');
     expect(html).not.toContain("Which days count");
     expect(html).not.toMatch(/\d kcal/);
   });
