@@ -1,11 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { dayTypeChoices, dayTypeNowNote, type DayTypeChoice } from "@/lib/plan-day";
 import type { DayType } from "@/lib/types";
 
 const CHECK = <path d="M20 6 9 17l-5-5" />;
+
+/** The screen gutter the menu keeps clear on each side. */
+const GUTTER = 16;
+
+/**
+ * How far right (px; negative is left) a menu hung from its anchor's right edge must move to sit
+ * inside the screen's gutters. The chip sits well in from the right edge of the header (the Week
+ * link and the avatar follow it), so a 256 px menu hung from it ran off the left of a 320-390 px
+ * phone (UI audit 2026-10-18). Pure, so it is testable without layout.
+ */
+export function menuShift(anchorRight: number, width: number, viewportWidth: number, gutter = GUTTER): number {
+  let shift = 0;
+  const left = anchorRight - width;
+  if (left < gutter) shift = gutter - left;
+  if (anchorRight + shift > viewportWidth - gutter) shift = viewportWidth - gutter - anchorRight;
+  return Math.round(shift);
+}
 
 /**
  * The day-type dropdown: drops in place under the header chip instead of a bottom sheet. All three
@@ -41,6 +58,23 @@ export default function DayTypeMenu({
 }) {
   const menu = useRef<HTMLDivElement>(null);
   const choices = dayTypeChoices(dayType, date, locked);
+  const [shift, setShift] = useState(0);
+
+  // Placed before first paint, and again on a resize: measured from the offset parent (the chip's
+  // wrapper), never from the menu's own rect, which the open animation scales.
+  useLayoutEffect(() => {
+    const el = menu.current;
+    if (!el) return;
+    const place = () => {
+      const parent = el.offsetParent;
+      if (!(parent instanceof HTMLElement)) return;
+      const viewport = document.documentElement.clientWidth || window.innerWidth;
+      setShift(menuShift(parent.getBoundingClientRect().right, el.offsetWidth, viewport));
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, []);
 
   useEffect(() => {
     menu.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus({ preventScroll: true });
@@ -61,7 +95,8 @@ export default function DayTypeMenu({
     <motion.div ref={menu} id={id} role="menu" aria-label="Day type" aria-busy={saving ? true : undefined}
       initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-      className="menu-glass absolute right-0 top-[calc(100%+8px)] z-40 flex w-64 origin-top-right flex-col p-1.5">
+      style={{ right: -shift }}
+      className="menu-glass absolute top-[calc(100%+8px)] z-40 flex w-64 origin-top-right flex-col p-1.5">
       {error && <p role="alert" className="px-3 py-2 text-tiny text-alert">{error}</p>}
       {choices.map((choice) => (
         <button key={choice.id} type="button" role="menuitemradio" aria-checked={choice.current}

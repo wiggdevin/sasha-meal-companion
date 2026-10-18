@@ -9,7 +9,7 @@ import { RebalanceBubble, RebalanceCompact, RebalanceFull, rebalanceSpoken }
   from "@/components/today/RebalancePanelFace";
 import { GRAM_MACROS, MACRO_SPEC, formatMacro, type MacroKey } from "@/components/nutrition/spec";
 import { balanceBound, boundWords, eatenBound, withBound } from "@/lib/nutrition-display";
-import { formatWater, formatWaterOf, waterNumber } from "@/lib/water-units";
+import { formatWater, formatWaterOf, stepPhrase, unitWord, waterNumber, waterValue } from "@/lib/water-units";
 import type { OrbitWater } from "@/lib/today/health-orbit";
 import type { RebalancePanel } from "@/lib/rebalance/panel";
 import type { WidgetPanel } from "@/lib/today/widget-prefs";
@@ -147,8 +147,8 @@ export function BubbleFace({ panel, data }: { panel: WidgetPanel; data: PanelDat
     case "water":
       return <Ring share={data.water ? share(data.water.cups, data.water.goal) : 0} size={46} stroke={3}
         colorClass={styles.arcOnJelly}>
-        <span className={styles.bubbleText}>{data.water ? data.water.cups : "…"}</span>
-        <span className={styles.bubbleSub}>cups</span>
+        <span className={styles.bubbleText}>{data.water ? waterNumber(data.water.cups, data.water.unit ?? "cups") : "…"}</span>
+        <span className={styles.bubbleSub}>{unitWord(data.water?.unit ?? "cups", data.water ? waterValue(data.water.cups, data.water.unit ?? "cups") : 2)}</span>
       </Ring>;
     case "rebalance":
       return <RebalanceBubble panel={data.rebalance} />;
@@ -210,7 +210,7 @@ export function FullPanel({ panel, data, centre }: { panel: WidgetPanel; data: P
           </span>}
         </span>
         {data.onAddCup && <Button variant="secondary" size="sm" onClick={data.onAddCup} className={styles.cup}>
-          Add a cup
+          Add {stepPhrase(unit)}
         </Button>}
       </div>;
     }

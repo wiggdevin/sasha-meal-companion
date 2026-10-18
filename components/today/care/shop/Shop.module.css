@@ -113,6 +113,9 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  /* In the short water view the stage is only a few rows tall: the figure never spills over the
+     balance and its taps never land on the row above. */
+  overflow: hidden;
 }
 .stageBody {
   position: absolute;

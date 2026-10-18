@@ -92,13 +92,29 @@ function NoteBody({ note, mascot, onWatch, onDismiss }: { note: CareNote; mascot
   }
 }
 
-export default function CareNotes({ note, mascot = "sprout", onWatch, onDismiss }: {
-  note: CareNote | null; mascot?: MascotKey; onWatch: (award: Award) => void; onDismiss: (id: string) => void;
+/** What a screen reader says when a note lands: its title and words, said with the companion's name. */
+export function spokenNote(note: CareNote, mascot: MascotKey): string {
+  const say = (text: string) => named(text, mascot);
+  switch (note.type) {
+    case "accolade": return `${say(note.award.title)}. ${say(note.award.line)}`;
+    case "tip": case "shop": return `${say(note.title)}. ${say(note.text)}`;
+    default: return say(note.text);
+  }
+}
+
+export default function CareNotes({ note, mascot = "sprout", place = "top", onWatch, onDismiss }: {
+  note: CareNote | null; mascot?: MascotKey;
+  /** "bottom" keeps the note clear of a view's own top-strip controls (the water view's Add a cup). */
+  place?: "top" | "bottom";
+  onWatch: (award: Award) => void; onDismiss: (id: string) => void;
 }) {
   const reduce = useReducedMotionConfig() ?? false;
-  return <div className={styles.notes}>
+  // The live region stays mounted and only its words change: a region created in the same commit as
+  // its text is usually not announced (VoiceOver, NVDA), and the card itself holds buttons.
+  return <div className={styles.notes} data-place={place === "bottom" ? "bottom" : undefined}>
+    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{note ? spokenNote(note, mascot) : ""}</span>
     <AnimatePresence mode="popLayout" initial={false}>
-      {note && <motion.div key={note.id} role="status" aria-live="polite" className={styles.note} data-type={note.type}
+      {note && <motion.div key={note.id} className={styles.note} data-type={note.type}
         initial={reduce ? { opacity: 0 } : { opacity: 0, y: -40, scaleY: 0.9 }}
         animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scaleY: [0.9, 1.04, 1] }}
         exit={reduce ? { opacity: 0 } : { opacity: 0, y: -30, transition: FADES.quick }}

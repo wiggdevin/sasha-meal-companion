@@ -5,7 +5,9 @@ import Link from "next/link";
 import WeekGrid from "@/components/week/WeekGrid";
 import ShareButton from "@/components/ShareButton";
 import { computeWeekStats } from "@/lib/summary";
-import { resolveDay } from "@/lib/resolve";
+import { resolveStripDay } from "@/lib/today/resolve-strip-day";
+import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
+import { currentAccountOrNull } from "@/lib/device/account";
 import { loadStore } from "@/lib/store";
 import { formatWeight, lbToKg, type WeightUnit } from "@/lib/health/units";
 import type { Store } from "@/lib/types";
@@ -148,11 +150,46 @@ export default function WeekPage() {
     };
   }, []);
 
+  // The verified Eats Today generates meals from (UI audit 2026-10-18): without them /week had no
+  // generated meals, so a past day Today's strip reads "missed" read "unplanned" here and the stats
+  // scored a different plan. Read once the store is in, and again after every sync pass; a failed
+  // read resolves days as stored, as before.
+  const [eligible, setEligible] = useState<{ state: "loading" | "ready" | "failed"; ids?: ReadonlySet<string> }>(
+    { state: "loading" });
+  const storeLoaded = store !== null;
+  useEffect(() => {
+    if (!storeLoaded) return;
+    const account = currentAccountOrNull();
+    let live = true;
+    // A burst of sync passes starts several reads; only the latest one's answer is kept.
+    let latest = 0;
+    const read = async () => {
+      if (!account) { setEligible({ state: "failed" }); return; }
+      const mine = ++latest;
+      try {
+        const ids = await loadEligibleLocalFoodIds(account, loadStore().foods);
+        if (live && mine === latest && currentAccountOrNull()?.epoch === account.epoch) setEligible({ state: "ready", ids });
+      } catch {
+        if (live && mine === latest) setEligible((previous) => previous.state === "ready" ? previous : { state: "failed" });
+      }
+    };
+    void read();
+    const onSynced = () => { void read(); };
+    window.addEventListener(SYNCED_EVENT, onSynced);
+    return () => { live = false; window.removeEventListener(SYNCED_EVENT, onSynced); };
+  }, [storeLoaded]);
+
   const weekStart = useMemo(() => addDays(mostRecentMonday(today), weekOffset * 7), [today, weekOffset]);
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const weekDays = useMemo(
-    () => (store ? weekDates.map((date) => resolveDay(store, date)) : []),
-    [store, weekDates]
+    () => (store && eligible.state !== "loading"
+      ? weekDates.map((date) => resolveStripDay(store, date, eligible.state === "ready"
+        // Generation still waits for rule review: the stored gate decides, as on Today.
+        ? { eligibleFoodIds: eligible.ids, accepted: null, recipeAccessEnabled: false,
+          ruleReviewReady: store.settings.ruleReviewReady === true }
+        : undefined))
+      : []),
+    [store, weekDates, eligible]
   );
   const stats = useMemo(() => computeWeekStats(weekDays, today), [weekDays, today]);
   const weightUnit = store?.settings.weightUnit ?? "lb";
@@ -206,7 +243,9 @@ export default function WeekPage() {
         </div>
       </header>
 
-      <WeekGrid days={weekDays} today={today} />
+      {weekDays.length === 0
+        ? <p role="status" className={`m-0 px-1 ${STAT_CAPTION}`}>Loading your week…</p>
+        : <WeekGrid days={weekDays} today={today} />}
 
       {/* The two numbers that matter — PRD §6.2, deliberately not a wall of
           stats. Glass cards (`.shell` + `.surface`) with an eyebrow label and

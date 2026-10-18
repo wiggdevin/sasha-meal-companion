@@ -78,8 +78,26 @@ describe("CareNotes", () => {
   it("names the chosen companion, as the award player does (UI audit 2026-10-07)", () => {
     const week: CareNote = { id: "w", type: "accolade", award: awardByKey("seven-days")! };
     render(<MotionConfig reducedMotion="always"><CareNotes note={week} mascot="peapod" onWatch={() => {}} onDismiss={() => {}} /></MotionConfig>);
-    const note = screen.getByRole("status");
-    expect(note.textContent).toContain("A week of days recorded with Pod.");
-    expect(note.textContent).not.toContain("Sprout");
+    // Both what is said and the card people see.
+    for (const note of [screen.getByRole("status"), document.querySelector<HTMLElement>("[data-type='accolade']")!]) {
+      expect(note.textContent).toContain("A week of days recorded with Pod.");
+      expect(note.textContent).not.toContain("Sprout");
+    }
+  });
+
+  it("keeps one live region mounted, so a note that arrives later is announced (UI audit 2026-10-18)", () => {
+    const { rerender } = render(<MotionConfig reducedMotion="always"><CareNotes note={null} onWatch={() => {}} onDismiss={() => {}} /></MotionConfig>);
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("");
+    rerender(<MotionConfig reducedMotion="always"><CareNotes note={tip} onWatch={() => {}} onDismiss={() => {}} /></MotionConfig>);
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region.textContent).toContain(tip.text);
+    // The card with its buttons is not itself the live region.
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+
+  it("drops notes into the bottom of the water view, clear of Add a cup", () => {
+    const { container } = render(<MotionConfig reducedMotion="always"><CareNotes note={tip} place="bottom" onWatch={() => {}} onDismiss={() => {}} /></MotionConfig>);
+    expect(container.querySelector("[data-place='bottom']")).toBeTruthy();
   });
 });

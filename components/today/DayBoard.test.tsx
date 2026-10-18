@@ -327,3 +327,27 @@ describe("DayBoard · the week average", () => {
     expect(container.textContent).toContain("Average");
   });
 });
+
+describe("DayBoard · Mark eaten guard (UI audit 2026-10-18)", () => {
+  const meal = (slot: "meal-2" | "meal-3", name: string) =>
+    ({ slot, label: slot, name, time: "10:30", kcal: 500, protein: 30, image: null });
+  const board = (next: ReturnType<typeof meal>, onMarkEaten: (slot: string) => void, pending = false) =>
+    <MotionConfig reducedMotion="always"><DayBoard date={TODAY} today={TODAY} active next={next} planned={3}
+      onMarkEaten={onMarkEaten} markEatenControl={() => ({ className: "", "data-feedback-state": undefined,
+        "aria-busy": undefined, disabled: pending })} tips={[]} explainers={[]} /></MotionConfig>;
+
+  it("ignores a tap that lands on the next meal's check right after the first one moved on", () => {
+    const onMarkEaten = vi.fn();
+    const { rerender } = render(board(meal("meal-2", "Eggs"), onMarkEaten));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Eggs eaten" }));
+    expect(onMarkEaten).toHaveBeenCalledWith("meal-2");
+    rerender(board(meal("meal-3", "Soup"), onMarkEaten));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Soup eaten" }));
+    expect(onMarkEaten).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits while the eaten write is pending", () => {
+    render(board(meal("meal-2", "Eggs"), vi.fn(), true));
+    expect((screen.getByRole("button", { name: "Mark Eggs eaten" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});

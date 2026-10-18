@@ -1007,6 +1007,7 @@ export default function Today() {
             next: nextMeal(resolved.slots, isToday ? nowM : null),
             planned: resolved.slots.filter((slot) => slot.meal !== null).length,
             onMarkEaten: (slot) => void toggleEaten(slot),
+            markEatenControl: (slot) => todayFeedback.controlPropsFor(`eaten:${slot}`),
             store: planStore,
             eligibleIds: eligibleFoodIds ?? undefined,
             onSelectDate: selectDate,
@@ -1015,7 +1016,7 @@ export default function Today() {
             explainers: [DAY_CARD_EXPLAINER],
           }} />
 
-        <DuplicateEntryCard date={viewedDate} extras={resolved.extras} />
+        <DuplicateEntryCard date={viewedDate} extras={resolved.extras} feedback={todayFeedback} />
 
         <DayNutrients day={resolved} accountId={currentAccountOrNull()?.userId ?? null} />
 
@@ -1248,6 +1249,7 @@ export default function Today() {
                 onSave={(n) => noteEntry(openEntry, n)}
                 onSaved={(before, after) => noteSaved(openEntry, before, after)}
                 onRemove={() => unlogFood(openEntry)}
+                removeLabel={isToday ? "Remove from today" : "Remove from this day"}
                 onLogAgain={canLogAgain(e) ? () => { void logEntryAgain(e); } : undefined}
                 onClose={() => setOpenEntry(null)}
               />

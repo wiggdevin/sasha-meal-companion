@@ -7,7 +7,7 @@ import { GRAM_MACROS, MACRO_SPEC, formatMacro } from "@/components/nutrition/spe
 import { balance, dayMood, share, type PanelData } from "@/components/today/LiveWidgetPanels";
 import { balanceBound, boundWords, eatenBound, withBound } from "@/lib/nutrition-display";
 import { orbitNodes, type OrbitBody } from "@/lib/today/health-orbit";
-import { formatWater, formatWaterOf, waterNumber } from "@/lib/water-units";
+import { formatWater, formatWaterOf, stepPhrase, waterNumber } from "@/lib/water-units";
 import ring from "@/components/today/island/Island.module.css";
 import styles from "@/components/today/DayOverview.module.css";
 
@@ -75,7 +75,7 @@ export default function DayOverview({ data, body }: { data: PanelData; body?: Or
           {water && <span className={styles.word}>of {formatWater(water.goal, unit)}</span>}
         </span>
       </span>
-      {onAddCup && <Button variant="secondary" size="sm" onClick={onAddCup} className="shrink-0">Add a cup</Button>}
+      {onAddCup && <Button variant="secondary" size="sm" onClick={onAddCup} className="shrink-0">Add {stepPhrase(unit)}</Button>}
     </section>
 
     <div className={styles.healthRow}>

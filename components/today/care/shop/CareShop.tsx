@@ -71,7 +71,8 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
   const retry = useRef<{ itemId: string; actionId: string } | null>(null);
   const reduce = useReducedMotionConfig() ?? false;
   const mascot = useMascot();
-  // Sprout fills the stage, whatever room the well gives it.
+  // Sprout fills the stage, whatever room the well gives it, and shrinks with a short one (the water
+  // view), so it never grows past the stage.
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(196);
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function CareShop({ state, onChange, today, rules, items, onRefre
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      if (width > 0 && height > 0) setSize(Math.round(Math.max(120, Math.min(360, width * 0.82, height))));
+      if (width > 0 && height > 0) setSize(Math.round(Math.max(48, Math.min(360, width * 0.82, height))));
     });
     observer.observe(el);
     return () => observer.disconnect();
