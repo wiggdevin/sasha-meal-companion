@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import Button from "@/components/ui/Button";
 import DateField from "@/components/ui/DateField";
 import GlassSelect from "@/components/ui/GlassSelect";
@@ -19,6 +19,49 @@ import type { RecipePreviewResult } from "@/lib/shopping/preview-contract";
 import { displayAmount, distinctEvidenceIssues, evidenceSummary } from "@/lib/recipes/preview-display";
 import Disclosure from "@/components/ui/Disclosure";
 import Notice from "@/components/ui/Notice";
+import { readMealSlots } from "@/components/recipes-hub/PutInMeal";
+import { readableDay } from "@/components/RecipeEatenConfirm";
+import { clock12, defaultSlot, localDate, type SlotChoice } from "@/lib/recipes-hub/put-in-meal";
+
+/** The macro ids as the person reads them. */
+const MACRO_LABEL = { kcal: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat" } as const;
+
+/** The recipe plan API's six meal slots, for a day whose layout could not be read. */
+const ANY_MEAL: SlotChoice[] = Array.from({ length: 6 }, (_, index) => ({ slotId: `meal-${index + 1}`,
+  label: `Meal ${index + 1}`, time: "", planned: null, eaten: false }));
+
+/**
+ * The meal chosen first: the one asked for; today, the next meal by the clock (an empty one first,
+ * so an evening preview sizes to dinner, not breakfast); else the day's first empty meal, else its
+ * first open one.
+ */
+function firstSlot(slots: readonly SlotChoice[], date: string, wanted?: string | null): string {
+  if (wanted) return wanted;
+  if (date === localDate()) {
+    const now = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .format(new Date());
+    const ahead = slots.filter((slot) => !slot.eaten && slot.time && slot.time >= now);
+    const next = ahead.find((slot) => slot.planned === null) ?? ahead[0];
+    if (next) return next.slotId;
+  }
+  return defaultSlot(slots) ?? slots.find((slot) => !slot.eaten)?.slotId ?? slots[0]?.slotId ?? "meal-1";
+}
+
+/** The day's meal slots, or the six the plan API takes when the layout can't be read. */
+function mealSlotsOn(date: string): SlotChoice[] {
+  const read = date ? readMealSlots(date) : [];
+  return read.length > 0 ? read : ANY_MEAL;
+}
+
+/** The Groceries link: on Foods, a same-page hash change, which is what switches its tab
+ *  (FoodsTabs follows `hashchange`; a client navigation to the same path does not fire it). */
+function openShopping(event: MouseEvent<HTMLAnchorElement>) {
+  if (window.location.pathname !== "/foods") return;
+  event.preventDefault();
+  // Already #shopping (the tab was switched by hand since): setting it again fires nothing.
+  if (window.location.hash === "#shopping") window.dispatchEvent(new HashChangeEvent("hashchange"));
+  else window.location.hash = "shopping";
+}
 
 function today(): string {
   const parts = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "2-digit", day: "2-digit" })
@@ -32,7 +75,19 @@ export default function RecipePlanFlow({ recipe, onClose, initialDate, initialSl
   onPlanned?: () => void;
 }) {
   const [date, setDate] = useState(initialDate ?? today);
-  const [slotId, setSlotId] = useState(initialSlotId ?? "meal-1");
+  const slots = useMemo(() => mealSlotsOn(date), [date]);
+  const [slotId, setSlotId] = useState(() => {
+    const day = initialDate ?? today();
+    return firstSlot(mealSlotsOn(day), day, initialSlotId);
+  });
+  // The day's meals, with a slot asked for that the layout no longer has kept so it stays chosen.
+  const mealOptions = (slots.some((slot) => slot.slotId === slotId) ? slots
+    : [{ slotId, label: `Meal ${slotId.slice(5)}`, time: "", planned: null, eaten: false }, ...slots])
+    .map((slot) => ({ value: slot.slotId,
+      label: `${slot.label}${slot.time ? ` · ${clock12(slot.time)}` : ""}${slot.eaten ? " · Eaten" : ""}` }));
+  const day = readableDay(date);
+  const when = /^(Today|Yesterday|Tomorrow)$/.test(day) ? day.toLowerCase() : day;
+  const slotLabel = slots.find((slot) => slot.slotId === slotId)?.label ?? `Meal ${slotId.slice(5)}`;
   const [fraction, setFraction] = useState<number | undefined>(undefined);
   const [preview, setPreview] = useState<RecipePreviewResult | null>(null);
   /** The rule inputs the shown preview, and the saved plan, were read under. */
@@ -92,21 +147,26 @@ export default function RecipePlanFlow({ recipe, onClose, initialDate, initialSl
     finally { setBusy(false); }
   }
   return <section className="shell" aria-label={`Plan ${recipe.name}`}><div className="surface flex flex-col gap-3 p-4">
-    <div className="flex items-center justify-between"><h3 className="m-0 text-base font-semibold">Adjust portion · {recipe.name}</h3>
+    <div className="flex items-center justify-between gap-2"><h3 className="m-0 min-w-0 text-body font-semibold">Adjust portion · {recipe.name}</h3>
       <Button onClick={onClose}>Close</Button></div>
     {saved ? <>
       <Notice tone="success" title="Added to the plan.">
-        <Link href="/foods#shopping" className="tap underline">Plan groceries in Shopping</Link></Notice>
+        <Link href="/foods#shopping" onClick={openShopping} className="tap underline">Plan groceries in Shopping</Link></Notice>
       <RuleMark mark={verdictNow(savedMark, savedInputs, inputsNow)} />
     </> : <>
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-sm">Date<DateField label="Date" className="mt-1 min-h-11 w-full px-2" value={date}
-          onChange={(next) => { setDate(next ?? ""); dropPreview(); }} /></label>
-        <div className="text-sm"><span>Meal</span><GlassSelect aria-label="Meal" className="mt-1" value={slotId}
+        <label className="text-body-sm">Date<DateField label="Date" className="mt-1 min-h-11 w-full px-2" value={date}
+          onChange={(next) => {
+            const day = next ?? "";
+            setDate(day); dropPreview();
+            const nextSlots = mealSlotsOn(day);
+            if (!nextSlots.some((slot) => slot.slotId === slotId && !slot.eaten)) setSlotId(firstSlot(nextSlots, day));
+          }} /></label>
+        <div className="min-w-0 text-body-sm"><span>Meal</span><GlassSelect aria-label="Meal" className="mt-1" value={slotId}
           onChange={(next) => { setSlotId(next); dropPreview(); }}
-          options={Array.from({ length: 6 }, (_, index) => ({ value: `meal-${index + 1}`, label: `Meal ${index + 1}` }))} /></div>
+          options={mealOptions} /></div>
       </div>
-      <label className="text-sm">Serving amount (blank asks for a meal-target suggestion)<input type="number" className="well mt-1 min-h-11 w-full px-2"
+      <label className="text-body-sm">Servings (leave blank to size it to this meal)<input type="number" className="well mt-1 min-h-11 w-full px-2"
         min={recipe.minServingFraction} max={recipe.maxServingFraction} step="0.1" value={fraction ?? ""}
         onChange={(event) => { setFraction(event.target.value ? Number(event.target.value) : undefined); dropPreview(); }} /></label>
       <Button variant="primary" disabled={busy || !date || (fraction !== undefined && (!Number.isFinite(fraction)
@@ -117,22 +177,22 @@ export default function RecipePlanFlow({ recipe, onClose, initialDate, initialSl
         {/* This recipe and its adapted lines under the current rules; it never blocks the add. */}
         <RuleMark mark={previewStale || judgedRulesKey(preview) !== phoneRulesKey() ? RECIPE_RECHECK_MARK
           : verdictNow(preview.ruleMark, previewInputs, inputsNow)} />
-        <p className="m-0 text-sm">{preview.exactFitAvailable ? "Revision-backed portion" :
-          "Approximate portion based on sourced estimates"}. Suggested amount: {displayAmount(preview.servingFraction, 2)} serving{preview.servingFraction === 1 ? "" : "s"}. All ingredients keep the same ratio.</p>
-        <p className="m-0 text-sm">Meal target for {date}, Meal {slotId.slice(5)}: {preview.mealTarget
+        <p className="m-0 text-body-sm">{preview.exactFitAvailable ? "Exact portion" :
+          "Approximate portion, from estimated nutrition"}. Suggested amount: {displayAmount(preview.servingFraction, 2)} serving{preview.servingFraction === 1 ? "" : "s"}. All ingredients keep the same ratio.</p>
+        <p className="m-0 text-body-sm">Target for {slotLabel}, {when}: {preview.mealTarget
           ? <KcalText text={`${displayAmount(preview.mealTarget.kcal)} kcal · ${displayAmount(preview.mealTarget.protein)} g protein · ${displayAmount(preview.mealTarget.carbs)} g carbs · ${displayAmount(preview.mealTarget.fat)} g fat`} />
           : "not available"}.</p>
-        <ul className="m-0 list-disc pl-5 text-sm">{preview.ingredientSnapshot.map((item) => <li key={item.seq}>
-          {recipe.ingredients.find((source) => source.seq === item.seq)?.name ?? `Ingredient ${item.seq}`}: {displayAmount(item.quantity, 2)} {item.unit}
+        <ul className="m-0 list-disc pl-5 text-body-sm">{preview.ingredientSnapshot.map((item) => <li key={item.seq}>
+          {recipe.ingredients.find((source) => source.seq === item.seq)?.name ?? "An ingredient"}: {displayAmount(item.quantity, 2)} {item.unit}
         </li>)}</ul>
-        <dl className="grid grid-cols-2 gap-2 text-sm">{RECIPE_MACROS.map((key) => <div key={key}>
-          <dt>{key}</dt><dd className="m-0">{preview.nutritionSnapshot[key]?.status === "unknown" || preview.nutritionSnapshot[key]?.value === null || preview.nutritionSnapshot[key]?.value === undefined
-            ? "Missing evidence" : `${displayAmount(preview.nutritionSnapshot[key].value!)}${key === "kcal" ? " kcal" : " g"}`}
+        <dl className="grid grid-cols-2 gap-2 text-body-sm">{RECIPE_MACROS.map((key) => <div key={key}>
+          <dt>{MACRO_LABEL[key]}</dt><dd className="m-0">{preview.nutritionSnapshot[key]?.status === "unknown" || preview.nutritionSnapshot[key]?.value === null || preview.nutritionSnapshot[key]?.value === undefined
+            ? "Not known" : `${displayAmount(preview.nutritionSnapshot[key].value!)}${key === "kcal" ? " kcal" : " g"}`}
             {preview.nutritionSnapshot[key]?.status === "estimated" ? " · estimated" : ""}
             {preview.nutritionSnapshot[key]?.status !== "unknown" && preview.gap[key] !== null ? ` · ${displayAmount(Math.abs(preview.gap[key]!))}${key === "kcal" ? " kcal" : " g"} ${preview.gap[key]! >= 0 ? "above" : "below"} target` : ""}</dd></div>)}</dl>
-        {preview.evidenceIssues.length > 0 && <div className="text-sm">
+        {preview.evidenceIssues.length > 0 && <div className="text-body-sm">
           <p className="m-0">{evidenceSummary(preview.evidenceIssues)} {preview.approximateFitAvailable
-            ? "Nutrition is an estimate, not an exact fit." : "Missing evidence prevents a reliable portion preview."}</p>
+            ? "Nutrition is an estimate, not an exact fit." : "Some nutrition is missing, so this portion can’t be sized reliably."}</p>
           <Disclosure variant="row" size="sm" title="Evidence details" bodyClassName="pb-2">
             <ul className="m-0 list-disc pl-5">{distinctEvidenceIssues(preview.evidenceIssues).map((issue, index) =>
               <li key={`${issue.code}:${issue.ingredientSeq ?? index}`}>{issue.message}</li>)}</ul>

@@ -17,6 +17,22 @@ import { loadAcceptedRecipeSelections } from "@/lib/recipes/accepted-client";
 import type { AcceptedRecipeSelection } from "@/lib/shopping/preview-contract";
 import type { RuleMark as RuleMarkValue, SlotId } from "@/lib/types";
 import Notice from "@/components/ui/Notice";
+import { addDays, localDate } from "@/lib/recipes-hub/put-in-meal";
+
+/**
+ * A day as a person reads it: "Today", "Yesterday", "Tomorrow", the weekday within the week either
+ * side, else the weekday with its date ("Sat, Oct 3"). Never the ISO form.
+ */
+export function readableDay(date: string, today = localDate()): string {
+  if (date === today) return "Today";
+  if (date === addDays(today, -1)) return "Yesterday";
+  if (date === addDays(today, 1)) return "Tomorrow";
+  const at = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(at.getTime())) return date;
+  const near = date > addDays(today, -7) && date < addDays(today, 7);
+  return new Intl.DateTimeFormat("en-US", near ? { weekday: "long", timeZone: "UTC" }
+    : { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(at);
+}
 
 function sameSelection(a: AcceptedRecipeSelection, b: AcceptedRecipeSelection | null | undefined): boolean {
   return Boolean(b && a.id === b.id && a.recipeRevisionId === b.recipeRevisionId
@@ -102,7 +118,7 @@ export default function RecipeEatenConfirm({ selection, currentSelection, date, 
     } finally { setBusy(false); }
   }
   const shownMark = logged ?? ruleMark ?? null;
-  return <Sheet title={`Log ${selection.recipeName}`} subtitle={`${date} · Meal ${slotId.slice(5)}`} onClose={close}>
+  return <Sheet title={`Log ${selection.recipeName}`} subtitle={`${readableDay(date)} · Meal ${slotId.slice(5)}`} onClose={close}>
     <div className="flex flex-col gap-3 px-1 pb-4">
       <p className="m-0 text-sm">Planned: {selection.servingFraction} serving{selection.servingFraction === 1 ? "" : "s"}. Enter what you actually ate. Your planned amount stays the same.</p>
       <label className="text-sm">Servings eaten<input type="number" className="well mt-1 min-h-11 w-full px-3"
