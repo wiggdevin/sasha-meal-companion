@@ -224,7 +224,12 @@ describe("<AuthGate> binds, adopts and readies the account (Phase 9 §0.1)", () 
     expect(container.textContent)
       .toContain("2 changes are not synced yet. They stay on this phone and send when you sign in again.");
     expect(auth.signOut).not.toHaveBeenCalled();
-    await act(async () => { signOut().click(); });
+    // UI audit 2026-10-18 §9: the notice is announced and the button says a second tap is needed.
+    expect(container.querySelector('p[role="status"]')?.textContent).toContain("2 changes are not synced yet.");
+    const anyway = [...container.querySelectorAll("button")].find((b) => b.textContent === "Sign out anyway")!;
+    expect(anyway).toBeTruthy();
+    // A repeat tap while the first is running signs out once.
+    await act(async () => { anyway.click(); anyway.click(); });
     await quiet();
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     expect(device.reload).toHaveBeenCalledTimes(1);

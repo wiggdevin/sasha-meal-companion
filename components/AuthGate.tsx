@@ -249,6 +249,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [blocked, setBlocked] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const boot = useSyncExternalStore<BootPhase>(onBootPhase, bootPhase, () => "idle");
   const departure = useSyncExternalStore<DeparturePhase>(
     onDeparturePhase, departurePhase, () => "none");
@@ -382,25 +383,35 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setBlocked(false);
       setAttempt((value) => value + 1);
     };
-    // Sign out says first what is still waiting on this phone; a second tap signs out.
+    // Sign out says first what is still waiting on this phone; a second tap ("Sign out anyway")
+    // signs out. The button is disabled while either step runs, so a repeat tap does
+    // not start a second one.
     const signOut = async (): Promise<void> => {
+      if (signingOut) return;
       // The account the tap is for: a later session change never turns it into another's sign-out.
       const h = currentAccountOrNull();
       if (h === null) return;
-      if (notice === null) {
-        const text = await signOutNotice(h.userId);
-        if (text !== null) { setNotice(text); return; }
+      setSigningOut(true);
+      try {
+        if (notice === null) {
+          const text = await signOutNotice(h.userId);
+          if (text !== null) { setNotice(text); return; }
+        }
+        await signOutHere(browserClient().auth, h.userId);
+      } finally {
+        setSigningOut(false);
       }
-      void signOutHere(browserClient().auth, h.userId);
     };
     return (
       <GateShell body={view === "adoption-failed"
         ? "This phone could not finish the update."
         : "Connect once to finish setting up this device"}>
-        {notice ? <p className="m-0 text-caption font-normal text-graphite">{notice}</p> : null}
+        {notice ? <p role="status" className="m-0 text-caption font-normal text-graphite">{notice}</p> : null}
         <div className="mt-2 flex flex-col gap-2">
           <Button variant="primary" size="lg" block onClick={retry}>Retry</Button>
-          <Button variant="tertiary" block onClick={() => { void signOut(); }}>Sign out</Button>
+          <Button variant="tertiary" block disabled={signingOut} aria-busy={signingOut || undefined} onClick={() => { void signOut(); }}>
+            {notice ? "Sign out anyway" : "Sign out"}
+          </Button>
         </div>
       </GateShell>
     );

@@ -133,7 +133,7 @@ describe("create an account", () => {
     render(<SignInPage />);
     openCreateMode();
     await submit("new-person@example.com");
-    expect(await screen.findByText("Too many tries. Wait a minute, then try again.")).toBeTruthy();
+    expect(await screen.findByText("Too many tries. Wait a few minutes, then try again.")).toBeTruthy();
     expect(screen.queryByText(FAILED)).toBeNull();
   });
 });
@@ -145,13 +145,16 @@ describe("create an account", () => {
 describe("no account enumeration in the sign-in UI (PR #246 review r1 finding 3)", () => {
   beforeEach(reset);
 
-  const sentCopy = "If this email has an account, we sent a sign-in link. Check your inbox.";
+  // The sent copy names the typed address (UI audit 2026-10-18 §9) and says nothing about whether it
+  // has an account. textContent, since the address is its own element inside the line.
+  const sentCopy = (address: string): string =>
+    `If ${address} has an account, we sent a sign-in link. Check your inbox.`;
 
   it("shows the neutral sent copy for an address that has an account", async () => {
     signInWithOtp.mockResolvedValueOnce({ error: null });
     render(<SignInPage />);
     await submit("has-account@example.com");
-    expect(screen.getByText(sentCopy)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe(sentCopy("has-account@example.com"));
   });
 
   it("shows the same neutral sent copy for an address with no account", async () => {
@@ -159,7 +162,7 @@ describe("no account enumeration in the sign-in UI (PR #246 review r1 finding 3)
     signInWithOtp.mockResolvedValueOnce({ error: null });
     render(<SignInPage />);
     await submit("no-account@example.com");
-    expect(screen.getByText(sentCopy)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe(sentCopy("no-account@example.com"));
     expect(screen.queryByText(FAILED)).toBeNull();
   });
 
@@ -176,13 +179,25 @@ describe("no account enumeration in the sign-in UI (PR #246 review r1 finding 3)
     signInWithOtp.mockResolvedValueOnce({ error: { code: "rate_limited" } });
     render(<SignInPage />);
     await submit("someone@example.com");
-    expect(screen.getByText("Too many tries. Wait a minute, then try again.")).toBeTruthy();
+    expect(screen.getByText("Too many tries. Wait a few minutes, then try again.")).toBeTruthy();
   });
 
-  it("shows the generic error when the connection drops", async () => {
-    signInWithOtp.mockResolvedValueOnce({ error: { code: "offline" } });
+  // UI audit 2026-10-18 §9: nothing judged the address, so the screen never says to check it.
+  it.each(["offline", "auth_unavailable", "rate_limit_unavailable", "failed", "internal"])(
+    "says the service could not be reached on %s, never to check the address",
+    async (code) => {
+      signInWithOtp.mockResolvedValueOnce({ error: { code } });
+      render(<SignInPage />);
+      await submit("someone@example.com");
+      expect(screen.getByText("Could not reach the sign-in service. Check your connection and try again.")).toBeTruthy();
+      expect(screen.queryByText(FAILED)).toBeNull();
+    },
+  );
+
+  it("moves focus to the sent line so it is announced and focus is not lost", async () => {
+    signInWithOtp.mockResolvedValueOnce({ error: null });
     render(<SignInPage />);
     await submit("someone@example.com");
-    expect(screen.getByText(FAILED)).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("status")));
   });
 });

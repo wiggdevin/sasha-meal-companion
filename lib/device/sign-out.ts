@@ -46,5 +46,6 @@ export async function signOutNotice(userId: string): Promise<string | null> {
   const total = pendingTotal(await pendingWork(userId));
   if (total === null) return "Some changes may not be synced yet. They stay on this phone.";
   if (total === 0) return null;
+  if (total === 1) return "1 change is not synced yet. It stays on this phone and sends when you sign in again.";
   return `${total} changes are not synced yet. They stay on this phone and send when you sign in again.`;
 }

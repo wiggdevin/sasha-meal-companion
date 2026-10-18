@@ -4,7 +4,7 @@
  * attempt-limit.ts stays in front of it as a page-memory floor.
  */
 
-import { checkAttemptLimit } from "@/app/sign-in/attempt-limit";
+import { checkAttemptLimit, recordFailedAttempt } from "@/app/sign-in/attempt-limit";
 import { LIMITED_CODES, UNAVAILABLE_CODES, type SignInError } from "@/lib/sign-in-client";
 
 export type OtpAuth = {
@@ -22,10 +22,14 @@ const OFFLINE = "Could not reach the sign-in service. Check your connection and 
 /** Returns an error message for the screen, or null once the session is set. */
 export async function verifyOtpCode(auth: OtpAuth, email: string, code: string): Promise<string | null> {
   const address = email.trim();
-  const throttled = checkAttemptLimit(`otp:${address.toLowerCase()}`);
+  const limitKey = `otp:${address.toLowerCase()}`;
+  const throttled = checkAttemptLimit(limitKey);
   if (throttled) return throttled;
   const { error } = await auth.verifyOtp({ email: address, token: code, type: "email" });
   if (!error) return null;
   if (LIMITED_CODES.has(error.code)) return LIMITED;
-  return UNAVAILABLE_CODES.has(error.code) ? OFFLINE : MISMATCH;
+  if (UNAVAILABLE_CODES.has(error.code)) return OFFLINE;
+  // Only a code the server judged counts toward the floor; offline or limited tries do not.
+  recordFailedAttempt(limitKey);
+  return MISMATCH;
 }
