@@ -164,6 +164,10 @@ export default function LogFoodSheet({
   const [foodRefId, setFoodRefId] = useState<string | null>(null);
   /** Why foodRefId is still null — distinguishes "sign in" from a transient RPC/network failure. */
   const [refFailureReason, setRefFailureReason] = useState<FoodRefFailureReason | null>(null);
+  /** The food_ref is still being fetched: no failure to state yet (UI audit 2026-10-18 §6). */
+  const [refPending, setRefPending] = useState(false);
+  /** A favorite chip that cannot open a food on this phone says why, instead of doing nothing. */
+  const [favoriteNote, setFavoriteNote] = useState<string | null>(null);
   /**
    * Two quick taps race on two awaits. Every pick takes a number; after each await the handler
    * bails unless it is still the newest, so a slow first detail can never swap the revision under
@@ -207,6 +211,8 @@ export default function LogFoodSheet({
     setRevisionOffPlan(row.offPlan);
     setFoodRefId(null);
     setRefFailureReason(null);
+    setRefPending(false);
+    setFavoriteNote(null);
     if (row.offline || row.catalogFoodId === null) {
       // Offline tier: the bundled database has no revision, so the Phase 0 path logs it.
       if (!row.offlineFoodId) {
@@ -241,7 +247,14 @@ export default function LogFoodSheet({
       router.push("/foods#recipes");
       return;
     }
-    if (fav.catalogFoodId == null) return;
+    if (fav.kind === "meal") {
+      setFavoriteNote("Saved meals are offered in each meal's swap list on Today.");
+      return;
+    }
+    if (fav.catalogFoodId == null) {
+      setFavoriteNote(`Search for ${fav.name} once on this phone, then the star logs it from here.`);
+      return;
+    }
     void pickCatalogRow({ key: `fav:${fav.id}`, catalogFoodId: fav.catalogFoodId,
       revisionId: fav.revisionId ?? null, description: fav.name, brand: null, sourceTile: "USDA",
       prefStatus: null, qualityFlags: [], offPlan: [], offline: false, score: 1 } as CatalogRow);
@@ -250,6 +263,7 @@ export default function LogFoodSheet({
   async function attachFoodRef(catalogFoodId: number, seq: number) {
     let ref: string | null = null;
     let reason: FoodRefFailureReason | null = null;
+    setRefPending(true);
     try {
       ref = await resolveFoodRef(catalogFoodId, (r) => { reason = r; });
     } catch {
@@ -257,6 +271,7 @@ export default function LogFoodSheet({
       reason = "rpc_error";
     }
     if (seq !== pickSeq.current) return;
+    setRefPending(false);
     setFoodRefId(ref);
     setRefFailureReason(reason);
   }
@@ -513,8 +528,10 @@ export default function LogFoodSheet({
         canCommit={canConfirmPortion(grams, foodRefId, submitting)}
         saving={submitting}
         hint={foodRefId !== null ? null
+          : refPending ? "Getting this food ready…"
           : refFailureReason === "rpc_error" ? "Could not save that pick. Try again."
-          : "Sign in to log from the catalog."}
+          : refFailureReason === "signed_out" ? "Sign in to log from the catalog."
+          : null}
         onPortion={(p) => {
           setCatPortion(p);
           setTypedPer(null);
@@ -552,7 +569,9 @@ export default function LogFoodSheet({
         footer={
           <div className="flex flex-col gap-2.5">
             <Button variant="primary" size="lg" block disabled={submitting} onClick={confirmPortion}>
-              {mode === "meal" ? "Add to meal" : "Add"} · {fmt(qty)} × {portion.label} · <MacroFigure macro="kcal" value={macros.kcal} />
+              {/* The serving pill above names the portion; a USDA label can run to 75 characters and
+                  would push this nowrap button past the sheet (UI audit 2026-10-18 §6). */}
+              {mode === "meal" ? "Add to meal" : "Add"} · <MacroFigure macro="kcal" value={macros.kcal} />
             </Button>
             <WorkingLine active={submitting} step="commit" />
             {commitNotice}
@@ -657,6 +676,7 @@ export default function LogFoodSheet({
         {useCatalog ? (
           <>
             <FavoritesStrip onPick={handleFavoritePick} />
+            {favoriteNote && <Notice tone="neutral" title={favoriteNote} />}
             <CatalogSearch mine={mine} autoFocus onPick={pickCatalogRow} />
           </>
         ) : (

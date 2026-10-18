@@ -4,6 +4,7 @@ import { useState } from "react";
 import Stepper from "@/components/Stepper";
 import WorkingLine from "@/components/WorkingLine";
 import AllergenCheck from "@/components/coach/editors/AllergenCheck";
+import GramsField from "@/components/coach/editors/GramsField";
 import EditorPill from "@/components/coach/editors/EditorPill";
 import DraftSlotPicker from "@/components/coach/editors/DraftSlotPicker";
 import SanityNotices from "@/components/coach/editors/SanityNotices";
@@ -200,8 +201,15 @@ export default function BarcodeDraftEditor({
         </div>
       </div>
 
-      <Stepper label="How many" value={qty} step={1}
-        onChange={(next) => setQty(Math.max(1, next))} helperText={`${grams} g`} />
+      {/* Quarter steps and an exact amount: half a bag or 45 g of a 100 g pack (UI audit 2026-10-18 §6). */}
+      <Stepper label="How many" value={qty} step={0.25}
+        onChange={(next) => setQty(Math.max(0.25, Math.round(next * 4) / 4))} helperText={`${grams} g`} />
+      <GramsField value={grams} onGrams={(next) => {
+        if (next <= 0) return;
+        setPortionId(null);
+        setExplicitGrams(next);
+        setQty(1);
+      }} />
       {projection && <ProjectedDayTotals projection={projection} added={strip} />}
       <SanityNotices sanity={match.sanity} policy={match.policy}
         typicalServing={match.typicalServing} grams={grams}

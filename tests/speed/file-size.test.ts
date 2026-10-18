@@ -44,16 +44,21 @@ const BASELINES: Record<string, number> = {
   "components/coach/CoachShell.tsx": 331,
   "components/coach/Transcript.tsx": 99,
   "components/coach/NewMessagePill.tsx": 13,
-  "components/coach/attachments/ScanAttachmentSheet.tsx": 94,
+  /** +29 (UI audit 2026-10-18 §6): the sheet closes once the scan is posted, and a refused send
+   *  says so on "Which one?" and in the scanner instead of hanging on "Looking it up…". */
+  "components/coach/attachments/ScanAttachmentSheet.tsx": 123,
   /** 170 in the UI pass (2026-10-04, U19): the weigh-in logs directly and turns into its follow-ups
    *  (Undo, trend, suggestions) instead of sending a chat sentence; the weight path is weigh-in.ts. */
   "components/coach/attachments/WeighInField.tsx": 171,
   "components/coach/attachments/context.ts": 18,
-  "components/coach/attachments/useAttachmentTurn.ts": 97,
+  /** +9 (UI audit 2026-10-18 §6): `onDispatched`, so a caller can tell posted from refused. */
+  "components/coach/attachments/useAttachmentTurn.ts": 106,
   "components/coach/attachments/shell-state.ts": 65,
   "components/coach/editors/BarcodeDraftEditor.tsx": 276,
   /** +12 in W125: the meal's name, time and Save as recipe (CaptureMealDetails) when the capture sheet asks. */
-  "components/coach/editors/CaptureDraftEditor.tsx": 273,
+  /** +6 (UI audit 2026-10-18 §6): an exact grams box beside the stepper (GramsField), and
+   *  "Search manually" offered while nothing matched. */
+  "components/coach/editors/CaptureDraftEditor.tsx": 279,
   "components/coach/editors/EditorPill.tsx": 27,
   "components/coach/editors/SanityNotices.tsx": 66,
   "components/coach/editors/not-verified.ts": 28,

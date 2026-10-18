@@ -397,6 +397,12 @@ export default function CaptureSheet({
         details={detailsFor(draft, flow.photoAt(), flow.when)}
         onSave={(edits, saveLabelAsFood, _slot, details) =>
           flow.save(edits, saveLabelAsFood, onLogged, details)}
+        onSearchManually={() => {
+          // Leaving for search drops this draft the same way Dismiss does; search logs on its own.
+          flow.discard();
+          clearDraft(draft.draftId);
+          onOpenSearch();
+        }}
         onDismiss={() => {
           // Dismissed without saving: nothing will close this run, and leaving it open would let
           // its marks land in whatever the user captures next (T0 §1).
