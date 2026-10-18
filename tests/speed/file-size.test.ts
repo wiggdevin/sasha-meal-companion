@@ -44,9 +44,9 @@ const BASELINES: Record<string, number> = {
   "components/coach/CoachShell.tsx": 331,
   "components/coach/Transcript.tsx": 99,
   "components/coach/NewMessagePill.tsx": 13,
-  /** +29 (UI audit 2026-10-18 §6): the sheet closes once the scan is posted, and a refused send
+  /** +35 (UI audit 2026-10-18 §6): the sheet closes once the scan is posted, and a refused send
    *  says so on "Which one?" and in the scanner instead of hanging on "Looking it up…". */
-  "components/coach/attachments/ScanAttachmentSheet.tsx": 123,
+  "components/coach/attachments/ScanAttachmentSheet.tsx": 129,
   /** 170 in the UI pass (2026-10-04, U19): the weigh-in logs directly and turns into its follow-ups
    *  (Undo, trend, suggestions) instead of sending a chat sentence; the weight path is weigh-in.ts. */
   "components/coach/attachments/WeighInField.tsx": 171,

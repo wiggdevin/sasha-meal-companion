@@ -82,6 +82,10 @@ export default function BarcodeScanSheet({
         pausedUntilRef.current = Date.now() + REFUSED_PAUSE_MS;
         setPhase("refused");
         resumeRef.current();
+        // Back to the scanning line once the pause is over, unless a new lookup took the sheet.
+        setTimeout(() => {
+          if (here.current && !busyRef.current) setPhase((p) => p === "refused" ? "scanning" : p);
+        }, REFUSED_PAUSE_MS);
         return;
       }
       busyRef.current = false;

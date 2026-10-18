@@ -205,7 +205,7 @@ export default function BarcodeDraftEditor({
       <Stepper label="How many" value={qty} step={0.25}
         onChange={(next) => setQty(Math.max(0.25, Math.round(next * 4) / 4))} helperText={`${grams} g`} />
       <GramsField value={grams} onGrams={(next) => {
-        if (next <= 0) return;
+        if (Math.round(next * 10) / 10 <= 0) return;
         setPortionId(null);
         setExplicitGrams(next);
         setQty(1);

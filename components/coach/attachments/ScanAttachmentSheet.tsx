@@ -41,6 +41,12 @@ export default function ScanAttachmentSheet({
   useEffect(() => {
     if (open) claimed.current = false;
   }, [open]);
+  // A reopened sheet starts clean: no refusal line left from an earlier scan.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) { setSending(false); setRefused(false); }
+  }
   if (!open) return null;
 
   /**
