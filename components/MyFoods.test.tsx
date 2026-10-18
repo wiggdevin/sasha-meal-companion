@@ -240,7 +240,7 @@ describe("category cards", () => {
 describe("the favorite star", () => {
   it("toggles ten times in a row and never reveals Remove", async () => {
     render(<EatsFoods />);
-    const star = screen.getByRole("button", { name: "Favorite Oats" });
+    const star = screen.getByRole("button", { name: "Star Oats" });
     const row = star.closest<HTMLElement>("[data-food-row]")!;
     const remove = removeOf(/Remove Oats from Favorites/);
     const before = { className: star.className, index: [...row.children].indexOf(star) };
@@ -260,7 +260,7 @@ describe("the favorite star", () => {
 
   it("is laid out before Remove, which overlays the row instead of joining its flow", () => {
     render(<EatsFoods />);
-    const star = screen.getByRole("button", { name: "Favorite Oats" });
+    const star = screen.getByRole("button", { name: "Star Oats" });
     const remove = removeOf(/Remove Oats from Favorites/);
     expect(star.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The CSS module's `.remove` is absolutely positioned; the star carries no class that moves it.

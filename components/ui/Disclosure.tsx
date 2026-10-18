@@ -169,9 +169,10 @@ const SIZES = {
  * card or a sheet (`divider` draws the hairline above it). The header is a real button with
  * `aria-expanded` / `aria-controls`, so Enter and Space toggle it; the body is a `DisclosurePanel`.
  * Uncontrolled by default (`defaultOpen`); pass `open` and `onOpenChange` to control it.
+ * The title wraps on a narrow phone; `truncate` cuts it to one line, for a known short label only.
  */
 export default function Disclosure({ title, aside, count, variant = "card", size = "md", divider = false,
-  heading, titleClassName, defaultOpen = false, open: openProp, onOpenChange, keepMounted = true, className = "", bodyClassName,
+  heading, titleClassName, truncate = false, defaultOpen = false, open: openProp, onOpenChange, keepMounted = true, className = "", bodyClassName,
   spring = DEFAULT_SPRING, children }: {
   title: ReactNode;
   /** Quiet text before the chevron: a count, a duration, a share. */
@@ -186,6 +187,8 @@ export default function Disclosure({ title, aside, count, variant = "card", size
   heading?: 2 | 3;
   /** The title's type when a card's role sets it (a meal card's section: lib/design/meal-type.ts). */
   titleClassName?: string;
+  /** Cut the title to one line instead of wrapping it. */
+  truncate?: boolean;
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -209,8 +212,8 @@ export default function Disclosure({ title, aside, count, variant = "card", size
   const toggle = (
     <button type="button" id={`${id}-toggle`} aria-expanded={open} aria-controls={panelId}
       onClick={() => setOpen(!open)}
-      className={`disclosure-summary tap flex ${s.row} cursor-pointer items-center gap-3 ${variant === "card" ? "px-4" : "px-0"}`}>
-      <span className={`min-w-0 flex-1 truncate ${titleClassName ?? `${s.title} font-medium text-charcoal`}`}>{title}</span>
+      className={`disclosure-summary tap flex ${s.row} cursor-pointer items-center gap-3 py-2 ${variant === "card" ? "px-4" : "px-0"}`}>
+      <span className={`min-w-0 flex-1 ${truncate ? "truncate" : "break-words"} ${titleClassName ?? `${s.title} font-medium text-charcoal`}`}>{title}</span>
       {note != null && note !== false && <span className="shrink-0 text-tiny text-muted tabular-nums">{note}</span>}
       <DisclosureChevron open={open} size={s.chevron} spring={spring} />
     </button>

@@ -120,9 +120,9 @@ it("offers Favor only for a row the server reports favorable and not yet favored
   render(<EatenOften />);
 
   await screen.findByText("Apple");
-  expect(screen.getByRole("button", { name: "Favor Apple" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Favor Banana" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Favor Cocoa" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Add Apple to Favorites" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Add Banana to Favorites" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add Cocoa to Favorites" })).toBeNull();
 });
 
 it("re-reads on SYNCED_EVENT, with no polling in between", async () => {

@@ -197,7 +197,7 @@ export default function FoodSheet({ food, onSetStatus, onSetNote, onSave, onClos
         {avoid
           ? "This food is off the menu. No meal will include it until you bring it back."
           : food.status === "neutral"
-            ? "This food is saved, but it is not in Favorites or Avoid. Star it as a Favorite to have it suggested first."
+            ? "This food is saved, but it is not in Favorites or Avoid. Tap Add to Favorites to have it suggested first."
           : "Moving it to Avoid takes it out of every meal at once. You can bring it back any time."}
       </p>
     </Sheet>
@@ -236,8 +236,15 @@ export function LabelCheck({ food }: { food: Food }) {
   // must not ready the button either — the same "a failed lookup must never permit an unbound
   // check" rule finding #3 below already gives the revision lookup, extended to identity.
   const [identity, setIdentity] = useState<ProductIdentity | null>(null);
+  // Audit 2026-10-18 §11: a lookup that comes back empty keeps the button disabled (above), but it
+  // says why and offers another try; each try bumps `attempt`, which re-runs the reads below.
+  const [lookupFailed, setLookupFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
+    // A new food (or a retry) starts with no failure showing; set from a microtask, never
+    // synchronously in the effect body.
+    void Promise.resolve().then(() => { if (live) setLookupFailed(false); });
     void loadConstraints().then((loaded) => {
       if (live && loaded) setAllergens(loaded.profile.avoid_allergens);
     });
@@ -289,15 +296,15 @@ export function LabelCheck({ food }: { food: Food }) {
     // client.ts's own header has the full argument).
     void (ref ? currentRevisionAndIdentityFor(ref) : Promise.resolve(null)).then((found) => {
       if (!live) return;
-      if (ref && found === null) return;
+      if (ref && found === null) { setLookupFailed(true); return; }
       if (ref && found) {
         setExpectedRevisions({ [ref]: found.revisionId });
         setIdentity(found.identity);
       }
       setReady(true);
-    });
+    }, () => { if (live) setLookupFailed(true); });
     return () => { live = false; };
-  }, [food.id, food.catalogFoodId]);
+  }, [food.id, food.catalogFoodId, attempt]);
   if (allergens.length === 0 || food.status === "avoid") return null;
   // W2a: a hold outranks the user's check (lib/policy/allergens.ts allergenFinding), so the
   // button never offers to cover a held key — only the ones a check can still settle.
@@ -346,6 +353,17 @@ export function LabelCheck({ food }: { food: Food }) {
             className={`tap h-11 self-start px-3 ${OFFER_CLASS}`} style={OFFER}>
             {state === "saving" ? "Saving" : "I checked the label"}
           </button>
+          {lookupFailed && !ready && (
+            <div className="flex flex-col gap-1">
+              <p role="status" className={`m-0 ${CAPTION}`}>
+                Can&apos;t confirm this product right now.
+              </p>
+              <button type="button" onClick={() => setAttempt((n) => n + 1)}
+                className={`tap h-11 self-start px-3 ${OFFER_CLASS}`} style={OFFER}>
+                Try again
+              </button>
+            </div>
+          )}
           {state === "unavailable" && (
             <p role="status" className={`m-0 ${CAPTION}`}>
               This food is not saved to your account yet. Try again in a moment.

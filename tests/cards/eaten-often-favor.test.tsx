@@ -60,7 +60,7 @@ async function mountWithOats() {
   loadTasteMock.mockResolvedValue(ok(row()));
   markAccountReady(bindAccount(USER_ID));
   render(<EatenOften />);
-  return screen.findByRole("button", { name: "Favor Oats" });
+  return screen.findByRole("button", { name: "Add Oats to Favorites" });
 }
 
 it("favors on one tap: shows it in flight, notes the revision, pulls, re-reads, and the button goes", async () => {
@@ -70,16 +70,16 @@ it("favors on one tap: shows it in flight, notes the revision, pulls, re-reads, 
 
   fireEvent.click(button);
   expect(favorMock).toHaveBeenCalledWith("u:oats", { account: expect.objectContaining({ userId: USER_ID }) });
-  const inFlight = screen.getByRole("button", { name: "Favor Oats" }) as HTMLButtonElement;
+  const inFlight = screen.getByRole("button", { name: "Add Oats to Favorites" }) as HTMLButtonElement;
   expect(inFlight.getAttribute("aria-busy")).toBe("true");
   expect(inFlight.disabled).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "Favor Oats" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add Oats to Favorites" }));
   expect(favorMock).toHaveBeenCalledTimes(1);
 
   loadTasteMock.mockResolvedValue(ok(row({ favored: true })));
   await act(async () => { finish({ status: "favored", rulesRevision: 4 }); });
 
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Favor Oats" })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Add Oats to Favorites" })).toBeNull());
   expect(status().textContent).toBe(FAVOR_COPY.favored);
   expect(revisionMock).toHaveBeenCalledWith(4, USER_ID);
   expect(syncMock).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID }));
@@ -98,7 +98,7 @@ it.each([
 
   await waitFor(() => expect(status().textContent).toBe(copy));
   expect(screen.getByText(copy, { selector: "[aria-hidden='true']" })).toBeTruthy();
-  expect((screen.getByRole("button", { name: "Favor Oats" }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole("button", { name: "Add Oats to Favorites" }) as HTMLButtonElement).disabled).toBe(false);
   expect(syncMock).not.toHaveBeenCalled();
   expect(revisionMock).not.toHaveBeenCalled();
   expect(loadTasteMock).toHaveBeenCalledTimes(1);
@@ -143,7 +143,7 @@ it("drops the answer when the account changed while the write was in flight", as
 
   fireEvent.click(button);
 
-  await waitFor(() => expect((screen.getByRole("button", { name: "Favor Oats" }) as HTMLButtonElement).disabled).toBe(false));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Add Oats to Favorites" }) as HTMLButtonElement).disabled).toBe(false));
   expect(status().textContent).toBe("");
   expect(syncMock).not.toHaveBeenCalled();
 });

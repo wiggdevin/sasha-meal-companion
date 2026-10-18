@@ -85,7 +85,7 @@ describe("starring a food from its row", () => {
     const changed = vi.fn();
     window.addEventListener("favorites-changed", changed);
     render(<EatsFoods />);
-    const star = await screen.findByRole("button", { name: "Favorite Chicken breast, cooked" });
+    const star = await screen.findByRole("button", { name: "Star Chicken breast, cooked" });
     expect(star.getAttribute("aria-pressed")).toBe("false");
     expect(star.className).toContain("size-11");
     favorites.list.mockResolvedValue([{ kind: "food", id: "ref-chicken", name: "Chicken", sort: 1 }]);
@@ -105,7 +105,7 @@ describe("starring a food from its row", () => {
     seed(food({}));
     favorites.set.mockRejectedValue(new Error("idb blocked"));
     render(<EatsFoods />);
-    const star = await screen.findByRole("button", { name: "Favorite Chicken breast, cooked" });
+    const star = await screen.findByRole("button", { name: "Star Chicken breast, cooked" });
     fireEvent.click(star);
     expect(star.getAttribute("aria-pressed")).toBe("true");
     expect(await screen.findByText("Could not star Chicken breast, cooked. Try again.")).toBeTruthy();
@@ -120,7 +120,7 @@ describe("starring a food from its row", () => {
     favorites.list.mockResolvedValue([{ kind: "food", id: "ref-chicken", name: "Chicken", sort: 1 }]);
     favorites.set.mockResolvedValue(false);
     render(<EatsFoods />);
-    const star = await screen.findByRole("button", { name: "Favorite Chicken breast, cooked" });
+    const star = await screen.findByRole("button", { name: "Star Chicken breast, cooked" });
     await waitFor(() => expect(star.getAttribute("aria-pressed")).toBe("true"));
     favorites.list.mockResolvedValue([]);
     fireEvent.click(star);

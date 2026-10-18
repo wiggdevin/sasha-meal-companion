@@ -33,6 +33,38 @@ export const TRACKED_MICROS: readonly NutrientCode[] = [
   "vitamin_d", "vitamin_b12", "folate_dfe", "vitamin_a_rae", "sodium",
 ];
 
+/** What a person reads for each code: the codes themselves never reach the screen. */
+export const NUTRIENT_LABELS: Record<NutrientCode, string> = {
+  energy_kcal: "Calories", energy_kcal_calc: "Calories", protein: "Protein",
+  carbohydrate: "Carbohydrates", fat_total: "Total fat", fiber_total: "Fibre",
+  sugars_total: "Sugars", sodium: "Sodium", potassium: "Potassium", calcium: "Calcium",
+  iron: "Iron", magnesium: "Magnesium", zinc: "Zinc", vitamin_c: "Vitamin C",
+  vitamin_d: "Vitamin D", vitamin_b12: "Vitamin B12", folate_dfe: "Folate",
+  vitamin_a_rae: "Vitamin A", saturated_fat: "Saturated fat", cholesterol: "Cholesterol",
+};
+
+/** A code's label, or the code made readable when a newer source sends one this file lacks. */
+export function nutrientLabel(code: string): string {
+  if (isNutrientCode(code)) return NUTRIENT_LABELS[code];
+  const words = code.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * The codes to show, in order. Calculated energy is a second "Calories" row, so it shows only when
+ * there is no reported energy with a value (the energy rule, `lib/nutrients/energy.ts`); a reported
+ * row with no value then hides instead, so one Calories row remains.
+ */
+export function visibleNutrientCodes<T extends string>(
+  codes: readonly T[], hasValue: (code: T) => boolean = () => true,
+): T[] {
+  const reported = codes.find((code) => code === "energy_kcal");
+  const calc = codes.find((code) => code === "energy_kcal_calc");
+  if (reported === undefined || calc === undefined) return [...codes];
+  const drop = hasValue(reported) || !hasValue(calc) ? calc : reported;
+  return codes.filter((code) => code !== drop);
+}
+
 /** targets.md, not the DRI: 20–25 g/day soluble-dominant. The band wins on their screen. */
 export const FIBER_BAND_G = { min: 20, max: 25 } as const;
 

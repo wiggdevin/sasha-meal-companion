@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { DisclosureChevron, DisclosurePanel } from "@/components/ui/Disclosure";
-import { FIBER_BAND_G, MACRO_CODES, TRACKED_MICROS, type NutrientCode } from "@/lib/nutrients/codes";
+import { FIBER_BAND_G, MACRO_CODES, nutrientLabel, TRACKED_MICROS, type NutrientCode } from "@/lib/nutrients/codes";
 import { DRI_FEMALE_19_30, fiberBandState, percentDri } from "@/lib/nutrients/dri";
 import { formatAmount } from "@/lib/nutrients/format";
 import { microCoverage, type NutrientTotal } from "@/lib/nutrients/totals";
@@ -52,7 +52,7 @@ function MicroList({ totals }: { totals: Map<NutrientCode, NutrientTotal> }) {
         const pct = percentDri(total, DRI_BY_CODE.get(code));
         return (
           <div key={code} className="flex items-baseline justify-between gap-3">
-            <dt className="truncate text-caption font-normal text-graphite">{code.replace(/_/g, " ")}</dt>
+            <dt className="truncate text-caption font-normal text-graphite">{nutrientLabel(code)}</dt>
             <dd className="shrink-0 text-caption tabular-nums text-charcoal ">
               {formatAmount(code, measured ? total.amount : null, total?.unit ?? "")}
               {pct !== null && measured && (

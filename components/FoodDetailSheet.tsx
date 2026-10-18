@@ -4,7 +4,7 @@ import Sheet from "@/components/Sheet";
 import Button from "@/components/ui/Button";
 import { formatAmount } from "@/lib/nutrients/format";
 import type { FoodDetail } from "@/lib/server/catalog";
-import type { NutrientCode } from "@/lib/nutrients/codes";
+import { nutrientLabel, visibleNutrientCodes, type NutrientCode } from "@/lib/nutrients/codes";
 
 /**
  * Read-only food detail — phase-1-catalog.md. Every number is per 100 g and `—` means the source
@@ -19,7 +19,7 @@ export default function FoodDetailSheet({
   onUse?: (portionId: number | null) => void;
   onClose: () => void;
 }) {
-  const codes = Object.keys(detail.per100g);
+  const codes = visibleNutrientCodes(Object.keys(detail.per100g), (code) => detail.per100g[code]?.amount != null);
   return (
     <Sheet
       title={detail.description}
@@ -40,7 +40,7 @@ export default function FoodDetailSheet({
           <dl className="flex flex-col gap-1.5">
             {codes.map((code) => (
               <div key={code} className="flex items-baseline justify-between gap-3">
-                <dt className="truncate text-caption font-normal text-graphite">{code.replace(/_/g, " ")}</dt>
+                <dt className="truncate text-caption font-normal text-graphite">{nutrientLabel(code)}</dt>
                 <dd className="shrink-0 text-caption tabular-nums text-charcoal">
                   {formatAmount(code as NutrientCode, detail.per100g[code].amount, detail.per100g[code].unit)}
                 </dd>
@@ -73,7 +73,7 @@ export default function FoodDetailSheet({
         )}
 
         <p className="px-1 text-tiny font-normal text-text-faint">
-          {detail.attribution} · catalog {detail.catalogVersion}
+          {detail.attribution}
         </p>
       </div>
     </Sheet>

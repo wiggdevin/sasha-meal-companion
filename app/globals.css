@@ -1290,10 +1290,14 @@ a.btn:active,
 
 @media (prefers-reduced-motion: reduce) {
   .coach-recording-button { animation: none; }
+  /* The pending dots hold still instead of strobing. */
+  .btn-dots > span { animation: none; opacity: 0.6; }
+  /* One run only: an infinite loop at 0.01 ms lands on a random keyframe every frame (a flicker). */
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }
