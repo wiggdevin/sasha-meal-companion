@@ -20,7 +20,8 @@ import { displayAmount, distinctEvidenceIssues, evidenceSummary } from "@/lib/re
 import Disclosure from "@/components/ui/Disclosure";
 import Notice from "@/components/ui/Notice";
 import { readMealSlots } from "@/components/recipes-hub/PutInMeal";
-import { clock12, dayName, defaultSlot, localDate, type SlotChoice } from "@/lib/recipes-hub/put-in-meal";
+import { readableDay } from "@/components/RecipeEatenConfirm";
+import { clock12, defaultSlot, localDate, type SlotChoice } from "@/lib/recipes-hub/put-in-meal";
 
 /** The macro ids as the person reads them. */
 const MACRO_LABEL = { kcal: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat" } as const;
@@ -29,10 +30,27 @@ const MACRO_LABEL = { kcal: "Calories", protein: "Protein", carbs: "Carbs", fat:
 const ANY_MEAL: SlotChoice[] = Array.from({ length: 6 }, (_, index) => ({ slotId: `meal-${index + 1}`,
   label: `Meal ${index + 1}`, time: "", planned: null, eaten: false }));
 
-/** The meal chosen first: the one asked for, else the day's first empty meal, else its first open one. */
-function firstSlot(slots: readonly SlotChoice[], wanted?: string | null): string {
+/**
+ * The meal chosen first: the one asked for; today, the next meal by the clock (an empty one first,
+ * so an evening preview sizes to dinner, not breakfast); else the day's first empty meal, else its
+ * first open one.
+ */
+function firstSlot(slots: readonly SlotChoice[], date: string, wanted?: string | null): string {
   if (wanted) return wanted;
+  if (date === localDate()) {
+    const now = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .format(new Date());
+    const ahead = slots.filter((slot) => !slot.eaten && slot.time && slot.time >= now);
+    const next = ahead.find((slot) => slot.planned === null) ?? ahead[0];
+    if (next) return next.slotId;
+  }
   return defaultSlot(slots) ?? slots.find((slot) => !slot.eaten)?.slotId ?? slots[0]?.slotId ?? "meal-1";
+}
+
+/** The day's meal slots, or the six the plan API takes when the layout can't be read. */
+function mealSlotsOn(date: string): SlotChoice[] {
+  const read = date ? readMealSlots(date) : [];
+  return read.length > 0 ? read : ANY_MEAL;
 }
 
 /** The Groceries link: on Foods, a same-page hash change, which is what switches its tab
@@ -40,7 +58,9 @@ function firstSlot(slots: readonly SlotChoice[], wanted?: string | null): string
 function openShopping(event: MouseEvent<HTMLAnchorElement>) {
   if (window.location.pathname !== "/foods") return;
   event.preventDefault();
-  window.location.hash = "shopping";
+  // Already #shopping (the tab was switched by hand since): setting it again fires nothing.
+  if (window.location.hash === "#shopping") window.dispatchEvent(new HashChangeEvent("hashchange"));
+  else window.location.hash = "shopping";
 }
 
 function today(): string {
@@ -55,15 +75,18 @@ export default function RecipePlanFlow({ recipe, onClose, initialDate, initialSl
   onPlanned?: () => void;
 }) {
   const [date, setDate] = useState(initialDate ?? today);
-  const slots = useMemo(() => { const read = readMealSlots(date); return read.length > 0 ? read : ANY_MEAL; }, [date]);
+  const slots = useMemo(() => mealSlotsOn(date), [date]);
   const [slotId, setSlotId] = useState(() => {
-    const read = readMealSlots(initialDate ?? today());
-    return firstSlot(read.length > 0 ? read : ANY_MEAL, initialSlotId);
+    const day = initialDate ?? today();
+    return firstSlot(mealSlotsOn(day), day, initialSlotId);
   });
   // The day's meals, with a slot asked for that the layout no longer has kept so it stays chosen.
   const mealOptions = (slots.some((slot) => slot.slotId === slotId) ? slots
     : [{ slotId, label: `Meal ${slotId.slice(5)}`, time: "", planned: null, eaten: false }, ...slots])
-    .map((slot) => ({ value: slot.slotId, label: slot.time ? `${slot.label} · ${clock12(slot.time)}` : slot.label }));
+    .map((slot) => ({ value: slot.slotId,
+      label: `${slot.label}${slot.time ? ` · ${clock12(slot.time)}` : ""}${slot.eaten ? " · Eaten" : ""}` }));
+  const day = readableDay(date);
+  const when = /^(Today|Yesterday|Tomorrow)$/.test(day) ? day.toLowerCase() : day;
   const slotLabel = slots.find((slot) => slot.slotId === slotId)?.label ?? `Meal ${slotId.slice(5)}`;
   const [fraction, setFraction] = useState<number | undefined>(undefined);
   const [preview, setPreview] = useState<RecipePreviewResult | null>(null);
@@ -136,9 +159,8 @@ export default function RecipePlanFlow({ recipe, onClose, initialDate, initialSl
           onChange={(next) => {
             const day = next ?? "";
             setDate(day); dropPreview();
-            const read = day ? readMealSlots(day) : [];
-            const nextSlots = read.length > 0 ? read : ANY_MEAL;
-            if (!nextSlots.some((slot) => slot.slotId === slotId && !slot.eaten)) setSlotId(firstSlot(nextSlots));
+            const nextSlots = mealSlotsOn(day);
+            if (!nextSlots.some((slot) => slot.slotId === slotId && !slot.eaten)) setSlotId(firstSlot(nextSlots, day));
           }} /></label>
         <div className="min-w-0 text-body-sm"><span>Meal</span><GlassSelect aria-label="Meal" className="mt-1" value={slotId}
           onChange={(next) => { setSlotId(next); dropPreview(); }}
@@ -157,7 +179,7 @@ export default function RecipePlanFlow({ recipe, onClose, initialDate, initialSl
           : verdictNow(preview.ruleMark, previewInputs, inputsNow)} />
         <p className="m-0 text-body-sm">{preview.exactFitAvailable ? "Exact portion" :
           "Approximate portion, from estimated nutrition"}. Suggested amount: {displayAmount(preview.servingFraction, 2)} serving{preview.servingFraction === 1 ? "" : "s"}. All ingredients keep the same ratio.</p>
-        <p className="m-0 text-body-sm">Target for {slotLabel}, {dayName(date, localDate())}: {preview.mealTarget
+        <p className="m-0 text-body-sm">Target for {slotLabel}, {when}: {preview.mealTarget
           ? <KcalText text={`${displayAmount(preview.mealTarget.kcal)} kcal · ${displayAmount(preview.mealTarget.protein)} g protein · ${displayAmount(preview.mealTarget.carbs)} g carbs · ${displayAmount(preview.mealTarget.fat)} g fat`} />
           : "not available"}.</p>
         <ul className="m-0 list-disc pl-5 text-body-sm">{preview.ingredientSnapshot.map((item) => <li key={item.seq}>

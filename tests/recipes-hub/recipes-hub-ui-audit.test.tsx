@@ -24,6 +24,7 @@ vi.mock("@/components/recipes-hub/PutInMeal", async (original) => ({
 
 import RecipePlanFlow from "@/components/RecipePlanFlow";
 import RecipeCarousel from "@/components/recipes-hub/RecipeCarousel";
+import { readableDay } from "@/components/RecipeEatenConfirm";
 
 const known = (value: number) => ({ value, status: "known" as const, sourceRevisionId: 1 });
 function recipe(name: string): RecipeCandidate {
@@ -60,7 +61,7 @@ afterEach(cleanup);
 describe("Adjust portion", () => {
   it("offers the day's own meals and starts on its first empty one", async () => {
     slots.read.mockReturnValue([slot(1, "08:00", "Oats"), slot(2, "13:00"), slot(3, "19:00")]);
-    render(<RecipePlanFlow recipe={recipe("Satay")} initialDate="2026-10-18" onClose={vi.fn()} />);
+    render(<RecipePlanFlow recipe={recipe("Satay")} initialDate="2030-01-01" onClose={vi.fn()} />);
     const meal = screen.getByRole("combobox", { name: "Meal" });
     expect(meal.textContent).toBe("Meal 2 · 1:00 pm");
     fireEvent.click(meal);
@@ -101,8 +102,22 @@ describe("Adjust portion", () => {
     fireEvent.click(screen.getByRole("link", { name: "Plan groceries in Shopping" }));
     expect(window.location.hash).toBe("#shopping");
     await vi.waitFor(() => expect(changed).toHaveBeenCalled());
+    // Already #shopping (the tab switched by hand since): the tap still announces the hash.
+    changed.mockClear();
+    fireEvent.click(screen.getByRole("link", { name: "Plan groceries in Shopping" }));
+    expect(changed).toHaveBeenCalledTimes(1);
     window.removeEventListener("hashchange", changed);
     window.history.replaceState(null, "", "/");
+  });
+
+  it("starts today on the next meal by the clock, not the first of the day", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2030, 0, 1, 18, 30));
+    try {
+      slots.read.mockReturnValue([slot(1, "08:00", "Oats"), slot(2, "13:00", "Rice"), slot(3, "19:00", "Stew")]);
+      render(<RecipePlanFlow recipe={recipe("Satay")} initialDate="2030-01-01" onClose={vi.fn()} />);
+      expect(screen.getByRole("combobox", { name: "Meal" }).textContent).toBe("Meal 3 · 7:00 pm");
+    } finally { vi.useRealTimers(); }
   });
 });
 
@@ -124,5 +139,15 @@ describe("the recipe carousel", () => {
     await screen.findByRole("button", { name: "Try again" });
     await act(async () => { window.dispatchEvent(new Event("online")); });
     expect(await screen.findByRole("region", { name: "Recipe catalog" })).toBeTruthy();
+  });
+});
+
+describe("readableDay", () => {
+  it("names a day the way people do, never as ISO", () => {
+    expect(readableDay("2026-10-18", "2026-10-18")).toBe("Today");
+    expect(readableDay("2026-10-17", "2026-10-18")).toBe("Yesterday");
+    expect(readableDay("2026-10-19", "2026-10-18")).toBe("Tomorrow");
+    expect(readableDay("2026-10-15", "2026-10-18")).toBe("Thursday");
+    expect(readableDay("2026-10-03", "2026-10-18")).toBe("Sat, Oct 3");
   });
 });
