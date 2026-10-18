@@ -44,6 +44,9 @@ type IngredientEditor = {
    *  flow opening on the card; null when nothing is changed. */
   draft: FoodComponent[] | null;
   onDraft: (next: FoodComponent[] | null) => void;
+  /** A save in flight, held with the draft so a fold and reopen cannot send it twice. */
+  saving: boolean;
+  setSaving: (saving: boolean) => void;
 };
 
 /**
@@ -56,9 +59,13 @@ export function useIngredientDraft(components: FoodComponent[], foods: Record<st
   onSave: IngredientEditor["onSave"] | undefined) {
   const base = JSON.stringify(components);
   const [held, setHeld] = useState<{ base: string; components: FoodComponent[] } | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Dropped, not just hidden: a meal that later returns to the same components must not bring an
+  // abandoned draft back.
+  if (held && held.base !== base) setHeld(null);
   const draft = held && held.base === base ? held.components : null;
   const editor: IngredientEditor | undefined = onSave ? {
-    foods: foods ?? {}, onSave, draft,
+    foods: foods ?? {}, onSave, draft, saving, setSaving,
     onDraft: (next) => setHeld(next ? { base, components: next } : null),
   } : undefined;
   return { editor, draftMacros: editor && draft ? sumComponents(draft) : null };
@@ -97,7 +104,7 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
   editor?: IngredientEditor; marked?: MarkedSlot }) {
   const working = editor?.draft ?? components;
   const dirty = !!editor?.draft;
-  const [saving, setSaving] = useState(false);
+  const saving = editor?.saving ?? false;
   const [searchError, setSearchError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ component: FoodComponent; index: number } | null>(null);
@@ -143,7 +150,7 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
   }
 
   async function add(row: CatalogRow) {
-    if (!editor) return;
+    if (!editor || saving) return;
     setSearchError(null);
     let next: FoodComponent | null = null;
     if (row.offline && row.offlineFoodId) {
@@ -187,7 +194,7 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
 
   async function save() {
     if (!editor || saving || !dirty) return;
-    setSaving(true);
+    editor.setSaving(true);
     setSaveError(null);
     try {
       await editor.onSave(working);
@@ -196,7 +203,7 @@ function Ingredients({ id, components, editor, marked }: { id: string; component
     } catch {
       setSaveError("Changes were not saved. Try again.");
     } finally {
-      setSaving(false);
+      editor.setSaving(false);
     }
   }
 

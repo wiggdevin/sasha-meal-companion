@@ -139,7 +139,7 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       if (caught instanceof AccountChanged) { onClose(); return; }
       setOptions([]);
       setLoadFailed(true);
-      setError(caught instanceof Error && caught.message ? caught.message : "Couldn’t check your food rules. Try again.");
+      setError(caught instanceof Error && caught.message ? caught.message : "Couldn’t check your food rules.");
     }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
     // This flow is keyed by slot and date on Today; its opening snapshot is fixed, and only a retry
@@ -215,7 +215,7 @@ export default function MealSwapSheet({ slot, date, target, foods, currentOverri
       {loading && <p role="status" className="m-0 text-caption text-graphite">Checking your food rules and saved meals…</p>}
       {error && <Notice tone="error" title={error}
         action={loadFailed ? { label: "Try again", onClick: retryLoad } : undefined} />}
-      {target && options.length === 0 && recent.length === 0 && !loading && !error && <Notice tone="neutral"
+      {target && options.length === 0 && recent.length === 0 && !loading && !loadFailed && <Notice tone="neutral"
         title="No close matches for this slot yet. Check your food rules, or edit this meal." />}
       {/* Swaps are sized to the slot's target: with none (no target revision in force, or a slot that
           carries no target) there is nothing to size them to, and the sheet says so rather than

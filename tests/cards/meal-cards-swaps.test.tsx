@@ -100,6 +100,22 @@ describe("the ingredient draft", () => {
   });
 });
 
+describe("an abandoned draft", () => {
+  it("is dropped when the meal changes, and stays gone if the meal changes back", async () => {
+    const card = (slot: ResolvedSlot) => <SlotCard slot={slot} variant="focus" canSwap
+      onToggleEaten={() => {}} onOpenSwap={() => {}} foods={{}} onSaveComponents={() => {}} />;
+    const { rerender } = render(card(SLOT));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Expand Breakfast" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Increase Oats" })); });
+    expect(screen.getByRole("button", { name: "Save ingredients" })).toBeTruthy();
+    const other = MEAL.components.map((c) => ({ ...c, name: "Rice" }));
+    rerender(card({ ...SLOT, components: other }));
+    expect(screen.queryByRole("button", { name: "Save ingredients" })).toBeNull();
+    rerender(card(SLOT));
+    expect(screen.queryByRole("button", { name: "Save ingredients" })).toBeNull();
+  });
+});
+
 describe("SwapSheet's Today's pick", () => {
   it("names the rotation meal once, with its figures", () => {
     const markup = renderToStaticMarkup(<SwapSheet slot="meal-1" options={[MEAL]} currentMealId={MEAL.id}
