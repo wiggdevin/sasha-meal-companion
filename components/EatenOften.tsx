@@ -4,7 +4,7 @@
  * Phase 18 W3 UI: the read-only "Eaten often" section on the Foods tab's first tab
  * (components/EatsView.tsx), beneath the user's own foods list. Draws `GET /api/foods/taste`
  * (lib/foods/taste-client.ts) — derived, IMPLICIT eaten history (spec §D5/§D6/§W3). The one write
- * is the user's own tap on "Favor" (lib/foods/favor-client.ts, `POST /api/foods/favor`), offered only
+ * is the user's own tap on "Add", a Favor (lib/foods/favor-client.ts, `POST /api/foods/favor`), offered only
  * where the server reports the row `favorable` and not yet `favored`; nothing is written otherwise.
  *
  * Re-reads on SYNCED_EVENT and whenever an account becomes ready (which covers "the Foods tab
@@ -57,8 +57,8 @@ function Row({ item, last, pending, note, onFavor }: {
       {/* Offered only when the server says the write would succeed now (D6), and never twice. */}
       {item.favorable && !item.favored && (
         <Button variant="tertiary" size="sm" className="shrink-0" onClick={() => onFavor(item)}
-          status={pending ? "pending" : undefined} aria-label={`Favor ${item.name}`}>
-          Favor
+          status={pending ? "pending" : undefined} aria-label={`Add ${item.name} to Favorites`}>
+          Add
         </Button>
       )}
     </div>

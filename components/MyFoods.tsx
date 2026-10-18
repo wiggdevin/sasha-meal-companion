@@ -74,7 +74,9 @@ function StarGlyph({ filled }: { filled: boolean }) {
 
 /**
  * The row's star: a 44 px button around a small glyph, `aria-pressed` for the state, one name in
- * both states ("Favorite Oats"), so a screen reader hears "Favorite Oats, toggle button, pressed".
+ * both states ("Star Oats"), so a screen reader hears "Star Oats, toggle button, pressed". The star
+ * is named "Star", never "Favorite": Favorites is the food's group (the tab), and a star does not
+ * move a food into it.
  */
 function StarToggle({ food, starred, onToggle, covered = false, className = "" }: {
   food: Food; starred: boolean; onToggle: () => void;
@@ -86,7 +88,7 @@ function StarToggle({ food, starred, onToggle, covered = false, className = "" }
   // against the card (Kimi K3 audit 2026-10-04, finding 31).
   return (
     <button type="button" data-row-star aria-pressed={starred} onClick={onToggle}
-      aria-label={`Favorite ${food.name.trim() || "this food"}`}
+      aria-label={`Star ${food.name.trim() || "this food"}`}
       aria-hidden={covered || undefined} tabIndex={covered ? -1 : undefined}
       className={`tap flex size-11 shrink-0 items-center justify-center rounded-full ${
         starred ? "text-primary" : "text-muted"} ${className}`.trim()}>

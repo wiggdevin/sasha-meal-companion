@@ -8,6 +8,9 @@
  * Shape copied from the serving stepper in LogMeal.dc.html: a `.pill` shell
  * around a `.pill-in` interior, 44 × 44 px buttons in #4a4c42 at 18 px/300,
  * the value centred at 13 px/400. The user uses this on a phone, one-handed.
+ *
+ * The row wraps: on a narrow phone (320 px inside a card) the pill drops under the label instead of
+ * pushing the page sideways. The value is a polite live region, so each tap is read out.
  */
 type StepperProps = {
   label: string;
@@ -35,11 +38,11 @@ export default function Stepper({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-body font-medium text-charcoal">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <span className="min-w-0 break-words text-body font-medium text-charcoal">
           {label}
         </span>
-        <div className="pill inline-flex shrink-0">
+        <div className="pill ml-auto inline-flex shrink-0">
           <div className="pill-in flex items-center">
             <button
               type="button"
@@ -52,6 +55,7 @@ export default function Stepper({
               −
             </button>
             <span
+              aria-live="polite"
               className="text-center tabular-nums text-caption font-normal text-charcoal"
               style={{ minWidth: 76 }}
             >

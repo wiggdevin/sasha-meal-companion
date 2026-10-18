@@ -309,7 +309,7 @@ function ModalSheet({
           {header ?? <div className="flex min-w-0 flex-col gap-1 pt-1">
             {/* Screen and sheet titles speak in the display face (DESIGN.md §Typography; Kimi K1). */}
             <h2
-              className="m-0 font-display text-heading font-light tracking-display-md leading-none"
+              className="m-0 break-words font-display text-heading font-light tracking-display-md leading-[1.1] [text-wrap:balance]"
             >
               {title}
             </h2>

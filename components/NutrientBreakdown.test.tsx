@@ -50,7 +50,7 @@ describe("NutrientBreakdown", () => {
 
   it("marks an unknown-mass entry's figures as partial", () => {
     const markup = renderToStaticMarkup(<NutrientBreakdown entry={UNKNOWN_MASS} />);
-    expect(markup).toContain("partial");
-    expect(renderToStaticMarkup(<NutrientBreakdown entry={MEASURED} />)).not.toContain("partial");
+    expect(markup).toContain("Partly measured");
+    expect(renderToStaticMarkup(<NutrientBreakdown entry={MEASURED} />)).not.toContain("Partly measured");
   });
 });

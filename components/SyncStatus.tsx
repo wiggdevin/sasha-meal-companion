@@ -33,6 +33,18 @@ function ago(iso: string | null): string {
   return h < 24 ? `${h} h ago` : new Date(iso).toLocaleDateString();
 }
 
+/**
+ * The last sync error in words a person reads (audit 2026-10-18 §11). The stored string is the
+ * thrown message (an HTTP verb, an API path, a status, a food key); it never reaches the screen.
+ */
+export function syncErrorCopy(error: string): string {
+  if (/failed with (401|403)\b/.test(error)) return "Sign in again to sync";
+  if (/failed to fetch|load failed|networkerror|network request|offline|timed? ?out|timeout|abort/i.test(error)) {
+    return "Couldn't reach the server";
+  }
+  return "Couldn't sync just now";
+}
+
 /** The caption under the email/"Signed out" line: what to do, or what is still queued. */
 export function statusLine(state: SyncStatusState): string {
   if (!state.loaded) return "Checking sync status…";
@@ -43,7 +55,7 @@ export function statusLine(state: SyncStatusState): string {
     return `This phone only. Sign in to see the same list on every device.${pending}`;
   }
   if (state.error !== null) {
-    return `Last try failed (${state.error}). Your data is safe on this phone.`;
+    return `${syncErrorCopy(state.error)}. Your data is safe on this phone.`;
   }
   const suffix =
     state.pending > 0

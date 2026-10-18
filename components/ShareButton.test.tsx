@@ -11,7 +11,7 @@
  * the canonical note on why).
  */
 import { describe, expect, it } from "vitest";
-import { shareButtonLabel, statusForEmptyShare } from "./ShareButton";
+import { shareButtonLabel, shareFailure, statusForEmptyShare } from "./ShareButton";
 
 describe("statusForEmptyShare", () => {
   it("flags nothing-to-share when there is no summary text yet", () => {
@@ -32,5 +32,24 @@ describe("shareButtonLabel", () => {
     expect(shareButtonLabel("idle")).toBe("Share my week");
     expect(shareButtonLabel("copied")).toBe("Copied — ready to paste");
     expect(shareButtonLabel("error")).toBe("Couldn't copy — try again");
+  });
+});
+
+describe("shareFailure", () => {
+  const named = (name: string) => Object.assign(new Error(name), { name });
+
+  it("treats a dismissed share sheet as a choice, not a failure", () => {
+    expect(shareFailure(named("AbortError"))).toBe("cancelled");
+    expect(shareFailure({ name: "AbortError" })).toBe("cancelled");
+  });
+
+  it("falls back to the clipboard only when the platform refused the share", () => {
+    expect(shareFailure(named("NotAllowedError"))).toBe("clipboard");
+    expect(shareFailure(new TypeError("bad data"))).toBe("clipboard");
+  });
+
+  it("reports anything else as an error", () => {
+    expect(shareFailure(named("DataError"))).toBe("error");
+    expect(shareFailure("boom")).toBe("error");
   });
 });
