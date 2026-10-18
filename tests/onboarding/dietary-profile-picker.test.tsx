@@ -264,7 +264,7 @@ describe("DietaryProfilePickerView custom rule review fixes", () => {
 
   it("uses native radios for the rule type", () => {
     view({ query: "garlic", onAddCustomRule: async () => true });
-    expect((screen.getByRole("radio", { name: "ingredient" }) as HTMLInputElement).type).toBe("radio");
+    expect((screen.getByRole("radio", { name: "Ingredient" }) as HTMLInputElement).type).toBe("radio");
   });
 });
 

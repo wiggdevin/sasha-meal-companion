@@ -47,6 +47,9 @@ const ROLE_NAME: Record<FoodRole, string> = { protein: "Proteins", carb: "Carbs"
 const PER_ROLE = 2;
 const QUEUE_CAP = 14;
 const LANES = 4;
+/** Below this stage width four lanes put neighbouring discs (104 px with padding) on top of each
+ *  other, so the fall uses three (each lane centre at least one disc apart from 316 px up). */
+const FOUR_LANE_MIN_PX = 420;
 const MAX_CONCURRENT = 4;
 /** A lane is free again this many spawns after it was last used (about 150 px of fall). */
 const LANE_COOLDOWN = 3;
@@ -66,6 +69,12 @@ const WOBBLE_DEG = 6;
 const WOBBLE_SECONDS = 1.8;
 const DISC_PX = 112;
 const FALLBACK_STAGE_PX = 360;
+const FALLBACK_STAGE_WIDTH_PX = 390;
+
+/** How many lanes fit a stage this wide without neighbouring discs overlapping. */
+export function laneCount(stageWidth: number): number {
+  return stageWidth >= FOUR_LANE_MIN_PX ? LANES : LANES - 1;
+}
 
 /** Per role, the deck's share of its 14 foods: five proteins (a five-meal plan needs five), six
  *  carbs (starches, vegetables and fruit share the role) and three fats. A role with fewer foods
@@ -100,32 +109,33 @@ export function buildQueue(choices: readonly Starter[], cap: number = QUEUE_CAP)
   return take(ROLES.map(() => cap), cap);
 }
 
-type FallItem = { item: Starter; fallKey: number; lane: number };
+type FallItem = { item: Starter; fallKey: number; lane: number; lanes: number };
 /** Pure state, updated only by pure functions (React may double-invoke an updater in dev). */
 type GameState = { falling: FallItem[]; issued: number; laneUsedAt: number[]; lastLane: number };
 const emptyGame = (): GameState => ({ falling: [], issued: 0, laneUsedAt: Array(LANES).fill(-LANE_COOLDOWN), lastLane: -2 });
 
 /** The lane for the next disc: a free lane, away from the previous one when possible. `rand` is
  *  drawn outside the updater, so the updater stays pure. */
-export function pickLane(game: Pick<GameState, "issued" | "laneUsedAt" | "lastLane">, rand: number): number | null {
-  const free = Array.from({ length: LANES }, (_, lane) => lane)
-    .filter((lane) => game.issued - game.laneUsedAt[lane] >= LANE_COOLDOWN);
+export function pickLane(game: Pick<GameState, "issued" | "laneUsedAt" | "lastLane">, rand: number,
+  lanes: number = LANES): number | null {
+  const free = Array.from({ length: lanes }, (_, lane) => lane)
+    .filter((lane) => game.issued - (game.laneUsedAt[lane] ?? -LANE_COOLDOWN) >= LANE_COOLDOWN);
   if (free.length === 0) return null;
   const apart = free.filter((lane) => Math.abs(lane - game.lastLane) > 1);
   const pool = apart.length > 0 ? apart : free;
   return pool[Math.min(pool.length - 1, Math.floor(rand * pool.length))];
 }
 
-function spawnNext(queue: readonly Starter[], rand: number) {
+function spawnNext(queue: readonly Starter[], rand: number, lanes: number) {
   return (game: GameState): GameState => {
-    if (game.falling.length >= MAX_CONCURRENT || game.issued >= queue.length) return game;
-    const lane = pickLane(game, rand);
+    if (game.falling.length >= Math.min(MAX_CONCURRENT, lanes) || game.issued >= queue.length) return game;
+    const lane = pickLane(game, rand, lanes);
     if (lane === null) return game;
     const fallKey = game.issued;
     const laneUsedAt = game.laneUsedAt.slice();
     laneUsedAt[lane] = fallKey;
     return {
-      falling: [...game.falling, { item: queue[fallKey], fallKey, lane }],
+      falling: [...game.falling, { item: queue[fallKey], fallKey, lane, lanes }],
       issued: game.issued + 1, laneUsedAt, lastLane: lane,
     };
   };
@@ -204,10 +214,16 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
 
   const stage = useRef<HTMLDivElement | null>(null);
   const [stageHeight, setStageHeight] = useState(FALLBACK_STAGE_PX);
+  const [stageWidth, setStageWidth] = useState(FALLBACK_STAGE_WIDTH_PX);
+  const lanesRef = useRef(laneCount(FALLBACK_STAGE_WIDTH_PX));
+  useLayoutEffect(() => { lanesRef.current = laneCount(stageWidth); }, [stageWidth]);
   useLayoutEffect(() => {
     const el = stage.current;
     if (!el) return;
-    const report = () => { if (el.offsetHeight > 0) setStageHeight(el.offsetHeight); };
+    const report = () => {
+      if (el.offsetHeight > 0) setStageHeight(el.offsetHeight);
+      if (el.offsetWidth > 0) setStageWidth(el.offsetWidth);
+    };
     report();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(report);
@@ -225,7 +241,7 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
     let timer: ReturnType<typeof setTimeout> | null = null;
     function tick(): void {
       if (cancelled) return;
-      setGame(spawnNext(remaining, Math.random()));
+      setGame(spawnNext(remaining, Math.random(), lanesRef.current));
       timer = setTimeout(tick, SPAWN_BASE_MS + Math.round((Math.random() * 2 - 1) * SPAWN_JITTER_MS));
     }
     // Deferred, never synchronous (Strict Mode's setup→cleanup→setup would otherwise spawn twice),
@@ -279,12 +295,12 @@ export default function FallingFoodPile({ choices, marks, onMark, shownIds, onSh
       {/* Keyed by session: a new deck (a just-confirmed allergy) drops every disc of the old deck at
           once, with no exit animation left on screen to tap. */}
       <AnimatePresence key={session.key}>
-        {game.falling.map(({ item, fallKey, lane }) => {
+        {game.falling.map(({ item, fallKey, lane, lanes }) => {
           const full = dbFood(item.id)?.name ?? item.id;
           // A small per-disc stagger on the fall time keeps a wave from landing all at once.
           const fallSeconds = FALL_SECONDS + (((fallKey * 37) % 9) - 4) / 4;
           return <motion.div key={fallKey} className={styles.lane} data-lane={lane}
-            style={{ "--lane": lane / (LANES - 1) } as CSSProperties}
+            style={{ "--lane": lane / (lanes - 1) } as CSSProperties}
             initial={{ y: -DISC_PX }} animate={{ y: stageHeight }}
             exit={{ scale: 0, opacity: 0, transition: FADES.quick }}
             transition={{ duration: fallSeconds, ease: "linear" }}

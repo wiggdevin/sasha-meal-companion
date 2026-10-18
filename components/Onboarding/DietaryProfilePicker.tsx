@@ -53,6 +53,14 @@ function blanketConfirmations(profile: ProfileSummary): FacetConfirmation[] {
 type NewCustomRule = { kind: CustomRule["kind"]; text: string };
 const MAX_CUSTOM_RULES = 30;
 const RULE_KINDS = ["ingredient", "cuisine", "guidance"] as const;
+const KIND_LABEL: Record<CustomRule["kind"], string> = {
+  ingredient: "Ingredient", cuisine: "Cuisine", guidance: "Guidance only",
+};
+const SAVED_LABEL: Record<CustomRule["kind"], string> = {
+  ingredient: "Avoid this ingredient", cuisine: "Avoid this cuisine", guidance: "Guidance only",
+};
+const SAVE_ERROR = "Couldn’t save this rule. Check your connection and try again.";
+const REMOVE_ERROR = "Couldn’t remove this rule. Check your connection and try again.";
 /** A one-food rule the catalog has no profile for ("garlic"), written to the same custom rules
  *  Foods › Avoids edits. Stays on the onboarding step; the typed text is kept until it saves. */
 function CustomRuleComposer({ suggestion, noMatch, rules, onAdd }: {
@@ -91,7 +99,7 @@ function CustomRuleComposer({ suggestion, noMatch, rules, onAdd }: {
           <label key={option} className="tap flex min-h-11 items-center gap-2 text-caption">
             <input type="radio" name="custom-rule-kind" value={option} checked={kind === option}
               onChange={() => setKind(option)} />
-            {option === "guidance" ? "Guidance only" : option}
+            {KIND_LABEL[option]}
           </label>
         ))}
       </fieldset>
@@ -106,7 +114,7 @@ function CustomRuleComposer({ suggestion, noMatch, rules, onAdd }: {
       {message && <Notice tone="error" title={message} />}
       {rules.map((rule) => (
         <p key={rule.id} className={`m-0 ${CAPTION}`}>
-          {rule.text} · {rule.kind === "guidance" ? "Guidance only" : `${rule.kind} exclusion`}
+          {rule.text} · {SAVED_LABEL[rule.kind]}
         </p>
       ))}
     </div>
@@ -114,13 +122,15 @@ function CustomRuleComposer({ suggestion, noMatch, rules, onAdd }: {
 }
 
 function ProfileRow({
-  profile, instance, legacy, busy, onConfirm, onRemove,
+  profile, instance, legacy, busy, error, onConfirm, onRemove,
 }: {
   profile: ProfileSummary;
   instance: ProfileInstance | undefined;
   /** Kept active by a legacy preference flag: only that toggle removes it. */
   legacy: boolean;
   busy: boolean;
+  /** Why this row's last confirm or remove did not save, if it did not. */
+  error?: string | null;
   onConfirm: OnConfirm;
   onRemove: (profileId: string) => void;
 }) {
@@ -179,6 +189,7 @@ function ProfileRow({
           </Pill>;
         })}
       </div>}
+      {error && <Notice tone="error" title={error} />}
     </section>
   );
 }
@@ -187,7 +198,7 @@ function ProfileRow({
  *  callback. Safe to unit-test with renderToStaticMarkup/@testing-library, no account required. */
 export function DietaryProfilePickerView({
   catalog, instances, legacyProfileIds = [], query, busyId, onQueryChange, onConfirm, onRemove,
-  customRules = [], onAddCustomRule, catalogReady = true,
+  customRules = [], onAddCustomRule, catalogReady = true, rowError = null, catalogError = false, onRetryCatalog,
 }: {
   catalog: readonly ProfileSummary[];
   instances: readonly ProfileInstance[];
@@ -203,6 +214,11 @@ export function DietaryProfilePickerView({
   onAddCustomRule?: (rule: NewCustomRule) => Promise<boolean>;
   /** False until the catalog has loaded: an empty catalog is not a "no match". */
   catalogReady?: boolean;
+  /** The row whose last write failed, and what to tell the person. */
+  rowError?: { profileId: string; message: string } | null;
+  /** The catalog did not load: say so instead of showing empty results. */
+  catalogError?: boolean;
+  onRetryCatalog?: () => void;
 }) {
   const byId = new Map(instances.map((instance) => [instance.profileId, instance]));
   const results = useMemo(
@@ -214,7 +230,7 @@ export function DietaryProfilePickerView({
       <div className="flex flex-col gap-1">
         <h2 className={`m-0 ${LABEL}`}>More dietary profiles</h2>
         <p className={`m-0 ${CAPTION}`}>
-          Search allergies, religious diets, conditions, goals — anything Jev should watch for.
+          Search allergies, religious diets, conditions, goals — anything your plan should watch for.
         </p>
       </div>
       <label className="flex flex-col gap-1">
@@ -224,10 +240,15 @@ export function DietaryProfilePickerView({
           placeholder="e.g. halal, peanut allergy, Crohn's"
           className="well min-h-11 px-3 py-2 outline-none text-body" />
       </label>
+      {catalogError && <Notice tone="error" title="Couldn’t load the dietary profiles."
+        action={onRetryCatalog ? { label: "Try again", onClick: onRetryCatalog } : undefined}>
+        Check your connection and try again.
+      </Notice>}
       {results.length > 0 && <div className="flex flex-col gap-2">
         {results.map((profile) => (
           <ProfileRow key={profile.id} profile={profile} instance={byId.get(profile.id)}
-            legacy={legacyProfileIds.includes(profile.id)} busy={busyId === profile.id} onConfirm={onConfirm} onRemove={onRemove} />
+            legacy={legacyProfileIds.includes(profile.id)} busy={busyId === profile.id}
+            error={rowError?.profileId === profile.id ? rowError.message : null} onConfirm={onConfirm} onRemove={onRemove} />
         ))}
       </div>}
       {onAddCustomRule && <CustomRuleComposer suggestion={query}
@@ -249,6 +270,9 @@ export default function DietaryProfilePicker({ onRulesChanged }: { onRulesChange
   const [busyId, setBusyId] = useState<string | null>(null);
   const [customRules, setCustomRules] = useState<readonly CustomRule[]>([]);
   const [catalogReady, setCatalogReady] = useState(false);
+  const [catalogError, setCatalogError] = useState(false);
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
+  const [rowError, setRowError] = useState<{ profileId: string; message: string } | null>(null);
 
   // Onboarding mounts only once the account is bound in practice, but a subscription (rather than
   // a synchronous read) is what lib/device/account.ts's own callers do (AuthGate.tsx,
@@ -264,13 +288,13 @@ export default function DietaryProfilePicker({ onRulesChanged }: { onRulesChange
       setInstances(result.instances);
       setLegacyProfileIds(result.legacyProfileIds ?? []);
       setCatalogReady(true);
-    }).catch(() => {});
+    }).catch(() => { if (live) setCatalogError(true); });
     // The rules already saved, so the list and the 30-rule cap are true before the first add.
     loadConstraints({ account: handle }).then((loaded) => {
       if (live && loaded) setCustomRules(loaded.profile.custom_rules ?? []);
     }).catch(() => {});
     return () => { live = false; };
-  }, [handle]);
+  }, [handle, catalogAttempt]);
 
   // Reads the live revision each time so a rules change elsewhere is a conflict, not an overwrite.
   async function handleAddCustomRule(rule: NewCustomRule): Promise<boolean> {
@@ -298,12 +322,14 @@ export default function DietaryProfilePicker({ onRulesChanged }: { onRulesChange
   ): Promise<void> {
     if (handle === null || (confirmations.length === 0 && !options)) return;
     setBusyId(profileId);
+    setRowError(null);
     try {
       const instance = await confirmProfileInstance(handle, profileId, confirmations, options);
       setInstances((current) => [...current.filter((i) => i.profileId !== profileId), instance]);
       onRulesChanged?.();
     } catch {
-      // The row keeps its previous state; the person can try again.
+      // The row keeps its previous state and says so; the person can try again.
+      setRowError({ profileId, message: SAVE_ERROR });
     } finally {
       setBusyId(null);
     }
@@ -312,12 +338,14 @@ export default function DietaryProfilePicker({ onRulesChanged }: { onRulesChange
   async function handleRemove(profileId: string): Promise<void> {
     if (handle === null) return;
     setBusyId(profileId);
+    setRowError(null);
     try {
       await removeProfileInstance(handle, profileId);
       setInstances((current) => current.filter((i) => i.profileId !== profileId));
       onRulesChanged?.();
     } catch {
-      // Left in place on failure; Remove can be tapped again.
+      // Left in place on failure, and says so; Remove can be tapped again.
+      setRowError({ profileId, message: REMOVE_ERROR });
     } finally {
       setBusyId(null);
     }
@@ -326,6 +354,7 @@ export default function DietaryProfilePicker({ onRulesChanged }: { onRulesChange
   if (handle === null) return null;
   return <DietaryProfilePickerView catalog={catalog} instances={instances}
     legacyProfileIds={legacyProfileIds} query={query} customRules={customRules} catalogReady={catalogReady}
+    rowError={rowError} catalogError={catalogError} onRetryCatalog={() => { setCatalogError(false); setCatalogAttempt((n) => n + 1); }}
     onAddCustomRule={handleAddCustomRule}
     busyId={busyId} onQueryChange={setQuery} onConfirm={(id, c, o) => void handleConfirm(id, c, o)}
     onRemove={(id) => void handleRemove(id)} />;

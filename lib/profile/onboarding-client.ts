@@ -46,7 +46,7 @@ export type OnboardingSaveMode = "complete" | "skip";
 
 export const CONSTRAINTS_UNAVAILABLE = "constraints_unavailable" as const;
 export const CONSTRAINT_SAVE_WARNING =
-  "Your allergen rules could not be saved — retry from Foods › Avoids";
+  "Your allergy rules didn’t save. Try again.";
 /**
  * The account's own `user_settings` row is what releases the gate, so a setup flow that navigated
  * while that write was still queued sent a finished account back to step 1 on the next load. The

@@ -1,6 +1,6 @@
 "use client";
 
-import { accountHandle } from "@/lib/device/account";
+import { accountHandle, currentAccountOrNull } from "@/lib/device/account";
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { motion, useIsPresent, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ import { useStoredEligibility } from "@/components/Onboarding/v2/stored-eligibil
 import { safetyAnswersFrom, type SafetyRound as SafetyRoundAnswer } from "@/components/Onboarding/v2/plan-answers";
 import { legacyEligibility, legacyMinor, needsBirthDate } from "@/components/Onboarding/legacy-eligibility";
 import {
-  CONSTRAINT_SAVE_WARNING, loadOnboardingSettings, ONBOARDING_SYNC_WARNING,
+  loadOnboardingSettings, ONBOARDING_SYNC_WARNING,
   mirroredOnboardedAt, persistCompletedOnboarding, persistSkippedOnboarding,
   retryOnboardingConstraints,
 } from "@/lib/profile/onboarding-client";
@@ -84,6 +84,52 @@ export function OnboardingNotice({ message }: { message: string | null }) {
 /** The safety round's conditions did not save, so nothing else did either. */
 export const SAFETY_SAVE_WARNING = "Couldn’t save your health answers. Try again.";
 
+/** The allergy rules did not save; on this screen "Continue" is the retry. */
+export const LEGACY_CONSTRAINT_WARNING = "Your allergy rules didn’t save. Tap Continue to try again.";
+
+/** Answers kept on this device while the first-run form is open, so a system Back, a reload or a
+ *  tab eviction does not send the account back to a blank Body step. Per account, never synced,
+ *  cleared once setup finishes or is skipped; a draft older than three weeks is ignored. */
+const DRAFT_PREFIX = "onboarding-legacy-draft:";
+const DRAFT_MAX_AGE_MS = 21 * 24 * 60 * 60 * 1000;
+
+function draftKey(): string | null {
+  const userId = currentAccountOrNull()?.userId;
+  return userId ? `${DRAFT_PREFIX}${userId}` : null;
+}
+
+export function readLegacyDraft(now = Date.now()): Partial<OnboardingState> | null {
+  const key = draftKey();
+  if (!key) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { savedAt?: unknown; state?: unknown };
+    const savedAt = typeof parsed.savedAt === "number" ? parsed.savedAt : NaN;
+    if (!Number.isFinite(savedAt) || now - savedAt > DRAFT_MAX_AGE_MS) return null;
+    if (!parsed.state || typeof parsed.state !== "object" || Array.isArray(parsed.state)) return null;
+    return parsed.state as Partial<OnboardingState>;
+  } catch {
+    return null;
+  }
+}
+
+function writeLegacyDraft(state: OnboardingState): void {
+  const key = draftKey();
+  if (!key) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), state }));
+  } catch {
+    // Best effort: a private window or a full store just means no draft.
+  }
+}
+
+function clearLegacyDraft(): void {
+  const key = draftKey();
+  if (!key) return;
+  try { window.localStorage.removeItem(key); } catch { /* nothing to clear */ }
+}
+
 /** A reason the plan cannot finish yet: the shared alert says it, and the account stays put. */
 class Blocked extends Error {}
 
@@ -126,6 +172,14 @@ export default function OnboardingFlow({
   const reduceMotion = useReducedMotion();
   const present = useIsPresent();
   const rootRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Keeps the first-run form's answers on this device (see `readLegacyDraft`).
+  const keepsDraft = !embedded && initialSettings === undefined;
+  const [restored, setRestored] = useState(false);
+  const [edited, setEdited] = useState(false);
+  // The step the skip confirm was asked on: moving to another step drops the question.
+  const [confirmSkipAt, setConfirmSkipAt] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const leaveTo = useRef<(() => void) | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -133,11 +187,16 @@ export default function OnboardingFlow({
   const { device } = useCapabilities();
   const activeDeviceCapability = deviceCapability ?? device;
   const [base, setBase] = useState<Settings | null>(initialSettings ?? null);
-  const [state, dispatch] = useReducer(
+  const [state, rawDispatch] = useReducer(
     (current: OnboardingState | null, action: OnboardingAction) =>
       action.type === "replace" ? action.state : current ? onboardingReducer(current, action) : current,
     initialSettings ? createOnboardingState(initialSettings, initial) : null,
   );
+  // Any answer (not a step move) counts as "given", so Skip asks before it throws answers away.
+  const [dispatch] = useState(() => (action: OnboardingAction) => {
+    if (action.type !== "replace" && action.type !== "step") setEdited(true);
+    rawDispatch(action);
+  });
   const [classifying, setClassifying] = useState(false);
   const feedback = useActionFeedback();
   const saving = feedback.phase === "pending";
@@ -219,10 +278,31 @@ export default function OnboardingFlow({
     void loadOnboardingSettings().then((settings) => {
       if (!live) return;
       setBase(settings);
-      dispatch({ type: "replace", state: createOnboardingState(settings, initial) });
+      const fresh = createOnboardingState(settings, initial);
+      const draft = keepsDraft ? readLegacyDraft() : null;
+      if (draft) setRestored(true);
+      dispatch({ type: "replace", state: draft ? { ...fresh, ...draft } : fresh });
     });
     return () => { live = false; };
-  }, [initial, initialSettings]);
+  }, [initial, initialSettings, keepsDraft, dispatch]);
+
+  useEffect(() => {
+    if (keepsDraft && state) writeLegacyDraft(state);
+  }, [keepsDraft, state]);
+
+  // A new step (or the cuisine question) opens at its top with focus on its heading, so the
+  // screen and a screen reader both start at the new step rather than part-way down the last one.
+  const stepKey = state ? `${state.step}:${cuisine.at ? "c" : ""}` : null;
+  const confirmSkip = confirmSkipAt !== null && confirmSkipAt === stepKey;
+  const shownStep = useRef<string | null>(null);
+  useEffect(() => {
+    if (stepKey === null) return;
+    const before = shownStep.current;
+    shownStep.current = stepKey;
+    if (before === null || before === stepKey) return;
+    mainRef.current?.scrollTo?.({ top: 0 });
+    headingRef.current?.focus({ preventScroll: true });
+  }, [stepKey]);
 
   const loaded = base !== null && state !== null;
   // Focus moves into the opened-over flow and, once it has left, back to the control that opened
@@ -306,9 +386,11 @@ export default function OnboardingFlow({
 
   /** One onboarding write through the shared feedback: a blocker or failure keeps the account here. */
   async function save(): Promise<void> {
+    setConfirmSkipAt(null);
     const outcome = await feedback.run(savePlan, { kind: "commit", key: "save",
       failureMessage: (cause) => cause instanceof Blocked ? cause.message : "Couldn’t save your plan. Try again." });
     if (!outcome.ok) return;
+    if (keepsDraft) clearLegacyDraft();
     if (offerDevice && activeDeviceCapability?.enabled) setShowDevice(true);
     else finish();
   }
@@ -349,10 +431,10 @@ export default function OnboardingFlow({
         foodsSatisfied = true;
         setFoodsSaved(true);
       }
-      if (!result.constraintsSaved) throw new Blocked(CONSTRAINT_SAVE_WARNING);
+      if (!result.constraintsSaved) throw new Blocked(LEGACY_CONSTRAINT_WARNING);
     }
     if (!constraintsSaved && completed) {
-      if (!await retryOnboardingConstraints(currentState.flags)) throw new Blocked(CONSTRAINT_SAVE_WARNING);
+      if (!await retryOnboardingConstraints(currentState.flags)) throw new Blocked(LEGACY_CONSTRAINT_WARNING);
       setConstraintsSaved(true);
     }
     if (!foodsSatisfied) {
@@ -372,6 +454,7 @@ export default function OnboardingFlow({
   }
 
   async function skip(): Promise<void> {
+    setConfirmSkipAt(null);
     const outcome = await feedback.run(async () => {
       if (!skipPersisted) {
         await persistSkippedOnboarding(currentBase);
@@ -380,7 +463,18 @@ export default function OnboardingFlow({
       if (!await settingsAccepted()) throw new Blocked(ONBOARDING_SYNC_WARNING);
     }, { kind: "commit", key: "skip",
       failureMessage: (cause) => cause instanceof Blocked ? cause.message : "Couldn’t finish setup. Try again." });
-    if (outcome.ok) finish();
+    if (outcome.ok) {
+      if (keepsDraft) clearLegacyDraft();
+      finish();
+    }
+  }
+
+  /** "Skip for now" and the first-run close: once an answer is given, one more tap confirms it, so
+   *  a slipped thumb never throws the answers away. A skip already sent (its retry) goes at once. */
+  function requestSkip(): void {
+    const answered = edited || restored || currentState.step > 0;
+    if (answered && !skipPersisted && !confirmSkip) { setConfirmSkipAt(stepKey); return; }
+    void skip();
   }
 
   /**
@@ -393,7 +487,7 @@ export default function OnboardingFlow({
     if (deviceShown) { finish(); return; }
     if (embedded) { leave(onClose ?? onFinished ?? (() => undefined)); return; }
     if (saving) return;
-    void (completed ? save() : skip());
+    if (completed) void save(); else requestSkip();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
@@ -454,7 +548,7 @@ export default function OnboardingFlow({
       onAnimationComplete={() => { if (leaving) settleLeave(); }}>
     {deviceShown && activeDeviceCapability
       ? <DeviceStep capability={activeDeviceCapability} returnTo={returnTo} onFinish={finish} />
-      : <main className="fixed inset-0 z-50 overflow-y-auto bg-paper px-4 text-charcoal"
+      : <main ref={mainRef} className="fixed inset-0 z-50 overflow-y-auto bg-paper px-4 text-charcoal"
       style={{ paddingTop: "calc(var(--safe-top) + 16px)",
         paddingBottom: "calc(var(--safe-bottom) + 16px)" }}>
       {/* The card fills the screen: the shell is a column and its face grows into it, so the E1 drop
@@ -473,7 +567,7 @@ export default function OnboardingFlow({
               <div className="h-full rounded-full bg-primary"
                 style={{ width: `${(cuisine.position / cuisine.total(STEPS.length)) * 100}%` }} />
             </div>
-            <h1 className="m-0 text-display-md font-light leading-none tracking-display-md">
+            <h1 ref={headingRef} tabIndex={-1} className="m-0 outline-none text-display-md font-light leading-none tracking-display-md">
               {cuisine.at ? CUISINE_STEP_TITLE : STEPS[step]}
             </h1>
           </header>
@@ -553,10 +647,26 @@ export default function OnboardingFlow({
                 </Button>
               )}
             </div>
-            <Button variant="ghost" block {...feedback.controlPropsFor("skip")} disabled={saving || completed}
-              onClick={() => { void skip(); }}>
-              Skip for now
-            </Button>
+            {confirmSkip && !completed
+              ? <div role="group" aria-label="Skip setup" className="flex flex-col gap-2">
+                  <p role="status" className="m-0 text-center text-caption text-graphite">
+                    Skip setup? Your answers won’t be saved.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="tertiary" className="flex-1" disabled={saving}
+                      onClick={() => setConfirmSkipAt(null)}>
+                      Keep going
+                    </Button>
+                    <Button variant="ghost" className="flex-1" {...feedback.controlPropsFor("skip")} disabled={saving}
+                      onClick={() => { void skip(); }}>
+                      Skip setup
+                    </Button>
+                  </div>
+                </div>
+              : <Button variant="ghost" block {...feedback.controlPropsFor("skip")} disabled={saving || completed}
+                  onClick={requestSkip}>
+                  Skip for now
+                </Button>}
           </footer>}
         </div>
       </div>

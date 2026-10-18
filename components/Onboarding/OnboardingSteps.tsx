@@ -9,7 +9,7 @@ import WeightField from "@/components/WeightField";
 import Stepper from "@/components/Stepper";
 import BodyFatSourceField from "@/components/BodyFatSourceField";
 import GoalRateField, { rateClampCopy, rateSentence } from "@/components/GoalRateField";
-import { activityFactor, deriveTargets, energyProfileFrom, katchEligible }
+import { deriveTargets, energyProfileFrom }
   from "@/lib/profile/energy";
 import {
   enforcedFlags, missingProfileFields, parsedWeightKg, previewCompletedSettings,
@@ -88,7 +88,6 @@ export function BodyStep({ state, dispatch }: StepProps) {
               ? String(Math.round(kgToLb(value) * 10) / 10)
               : String(value) })}
           onUnitChange={(value) => dispatch({ type: "set_weight_unit", value })} />
-        <span className={CAPTION}>Stored in kilograms.</span>
       </div>
     </div>
   );
@@ -287,7 +286,7 @@ export function PreferencesStep({
       {classifying ? <Thinking label="Reading your preferences…" />
         : <p className={`m-0 ${CAPTION}`}>Confirm anything that applies.</p>}
       <p className={`m-0 ${CAPTION}`}>{PREFERENCE_POLICY_COPY}</p>
-      <PreferenceGroup title="Enforced exclusions"
+      <PreferenceGroup title="Foods to block"
         explanation="These become rules that block matching foods."
         flags={enforcedFlags()} state={state} dispatch={dispatch} />
       <DietaryProfilePicker onRulesChanged={onRulesChanged} />
@@ -363,11 +362,8 @@ export function PlanStep({ state, base, dispatch, proteinAvailability, starterSe
   const trainingKcal = state.planEdits.trainingKcal ?? targets.training.kcal;
   const restKcal = state.planEdits.restKcal ?? targets.rest.kcal;
   const proteinG = state.planEdits.proteinG ?? targets.training.protein;
-  // The formula the derivation actually used (step C): Katch-McArdle only for a recent scan.
   const derivedOn = targets.inputs?.effectiveDate ?? new Date().toISOString().slice(0, 10);
   const derivedAt = new Date(`${derivedOn}T12:00:00Z`);
-  const formula = katchEligible(settings, derivedAt) ? "Katch-McArdle" : "Mifflin-St Jeor";
-  const activity = activityFactor(settings.activityLevel!);
   // The same pure derivation the revision used, re-run for what the rate did to the number.
   const { rate } = deriveTargets(energyProfileFrom(settings), derivedAt,
     settings.trainingWeekdays?.length ?? 0);
@@ -389,7 +385,7 @@ export function PlanStep({ state, base, dispatch, proteinAvailability, starterSe
         <Stepper label="Protein" value={proteinG} step={5} unit="g"
           onChange={(value) => dispatch({ type: "edit_plan", field: "proteinG", value })} />
         <Button variant="ghost" size="sm" className="self-start" onClick={() => dispatch({ type: "reset_plan" })}>
-          Reset to derived
+          Reset to suggested
         </Button>
       </div>
       {proteinAvailability && !proteinAvailability.ready && <p role="status"
@@ -409,8 +405,7 @@ export function PlanStep({ state, base, dispatch, proteinAvailability, starterSe
         Go Back to Foods and choose at least two proteins, two carbs and two fats before using this plan.
       </p>}
       <p className={`m-0 px-1 ${CAPTION}`}>
-        Starting estimate: {formula} BMR × {activity} activity
-        {" = "}{rate.tdeeKcal.toLocaleString()} kcal a day,
+        Estimated from your body and activity: about {rate.tdeeKcal.toLocaleString()} kcal a day,
         {" "}{rateSentence(settings.goal!, settings.goalRateBpWeek ?? null)}.
         {clamp ? ` ${clamp}` : ""} It updates as you log and weigh in.
       </p>

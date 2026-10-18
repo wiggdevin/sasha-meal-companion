@@ -243,7 +243,10 @@ const TYPE_HINT: Partial<Record<OnboardingFactKey, string>> = {
   birthYear: "Or type your age", sex: "Or type it: female, male", heightCm: "Or type it: 5 10",
   weightKg: "Or type it: 170", goal: "Or type it: lose fat",
 };
-const OPENER_HINT = "Or type it: lose fat, 34, 5 10, 170 lb";
+/** Short enough to fit the one-line composer at 320 px; the full example sits under the dock. */
+const OPENER_HINT = "Or type your answer";
+const OPENER_EXAMPLE = "Like: lose fat, 34, 5 10, 170 lb";
+const SKIP_CONFIRM = "Skip setup? Your answers won’t be saved.";
 const BLOCKED_NOTE = "That sounds like a health or allergy detail. Tap what applies here, so every plan respects it.";
 const RULES_UNVERIFIED = "Couldn’t verify your food rules. Try again.";
 const HEALTH_ANSWERS_UNCHECKED = "Couldn’t check your saved health answers. Check your connection, then try again.";
@@ -273,15 +276,34 @@ function Placeholder({ label }: { label: string }) {
 /** One keyed beat's stream content: while it is the one LEAVING, it goes `inert` and gives up focus
  *  at once (Sol review — the same fix as the dock's own mode layers), so a departing card is never
  *  still reachable, and the overlap never shifts scroll under a control someone is about to tap. */
-function BeatLayer({ reduce, children }: { reduce: boolean; children: ReactNode }) {
+function BeatLayer({ reduce, arrived, children }: {
+  reduce: boolean;
+  /** True for a beat reached by moving on (not the first one shown): it takes focus as it arrives. */
+  arrived: boolean;
+  children: ReactNode;
+}) {
   const present = useIsPresent();
   const self = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (present) return;
     if (self.current?.contains(document.activeElement)) (document.activeElement as HTMLElement)?.blur();
   }, [present]);
+  // The departing beat gave up focus, so a screen reader would land on <body>: the arriving beat's
+  // first heading (else the beat itself) takes it. Focus held elsewhere (the dock's composer) stays.
+  useEffect(() => {
+    const layer = self.current;
+    if (!arrived || !layer) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && !layer.contains(active)) return;
+    const heading = layer.querySelector<HTMLElement>("h1, h2, h3, legend");
+    const target = heading ?? layer;
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target.focus({ preventScroll: true });
+    // Once, as the beat arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return <motion.div ref={self} inert={!present} aria-hidden={present ? undefined : true}
-    className="flex w-full flex-col items-center gap-4"
+    className="flex w-full flex-col items-center gap-4 outline-none"
     initial={reduce ? false : { opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
     exit={reduce ? { opacity: 0, transition: INSTANT } : { opacity: 0, scale: 0.97, transition: CONTAINER_EXIT }}
     transition={reduce ? INSTANT : CONTAINER_ENTER}>
@@ -361,6 +383,17 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const [checkingRules, setCheckingRules] = useState(false);
   const [showNumbers, setShowNumbers] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
+  /** "Use this plan" failed: its button reads "Try again" (a stale foods or skip error does not). */
+  const [saveFailed, setSaveFailed] = useState(false);
+  /** The beat "Skip for now" asked its confirm on: moving on drops the question. */
+  const [confirmSkipAt, setConfirmSkipAt] = useState<OnboardingBeat | null>(null);
+  const confirmSkip = confirmSkipAt !== null && confirmSkipAt === beat;
+  /** A skip already went out (its retry goes at once). */
+  const skipTried = useRef(false);
+  const scroller = useRef<HTMLDivElement | null>(null);
+  /** False until the person moves on from the first beat shown: later beats arrive with focus. */
+  const [beatMoved, setBeatMoved] = useState(false);
+  const shownBeat = useRef<OnboardingBeat | null>(null);
   /** GPT-6 Sol BLOCK (onb2-p0): why the plan cannot be used yet, with the one step that fixes it.
    *  Shown instead of moving on; never a silent skip. Cleared on every beat change. */
   const [planNotice, setPlanNotice] = useState<PlanNotice | null>(null);
@@ -413,8 +446,21 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
 
   function advance(next: OnboardingBeat) {
     setPlanNotice(null);
+    // An error belongs to the step that raised it: moving on clears it, so the next beat never
+    // opens on an old failure.
+    setLeaveError(null);
+    setSaveFailed(false);
+    setBeatMoved(true);
     setBeat(next);
   }
+
+  // Each beat opens at the top of the stream, never part-way down the last one.
+  useEffect(() => {
+    const before = shownBeat.current;
+    shownBeat.current = beat;
+    if (before === null || before === beat) return;
+    scroller.current?.scrollTo?.({ top: 0 });
+  }, [beat]);
 
   /** Loads the account's own settings (the base every write merges onto, same as
    *  `OnboardingFlow`'s own `base`), then checks for a resumable draft — a reload mid-setup should
@@ -922,7 +968,10 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   const leaveOnboarding = useCallback(async () => {
     if (leaving.current) return;
     leaving.current = true;
+    skipTried.current = true;
+    setConfirmSkipAt(null);
     setLeaveError(null);
+    setSaveFailed(false);
     setSavingState({ title: "Saving…", step: "Taking you to Today." });
     try {
       const accountSettings = base ?? await loadOnboardingSettings();
@@ -948,13 +997,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
    *  retries the constraints alone. */
   const savePlanAndFinish = useCallback(async () => {
     if (leaving.current) return;
-    if (!settings || !onboardingState) { setLeaveError(ONBOARDING_SYNC_WARNING); return; }
+    setConfirmSkipAt(null);
+    if (!settings || !onboardingState) { setLeaveError(ONBOARDING_SYNC_WARNING); setSaveFailed(true); return; }
     leaving.current = true;
     // Never save on an unread account (final Sol review BLOCK): the stored holds decide the pace.
     let stored = storedState.eligibility;
     if (storedState.status !== "ready") {
       stored = await storedState.refresh();
-      if (!stored) { leaving.current = false; setLeaveError(HEALTH_ANSWERS_UNCHECKED); return; }
+      if (!stored) { leaving.current = false; setLeaveError(HEALTH_ANSWERS_UNCHECKED); setSaveFailed(true); return; }
     }
     const title = "Building your plan…";
     setSavingState({ title, step: "Saving your profile, targets and foods." });
@@ -996,6 +1046,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       if (result.code === "adult_only") { setLeaveError(null); advance("minor"); return; }
       // `409 rate_not_eligible`: the account's stored answers hold the pace; the plan card says so
       // and the next tap saves at maintenance (the server holds it whatever the phone sends).
+      setSaveFailed(true);
       if (result.code === "rate_not_eligible") { setServerHeld(true); setLeaveError(RATE_NOT_ELIGIBLE_ERROR); return; }
       setLeaveError(result.error);
       return;
@@ -1007,7 +1058,14 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   }, [router, settings, onboardingState, safetyAnswers, foodAccess.status, starter.marks, plannedCount,
     storedState, serverHeld, telemetry]);
 
-  const handleSkip = onSkip ?? (() => void leaveOnboarding());
+  const skipNow = onSkip ?? (() => void leaveOnboarding());
+  /** "Skip for now": once anything is answered (past the opener), one more tap confirms it, so a
+   *  slipped thumb never throws the answers away. A skip already sent (its retry) goes at once. */
+  const handleSkip = () => {
+    if (beat !== "opener" && !skipTried.current && !confirmSkip) { setConfirmSkipAt(beat); return; }
+    setConfirmSkipAt(null);
+    skipNow();
+  };
   /** "Use this plan". GPT-6 Sol BLOCK (onb2-p0): it never takes the skip path. A plan that is not
    *  ready yet says why and stays; only "Skip for now" skips. */
   const handleComplete = onComplete ?? (() => {
@@ -1022,7 +1080,8 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
   // "Use this plan" appears once the reward card shows Today's plan (the account read answered).
   const dockMode: OnboardingDockMode | null = beat === "reward" && previewAccount === null ? null
     : beat === "foods" && foodsReady ? "confirm" : BEAT_DOCK[beat];
-  const composerLine = composerNote ?? dictation.line;
+  const composerLine = composerNote ?? dictation.line
+    ?? (beat === "opener" && typed.trim() === "" ? OPENER_EXAMPLE : null);
 
   /** Foods "Done": ONB2-RULE-REREAD (Sol r6 BLOCK on onb2-l4-r2). `starter.choices` here can be
    *  minutes stale — a rule saved mid-flow through the inline rule editor never retriggers the
@@ -1163,7 +1222,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
     {/* ui-ux-buddy NIT: `.guide`'s `layout="position"` projects inside this scrolling ancestor —
         `layoutScroll` keeps that projection correct if the account has scrolled mid-transition,
         instead of animating from a stale offset. */}
-    <motion.div layoutScroll className={styles.scroller}>
+    <motion.div ref={scroller} layoutScroll className={styles.scroller}>
       <div className={styles.stream}>
         {/* ui-ux-buddy's Sonnet lane (polish pass, 2026-10-07): `.stream`'s own `justify-content:
             center` (below, the empty-middle fix) re-centers the whole block on every beat change,
@@ -1184,7 +1243,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
             own mode layers stay simultaneous: they are bounded by one glass pill, not a free-height
             stream. */}
         <AnimatePresence mode="wait" initial={false}>
-          <BeatLayer key={beat} reduce={reduce}>{streamContent}</BeatLayer>
+          <BeatLayer key={beat} reduce={reduce} arrived={beatMoved}>{streamContent}</BeatLayer>
         </AnimatePresence>
       </div>
     </motion.div>
@@ -1205,8 +1264,18 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
       {composerLine}
     </p>}
     {/* The under-18 stop carries its own "Look around" exit; a second one would say the same. */}
-    {beat !== "minor" && <div className={styles.skipLink}>
-      <Button variant="ghost" size="sm" className="min-h-11" onClick={handleSkip}>Skip for now</Button>
+    {beat !== "minor" && <div className={styles.skipLink} data-last={dockMode ? undefined : "true"}>
+      {confirmSkip
+        ? <div role="group" aria-label="Skip setup" className="flex flex-col items-center gap-1">
+            <p role="status" className="m-0 text-center text-caption text-graphite">{SKIP_CONFIRM}</p>
+            <div className="flex gap-2">
+              <Button variant="tertiary" size="sm" className="min-h-11" onClick={() => setConfirmSkipAt(null)}>
+                Keep going
+              </Button>
+              <Button variant="ghost" size="sm" className="min-h-11" onClick={handleSkip}>Skip setup</Button>
+            </div>
+          </div>
+        : <Button variant="ghost" size="sm" className="min-h-11" onClick={handleSkip}>Skip for now</Button>}
     </div>}
     {dockMode && <div className={styles.dockRow}>
       <OnboardingDock mode={dockMode} reduce={reduce}
@@ -1219,7 +1288,7 @@ export default function ConversationalOnboarding({ slots = {}, onSkip, onComplet
           : askingField ? (TYPE_HINT[askingField] ?? "Or type it") : "Type to change anything"}
         /* Sol review round 2: "Use this plan" only once a real plan can be saved; otherwise the
          * honest "Not now" (distinct from the standing "Skip for now" link). */
-        confirmLabel={beat === "reward" ? (leaveError && !saving ? "Try again" : "Use this plan")
+        confirmLabel={beat === "reward" ? (saveFailed && !saving ? "Try again" : "Use this plan")
           : `Done · ${lovedCount} loved`}
         confirmStatus={saving || confirmingFoods ? "pending" : undefined}
         onConfirm={handleDockConfirm}
