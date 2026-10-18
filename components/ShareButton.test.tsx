@@ -43,13 +43,10 @@ describe("shareFailure", () => {
     expect(shareFailure({ name: "AbortError" })).toBe("cancelled");
   });
 
-  it("falls back to the clipboard only when the platform refused the share", () => {
+  it("falls back to the clipboard for any other failure", () => {
     expect(shareFailure(named("NotAllowedError"))).toBe("clipboard");
     expect(shareFailure(new TypeError("bad data"))).toBe("clipboard");
-  });
-
-  it("reports anything else as an error", () => {
-    expect(shareFailure(named("DataError"))).toBe("error");
-    expect(shareFailure("boom")).toBe("error");
+    expect(shareFailure(named("DataError"))).toBe("clipboard");
+    expect(shareFailure("boom")).toBe("clipboard");
   });
 });

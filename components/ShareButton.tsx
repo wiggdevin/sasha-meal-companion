@@ -40,16 +40,14 @@ export function shareButtonLabel(status: ShareStatus): string {
 /**
  * What a failed `navigator.share` means (audit 2026-10-18 §11). A dismissed sheet is an
  * `AbortError`: the person chose not to share, so nothing is copied and nothing reads as a failure.
- * `NotAllowedError` (no user activation, or the platform refused) and `TypeError` (the data was not
- * accepted) fall back to the clipboard; anything else is a plain error.
+ * Any other failure (`NotAllowedError`, `TypeError`, a browser's own name) falls back to the
+ * clipboard, so the text still reaches the person.
  */
-export function shareFailure(error: unknown): "cancelled" | "clipboard" | "error" {
+export function shareFailure(error: unknown): "cancelled" | "clipboard" {
   const name = error instanceof Error || (typeof error === "object" && error !== null && "name" in error)
     ? String((error as { name: unknown }).name)
     : "";
-  if (name === "AbortError") return "cancelled";
-  if (name === "NotAllowedError" || name === "TypeError") return "clipboard";
-  return "error";
+  return name === "AbortError" ? "cancelled" : "clipboard";
 }
 
 /**
@@ -85,12 +83,7 @@ export default function ShareButton({ weekDays, today }: ShareButtonProps) {
         await navigator.share({ text });
         return;
       } catch (error) {
-        const failure = shareFailure(error);
-        if (failure === "cancelled") return;
-        if (failure === "error") {
-          show("error", ERROR_MS);
-          return;
-        }
+        if (shareFailure(error) === "cancelled") return;
       }
     }
 

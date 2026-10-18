@@ -39,7 +39,7 @@ function ago(iso: string | null): string {
  */
 export function syncErrorCopy(error: string): string {
   if (/failed with (401|403)\b/.test(error)) return "Sign in again to sync";
-  if (/failed to fetch|load failed|networkerror|network request|offline|timed? ?out|timeout|abort/i.test(error)) {
+  if (/failed to fetch|load failed|networkerror|network request|offline|timed out|timeout|abort/i.test(error)) {
     return "Couldn't reach the server";
   }
   return "Couldn't sync just now";

@@ -242,6 +242,9 @@ export function LabelCheck({ food }: { food: Food }) {
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
+    // A new food (or a retry) starts with no failure showing; set from a microtask, never
+    // synchronously in the effect body.
+    void Promise.resolve().then(() => { if (live) setLookupFailed(false); });
     void loadConstraints().then((loaded) => {
       if (live && loaded) setAllergens(loaded.profile.avoid_allergens);
     });
@@ -353,9 +356,9 @@ export function LabelCheck({ food }: { food: Food }) {
           {lookupFailed && !ready && (
             <div className="flex flex-col gap-1">
               <p role="status" className={`m-0 ${CAPTION}`}>
-                Can&apos;t confirm this product right now. Try again later.
+                Can&apos;t confirm this product right now.
               </p>
-              <button type="button" onClick={() => { setLookupFailed(false); setAttempt((n) => n + 1); }}
+              <button type="button" onClick={() => setAttempt((n) => n + 1)}
                 className={`tap h-11 self-start px-3 ${OFFER_CLASS}`} style={OFFER}>
                 Try again
               </button>

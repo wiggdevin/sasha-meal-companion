@@ -2,6 +2,7 @@
 
 import { fmt } from "@/lib/log/catalog-card";
 import { nutrientLabel, visibleNutrientCodes } from "@/lib/nutrients/codes";
+import { energyTotal } from "@/lib/nutrients/energy";
 import { formatAmount } from "@/lib/nutrients/format";
 import { totalsFor } from "@/lib/nutrients/totals";
 import type { Snapshot } from "@/lib/nutrients/snapshot";
@@ -26,8 +27,14 @@ export default function NutrientBreakdown({ entry }: { entry: LoggedFood }) {
   }[];
   const totals = totalsFor(measured);
   if (totals.size === 0) return null;
-  const rows = visibleNutrientCodes([...totals.keys()], (code) => (totals.get(code)?.itemsWithValue ?? 0) > 0)
-    .map((code) => totals.get(code)!);
+  // One Calories row, chosen per item before the sum (the energy rule): an entry whose items mix
+  // reported and calculated energy counts every item once, never only the reported ones.
+  const energy = energyTotal(measured.map((i) => i.snapshot));
+  const rows = visibleNutrientCodes([...totals.keys()]).map((code) => {
+    const row = totals.get(code)!;
+    if (code !== "energy_kcal" && code !== "energy_kcal_calc") return row;
+    return { ...row, amount: energy.kcal ?? 0, itemsWithValue: energy.itemsWithValue };
+  });
 
   const first = measured[0];
   const anyValue = Object.values(first.snapshot)[0];
