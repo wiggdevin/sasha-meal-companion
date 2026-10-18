@@ -25,7 +25,7 @@ export default function CaloriesCard({
   onRestChange: (value: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" role="group" aria-label="Calories">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className={`m-0 ${CARD_TITLE}`}>Calories</h3>
         <span className={CAPTION} role="status" aria-live="polite">{saving ? "Saving…" : ""}</span>

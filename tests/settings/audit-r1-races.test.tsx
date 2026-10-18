@@ -104,10 +104,11 @@ describe("UI audit r1: tap order", () => {
     gates.hold = true;
     act(() => { result.current!.setProteinG(145); });
     expect(result.current!.shownProteinG).toBe(145);
-    expect(result.current!.targetsPending).toBe(true);
+    expect(result.current!.targetsPending).toBe(false); // protein has its own card
     act(() => { result.current!.setTrainingKcal(2050); });
     act(() => { result.current!.setTrainingKcal(2100); });
     expect(result.current!.shownTrainingKcal).toBe(2100);
+    expect(result.current!.targetsPending).toBe(true);
     await waitFor(() => expect(gates.list.length).toBe(1));
     await release(0);
     await waitFor(() => expect(gates.list.length).toBe(2));

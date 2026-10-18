@@ -54,6 +54,7 @@ describe("the profile card", () => {
     expect(profileStatusLabel(true, "loading")).toBeNull();
     expect(profileStatusLabel(true, "ready")).toBe("Plan ready");
     expect(profileStatusLabel(true, "failed")).toBe("Targets unavailable");
+    expect(profileStatusLabel(true, "needs_profile")).toBe("No targets yet");
     expect(profileStatusLabel(false, "loading")).toBe("Setup needed");
   });
 });

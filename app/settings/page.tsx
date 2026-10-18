@@ -60,7 +60,8 @@ export default function SettingsPage() {
 
       <SettingsSection title="Profile">
         <AppProfileCard settings={settings} setup={setup}
-          training={trainingResolved} rest={restResolved} targetsStatus={targetsStatus} />
+          training={trainingResolved} rest={restResolved} targetsStatus={targetsStatus}
+          onProfileSaved={retryTargets} />
       </SettingsSection>
 
       {/* "Body profile & units" left (owner, 2026-10-05): it repeated what Edit profile edits; the

@@ -52,6 +52,7 @@ export function profileStatusLabel(ready: boolean, targetsStatus: TargetsStatus)
   if (!ready) return "Setup needed";
   if (targetsStatus === "ready") return "Plan ready";
   if (targetsStatus === "loading") return null;
+  if (targetsStatus === "needs_profile") return "No targets yet";
   return "Targets unavailable";
 }
 
@@ -84,6 +85,7 @@ export default function AppProfileCard({
   training,
   rest,
   targetsStatus,
+  onProfileSaved,
 }: {
   settings: Settings;
   setup: boolean;
@@ -91,6 +93,8 @@ export default function AppProfileCard({
   rest: Macros | null;
   /** Defaults from the numbers handed in: both set is ready, else unavailable. */
   targetsStatus?: TargetsStatus;
+  /** Read the targets again after the editor saves (a finished profile can make the first ones). */
+  onProfileSaved?: () => void;
 }) {
   const reducedMotion = useReducedMotion();
   const [email, setEmail] = useState<string | null>(null);
@@ -117,6 +121,7 @@ export default function AppProfileCard({
   function finishEditor(): void {
     setEditorOpen(false);
     globalThis.dispatchEvent?.(new Event(SYNCED_EVENT));
+    onProfileSaved?.();
   }
 
   const protein = training?.protein ?? rest?.protein ?? null;
@@ -161,7 +166,9 @@ export default function AppProfileCard({
                   : ready
                     ? targetsStatus === "loading"
                       ? "Your body profile is complete. Loading your targets…"
-                      : "Your body profile is complete. Your targets will show once you’re back online."
+                      : targetsStatus === "needs_profile"
+                        ? "Your body profile is complete. Your targets are still being worked out."
+                        : "Your body profile is complete. Your targets will show once you’re back online."
                   : "Finish your details so every meal can be sized to you."}
               </p>
             </div>

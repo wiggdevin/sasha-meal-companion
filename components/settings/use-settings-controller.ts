@@ -336,8 +336,10 @@ export function useSettingsController() {
     shownTrainingKcal: pending.training ?? trainingResolved?.kcal ?? null,
     shownRestKcal: pending.rest ?? restResolved?.kcal ?? null,
     shownProteinG: pending.protein ?? settings.proteinG ?? trainingResolved?.protein ?? null,
-    targetsPending: Object.keys(pending).length > 0,
-    retryTargets: refreshTargets,
+    /** A calorie tap is on its way (the Calories card's "Saving…"; protein has its own card). */
+    targetsPending: pending.training !== undefined || pending.rest !== undefined,
+    /** Back to "loading" at once, so the retry shows it is working. */
+    retryTargets: () => { setTargetsLoadFailed(false); refreshTargets(); },
     trainingCaption: pinCaption(settings.trainingKcal, trainingResolved?.kcal, "kcal"),
     restCaption: pinCaption(settings.restKcal, restResolved?.kcal, "kcal"),
     proteinCaption: pinCaption(settings.proteinG, trainingResolved?.protein, "g"),

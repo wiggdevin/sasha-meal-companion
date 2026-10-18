@@ -356,7 +356,7 @@ export default function TasteChipsField({ source, heading, availability, onDisab
             2026-10-18 §3); before, only a blur did anything. */}
         <input value={text} onChange={(event) => setText(event.target.value)} onBlur={onBlur}
           enterKeyHint="done"
-          onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+          onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.currentTarget.blur(); }}
           placeholder="e.g. I can&rsquo;t stand cilantro, or I grew up on Tex-Mex"
           className="well px-3 py-3 outline-none min-h-11 text-caption font-normal text-charcoal" />
       </label>
@@ -364,7 +364,8 @@ export default function TasteChipsField({ source, heading, availability, onDisab
       {!checking && failed && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p className="m-0 text-tiny font-light text-muted" role="status">No suggestions right now.</p>
-          <Button variant="tertiary" size="sm" onClick={() => {
+          {/* Pressed before the click so a field still focused does not also check on its blur. */}
+          <Button variant="tertiary" size="sm" onMouseDown={(event) => event.preventDefault()} onClick={() => {
             const value = text.trim();
             if (value) void check(value);
           }}>
