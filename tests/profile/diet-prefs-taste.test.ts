@@ -228,6 +228,7 @@ describe("diet_prefs inventory", () => {
     // Reads settings.dietPrefs.taste.dislikes to show the current, read-only dislike pills
     // (Phase 18 W5b-3 UI gate); writes go through TasteChipsField's own confirm/undo contract.
     "components/settings/CuisinesSection.tsx": "reader",
+    "components/shopping/BuildListCard.tsx": "reader",
     "components/MyFoods.rule-marks.ts": "reader",
     "components/ShoppingRoot.tsx": "reader",
     // Passes settings.dietPrefs to currentEligibleView to judge a heart's Favored marks.
