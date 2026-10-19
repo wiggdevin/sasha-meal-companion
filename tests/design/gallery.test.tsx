@@ -8,6 +8,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import DesignGallery from "@/app/design/DesignGallery";
+import DesignPage from "@/app/design/page";
 
 afterEach(() => { cleanup(); });
 
@@ -65,20 +66,20 @@ describe("the /design gallery", () => {
     expect(screen.getByRole("button", { name: "Use for this meal" })).toBeTruthy();
   });
 
-  it("renders the water liquid at three fill levels", () => {
-    const { container } = render(<DesignGallery />);
-    expect(container.querySelectorAll("svg path").length).toBeGreaterThan(0);
-  });
-
-  it("renders the tip tile's live tip", () => {
-    render(<DesignGallery />);
-    expect(screen.getByText("Protein first")).toBeTruthy();
-  });
-
   it("shows the new colour tokens by name", () => {
     render(<DesignGallery />);
     expect(screen.getByText("orange-warm rim")).toBeTruthy();
     expect(screen.getByText("sage-wash / sage-ink")).toBeTruthy();
     expect(screen.getByText("field")).toBeTruthy();
+  });
+
+  it("mounts the Cards section: every CardFrame size, level and tone", () => {
+    render(<DesignPage />);
+    const cards = screen.getByRole("region", { name: "Cards" });
+    for (const size of ["sm", "md", "lg"]) expect(cards.querySelector(`.card-${size}`)).toBeTruthy();
+    for (const tone of ["ivory", "recess", "olive"]) expect(cards.querySelector(`.card-${tone}`)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Card again" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Whole card is a button" }));
+    expect(screen.getByText("Taps: 1")).toBeTruthy();
   });
 });

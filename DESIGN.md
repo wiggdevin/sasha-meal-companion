@@ -256,17 +256,17 @@ code by the test; each role shows its worst allowed surface.
 | text-on-primary / text-on-selected | text (≥ 4.5) | olive fill (primary) | 5.15:1 |
 | text-on-olive on the olive fill | text (≥ 4.5) | olive fill (primary) | 5.15:1 |
 | text-on-olive-muted (glyphs only) | icon (≥ 3) | olive fill (primary) | 3.28:1 |
-| .matte text-charcoal | text (≥ 4.5) | .olive-panel in .matte | 13.02:1 |
-| .matte text-graphite | text (≥ 4.5) | .olive-panel in .matte | 9.81:1 |
-| .matte text-muted | text (≥ 4.5) | .olive-panel in .matte | 6.26:1 |
-| .matte text-text-faint | text (≥ 4.5) | .olive-panel in .matte | 5.28:1 |
-| .matte text-on-olive | text (≥ 4.5) | .olive-panel in .matte | 11.04:1 |
+| .matte text-charcoal | text (≥ 4.5) | .olive-panel in .matte | 12.94:1 |
+| .matte text-graphite | text (≥ 4.5) | .olive-panel in .matte | 9.75:1 |
+| .matte text-muted | text (≥ 4.5) | .olive-panel in .matte | 6.22:1 |
+| .matte text-text-faint | text (≥ 4.5) | .olive-panel in .matte | 5.24:1 |
+| .matte text-on-olive | text (≥ 4.5) | .olive-panel in .matte | 10.97:1 |
 | .matte .kcal / .macro-ink-kcal | text (≥ 4.5) | charcoal matte | 4.52:1 |
-| .matte .olive-panel .kcal | text (≥ 4.5) | .olive-panel in .matte | 6.61:1 |
-| .matte .macro-ink-protein | text (≥ 4.5) | .olive-panel in .matte | 6.61:1 |
-| .matte .macro-ink-carbs | text (≥ 4.5) | .olive-panel in .matte | 5.37:1 |
-| .matte .macro-ink-fat | text (≥ 4.5) | .olive-panel in .matte | 6.27:1 |
-| .matte text-icon | icon (≥ 3) | .olive-panel in .matte | 7.04:1 |
+| .matte .olive-panel .kcal | text (≥ 4.5) | .olive-panel in .matte | 6.56:1 |
+| .matte .macro-ink-protein | text (≥ 4.5) | .olive-panel in .matte | 6.56:1 |
+| .matte .macro-ink-carbs | text (≥ 4.5) | .olive-panel in .matte | 5.33:1 |
+| .matte .macro-ink-fat | text (≥ 4.5) | .olive-panel in .matte | 6.23:1 |
+| .matte text-icon | icon (≥ 3) | .olive-panel in .matte | 7.00:1 |
 | plan glyph ink: breakfast | icon (≥ 3) | plan header glyph | 4.48:1 |
 | plan glyph ink: lunch | icon (≥ 3) | plan header glyph | 4.61:1 |
 | plan glyph ink: dinner | icon (≥ 3) | plan header glyph | 4.33:1 |
@@ -283,7 +283,7 @@ code by the test; each role shows its worst allowed surface.
 
 | Forbidden pair | On | Contrast | Instead |
 |---|---|---|---|
-| text-on-olive (cream) | .olive-panel on ivory | 1.07:1 | the Settings protein card bug: cream on a 7 % tint; use ink (`text-charcoal`) |
+| text-on-olive (cream) | .olive-panel on ivory | 1.05:1 | the Settings protein card bug: cream on a 7 % tint; use ink (`text-charcoal`) |
 | text-on-olive (cream) | ivory card | 1.18:1 | cream is for the olive fill and the matte only |
 | text-on-olive-muted | olive fill (primary) | 3.28:1 | 3.3:1 — glyphs only, never words |
 | text-on-primary | ivory card | 1.18:1 | `text-on-primary` needs the olive fill under it (`btn-primary`, `bg-primary`, a lens) |
@@ -339,15 +339,28 @@ shadows, so they look like they're almost sucking in"):
 
 | Level | What | Recipe |
 |---|---|---|
-| E0 inset | wells, trays, fields, a card inside a card | no drop; an ink hairline at 6 % (`.elev-0`, `Surface nested`) |
-| E1 card | every card standing on the ground | `.shell` + `.surface`, `--shadow-card` (`Surface`) |
+| E0 inset | wells, trays, fields, a card inside a card | no drop; an ink hairline (`.elev-0` at 6 %; a nested card at 12 %, `--hairline-card`: `Surface nested`, `CardFrame` inside a card) |
+| E1 card | every card standing on the ground | `.shell` + `.surface`, `--shadow-card` (`Surface`, `CardFrame` on the ground) |
 | E2 floating | pop-up sheets, the chat overlay, menus, the dock, toasts | `--shadow-float` (`.elev-2`) |
 
 Rules: a card on the ground is never flat (E1, or it is not a card — then it is a row on another card);
 never a shadow inside a shadow (children of an E1 card are E0); elevation only rises with z (a panel
 joined to a card does not add a second drop); the charcoal meal card uses `--shadow-hero`, its E1.
 
-Ivory cards carry an ink hairline at 6 % and `--shadow-card` (a contact shadow and a
+**The contrast step (2026-10-19, UI makeover §3).** A surface on another surface differs from its
+parent by at least 1.10:1 at every gradient stop and carries a hairline, so a card never blends into
+the card behind it. Steps alternate: ground → card (E1, `--grad-card`, `--shadow-card`) → inset (E0,
+`--grad-card-inset`, the 12 % `--hairline-card`, no shadow) → card (E0, `--grad-card` again). There is
+no fourth level, and never a shadow inside a shadow. `CardFrame` (`components/ui/CardFrame.tsx`) picks
+the step itself from the card it sits in (sizes sm/md/lg: 12/16/20 px padding, 16/24/32 px radius;
+tones ivory, recess and olive) and throws in development at a fourth level. Legacy nested `.surface`
+cards take the same steps through one rule guarded by `html[data-card-step]` (`app/layout.tsx`);
+removing the attribute reverts them all. The `.olive-panel` tint is 8 % so it too steps off its
+card (10 % and up would drop muted text on a panel inside an eaten meal card below 4.5:1). Matte
+charcoal stays for the meal card and the dock. `tests/design/surface-step.test.ts` holds the
+ratios on all four grounds.
+
+Ivory cards carry an ink hairline at 10 % and `--shadow-card` (a contact shadow and a
 long, warm drop). The meal card adds the reference's deeper drop. Olive and charcoal surfaces carry
 the inset bevel (`--bevel`). Trays inside a card are beige. Sheets are ivory with a 32 px top radius
 over a charcoal scrim at 45 %. The dock is matte charcoal at 94 % with a light blur.

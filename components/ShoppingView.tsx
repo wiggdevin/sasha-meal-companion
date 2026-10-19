@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import Disclosure from "@/components/ui/Disclosure";
-import ShoppingControls, { type ShoppingDraft } from "@/components/ShoppingControls";
+import ShoppingControls from "@/components/ShoppingControls";
+import BuildListSlot from "@/components/shopping/BuildListSlot";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
 import ShoppingList from "@/components/ShoppingList";
 import ShoppingPreview, { type ShoppingPreviewData } from "@/components/ShoppingPreview";
@@ -11,6 +12,7 @@ import ShoppingIngredientPicker from "@/components/ShoppingIngredientPicker";
 import PantryPhotoCapture from "@/components/PantryPhotoCapture";
 import ShoppingPurchaseWindowCard, { type PurchaseWindowPatch } from "@/components/ShoppingPurchaseWindowCard";
 import { identityKey } from "@/lib/shopping/aggregate";
+import type { ShoppingDraft, ShoppingPreviewInput } from "@/lib/shopping/contracts";
 import type { IngredientIdentity, PantryItem, ShoppingLine, ShoppingPeriod,
   ShoppingPurchaseWindow } from "@/lib/shopping/types";
 import Notice from "@/components/ui/Notice";
@@ -18,7 +20,8 @@ import RuleMark from "@/components/ui/RuleMark";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import { currentWindowChecked, localToday, shoppingDate, shoppingRange } from "@/lib/shopping/labels";
 
-export type ShoppingPreviewInput = { draft: ShoppingDraft; basket: IngredientIdentity[] };
+// The preview input lives in lib/shopping/contracts; kept here for importers.
+export type { ShoppingPreviewInput };
 export type ShoppingViewActions = {
   preview: (input: ShoppingPreviewInput) => Promise<ShoppingPreviewData>;
   /** Answers the saved line when it can (a queued tick is sent on its revision). */
@@ -124,6 +127,7 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
   const planLines = lines.filter((line) => line.origin === "plan");
   const windowed = monthly && purchaseWindows.length > 0;
   return <div ref={topRef} className="flex flex-col gap-4" aria-label="Shopping">
+    <BuildListSlot periodId={period?.id ?? null} />
     <header><h1 className="m-0 text-xl font-semibold">Shopping</h1>
       <p className="ground-muted mb-0 text-sm">Your list for the store, filled from your meal plan or by hand.</p></header>
     <ShoppingList title={period ? dateRange(period) : "This week"} lines={lines} favorites={favorites}

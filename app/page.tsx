@@ -9,9 +9,9 @@ import { getDay, loadStore, saveStore, upsertExtra, upsertFood } from "@/lib/sto
 import {
   saveEatenSlot, saveItemOverride, saveMealEdit, saveSwap,
 } from "@/lib/plan-day-client";
-import Link from "next/link";
 import DayTypeToggle from "@/components/DayTypeToggle";
 import { formatMacro } from "@/components/nutrition/spec";
+import Link from "next/link";
 import HeaderAvatar from "@/components/HeaderAvatar";
 import { getMealOptions, isMealSlot, SLOT_LABELS } from "@/lib/meals";
 import { dayHasPartialNutrition, entryMacros, generatedNotesForDay, planningSlotTarget, resolveDay, scaledSlotTarget } from "@/lib/resolve";
@@ -39,8 +39,9 @@ import { AnimatePresence, MotionConfig } from "motion/react";
 import TodayDayStrip from "@/components/TodayDayStrip";
 import DayCard from "@/components/today/DayCard";
 import DuplicateEntryCard from "@/components/today/DuplicateEntryCard";
-import { DAY_CARD_EXPLAINER } from "@/components/today/ExplainerPlayer";
-import { boardTips, nextMeal } from "@/lib/today/board";
+import { nextMeal } from "@/lib/today/board";
+import { todayPageTitle } from "@/lib/today/page-title";
+import PageTitle from "@/components/ui/PageTitle";
 import DayNutrients from "@/components/DayNutrients";
 import InstallPrompt from "@/components/InstallPrompt";
 import Notice from "@/components/ui/Notice";
@@ -966,9 +967,8 @@ export default function Today() {
   // The plan and what was logged on top of it, as one clock-ordered stack.
   const timeline = mergeTimeline(resolved.slots, resolved.extras);
 
-  const title = isToday
-    ? "Today"
-    : parseIsoDate(viewedDate).toLocaleDateString(undefined, { weekday: "long" });
+  // The page title carries the viewed date now (the Day card no longer does).
+  const { title, eyebrow } = todayPageTitle(viewedDate, todayIso);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -976,34 +976,40 @@ export default function Today() {
         className="mx-auto flex w-full max-w-md flex-col gap-5 px-4"
         style={{ paddingTop: "calc(var(--safe-top) + 20px)" }}
       >
-        <header className="flex min-h-11 items-center justify-end gap-2 px-1">
-          <h1 className="sr-only">{title}</h1>
-          <DayTypeToggle
-            key={viewedDate}
-            date={viewedDate}
-            quickMeals={resolved.isFloorDay}
-            dayType={resolved.dayType}
-            override={getDay(viewedDate)?.dayTypeOverride}
-            onSaved={refresh}
-          />
-          <Link href="/week" aria-label="Open the Week screen"
-            className="tap flex h-11 items-center rounded-full px-3 text-caption font-medium text-graphite">
-            Week
-          </Link>
-          <HeaderAvatar />
-        </header>
+        <PageTitle eyebrow={eyebrow} title={title}
+          back={isToday ? undefined : { href: "/", label: "Back to today",
+            onClick: (event) => { event.preventDefault(); selectDate(todayIso); } }}
+          trailing={<>
+            <DayTypeToggle
+              key={viewedDate}
+              date={viewedDate}
+              quickMeals={resolved.isFloorDay}
+              dayType={resolved.dayType}
+              override={getDay(viewedDate)?.dayTypeOverride}
+              onSaved={refresh}
+            />
+            {/* Interim way into the Week screen until the week's charts (W4) link to it. */}
+            <Link href="/week" aria-label="Open the Week screen"
+              className="tap flex h-11 items-center rounded-full px-3 text-caption font-medium text-graphite">
+              Week
+            </Link>
+            <HeaderAvatar />
+          </>} />
 
         {/* The strip's `store` is the raw store, not planStore: the strip now projects each day
             itself through resolveStripDay (lib/today/resolve-strip-day.ts), so planStore would
             project the viewed day's overlay and readiness twice. */}
-        <DayCard date={viewedDate} today={todayIso} targets={resolved.targets} consumed={resolved.consumed}
-          partial={dayHasPartialNutrition(resolved)}
-          dayType={resolved.dayType} water={water}
-          onAddCup={() => void logWater()} onSetCups={(cups) => void setWater(cups)}
-          rebalance={rebalancePanel} onOpenSlot={openSlotCard}
-          body={{ ...bodyRead, capability: bodyCapability }}
+        <DayCard
           calendar={<TodayDayStrip date={viewedDate} today={todayIso} store={store} onSelect={selectDate} live={live} />}
-          board={{
+          overview={{
+            date: viewedDate, today: todayIso,
+            when: isToday ? "today" : viewedDate < todayIso ? "past" : "future",
+            dayType: resolved.dayType,
+            targets: resolved.targets, consumed: resolved.consumed,
+            partial: dayHasPartialNutrition(resolved),
+            water,
+            onAddCup: () => void logWater(), onSetCups: (cups) => void setWater(cups),
+            rebalance: rebalancePanel, onOpenSlot: openSlotCard,
             next: nextMeal(resolved.slots, isToday ? nowM : null),
             planned: resolved.slots.filter((slot) => slot.meal !== null).length,
             onMarkEaten: (slot) => void toggleEaten(slot),
@@ -1011,9 +1017,7 @@ export default function Today() {
             store: planStore,
             eligibleIds: eligibleFoodIds ?? undefined,
             onSelectDate: selectDate,
-            onSetWater: (cups) => void setWater(cups),
-            tips: boardTips(),
-            explainers: [DAY_CARD_EXPLAINER],
+            body: { ...bodyRead, capability: bodyCapability },
           }} />
 
         <DuplicateEntryCard date={viewedDate} extras={resolved.extras} feedback={todayFeedback} />

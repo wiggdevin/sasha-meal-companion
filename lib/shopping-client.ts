@@ -2,9 +2,8 @@
 
 import type { PantryItem, ShoppingLine, ShoppingPeriod, ShoppingPurchaseWindow } from "@/lib/shopping/types";
 import { AccountChanged, accountFetch, accountHandle, accountJson, type AccountHandle } from "@/lib/device/account";
-import { defaultShoppingDraft, type ShoppingDraft } from "@/components/ShoppingControls";
+import { defaultShoppingDraft, type ShoppingDraft, type ShoppingPreviewInput } from "@/lib/shopping/contracts";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
-import type { ShoppingPreviewInput } from "@/components/ShoppingView";
 import { identityKey } from "@/lib/shopping/aggregate";
 import type { ShoppingPreviewResult } from "@/lib/shopping/preview-contract";
 import { withRuleMark, withRuleMarks } from "@/lib/shopping/rule-mark-wire";

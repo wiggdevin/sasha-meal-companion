@@ -87,7 +87,7 @@ export function token(name: string, scope: Map<string, string> = THEME): Rgb {
 }
 
 /** Every hex stop of a `--grad-*` recipe in :root. */
-function gradient(name: string): Rgb[] {
+export function gradient(name: string): Rgb[] {
   const match = new RegExp(`--grad-${name}:\\s*linear-gradient\\(([^;]*)\\);`).exec(GLOBALS_CSS);
   if (!match) throw new Error(`no gradient --grad-${name}`);
   return Array.from(match[1].matchAll(/#[0-9a-f]{6}/gi), (m) => hexToRgb(m[0]));
@@ -107,7 +107,7 @@ const MEALS: Record<string, Rgb> = Object.fromEntries(
   Array.from(GLOBALS_CSS.matchAll(/\.plan-head\[data-meal="([a-z]+)"\]\s*\{\s*--meal-rgb:\s*(\d+) (\d+) (\d+);/g),
     (m) => [m[1], [Number(m[2]), Number(m[3]), Number(m[4])] as Rgb]));
 
-const PANEL_ALPHA = alphaIn(".olive-panel {", /background: rgb\(var\(--section-rgb\) \/ ([\d.]+)\)/);
+export const PANEL_ALPHA = alphaIn(".olive-panel {", /background: rgb\(var\(--section-rgb\) \/ ([\d.]+)\)/);
 const BAND_ALPHA = alphaIn(".plan-head {", /rgb\(var\(--meal-rgb\) \/ ([\d.]+)\) 0%/);
 const GLYPH_ALPHA = alphaIn(".plan-head-glyph {", /background: rgb\(var\(--meal-rgb\) \/ ([\d.]+)\)/);
 const CHIP_ALPHA = alphaIn(".plan-chip {", /background: rgb\(255 255 255 \/ ([\d.]+)\)/);
@@ -126,6 +126,8 @@ const bands = Object.values(MEALS).flatMap(bandsOf);
 export const SURFACES: Surface[] = [
   { id: "oat ground", scope: "light", shades: [token("paper"), token("background")] },
   { id: "ivory card (.surface, sheets)", scope: "light", shades: ivory },
+  { id: "lifted card (CardFrame raised)", scope: "light", shades: gradient("card") },
+  { id: "inset card (nested .surface, CardFrame recess)", scope: "light", shades: gradient("card-inset") },
   { id: "beige recess (.well, trays)", scope: "light", shades: [...gradient("recess"), token("fog")] },
   { id: "field", scope: "light", shades: [token("field")] },
   { id: "sage wash", scope: "light", shades: [token("sage-wash")] },

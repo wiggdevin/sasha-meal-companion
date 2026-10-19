@@ -1,0 +1,70 @@
+/**
+ * Card manifest shard `coach` (owner: W0, then W6; docs/plans/2026-10-19-ui-makeover.md §8).
+ * The coach screen, its messages, action cards and blocks. W6 restyles them and keeps each entry's states.
+ *
+ * Data, not a test: `tests/cards/manifest.ts` concatenates every shard into `CARD_MANIFEST`, and
+ * `tests/cards/inventory.test.ts` reads it. No wildcard and no orphan allowlist, here as there.
+ */
+import type { CardManifestEntry } from "../manifest";
+
+export const COACH_CARDS: CardManifestEntry[] = [
+  { path: "app/coach/CoachScreen.tsx", card: "CoachScreen",
+    states: ["unavailable", "available"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/coach/CoachShell.tsx", card: "CoachErrorNotice",
+    states: ["turn failed"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/CoachMessage.tsx", card: "CoachMessage",
+    states: ["settled", "pending"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/CoachActionCard.tsx", card: "CoachActionCard",
+    states: ["pending", "applied", "failed", "undoing", "undone", "unknown kind"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/CoachComposedCard.tsx", card: "CoachComposedCard",
+    states: ["empty", "fits", "misses the slot", "no fit note"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/CoachSuggestions.tsx", card: "CoachSuggestions",
+    states: ["blocked", "unverified", "allowed", "allowed without a draft"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/CoachSuggestion.tsx", card: "CoachSuggestion",
+    states: ["blocked", "unverified", "allowed"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/coach/blocks/log_draft.tsx", card: "LogDraftBlock",
+    states: ["pending", "committed", "dismissed", "blocked", "photo missing"],
+    renderTest: "tests/coach/blocks-client/log-draft.test.tsx" },
+  { path: "components/coach/blocks/chart.tsx", card: "ChartBlock",
+    states: ["empty", "populated"],
+    renderTest: "tests/coach/blocks-client/chart.test.tsx" },
+  { path: "components/coach/blocks/food_search.tsx", card: "FoodSearchBlock",
+    states: ["blocked", "already marked", "truncated", "calories", "log-anyway"],
+    renderTest: "tests/coach/blocks-client/food-search.test.tsx" },
+  { path: "components/coach/blocks/food_ideas.tsx", card: "FoodIdeasBlock",
+    // A failed apply shows on the ledger's CoachActionCard now (tests/coach/shell/food-ideas-ledger).
+    states: ["idea", "tapped"],
+    renderTest: "tests/coach/blocks-client/food-ideas.test.tsx" },
+  { path: "components/coach/blocks/FoodIdeaCard.tsx", card: "FoodIdeaCard",
+    // The block's tap-once idea card (moved out of food_ideas.tsx in Phase 18 W6 UI).
+    states: ["idea", "tapped"],
+    renderTest: "tests/coach/blocks-client/food-ideas.test.tsx" },
+  { path: "components/coach/blocks/quick_replies.tsx", card: "QuickRepliesBlock",
+    states: ["offered", "used", "not the latest reply"],
+    renderTest: "tests/coach/blocks-client/quick-replies.test.tsx" },
+  { path: "components/coach/editors/BarcodeDraftEditor.tsx", card: "BarcodeDraftEditor",
+    states: ["confirmation field", "no ingredient list", "portion pills"],
+    renderTest: "tests/coach/editors/editor-fields.test.tsx" },
+  { path: "components/coach/editors/CaptureDraftEditor.tsx", card: "CaptureDraftEditor",
+    states: ["confirmation field", "another match", "portion pills"],
+    renderTest: "tests/coach/editors/editor-fields.test.tsx" },
+  { path: "components/coach/editors/SanityNotices.tsx", card: "SanityNotices",
+    states: ["silent", "warning", "not verified", "typical serving"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/coach/attachments/WeighInField.tsx", card: "WeighInField",
+    states: ["idle", "invalid number"],
+    renderTest: "tests/cards/coach.test.tsx" },
+  { path: "components/coach/TasteChipsCard.tsx", card: "TasteChipsCard",
+    states: ["idle", "applied", "offline", "retry", "refused", "undone"],
+    renderTest: "tests/coach/taste-chips-card-ui.test.tsx" },
+  { path: "components/coach/attachments/ScanAttachmentSheet.tsx", card: "ScanAttachmentSheet",
+    states: ["closed", "open"],
+    renderTest: "tests/cards/sheets.test.tsx" },
+];

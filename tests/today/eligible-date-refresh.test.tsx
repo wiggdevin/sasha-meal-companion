@@ -84,7 +84,9 @@ async function renderToday(): Promise<void> {
 }
 
 function pickOtherDate(): void {
-  fireEvent.click(screen.getByRole("button", { name: "pick other date" }));
+  // The strip lives on the Calendar face; its tab click flushes on its own so the face is live.
+  act(() => { fireEvent.click(screen.getByRole("tab", { name: "Calendar" })); });
+  act(() => { fireEvent.click(screen.getByRole("button", { name: "pick other date" })); });
 }
 
 function pickThirdDate(): void {
@@ -116,7 +118,7 @@ describe("the eligible-set effect re-reads on a date change", () => {
     eligible.mockResolvedValue(new Set(["tofu"]));
     await renderToday();
     await waitFor(() => expect(eligible).toHaveBeenCalledTimes(1));
-    act(() => { pickOtherDate(); });
+    pickOtherDate();
     await act(() => wait(150)); // inside the debounce window
     expect(eligible).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(eligible).toHaveBeenCalledTimes(2), { timeout: 2000 });
@@ -126,7 +128,7 @@ describe("the eligible-set effect re-reads on a date change", () => {
     eligible.mockResolvedValue(new Set(["tofu"]));
     await renderToday();
     await waitFor(() => expect(eligible).toHaveBeenCalledTimes(1));
-    act(() => { pickOtherDate(); });
+    pickOtherDate();
     await act(() => wait(150));
     act(() => { pickThirdDate(); }); // a second, DIFFERENT pick resets the debounce window
     await act(() => wait(150)); // 300ms since the FIRST pick, but only 150ms since the second
@@ -139,7 +141,7 @@ describe("the eligible-set effect re-reads on a date change", () => {
     await renderToday();
     await waitFor(() => expect(eligible).toHaveBeenCalledTimes(1));
     eligible.mockRejectedValueOnce(new Error("Couldn’t check your food rules. Try again."));
-    act(() => { pickOtherDate(); });
+    pickOtherDate();
     await waitFor(() => expect(eligible).toHaveBeenCalledTimes(2), { timeout: 2000 });
     await screen.findByText(/couldn’t verify your food rules/);
     // The catch path no longer calls setEligibleFoodIds(null) at all (see the diff) -- it leaves
@@ -158,7 +160,7 @@ describe("the eligible-set effect re-reads on a date change", () => {
     await renderToday();
     await waitFor(() => expect(resolvedWith.values.at(-1)?.has("tofu")).toBe(true));
     eligible.mockResolvedValueOnce(new Set(["beans"]));
-    act(() => { pickOtherDate(); });
+    pickOtherDate();
     await waitFor(() => expect(eligible).toHaveBeenCalledTimes(2), { timeout: 2000 });
     // The downstream consumer (resolveDay's own eligible-ids argument) actually receives the
     // NEW answer -- "beans", not the stale "tofu" a suppressed replace would have kept serving.

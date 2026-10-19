@@ -72,7 +72,9 @@ export default async function RootLayout({
   const capabilities = readAppCapabilities(process.env);
 
   return (
-    <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
+    // `data-card-step` turns on the contrast step for legacy nested cards (app/globals.css, DESIGN.md
+    // §Elevation): a `.surface` inside a `.surface` takes the inset face. Remove it to revert them all.
+    <html lang="en" suppressHydrationWarning data-card-step="" className={`${display.variable} ${sans.variable}`}>
       <body className="bg-paper text-charcoal antialiased">
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: GROUND_BOOT_SCRIPT }} />
         <ZodJitless />

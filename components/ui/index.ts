@@ -1,4 +1,8 @@
 export { default as Surface } from "@/components/ui/Surface";
+export { default as CardFrame, CardToneContext, resolveCardFace } from "@/components/ui/CardFrame";
+export type { CardFace, CardFrameLevel, CardFrameProps, CardFrameSize, CardFrameTone, CardTone } from "@/components/ui/CardFrame";
+export { default as PageTitle } from "@/components/ui/PageTitle";
+export type { PageTitleBack } from "@/components/ui/PageTitle";
 export { default as Button } from "@/components/ui/Button";
 export type { ButtonVariant, ButtonSize, ButtonStatus, ButtonProps } from "@/components/ui/Button";
 export { useButtonStatus } from "@/components/ui/useButtonStatus";
