@@ -8,8 +8,8 @@
    fontSize/fontWeight/letterSpacing/color recipe as the comment above it. */
 /** 20px / 400 / -0.01em */
 export const CARD_TITLE = "text-subheading font-normal tracking-heading-sm";
-/** 12px / 300 / text-muted */
-export const CAPTION = "text-tiny font-light text-muted";
+/** 14px / 400 / text-muted */
+export const CAPTION = "text-caption font-normal text-muted";
 /** 16px / 400 / text-primary */
 export const ROW_TITLE = "text-body font-normal text-charcoal";
 /** A form field's name over its box (one rhythm with components/BodyProfileFields, 2026-10-01).

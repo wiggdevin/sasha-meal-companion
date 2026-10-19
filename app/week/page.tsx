@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import PageTitle from "@/components/ui/PageTitle";
+import CardFrame from "@/components/ui/CardFrame";
 import WeekGrid from "@/components/week/WeekGrid";
 import ShareButton from "@/components/ShareButton";
 import { computeWeekStats } from "@/lib/summary";
@@ -69,7 +70,6 @@ function mostRecentMonday(date: string): string {
 // app/page.tsx (Today). No mockup exists for this screen — DESIGN.md is the
 // contract: glass cards, olive for emphasis, ink primary button.
 
-const EYEBROW = "text-overline uppercase text-muted";
 const STAT_CAPTION = "text-tiny font-normal text-muted";
 
 /** Prev / next chevrons, 1.5px stroke, copied from app/page.tsx. */
@@ -88,15 +88,6 @@ function Chevron({ back }: { back?: boolean }) {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
       stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d={back ? "m15 18-6-6 6-6" : "m9 18 6-6-6-6"} />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m6 6 12 12M18 6 6 18" />
     </svg>
   );
 }
@@ -209,16 +200,7 @@ export default function WeekPage() {
       style={{ paddingTop: "calc(var(--safe-top) + 20px)" }}
     >
       <header className="flex flex-col gap-2.5 px-1">
-        <div className="flex min-h-11 items-center justify-end">
-          <Link href="/" aria-label="Back to Today"
-            className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-graphite">
-            <CloseIcon />
-          </Link>
-        </div>
-
-        <h1 className="ground m-0 text-display-md font-light leading-none tracking-display-md">
-          Week
-        </h1>
+        <PageTitle title="Week" back={{ href: "/", label: "Today" }} />
 
         <div className="flex items-center justify-between gap-2">
           <button
@@ -251,42 +233,32 @@ export default function WeekPage() {
           stats. Glass cards (`.shell` + `.surface`) with an eyebrow label and
           a 40 px/300 numeral, per DESIGN.md Typography. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="shell flex">
-          <div className="surface flex w-full flex-col gap-1 p-4">
-            <p className={`m-0 flex items-center gap-1.5 ${EYEBROW}`}>
-              <span className="size-1.5 rounded-full bg-gauge-protein" aria-hidden="true" />Protein
-            </p>
-            <p className=" m-0 text-display-md font-light leading-none tracking-display-md tabular-nums text-charcoal">
-              {weekHasTargets && stats.proteinHitRate && weekHasLoggedPastDay
-                ? `${stats.proteinHitRate.pct}%` : "—"}
-            </p>
-            <p className={`m-0 tabular-nums ${STAT_CAPTION}`}>
-              {weekHasTargets && stats.proteinHitRate && weekHasLoggedPastDay
-                ? `hit-rate · ${stats.proteinHitRate.met}/${stats.proteinHitRate.total} days`
-                : "hit-rate · nothing logged yet"}
-            </p>
-            <StatBar tone="protein" share={weekHasTargets && stats.proteinHitRate && weekHasLoggedPastDay
-              ? stats.proteinHitRate.pct / 100 : 0} />
-          </div>
-        </div>
-        <div className="shell flex">
-          <div className="surface flex w-full flex-col gap-1 p-4">
-            <p className={`m-0 flex items-center gap-1.5 ${EYEBROW}`}>
-              <span className="size-1.5 rounded-full bg-gauge-calories" aria-hidden="true" />Calories
-            </p>
-            <p className=" m-0 text-display-md font-light leading-none tracking-display-md tabular-nums text-charcoal">
-              {weekHasTargets && stats.calories && weekHasLoggedPastDay
-                ? stats.calories.avg.toLocaleString("en-US") : "—"}
-            </p>
-            <p className={`m-0 tabular-nums ${STAT_CAPTION}`}>
-              {weekHasTargets && stats.calories && weekHasLoggedPastDay
-                ? `average · target ${stats.calories.target.toLocaleString("en-US")}`
-                : "average · fills in from tomorrow"}
-            </p>
-            <StatBar tone="calories" share={weekHasTargets && stats.calories && weekHasLoggedPastDay
-              && stats.calories.target > 0 ? stats.calories.avg / stats.calories.target : 0} />
-          </div>
-        </div>
+        <CardFrame size="sm" title="Protein">
+          <p className="m-0 text-heading font-light leading-none tabular-nums text-charcoal">
+            {weekHasTargets && stats.proteinHitRate && weekHasLoggedPastDay
+              ? `${stats.proteinHitRate.pct}%` : "—"}
+          </p>
+          <p className={`m-0 tabular-nums ${STAT_CAPTION}`}>
+            {weekHasTargets && stats.proteinHitRate && weekHasLoggedPastDay
+              ? `hit-rate · ${stats.proteinHitRate.met}/${stats.proteinHitRate.total} days`
+              : "hit-rate · nothing logged yet"}
+          </p>
+          <StatBar tone="protein" share={weekHasTargets && stats.proteinHitRate && weekHasLoggedPastDay
+            ? stats.proteinHitRate.pct / 100 : 0} />
+        </CardFrame>
+        <CardFrame size="sm" title="Calories">
+          <p className="m-0 text-heading font-light leading-none tabular-nums text-charcoal">
+            {weekHasTargets && stats.calories && weekHasLoggedPastDay
+              ? stats.calories.avg.toLocaleString("en-US") : "—"}
+          </p>
+          <p className={`m-0 tabular-nums ${STAT_CAPTION}`}>
+            {weekHasTargets && stats.calories && weekHasLoggedPastDay
+              ? `average · target ${stats.calories.target.toLocaleString("en-US")}`
+              : "average · fills in from tomorrow"}
+          </p>
+          <StatBar tone="calories" share={weekHasTargets && stats.calories && weekHasLoggedPastDay
+            && stats.calories.target > 0 ? stats.calories.avg / stats.calories.target : 0} />
+        </CardFrame>
       </div>
 
       {weekHasTargets && stats.overTargetDays.length > 0 && (

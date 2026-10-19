@@ -14,6 +14,8 @@
 import { useState } from "react";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import Notice from "@/components/ui/Notice";
+import CardFrame from "@/components/ui/CardFrame";
+import PageTitle from "@/components/ui/PageTitle";
 import BodyDashboard, { type ProfileFailureProps } from "@/components/BodyDashboard";
 import HealthSourcesSheet from "@/components/HealthSourcesSheet";
 import { useBodyDashboard } from "@/lib/health/body-page";
@@ -21,16 +23,8 @@ import { useBodyDashboard } from "@/lib/health/body-page";
 /** Ingest is off, or the fetch came back empty: the shell the other empty states use. */
 function BodyEmptyState() {
   return (
-    <section className="shell">
-      <div className="surface flex flex-col gap-2 p-4">
-        <h2 className="m-0 text-subheading font-semibold text-charcoal">
-          Nothing here yet
-        </h2>
-        <p className="m-0 text-tiny font-normal text-muted">
-          Body data turns on once you connect a source in Settings.
-        </p>
-      </div>
-    </section>
+    <CardFrame as="section" size="sm" title="Nothing here yet"
+      meta="Body data turns on once you connect a source in Settings." />
   );
 }
 
@@ -60,9 +54,7 @@ export default function BodyPage() {
     <MotionConfig reducedMotion="user">
       <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 pb-8"
         style={{ paddingTop: "calc(var(--safe-top) + 20px)" }}>
-        <h1 className="ground m-0 px-1 text-display-md font-light leading-none tracking-display-md">
-          Body
-        </h1>
+        <PageTitle title="Body" />
 
         {/* Loading: the card it becomes, at E1 (a beige block on the ground read as sunken). */}
         {state === null && <div className="shell" aria-hidden="true"><div className="surface h-80" /></div>}

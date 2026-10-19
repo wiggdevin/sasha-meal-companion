@@ -118,11 +118,11 @@ describe("the favorites strip", () => {
 });
 
 describe("MyFoods", () => {
-  it("says each empty role group is empty rather than showing nothing", async () => {
+  it("says the favorites list is empty rather than showing nothing", async () => {
     seedFoods([]);
     render(<EatsFoods />);
     await waitFor(() =>
-      expect(screen.getAllByText("None right now. Add one below.").length).toBeGreaterThan(0));
+      expect(screen.getByText("Nothing here yet.")).toBeTruthy());
   });
 
   it("lists an Eats food under its own macro role", async () => {

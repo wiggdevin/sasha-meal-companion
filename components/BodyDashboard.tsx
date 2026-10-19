@@ -28,6 +28,7 @@ import type { ActivityContextV1 } from "@/lib/activity/summary";
 import { lastSeen } from "@/lib/health/last-seen";
 import type { EstimateStatus } from "@/lib/health/body-page";
 import Notice from "@/components/ui/Notice";
+import CardFrame from "@/components/ui/CardFrame";
 
 /** Storage is kilograms; this compatibility export converts one value to pounds. */
 export function kgToLb(kg: number): number {
@@ -54,7 +55,6 @@ export { lastSeen } from "@/lib/health/last-seen";
 const GAUGE = { calories: "var(--color-gauge-calories)", protein: "var(--color-gauge-protein)",
   carbs: "var(--color-gauge-carbs)", fat: "var(--color-gauge-fat)" };
 const NEUTRAL_STROKE = "var(--color-text-secondary)";
-const PANEL_TITLE = "text-title text-section";
 const MUTED = "text-tiny font-normal text-muted";
 
 /** One sparkline's data — the card shells are identical, so only the series is named here. */
@@ -114,26 +114,22 @@ export function movementPattern(context?: ActivityContextV1): MovementPattern {
 function MovementPanel({ context }: { context?: ActivityContextV1 }) {
   const pattern = movementPattern(context);
   return (
-    <section className="shell">
-      <div className="surface flex flex-col gap-2 p-4">
-        <h2 className={`m-0 ${PANEL_TITLE}`}>Movement pattern</h2>
-        <p className="m-0 text-caption font-normal text-charcoal">{pattern.label}</p>
-        <p className={`m-0 ${MUTED}`}>
-          {pattern.currentCoverage} · {pattern.baselineCoverage}
-        </p>
-      </div>
-    </section>
+    <CardFrame as="section" size="sm" title="Movement pattern" meta={pattern.label}>
+      <p className={`m-0 ${MUTED}`}>
+        {pattern.currentCoverage} · {pattern.baselineCoverage}
+      </p>
+    </CardFrame>
   );
 }
 
 function MetricCards({ series }: { series: MetricCardSpec[] }) {
   return (
-    <>
+    <div className="grid grid-cols-2 gap-3">
       {series.map((card) => (
         <HealthMetricCard key={card.key} eyebrow={card.eyebrow} value={card.value}
           points={card.points} stroke={card.stroke} footnote={card.footnote} />
       ))}
-    </>
+    </div>
   );
 }
 
@@ -151,13 +147,10 @@ function TdeePanel({ estimate, status, onRetry, profile, days }: {
     estimate: ExpenditureResponse | null; status: EstimateStatus; onRetry?: () => void;
     profile: ProfileState; days: DailyHealthRow[] }) {
   return (
-    <section className="shell">
-      <div className="surface flex flex-col gap-3 p-4">
-        <h2 className={`m-0 ${PANEL_TITLE}`}>What you burn</h2>
-        {estimate === null ? <EstimatePending status={status} onRetry={onRetry} />
-          : <TdeeLines estimate={estimate} profile={profile} days={days} />}
-      </div>
-    </section>
+    <CardFrame as="section" size="md" title="What you burn">
+      {estimate === null ? <EstimatePending status={status} onRetry={onRetry} />
+        : <TdeeLines estimate={estimate} profile={profile} days={days} />}
+    </CardFrame>
   );
 }
 
@@ -165,25 +158,22 @@ function SourcesPanel({ sources, onOpenSources }: {
   sources: DailyHealthResponse["sources"]; onOpenSources: () => void;
 }) {
   return (
-    <section className="shell">
-      <div className="surface flex flex-col gap-3 p-4">
-        <h2 className={`m-0 ${PANEL_TITLE}`}>Sources</h2>
-        {sources.length === 0 && (
-          <p className={`m-0 ${MUTED}`}>No source yet. Connect your phone in Settings.</p>
-        )}
-        {sources.map((source) => (
-          <div key={source.id} className="flex items-center justify-between gap-3">
-            <span className="text-caption font-normal text-graphite">
-              {source.device_label ?? source.kind}
-            </span>
-            <span className={MUTED}>
-              {source.revoked ? "revoked" : `last received ${lastSeen(source.last_received_at)}`}
-            </span>
-          </div>
-        ))}
-        <Button className="mt-2 self-start" onClick={onOpenSources}>Manage sources</Button>
-      </div>
-    </section>
+    <CardFrame as="section" size="md" title="Sources">
+      {sources.length === 0 && (
+        <p className={`m-0 ${MUTED}`}>No source yet. Connect your phone in Settings.</p>
+      )}
+      {sources.map((source) => (
+        <div key={source.id} className="flex items-center justify-between gap-3">
+          <span className="text-caption font-normal text-graphite">
+            {source.device_label ?? source.kind}
+          </span>
+          <span className={MUTED}>
+            {source.revoked ? "revoked" : `last received ${lastSeen(source.last_received_at)}`}
+          </span>
+        </div>
+      ))}
+      <Button className="self-start" onClick={onOpenSources}>Manage sources</Button>
+    </CardFrame>
   );
 }
 
@@ -215,7 +205,7 @@ export default function BodyDashboard({ response, chart, fetchedAt, offline, onO
   const weightUnit = loadStore().settings.weightUnit ?? "lb";
   const proposal = visibleProposal(pendingProposal);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {profileFailed && <ProfileReadAlert onRetry={onRetryProfile} pad />}
       {offline && fetchedAt && (
         <p className={`px-1 ${MUTED}`}>Offline — last synced {lastSeen(fetchedAt)}.</p>

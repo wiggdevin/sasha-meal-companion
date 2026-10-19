@@ -11,7 +11,7 @@ const ROOTS: ReadonlyArray<[prefix: string, section: Section]> = [
   ["/scan", "foods"],
   ["/coach", "coach"],
   ["/settings", "settings"],
-  ["/week", "settings"],
+  ["/week", "today"],
   ["/onboarding", "settings"],
 ];
 

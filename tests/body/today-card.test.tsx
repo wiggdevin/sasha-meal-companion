@@ -341,16 +341,16 @@ describe("TabBar", () => {
     expect(hrefs(tabBar("unknown"))).toEqual(on);
   });
 
-  it("expands only the selected label instead of changing the item count", () => {
+  it("labels every tab without changing the item count", () => {
     const off = tabBar("disabled");
     expect(off).toContain(">Today</span>");
-    expect(off).not.toContain(">Body</span>");
+    expect(off).toContain(">Body</span>");
     expect(hrefs(off)).toHaveLength(4);
   });
 
-  it("drops to glyph-only below 360 px so every target stays 44 px at 320 px", () => {
-    expect(tabBarLayout(320, 4).glyphOnly).toBe(true);
-    expect(tabBarLayout(360, 4).glyphOnly).toBe(false);
+  it("keeps every label below 360 px and tightens the slot padding instead", () => {
+    expect(tabBarLayout(320, 4).compact).toBe(true);
+    expect(tabBarLayout(360, 4).compact).toBe(false);
     expect(tabBarLayout(320, 4).columns).toBe(4);
   });
 });
