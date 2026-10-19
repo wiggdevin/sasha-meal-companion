@@ -38,14 +38,17 @@ function useCheer(kcal: number, when: OverviewData["when"]): { cheer: boolean; b
   const [cheer, setCheer] = useState(false);
   const [bounce, setBounce] = useState(0);
   const last = useRef({ kcal, when });
+  // The timer outlives a later change (a drop inside the 2.6 s would otherwise leave the cheer on).
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     const before = last.current;
     last.current = { kcal, when };
     if (when !== "today" || before.when !== "today" || kcal <= before.kcal) return;
     setCheer(true);
     setBounce((count) => count + 1);
-    const timer = setTimeout(() => setCheer(false), 2600);
-    return () => clearTimeout(timer);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCheer(false), 2600);
   }, [kcal, when]);
   return { cheer, bounce };
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import AwardPlayer from "@/components/today/care/AwardPlayer";
 import CareNotes, { nextNote } from "@/components/today/care/CareNotes";
@@ -125,6 +126,10 @@ export default function CareLayer({ active, notesAt = "top", care: given, modalA
 
   if (!active) return null;
   const shop = care.shop;
+  // Over the whole screen the shop and the award go to the body: the Day card's faces animate a
+  // filter, and a filtered ancestor would hold a fixed sheet inside the face and clip it.
+  const atScreen = modalAt === "screen" && typeof document !== "undefined";
+  const lift = (node: ReactNode) => atScreen ? createPortal(node, document.body) : node;
   return <div ref={root} className={styles.layer} tabIndex={-1}
     onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
     {!open && !award && <CareNotes note={note} mascot={mascot} place={notesAt}
@@ -148,15 +153,15 @@ export default function CareLayer({ active, notesAt = "top", care: given, modalA
       </svg>
       <span>{shop.state.balance.toLocaleString("en-US")}</span>
     </button>}
-    <AnimatePresence onExitComplete={() => setShopLeaving(false)}>
+    {lift(<AnimatePresence onExitComplete={() => setShopLeaving(false)}>
       {shop && open && <motion.div ref={panel} key="shop" role="dialog" aria-modal="true" aria-label={named("Sprout's shop", mascot)} tabIndex={-1}
         className={`matte ${styles.panel}`} data-screen={modalAt === "screen" || undefined}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
         <CareShop state={shop.state} today={localIsoDate(new Date())} rules={SERVER} items={offeredItems(shop.prices)}
           onChange={(next) => care.setShop({ ...shop, state: next })} onRefresh={care.refresh} onClose={closeShop} />
       </motion.div>}
-    </AnimatePresence>
-    <div ref={awardBox} className={award && modalAt === "screen" ? styles.screen : undefined}>
+    </AnimatePresence>)}
+    {lift(<div ref={awardBox} className={atScreen && (award || awardLeaving) ? styles.screen : undefined}>
     <AnimatePresence onExitComplete={() => setAwardLeaving(false)}>
       {award && <AwardPlayer key={award.message} award={award.award} modal onClose={() => {
         void markAccoladesSeen([award.award.key]);
@@ -165,6 +170,6 @@ export default function CareLayer({ active, notesAt = "top", care: given, modalA
         setAwardLeaving(true);
       }} />}
     </AnimatePresence>
-    </div>
+    </div>)}
   </div>;
 }

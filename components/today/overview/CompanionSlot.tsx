@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import CompanionCard from "@/components/today/overview/CompanionCard";
 import { MASCOTS } from "@/components/today/island/mascots";
@@ -30,6 +31,8 @@ export default function CompanionSlot({ data, active }: {
   });
   return <>
     {shown && <CompanionCard data={data} mascot={mascot} active={active} onHide={() => show(false)} />}
-    <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
+    {/* To the body: the Day card's face animates a filter, which would hold a fixed toast inside it. */}
+    {typeof document !== "undefined"
+      && createPortal(<ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />, document.body)}
   </>;
 }

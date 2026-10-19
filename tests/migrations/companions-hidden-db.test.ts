@@ -40,9 +40,9 @@ describe("companions_hidden migrations (static)", () => {
 });
 
 describe("the phone's side of the column", () => {
-  it("drops unknown keys and repeats on read, and reads an older row as nothing hidden", () => {
+  it("keeps a key this phone does not know, drops repeats on read, and reads an older row as nothing hidden", () => {
     expect(settingsProfileFromRow({ companions_hidden: ["blueberry", "dragon", "blueberry", "sprout"] }).companionsHidden)
-      .toEqual(["blueberry", "sprout"]);
+      .toEqual(["blueberry", "dragon", "sprout"]);
     expect(settingsProfileFromRow({}).companionsHidden).toBeUndefined();
   });
 

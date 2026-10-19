@@ -58,6 +58,13 @@ describe("setCompanionShown", () => {
     expect(told).toHaveBeenCalled();
   });
 
+  it("keeps a newer companion this phone does not know when it hides one it knows", async () => {
+    store.settings = { companionsHidden: ["dragon"] };
+    await setCompanionShown("sprout", false, { sync });
+    expect(store.settings.companionsHidden).toEqual(["dragon", "sprout"]);
+    expect(sync.mock.calls[0][0].companionsHidden).toEqual(["dragon", "sprout"]);
+  });
+
   it("a failed write puts back only its own key, and a later change to another companion stands", async () => {
     store.settings = { companionsHidden: ["peapod"] };
     let fail!: (error: Error) => void;

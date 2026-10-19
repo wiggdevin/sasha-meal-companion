@@ -176,7 +176,7 @@ export type Settings = {
   trainingWeekdays?: number[] | null;
   dietPrefs?: DietPrefs | null;
   /** W5 (lib/profile/cuisines.ts): up to 6 cuisines and a chosen country; mascot (lib/profile/mascot.ts) absent = 'sprout'; companionsHidden absent = none hidden. */
-  cuisines?: CuisineKey[] | null; countryCode?: string | null; mascot?: import("./profile/mascot").MascotKey; companionsHidden?: import("./profile/mascot").MascotKey[];
+  cuisines?: CuisineKey[] | null; countryCode?: string | null; mascot?: import("./profile/mascot").MascotKey; companionsHidden?: string[];
   onboardedAt?: string | null;
   /** Synchronized cache of the latest server target revision. Legacy blobs may hold only macros. */
   activeTargetProfile?: ActiveTargetProfile | null;

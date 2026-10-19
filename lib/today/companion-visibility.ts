@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { syncProfileSettings } from "@/lib/coach/apply-profile";
 import { assertCurrent, currentAccountOrNull, type AccountHandle } from "@/lib/device/account";
-import { companionKeysOf, type MascotKey } from "@/lib/profile/mascot";
+import { companionKeysOf, storedCompanionKeysOf, type MascotKey } from "@/lib/profile/mascot";
 import { loadStore, saveStoreFor } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 
@@ -21,8 +21,8 @@ export const COMPANION_VISIBILITY_EVENT = "companion-visibility-changed";
 export const hiddenCompanions = (settings: { companionsHidden?: readonly unknown[] | null }): MascotKey[] =>
   companionKeysOf(settings.companionsHidden ?? []);
 
-/** The list with `key` shown or hidden; the order of the others is kept. */
-export function withCompanionShown(hidden: readonly MascotKey[], key: MascotKey, shown: boolean): MascotKey[] {
+/** The list with `key` shown or hidden; the order of the others (unknown keys too) is kept. */
+export function withCompanionShown(hidden: readonly string[], key: MascotKey, shown: boolean): string[] {
   const rest = hidden.filter((k) => k !== key);
   return shown ? rest : [...rest, key];
 }
@@ -62,9 +62,10 @@ export function enqueueCompanionWrite<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function saveHidden(h: AccountHandle, change: (hidden: MascotKey[]) => MascotKey[]): void {
+// Writes keep every stored key, a newer companion this phone does not know included.
+function saveHidden(h: AccountHandle, change: (hidden: string[]) => string[]): void {
   const store = loadStore();
-  const companionsHidden = change(hiddenCompanions(store.settings));
+  const companionsHidden = storedCompanionKeysOf(change(storedCompanionKeysOf(store.settings.companionsHidden)));
   saveStoreFor(h, { ...store, settings: { ...store.settings, companionsHidden } }, { silent: true });
   window.dispatchEvent(new Event(COMPANION_VISIBILITY_EVENT));
 }
@@ -89,7 +90,7 @@ export async function setCompanionShown(key: MascotKey, shown: boolean, deps: {
     try {
       assertCurrent(h);
       const settings = loadStore().settings;
-      await sync({ ...settings, companionsHidden: hiddenCompanions(settings) }, h, ["companionsHidden"]);
+      await sync({ ...settings, companionsHidden: storedCompanionKeysOf(settings.companionsHidden) }, h, ["companionsHidden"]);
     } catch (error) {
       try {
         assertCurrent(h);

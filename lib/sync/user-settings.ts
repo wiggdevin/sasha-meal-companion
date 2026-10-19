@@ -3,7 +3,7 @@ import { BODY_FAT_SOURCES, type ActivityLevel, type BodyFatSource, type DietPref
 import { isoDay } from "../profile/energy";
 import { waterPrefsFrom, type WaterPrefs } from "../water-prefs";
 import { cuisinesFrom, parseCountryCode, parseCuisines, type CuisineKey } from "../profile/cuisines";
-import { companionKeysOf, mascotKeyOf, type MascotKey } from "../profile/mascot";
+import { storedCompanionKeysOf, mascotKeyOf, type MascotKey } from "../profile/mascot";
 import { tasteToStore, type TastePrefs } from "../profile/taste";
 
 export const COOKING_EFFORTS = ["none", "minimal", "full"] as const;
@@ -58,8 +58,8 @@ export type ProfileSettings = Omit<Pick<Settings,
   /** Omitted (or explicitly undefined): keep the stored mascot. There is no "clear" value --
    *  the column itself never clears to null either, a choice always replaces the prior one. */
   mascot?: MascotKey;
-  /** Omitted: keep the stored list. `[]`: show every companion. */
-  companionsHidden?: MascotKey[];
+  /** Omitted: keep the stored list. `[]`: show every companion. Unknown keys are kept as stored. */
+  companionsHidden?: string[];
   };
 
 /** A stored source outside the enum reads as unverified; so does a date `isoDay` refuses. */
@@ -194,7 +194,7 @@ export function settingsProfileFromRow(row: UserSettingsProfileRow): ProfileSett
     mascot: mascotKeyOf(row.mascot),
     // NOT NULL on the server (default '{}'); a key this phone does not know is dropped, never
     // turned into Sprout. A row from before the column reads as nothing hidden.
-    ...(owns(row, "companions_hidden") ? { companionsHidden: companionKeysOf(row.companions_hidden) } : {}),
+    ...(owns(row, "companions_hidden") ? { companionsHidden: storedCompanionKeysOf(row.companions_hidden) } : {}),
   };
 }
 
@@ -230,7 +230,7 @@ export function settingsProfileToRow(settings: ProfileSettings): UserSettingsPro
     ...(settings.mascot !== undefined ? { mascot: mascotKeyOf(settings.mascot) } : {}),
     // Omitted: keep the stored list. Never null (the server refuses it); unknown keys never sent.
     ...(settings.companionsHidden !== undefined
-      ? { companions_hidden: companionKeysOf(settings.companionsHidden).slice(0, 8) } : {}),
+      ? { companions_hidden: storedCompanionKeysOf(settings.companionsHidden) } : {}),
   };
 }
 

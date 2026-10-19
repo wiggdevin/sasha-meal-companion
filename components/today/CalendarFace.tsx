@@ -27,7 +27,8 @@ export function ProfilePrompt() {
 
 /** The viewed day's meals in a few words: the next one, or that every planned meal is eaten. */
 function mealsPart({ next, planned, when }: Pick<OverviewData, "next" | "planned" | "when">): string | null {
-  if (next) return `Next ${next.time}`;
+  // A past day has no "next": its uneaten meals stay unsaid.
+  if (next) return when === "past" ? null : `Next ${next.time}`;
   if (planned === 0 || when === "future") return null;
   return planned === 1 ? "Meal eaten" : `All ${planned} meals eaten`;
 }
