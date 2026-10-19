@@ -30,7 +30,7 @@
   min-width: 0;
 }
 .spec + .spec {
-  border-left: 1px solid rgb(var(--cream-rgb) / .14);
+  border-left: 1px solid rgb(var(--cream-rgb) / .12);
 }
 
 .specLabel {
@@ -46,7 +46,7 @@
 
 .specValue {
   /* Bold (2026-10-19): the figures read a step bigger and heavier than the labels. */
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.1;
   color: var(--color-on-primary);

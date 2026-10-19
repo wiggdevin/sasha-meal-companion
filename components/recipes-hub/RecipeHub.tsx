@@ -128,11 +128,13 @@ export default function RecipeHub({ id, access, onClose, onSaved, embedded = fal
   }
   // One card frame (UI makeover §3.3): the title, the room left as its one line, Close beside it.
   return <section id={id} data-card-group="true" aria-label="New recipe" className="min-w-0 w-full scroll-mt-3">
-    <CardFrame size="md" titleAs="h3" title="New recipe" meta={remainingLine(day.remaining)}
+    <CardFrame size="md" titleAs="h3" title="New recipe"
       aside={<Button variant="ghost" shape="circle" onClick={onClose} aria-label="Close" disabled={saving}
         className="-mr-2 -mt-1 text-muted">
         <CloseIcon />
       </Button>}>
+      {/* The room left wraps (CardFrame's meta truncates): it is the card's only budget figure. */}
+      <p className="m-0 text-tiny text-muted">{remainingLine(day.remaining)}</p>
       {body}
     </CardFrame>
   </section>;
