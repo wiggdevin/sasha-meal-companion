@@ -27,6 +27,9 @@ const SYNC_DOWN = readFileSync("supabase/migrations/down/20261217090200_profile_
  * to put back) restores the exact function shape these tests were written against.
  */
 const MASCOT_DOWN = [
+  // UI makeover W3 patches the mascot patch's own text, so it comes off first.
+  "down/20270107090100_user_settings_companions_hidden_validate.down.sql",
+  "down/20270107090000_user_settings_companions_hidden.down.sql",
   "down/20261225090010_user_settings_mascot_validate.down.sql",
   "down/20261225090000_user_settings_mascot.down.sql",
 ].map((f) => readFileSync(`supabase/migrations/${f}`, "utf8")).join("\n");

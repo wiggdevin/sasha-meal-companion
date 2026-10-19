@@ -37,3 +37,9 @@ export function mascotKeyOf(value: unknown): MascotKey {
 export function mascotNameOf(value: unknown): string {
   return MASCOT_NAMES[mascotKeyOf(value)];
 }
+
+/** A stored hidden-companions list, read leniently: keys the phone does not know are dropped,
+ *  repeats kept once, in order (never `mascotKeyOf`, which would turn an unknown key into Sprout). */
+export function companionKeysOf(value: unknown): MascotKey[] {
+  return Array.isArray(value) ? [...new Set(value.filter(isMascotKey))] : [];
+}
