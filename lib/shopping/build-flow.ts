@@ -318,7 +318,7 @@ export async function runSave(plan: SavePlan, start: SaveProgress, deps: SaveDep
         progress.period = { id: period.id, revision: renamed.revision };
         progress.titled = true;
       } catch {
-        progress.renameRequestId = deps.newId();
+        // The same request id on "Finish saving": a rename that landed but lost its answer replays.
         failed.push("title");
       }
     }

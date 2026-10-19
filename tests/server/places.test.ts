@@ -12,7 +12,7 @@ const limiter = vi.hoisted(() => ({ enforce: vi.fn() }));
 vi.mock("@/lib/server/ratelimit", () => ({ enforceRateLimit: limiter.enforce }));
 
 const places = await import("@/lib/server/places");
-const { geocodePlace, nearbyStores, placesUserAgent, geocodeUrl, PLACES_UNAVAILABLE_MESSAGE } = places;
+const { geocodePlace, nearbyStores, placesUserAgent, geocodeUrl, PLACES_UNAVAILABLE_MESSAGE, PlacesCache } = places;
 
 const ENV = { VERCEL_PROJECT_PRODUCTION_URL: "meals.example.app" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -268,8 +268,29 @@ describe("nearbyStores", () => {
     for (const secret of ["37.7", "-122.4"]) expect(logged).not.toContain(secret);
   });
 
-  it("never takes the Nominatim slot (Overpass is a different service)", async () => {
+  it("takes the Overpass app slot, never the Nominatim one", async () => {
     await nearbyStores(37.76, -122.41, { fetch: vi.fn(async () => json({ elements: [] })), env: ENV });
-    expect(limiter.enforce).not.toHaveBeenCalled();
+    const keys = limiter.enforce.mock.calls.map((call: unknown[]) => call[0]);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(new Set(keys)).toEqual(new Set(["places:overpass"]));
+  });
+
+  it("answers a refused Overpass slot (twice) with 503 and no upstream call", async () => {
+    const fetcher = vi.fn(async () => json({ elements: [] }));
+    limiter.enforce.mockRejectedValue(new HttpError(429, "rate_limited", "slow down"));
+    await expect(nearbyStores(37.76, -122.41, { fetch: fetcher, env: ENV, sleep: async () => undefined }))
+      .rejects.toMatchObject({ status: 503, code: "places_unavailable" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("serves a repeated point from the cache with one upstream call", async () => {
+    const stores = Array.from({ length: 4 }, (_, i) => ({ type: "node", id: i + 1, lat: 37.76, lon: -122.41,
+      tags: { shop: "supermarket", name: `Store ${i}` } }));
+    const fetcher = vi.fn(async () => json({ elements: stores }));
+    const cache = new PlacesCache();
+    const first = await nearbyStores(37.761, -122.412, { fetch: fetcher, env: ENV, cache });
+    const second = await nearbyStores(37.759, -122.409, { fetch: fetcher, env: ENV, cache });
+    expect(second).toEqual(first);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

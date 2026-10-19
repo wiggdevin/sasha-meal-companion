@@ -2,7 +2,8 @@ import "server-only";
 /**
  * The Shopping build flow's store search (UI makeover W8 §7.4): a typed area to a point
  * (OpenStreetMap Nominatim) and a point to nearby named grocery stores (Overpass). Both hosts are
- * fixed here; nothing about a request picks a host. Nothing is stored.
+ * fixed here; nothing about a request picks a host. Nothing is stored: answers are kept only in
+ * this instance's memory, briefly (`PlacesCache`), as Nominatim's usage policy asks.
  *
  * - Every call names the app and its production address in `User-Agent` (Nominatim's usage
  *   policy). Without `VERCEL_PROJECT_PRODUCTION_URL` there is no honest User-Agent, so nothing is
@@ -13,7 +14,8 @@ import "server-only";
  * - The point comes back rounded to 2 decimals (about 1 km), and the store search rounds the point
  *   it is given the same way before it leaves.
  * - One global `places:nominatim` limit of 1 request a second (Nominatim's policy is per
- *   application, not per user), waited out once, then 503.
+ *   application, not per user), and one global `places:overpass` limit of 2 a second (Overpass
+ *   gives each address a few slots), each waited out once, then 503.
  * - Budgets: 6 s for the geocoder; 9 s for the store search including its one wider retry, under
  *   the phone's 12 s `places` deadline.
  * - Logs carry the upstream status only, never the query, the area or a coordinate.
@@ -58,7 +60,30 @@ export type PlacesDeps = {
   overpassMs?: number;
   /** Tests: the wait before the one retry of a refused global limit. */
   sleep?: (ms: number) => Promise<void>;
+  /** The answer cache; the shared one by default, none when a test brings its own fetch. */
+  cache?: PlacesCache | null;
 };
+
+/** A small in-memory cache with a time limit, oldest entry dropped first. Per instance only. */
+export class PlacesCache {
+  private rows = new Map<string, { at: number; value: unknown }>();
+  constructor(private readonly ttlMs = 60 * 60_000, private readonly max = 500,
+    private readonly now: () => number = Date.now) {}
+  get<T>(key: string): T | undefined {
+    const row = this.rows.get(key);
+    if (!row) return undefined;
+    if (this.now() - row.at > this.ttlMs) { this.rows.delete(key); return undefined; }
+    return row.value as T;
+  }
+  set(key: string, value: unknown): void {
+    this.rows.delete(key);
+    this.rows.set(key, { at: this.now(), value });
+    while (this.rows.size > this.max) this.rows.delete(this.rows.keys().next().value as string);
+  }
+}
+const shared = new PlacesCache();
+const cacheOf = (deps: PlacesDeps): PlacesCache | null => deps.cache !== undefined ? deps.cache
+  : deps.fetch ? null : shared;
 
 /**
  * The User-Agent every upstream call carries: the app's name and its production address, or null
@@ -121,11 +146,14 @@ function shortLabel(displayName: string | undefined, fallback: string): string {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** The global Nominatim limit: one request a second for the whole app, waited out once. */
-async function nominatimSlot(sleep: (ms: number) => Promise<void>): Promise<void> {
+/** A global upstream limit for the whole app, waited out once, then 503. */
+async function appSlot(service: "nominatim" | "overpass", limit: number,
+  sleep: (ms: number) => Promise<void>): Promise<void> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      await enforceRateLimit("places:nominatim", 1, 1);
+      // Literal keys, so the limiter call-site review can read them.
+      if (service === "nominatim") await enforceRateLimit("places:nominatim", limit, 1);
+      else await enforceRateLimit("places:overpass", limit, 1);
       return;
     } catch (error) {
       if (error instanceof HttpError && error.status === 429 && attempt === 0) {
@@ -133,7 +161,7 @@ async function nominatimSlot(sleep: (ms: number) => Promise<void>): Promise<void
         continue;
       }
       if (error instanceof HttpError && error.status === 429) {
-        console.warn("[places] nominatim status 429 (app limit)");
+        console.warn(`[places] ${service} status 429 (app limit)`);
         throw new PlacesUnavailable();
       }
       throw error;
@@ -171,6 +199,9 @@ function deadline(ms: number): { signal: AbortSignal; done: () => void } {
   return { signal: controller.signal, done: () => clearTimeout(timer) };
 }
 
+const notFound = () =>
+  new HttpError(404, "place_not_found", "We couldn't find that place. Try a ZIP code or a nearby city.");
+
 /** A typed area in a stated country to a rounded point; 404 `place_not_found` when there is none. */
 export async function geocodePlace(q: string, country: string, deps: PlacesDeps = {}): Promise<GeocodeResult> {
   const code = countryCode(country);
@@ -182,7 +213,12 @@ export async function geocodePlace(q: string, country: string, deps: PlacesDeps 
     console.warn("[places] no production URL for the User-Agent; not calling");
     throw new PlacesUnavailable();
   }
-  await nominatimSlot(deps.sleep ?? wait);
+  const cache = cacheOf(deps);
+  const cacheKey = `geo|${code}|${text.toLowerCase().replace(/\s+/g, " ")}`;
+  const cached = cache?.get<GeocodeResult | "none">(cacheKey);
+  if (cached === "none") throw notFound();
+  if (cached) return cached;
+  await appSlot("nominatim", 1, deps.sleep ?? wait);
   const budget = deadline(deps.nominatimMs ?? NOMINATIM_BUDGET_MS);
   let body: unknown;
   try {
@@ -201,9 +237,12 @@ export async function geocodePlace(q: string, country: string, deps: PlacesDeps 
   const lat = hit ? Number(hit.lat) : NaN;
   const lon = hit ? Number(hit.lon) : NaN;
   if (!hit || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-    throw new HttpError(404, "place_not_found", "We couldn't find that place. Try a ZIP code or a nearby city.");
+    cache?.set(cacheKey, "none");
+    throw notFound();
   }
-  return { lat: round2(lat), lon: round2(lon), label: shortLabel(hit.display_name, text) };
+  const place = { lat: round2(lat), lon: round2(lon), label: shortLabel(hit.display_name, text) };
+  cache?.set(cacheKey, place);
+  return place;
 }
 
 /** The Overpass QL for named grocery stores within `radius` metres of a point (exported for tests). */
@@ -280,25 +319,32 @@ export async function nearbyStores(latIn: number, lonIn: number, deps: PlacesDep
   }
   const lat = round2(latIn);
   const lon = round2(lonIn);
+  const cache = cacheOf(deps);
+  const cacheKey = `stores|${lat}|${lon}`;
+  const cached = cache?.get<PlaceStore[]>(cacheKey);
+  if (cached) return cached;
   const fetcher = deps.fetch ?? fetch;
+  const sleep = deps.sleep ?? wait;
   const budgetMs = deps.overpassMs ?? OVERPASS_BUDGET_MS;
   const startedAt = Date.now();
   const budget = deadline(budgetMs);
-  const ask = async (radius: number) => storesFrom(await upstream("overpass", fetcher,
+  const ask = async (radius: number) => { await appSlot("overpass", 2, sleep); return storesFrom(await upstream("overpass", fetcher,
     `${OVERPASS_ORIGIN}/api/interpreter`, {
       method: "POST",
       headers: { "user-agent": agent, accept: "application/json",
         "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ data: storesQuery(lat, lon, radius) }).toString(),
-    }, budget.signal), lat, lon, radius);
+    }, budget.signal), lat, lon, radius); };
+  const keep = (stores: PlaceStore[]) => { cache?.set(cacheKey, stores); return stores; };
   try {
     const near = await ask(STORE_RADIUS_M);
     const left = budgetMs - (Date.now() - startedAt);
-    if (near.length >= STORE_RETRY_BELOW || left < Math.min(MIN_RETRY_MS, budgetMs / 2)) return near;
+    if (near.length >= STORE_RETRY_BELOW || left < Math.min(MIN_RETRY_MS, budgetMs / 2)) return keep(near);
     try {
       const wide = await ask(STORE_RETRY_RADIUS_M);
-      return wide.length >= near.length ? wide : near;
+      return keep(wide.length >= near.length ? wide : near);
     } catch (error) {
+      // A failed wider ask keeps the first answer, uncached, so the next call tries again.
       if (error instanceof PlacesUnavailable) return near;
       throw error;
     }

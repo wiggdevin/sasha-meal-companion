@@ -90,6 +90,12 @@ describe("W3 acceptance 1: a fixed history gives exact deduplicated H, Q and M (
     expect(banana.q).toBe(1);
     expect(banana.provenance.choices.shopping_manual).toBe(1);
   });
+
+  it("Q drops the lines of a deleted list (the list is deleted, its lines are not)", async () => {
+    for (const line of tables.shopping_lines) if (line.name === "Bananas") line.period_id = "list-gone";
+    tables.shopping_periods = [{ id: "list-gone", user_id: A, deleted_at: "2026-10-01T00:00:00Z" }];
+    expect(item(await read(), "u:banana")?.provenance.choices.shopping_manual ?? 0).toBe(0);
+  });
 });
 
 describe("W3 acceptance 2: deleting or moving an entry changes the values on the next read", () => {
@@ -131,8 +137,8 @@ describe("W3 acceptance 3: another account's rows never appear", () => {
   it("every read of an account-owned table carries the explicit user_id filter", async () => {
     const db = tasteDb(tables);
     await accountTaste(db.client, A, TODAY, ports, NOW);
-    const owned = ["log_entries", "plan_days", "recipe_plan_selections", "shopping_lines", "user_food_prefs",
-      "user_foods"];
+    const owned = ["log_entries", "plan_days", "recipe_plan_selections", "shopping_lines", "shopping_periods",
+      "user_food_prefs", "user_foods"];
     const reads = db.queries.filter((q) => owned.includes(q.table));
     expect(new Set(reads.map((q) => q.table))).toEqual(new Set(owned));
     for (const q of reads) expect(q.filters).toContain("eq:user_id");

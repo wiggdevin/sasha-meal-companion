@@ -121,7 +121,7 @@ export async function resolveFocusEnd(
   }
   const { data, error } = await client.from("shopping_periods").select("start_date,end_date,updated_at")
     .eq("user_id", userId).is("deleted_at", null).lte("start_date", day.date).gte("end_date", day.date)
-    .limit(52);
+    .order("start_date", { ascending: false }).order("updated_at", { ascending: false }).limit(52);
   if (error) throw error;
   // The same "current list" every surface reads (lib/shopping/current.ts).
   const rows = ((data ?? []) as { start_date?: unknown; end_date?: unknown; updated_at?: unknown }[])

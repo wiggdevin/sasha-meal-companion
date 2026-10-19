@@ -153,6 +153,19 @@ describe("Save list", () => {
     expect(d.addLine).toHaveBeenLastCalledWith("period-1", "Eggs", requestId);
   });
 
+  it("retries a title whose answer was lost with the same request id", async () => {
+    let lost = true;
+    const d = deps({ rename: vi.fn(async (id: string) => { if (lost) throw new Error("timeout"); return { id, revision: 2 }; }) });
+    const first = await runSave(plan, newSaveProgress(d.newId), d);
+    expect(first).toMatchObject({ status: "partial", failed: ["title"] });
+    lost = false;
+    const second = await runSave(plan, first.progress, d);
+    expect(second.status).toBe("done");
+    const ids = (d.rename as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[3]);
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(ids[0]);
+  });
+
   it("writes nothing more when the accept fails", async () => {
     const d = deps({ accept: vi.fn(async () => { throw new Error("stale"); }) });
     await expect(runSave(plan, newSaveProgress(d.newId), d)).rejects.toThrow("stale");

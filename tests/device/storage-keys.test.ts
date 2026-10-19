@@ -88,7 +88,7 @@ const STORAGE_FILES: Record<string, string> = {
   "components/InstallPromptCapture.tsx": "device: meal-companion:install-prompt-opens*",
   "components/RecipeResults.tsx": "account id in key (session): recipe-expanded:<id>:<block>",
   "components/ShoppingRoot.tsx": "account id in key: shopping-location:<id>, shopping-stores:<id>",
-  "components/shopping/build/StepStores.tsx": "account id in key: reads shopping-location:<id>; shopping-picked-stores:<id> (store names, at most 5)",
+  "components/shopping/build/StepStores.tsx": "account id in key: reads shopping-location:<id>; shopping-build-area:<id> (the typed store area, never sent as locale); shopping-picked-stores:<id> (store names, at most 5)",
   "components/coach/RoleConfirm.tsx": "account: smc:u:<id>:role-confirm:<action>",
   "components/coach/coach-resume.ts": "account id in key: smc:coach:current:<id>",
   "components/coach/taste-chips-storage.ts": "account: smc:u:<id>:taste-chips:<proposal>",

@@ -4,7 +4,7 @@
  * commit deadline (`accountFetch`'s budget), on the revision the caller last saw; a repeat with the same `requestId`
  * after a lost answer is answered as done.
  */
-import { accountFetch, accountHandle, accountJson } from "@/lib/device/account";
+import { accountFetch, accountHandle, accountJson, type AccountHandle } from "@/lib/device/account";
 import { ShoppingRequestFailed, ShoppingStaleRevision } from "@/lib/shopping-client";
 import type { ShoppingPeriod } from "@/lib/shopping/types";
 
@@ -12,8 +12,8 @@ function periodPath(id: string): string {
   return `/api/shopping/periods/${encodeURIComponent(id)}`;
 }
 
-async function send<T>(path: string, method: "PATCH" | "DELETE", value: unknown): Promise<T> {
-  const h = accountHandle();
+async function send<T>(path: string, method: "PATCH" | "DELETE", value: unknown,
+  h: AccountHandle = accountHandle()): Promise<T> {
   const res = await accountFetch(h, path, { method, cache: "no-store",
     headers: { "content-type": "application/json" }, body: JSON.stringify(value) },
   { budget: "commit" });
@@ -36,6 +36,7 @@ export async function renameShoppingPeriod(id: string, title: string | null,
 
 /** Deletes a list, on the revision the caller last saw. */
 export async function deleteShoppingPeriod(id: string, expectedRevision: number,
-  requestId: string): Promise<void> {
-  await send<{ deleted: true }>(periodPath(id), "DELETE", { expectedRevision, requestId });
+  requestId: string, h?: AccountHandle): Promise<void> {
+  // A held delete passes the account it was made under, never the one bound when it is sent.
+  await send<{ deleted: true }>(periodPath(id), "DELETE", { expectedRevision, requestId }, h);
 }

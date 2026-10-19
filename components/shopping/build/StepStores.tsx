@@ -20,14 +20,20 @@ const COUNTRIES = ["US", "CA", "GB", "IE", "AU", "NZ"] as const;
 
 function locationKey(accountId: string): string { return `shopping-location:${accountId}`; }
 function pickedKey(accountId: string): string { return `shopping-picked-stores:${accountId}`; }
+/* Its own key: `shopping-location` becomes a list's `locale` on the server, and the store area
+   must never leave the device except in the geocode call itself. */
+function areaKey(accountId: string): string { return `shopping-build-area:${accountId}`; }
+const MAX_AREA = 120;
 
-/** The area this account typed on Shopping before (components/ShoppingRoot.tsx keeps it). */
+/** The area this account searched last time, else the one typed on Shopping (ShoppingRoot keeps it). */
 export function savedArea(accountId: string): string {
-  try { return window.localStorage.getItem(locationKey(accountId)) ?? ""; } catch { return ""; }
+  try {
+    return window.localStorage.getItem(areaKey(accountId)) ?? window.localStorage.getItem(locationKey(accountId)) ?? "";
+  } catch { return ""; }
 }
-/** Keeps the area for next time, on this device only (the same key ShoppingRoot reads). */
+/** Keeps the area for next time, on this device only. */
 function saveArea(accountId: string, area: string) {
-  try { window.localStorage.setItem(locationKey(accountId), area.trim()); } catch { /* storage blocked */ }
+  try { window.localStorage.setItem(areaKey(accountId), area.trim().slice(0, MAX_AREA)); } catch { /* storage blocked */ }
 }
 /** Store names this account picked last time, at most five. */
 export function savedPickedStores(accountId: string): string[] {
@@ -144,6 +150,7 @@ export default function StepStores({ accountId, countryCode, picked, onToggle, o
       <h3 className="m-0 text-body font-semibold text-charcoal">Stores near you</h3>
       {phase.kind === "area" && <>
         <Field id="build-area" label="ZIP code or area" autoComplete="postal-code" value={area} error={error}
+          maxLength={MAX_AREA}
           onChange={(event) => { setArea(event.target.value); setError(null); }} />
         <div className="pill-in flex flex-wrap gap-1" role="group" aria-label="Country">
           {countries.map((code) => (

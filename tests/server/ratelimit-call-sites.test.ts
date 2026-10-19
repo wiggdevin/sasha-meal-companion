@@ -50,6 +50,8 @@ const REVIEWED_STATIC_KEYS: Record<string, string> = {
   // second, whoever asks, so the limit is global by design. The per-account limits
   // (`places-geocode:<uid>`) sit in front of it in the route.
   "lib/server/places.ts \"places:nominatim\"": "OpenStreetMap Nominatim's one-request-a-second policy",
+  // Overpass gives each calling address a few slots; Vercel's egress addresses are shared.
+  "lib/server/places.ts \"places:overpass\"": "Overpass API's per-address slot limit",
 };
 
 function sourceFiles(dir: string): string[] {

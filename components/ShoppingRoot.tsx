@@ -48,7 +48,8 @@ function draftFromPeriod(period: ShoppingPeriod): ShoppingDraft {
     locale: period.locale, lockMode: period.lockMode, title: period.title ?? null };
 }
 /** How long a deleted list waits for its Undo before the delete is sent. */
-const DELETE_HOLD_MS = 5_000;
+/* A second past the Undo toast (ActionFeedback's 5 s), so Undo is never on screen after the send. */
+const DELETE_HOLD_MS = 6_000;
 /** Fired by "Have AI build my list" when it saves a list, so the switcher opens it. */
 export const SHOPPING_LIST_SAVED_EVENT = "shopping-list-saved";
 function locationKey(userId: string): string { return `shopping-location:${userId}`; }
@@ -122,6 +123,8 @@ export default function ShoppingRoot() {
   const [listsOpen, setListsOpen] = useState(false);
   /** Lists deleted on screen whose delete waits out its Undo: id → the timer and its revision. */
   const held = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; send: () => void }>());
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const listFeedback = useActionFeedback();
 
   const refresh = useCallback(async (account: AccountHandle, chooseId?: string | null) => {
@@ -288,8 +291,8 @@ export default function ShoppingRoot() {
     const requestId = crypto.randomUUID();
     const send = () => {
       held.current.delete(id);
-      void deleteShoppingPeriod(id, row.revision, requestId).catch(() => {
-        if (currentAccountOrNull()?.epoch !== account.epoch) return;
+      void deleteShoppingPeriod(id, row.revision, requestId, account).catch(() => {
+        if (!mounted.current || currentAccountOrNull()?.epoch !== account.epoch) return;
         setError(`${listName(row)} was not deleted. It is back in your lists.`);
         void refresh(account).catch(() => undefined);
       });
@@ -303,7 +306,7 @@ export default function ShoppingRoot() {
     }
     listFeedback.notify({ tone: "success", message: `${listName(row)} deleted.`, action: { label: "Undo", action: () => {
       const hold = held.current.get(id);
-      if (!hold) return;
+      if (!hold) { setError(`${listName(row)} was already deleted.`); return; }
       clearTimeout(hold.timer);
       held.current.delete(id);
       void openList(account, id);

@@ -109,7 +109,7 @@ export async function readTasteHistory(
   // A manual line carries only an instant; it is dated by the account's stored zone (UTC as the last
   // resort), like every other row here, never by the instant's UTC date (audit A072).
   const zone = readAccountZone(client, userId);
-  const [entries, days, selections, shopping, favoredPrefs] = await Promise.all([
+  const [entries, days, selections, shoppingRows, favoredPrefs, deletedLists] = await Promise.all([
     readByDateChunks(start, today, (from, to) => select<{ id: string; local_date: string; slot: string }>(
       owned("log_entries", "id,local_date,slot").is("deleted_at", null)
         .gte("local_date", from).lte("local_date", to))),
@@ -122,11 +122,16 @@ export async function readTasteHistory(
         .gte("local_date", from).lte("local_date", to))),
     // One UTC day wider on each side covers every zone's day; the local date filters it below.
     readByDateChunks(addIsoDays(start, -1), addIsoDays(today, 1), (from, to) => select<{ name: string; identity: unknown; updated_at: string;
-      rev: unknown }>(owned("shopping_lines", "name,identity,updated_at,rev").eq("origin", "manual").is("deleted_at", null)
+      rev: unknown; period_id: string }>(owned("shopping_lines", "name,identity,updated_at,rev,period_id").eq("origin", "manual").is("deleted_at", null)
         .gte("updated_at", `${from}T00:00:00Z`).lte("updated_at", `${to}T23:59:59.999Z`))),
     fetchAllRows<{ food_ref_id: string }>((from, to) => client.from("user_food_prefs").select("food_ref_id")
       .eq("user_id", userId).eq("status", "eats").order("food_ref_id").range(from, to)),
+    // A deleted list soft-deletes the list, not its lines: those lines are no longer choices.
+    fetchAllRows<{ id: string }>((from, to) => client.from("shopping_periods").select("id")
+      .eq("user_id", userId).not("deleted_at", "is", null).order("id").range(from, to)),
   ]);
+  const gone = new Set(deletedLists.map((row) => row.id));
+  const shopping = shoppingRows.filter((line) => !gone.has(line.period_id));
   const entryById = new Map(entries.map((entry) => [entry.id, entry]));
   const logItems = await readByIdBatches(entries.map((entry) => entry.id), (batch) =>
     select<{ entry_id: string; food_ref_id: string; grams: unknown }>(client.from("log_items")

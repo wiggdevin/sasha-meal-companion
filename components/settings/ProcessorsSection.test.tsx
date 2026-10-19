@@ -26,7 +26,7 @@ describe("Who handles your data", () => {
     expect(PROCESSORS).toContainEqual({
       name: "OpenStreetMap",
       what: "The area and country you type, and rounded coordinates, go through our server. "
-        + "Map tiles load from OpenStreetMap, which sees your IP address.",
+        + "Map tiles load straight from OpenStreetMap, which sees your IP address and the part of the map you are looking at.",
     });
   });
 
