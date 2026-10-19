@@ -5,7 +5,6 @@ import Sparkline from "@/components/Sparkline";
 import type { ChartBlockV1 } from "@/lib/coach/ui-blocks";
 import type { Macros } from "@/lib/types";
 
-const CARD = { borderRadius: 16, padding: 14 } as const;
 const CAPTION = "text-tiny font-normal text-muted";
 const CHART_WIDTH = 280;
 const CHART_HEIGHT = 72;
@@ -74,7 +73,7 @@ export default function ChartBlock({ block }: { block: ChartBlockV1 }) {
   }
   return (
     <figure className="shell m-0" aria-label={aria}>
-      <div className="surface flex flex-col gap-3" style={CARD}>
+      <div className="surface card-sm card-ivory flex flex-col">
         {block.chart === "weight_trend"
           ? <Sparkline points={pointsFor(block, "weight").map((point) => point.y)} width={280}
               height={56} label={aria} />

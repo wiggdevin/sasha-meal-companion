@@ -31,8 +31,8 @@ export default function HistorySourceCards({ sources, readEvidence, onOpenConver
     return () => { live = false; };
   }, [sources, readEvidence, attempt]);
   return <section aria-label="History sources" className="shell mx-3">
-    <div className="surface flex flex-col gap-3 rounded-2xl p-4">
-      <h3 className="m-0 text-caption font-medium text-charcoal">From your saved conversations</h3>
+    <div className="surface card-sm card-ivory flex flex-col">
+      <h3 className="m-0 text-caption font-semibold text-charcoal">From your saved conversations</h3>
       {!evidence && !error && <p role="status" className="m-0 text-caption text-graphite">Checking sources…</p>}
       {error && <p role="alert" className="m-0 text-caption text-graphite">
         Couldn’t load these saved passages. <button type="button" onClick={load}

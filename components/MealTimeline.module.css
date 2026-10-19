@@ -6,7 +6,7 @@
 .overlay { position: fixed; inset: 0; z-index: 1000; pointer-events: none; background: color-mix(in srgb, var(--color-paper) 72%, rgb(var(--section-rgb) / .28)); backdrop-filter: blur(18px) saturate(145%); -webkit-user-select: none; user-select: none; }
 .heading, .footer { position: absolute; left: 16px; right: 16px; text-align: center; color: var(--color-on-charcoal); background: var(--color-charcoal); border-radius: 24px; padding: 12px; }
 .heading { top: max(16px, env(safe-area-inset-top)); font-size: 15px; }
-.heading span { display: block; font-size: 11px; margin-top: 4px; }
+.heading span { display: block; font-size: 12px; margin-top: 4px; }
 .footer { bottom: max(16px, env(safe-area-inset-bottom)); font-size: 12px; }
 .timeline { position: absolute; inset: 96px 16px; overflow: hidden; border-radius: 28px; background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: blur(var(--glass-blur)) saturate(180%); }
 .row { position: absolute; right: 16px; height: 44px; display: flex; align-items: center; gap: 12px; transform: translateY(-118px); transform-origin: left center; color: var(--color-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; transition: left 100ms ease, opacity 100ms ease, scale 100ms ease; }

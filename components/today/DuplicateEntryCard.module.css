@@ -1,40 +1,24 @@
-/* Today's "Logged twice?" card (architecture §3.7), in the meal cards v4 family: an ivory shell at
-   --radius-lg with 12 px padding, a 12 px eyebrow, a Fraunces title, one primary and one text action. The two entries
-   sit in one inset panel split by a single ink hairline (cards brief §2.5); tokens only. */
+/* Today's "Logged twice?" card (architecture §3.7): a small CardFrame (12 px padding, 16 px corners)
+   with one title, one line, one primary and one text action (UI makeover §3.3). The two entries sit
+   in one inset panel split by the card hairline (cards brief §2.5); tokens only. */
 
+/* The height animation clips; the clip box reaches past the card by the reach of its drop
+   (--shadow-card), and the negative margins give that room back, so the shadow is never cut. */
 .frame {
   overflow: hidden;
+  padding: 0 16px 32px;
+  margin: 0 -16px -32px;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: var(--radius-lg);
-}
-
-.eyebrow {
-  display: flex;
+/* The card's title row: the copy glyph, then the words. */
+.title {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 0;
-  color: var(--color-muted);
 }
 
 .icon {
   flex-shrink: 0;
-}
-
-.title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: 500;
-  color: var(--color-charcoal);
-}
-
-.lede {
-  margin: -4px 0 4px;
   color: var(--color-muted);
 }
 
@@ -45,7 +29,9 @@
   padding: 0;
   list-style: none;
   border-radius: var(--radius-md);
-  background: rgb(var(--ink-rgb) / .04);
+  /* The inset step under the card (DESIGN.md §Elevation): one shade down, the card hairline. */
+  background: var(--grad-card-inset);
+  border: 1px solid var(--hairline-card);
 }
 
 .entry {
@@ -54,11 +40,11 @@
   align-items: baseline;
   gap: 8px;
   min-height: 44px;
-  padding: 12px;
+  padding: 10px 12px;
 }
 
 .entry + .entry {
-  border-top: 1px solid rgb(var(--ink-rgb) / .08);
+  border-top: 1px solid var(--hairline-card);
 }
 
 .time {
@@ -84,5 +70,5 @@
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 4px;
+  width: 100%;
 }
