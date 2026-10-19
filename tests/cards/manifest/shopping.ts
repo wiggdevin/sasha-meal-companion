@@ -17,4 +17,7 @@ export const SHOPPING_CARDS: CardManifestEntry[] = [
   { path: "components/ShoppingPurchaseWindowCard.tsx", card: "ShoppingPurchaseWindowCard",
     states: ["persisted weekly Buy", "saves a check"],
     renderTest: "tests/shopping/ui.test.tsx" },
+  { path: "components/shopping/SavedListsSheet.tsx", card: "SavedListsSheet",
+    states: ["starts a new named list", "renames a list", "confirms before deleting"],
+    renderTest: "tests/shopping/saved-list-switcher.test.tsx" },
 ];

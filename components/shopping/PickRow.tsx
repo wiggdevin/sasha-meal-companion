@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Plus } from "lucide-react";
+import Button from "@/components/ui/Button";
 import RuleMark from "@/components/ui/RuleMark";
 import { PICK_SOURCE_LABEL, type PickItem } from "@/lib/shopping/pick-sources";
 
@@ -33,13 +34,11 @@ export default function PickRow({ item, last, busy, onToggle }: {
           {item.onList ? " · On list" : ""}</span>
         <RuleMark mark={item.ruleMark} className="flex-wrap" />
       </span>
-      {!blocked && <button type="button" aria-pressed={item.onList} aria-label={label}
-        disabled={busy || locked}
-        onClick={() => onToggle(item)}
-        className={`tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-          item.onList ? "btn-primary" : "well text-charcoal"}`}>
+      {!blocked && <Button variant={item.onList ? "primary" : "secondary"} shape="circle" className="shrink-0"
+        aria-pressed={item.onList} aria-label={label} disabled={busy || locked}
+        onClick={() => onToggle(item)}>
         {item.onList ? <Check size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
-      </button>}
+      </Button>}
     </div>
   );
 }

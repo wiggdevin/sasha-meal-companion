@@ -10,8 +10,6 @@ export const MAX_QUICK_ITEMS = 20;
 const MAX_NAME = 160;
 
 const key = (name: string) => name.trim().toLocaleLowerCase().replace(/\s+/g, " ");
-/** "Eggs, large" and "eggs" are one item on a list. */
-const head = (name: string) => key(name.split(",")[0] ?? name);
 
 /** What one Add sends, what it leaves in the box, and how many typed names were already listed. */
 export type QuickAddPlan = {

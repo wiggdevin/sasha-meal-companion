@@ -40,6 +40,8 @@ export type PickItem = {
 export type PickTasteRow = { key: string; name: string; days180: number };
 
 export const pickKey = (name: string) => name.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+/** A line and a food match with or without a plural "s" ("Egg" is on the list as "Eggs"). */
+const matchKey = (name: string) => pickKey(name).replace(/(\w{2,}[^s])s$/, "$1");
 
 export function pickSources({ foods, starred, taste, view, lines }: {
   foods: Readonly<Record<string, Food>>;
@@ -54,8 +56,9 @@ export function pickSources({ foods, starred, taste, view, lines }: {
   const isAvoided = (name: string) => avoided.some((food) => sameBaseName(food.name, name));
   const byName = new Map<string, ShoppingLine[]>();
   for (const line of lines) {
-    const k = pickKey(boughtName(line.name) || line.name);
-    byName.set(k, [...(byName.get(k) ?? []), line]);
+    // "Eggs, large" on the list is Eggs here too: its bought name and its first comma segment.
+    const keys = new Set([matchKey(boughtName(line.name) || line.name), matchKey(line.name.split(",")[0] ?? "")]);
+    for (const k of keys) if (k) byName.set(k, [...(byName.get(k) ?? []), line]);
   }
   const seen = new Set<string>();
   const item = (name: string, source: PickSource, role: Food["role"] | null, bundledId?: string | null): PickItem | null => {
@@ -63,7 +66,7 @@ export function pickSources({ foods, starred, taste, view, lines }: {
     const key = pickKey(bought);
     if (!key || seen.has(key) || isAvoided(name)) return null;
     seen.add(key);
-    const listed = byName.get(key) ?? [];
+    const listed = byName.get(matchKey(bought)) ?? [];
     return { key, name: bought, source, role,
       aisle: aisleOf({ name, bundledId: bundledId ?? null, role }),
       ruleMark: componentRuleMark({ name }, foods as Record<string, Food>, view),

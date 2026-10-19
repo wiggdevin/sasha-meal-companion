@@ -8,6 +8,9 @@
 import type { CardManifestEntry } from "../manifest";
 
 export const SHOPPING_BUILD_CARDS: CardManifestEntry[] = [
+  { path: "components/shopping/BuildListCard.tsx", card: "BuildListCard",
+    states: ["collapsed with Start", "opens the flow in place", "saved"],
+    renderTest: "components/shopping/build/BuildFlow.test.tsx" },
   { path: "components/settings/ProcessorsSection.tsx", card: "ProcessorsSection",
     states: ["every model provider", "each processor"],
     renderTest: "components/settings/ProcessorsSection.test.tsx" },
