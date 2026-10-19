@@ -1,7 +1,7 @@
-/* Sprout in the glass well (components/today/island/Sprout.tsx; KIT §15). One light, from the upper
+/* Sprout on the companion row's open stage (components/today/overview/CompanionCard.tsx), first drawn in the glass well (components/today/island/Sprout.tsx; KIT §15). One light, from the upper
    left, like the rest of the well. Only transform and opacity animate. */
 
-.stage, .mini {
+.stage {
   --pet-tint: var(--color-gauge-water);
 }
 .stage {
@@ -11,8 +11,8 @@
   gap: 14px;
   padding: 4px 8px 0 4px;
 }
-.stage[data-mood="joyful"], .mini[data-mood="joyful"] { --pet-tint: var(--color-gauge-carbs); }
-.stage[data-mood="sleepy"], .mini[data-mood="sleepy"] { --pet-tint: var(--color-gauge-protein); }
+.stage[data-mood="joyful"] { --pet-tint: var(--color-gauge-carbs); }
+.stage[data-mood="sleepy"] { --pet-tint: var(--color-gauge-protein); }
 
 /* ----------------------------------------------------------------------------------- the pet */
 
@@ -203,51 +203,6 @@
   box-shadow: 0 0 6px rgb(255 255 255 / 0.8);
 }
 
-/* ---------------------------------------------------------------------------------- the mini */
-
-/* Collapsed: the whole pet, 48 px, standing at the island's head with its own small shadow. */
-.mini {
-  position: relative;
-  display: block;
-  width: 36px;
-  height: 44px;
-  flex-shrink: 0;
-  margin: 0 0 -6px;
-}
-.miniShadow {
-  position: absolute;
-  left: 50%;
-  bottom: 3px;
-  width: 28px;
-  height: 7px;
-  margin-left: -16px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(0 0 0 / 0.7), transparent);
-}
-/* Collapsed, the same physics: a small pool of the mood's light underfoot. */
-.mini::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 40px;
-  height: 12px;
-  margin-left: -20px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in oklab, var(--pet-tint) 50%, transparent), transparent);
-}
-.mini .img { filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.6)); }
-.miniBreath {
-  position: absolute;
-  left: -3px;
-  bottom: 3px;
-  width: 42px;
-  height: 42px;
-  transform-origin: 50% 100%;
-  animation: pet-breathe 3.2s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .breath, .shadow, .mini .img { filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.6)); }
-.miniBreath { animation: none; }
+  .breath, .shadow { filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.6)); }
 }

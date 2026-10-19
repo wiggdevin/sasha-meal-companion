@@ -142,4 +142,28 @@ describe("Settings › Your companion", () => {
     expect(sync.calls[0][1]).toEqual({ userId: "a", epoch: 1 });
     expect(store.settings.mascot).toBe("sprout");
   });
+
+  it("the switch hides the companion on Today, synced as the one companionsHidden field", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    const toggle = screen.getByRole("switch", { name: "Show Sprout on Today" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    await act(async () => { fireEvent.click(toggle); });
+    expect(sync.calls.at(-1)?.[2]).toEqual(["companionsHidden"]);
+    expect((sync.calls.at(-1)?.[0] as { companionsHidden: string[] }).companionsHidden).toEqual(["sprout"]);
+    expect(store.settings.companionsHidden).toEqual(["sprout"]);
+    expect(screen.getByRole("switch", { name: "Show Sprout on Today" }).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("a hidden companion carries a Hidden tag, and a failed Show puts the switch back", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    store.settings = { mascot: "sprout", companionsHidden: ["blueberry", "sprout"] };
+    sync.fail = true;
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    expect(screen.getByRole("button", { name: /^Blu\W*Hidden$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Sprout\W*Hidden$/ })).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("switch", { name: "Show Sprout on Today" })); });
+    expect(store.settings.companionsHidden).toEqual(["blueberry", "sprout"]);
+    expect(screen.getByRole("switch", { name: "Show Sprout on Today" }).getAttribute("aria-checked")).toBe("false");
+  });
 });

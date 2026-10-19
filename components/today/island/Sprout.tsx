@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useAnimationControls, useIsPresent, useReducedMotionConfig } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useAnimationControls, useReducedMotionConfig } from "motion/react";
 import { FADES, INSTANT, SPRINGS } from "@/lib/design/motion";
 import type { PetState, PetWhen } from "@/lib/today/pet-mood";
 import { MASCOTS, type MascotKey } from "@/components/today/island/mascots";
@@ -24,43 +24,11 @@ async function hopOnce(hop: ReturnType<typeof useAnimationControls>) {
 }
 
 /**
- * The band Sprout's stage lives in above the open island: it springs to its content's own height (so
- * larger text never clips it) and, while it leaves, is inert — out of the tab order and hidden from
- * assistive tech — handing focus back if it held it.
- */
-export function SproutBand({ className, onLeave, children }: { className: string; onLeave: () => void; children: ReactNode }) {
-  const reduce = useReducedMotionConfig() ?? false;
-  const present = useIsPresent();
-  const self = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!present && self.current?.contains(document.activeElement)) onLeave();
-  }, [present, onLeave]);
-  return <motion.div ref={self} className={className} inert={!present} aria-hidden={present ? undefined : true}
-    initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-    animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
-    exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-    transition={reduce ? INSTANT : { height: SPRINGS.bouncy, opacity: { ...FADES.base, delay: 0.06 } }}>
-    {children}
-  </motion.div>;
-}
-
-/** Collapsed: the whole of Sprout, small, standing at the island's head on its own light. Decorative. */
-export function SproutMini({ state, mascot = "sprout" }: { state: PetState; mascot?: MascotKey }) {
-  return <span aria-hidden="true" className={styles.mini} data-mood={state.mood}>
-    <span className={styles.miniShadow} />
-    <span className={styles.miniBreath}>
-      <Image src={wellArt(mascot, state.mood)} alt="" width={42} height={42} sizes="42px" draggable={false}
-        className={styles.img} />
-    </span>
-  </span>;
-}
-
-/**
- * Expanded: Sprout standing in the well's liquid (owner, 2026-10-06; Kimi K3 and Gemini 3.1 Pro
- * design passes). It breathes, its contact shadow and its wet reflection breathe with it, it leans
- * toward where the user touched the well, and it hops when tapped or when a cup is added. A tap also
- * says hello back in its line, so the press answers without motion and for a screen reader. Its mood
- * and the vitality bar come from lib/today/pet-mood.ts. The glass lid's sheen passes over it.
+ * The companion's stage on the open companion row in Overview (UI makeover W3; first drawn standing
+ * in the glass well, owner 2026-10-06). It breathes, its contact shadow and its wet reflection breathe
+ * with it, it leans toward where the user touched the stage, and it hops when tapped or when the day's
+ * log grows. A tap also says hello back in its line, so the press answers without motion and for a
+ * screen reader. Its mood and the care meter come from lib/today/pet-mood.ts.
  */
 export default function SproutStage({ state, glance, bounce, when = "today", figureOnly = false, mascot = "sprout" }: {
   state: PetState; glance: Glance; bounce: number; when?: PetWhen;
