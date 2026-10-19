@@ -1,20 +1,18 @@
 "use client";
 
-import Disclosure from "@/components/ui/Disclosure";
+import PreferredList from "@/components/foods/PreferredList";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import AddFoodSheet from "@/components/AddFoodSheet";
 import FoodSheet from "@/components/FoodSheet";
-import { foodToAvoid, ROLE_LABELS, withPerUnit, type Food, type FoodRole } from "@/lib/foods";
+import { foodToAvoid, withPerUnit, type Food, type FoodRole } from "@/lib/foods";
 import { kcalPer100Label } from "@/lib/foods/display";
-import { roleFromName } from "@/lib/foods/role";
 import {
   FOOD_MEMBERSHIP_SAVE_MESSAGE, FOOD_MEMBERSHIP_TRUNCATED_MESSAGE,
   FoodMembershipSaveError, FoodPartialSaveError, isLatestFoodMembershipIntent, reserveFoodMembershipIntent,
   saveFoodEdits, setFoodMembership, type FoodEditFields,
 } from "@/lib/foods/prefs-client";
-import { canHideFood, hideFood, unhideFood } from "@/lib/foods/hide-client";
 import { loadStore, setFoodNote, setFoodStatus, upsertFood } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
 import { accountHandle, assertCurrent, currentAccountOrNull, isCurrent, onAccountGone, onAccountReady } from "@/lib/device/account";
@@ -27,7 +25,6 @@ import { useFoodFavorites } from "@/components/MyFoods.favorites";
 import { useEatsRuleMarks } from "@/components/MyFoods.rule-marks";
 import RuleMark from "@/components/ui/RuleMark";
 
-const ROLES: FoodRole[] = ["protein", "carb", "fat"];
 
 /* Fixed macro colours — DESIGN.md Colors, gauge tokens. Never re-assigned. */
 const ROLE_DOT: Record<FoodRole, string> = {
@@ -445,13 +442,12 @@ function ListSkeleton() {
  * The Eats list. Grouped glass lists — one group per macro role, a role dot on every row.
  * Every meal in the app is built from this list — take one out here and it is out everywhere.
  */
-export default function EatsFoods() {
+export default function EatsFoods({ shopping = false }: { shopping?: boolean }) {
   const [foods, setFoods] = useFoodsStore();
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [addingRole, setAddingRole] = useState<FoodRole | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const membership = useMembershipChange(setFoods, setSaveError);
   const favorites = useFoodFavorites();
   const stars: Stars = { isStarred: favorites.isStarred, toggle: (food) => { void favorites.toggle(food); } };
@@ -463,7 +459,7 @@ export default function EatsFoods() {
   };
 
   useEffect(() => onAccountGone(() => {
-    setOpen(null); setAdding(false); setSaveError(null); setEditing(null);
+    setOpen(null); setAdding(false); setSaveError(null); setEditing(false);
   }), []);
 
   if (!foods) {
@@ -471,80 +467,29 @@ export default function EatsFoods() {
   }
 
   const all = Object.values(foods);
-  const eats = (role: FoodRole) =>
-    all.filter((f) => f.status === "eats" && f.role === role).sort(byName);
-  const other = all.filter((f) => f.status === "neutral").sort(byName);
+  const eats = all.filter((f) => f.status === "eats").sort(byName);
   const openFood = open ? foods[open] : null;
-  // A role group's row goes back to neutral (the durable membership op). An Other row has no mark to
-  // clear, so Remove hides it for good, with Undo (W148); a food this phone holds no synced row for
-  // keeps the older membership path. Notes stay on the food; nothing is deleted.
-  const remove = (id: string) => {
-    const food = foods[id];
-    if (!food || food.status !== "neutral") { membership.change(id, "neutral"); return; }
-    const h = accountHandle();
-    void canHideFood(food).then(async (hideable) => {
-      if (!isCurrent(h)) return;
-      if (!hideable) { membership.change(id, "neutral"); return; }
-      const outcome = await membership.feedback.run(async () => {
-        if (!await hideFood(food)) throw new Error("not hidden");
-      }, {
-        kind: "change", queue: true, confirm: "notice", stale: () => !isCurrent(h),
-        successMessage: `${food.name} removed from Other foods.`,
-        failureMessage: () => `Couldn't remove ${food.name}. Try again.`,
-        undo: { action: () => {
-          void unhideFood(food).then(() => { if (isCurrent(h)) setFoods(loadStore().foods); });
-        } },
-      });
-      if (outcome.ok && isCurrent(h)) setFoods(loadStore().foods);
-    });
-  };
+  // A row goes back to neutral through the durable membership op. Notes stay on the food; nothing is deleted.
+  const remove = (id: string) => { membership.change(id, "neutral"); };
 
   return (
     <MotionConfig reducedMotion="user">
-      <section className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
         <SaveError message={saveError} />
         <SaveError message={favorites.error} />
         {/* Rows that would look cleared without a check: one quiet line, never a row each. */}
         {ruleMarks.notice && <Notice tone={ruleMarks.notice.tone} title={ruleMarks.notice.title}
           className="px-1.5" />}
 
-        {ROLES.map((role) => {
-          const list = eats(role);
-          const title = ROLE_LABELS[role];
-          return (
-            <div key={role} className="shell">
-              <div className="surface flex flex-col">
-                <div className="flex flex-col gap-2 px-4 pt-4 pb-2">
-                  <GroupHeader title={title} n={list.length} action={list.length > 0 && <EditToggle
-                    title={title} editing={editing === role}
-                    onToggle={() => setEditing((current) => current === role ? null : role)} />} />
-                  {list.length === 0 && (
-                    <p className="m-0 px-1.5 pb-2 text-caption text-muted">None right now. Add one below.</p>
-                  )}
-                </div>
-                <FoodList list={list} title={`${title} foods`} editing={editing === role} onOpen={setOpen}
-                  onRemove={remove} stars={stars} renderStatus={renderRuleMark} describe
-                  add={{ label: `Add ${title.toLowerCase()} food`,
-                    onAdd: () => { setAddingRole(role); setAdding(true); } }} />
-              </div>
-            </div>
-          );
-        })}
-
-        <Disclosure title="Other foods" count={count(other.length)} bodyClassName="flex flex-col gap-2">
-          {other.length === 0 ? (
-            <p className={`m-0 ${CARD_INSET} pb-2 text-caption text-muted`}>Nothing here.</p>
-          ) : (
-            <div className={`flex justify-end ${CARD_INSET}`}>
-              <EditToggle title="Other foods" editing={editing === "other"}
-                onToggle={() => setEditing((current) => current === "other" ? null : "other")} />
-            </div>
-          )}
-          <FoodList list={other} title="other foods" editing={editing === "other"} onOpen={setOpen}
-            onRemove={remove} stars={stars} add={{ label: "Add another food",
-              onAdd: () => { setAddingRole(null); setAdding(true); } }} />
-        </Disclosure>
-      </section>
+        <PreferredList foods={eats} pilot={shopping} isStarred={favorites.isStarred}
+          onAdd={() => setAdding(true)}
+          aside={eats.length > 0 ? <EditToggle title="favorites" editing={editing}
+            onToggle={() => setEditing((current) => !current)} /> : undefined}
+          renderRow={(f, { last }) => (
+            <FoodRow food={f} last={last} editing={editing} onOpen={() => setOpen(f.id)}
+              onRemove={() => remove(f.id)} renderStatus={renderRuleMark} describe stars={stars} />
+          )} />
+      </div>
       <ActionFeedbackToast notice={membership.feedback.notice} onDismiss={membership.feedback.dismiss} />
 
       <AnimatePresence>
@@ -583,11 +528,7 @@ export default function EatsFoods() {
           <AddFoodSheet
             key="add"
             existing={foods}
-            initialRole={addingRole ?? undefined}
-            onAdd={(food) => {
-              // The group's Add places a food in that group unless its name settles the group
-              // itself: "Chicken breast" added from the Carbs card is still a protein.
-              const placed = addingRole && !roleFromName(food.name) ? { ...food, role: addingRole } : food;
+            onAdd={(placed) => {
               const h = accountHandle();
               setFoods(upsertFood(placed).foods);
               setSaveError(null);
