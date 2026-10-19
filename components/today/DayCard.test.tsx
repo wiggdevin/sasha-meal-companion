@@ -63,7 +63,7 @@ describe("DayCard · overview", () => {
     expect(panel("Overview").getAttribute("aria-hidden")).toBeNull();
     expect(panel("Calendar").getAttribute("aria-hidden")).toBe("true");
     expect(panel("Calendar").hasAttribute("inert")).toBe(true);
-    expect(panel("Overview").textContent).toContain("1,200 kcal eaten of 2,000");
+    expect(panel("Overview").textContent).toContain("1,200 of 2,000 eaten");
   });
 
   it("holds the board's next meal inside the overview, inside the one card", () => {

@@ -4,14 +4,15 @@ import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { liquidPath, sloshEnergy, smoothToward, type Wave } from "@/lib/today/water-liquid";
 import { runFrames } from "@/components/today/frame-loop";
 import { subscribeTilt } from "@/components/today/useWaterTilt";
-import styles from "@/components/today/WaterTile.module.css";
+import styles from "@/components/today/WaterLiquid.module.css";
 
 /**
- * The water in the tile (2026-10-03): two layered sine waves over a soft blue-green fill, a gentle
- * idle swell, a level that springs to each new amount and sloshes after it, small bubbles rising,
- * and a surface that leans with the phone. One SVG, redrawn by a frame loop that writes attributes
- * directly (no React render per frame) and runs only while `animate` is true: the board on show and
- * motion allowed. Otherwise the water is drawn still, level and flat.
+ * The water liquid (2026-10-03; it filled the board's water tile until the UI makeover, W2): two
+ * layered sine waves over a soft blue-green fill, a gentle idle swell, a level that springs to each
+ * new amount and sloshes after it, small bubbles rising, and a surface that leans with the phone.
+ * One SVG, redrawn by a frame loop that writes attributes directly (no React render per frame) and
+ * runs only while `animate` is true: its surface on show and motion allowed. Otherwise the water is
+ * drawn still, level and flat.
  */
 
 const BUBBLES = [

@@ -4,7 +4,6 @@
  * true to docs/design/KIT.md §12: these fixtures exist so each component can be mounted with
  * static props alone.
  */
-import type { BoardTip } from "@/lib/today/board";
 import type { DocumentPlanResult } from "@/lib/plan/document-types";
 import type { InspireResult } from "@/lib/plan/inspire-types";
 import type { RecipeCandidate } from "@/lib/recipe-catalog/types";
@@ -55,14 +54,6 @@ export const GALLERY_DOCUMENT_PLAN: DocumentPlanResult = {
     totals: { kcal: 320, protein: 12, carbs: 54, fat: 6 },
   },
 };
-
-/** TipTile: components/today/TipTile.tsx — one app tip, one coach tip. */
-export const GALLERY_TIPS: BoardTip[] = [
-  { id: "protein-first", source: "app", title: "Protein first",
-    text: "Starting a meal with protein tends to leave you steadier before the next one." },
-  { id: "coach-note", source: "coach", title: "About today's run",
-    text: "Your training day target is a little higher — the gap is mostly carbs." },
-];
 
 const est = (value: number) => ({ status: "estimated" as const, value, sourceRevisionId: null });
 

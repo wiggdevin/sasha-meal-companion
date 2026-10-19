@@ -1,0 +1,35 @@
+/* The water liquid (components/today/WaterLiquid.tsx; moved here from the retired board water tile,
+   UI makeover W2). The gauge's slate (DESIGN.md §Colors, --color-gauge-water) leaned a little toward
+   sage: a soft blue-green, pale enough that text reads over it at every level. The SVG fills its
+   positioned parent. */
+
+.liquid {
+  --water-deep: color-mix(in srgb, var(--color-gauge-water) 82%, var(--color-gauge-carbs));
+  --water-light: color-mix(in srgb, var(--color-gauge-water-end) 86%, var(--color-gauge-carbs-end));
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.waveBack {
+  fill: color-mix(in srgb, var(--water-light) 42%, transparent);
+}
+
+.stopTop {
+  stop-color: var(--water-light);
+  stop-opacity: 0.6;
+}
+
+.stopBottom {
+  stop-color: var(--water-deep);
+  stop-opacity: 0.55;
+}
+
+.bubble {
+  fill: color-mix(in srgb, var(--color-surface) 45%, transparent);
+  stroke: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  stroke-width: 1;
+}

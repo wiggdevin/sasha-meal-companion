@@ -1,7 +1,8 @@
 /**
- * The Day card's board (2026-10-01, docs/decisions/2026-10-01-liquid-day-card-rulings.md): pure
- * helpers for its pins. Every figure comes from the same resolved day the rest of Today shows;
- * nothing here invents a value for a day that was not logged.
+ * The Day card's day helpers (2026-10-01, docs/decisions/2026-10-01-liquid-day-card-rulings.md; the
+ * Overview cockpit since the UI makeover, W2): the next meal, the week, the meal count and the one
+ * next step. Pure. Every figure comes from the same resolved day the rest of Today shows; nothing
+ * here invents a value for a day that was not logged.
  */
 import { completionFor, mondayFor, shiftCalendarDay } from "@/lib/today/calendar";
 import { dayHasPartialNutrition, resolveDay } from "@/lib/resolve";
@@ -113,160 +114,31 @@ export function weekSummary(store: Store, viewed: string, today: string,
   };
 }
 
-/** The small line glyph a tip wears on the tile and in its full view (components/today/tips/TipGlyph.tsx). */
-export type TipGlyph = "overview" | "calendar" | "time" | "gesture" | "water" | "coach";
-
-/** The looping demonstration in a tip's full view (components/today/tips/TipDemo.tsx). */
-export type TipDemoKey = "orb" | "scrub" | "month" | "hold-drag" | "swipe" | "water";
-
-/**
- * What the board already knows about the viewed day, for ordering tips (2026-10-03). Every field
- * comes from data DayBoard is given; nothing here is fetched for the tips.
- */
-export type TipContext = {
-  /** The viewed day and today, ISO dates. */
-  date: string;
-  today: string;
-  /** The viewed day's water, or null while it has not been read. */
-  water: { cups: number; goal: number } | null;
+/** What the cockpit knows about the viewed day, for its one next step. */
+export type NextStepInput = {
+  when: "today" | "past" | "future";
   /** Planned meals on the viewed day. */
   planned: number;
-  /** True while a planned meal on the viewed day is not ticked as eaten. */
-  open: boolean;
-  /** When this account's local store was first written (ISO), or null when unknown. */
-  firstOpenedAt: string | null;
-  /** The viewed day is a training day. */
-  training: boolean;
+  next: NextMeal | null;
+  /** The day's water, or undefined while it has not been read. */
+  water?: { cups: number; goal: number };
 };
-
-export type BoardTip = {
-  id: string;
-  /** The one-line summary on the tile. With a title it carries on from it; without one it stands alone. */
-  text: string;
-  /** "app" tips explain the app; "coach" tips come from the coach's nutritionist. */
-  source: "app" | "coach";
-  /** The short headline, a few words. */
-  title?: string;
-  glyph?: TipGlyph;
-  /** The full view's steps, in order. A tip without them shows its summary there. */
-  steps?: string[];
-  /** The full view's demonstration; a tip without one shows its glyph large instead. */
-  demo?: TipDemoKey;
-  /** How much this tip matters now: 0 (or none) is "not especially", higher leads. Pure, and it
-   *  reads only the context it is given. */
-  relevance?: (context: TipContext) => number;
-};
-
-/** Days since the account's store was first written, while it still counts as new. */
-const NEW_ACCOUNT_DAYS = 7;
-
-function isoDayNumber(iso: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!match) return null;
-  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86_400_000;
-}
-
-/** True during the account's first week, counted from its first open to today. */
-export function isNewAccount(context: Pick<TipContext, "firstOpenedAt" | "today">): boolean {
-  if (!context.firstOpenedAt) return false;
-  const first = isoDayNumber(context.firstOpenedAt);
-  const today = isoDayNumber(context.today);
-  if (first === null || today === null) return false;
-  const age = today - first;
-  return age >= 0 && age < NEW_ACCOUNT_DAYS;
-}
-
-/** How to use Today, written plainly: a short headline and one line for the tile, then the steps
- *  and a demonstration for the full view. The nutritionist's own tips join this list later as
- *  `source: "coach"`; the board never writes nutrition advice of its own. */
-export const APP_TIPS = [
-  { id: "orb", source: "app", glyph: "overview", demo: "orb", title: "Open your day",
-    text: "See food, water, activity and sleep at once.",
-    steps: [
-      "Tap the eye in the switch at the top of the Day card.",
-      "Calories, protein, carbs and fat join water, activity and recovery on one ring.",
-      "Tap any of them to see its detail.",
-      "Tap the orb in the middle, or press Escape, to fold it back.",
-    ],
-    relevance: (c) => (isNewAccount(c) ? 3 : 0) },
-  { id: "scrub", source: "app", glyph: "calendar", demo: "scrub", title: "Slide the week",
-    text: "Change the day. A quick flick jumps a whole week.",
-    steps: [
-      "Drag the week strip left or right. The day under the olive lens is the day you see.",
-      "Flick it quickly to move a whole week at once.",
-      "Today's date stays red, so the way back is easy to find.",
-      "With a keyboard, the arrow keys move a day and Page Up or Page Down a week.",
-    ],
-    relevance: (c) => (isNewAccount(c) ? 2 : 0) },
-  { id: "month", source: "app", glyph: "calendar", demo: "month", title: "Double-tap the week",
-    text: "The next four weeks open below it.",
-    steps: [
-      "Double-tap the week strip, or tap the date above it.",
-      "Four weeks open below the week. Tap any day to go to it.",
-      "Double-tap again to fold them away.",
-    ],
-    relevance: (c) => (isNewAccount(c) ? 1 : 0) },
-  { id: "time", source: "app", glyph: "time", demo: "hold-drag", title: "Hold a meal card",
-    text: "Then drag up or down to move its time.",
-    steps: [
-      "Press and hold a meal card until it lifts.",
-      "Keep holding and drag up for earlier or down for later. The time moves in 15-minute steps.",
-      "Let go to save the new time.",
-      "Moved it by mistake? Hold it and drag it back.",
-    ],
-    relevance: (c) => (c.training && c.open && c.date >= c.today ? 3 : 0) },
-  { id: "swipe", source: "app", glyph: "gesture", demo: "swipe", title: "Swipe a meal left",
-    text: "Clear it, or remove it from the day.",
-    steps: [
-      "Swipe a meal card to the left. Clear shows first, and the card stops there.",
-      "Tap Clear to empty the slot.",
-      "Swipe farther to show Delete. Past the second stop, letting go removes the meal from the day.",
-      "Swipe back to the right to leave it as it was.",
-    ],
-    relevance: (c) => (c.open && c.date < c.today ? 4 : 0) },
-  { id: "water", source: "app", glyph: "water", demo: "water", title: "Add water fast",
-    text: "Tap the tile for a cup. Hold and slide to set the day's total.",
-    steps: [
-      "Tap the water tile to add one step in your unit: a cup, 8 oz or 237 ml.",
-      "Hold it for a moment and a bar opens above the tile.",
-      "Slide right to add more, faster the farther you go. Slide left to take some back.",
-      "Let go to log it once. Escape, or letting go at zero, changes nothing.",
-    ],
-    relevance: (c) => (c.date === c.today && c.water !== null && c.water.cups === 0 ? 5 : 0) },
-] satisfies (BoardTip & Required<Pick<BoardTip, "title" | "glyph" | "steps" | "demo">>)[];
-
-/** Coach tips first, then the app's, without repeats. */
-export function boardTips(coach: BoardTip[] = []): BoardTip[] {
-  const seen = new Set<string>();
-  return [...coach, ...APP_TIPS].filter((tip) => (seen.has(tip.id) ? false : (seen.add(tip.id), true)));
-}
-
-function relevanceOf(tip: BoardTip, context: TipContext): number {
-  const score = tip.relevance?.(context) ?? 0;
-  return Number.isFinite(score) && score > 0 ? score : 0;
-}
 
 /**
- * The board's tips in the order the tile shows them (2026-10-03):
- * 1. tips that matter now, most pressing first (ties keep their list order);
- * 2. the coach's other tips, in list order;
- * 3. the app's other tips, in list order, starting from the day's tip so the board has something
- *    new each morning (`tipIndexFor`).
- * The same inputs always give the same order.
+ * The Overview cockpit's one "next step" line (UI makeover §11): the single most useful thing to do
+ * on the viewed day, in plain words. It reads only what the face already shows, never tells anyone
+ * to eat, and makes no health claim. The same inputs always give the same line.
  */
-export function orderTips(tips: BoardTip[], context: TipContext): BoardTip[] {
-  const scored = tips.map((tip, index) => ({ tip, index, score: relevanceOf(tip, context) }));
-  const lead = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score || a.index - b.index);
-  const coach = scored.filter((s) => s.score === 0 && s.tip.source === "coach");
-  const app = scored.filter((s) => s.score === 0 && s.tip.source !== "coach");
-  const start = tipIndexFor(context.date, app.length);
-  const rotated = [...app.slice(start), ...app.slice(0, start)];
-  return [...lead, ...coach, ...rotated].map((s) => s.tip);
+export function nextStep({ when, planned, next, water }: NextStepInput): string {
+  if (planned === 0) {
+    return when === "future" ? "Nothing is planned for this day yet." : "Nothing is planned. Tap + to log what you have.";
+  }
+  if (when === "future") return "Coming up. Tap a meal below to change it.";
+  if (when === "past") {
+    return next ? "Tick the meals you had so this day counts." : "Mark this day fully logged if nothing else went in.";
+  }
+  if (!next) return "Every meal is in. Mark the day fully logged when you're done.";
+  if (water && water.goal > 0 && water.cups === 0) return "No water yet today. Tap the cup to log some.";
+  return "Tick each meal once you've had it.";
 }
 
-/** A day of the month, the tips rotate once a day so the board has something new each morning. */
-export function tipIndexFor(date: string, count: number): number {
-  if (count <= 0) return 0;
-  const day = Number(date.slice(-2)) || 0;
-  return day % count;
-}
