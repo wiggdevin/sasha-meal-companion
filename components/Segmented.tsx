@@ -53,7 +53,7 @@ export default function Segmented<T extends string>({ label, options, value, onC
             >
               {selected && <motion.span aria-hidden="true" layoutId={lens} className="segment-lens absolute inset-x-0 inset-y-1"
                 transition={reduceMotion ? { duration: 0 } : SPRINGS.snappy} />}
-              <span className={`segment-label relative flex h-9 items-center justify-center px-3.5 text-[12px] ${
+              <span className={`segment-label relative flex h-9 items-center justify-center px-3.5 text-[14px] ${
                 selected ? "text-on-primary" : "text-graphite"}`}>
                 {option.label}
               </span>

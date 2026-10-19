@@ -15,21 +15,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import CappedList from "@/components/MyFoods.list";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/ui/Notice";
-import Surface from "@/components/ui/Surface";
+import CardFrame from "@/components/ui/CardFrame";
 import Tag from "@/components/ui/Tag";
+import { aisleOf, groupByAisle } from "@/lib/foods/aisle";
 import { currentAccountOrNull, onAccountGone, onAccountReady, type AccountHandle } from "@/lib/device/account";
 import { FAVOR_COPY, favorTasteKey, type FavorOutcome } from "@/lib/foods/favor-client";
 import { noteRulesRevision } from "@/lib/foods/rules-epoch";
 import { loadTaste, type TasteRead, type TasteRow } from "@/lib/foods/taste-client";
 import { SYNCED_EVENT, syncOnce } from "@/lib/sync/client";
-
-/** "3 Oct" for a local yyyy-mm-dd date — the same day-first short date Foods already shows for a
- *  dated range (components/ShoppingView.tsx `dateRange`'s own `day` formatter). */
-function shortDate(date: string): string {
-  const parsed = new Date(`${date}T12:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(parsed);
-}
 
 function daysCopy(days180: number): string {
   return `Eaten on ${days180} ${days180 === 1 ? "day" : "days"}`;
@@ -41,15 +34,13 @@ function Row({ item, last, pending, note, onFavor }: {
   item: TasteRow; last: boolean; pending: boolean; note: Note | null; onFavor: (item: TasteRow) => void;
 }) {
   return (
-    <div className={`flex min-w-0 items-center gap-3 px-2.5 py-3 ${last ? "" : "border-b border-hairline"}`}>
+    <div className={`flex min-w-0 items-center gap-3 px-1 py-2 ${last ? "" : "border-b border-hairline"}`}>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-body font-medium">{item.name}</span>
           {item.provenance.estimated && <Tag tone="neutral">Estimated</Tag>}
         </span>
-        <span className="truncate text-tiny font-normal text-muted">
-          {daysCopy(item.days180)} · Last: {shortDate(item.lastOn)}
-        </span>
+        <span className="truncate text-tiny font-normal text-muted">{daysCopy(item.days180)}</span>
         {/* Spoken once by the section's own status line; shown here, beside the food it is about. */}
         {note && <span aria-hidden="true" className={`text-tiny ${note.tone === "error" ? "text-alert" : "text-muted"}`}>
           {note.text}</span>}
@@ -136,19 +127,20 @@ export default function EatenOften() {
   if (read.status === "ok" && read.items.length === 0) return null;
 
   return (
-    <section aria-label="Eaten often" className="flex flex-col gap-2">
+    <section aria-label="Often eaten" className="flex flex-col gap-2">
       {read.status === "rule_review" ? (
         <Notice tone="error" title={read.message} className="px-1.5" />
       ) : (
-        <Surface className="flex flex-col">
-          <div className="flex flex-col gap-1 px-4 pt-4 pb-2">
-            <h2 className="section-title m-0 text-title font-semibold! tracking-heading-sm!">Eaten often</h2>
-            <p className="m-0 text-caption text-muted">From food logged in the last 6 months.</p>
-          </div>
-          <CappedList items={read.items} keyOf={(item) => item.key} divided label="eaten often foods"
-            inset="px-4" render={(item, { last }) => <Row item={item} last={last} pending={pending.has(item.key)}
-              note={note?.key === item.key ? note : null} onFavor={(row) => void favor(row)} />} />
-        </Surface>
+        <CardFrame size="md" title="Often eaten" meta="From the last 6 months">
+          {groupByAisle(read.items, (item) => aisleOf({ name: item.name })).map((group) => (
+            <div key={group.aisle} className="flex min-w-0 flex-col" data-aisle={group.aisle}>
+              <h3 className="m-0 pt-2 text-overline text-muted">{group.label}</h3>
+              <CappedList items={group.items} keyOf={(item) => item.key} divided label={`${group.label} eaten often foods`}
+                render={(item, { last }) => <Row item={item} last={last} pending={pending.has(item.key)}
+                  note={note?.key === item.key ? note : null} onFavor={(row) => void favor(row)} />} />
+            </div>
+          ))}
+        </CardFrame>
       )}
       <p role="status" className="sr-only">{note?.text ?? ""}</p>
     </section>
