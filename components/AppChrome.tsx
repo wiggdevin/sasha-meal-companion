@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import TabBar from "@/components/TabBar";
 
-const PRIMARY_ROUTES = ["/body", "/foods", "/coach", "/settings"] as const;
+const PRIMARY_ROUTES = ["/body", "/foods", "/coach", "/settings", "/week"] as const;
 
 export function isPrimaryRoute(pathname: string): boolean {
   if (pathname === "/") return true;

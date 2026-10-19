@@ -17,9 +17,10 @@ import styles from "./TabBar.module.css";
 
 export { tabSlots } from "@/components/dock/TabCapsule";
 
-export const GLYPH_ONLY_BELOW_PX = 360;
+/** Every tab keeps its label at every width; below this the slot padding tightens instead. */
+export const COMPACT_BELOW_PX = 360;
 export function tabBarLayout(width: number, tabCount: number) {
-  return { glyphOnly: width < GLYPH_ONLY_BELOW_PX, columns: tabCount };
+  return { compact: width < COMPACT_BELOW_PX, columns: tabCount };
 }
 
 /** Keep the dock above the on-screen keyboard while the assistant field is being typed in. The
@@ -110,8 +111,10 @@ export default function TabBar(_props: { bodyCapability?: BodyCapability } = {})
   const router = useRouter();
   const reduce = useReducedMotion() ?? false;
   const onCoach = pathname === COACH_HREF || pathname.startsWith(`${COACH_HREF}/`);
+  // /week is a page of Today, so it lights Today.
   const activeIndex = TABS.findIndex((tab) =>
-    tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href));
+    tab.href === "/" ? pathname === "/" || pathname === "/week" || pathname.startsWith("/week/")
+      : pathname.startsWith(tab.href));
   useEffect(() => { rememberTab(activeIndex); }, [activeIndex]);
   // The dock owns the unread badge, so it asks for it: on open and on each return to the app.
   useUnreadTracking();
@@ -145,7 +148,7 @@ export default function TabBar(_props: { bodyCapability?: BodyCapability } = {})
   useDockHeight(dock);
 
   const capsuleWidth = rowWidth > 0 ? rowWidth - SPLIT - BUBBLE : 0;
-  const glyphOnly = rowWidth > 0 && tabBarLayout(rowWidth + 32, TABS.length).glyphOnly;
+  const compact = rowWidth > 0 && tabBarLayout(rowWidth + 32, TABS.length).compact;
 
   const closeChatNow = useCallback(() => { setChat(null); setOpen(false); }, [setOpen]);
   const dismissChat = useChatHistory(chatOpen, closeChatNow);
@@ -185,7 +188,7 @@ export default function TabBar(_props: { bodyCapability?: BodyCapability } = {})
       {lensing && <LiquidLensFilters pillWidth={capsuleWidth} height={BUBBLE} />}
       {/* Bottom-aligned so the ask field can grow upward into its attach tray. */}
       <div ref={row} className="flex min-h-16 items-end justify-between" style={{ gap: SPLIT }}>
-        <TabCapsule activeIndex={activeIndex} folded={fieldOpen} width={capsuleWidth} glyphOnly={glyphOnly}
+        <TabCapsule activeIndex={activeIndex} folded={fieldOpen} width={capsuleWidth} compact={compact}
           reduce={reduce} onUnfold={closeField} />
         <AssistantField open={fieldOpen} width={capsuleWidth} onCoach={onCoach} reduce={reduce}
           onOpen={openField} onClose={() => setOpen(false)} dock={dock}

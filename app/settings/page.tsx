@@ -15,6 +15,7 @@ import HealthConnectionsSection from "@/components/settings/HealthConnectionsSec
 import MacroList from "@/components/settings/MacroList";
 import ProteinLockCard from "@/components/settings/ProteinLockCard";
 import ScheduleSection from "@/components/settings/ScheduleSection";
+import PageTitle from "@/components/ui/PageTitle";
 import SettingsSection from "@/components/settings/Section";
 import { CAPTION, CARD_TITLE } from "@/components/settings/settings-styles";
 import TargetsSection from "@/components/settings/TargetsSection";
@@ -54,9 +55,7 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 pb-8"
       style={{ paddingTop: "calc(var(--safe-top) + 20px)" }}>
-      <h1 className="ground m-0 px-1 text-display-md font-light leading-none tracking-display-md">
-        Settings
-      </h1>
+      <PageTitle title="Settings" />
 
       <SettingsSection title="Profile">
         <AppProfileCard settings={settings} setup={setup}

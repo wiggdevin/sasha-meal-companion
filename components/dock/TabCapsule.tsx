@@ -7,7 +7,7 @@ import {
 } from "motion/react";
 import { Activity, House, Settings, Utensils, type LucideIcon } from "lucide-react";
 import {
-  ACTIVE_WEIGHT, BUBBLE, FADE, INSTANT, LEAD_EDGE, MORPH, PAD, PRESS, TAB_GAP, TAB_MOVE, TRAIL_EDGE,
+  BUBBLE, FADE, INSTANT, LEAD_EDGE, MORPH, PAD, PRESS, TAB_GAP, TAB_MOVE, TRAIL_EDGE,
   lensVar, sheen, sheenOff,
 } from "@/components/dock/dock-motion";
 import styles from "@/components/TabBar.module.css";
@@ -24,37 +24,23 @@ export const TABS: Tab[] = [
 
 type Slot = { x: number; w: number };
 
-export function tabSlots(width: number, count: number, active: number, glyphOnly: boolean): Slot[] {
-  const weights = Array.from({ length: count }, (_, i) => (i === active && !glyphOnly ? ACTIVE_WEIGHT : 1));
-  const unit = (width - PAD * 2 - TAB_GAP * (count - 1)) / weights.reduce((sum, w) => sum + w, 0);
-  let x = PAD;
-  return weights.map((weight) => {
-    const slot = { x, w: weight * unit };
-    x += slot.w + TAB_GAP;
-    return slot;
-  });
+export function tabSlots(width: number, count: number, gap: number = TAB_GAP): Slot[] {
+  const unit = (width - PAD * 2 - gap * (count - 1)) / count;
+  return Array.from({ length: count }, (_, i) => ({ x: PAD + i * (unit + gap), w: unit }));
 }
 
 /** The last capsule tab visited: the folded capsule shows it while the assistant has the dock. */
 let lastTabIndex = 0;
 export function rememberTab(index: number) { if (index >= 0) lastTabIndex = index; }
 
-function TabFace({ tab, active, glyphOnly, reduce }: {
-  tab: Tab; active: boolean; glyphOnly: boolean; reduce: boolean;
-}) {
+/** Icon over a 12 px label on every tab at every width; the current tab is heavier. */
+function TabFace({ tab, active }: { tab: Tab; active: boolean }) {
   const Icon = tab.icon;
   return <>
-    <Icon size={22} strokeWidth={active ? 1.8 : 1.5} aria-hidden="true" className="shrink-0" />
-    <AnimatePresence initial={false}>
-      {active && !glyphOnly && <motion.span key="label"
-        className="overflow-hidden whitespace-nowrap text-caption font-medium"
-        initial={reduce ? false : { width: 0, opacity: 0, filter: "blur(4px)" }}
-        animate={{ width: "auto", opacity: 1, filter: "blur(0px)" }}
-        exit={reduce ? { opacity: 0, transition: INSTANT } : { width: 0, opacity: 0, filter: "blur(4px)" }}
-        transition={reduce ? INSTANT : { ...TAB_MOVE, opacity: { duration: 0.2, delay: 0.05 } }}>
-        <span className="pl-2">{tab.label}</span>
-      </motion.span>}
-    </AnimatePresence>
+    <Icon size={20} strokeWidth={active ? 2 : 1.5} aria-hidden="true" className="shrink-0" />
+    <span className={`max-w-full truncate text-tiny leading-4 ${active ? "font-semibold" : "font-medium"}`}>
+      {tab.label}
+    </span>
   </>;
 }
 
@@ -95,12 +81,12 @@ function useLens(slots: Slot[] | null, active: number, reduce: boolean) {
 }
 
 /** The four-tab capsule: a white lens on two springs, black ink wherever the lens covers a glyph. */
-export default function TabCapsule({ activeIndex, folded, width, glyphOnly, reduce, onUnfold }: {
-  activeIndex: number; folded: boolean; width: number; glyphOnly: boolean; reduce: boolean;
+export default function TabCapsule({ activeIndex, folded, width, compact, reduce, onUnfold }: {
+  activeIndex: number; folded: boolean; width: number; compact: boolean; reduce: boolean;
   onUnfold: () => void;
 }) {
   const measured = width > 0;
-  const slots = measured ? tabSlots(width, TABS.length, activeIndex, glyphOnly) : null;
+  const slots = measured ? tabSlots(width, TABS.length, compact ? TAB_GAP / 2 : TAB_GAP) : null;
   // The first measured layout lands in place; only later changes travel.
   const [live, setLive] = useState(false);
   useEffect(() => {
@@ -122,25 +108,24 @@ export default function TabCapsule({ activeIndex, folded, width, glyphOnly, redu
   const tabs = (face: "base" | "ink") => TABS.map((tab, index) => {
     const active = index === activeIndex;
     const slot = slots?.[index];
-    const common = "flex h-[52px] min-w-11 items-center justify-center rounded-full";
+    const common = `flex h-[52px] min-w-11 flex-col items-center justify-center gap-0.5 rounded-full ${compact ? "px-0" : "px-1"}`;
     const position = slot
       ? { initial: false as const, animate: { x: slot.x, width: slot.w }, transition: reduce || !live ? INSTANT : TAB_MOVE }
       : {};
     const style = slot
       ? { position: "absolute" as const, left: 0, top: PAD }
-      : { flexGrow: active && !glyphOnly ? ACTIVE_WEIGHT : 1, flexBasis: 0 };
+      : { flexGrow: 1, flexBasis: 0 };
     if (face === "ink") return <motion.span key={measured ? `${tab.href}:placed` : tab.href} aria-hidden="true" className={common}
       style={style} {...position}>
-      <TabFace tab={tab} active={active} glyphOnly={glyphOnly} reduce={reduce} />
+      <TabFace tab={tab} active={active} />
     </motion.span>;
     return <motion.div key={measured ? `${tab.href}:placed` : tab.href} className="flex h-[52px] min-w-11" style={style} {...position}>
       <Link href={tab.href} aria-current={active ? "page" : undefined}
-        aria-label={active && !glyphOnly ? undefined : tab.label}
         onClick={() => { lastTabIndex = index; }}
         className={`${styles.tab} ${common} tap w-full min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}>
-        <motion.span className="flex items-center justify-center" whileTap={reduce ? undefined : { scale: 0.86 }}
+        <motion.span className="flex max-w-full flex-col items-center justify-center gap-0.5" whileTap={reduce ? undefined : { scale: 0.86 }}
           transition={PRESS}>
-          <TabFace tab={tab} active={active} glyphOnly={glyphOnly} reduce={reduce} />
+          <TabFace tab={tab} active={active} />
         </motion.span>
       </Link>
     </motion.div>;

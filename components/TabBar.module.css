@@ -11,14 +11,14 @@
   isolation: isolate;
   border-radius: 9999px;
   /* farthest-side fits the tint ellipse to each body's own shape: dense in the middle, clear at the rim. */
-  background: linear-gradient(180deg, rgb(36 36 34 / 0.96), rgb(29 29 28 / 0.96));
+  background: var(--grad-matte);
   backdrop-filter: blur(12px);
   box-shadow:
-    inset 0 1px 1px rgb(255 255 255 / 0.1),
-    inset 0 -1px 1px rgb(0 0 0 / 0.2),
-    0 0 0 1px rgb(255 255 255 / 0.04),
-    0 20px 40px -18px rgb(29 29 28 / 0.6),
-    0 2px 6px rgb(29 29 28 / 0.12);
+    inset 0 1px 1px rgb(var(--ink-rgb) / 0.1),
+    inset 0 -1px 1px rgb(var(--on-olive-rgb) / 0.2),
+    0 0 0 1px rgb(var(--ink-rgb) / 0.04),
+    0 20px 40px -18px rgb(var(--on-olive-rgb) / 0.6),
+    0 2px 6px rgb(var(--on-olive-rgb) / 0.12);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -36,18 +36,18 @@
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  background: radial-gradient(90px 64px at var(--lx, 50%) var(--ly, 0%), rgb(226 220 208 / 0.08), transparent 72%);
+  background: radial-gradient(90px 64px at var(--lx, 50%) var(--ly, 0%), rgb(var(--cream-rgb) / 0.08), transparent 72%);
   opacity: var(--lo, 0);
   transition: opacity 320ms ease;
   pointer-events: none;
 }
 
 .tab {
-  color: rgb(226 220 208 / 0.6);
+  color: rgb(var(--cream-rgb) / 0.6);
   transition: color 150ms ease;
 }
 
-.tab:hover { color: #f3eee2; }
+.tab:hover { color: var(--color-charcoal); }
 
 /* The olive selection lens (DESIGN.md: the dock's active pill is the primary fill). */
 .lens {
@@ -58,8 +58,8 @@
   border-radius: 9999px;
   background: var(--grad-ink);
   box-shadow:
-    inset 0 1px 1px rgb(255 255 255 / 0.1),
-    inset 0 -1px 1px rgb(0 0 0 / 0.2);
+    inset 0 1px 1px rgb(var(--ink-rgb) / 0.1),
+    inset 0 -1px 1px rgb(var(--on-olive-rgb) / 0.2);
   transform-origin: center;
   will-change: transform, width;
   pointer-events: none;
@@ -77,9 +77,9 @@
 
 .assistant[data-current="true"]:not([data-open]) {
   box-shadow:
-    inset 0 1px 1px rgb(255 255 255 / 0.1),
-    inset 0 0 0 1.5px rgb(138 162 110 / 0.55),
-    0 20px 40px -18px rgb(29 29 28 / 0.6);
+    inset 0 1px 1px rgb(var(--ink-rgb) / 0.1),
+    inset 0 0 0 1.5px color-mix(in srgb, var(--color-sage) 55%, transparent),
+    0 20px 40px -18px rgb(var(--on-olive-rgb) / 0.6);
 }
 
 /* The charcoal composer the bubble becomes (DESIGN.md: a thin olive → sage → wheat rim). */
@@ -88,8 +88,8 @@
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  background: linear-gradient(180deg, #262624, #1d1d1c);
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.1), 0 20px 40px -18px rgb(29 29 28 / 0.6);
+  background: var(--grad-matte);
+  box-shadow: inset 0 1px 1px rgb(var(--ink-rgb) / 0.1), 0 20px 40px -18px rgb(var(--on-olive-rgb) / 0.6);
   pointer-events: none;
 }
 
@@ -107,8 +107,8 @@
 }
 
 .assistant:focus-within .composerSkin {
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.1), 0 20px 40px -18px rgb(29 29 28 / 0.6),
-    0 0 0 3px rgb(138 162 110 / 0.25);
+  box-shadow: inset 0 1px 1px rgb(var(--ink-rgb) / 0.1), 0 20px 40px -18px rgb(var(--on-olive-rgb) / 0.6),
+    0 0 0 3px color-mix(in srgb, var(--color-sage) 25%, transparent);
 }
 
 .assistant form {
@@ -156,8 +156,8 @@
   height: 52px;
   border-radius: 16px;
   color: var(--color-text-secondary);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.08), inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  background: rgb(var(--ink-rgb) / 0.05);
+  box-shadow: inset 0 1px 1px rgb(var(--ink-rgb) / 0.08), inset 0 0 0 1px rgb(var(--ink-rgb) / 0.06);
   transition: color 150ms ease;
 }
 
@@ -166,7 +166,7 @@
 
 @media (prefers-reduced-transparency: reduce) {
   .glass {
-    background: rgb(29 29 28 / 0.98);
+    background: rgb(var(--on-olive-rgb) / 0.98);
     backdrop-filter: none;
   }
   .glass::after { display: none; }
