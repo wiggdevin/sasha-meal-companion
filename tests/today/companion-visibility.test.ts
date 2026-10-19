@@ -26,7 +26,7 @@ vi.mock("@/lib/store", () => ({
     store.settings = { ...next.settings };
   },
 }));
-const sync = vi.fn<(settings: { companionsHidden?: string[] }, h: Handle, fields: string[]) => Promise<void>>();
+const sync = vi.fn<(settings: { companionsHidden?: string[] }, h: Handle | undefined, fields: readonly string[]) => Promise<void>>();
 
 beforeEach(() => {
   store.settings = {}; account.current = { userId: "a", epoch: 1 };
