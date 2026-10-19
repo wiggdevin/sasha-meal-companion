@@ -73,7 +73,7 @@ describe("TrendsSlot", () => {
     expect(screen.queryByRole("img")).toBeNull();
   });
 
-  it("opens in place with the chart, a hidden data table and 44 px columns", async () => {
+  it("opens in place with the chart, a hidden data table and tap columns that line up with the bars", async () => {
     await mount();
     open(/^Calories:/);
     expect(screen.getByRole("button", { name: /^Calories:.*Close chart/ }).getAttribute("aria-expanded")).toBe("true");
@@ -83,7 +83,8 @@ describe("TrendsSlot", () => {
     expect(table.className).toContain("sr-only");
     expect(within(table).getAllByRole("row")).toHaveLength(8);
     const css = readFileSync("components/charts/Charts.module.css", "utf8");
-    expect(css).toMatch(/\.hit \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
+    // Columns share the width evenly (never wider than their bars on a narrow phone) and stand 44 px tall.
+    expect(css).toMatch(/\.hit \{[^}]*flex: 1 1 0;[^}]*min-width: 0;[^}]*min-height: 44px;/);
     expect(screen.getAllByRole("button", { name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) · / })).toHaveLength(7);
   });
 

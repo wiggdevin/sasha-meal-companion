@@ -149,7 +149,7 @@ export default function TrendsSlot({ data, active }: {
         const recent = days ? dailyPoints(days.slice(-7), m, units.weightUnit) : [];
         const figure = miniFigure(m, days, health, units);
         return <button key={m} type="button" className={`${styles.mini} tap`} aria-expanded={open && metric === m}
-          aria-controls={panelId} aria-label={`${METRIC_LABEL[m]}: ${figure}. ${open && metric === m ? "Close" : "Open"} chart`}
+          aria-controls={open ? panelId : undefined} aria-label={`${METRIC_LABEL[m]}: ${figure}. ${open && metric === m ? "Close" : "Open"} chart`}
           onClick={() => tapMini(m)}>
           <span className="text-overline uppercase text-muted">{METRIC_LABEL[m]}</span>
           <MiniTrend metric={m} values={recent.map((p) => p.value)} partial={recent.map((p) => p.partial)} />
