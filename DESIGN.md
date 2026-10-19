@@ -201,7 +201,7 @@ and dots; small text stays ink or cream.
 **Calorie figures are persimmon** (2026-10-03, owner request: "make the calories a specific colour, keep
 the same colour rules throughout the app … that orange-red and a little more bold so they stand out").
 Every calorie *number* carries the shared `.kcal` class (`app/globals.css`) and one weight step more
-than its line (semibold for Jakarta figures; 500 for the meal card's Fraunces numeral): persimmon ink
+than its line (semibold for Jakarta figures; Bold: the meal card's calorie figure is the display numeral, 600): persimmon ink
 `#9A3A10` on ivory, oat and beige (≥ 4.5:1), persimmon base `#E8662E` inside the `.matte` charcoal
 scope (≈ 4.8:1 on `#1D1D1C`; `.matte-reset` trays go back to the ink). This is a deliberate exception
 to "small text stays ink or cream". The "kcal" unit stays muted, a row that is over its target keeps
@@ -336,7 +336,7 @@ code by the test; each role shows its worst allowed surface.
 
 **Fraunces** (2026-10-01, replacing Playfair Display, whose hairlines broke up at 20–28 px on a phone)
 is the headline voice: a warm soft serif with optical sizing, so the 64 px numeral and a 20 px card title
-each get the right cut. Screen titles, section headings, meal titles, the calorie numeral; 400 for
+each get the right cut. Screen titles, section headings and meal titles; 400 for
 display, 600 for headings (Bold: a card title is 22 px at 600). **Plus Jakarta Sans** (replacing Manrope) carries everything else: body 400
 with a generous 1.7 line height, labels and buttons 500, figures 600 with tabular numerals. Eyebrows
 are tracked capitals: 10–12 px, weight 500, 0.15–0.2 em, uppercase (slot chip, spec labels, kcal
@@ -573,13 +573,13 @@ search, this is AI").
     (charcoal with a cream rim), else the slot's own name (`Meal 3 · …`), never a bare number. No macro
     bar on any card. The card's foot is a thin strip (44 px) of three equal icon zones — eaten | swap |
     details — told apart by tone (olive wash, the tray, ink 4 %) with hairlines between; eaten is an open
-    ring, then a solid olive zone with a filled tick (a tap undoes it). The calorie numeral is a figure,
+    ring, then a solid olive zone with a filled tick (a tap undoes it). The calorie figure is a figure,
     not a control. Eaten keeps full colour and contrast. A heart on the photo (outline / filled) saves the
     plate as a favorite meal when the page supplies one. A generator's plan miss sits in the tray as a
     "needs a look" Notice.
   - Featured (the focus card, closed): the photo fills the top 132 px in true colour, its lower-right
     corner swept on a 72 px curve, the chip on it. Below, on charcoal: the cream Fraunces title (24 px)
-    and the persimmon calorie numeral, the olive spec panel — Protein, Carbs, Fat as tracked labels over
+    and the persimmon calorie figure (`numeral text-numeral-md`), the olive spec panel — Protein, Carbs, Fat as tracked labels over
     cream values, split by hairlines — and the beige tray with its strip.
   - Compact (every other card, any open card, and every card with a flow open): the photo fills the
     card's left 34 %, its upper-right corner swept, and runs under the tray's curved corner; the chip,
@@ -614,43 +614,24 @@ search, this is AI").
     photo. Stock photos are never presented as the account's exact meal and never used as nutrient
     evidence (`lib/today/meal-art.ts`, `docs/design/meal-card-image-sources.md`).
 - **Snack ticket:** an ivory ticket with a small olive art tile.
-- **Day card (2026-10-01, `components/today/DayCard.tsx`):** one ivory card at the top of Today, 32 px
-  radius (concentric with the phone's corners 16 px away), where the calendar card and a second
-  overview card used to stack. Header: the viewed day ("Today" over the full date, Fraunces 20 over
-  14 muted) and the face switch, a recessed 44 px pill with three glyph segments (Calendar, Overview,
-  Board); the chosen one opens into the olive lens with its name. No swipe between faces: the week
-  strip owns horizontal gestures.
-  - Calendar: the week strip with the olive lens, the month on double-tap (weekday initials once, a
-    new month named above its first day), then the ledger (owner, 2026-10-05; concept by Gemini 3.1
-    Pro and Kimi K3; components/today/DayLedger.tsx): a matte charcoal tab inset 8 px at the card's
-    foot, 24 px corners, the inset bevel. Closed it is one 52 px row: the calories left in the
-    display face (22 px, the calorie ink) and "kcal left" (or "kcal over"), with the disclosure
-    chevron. Opened (the shared Disclosure spring) it shows protein, carbs and fat in three columns:
-    PRO / CAR / FAT, "60g left" in the macro's ink, a TargetMeter under each. Past a target the word
-    says "over", never the hue. The overview opens from the face switch's eye; nothing hangs from the
-    card's lower edge.
-  - Overview: the health orbit inside the same card, the orb at its centre.
-  - Board: a bento of 16 px tiles, 12 px apart — the next meal (matte charcoal, its photo, one olive
-    "mark eaten" button), water (below), a tip (the app's own,
-    and later the nutritionist's), this week (one bar per day against target; a bar selects its
-    day), and explainers (a poster pin that grows into a player filling the board: a real video, or
-    a captioned storyboard drawn in the app's shapes). Copy never scolds.
-  - Water tile (2026-10-03, `components/today/WaterTile.tsx`): a pale blue-green liquid (the water
-    gauge slate leaned toward sage) fills to the day's share of the goal: two layered sine waves, a
-    springy level, a slosh after each change, small rising bubbles, and a surface that leans up to
-    15° with the phone (iOS asks for motion on the first tap, never on load). A tap adds one step in
-    the account's unit (8 oz, a cup or 237 ml); holding ~350 ms opens a bar above the tile that counts
-    faster the farther right the finger slides ("+48 oz → 96 / 128 oz") and logs once on release.
-    Under reduced motion the water is still and level.
-  - Tip tile (2026-10-03, `components/today/TipTile.tsx`): the board's tip, cycling the day's tips
-    (the app's own, later the coach's) behind a quote mark and, past `MAX_DOTS` (7) tips, a count
-    instead of a dot rail. A tap grows the tile, in place, into its full view on the board's own
-    morph timeline (`components/today/useDayCardMotion.ts` `BOARD_MORPH`, shared with the explainer
-    player below): the view lies over the tiles, which stay mounted underneath, inert and hidden
-    from assistive tech, fading and blurring away rather than vanishing on the first frame; closing
-    runs the same timeline backwards.
-  - Explainer (`components/today/ExplainerPlayer.tsx`): the poster pin that grows into a player
-    filling the board, on the same `BOARD_MORPH` timeline the tip tile uses.
+- **Day card (2026-10-01, reshaped 2026-10-19, `components/today/DayCard.tsx`):** one card at the top of
+  Today, 32 px radius (concentric with the phone's corners 16 px away). The viewed date is the page's
+  own title (`PageTitle`), not the card's. Header, row 1: the Rest/Training pill and the cup
+  (`components/today/CupSlot.tsx`), on both faces; row 2: the full-width face switch, a recessed 44 px
+  pill with two labelled segments (Calendar, Overview); the chosen one opens into the olive lens with
+  its name. No swipe between faces: the week strip owns horizontal gestures. There is no Board.
+  - Calendar: the week strip with the olive lens and the month on double-tap (weekday initials once, a
+    new month named above its first day), over the day's live widget; without a target revision a
+    "Finish your profile" prompt, nothing invented.
+  - Overview (the daily cockpit, `components/today/overview/*`): one screen, no scrolling, at most six
+    small blocks — summary (calories left in `numeral text-numeral-xl`, the macros), meals (done of
+    planned, the next one), the rebalance line, one next step, the companion row and the week's trends
+    row. Each block is a small `CardFrame`, which inside the Day card takes the inset step, so no block
+    blends into the card behind it. Copy never scolds.
+  - Cup (`CupSlot`): one 44 px control in the card header. A tap adds one step in the account's unit
+    (8 oz, a cup or 237 ml); holding ~350 ms opens a bar above it that counts faster the farther right
+    the finger slides ("+48 oz → 96 / 128 oz") and logs once on release. It is the only water control
+    on Today. Under reduced motion nothing animates.
 
 ### Sheets, the ask box, and what a photo or document turns into
 

@@ -36,7 +36,7 @@ export const INSTANT = { duration: 0 } as const;
  * The one morph rule for a surface that changes shape (2026-10-04, from the Day card's board): the
  * frame rides the gentle spring both ways, so closing is opening run backwards and ends in its soft
  * landing; the frame itself never fades; its content fades in once the frame has room and fades out
- * as it starts to shrink. The board (components/today/useDayCardMotion.ts, BOARD_MORPH), the meal
+ * as it starts to shrink. The retired Day-card board, the meal
  * card's tray and footer, and the panels joined to a meal card all read these.
  */
 export const MORPH = {
