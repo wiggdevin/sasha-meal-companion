@@ -1061,6 +1061,7 @@ export default function Today() {
             offline={pendingProposal?.stale ?? false}
             asOf={pendingProposal?.stale ? pendingProposal.asOf : undefined}
             onDecided={onProposalDecided}
+            feedback={todayFeedback}
           />
         )}
 

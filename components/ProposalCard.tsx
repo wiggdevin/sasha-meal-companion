@@ -42,13 +42,19 @@ export function deltaSentence(proposed: ProposedTargets): string {
   return `Your training days ${verb} ${kcal} kcal, protein unchanged.`;
 }
 
-export default function ProposalCard({ proposal, offline, asOf, onDecided }: {
+const decisionKey = (decision: "approve" | "reject") => `proposal:${decision}`;
+
+export default function ProposalCard({ proposal, offline, asOf, onDecided, feedback: shared }: {
   proposal: ProposalSummary; offline: boolean; asOf?: string;
   onDecided: (decision: "approve" | "reject") => void;
+  /** The page's own feedback (Today's): its one toast reports the decision, so this card's notice
+   *  never stacks on another in the same spot (UI audit 2026-10-18). Absent, the card keeps its own. */
+  feedback?: ReturnType<typeof useActionFeedback>;
 }) {
   const [busy, setBusy] = useState(false);
   const [activeDecision, setActiveDecision] = useState<"approve" | "reject" | null>(null);
-  const feedback = useActionFeedback();
+  const own = useActionFeedback();
+  const feedback = shared ?? own;
   const decisionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disabled = offline || busy;
   const activitySentence = proposalActivitySentence(proposal.activityContext);
@@ -57,7 +63,7 @@ export default function ProposalCard({ proposal, offline, asOf, onDecided }: {
   async function decide(decision: "approve" | "reject") {
     setBusy(true); setActiveDecision(decision);
     const result = await feedback.run(() => decideProposalOnline(proposal.id, decision), {
-      kind: "commit", failureMessage: decideErrorMessage,
+      kind: "commit", failureMessage: decideErrorMessage, key: decisionKey(decision),
     });
     if (!result.ok) { setBusy(false); return; }
     decisionTimer.current = setTimeout(() => {
@@ -65,12 +71,13 @@ export default function ProposalCard({ proposal, offline, asOf, onDecided }: {
     }, COMMIT_FEEDBACK_MS);
   }
 
-  const activeFeedback = feedback.phase === "pending" || feedback.phase === "success"
-    ? feedback.controlProps["data-feedback-state"] : undefined;
-  const decisionFeedback = (decision: "approve" | "reject") => activeDecision === decision ? {
-    "data-feedback-state": activeFeedback,
-    "aria-busy": feedback.phase === "pending" ? true : undefined,
-  } : {};
+  const decisionFeedback = (decision: "approve" | "reject") => {
+    const phase = feedback.phaseFor(decisionKey(decision));
+    return activeDecision === decision ? {
+      "data-feedback-state": phase === "pending" || phase === "success" ? phase : undefined,
+      "aria-busy": phase === "pending" ? true : undefined,
+    } : {};
+  };
 
   return (
     <><div className={SHELL_CLASS} style={SHELL}>
@@ -94,13 +101,13 @@ export default function ProposalCard({ proposal, offline, asOf, onDecided }: {
           <button type="button" disabled={disabled} onClick={() => decide("approve")}
             {...decisionFeedback("approve")}
             className={`tap h-11 rounded-xl bg-on-olive px-5 text-caption font-normal text-olive-shell-bottom disabled:opacity-40 ${
-              activeDecision === "approve" ? feedback.controlProps.className : ""}`}>
+              activeDecision === "approve" ? feedback.controlPropsFor(decisionKey("approve")).className : ""}`}>
             Use these
           </button>
           <button type="button" disabled={disabled} onClick={() => decide("reject")}
             {...decisionFeedback("reject")}
             className={`tap h-11 rounded-xl bg-charcoal/20 px-5 text-caption font-normal text-charcoal disabled:opacity-40 ${
-              activeDecision === "reject" ? feedback.controlProps.className : ""}`}>
+              activeDecision === "reject" ? feedback.controlPropsFor(decisionKey("reject")).className : ""}`}>
             Keep mine
           </button>
         </div>
@@ -111,6 +118,6 @@ export default function ProposalCard({ proposal, offline, asOf, onDecided }: {
           </p>
         )}
       </div>
-    </div><ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} /></>
+    </div>{!shared && <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />}</>
   );
 }
