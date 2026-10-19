@@ -15,7 +15,9 @@
   border-radius: 32px;
   overflow: clip; /* clip, not hidden: a hidden box can be scrolled by focus and shift the card */
   background: var(--grad-matte);
-  border: 1px solid rgba(255, 255, 255, .05);
+  /* Bold (2026-10-19): a cream hairline at 8 % (the `.matte` scope's ink), so the charcoal card stands
+     clear of whatever sits behind it. */
+  border: 1px solid rgb(var(--ink-rgb) / .08);
   box-shadow: var(--bevel), var(--shadow-hero);
 }
 
@@ -23,8 +25,9 @@
   position: relative;
   display: flex;
   align-items: flex-end;
-  /* The photo fills the top 132 px; the title and calories sit under it on charcoal (v3: smaller). */
-  padding: 144px 16px 2px;
+  /* The photo fills the top 120 px; the title and calories sit under it on charcoal (v3: smaller;
+     the 2026-10-19 sweep: smaller again). */
+  padding: 130px 16px 2px;
   isolation: isolate;
 }
 
@@ -33,7 +36,7 @@
   pointer-events: auto;
 }
 
-/* The photo's clip (components/ui/MealPhoto.tsx): the top 168 px of a featured card. Its sweeping
+/* The photo's clip (components/ui/MealPhoto.tsx): the top 120 px of a featured card. Its sweeping
    corner is animated by the component so it stays round while the clip changes shape; an unknown
    dish shows the app-owned olive art, never a stranger's photo. */
 .heroPhoto {
@@ -42,7 +45,7 @@
   left: 0;
   z-index: 1;
   width: 100%;
-  height: 132px;
+  height: 120px;
 }
 
 .heroFooter {
@@ -68,19 +71,14 @@
   font-weight: 500;
   line-height: 1.05;
   letter-spacing: -.025em;
-  color: #f3eee2;
+  /* Cream: the `.matte` scope's primary text role. */
+  color: var(--color-text-primary);
   overflow-wrap: anywhere;
 }
 
-/* The calorie count reads like the reference's price: a serif numeral, the unit in tracked capitals.
-   Its colour is the shared `.kcal` (persimmon on charcoal, owner 2026-10-03), a step bolder than the
-   title so it stands out. */
-.heroFooter :global(.kcal) {
-  font-size: 20px;
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -.02em;
-}
+/* The calorie count is the card's one big figure (Bold, 2026-10-19): the display numeral
+   (`numeral text-numeral-md`, set by MealCalories), the unit in tracked capitals under it. Its colour
+   is the shared `.kcal` (persimmon on charcoal, owner 2026-10-03). */
 
 .heroTime {
   position: absolute;
@@ -97,10 +95,10 @@
   padding: 0 12px;
   gap: 6px;
   border-radius: 9999px;
-  background: rgba(77, 82, 64, .92);
-  box-shadow: var(--bevel), 0 6px 14px -8px rgba(0, 0, 0, .6);
+  background: rgb(var(--primary-rgb) / .92);
+  box-shadow: var(--bevel), 0 6px 14px -8px rgb(var(--charcoal-deep-rgb) / .6);
   backdrop-filter: blur(8px);
-  color: #ded9cc;
+  color: var(--color-text-secondary);
   /* The eyebrow role: nothing on a card is under 12 px (KIT §14). */
   font-size: 12px;
   font-weight: 600;
@@ -110,35 +108,36 @@
 
 /* Meal cards v2: the chip leads with a word (Now, Next, Eaten, or the slot's own name), then the time. */
 .slotPillStatus {
-  color: #f3eee2;
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
 .slotPillDot {
   margin: 0 -2px;
-  color: #ded9cc;
+  color: var(--color-text-secondary);
   opacity: .7;
 }
 
 .slotPillTime {
-  color: #ded9cc;
+  color: var(--color-text-secondary);
 }
 
 /* The focus card's chip is the one cream object on the photo, so "Next" reads before anything else. */
 .slotPillFocus {
-  background: rgba(243, 238, 226, .94);
-  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .6);
+  /* Cream: the `.matte` scope's ink channel, so the chip is the scope's own primary text colour. */
+  background: rgb(var(--ink-rgb) / .94);
+  box-shadow: 0 6px 14px -8px rgb(var(--charcoal-deep-rgb) / .6);
 }
 .slotPillFocus .slotPillStatus,
 .slotPillFocus .slotPillTime,
 .slotPillFocus .slotPillDot {
-  color: #1d1d1c;
+  color: var(--color-charcoal-deep);
 }
 
 /* Eaten: the chip goes charcoal with a cream rim; the photo and the words keep their full colour. */
 .slotPillEaten {
-  background: rgba(29, 29, 28, .86);
-  box-shadow: inset 0 0 0 1px rgba(243, 238, 226, .28);
+  background: rgb(var(--charcoal-deep-rgb) / .86);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / .28);
 }
 
 /* The figures beside the title: calories, and on a compact card the protein under them. */
@@ -158,7 +157,7 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
-  color: #e2dcd0;
+  color: var(--color-on-primary);
   font-variant-numeric: tabular-nums;
 }
 /* The macro dots in their gauge hues (dots, never text: DESIGN.md §Colors). */
@@ -197,7 +196,7 @@
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
   background: var(--grad-recess);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, .15);
+  box-shadow: 0 -10px 30px rgb(var(--charcoal-deep-rgb) / .15);
   /* The strip's solid eaten zone follows the tray's curved corners (v3 review). */
   overflow: clip;
   /* The compact tray rises over the photo's foot; the gap and the corners change on the container
@@ -257,7 +256,7 @@
    a band of charcoal (U9, 2026-10-04, owner: the image "used to take up more space and fill the
    bottom section"). */
 .compact .hero {
-  min-height: 116px;
+  min-height: 108px;
   align-items: flex-start;
   padding: 40px 14px calc(var(--tray-overlap) + 10px) calc(34% + 14px);
 }
@@ -305,7 +304,8 @@
   margin-top: 0;
 }
 .compact .heroFooter :global(.kcal) {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
 }
 
 /* Compact (v3), the chip leaves the narrow photo for the top of the text column, so its words never
@@ -331,7 +331,7 @@
 .snackTicket :global(.logged-card-in) {
   border-radius: 16px;
   background: var(--grad-card);
-  border: 1px solid rgba(29, 29, 28, .07);
+  border: 1px solid var(--hairline-card);
   box-shadow: var(--shadow-card);
   overflow: hidden;
   padding: 10px;
@@ -433,9 +433,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: rgba(29, 29, 28, .72);
-  box-shadow: inset 0 0 0 1px rgba(243, 238, 226, .22);
-  color: #f3eee2;
+  background: rgb(var(--charcoal-deep-rgb) / .72);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / .22);
+  color: var(--color-text-primary);
   backdrop-filter: blur(6px);
 }
 .heart::before {
@@ -463,8 +463,8 @@
 }
 
 @media (max-width: 370px) {
-  .hero { padding-top: 128px; }
-  .heroPhoto { height: 116px; }
+  .hero { padding-top: 118px; }
+  .heroPhoto { height: 108px; }
   .snackArt { width: 44px; }
 }
 

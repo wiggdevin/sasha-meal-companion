@@ -172,8 +172,9 @@ export default function CoachComposedCard({
     }
   };
   return (
-    <div className="shell rounded-2xl!">
-      <div className="surface flex flex-col gap-3 rounded-2xl! p-3.5">
+    // The small card frame (UI makeover §3.3: card-sm, 12 px padding, 16 px corners).
+    <div className="shell">
+      <div className="surface card-sm card-ivory flex flex-col">
         {/* Every meal card names its meal (KIT §14); a composed plate has no name of its own. */}
         <h3 className={`m-0 ${MEAL_TITLE.compact}`}>Your meal</h3>
         {/* W099: why these foods (open food world only), shown on a complete and an incomplete card alike. */}
@@ -255,7 +256,8 @@ export default function CoachComposedCard({
             {slot && (
               <Button variant="secondary" onClick={() => emit((a) => a.slot)}>Put it in {slotLabel(slot)}</Button>
             )}
-            <Button variant="secondary" onClick={() => emit((a) => a.recipe)}>Save as recipe</Button>
+            {/* Two actions lead (UI makeover: at most two per card); saving it stays a quiet third. */}
+            <Button variant="ghost" onClick={() => emit((a) => a.recipe)}>Save as recipe</Button>
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import { MacroLine } from "@/components/nutrition/MacroText";
 import Notice from "@/components/ui/Notice";
 import Button from "@/components/ui/Button";
 import AiLabel from "@/components/ui/AiLabel";
+import { PLAN_CARD } from "@/components/plan/IdeaCard";
 import type { Provenance } from "@/lib/types";
 import { CARD_SECTION, MEAL_TITLE } from "@/lib/design/meal-type";
 
@@ -27,7 +28,7 @@ export default function DocumentPlan({ result, label, busy, placing, onUse }: {
   const { days, match } = result;
   const meal = match ? days[match.day]?.meals[match.meal] : undefined;
   return <section aria-label="Meal plan"
-    className="flex min-w-0 flex-col gap-3 rounded-2xl border border-hairline bg-surface p-4">
+    className={PLAN_CARD}>
     <div className="flex flex-col gap-1">
       <div className="flex min-w-0 items-start justify-between gap-2">
         <h3 className={`m-0 min-w-0 ${MEAL_TITLE.standard}`}>{result.title ?? "Your meal plan"}</h3>

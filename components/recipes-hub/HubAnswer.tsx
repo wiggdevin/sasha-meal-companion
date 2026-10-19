@@ -74,7 +74,7 @@ export function applyAs(h: AccountHandle, action: CoachAction, tz: string, hubOp
 function LogConfirm({ text, label, busy, onLog, onCancel }: {
   text: string; label: string; busy: boolean; onLog: () => void; onCancel?: () => void;
 }) {
-  return <section aria-label="Log this" className="well flex flex-col gap-2 p-4">
+  return <section aria-label="Log this" className="well flex flex-col gap-2 p-3">
     <p className="m-0 text-body-md text-charcoal">Log “{text}” to {label}?</p>
     <p className="m-0 text-tiny text-muted">The amounts are matched to foods and shown to you first; nothing is saved until you log it.</p>
     <div className="flex gap-2">

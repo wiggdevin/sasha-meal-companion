@@ -279,14 +279,14 @@ export function MealDetail({ id, label, components, macros, dayTotals, prepMinut
       : { opacity: 0, height: 0, transition: { ...MORPH.frame, opacity: { ...FADES.quick, delay: 0.25 } } }}
     transition={reduceMotion ? { duration: 0 } : { ...MORPH.frame, opacity: MORPH.contentIn }}
     className="relative z-10 flow-root w-full basis-full overflow-clip">
-    <div className="meal-detail-tray space-y-4 rounded-3xl px-4 py-4">
+    <div className="meal-detail-tray space-y-3 rounded-3xl px-4 py-3">
       <Ingredients id={id} components={components} editor={editor} marked={marked} />
       <div>
         <Disclosure variant="row" size="sm" divider bodyClassName="" spring="gentle" title="Preparation"
           titleClassName={CARD_SECTION}
           aside={prepMinutes != null && prepMinutes > 0 ? `${prepMinutes} min` : undefined}>
+          {/* The button says what it does; no supporting line (UI makeover: less on each card). */}
           <div className="flex flex-col items-start gap-2 pb-3">
-            <p className="m-0 text-tiny text-muted">Step-by-step guidance or a substitution, for this plate.</p>
             {onAsk && <Button size="sm" variant="tertiary" onClick={onAsk}>{`Ask ${ASSISTANT_NAME} how to make it`}</Button>}
           </div>
         </Disclosure>

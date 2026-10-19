@@ -1,6 +1,5 @@
 "use client";
 
-import { useId } from "react";
 import { Copy } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { accountHandle } from "@/lib/device/account";
@@ -11,6 +10,7 @@ import type { DuplicateMember, OpenDuplicateGroup } from "@/lib/duplicates/read"
 import type { LoggedFood } from "@/lib/types";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import Button from "@/components/ui/Button";
+import CardFrame from "@/components/ui/CardFrame";
 import KcalText from "@/components/ui/KcalText";
 import styles from "./DuplicateEntryCard.module.css";
 
@@ -46,7 +46,6 @@ function GroupCard({ open, feedback, onDecided }: {
   feedback: ReturnType<typeof useActionFeedback>;
   onDecided: () => void;
 }) {
-  const titleId = useId();
   const { group, members } = open;
   const survivor = members[0];
   const when = entryTime(survivor.at);
@@ -76,24 +75,22 @@ function GroupCard({ open, feedback, onDecided }: {
     });
   };
 
-  return <section aria-labelledby={titleId} className={`surface ${styles.card}`}
-    data-testid="duplicate-entry-card">
-    <p className={`${styles.eyebrow} text-overline`}>
-      <Copy size={16} strokeWidth={1.8} aria-hidden="true" className={styles.icon} />
-      Logged twice?
-    </p>
-    <h3 id={titleId} className={`${styles.title} text-title`}>These look like the same meal</h3>
-    <p className={`${styles.lede} text-tiny`}>Both count until you choose.</p>
-    <ul className={styles.entries} aria-label="The two entries">
-      {members.map((member, index) => <MemberRow key={member.entryId} member={member} kept={index === 0} />)}
-    </ul>
-    <div className={styles.actions}>
+  // One small card (UI makeover §3.3): a title, one line, the two entries and two actions.
+  return <CardFrame as="section" size="sm" titleAs="h3"
+    title={<span className={styles.title}>
+      <Copy size={16} strokeWidth={1.8} aria-hidden="true" className={styles.icon} />Logged twice?
+    </span>}
+    meta="Both count until you choose."
+    footer={<div className={styles.actions}>
       <Button variant="ghost" confirmLabel="Kept" {...feedback.controlPropsFor(keepKey)}
         aria-label={`Keep both entries from ${when}`} onClick={onKeepBoth}>Keep both</Button>
       <Button variant="primary" confirmLabel="Merged" {...feedback.controlPropsFor(mergeKey)}
         aria-label={`Merge into one entry, keeping the ${when} entry`} onClick={onMerge}>Merge</Button>
-    </div>
-  </section>;
+    </div>}>
+    <ul className={styles.entries} aria-label="The two entries">
+      {members.map((member, index) => <MemberRow key={member.entryId} member={member} kept={index === 0} />)}
+    </ul>
+  </CardFrame>;
 }
 
 /**
@@ -115,7 +112,7 @@ export default function DuplicateEntryCard({ date, extras, feedback: shared }: {
   if (groups.length === 0 && (shared || !feedback.notice)) return null;
   return <>
     <AnimatePresence initial={false}>
-      {groups.map((open) => <motion.div key={open.group.id} className={`shell ${styles.frame}`}
+      {groups.map((open) => <motion.div key={open.group.id} className={styles.frame} data-testid="duplicate-entry-card"
         layout="position"
         initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
         exit={{ opacity: 0, height: 0 }}

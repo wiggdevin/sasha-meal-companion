@@ -14,8 +14,8 @@
   gap: 0;
   padding: 10px 6px;
   border-radius: 16px;
-  background: #4f5343;
-  box-shadow: var(--bevel), 0 10px 20px -12px rgba(0, 0, 0, .6);
+  background: var(--color-primary);
+  box-shadow: var(--bevel), 0 10px 20px -12px rgb(var(--charcoal-deep-rgb) / .6);
 }
 
 .specs {
@@ -30,7 +30,7 @@
   min-width: 0;
 }
 .spec + .spec {
-  border-left: 1px solid rgba(255, 255, 255, .1);
+  border-left: 1px solid rgb(var(--cream-rgb) / .14);
 }
 
 .specLabel {
@@ -39,14 +39,17 @@
   gap: 6px;
   font-size: 12px; /* KIT §14: nothing on a card under 12 px */
   letter-spacing: .06em;
-  /* ≥ 4.5:1 on the olive panel (#b1b2a9 was 3.7:1; meal cards v2 review). */
-  color: #d4d0c5;
+  /* ≥ 4.5:1 on the olive panel (#b1b2a9 was 3.7:1; meal cards v2 review): cream with 8 % of the
+     olive mixed in, about #d6d1c5 (5.2:1). */
+  color: color-mix(in srgb, var(--color-on-primary) 92%, var(--color-primary));
 }
 
 .specValue {
-  font-size: 16px;
-  font-weight: 600;
-  color: #e2dcd0;
+  /* Bold (2026-10-19): the figures read a step bigger and heavier than the labels. */
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-on-primary);
 }
 
 .calorie {

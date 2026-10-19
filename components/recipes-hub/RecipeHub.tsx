@@ -19,6 +19,7 @@ import RecipeCarousel from "@/components/recipes-hub/RecipeCarousel";
 import { useHubAsk } from "@/components/recipes-hub/useHubAsk";
 import { useHubDay } from "@/components/recipes-hub/useHubDay";
 import Button from "@/components/ui/Button";
+import CardFrame from "@/components/ui/CardFrame";
 import { CloseIcon } from "@/components/ui/CloseButton";
 import PhotoPrivacyNotice from "@/components/ui/PhotoPrivacyNotice";
 import { clearFlightOutcomesUnder, useFlying } from "@/components/single-flight";
@@ -99,17 +100,7 @@ export default function RecipeHub({ id, access, onClose, onSaved, embedded = fal
   }
 
   const body = <>
-      {embedded ? <p className="m-0 text-tiny text-muted">{remainingLine(day.remaining)}</p>
-      : <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="m-0 text-body-md font-medium text-charcoal">New recipe</h3>
-          <p className="m-0 text-tiny text-muted">{remainingLine(day.remaining)}</p>
-        </div>
-        <Button variant="ghost" shape="circle" onClick={onClose} aria-label="Close" disabled={saving}
-          className="-mr-2 -mt-1 text-muted">
-          <CloseIcon />
-        </Button>
-      </div>}
+      {embedded && <p className="m-0 text-tiny text-muted">{remainingLine(day.remaining)}</p>}
       {/* A chip row owns only the x axis; a vertical drag over it still scrolls the page. */}
       <div role="group" aria-label="Quick actions"
         className="-m-1.5 flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain p-1.5">
@@ -135,8 +126,14 @@ export default function RecipeHub({ id, access, onClose, onSaved, embedded = fal
     return <section id={id} data-card-group="true" aria-label="New recipe" className="flex min-w-0 flex-col gap-3">
       {body}</section>;
   }
-  return <section id={id} data-card-group="true" aria-label="New recipe"
-    className="shell min-w-0 w-full scroll-mt-3">
-    <div className="surface flex min-w-0 flex-col gap-3 p-4">{body}</div>
+  // One card frame (UI makeover §3.3): the title, the room left as its one line, Close beside it.
+  return <section id={id} data-card-group="true" aria-label="New recipe" className="min-w-0 w-full scroll-mt-3">
+    <CardFrame size="md" titleAs="h3" title="New recipe" meta={remainingLine(day.remaining)}
+      aside={<Button variant="ghost" shape="circle" onClick={onClose} aria-label="Close" disabled={saving}
+        className="-mr-2 -mt-1 text-muted">
+        <CloseIcon />
+      </Button>}>
+      {body}
+    </CardFrame>
   </section>;
 }

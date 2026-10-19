@@ -30,13 +30,14 @@ function CheckIcon({ filled }: { filled: boolean }) {
   </svg>;
 }
 
-/** The meal's calorie total, set on the hero as a figure: the persimmon Fraunces numeral over its unit.
+/** The meal's calorie total, set on the hero as a figure: the persimmon display numeral (Bold,
+ *  2026-10-19: `numeral text-numeral-md`) over its unit.
  *  Ticking the meal off is the labelled eaten button in the card's action strip (meal cards v2). */
 export function MealCalories({ kcal }: { kcal: number }) {
   return <span data-meal-calories="true"
     className={`relative z-10 flex min-h-11 shrink-0 items-center justify-end text-right ${styles.calorie}`}>
     <span className="flex flex-col items-end">
-      <strong className="kcal text-heading font-medium leading-none tabular-nums">{fmt(kcal)}</strong>
+      <strong className="kcal numeral text-numeral-md leading-none">{fmt(kcal)}</strong>
       <span className={`mt-1 text-tiny font-medium uppercase leading-none tracking-[0.12em] ${styles.kcalUnit}`}>kcal</span>
     </span>
   </span>;
