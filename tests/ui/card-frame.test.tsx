@@ -51,6 +51,33 @@ describe("CardFrame", () => {
     expect(resolveCardFace({ tone: "olive", parent: "raised", depth: 1 })).toBe("olive");
   });
 
+  it("steps ink cards down into the charcoal and never puts a light face inside one", () => {
+    expect(resolveCardFace({ tone: "ink", parent: null, depth: 0 })).toBe("ink");
+    expect(resolveCardFace({ parent: "ink", depth: 1 })).toBe("ink-inset");
+    expect(resolveCardFace({ parent: "ink-inset", depth: 2 })).toBe("ink");
+    expect(resolveCardFace({ tone: "ivory", parent: "ink", depth: 1 })).toBe("ink-inset");
+    expect(resolveCardFace({ tone: "recess", parent: "ink", depth: 1 })).toBe("ink-inset");
+    expect(resolveCardFace({ tone: "ink", parent: "ink", depth: 1 })).toBe("ink-inset");
+    expect(resolveCardFace({ tone: "ink", parent: "raised", depth: 1 })).toBe("ink");
+    expect(resolveCardFace({ tone: "olive", parent: "ink", depth: 1 })).toBe("olive");
+  });
+
+  it("paints the ink tone as the matte hero card: cream text through the .matte scope", () => {
+    const { container } = render(
+      <CardFrame tone="ink" title="Calories left" meta="Today">
+        <CardFrame title="Protein" />
+      </CardFrame>,
+    );
+    const faces = Array.from(container.querySelectorAll(".surface"));
+    expect(faces[0].classList.contains("card-ink")).toBe(true);
+    expect(faces[0].classList.contains("matte")).toBe(true);
+    expect(faces[1].classList.contains("card-ink-inset")).toBe(true);
+    expect(faces[1].classList.contains("matte")).toBe(true);
+    // text-charcoal and text-muted turn cream inside .matte (app/globals.css), so no class changes.
+    expect(screen.getByRole("heading", { name: "Calories left" }).className).toContain("text-charcoal");
+    expect(screen.getByText("Today").className).toContain("text-muted");
+  });
+
   it("paints the olive tone with on-primary text", () => {
     render(<CardFrame tone="olive" title="Have AI build my list" meta="Pick foods and meals, yes or no." />);
     const heading = screen.getByRole("heading", { name: "Have AI build my list" });

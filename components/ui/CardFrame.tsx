@@ -12,14 +12,23 @@ import { createContext, useContext, useId, type HTMLAttributes, type KeyboardEve
  * `CardToneContext` carries the parent's face, so `level="auto"` always steps away from it and an
  * explicit tone that would repeat its parent's face is stepped too: a same-tone nest cannot happen.
  * The markup keeps the `shell` / `surface` classes, plus one `card-sm|md|lg` and one
- * `card-ivory|recess|olive` class (app/globals.css). The olive tone paints the primary fill
- * (`.card-olive`: `--grad-ink` and the bevel), so its title, meta and aside take `text-on-primary`.
+ * `card-ivory|recess|olive|ink|ink-inset` class (app/globals.css). The olive tone paints the primary
+ * fill (`.card-olive`: `--grad-ink` and the bevel), so its title, meta and aside take `text-on-primary`.
+ *
+ * The ink tone (Bold, 2026-10-19) is the hero card: the matte charcoal face with the bevel and the
+ * hero drop. Its face also carries `.matte`, so every text role inside turns cream with no class
+ * change. A card inside an ink card steps down into the charcoal (`ink-inset`, `--grad-card-ink-inset`)
+ * and one inside that is the ink face again; a light face never sits inside an ink card, because the
+ * cream text it inherits would land on ivory.
  */
 export type CardFrameSize = "sm" | "md" | "lg";
 export type CardFrameLevel = "auto" | "raised" | "inset";
-export type CardFrameTone = "ivory" | "recess" | "olive";
-/** The face a frame resolved to: raised ivory, the inset recess, or the olive call to action. */
-export type CardFace = "raised" | "inset" | "olive";
+export type CardFrameTone = "ivory" | "recess" | "olive" | "ink";
+/**
+ * The face a frame resolved to: raised ivory, the inset recess, the olive call to action, the ink
+ * hero card, or the step down inside an ink card.
+ */
+export type CardFace = "raised" | "inset" | "olive" | "ink" | "ink-inset";
 
 export type CardFrameProps = {
   as?: "section" | "div" | "article" | "li";
@@ -27,7 +36,8 @@ export type CardFrameProps = {
   size?: CardFrameSize;
   /** auto: raised on the ground, else the opposite of the parent card. */
   level?: CardFrameLevel;
-  /** olive = the primary fill with on-primary text (a call to action). */
+  /** olive = the primary fill with on-primary text (a call to action); ink = the matte charcoal hero
+   *  card with cream text. */
   tone?: CardFrameTone;
   title?: ReactNode;
   titleAs?: "h2" | "h3";
@@ -54,21 +64,34 @@ const SIZE: Record<CardFrameSize, { title: string }> = {
   lg: { title: "text-title font-display" },
 };
 
-const TONE_CLASS: Record<CardFace, string> = { raised: "card-ivory", inset: "card-recess", olive: "card-olive" };
+const TONE_CLASS: Record<CardFace, string> = {
+  raised: "card-ivory", inset: "card-recess", olive: "card-olive",
+  // The ink faces carry the `.matte` scope, which turns the text roles cream (app/globals.css).
+  ink: "card-ink matte", "ink-inset": "card-ink-inset matte",
+};
+
+const isInk = (face: CardFace | null) => face === "ink" || face === "ink-inset";
+/** The step away from a face, in its own family: raised and inset, ink and its inset. */
+const STEP: Record<CardFace, CardFace> = {
+  raised: "inset", inset: "raised", olive: "raised", ink: "ink-inset", "ink-inset": "ink",
+};
 
 /** The face a frame draws at `depth` under a parent face (pure, exported for tests). */
 export function resolveCardFace({ level = "auto", tone, parent, depth }: {
   level?: CardFrameLevel; tone?: CardFrameTone; parent: CardFace | null; depth: number;
 }): CardFace {
   if (tone === "olive") return "olive";
-  const requested: CardFace = tone === "ivory" ? "raised"
-    : tone === "recess" ? "inset"
-      : level === "raised" ? "raised"
-        : level === "inset" ? "inset"
-          : depth === 0 || parent === null ? "raised"
-            : parent === "raised" ? "inset" : "raised";
+  let requested: CardFace = tone === "ink" ? "ink"
+    : tone === "ivory" ? "raised"
+      : tone === "recess" ? "inset"
+        : level === "raised" ? "raised"
+          : level === "inset" ? "inset"
+            : depth === 0 || parent === null ? "raised"
+              : parent === "olive" ? "raised" : STEP[parent];
+  // Inside an ink card the light faces map to their charcoal twins (cream text never lands on ivory).
+  if (isInk(parent)) requested = requested === "raised" ? "ink" : requested === "inset" ? "ink-inset" : requested;
   // A same-tone nest steps away from its parent, so a card never blends into the one behind it.
-  if (parent === requested) return requested === "raised" ? "inset" : "raised";
+  if (parent === requested) return STEP[requested];
   return requested;
 }
 
