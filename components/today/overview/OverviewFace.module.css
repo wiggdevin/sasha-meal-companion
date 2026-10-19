@@ -1,0 +1,306 @@
+/* The Overview cockpit (components/today/overview/OverviewFace.tsx and its rows; UI makeover §4, §11).
+   Layout and type only, from tokens and roles: every block's face, padding and hairline come from
+   CardFrame (size sm, the inset step inside the Day card). Numerals are big and bold; accents are the
+   nutrient gauges. Sized so the face fits 390 × 844 above the dock with the companion and the week
+   collapsed. */
+
+/* 8 px between blocks, not the plan's 12: with the rebalance line, the companion row and the week
+   collapsed, the face still has to fit 390 × 844 above the dock. Each block's own hairline and step
+   keeps it apart from its neighbours. */
+.face {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.overline {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ---- Summary ---- */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lead {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.numeral {
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 40px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.summary[data-over] .numeral {
+  color: var(--color-orange-ink);
+}
+
+.leadText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding-bottom: 2px;
+}
+
+.leadWord {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--color-text-primary);
+}
+
+.leadMeta {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kcalTrack,
+.macroTrack {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.08);
+}
+
+.kcalTrack {
+  height: 8px;
+}
+
+.macroTrack {
+  height: 4px;
+}
+
+.kcalFill,
+.macroFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 9999px;
+  transition: width var(--dur-spring-smooth) var(--ease-spring-smooth);
+}
+
+.kcalFill {
+  background: linear-gradient(90deg, var(--color-gauge-calories), var(--color-gauge-calories-end));
+}
+
+.macros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.macro {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.macroHead {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.macroLabel {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--color-text-muted);
+}
+
+.macroValue {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.macroNow {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.macro[data-macro="protein"] .macroFill { background: var(--color-gauge-protein); }
+.macro[data-macro="carbs"] .macroFill { background: var(--color-gauge-carbs); }
+.macro[data-macro="fat"] .macroFill { background: var(--color-gauge-fat); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kcalFill,
+  .macroFill {
+    transition: none;
+  }
+}
+
+/* ---- Meals ---- */
+
+.mealsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.segments {
+  display: flex;
+  flex: 1;
+  max-width: 128px;
+  gap: 4px;
+}
+
+.segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgb(var(--ink-rgb) / 0.12);
+}
+
+.segment[data-done] {
+  background: var(--color-primary);
+}
+
+.next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+}
+
+.nextOpen {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nextOpen:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.thumb {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--grad-ink);
+}
+
+.thumbPhoto {
+  object-fit: cover;
+}
+
+.nextText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.nextWhen {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--color-orange-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.nextName {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nextMeta {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doneMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: var(--grad-ink);
+  color: var(--color-on-primary);
+}
+
+/* ---- Next step: one line, no card ---- */
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 4px;
+}
+
+.stepMark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--color-gauge-calories);
+}
+
+.stepText {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

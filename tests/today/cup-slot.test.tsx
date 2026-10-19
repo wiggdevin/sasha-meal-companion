@@ -2,11 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
-import WaterTile from "@/components/today/WaterTile";
-import { resetWaterTiltForTests } from "@/components/today/useWaterTilt";
+import CupSlot, { cupName } from "@/components/today/CupSlot";
 import type { OrbitWater } from "@/lib/today/health-orbit";
 import { MAX_CUPS } from "@/lib/today/water-gesture";
 import { SCRUB_HOLD_MS } from "@/lib/today/water-scrub";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const OZ: OrbitWater = { cups: 4, goal: 16, unit: "oz" };
 
@@ -14,7 +15,7 @@ function mount(water: OrbitWater = OZ) {
   const onAddCup = vi.fn();
   const onSetCups = vi.fn();
   const tile = (w: OrbitWater) => <MotionConfig reducedMotion="always">
-    <WaterTile water={w} onAddCup={onAddCup} onSetCups={onSetCups} active />
+    <CupSlot water={w} onAddCup={onAddCup} onSetCups={onSetCups} />
   </MotionConfig>;
   const utils = render(tile(water));
   const button = () => screen.getByRole("button", { name: /water/i });
@@ -34,7 +35,6 @@ function hold(button: HTMLElement, x = 100, y = 40) {
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.scrollTo = () => {};
-  resetWaterTiltForTests();
 });
 afterEach(() => {
   cleanup();
@@ -42,7 +42,7 @@ afterEach(() => {
   delete (window as unknown as { DeviceOrientationEvent?: unknown }).DeviceOrientationEvent;
 });
 
-describe("the water tile", () => {
+describe("the cup (CupSlot)", () => {
   it("adds one step on a tap", () => {
     const { button, onAddCup, onSetCups } = mount();
     fireEvent.pointerDown(button(), { pointerId: 1, clientX: 100, clientY: 40, button: 0 });
@@ -52,18 +52,37 @@ describe("the water tile", () => {
     expect(onSetCups).not.toHaveBeenCalled();
   });
 
-  it("reads in the account's unit and follows a change of unit", () => {
+  it("reads in ounces, the account's unit, and follows a change of unit", () => {
     const { button, rerenderWith } = mount();
     expect(button().getAttribute("aria-label")).toBe("Add 8 oz of water. 32 of 128 oz.");
-    expect(button().textContent).toContain("of 128 oz");
+    expect(button().textContent).toContain("32/128");
     rerenderWith({ ...OZ, unit: "cups" });
     expect(button().getAttribute("aria-label")).toBe("Add a cup of water. 4 of 16 cups.");
-    expect(button().textContent).toContain("of 16 cups");
+    expect(button().textContent).toContain("4/16");
     rerenderWith({ ...OZ, unit: "ml" });
     expect(button().getAttribute("aria-label")).toBe("Add 237 ml of water. 948 of 3,792 ml.");
   });
 
-  it("opens a bar on a long press, counts as the finger slides right, and writes the total once", async () => {
+  it("is a 44 px pill at least 96 px wide, with one accessible water name", () => {
+    const { button } = mount();
+    expect(button().className).toMatch(/pill/);
+    const css = readFileSync(join(process.cwd(), "components/today/CupSlot.module.css"), "utf8");
+    const pill = /\.pill \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(pill).toMatch(/height: 44px/);
+    expect(pill).toMatch(/min-width: 96px/);
+    expect(screen.getAllByRole("button", { name: /water/i })).toHaveLength(1);
+  });
+
+  it("shows no count while loading, and names no goal it does not have", () => {
+    expect(cupName(undefined)).toBe("Add a cup of water.");
+    expect(cupName({ cups: 3, goal: 0, unit: "cups" })).toBe("Add a cup of water. 3 cups.");
+    render(<CupSlot onAddCup={() => {}} />);
+    const loading = screen.getAllByRole("button", { name: "Add a cup of water." }).at(-1)!;
+    expect((loading as HTMLButtonElement).disabled).toBe(true);
+    expect(loading.textContent).not.toMatch(/\d/);
+  });
+
+  it("opens a scrub bar on a long press, counts as the finger slides right, and writes the total once", async () => {
     const { button, onAddCup, onSetCups } = mount();
     hold(button());
     expect(barText()).toBe("+0 oz → 32 / 128 oz");
@@ -109,7 +128,7 @@ describe("the water tile", () => {
     expect(onSetCups).not.toHaveBeenCalled();
   });
 
-  it("takes a pending amount from the arrow keys and logs it on Enter", () => {
+  it("takes a keyboard amount from the arrow keys and logs it on Enter", () => {
     const { button, onAddCup, onSetCups } = mount();
     button().focus();
     fireEvent.keyDown(button(), { key: "ArrowRight" });
@@ -138,32 +157,20 @@ describe("the water tile", () => {
     expect(onAddCup).not.toHaveBeenCalled();
   });
 
-  it("asks for the motion sensor on the first tap only, never on load or on a scrub", async () => {
+  it("never asks for the motion sensor, on a tap or a scrub", () => {
     const requestPermission = vi.fn(async () => "granted");
     (window as unknown as { DeviceOrientationEvent: unknown }).DeviceOrientationEvent = { requestPermission };
-    const { button } = mount();
-    expect(requestPermission).not.toHaveBeenCalled();
+    const { button, onAddCup } = mount();
     hold(button());
     fireEvent.pointerMove(button(), { pointerId: 1, clientX: 160, clientY: 40 });
     fireEvent.pointerUp(button(), { pointerId: 1 });
     fireEvent.click(button());
-    expect(requestPermission).not.toHaveBeenCalled();
     fireEvent.click(button());
-    fireEvent.click(button());
-    expect(requestPermission).toHaveBeenCalledOnce();
-  });
-
-  it("stays quiet when the sensor is refused", async () => {
-    const requestPermission = vi.fn(async () => { throw new Error("NotAllowedError"); });
-    (window as unknown as { DeviceOrientationEvent: unknown }).DeviceOrientationEvent = { requestPermission };
-    const { button, onAddCup } = mount();
-    fireEvent.click(button());
-    await act(async () => { await Promise.resolve(); });
     expect(onAddCup).toHaveBeenCalledOnce();
-    expect(requestPermission).toHaveBeenCalledOnce();
+    expect(requestPermission).not.toHaveBeenCalled();
   });
 
-  it("commits the slide against the count it opened on, capped, when a sync lands mid-slide (audit r4)", () => {
+  it("commits the slide against the count it opened on, capped, when a mid-slide sync lands (audit r4)", () => {
     const water = { cups: MAX_CUPS - 2, goal: 16, unit: "cups" as const };
     const { button, onSetCups, rerenderWith } = mount(water);
     hold(button());

@@ -1012,6 +1012,7 @@ export default function Today() {
             rebalance: rebalancePanel, onOpenSlot: openSlotCard,
             next: nextMeal(resolved.slots, isToday ? nowM : null),
             planned: resolved.slots.filter((slot) => slot.meal !== null).length,
+            eaten: resolved.slots.filter((slot) => slot.meal !== null && slot.eaten).length,
             onMarkEaten: (slot) => void toggleEaten(slot),
             markEatenControl: (slot) => todayFeedback.controlPropsFor(`eaten:${slot}`),
             store: planStore,
