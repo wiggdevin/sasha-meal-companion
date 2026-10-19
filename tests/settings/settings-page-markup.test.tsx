@@ -9,11 +9,15 @@
  * effects reach — the store, the two client fetchers, `window` — is pinned, so
  * the markup is a pure function of the fixture below.
  *
- * What it asserts: the exact markup for two fixed states. Any change to the
- * page's output, including a whitespace or class change, fails this test. That
- * is the point — §1 is a move.
+ * What it asserts: the page's STRUCTURE for two fixed states — its one h1, the
+ * order of its labelled sections, and the headings inside them — not its exact
+ * markup. Until the UI makeover (docs/plans/2026-10-19-ui-makeover.md §8, W0) it
+ * held two full snapshots, which every class change to a settings card broke; the
+ * makeover restyles those cards in parallel workstreams, so the guard now pins what
+ * a move must keep (what is on the page, and in which order) and leaves styling to
+ * the card specs. A section added, dropped, renamed or reordered still fails here.
  *
- * The baseline moved once on purpose, in the new-user run: design §5 deletes the authored ramp
+ * History of the old snapshot baseline: it moved once on purpose, in the new-user run: design §5 deletes the authored ramp
  * and `RampControl` with it, and design §5.3 puts the "Finish your profile" card in the targets
  * group for an account with no revision. Both show in the refreshed snapshot. Nothing else about
  * the page changed, and the guard is as strict as it was. It moved again on 2026-10-03 for one
@@ -144,7 +148,7 @@ async function markupFor(store: Store): Promise<string> {
 describe("the effect budget", () => {
   /**
    * The budget is spent once and then effects become no-ops, so a FOURTH mount effect would be
-   * skipped in silence and whatever it puts on the screen would quietly leave the snapshot.
+   * skipped in silence and whatever it puts on the screen would quietly leave these assertions.
    * Counting the source keeps the two honest about each other.
    */
   it("matches the number of effects the settings controller actually mounts", () => {
@@ -154,7 +158,7 @@ describe("the effect budget", () => {
   });
 });
 
-describe("the settings page's static markup is fixed by its state", () => {
+describe("the settings page's structure is fixed by its state", () => {
   it("renders the settings sections in user order", async () => {
     const markup = await markupFor(DEFAULT_STORE);
     const headings = [
@@ -196,13 +200,96 @@ describe("the settings page's static markup is fixed by its state", () => {
     expect(markup.match(/aria-label="Goals &amp; targets"/g)).toHaveLength(1);
   });
 
-  it("renders the coach's plan, unpinned", async () => {
+  it("renders the coach's plan, unpinned: one h1, the sections in order, their headings", async () => {
     const markup = await markupFor(DEFAULT_STORE);
-    expect(markup).toMatchSnapshot();
+    expectStructure(markup);
+    expect(buttonsOf(markup)).not.toContain("Reset to your plan");
   });
 
-  it("renders every pin, the unlocked protein panel and the reset button", async () => {
+  it("renders every pin, the unlocked protein panel and the reset button in the same structure", async () => {
     const markup = await markupFor(PINNED_STORE);
-    expect(markup).toMatchSnapshot();
+    expectStructure(markup);
+    expect(buttonsOf(markup)).toContain("Reset to your plan");
+    // The reset belongs to Goals & targets: after that group opens, before Water does.
+    const reset = markup.indexOf(">Reset to your plan<");
+    expect(reset).toBeGreaterThan(markup.indexOf('aria-label="Goals &amp; targets"'));
+    expect(reset).toBeLessThan(markup.indexOf('aria-label="Water"'));
   });
 });
+
+/** The page's labelled sections, top to bottom: the groups and the cards inside them. */
+const SECTION_ORDER = [
+  "Profile",
+  "Health connections",
+  "Goals &amp; targets",
+  "Water",
+  "Cuisines and country",
+  "Your companion",
+  "Background",
+  "How Sasha works",
+  "Schedule &amp; reminders",
+  "Meals per day",
+  "Meal times",
+  "Data &amp; account",
+  "Export",
+  "Sync",
+  "Sign out",
+  "Who handles your data",
+];
+
+/** The group headings (h2), in order. Every one opens the labelled section of the same name. */
+const GROUP_HEADINGS = [
+  "Profile",
+  "Health connections",
+  "Goals &amp; targets",
+  "Water",
+  "Cuisines and country",
+  "Your companion",
+  "Background",
+  "How Sasha works",
+  "Schedule &amp; reminders",
+  "Data &amp; account",
+  "Who handles your data",
+];
+
+/** The card headings (h3), in order. */
+const CARD_HEADINGS = [
+  "Your profile",
+  "Meals per day",
+  "Shift the whole day",
+  "One slot’s own time",
+  "Calendar reminders",
+  "Export",
+];
+
+const textOf = (html: string): string => html.replace(/<[^>]+>/g, "").trim();
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The text of every `tag` heading, in document order. */
+function headingsOf(markup: string, tag: "h1" | "h2" | "h3"): string[] {
+  return [...markup.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "g"))]
+    .map((match) => textOf(match[1]));
+}
+
+/** The `aria-label` of every `<section>`, in document order. */
+function sectionLabelsOf(markup: string): string[] {
+  return [...markup.matchAll(/<section[^>]*\baria-label="([^"]*)"/g)].map((match) => match[1]);
+}
+
+/** The visible text of every button, in document order. */
+function buttonsOf(markup: string): string[] {
+  return [...markup.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((match) => textOf(match[1]));
+}
+
+function expectStructure(markup: string): void {
+  expect(headingsOf(markup, "h1")).toEqual(["Settings"]);
+  expect(sectionLabelsOf(markup)).toEqual(SECTION_ORDER);
+  expect(headingsOf(markup, "h2")).toEqual(GROUP_HEADINGS);
+  expect(headingsOf(markup, "h3")).toEqual(CARD_HEADINGS);
+  for (const heading of GROUP_HEADINGS) {
+    const name = escapeRegExp(heading);
+    // The group's own h2 is the first heading inside its section, whatever wraps it.
+    expect(markup).toMatch(new RegExp(
+      `<section[^>]*aria-label="${name}"[^>]*>(?:(?!<section|<h[1-6])[\\s\\S])*<h2[^>]*>${name}</h2>`));
+  }
+}

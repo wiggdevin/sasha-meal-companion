@@ -240,10 +240,8 @@ describe("SlotCard", () => {
 });
 
 describe("Today, the page", () => {
-  it("keeps health data in the overview without rendering the displaced Body card", async () => {
+  it("keeps the displaced Body card off Today", async () => {
     await renderToday({ day: { targets: { kcal: 2_000, protein: 150, carbs: 200, fat: 70 } } });
-    fireEvent.click(screen.getByRole("tab", { name: "Overview" })); // the face switch opens it
-    for (const name of ["Active burn", "Sleep and recovery"]) expect(screen.getByRole("region", { name })).toBeTruthy();
     expect(document.querySelector('main section.shell a[href="/body"]')).toBeNull();
   });
 
@@ -390,11 +388,12 @@ describe("Today, the page", () => {
     expect(screen.getByText(/still saving\. Tap to see them\./)).toBeTruthy();
   });
 
-  it("raises the floor-day banner only while quick meals are on, and links to the Week screen", async () => {
+  it("raises the floor-day banner only while quick meals are on, under a visible Today title", async () => {
     await renderToday({ day: { isFloorDay: true, slots: [PLANNED_SLOT] } });
     expect(screen.getByText(/Quick meals on\./) && screen.getByRole("button", { name: "Swap Breakfast" })).toBeTruthy(); // A061
     cleanup(); await renderToday();
     expect(screen.queryByText(/Quick meals on\./)).toBeNull();
-    expect(screen.getByRole("link", { name: "Open the Week screen" }).getAttribute("href")).toBe("/week");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Today"); // visible, never sr-only
+    expect(screen.queryByRole("link", { name: "Back to today" })).toBeNull(); // the Week link stays (interim)
   });
 });

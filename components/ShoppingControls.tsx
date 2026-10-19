@@ -4,30 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import DateField from "@/components/ui/DateField";
 import GlassSelect from "@/components/ui/GlassSelect";
-import type { ShoppingPeriod } from "@/lib/shopping/types";
 import Notice from "@/components/ui/Notice";
+import { defaultShoppingDraft, draftProblem, realCalendarDate,
+  type ShoppingDraft } from "@/lib/shopping/contracts";
 
-export type ShoppingDraft = Pick<ShoppingPeriod, "startDate" | "endDate" | "timezone" | "people" |
-  "mealCoverage" | "mode" | "effort" | "maxActiveMinutes" | "variety" |
-  "budgetAmount" | "currency" | "locale" | "lockMode">;
-
-export function realCalendarDate(date: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  const parsed = new Date(`${date}T12:00:00Z`);
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
-}
-
-/**
- * Why a draft cannot be previewed (or saved as a blank list, which needs no meals), in the words
- * the planner shows beside its button; null when it can.
- */
-export function draftProblem(draft: ShoppingDraft, { needMeals = true }: { needMeals?: boolean } = {}): string | null {
-  if (!realCalendarDate(draft.startDate) || !realCalendarDate(draft.endDate)) return "Enter real calendar dates.";
-  if (draft.endDate < draft.startDate) return "Through must be on or after From.";
-  if (!Number.isInteger(draft.people) || draft.people < 1) return "People must be a whole number, 1 or more.";
-  if (needMeals && !draft.mealCoverage.length) return "Pick at least one meal.";
-  return null;
-}
+// The draft, its checks and its default live in lib/shopping/contracts; kept here for importers.
+export { defaultShoppingDraft, draftProblem, realCalendarDate, type ShoppingDraft };
 
 function shiftDate(date: string, days: number): string {
   if (!realCalendarDate(date)) return "";
@@ -45,11 +27,6 @@ function monthEnd(start: string): string {
   next.setUTCDate(Math.min(value.getUTCDate(), lastDay));
   next.setUTCDate(next.getUTCDate() - 1);
   return next.toISOString().slice(0, 10);
-}
-export function defaultShoppingDraft(startDate: string, timezone: string): ShoppingDraft {
-  return { startDate, endDate: shiftDate(startDate, 6), timezone, people: 1,
-    mealCoverage: ["dinner"], mode: "balanced", effort: "standard", maxActiveMinutes: null,
-    variety: "balanced", budgetAmount: null, currency: null, locale: null, lockMode: "none" };
 }
 
 const STANDARD_MEALS = [

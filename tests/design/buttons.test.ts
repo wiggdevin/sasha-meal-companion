@@ -16,10 +16,12 @@ import { describe, expect, it } from "vitest";
  * - `class`       a button class string (`btn-ink`, `btn-primary`, `btn-secondary` …) written by hand,
  *                 or the legacy `button.well` recipe (a `well` class on a `<button>`).
  *
- * It is a ratchet. ALLOWLIST holds the files that still carry legacy usages and how many; a file not
- * on it may not gain one, a listed file may not gain more, and a listed file that has fewer must lower
- * (or drop) its entry, so the list only shrinks. On failure the test prints the list as it should
- * read now.
+ * It is a ratchet. ALLOWLIST holds the files that still carry legacy usages and at most how many; a
+ * file not on it may not gain one and a listed file may not gain more. During the UI makeover
+ * (docs/plans/2026-10-19-ui-makeover.md §8, shared ratchet) each count is a ceiling, not an exact
+ * figure: a file that drops below its allowance passes, so parallel workstreams can remove usages
+ * without editing this shared list. The makeover's Close-out tightens every entry back to the exact
+ * count. On failure the test prints the list as it should read now.
  */
 const ROOT = new URL("../../", import.meta.url).pathname;
 
@@ -140,12 +142,12 @@ describe("button system", () => {
     expect(grown, `Use components/ui/Button. The allowlist as it reads now:\n${regenerated()}`).toEqual([]);
   });
 
-  it("only ever shrinks its allowlist", () => {
-    const stale = Object.entries(ALLOWLIST).flatMap(([path, { count }]) => {
-      const now = counts.get(path)?.length ?? 0;
-      return now < count ? [`${path}: allowed ${count}, now ${now} — lower the entry${now === 0 ? " (remove it)" : ""}`] : [];
-    });
-    expect(stale, `The allowlist as it reads now:\n${regenerated()}`).toEqual([]);
+  it("holds each allowlist entry as a ceiling: fewer usages pass, more fail", () => {
+    for (const [path, { count }] of Object.entries(ALLOWLIST)) {
+      expect(Number.isInteger(count) && count > 0, `${path}: an allowance is a positive whole count`).toBe(true);
+    }
+    // A listed file below its allowance is not stale while the makeover runs; only a rise fails
+    // (the test above). Close-out tightens the list back to exact counts.
   });
 
   it("recognises every legacy recipe it guards", () => {

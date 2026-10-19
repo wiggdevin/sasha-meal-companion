@@ -22,8 +22,8 @@
  *    an `.each` run. A spec that merely mentions the card somewhere in its text is a decorative
  *    link, which is how states with no assertion behind them survived the last pass.
  *
- * The second half is the manifest (`tests/cards/manifest.ts`): every candidate names its states and
- * the one spec that renders them. There is no wildcard and no orphan allowlist by design — either
+ * The second half is the manifest (`tests/cards/manifest.ts`, which concatenates the shards under
+ * `tests/cards/manifest/`): every candidate names its states and the one spec that renders them. There is no wildcard and no orphan allowlist by design — either
  * rule would let the next orphan through the way `grep` did.
  *
  * Offline, and fast: it reads the repository with `node:fs` and parses it once. The whole walk is
@@ -33,7 +33,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import ts from "typescript";
-import { CARD_MANIFEST, type CardManifestEntry } from "./manifest";
+import { CARD_MANIFEST, CARD_MANIFEST_SHARDS, type CardManifestEntry } from "./manifest";
 
 const ROOT = path.resolve(__dirname, "../..");
 /** The three trees the app's own modules live in. Nothing else can reach a card. */
@@ -227,6 +227,10 @@ const graph = buildGraph();
 const elapsedMs = Date.now() - started;
 
 const manifestPaths = new Set(CARD_MANIFEST.map((entry) => entry.path));
+/** The manifest's shard files, relative to this directory (`manifest/<name>.ts`). */
+const SHARD_FILES = readdirSync(path.join(__dirname, "manifest"))
+  .filter((name) => name.endsWith(".ts"))
+  .map((name) => `manifest/${name}`);
 
 describe("the card import graph", () => {
   it("starts from every route file and reaches the app's own modules", () => {
@@ -322,11 +326,22 @@ describe("the card manifest", () => {
     expect(manifestPaths.has(candidate)).toBe(true);
   });
 
+  it("aggregates every shard file, and only shard files", () => {
+    // A shard the aggregator forgot would hold entries no gate reads.
+    expect(SHARD_FILES.length).toBeGreaterThan(0);
+    expect(Object.keys(CARD_MANIFEST_SHARDS).sort()).toEqual(
+      SHARD_FILES.map((file) => path.basename(file, ".ts")).sort());
+    expect(CARD_MANIFEST).toEqual(Object.values(CARD_MANIFEST_SHARDS).flat());
+  });
+
   it("has no glob wildcard and no orphan allowlist", () => {
-    const text = readFileSync(path.join(__dirname, "manifest.ts"), "utf8");
-    // A glob inside a quoted path is how an allowlist smuggles a whole directory past the gate.
-    for (const literal of text.match(/"[^"\n]*"/g) ?? []) {
-      expect(literal).not.toContain("*");
+    // The aggregator and every shard: a glob in any of them would let a directory through.
+    for (const file of ["manifest.ts", ...SHARD_FILES]) {
+      const text = readFileSync(path.join(__dirname, file), "utf8");
+      // A glob inside a quoted path is how an allowlist smuggles a whole directory past the gate.
+      for (const literal of text.match(/"[^"\n]*"/g) ?? []) {
+        expect(literal, file).not.toContain("*");
+      }
     }
     expect(CARD_MANIFEST.some((entry) => entry.path.includes("*"))).toBe(false);
     // Every entry carries exactly the four fields, so no escape hatch can be added quietly.

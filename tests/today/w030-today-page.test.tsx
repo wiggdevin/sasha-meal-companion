@@ -106,6 +106,7 @@ describe("A069: meal cards are keyed by the viewed date", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Increase Rice" }));
     expect(calories()).toContain("670");
     expect(screen.getByRole("button", { name: "Save ingredients" })).toBeTruthy();
+    act(() => { fireEvent.click(screen.getByRole("tab", { name: "Calendar" })); }); // the strip lives on the Calendar face
     act(() => { fireEvent.click(screen.getByRole("button", { name: "pick other date" })); });
     await waitFor(() => expect(calories()).toContain("610"));
     expect(screen.queryByRole("button", { name: "Save ingredients" })).toBeNull();

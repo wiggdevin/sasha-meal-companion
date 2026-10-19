@@ -225,12 +225,14 @@ export default function DayBoard(props: Props) {
           <NextTile next={props.next} planned={props.planned} onMarkEaten={props.onMarkEaten}
             markEatenControl={props.markEatenControl} date={props.date} today={props.today} />
         </motion.div>
-        <motion.div className={styles.pairCell} data-pair="water" {...settle(1)}>
+        {/* With no tips (the Overview face) the water tile takes the whole row, no empty half. */}
+        <motion.div className={tips.length > 0 ? styles.pairCell : `${styles.pairCell} ${styles.span2}`}
+          data-pair="water" {...settle(1)}>
           <WaterTile water={props.water} onAddCup={props.onAddCup} onSetCups={props.onSetWater} active={active} />
         </motion.div>
-        <motion.div className={styles.pairCell} data-pair="tip" {...settle(2)}>
+        {tips.length > 0 && <motion.div className={styles.pairCell} data-pair="tip" {...settle(2)}>
           <TipTile tips={tips} shownId={shownTipId} onOpen={openTip} />
-        </motion.div>
+        </motion.div>}
         {week && <motion.div className={styles.span2} {...settle(3)}>
           <WeekTile week={week} onSelectDate={props.onSelectDate} active={active} delay={enterDelay} />
         </motion.div>}

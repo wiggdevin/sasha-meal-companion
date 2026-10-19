@@ -134,9 +134,23 @@
   --primary-rgb: 79 83 67;
   --cream-rgb: 226 220 208;
   --grad-ink: linear-gradient(180deg, #565b49 0%, #474b3c 100%); /* primary fill: olive */
-  --grad-panel: linear-gradient(180deg, #f6f2e9 0%, #f3efe5 100%); /* ivory card body */
+  /* Ivory card body. A literal copy of the --grad-card stops (the contrast tables parse literals). */
+  --grad-panel: linear-gradient(180deg, #fbf9f4 0%, #f6f2e9 100%);
   --grad-recess: linear-gradient(180deg, #eae5d9 0%, #ede8dd 100%); /* beige trays inside a card */
-  --grad-card: linear-gradient(180deg, #f7f3ea 0%, #f4f0e6 100%);
+  /* The card face, lifted (2026-10-19, UI makeover §3): at least 1.10:1 off every ground at every
+     stop, so a card never blends into what is behind it (DESIGN.md §Elevation, the contrast step). */
+  --grad-card: linear-gradient(180deg, #fbf9f4 0%, #f6f2e9 100%);
+  /* A card inside a card: one step down from the card, 1.10:1 or more at every stop, no shadow. */
+  --grad-card-inset: linear-gradient(180deg, #e9e4d8 0%, #e8e3d6 100%);
+  /* The edge of a nested card (E0): an ink hairline at 12 %. */
+  --hairline-card: rgb(var(--ink-rgb) / 0.12);
+  /* CardFrame sizes (components/ui/CardFrame.tsx): padding on the 4 px rhythm, radii on the scale. */
+  --card-pad-sm: calc(var(--spacing) * 3);
+  --card-pad-md: calc(var(--spacing) * 4);
+  --card-pad-lg: calc(var(--spacing) * 5);
+  --card-radius-sm: 16px;
+  --card-radius-md: 24px;
+  --card-radius-lg: 32px;
   --grad-sheet: linear-gradient(180deg, #f7f3ea 0%, #f2eee4 100%);
   --grad-matte: linear-gradient(180deg, #222220 0%, #1d1d1c 100%); /* the meal card and dock */
   --grad-sheet-shell: linear-gradient(180deg, rgba(29, 29, 28, 0.12) 0%, rgba(29, 29, 28, 0.06) 50%,
@@ -341,7 +355,48 @@ h1,
 .surface {
   border-radius: 24px;
   background: var(--grad-card);
-  border: 1px solid rgb(var(--ink-rgb) / 0.06);
+  border: 1px solid rgb(var(--ink-rgb) / 0.1);
+}
+
+/* CardFrame (components/ui/CardFrame.tsx, DESIGN.md §Elevation): one size class and one tone class
+   on a `.surface`. Sizes set padding, radius and the gap between title, body and footer. */
+.card-sm { padding: var(--card-pad-sm); border-radius: var(--card-radius-sm); gap: 8px; }
+.card-md { padding: var(--card-pad-md); border-radius: var(--card-radius-md); gap: 12px; }
+.card-lg { padding: var(--card-pad-lg); border-radius: var(--card-radius-lg); gap: 16px; }
+.shell:has(> .card-sm) { border-radius: var(--card-radius-sm); }
+.shell:has(> .card-lg) { border-radius: var(--card-radius-lg); }
+/* Ivory: the card face (raised, E1 inside its .shell). */
+.card-ivory { background: var(--grad-card); }
+/* Recess: the inset step inside a card (E0): one shade down, a 12 % hairline, never a drop. */
+.card-recess {
+  background: var(--grad-card-inset);
+  border-color: var(--hairline-card);
+  box-shadow: none;
+}
+/* Olive: the call to action card, the primary fill with cream text and the bevel. */
+.card-olive {
+  background: var(--grad-ink);
+  border-color: transparent;
+  box-shadow: var(--bevel);
+  color: var(--color-on-primary);
+}
+/* A CardFrame inside a card is E0: the 12 % hairline and no drop (never a shadow inside a shadow). */
+.card-e0:not(.card-olive) {
+  border-color: var(--hairline-card);
+  box-shadow: none;
+}
+
+/* Legacy nested cards (2026-10-19, UI makeover §3.4): a `.surface` inside a `.surface` takes the
+   inset step, and one inside that takes the card again. Guarded by `html[data-card-step]`
+   (app/layout.tsx), so removing the attribute reverts every legacy nested site at once. The matte
+   meal card, the eaten tint, the beige tray, the panel and the olive CardFrame keep their own faces. */
+html[data-card-step] .surface :where(.surface):not(.matte, .meal-card-in, .matte-reset, .olive-panel, .card-olive) {
+  background: var(--grad-card-inset);
+  border-color: var(--hairline-card);
+  box-shadow: none;
+}
+html[data-card-step] .surface .surface :where(.surface):not(.matte, .meal-card-in, .matte-reset, .olive-panel, .card-olive) {
+  background: var(--grad-card);
 }
 
 .pill {
@@ -485,9 +540,10 @@ textarea.well:focus,
 /* Panel: the note card and macro panel. A light wash of the section hue, so its text is ink (cream
    inside a .matte card, where the text roles remap). Never `text-on-olive` here: cream on a 7 % tint
    of ivory is 1.1:1 (2026-10-04, the Settings protein card; DESIGN.md §Contrast). A panel sits on a
-   card, not on the bare oat ground. */
+   card, not on the bare oat ground. The tint is 8 % (2026-10-19) so the panel steps 1.10:1 off the
+   card behind it; every ink role still passes on it (tests/design/contrast.test.ts). */
 .olive-panel {
-  background: rgb(var(--section-rgb) / 0.07);
+  background: rgb(var(--section-rgb) / 0.08);
   border: 1px solid rgb(var(--section-rgb) / 0.16);
   color: var(--color-text-primary);
   border-radius: 24px;

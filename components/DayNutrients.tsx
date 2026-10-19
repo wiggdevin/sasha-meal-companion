@@ -114,7 +114,7 @@ export default function DayNutrients({ day, accountId = null }: {
   const partial = dayHasPartialNutrition(day);
 
   return (
-    <section className="relative" aria-label="Nutrients today">
+    <section id="day-nutrients" className="relative" aria-label="Nutrients today">
       {offset < 0 && <button type="button" tabIndex={-1} aria-hidden="true" onClick={dismiss}
         className="absolute inset-y-0 right-0 flex w-16 items-center justify-center text-caption text-alert">
         Clear

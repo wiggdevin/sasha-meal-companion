@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_GROUND, GROUNDS, isGroundId } from "@/lib/design/grounds";
 import { GROUND_BOOT_SCRIPT } from "@/lib/design/ground-boot";
 import { THEME_COLOR, themeColorFor } from "@/lib/design/theme-color";
-import { contrast, hexToRgb, MIN, over, ROLES, ROOT, token } from "./contrast-table";
+import { contrast, gradient, hexToRgb, MIN, over, ROLES, ROOT, token } from "./contrast-table";
 
 const css = readFileSync(join(ROOT, "app/globals.css"), "utf8");
 const triple = (hex: string) => hexToRgb(hex).join(" ");
@@ -65,6 +65,17 @@ describe("selectable grounds (DESIGN.md §Grounds)", () => {
     for (const g of GROUNDS.slice(1)) {
       for (const role of lightRoles) {
         if (contrast(role.color, corner(g)) < contrast(role.color, oat) - 0.005) failures.push(`${role.id} on ${g.id}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it("the lifted card steps at least 1.10:1 off every ground at every stop (DESIGN.md §Elevation)", () => {
+    const failures: string[] = [];
+    for (const g of GROUNDS) {
+      for (const stop of gradient("card")) {
+        const ratio = contrast(stop, hexToRgb(g.base));
+        if (ratio < 1.1) failures.push(`${g.id}: ${ratio.toFixed(3)}:1`);
       }
     }
     expect(failures).toEqual([]);
