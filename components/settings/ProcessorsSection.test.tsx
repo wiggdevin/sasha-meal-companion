@@ -22,6 +22,14 @@ describe("Who handles your data", () => {
     }
   });
 
+  it("names OpenStreetMap for the Shopping store map (UI makeover W8)", () => {
+    expect(PROCESSORS).toContainEqual({
+      name: "OpenStreetMap",
+      what: "The area and country you type, and rounded coordinates, go through our server. "
+        + "Map tiles load from OpenStreetMap, which sees your IP address.",
+    });
+  });
+
   it("renders each processor with what it does", () => {
     render(<ProcessorsSection />);
     expect(screen.getByRole("region", { name: "Who handles your data" })).toBeTruthy();

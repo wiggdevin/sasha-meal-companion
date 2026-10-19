@@ -15,6 +15,7 @@ import { recipeAccessEnabled } from "@/lib/server/recipe-access";
 import { isIanaTimeZone } from "@/lib/health/contract";
 import { addDays } from "@/lib/recipes-hub/put-in-meal";
 import type { FocusRanking } from "@/lib/meals/plate";
+import { currentShoppingPeriod } from "@/lib/shopping/current";
 import {
   dateIn, defaultFocusEnd, focusKeysFrom, focusRankingOn, LINE_BOX_EXTRA_DAYS, maxFocusEnd,
   PANTRY_BOX_DAYS, shoppingFocusActive, type FocusState,
@@ -118,11 +119,16 @@ export async function resolveFocusEnd(
     const requested = new Date(now.getTime() + days * 86_400_000).toISOString();
     return requested > max ? max : requested;
   }
-  const { data, error } = await client.from("shopping_periods").select("end_date")
+  const { data, error } = await client.from("shopping_periods").select("start_date,end_date,updated_at")
     .eq("user_id", userId).is("deleted_at", null).lte("start_date", day.date).gte("end_date", day.date)
-    .order("end_date", { ascending: false }).limit(1).maybeSingle();
+    .limit(52);
   if (error) throw error;
-  const openEnd = (data as { end_date?: unknown } | null)?.end_date;
+  // The same "current list" every surface reads (lib/shopping/current.ts).
+  const rows = ((data ?? []) as { start_date?: unknown; end_date?: unknown; updated_at?: unknown }[])
+    .filter((row) => typeof row.start_date === "string" && typeof row.end_date === "string")
+    .map((row) => ({ startDate: row.start_date as string, endDate: row.end_date as string,
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : null }));
+  const openEnd = currentShoppingPeriod(rows, day.date)?.endDate;
   const resolved = defaultFocusEnd(now, typeof openEnd === "string" ? openEnd : null, day.zone);
   return resolved > max ? max : resolved;
 }

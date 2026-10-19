@@ -1,22 +1,18 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Plus, Share } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Share } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Disclosure from "@/components/ui/Disclosure";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import ShoppingRow from "@/components/ShoppingRow";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
-import { favoriteChips, listAsText, planQuickAdd } from "@/lib/shopping/quick-add";
+import { listAsText } from "@/lib/shopping/quick-add";
 import type { ShoppingLine } from "@/lib/shopping/types";
 import Notice from "@/components/ui/Notice";
-import { CATEGORY_LABEL } from "@/lib/shopping/labels";
-
-const GROUPS = (["core", "pantry_top_up", "optional_extra", "manual"] as const)
-  .map((category) => ({ category, title: CATEGORY_LABEL[category] }));
+import { aisleOf, groupByAisle } from "@/lib/foods/aisle";
 
 export type ShoppingListActions = {
-  addItems: (names: string[]) => Promise<void>;
   /** Answers the saved line when it can, so a tick queued behind this one is sent on its revision. */
   setChecked: (line: ShoppingLine, checked: boolean) => Promise<ShoppingLine | void>;
   removeLine: (line: ShoppingLine) => Promise<void>;
@@ -25,13 +21,14 @@ export type ShoppingListActions = {
 };
 
 /**
- * The list, first (owner ask 2026-10-02: "bring back the shopping section … make it super useful").
- * Type several items at once, tap a Favorite, tick items off into the cart, clear them, and share
- * the list as text. Ticks and removals show at once and roll back if the save fails.
+ * The list (owner ask 2026-10-02: "bring back the shopping section … make it super useful"; UI
+ * makeover W7 §7.1 item 3): rows grouped by store aisle, ticked off into the cart, cleared, and
+ * shared as text. Adding lives in the pick list below it. Ticks and removals show at once and
+ * roll back if the save fails.
  */
-export default function ShoppingList({ title, lines, favorites, actions, switcher, empty,
+export default function ShoppingList({ title, lines, actions, switcher, empty,
   selectedKeys, onSelectedChange, showChecks = true, weekChecked }: {
-  title: string; lines: ShoppingLine[]; favorites: string[]; actions: ShoppingListActions;
+  title: string; lines: ShoppingLine[]; actions: ShoppingListActions;
   /** The saved-list picker, shown in the card's header. */
   switcher?: ReactNode;
   /** Shown in place of the rows when the list has no items. */
@@ -43,7 +40,6 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   /** With `showChecks` off: whether a plan line's current week is ticked (null: no weeks). */
   weekChecked?: (line: ShoppingLine) => boolean | null;
 }) {
-  const [text, setText] = useState("");
   /** A tick shows at once and holds only while the line is still the revision it was made on: any
    *  newer read of the line (this save's answer, another device) is the truth from then on. */
   const [ticks, setTicks] = useState<Record<string, { revision: number; value: boolean; seq: number; hold?: boolean }>>({});
@@ -51,11 +47,9 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   /** One tick save in flight per line; a tap meanwhile waits here and is sent on the saved revision. */
   const inFlight = useRef(new Map<string, { queued: boolean | null }>());
   const latest = useRef(new Map<string, ShoppingLine>());
-  const hintId = useId();
   useEffect(() => { latest.current = new Map(lines.map((line) => [line.id, line])); }, [lines]);
   const [gone, setGone] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
   const feedback = useActionFeedback();
   const shown = lines.filter((line) => !gone.has(line.id));
   const isChecked = (line: ShoppingLine) => {
@@ -68,27 +62,8 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
   const isDone = (line: ShoppingLine) => byWeek(line) ? weekChecked?.(line) === true : isChecked(line);
   const open = shown.filter((line) => !isDone(line));
   const done = shown.filter(isDone);
-  const plan = planQuickAdd(text, shown);
-  const allListed = plan.items.length === 0 && plan.duplicates > 0;
-  const chips = favoriteChips(favorites, shown);
   const clearable = done.filter((line) => line.origin === "manual");
 
-  /** `typed` is the field's text when it was sent and `rest` what it could not take this time;
-   *  a chip leaves the field alone. */
-  async function add(names: string[], typed?: string, rest = "") {
-    if (!names.length || adding) return;
-    setAdding(true); setError(null);
-    const added = names.length === 1 ? `${names[0]} added` : `${names.length} items added`;
-    const left = rest ? rest.split(", ").length : 0;
-    // The field clears as the items land, so the count is said in the notice.
-    const outcome = await feedback.run(() => actions.addItems(names), { kind: "commit", confirm: "notice",
-      successMessage: left ? `${added}; ${left} more left in the box.` : `${added}.`,
-      failureMessage: (cause) => cause instanceof Error ? cause.message : "Those items did not save." });
-    setAdding(false);
-    // Only what was sent: an item typed while the add was in flight stays in the field, and so does
-    // anything past one add's limit.
-    if (outcome.ok && typed !== undefined) setText((current) => current === typed ? rest : current);
-  }
   async function toggle(line: ShoppingLine) {
     const next = !isChecked(line);
     const seq = ++tickSeq.current;
@@ -175,33 +150,13 @@ export default function ShoppingList({ title, lines, favorites, actions, switche
       <div className="btn-primary h-full rounded-full transition-[width] duration-300"
         style={{ width: `${Math.round((done.length / shown.length) * 100)}%` }} /></div>}
     {switcher}
-    <form className="flex items-end gap-2" onSubmit={(event) => {
-      event.preventDefault(); void add(plan.items, text, plan.rest);
-    }}>
-      <label className="flex flex-1 flex-col gap-1 text-sm">Add items
-        <input className="well min-h-11 w-full px-3" value={text} enterKeyHint="done" autoComplete="off"
-          placeholder="2 avocados, eggs, oat milk" aria-describedby={allListed ? hintId : undefined}
-          onChange={(event) => setText(event.target.value)} /></label>
-      <Button type="submit" disabled={adding || plan.items.length === 0}>Add</Button>
-    </form>
-    {allListed && <p id={hintId} className="m-0 text-tiny text-muted">Already on your list.</p>}
-    {chips.length > 0 && <div className="flex flex-col gap-1.5">
-      <span className="text-tiny text-muted">From your Favorites</span>
-      <div className="flex flex-wrap gap-2">{chips.map((name) => <button key={name} type="button"
-        disabled={adding} onClick={() => void add([name])} aria-label={`Add ${name}`}
-        className="tap well flex min-h-10 items-center gap-1 rounded-full px-3 text-caption">
-        <Plus size={14} aria-hidden="true" />{name}</button>)}</div>
-    </div>}
     {error && <Notice tone="error" title={error} />}
     {shown.length === 0 ? empty : <>
-      {GROUPS.map(({ category, title: heading }) => {
-        const group = open.filter((line) => line.category === category);
-        if (!group.length) return null;
-        return <section key={category} aria-label={heading} className="flex flex-col">
-          <h3 className="m-0 pb-1 text-tiny font-medium uppercase tracking-wide text-muted">{heading}</h3>
-          <ul className="m-0 flex list-none flex-col p-0">{group.map(row)}</ul>
-        </section>;
-      })}
+      {groupByAisle(open, (line) => aisleOf({ name: line.name, bundledId: line.identity?.foodDbId ?? null }))
+        .map((group) => <section key={group.aisle} aria-label={group.label} className="flex flex-col">
+          <h3 className="m-0 pb-1 text-tiny font-medium uppercase tracking-wide text-muted">{group.label}</h3>
+          <ul className="m-0 flex list-none flex-col p-0">{group.items.map(row)}</ul>
+        </section>)}
       {open.length === 0 && <Notice tone="success" title="Everything is in the cart." />}
       {done.length > 0 && <Disclosure variant="row" title="In cart" count={done.length}>
         <ul className="m-0 flex list-none flex-col p-0">{done.map(row)}</ul>

@@ -1,6 +1,6 @@
 /**
- * The shopping list's quick paths (2026-10-02): type several items at once, add a Favorite in one
- * tap, and copy the list as plain text for a store, a partner or Notes. Pure. No I/O.
+ * The shopping list's quick paths (2026-10-02): type several items at once, and copy the list as
+ * plain text for a store, a partner or Notes. Pure. No I/O. (One-tap picks: lib/shopping/pick-sources.ts.)
  */
 import { RULE_MARK_LABEL, ruleMarkReason } from "@/lib/rule-mark";
 import type { ShoppingLine } from "@/lib/shopping/types";
@@ -8,7 +8,6 @@ import type { ShoppingLine } from "@/lib/shopping/types";
 /** One add, at most: a pasted list is welcome, a pasted essay is not. */
 export const MAX_QUICK_ITEMS = 20;
 const MAX_NAME = 160;
-const MAX_CHIPS = 8;
 
 const key = (name: string) => name.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 /** "Eggs, large" and "eggs" are one item on a list. */
@@ -54,20 +53,6 @@ const DESCRIPTOR = new RegExp("^(?:cooked|raw|fresh|frozen|drained|peeled|boiled
 export function boughtName(name: string): string {
   const segments = name.split(",").map((part) => part.trim()).filter(Boolean);
   return [segments[0] ?? "", ...segments.slice(1).filter((part) => !DESCRIPTOR.test(part))].join(", ");
-}
-
-/** Favorites not on the list yet, in the order given, named as bought. */
-export function favoriteChips(favorites: readonly string[], lines: readonly ShoppingLine[]): string[] {
-  const listed = new Set(lines.flatMap((line) => [key(line.name), head(line.name)]));
-  const chips: string[] = [];
-  for (const name of favorites) {
-    const bought = boughtName(name);
-    if (!bought || listed.has(key(bought))) continue;
-    listed.add(key(bought));
-    chips.push(bought);
-    if (chips.length === MAX_CHIPS) break;
-  }
-  return chips;
 }
 
 function amount(line: ShoppingLine): string {

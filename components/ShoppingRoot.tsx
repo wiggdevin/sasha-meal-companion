@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
-import GlassSelect from "@/components/ui/GlassSelect";
+import SavedListSwitcher from "@/components/shopping/SavedListSwitcher";
+import SavedListsSheet from "@/components/shopping/SavedListsSheet";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import ShoppingView from "@/components/ShoppingView";
 import RuleReviewCard from "@/components/RuleReviewCard";
@@ -21,7 +22,9 @@ import { acceptShopping, addManualShoppingLine, confirmPantryForLine, createShop
 import type { PantryItem, ShoppingLine, ShoppingPeriod } from "@/lib/shopping/types";
 import Notice from "@/components/ui/Notice";
 import { ruleMarkKey } from "@/lib/rule-mark";
-import { shoppingRange } from "@/lib/shopping/labels";
+import { currentShoppingPeriod } from "@/lib/shopping/current";
+import { deleteShoppingPeriod, renameShoppingPeriod } from "@/lib/shopping/list-client";
+import { cycleOrder, listName, stepList } from "@/lib/shopping/saved-lists";
 import type { RuleMark as RuleMarkValue } from "@/lib/types";
 
 function dateInZone(timezone: string): string {
@@ -42,8 +45,12 @@ function draftFromPeriod(period: ShoppingPeriod): ShoppingDraft {
     timezone: period.timezone, people: period.people, mealCoverage: period.mealCoverage,
     mode: period.mode, effort: period.effort, maxActiveMinutes: period.maxActiveMinutes,
     variety: period.variety, budgetAmount: period.budgetAmount, currency: period.currency,
-    locale: period.locale, lockMode: period.lockMode };
+    locale: period.locale, lockMode: period.lockMode, title: period.title ?? null };
 }
+/** How long a deleted list waits for its Undo before the delete is sent. */
+const DELETE_HOLD_MS = 5_000;
+/** Fired by "Have AI build my list" when it saves a list, so the switcher opens it. */
+export const SHOPPING_LIST_SAVED_EVENT = "shopping-list-saved";
 function locationKey(userId: string): string { return `shopping-location:${userId}`; }
 function storesKey(userId: string): string { return `shopping-stores:${userId}`; }
 function savedLocation(userId: string): string | null {
@@ -112,6 +119,10 @@ export default function ShoppingRoot() {
   /** The list the view was opened on. A list this view just started keeps its key, so the toast
    *  that says so survives (only switching lists remounts the view). */
   const [viewKey, setViewKey] = useState("new");
+  const [listsOpen, setListsOpen] = useState(false);
+  /** Lists deleted on screen whose delete waits out its Undo: id → the timer and its revision. */
+  const held = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; send: () => void }>());
+  const listFeedback = useActionFeedback();
 
   const refresh = useCallback(async (account: AccountHandle, chooseId?: string | null) => {
     const serial = ++refreshSerial.current;
@@ -119,10 +130,10 @@ export default function ShoppingRoot() {
       const seed = { ...initialDraft(), locale: savedLocation(account.userId) };
       const [periods, stock] = await Promise.all([listShoppingPeriods(), listPantry()]);
       if (serial !== refreshSerial.current) return;
-      const period = chooseId === null ? null : periods.find((row) => row.id === (chooseId ?? selectedId.current))
+      const live = periods.filter((row) => !held.current.has(row.id));
+      const period = chooseId === null ? null : live.find((row) => row.id === (chooseId ?? selectedId.current))
         ?? (chooseId === undefined && !hasSelection.current
-          ? periods.find((row) => row.startDate <= seed.startDate && row.endDate >= seed.startDate)
-            ?? periods[0] : null);
+          ? currentShoppingPeriod(live, seed.startDate) ?? cycleOrder(live)[0] ?? null : null);
       if (chooseId && !period) throw new Error("That saved list is no longer available. Refresh and choose another.");
       const next = period ? await getShoppingPeriod(period.id) : { period: null, lines: [] };
       if (serial !== refreshSerial.current) return;
@@ -134,7 +145,7 @@ export default function ShoppingRoot() {
       fingerprint.current = nextFingerprint;
       selectedId.current = next.period?.id ?? null;
       hasSelection.current = true;
-      setPeriods(periods); setSnapshot(next); setPantry(stock);
+      setPeriods(live); setSnapshot(next); setPantry(stock);
       setDraft((current) => changed || !current ? next.period ? draftFromPeriod(next.period) : seed : current);
       setStatus("ready"); setError(null);
     } catch (cause) {
@@ -183,6 +194,25 @@ export default function ShoppingRoot() {
     return () => document.removeEventListener("visibilitychange", onReturn);
   }, [refresh]);
 
+  useEffect(() => {
+    const pending = held.current;
+    // Leaving Shopping sends any delete still waiting on its Undo.
+    return () => { for (const { timer, send } of pending.values()) { clearTimeout(timer); send(); } pending.clear(); };
+  }, []);
+  useEffect(() => {
+    const onSaved = (event: Event) => {
+      const id = (event as CustomEvent<{ periodId?: unknown }>).detail?.periodId;
+      const account = currentAccountOrNull();
+      if (!account || typeof id !== "string") return;
+      void refresh(account, id).catch((cause) => {
+        if (currentAccountOrNull()?.epoch === account.epoch)
+          setError(cause instanceof Error ? cause.message : "Your new list could not open yet.");
+      });
+    };
+    window.addEventListener(SHOPPING_LIST_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(SHOPPING_LIST_SAVED_EVENT, onSaved);
+  }, [refresh]);
+
   async function update() { await refresh(accountHandle()); }
   async function recoverStaleEdit(account: AccountHandle, cause: unknown): Promise<never> {
     if (!(cause instanceof ShoppingStaleRevision)) throw cause;
@@ -225,6 +255,59 @@ export default function ShoppingRoot() {
         setError("List saved. Its latest contents could not reload yet. Use Retry to refresh.");
       }
     } finally { if (saveSerial === blankSaveSerial.current) setBlankBusy(false); }
+  }
+  async function openList(account: AccountHandle, id: string | null) {
+    await refresh(account, id).catch((cause) => {
+      if (currentAccountOrNull()?.epoch === account.epoch)
+        setError(cause instanceof Error ? cause.message : "Could not open this list.");
+    });
+  }
+  async function createList(title: string | null, dates: { startDate: string; endDate: string }) {
+    const account = accountHandle();
+    const base = draft ?? initialDraft();
+    const saved = await createShoppingPeriod({ ...base, ...dates, title, lockMode: "none" }, crypto.randomUUID());
+    assertCurrent(account);
+    setPeriods((current) => [saved, ...current.filter((row) => row.id !== saved.id)]);
+    await openList(account, saved.id);
+  }
+  async function renameList(id: string, title: string | null) {
+    const account = accountHandle();
+    const row = periods.find((item) => item.id === id);
+    if (!row) throw new Error("That list is gone. Refresh your lists.");
+    const saved = await renameShoppingPeriod(id, title, row.revision, crypto.randomUUID())
+      .catch((cause) => recoverStaleEdit(account, cause));
+    assertCurrent(account);
+    setPeriods((current) => current.map((item) => item.id === id ? saved : item));
+    setSnapshot((current) => current.period?.id === id ? { ...current, period: saved } : current);
+  }
+  /** Hides the list at once and sends the delete after the Undo toast closes (Undo sends nothing). */
+  function deleteList(id: string) {
+    const account = accountHandle();
+    const row = periods.find((item) => item.id === id);
+    if (!row) return;
+    const requestId = crypto.randomUUID();
+    const send = () => {
+      held.current.delete(id);
+      void deleteShoppingPeriod(id, row.revision, requestId).catch(() => {
+        if (currentAccountOrNull()?.epoch !== account.epoch) return;
+        setError(`${listName(row)} was not deleted. It is back in your lists.`);
+        void refresh(account).catch(() => undefined);
+      });
+    };
+    held.current.set(id, { timer: setTimeout(send, DELETE_HOLD_MS), send });
+    const rest = periods.filter((item) => item.id !== id);
+    setPeriods(rest);
+    if (snapshot.period?.id === id) {
+      selectedId.current = null; hasSelection.current = false;
+      void openList(account, currentShoppingPeriod(rest, initialDraft().startDate)?.id ?? cycleOrder(rest)[0]?.id ?? null);
+    }
+    listFeedback.notify({ tone: "success", message: `${listName(row)} deleted.`, action: { label: "Undo", action: () => {
+      const hold = held.current.get(id);
+      if (!hold) return;
+      clearTimeout(hold.timer);
+      held.current.delete(id);
+      void openList(account, id);
+    } } });
   }
   const actions: ShoppingViewActions = {
     preview: async (input: ShoppingPreviewInput): Promise<ShoppingPreviewData> => {
@@ -336,18 +419,15 @@ export default function ShoppingRoot() {
       invalidateRevision={invalidateRevision}
       onPantryPhoto={(items) => setPantry((current) =>
         [...current.filter((row) => !items.some((item) => item.id === row.id)), ...items])}
-      favorites={Object.values(loadStore().foods).filter((food) => food.status === "eats")
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((food) => food.name)}
-      switcher={periods.length > 0 ? <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-48 flex-1"><GlassSelect aria-label="Open shopping list"
-          value={snapshot.period?.id ?? "new"}
-          onChange={(id) => { void refresh(owner, id === "new" ? null : id).catch((cause) =>
-            setError(cause instanceof Error ? cause.message : "Could not open this list.")); }}
-          options={[{ value: "new", label: "New list" }, ...periods.map((row) => ({
-            value: row.id, label: shoppingRange(row.startDate, row.endDate) }))]} /></div>
-        <Button onClick={() => { void refresh(owner, null).catch((cause) =>
-          setError(cause instanceof Error ? cause.message : "Could not start a new list.")); }}>New list</Button>
-      </div> : null}
+      switcher={<SavedListSwitcher period={snapshot.period} count={periods.length}
+        itemCount={snapshot.lines.length} checkedCount={snapshot.lines.filter((line) => line.checked).length}
+        onOpenLists={() => setListsOpen(true)}
+        hasNewer={stepList(periods, snapshot.period?.id ?? null, -1) !== null && snapshot.period !== null}
+        hasOlder={stepList(periods, snapshot.period?.id ?? null, 1) !== null}
+        onStep={(step) => {
+          const next = stepList(periods, snapshot.period?.id ?? null, step);
+          if (next) void openList(owner, next.id);
+        }} />}
       planNotice={<><RuleReviewCard /><ShoppingFocusToggle /></>}
       emptyList={<div className="flex flex-col items-start gap-2">
         <Notice tone="neutral" title={<>{periods.length === 0 ? "No saved lists yet. " : ""}Add items above,
@@ -357,5 +437,10 @@ export default function ShoppingRoot() {
           disabled={blankBusy || !draft || draftProblem(draft, { needMeals: false }) !== null}
           onSave={saveBlankList} />
       </div>} />
+    {listsOpen && <SavedListsSheet periods={periods} currentId={snapshot.period?.id ?? null}
+      today={initialDraft().startDate} onClose={() => setListsOpen(false)}
+      onOpen={(id) => void openList(owner, id)} onCreate={createList} onRename={renameList}
+      onDelete={deleteList} />}
+    <ActionFeedbackToast notice={listFeedback.notice} onDismiss={listFeedback.dismiss} />
   </>;
 }

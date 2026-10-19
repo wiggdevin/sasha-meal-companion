@@ -60,7 +60,10 @@ beforeEach(() => rpc.fn.mockReset());
 
 describe("resolveFocusEnd: the account's day, live periods only", () => {
   it("looks up the open period on the account's day and never a deleted one", async () => {
-    const { client, calls } = fake({ shopping_periods: { end_date: "2026-10-09" } });
+    // Two lists cover the day: the current-list rule (lib/shopping/current.ts) picks the later start.
+    const { client, calls } = fake({ shopping_periods: [
+      { start_date: "2026-10-01", end_date: "2026-10-20", updated_at: "2026-10-01T00:00:00Z" },
+      { start_date: "2026-10-03", end_date: "2026-10-09", updated_at: "2026-10-02T00:00:00Z" }] });
     const end = await resolveFocusEnd(client, USER_ID, NOW, DAY);
     const call = calls.find((entry) => entry.table === "shopping_periods");
     expect(has(call, "is", "deleted_at", null)).toBe(true);

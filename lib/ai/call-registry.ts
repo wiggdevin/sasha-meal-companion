@@ -77,6 +77,11 @@ export const CALL_REGISTRY = {
   // (scripts/pairing/jev-labels.ts). Catalog food names and a stated occasion only: D0. Never on a
   // request path, never in CI.
   pair_plausibility: { provider: "typesafe", dataClass: "D0", builder: "pairPlausibilityPayload" },
+  // UI makeover W8 (§7.3): the Shopping build flow's Ingredients deck order. The account's own
+  // candidate food names under opaque positional ids, one fixed staple question each; no budget,
+  // place, country, profile or health field. D1 (the names come from the account's own foods and
+  // history). Jev may only reorder the deck; any failure keeps the plain order.
+  "shopping-build-rank": { provider: "typesafe", dataClass: "D1", builder: "shoppingRankPayload" },
   // ---- Gemini (paid, attested project) --------------------------------------------------------
   // The ordinary turn and source-bound saved-chat synthesis both use this attested payload lane.
   coach: { provider: "google", dataClass: "D2", builder: "coachTurnPayload" },

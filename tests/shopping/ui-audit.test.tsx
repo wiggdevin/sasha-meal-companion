@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { unbindAccount } from "@/lib/device/account";
 import ShoppingView from "@/components/ShoppingView";
 import ShoppingList from "@/components/ShoppingList";
+import PickList from "@/components/shopping/PickList";
 import ShoppingPreview from "@/components/ShoppingPreview";
 import { defaultShoppingDraft, draftProblem } from "@/components/ShoppingControls";
 import { MAX_QUICK_ITEMS, planQuickAdd } from "@/lib/shopping/quick-add";
@@ -29,11 +30,10 @@ const viewActions = () => ({ preview: vi.fn(), patchLine: vi.fn().mockResolvedVa
   confirmPantry: vi.fn().mockResolvedValue(undefined), addItems: vi.fn().mockResolvedValue(undefined),
   removeLine: vi.fn().mockResolvedValue(undefined), removePantry: vi.fn().mockResolvedValue(undefined),
   refresh: vi.fn().mockResolvedValue(undefined) });
-const listActions = () => ({ addItems: vi.fn().mockResolvedValue(undefined),
-  setChecked: vi.fn().mockResolvedValue(undefined), removeLine: vi.fn().mockResolvedValue(undefined),
+const listActions = () => ({ setChecked: vi.fn().mockResolvedValue(undefined), removeLine: vi.fn().mockResolvedValue(undefined),
   patchLine: vi.fn().mockResolvedValue(undefined), confirmPantry: vi.fn().mockResolvedValue(undefined) });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); unbindAccount(); });
-const openPlan = () => fireEvent.click(screen.getByRole("button", { name: /plan meals/i }));
+const openPlan = () => fireEvent.click(screen.getByRole("button", { name: /More options/ }));
 
 describe("quick add", () => {
   it("keeps what one add cannot take, and counts names already listed", () => {
@@ -45,20 +45,19 @@ describe("quick add", () => {
   });
 
   it("puts the unsent items back in the field and says so", async () => {
-    const actions = listActions();
-    render(<ShoppingList title="This week" lines={[]} favorites={[]} actions={actions} />);
-    const field = screen.getByLabelText("Add items") as HTMLInputElement;
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    render(<PickList lines={[]} onAdd={onAdd} onRemove={vi.fn()} />);
+    const field = screen.getByLabelText("Add something else") as HTMLInputElement;
     fireEvent.change(field, { target: { value: Array.from({ length: 22 }, (_, index) => `food ${index}`).join(", ") } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("20 items added; 2 more left in the box.")).toBeTruthy();
-    expect(actions.addItems.mock.calls[0][0]).toHaveLength(20);
+    expect(onAdd.mock.calls[0][0]).toHaveLength(20);
     expect(field.value).toBe("food 20, food 21");
   });
 
   it("says why Add is off when every name is already on the list", () => {
-    render(<ShoppingList title="This week" lines={[line({ origin: "manual", category: "manual" })]}
-      favorites={[]} actions={listActions()} />);
-    fireEvent.change(screen.getByLabelText("Add items"), { target: { value: "beans" } });
+    render(<PickList lines={[line({ origin: "manual", category: "manual" })]} onAdd={vi.fn()} onRemove={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Add something else"), { target: { value: "beans" } });
     expect((screen.getByRole("button", { name: "Add" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText("Already on your list.")).toBeTruthy();
   });
@@ -69,7 +68,7 @@ describe("ticks", () => {
     let finish!: (value: ShoppingLine) => void;
     const actions = listActions();
     actions.setChecked.mockImplementationOnce(() => new Promise<ShoppingLine>((resolve) => { finish = resolve; }));
-    render(<ShoppingList title="This week" lines={[line()]} favorites={[]} actions={actions} />);
+    render(<ShoppingList title="This week" lines={[line()]} actions={actions} />);
     fireEvent.click(screen.getByRole("checkbox", { name: /Beans, to buy/ }));
     fireEvent.click(screen.getByRole("button", { name: /In cart/ }));
     fireEvent.click(await screen.findByRole("checkbox", { name: /Beans, in cart/ }));
@@ -184,11 +183,11 @@ describe("words and dates", () => {
     expect(screen.getByText(/Estimated total: \$42\.50/)).toBeTruthy();
   });
 
-  it("names the line's group as the list does", () => {
-    render(<ShoppingList title="This week" lines={[line({ category: "pantry_top_up" })]} favorites={[]}
+  it("names the line's group in its details (the list itself groups by aisle)", () => {
+    render(<ShoppingList title="This week" lines={[line({ category: "pantry_top_up" })]}
       actions={listActions()} />);
     fireEvent.click(screen.getByRole("button", { name: "Details for Beans" }));
-    expect(screen.getAllByText("Pantry top-ups").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("Pantry top-ups").length).toBeGreaterThan(0);
     expect(screen.queryByText("pantry top up")).toBeNull();
   });
 });
@@ -198,12 +197,12 @@ describe("review follow-ups", () => {
     let finish!: (value: ShoppingLine) => void;
     const actions = listActions();
     actions.setChecked.mockImplementationOnce(() => new Promise<ShoppingLine>((resolve) => { finish = resolve; }));
-    const { rerender } = render(<ShoppingList title="This week" lines={[line()]} favorites={[]} actions={actions} />);
+    const { rerender } = render(<ShoppingList title="This week" lines={[line()]} actions={actions} />);
     fireEvent.click(screen.getByRole("checkbox", { name: /Beans, to buy/ }));
     fireEvent.click(screen.getByRole("button", { name: /In cart/ }));
     fireEvent.click(await screen.findByRole("checkbox", { name: /Beans, in cart/ }));
     // The first save's answer lands as a newer read before the save itself resolves.
-    rerender(<ShoppingList title="This week" lines={[line({ checked: true, revision: 2 })]} favorites={[]} actions={actions} />);
+    rerender(<ShoppingList title="This week" lines={[line({ checked: true, revision: 2 })]} actions={actions} />);
     expect(screen.getByText(/0 of 1 in cart/)).toBeTruthy();
     await act(async () => { finish(line({ checked: true, revision: 2 })); });
     expect(screen.getByText(/0 of 1 in cart/)).toBeTruthy();

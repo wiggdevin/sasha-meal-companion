@@ -17,6 +17,10 @@ export type ShoppingPeriod = {
   currency: string | null;
   locale: string | null;
   lockMode: "none" | "ingredients" | "available_quantities";
+  /** The list's name (1-60 characters); null is an untitled list. Absent from an older server. */
+  title?: string | null;
+  /** When the list last changed (ISO). Response only; absent from an older server. */
+  updatedAt?: string;
   planRevision: number;
   revision: number;
 };

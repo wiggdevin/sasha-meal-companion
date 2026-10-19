@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { bindAccount, markAccountReady, unbindAccount } from "@/lib/device/account";
 import ShoppingRoot from "@/components/ShoppingRoot";
-import { shoppingDate, shoppingRange } from "@/lib/shopping/labels";
+import { shoppingDate } from "@/lib/shopping/labels";
 import { defaultShoppingDraft } from "@/components/ShoppingControls";
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +11,13 @@ const mocks = vi.hoisted(() => ({
   listPeriods: vi.fn(), getPeriod: vi.fn(), listPantry: vi.fn(), preview: vi.fn(),
   accept: vi.fn(), createPeriod: vi.fn(), patchLine: vi.fn(), confirmPantry: vi.fn(), addManual: vi.fn(),
 }));
+// The pick list's reads and the build card are their own specs (tests/shopping/pick-list.test.tsx,
+// components/shopping/build/BuildFlow.test.tsx); here they answer nothing.
+vi.mock("@/lib/foods/eligible-client", () => ({ loadEligibleLocalFoodIds: () => Promise.reject(new Error("offline")) }));
+vi.mock("@/lib/foods/taste-client", () => ({ loadTaste: async () => ({ status: "unavailable" }) }));
+vi.mock("@/components/MyFoods.favorites", () => ({
+  useFoodFavorites: () => ({ isStarred: () => false, toggle: async () => {}, error: null }) }));
+vi.mock("@/components/shopping/BuildListSlot", () => ({ default: () => null }));
 vi.mock("@/lib/shopping-client", () => ({
   listShoppingPeriods: mocks.listPeriods, getShoppingPeriod: mocks.getPeriod,
   createShoppingPeriod: mocks.createPeriod,
@@ -46,8 +53,7 @@ it("lists saved periods outside the current date window and reopens one without 
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
   expect(mocks.listPeriods).toHaveBeenCalledWith();
-  fireEvent.click(screen.getByRole("combobox", { name: "Open shopping list" }));
-  fireEvent.click(screen.getByRole("option", { name: shoppingRange("2026-07-01", "2026-07-07") }));
+  fireEvent.click(screen.getByRole("button", { name: "Older list" }));
   await waitFor(() => expect(mocks.getPeriod).toHaveBeenCalledWith(older.id));
   await waitFor(() => expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("2026-07-01"));
   expect(mocks.preview).not.toHaveBeenCalled();
@@ -64,11 +70,10 @@ it("keeps the latest list selection when an earlier open finishes late", async (
     ? olderLoad : Promise.resolve({ period: current, lines: [] }));
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("combobox", { name: "Open shopping list" }));
-  fireEvent.click(screen.getByRole("option", { name: shoppingRange("2026-07-01", "2026-07-07") }));
+  fireEvent.click(screen.getByRole("button", { name: "Older list" }));
   await waitFor(() => expect(mocks.getPeriod).toHaveBeenCalledWith(older.id));
-  fireEvent.click(screen.getByRole("combobox", { name: "Open shopping list" }));
-  fireEvent.click(screen.getByRole("option", { name: shoppingRange("2026-09-27", "2026-10-03") }));
+  fireEvent.click(screen.getByRole("button", { name: /Open your saved lists/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /^List for 27 Sept? – 3 Oct27/ }));
   await waitFor(() => expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("2026-09-27"));
   await act(async () => { rejectOlder(new Error("Late failed request")); });
   expect(screen.queryByText("Late failed request")).toBeNull();
@@ -144,7 +149,7 @@ it("starts this week's list through addItems when none is selected, then adds ea
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
   expect(screen.getByText(/No saved lists yet/)).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Add items"), { target: { value: "Soap, Rice" } });
+  fireEvent.change(screen.getByLabelText("Add something else"), { target: { value: "Soap, Rice" } });
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
   await waitFor(() => expect(mocks.createPeriod).toHaveBeenCalled());
   await waitFor(() => expect(mocks.addManual).toHaveBeenCalledTimes(2));
@@ -156,6 +161,11 @@ it("starts this week's list through addItems when none is selected, then adds ea
   expect(await screen.findByText("2 items added.")).toBeTruthy();
   expect(screen.queryByText(/No saved lists yet/)).toBeNull();
 });
+/** The planner sits in the closed "More options" disclosure (UI makeover W7 §7.1 item 5). */
+function openPlanner() {
+  const toggle = screen.getByRole("button", { name: /More options/ });
+  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
+}
 afterEach(() => { cleanup(); vi.clearAllMocks(); unbindAccount(); });
 
 it("loads the account period and pantry, then asks the preview API without writing a list", async () => {
@@ -164,6 +174,7 @@ it("loads the account period and pantry, then asks the preview API without writi
   expect(mocks.listPeriods).toHaveBeenCalledOnce();
   expect(mocks.getPeriod).toHaveBeenCalledOnce();
   expect(mocks.listPantry).toHaveBeenCalledOnce();
+  openPlanner();
   fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   await waitFor(() => expect(mocks.preview).toHaveBeenCalledOnce());
   expect(mocks.preview.mock.calls[0][0]).toMatchObject({ draft: expect.objectContaining({
@@ -180,6 +191,7 @@ it("reports an accepted commit honestly when the follow-up refresh fails", async
   window.addEventListener("recipe-plan-accepted", updated);
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
+  openPlanner();
   fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   expect(await screen.findByRole("button", { name: "Accept plan and list" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Accept plan and list" }));
@@ -197,17 +209,19 @@ it("keeps a just-accepted list selected after its first refresh fails", async ()
   mocks.accept.mockResolvedValue({ period: saved, lines: [] });
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
+  openPlanner();
   fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   fireEvent.click(await screen.findByRole("button", { name: "Accept plan and list" }));
   expect(await screen.findByText(/Plan accepted\. The latest shopping list could not refresh yet/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(mocks.getPeriod).toHaveBeenCalledWith(saved.id));
-  expect(screen.getByRole("combobox", { name: "Open shopping list" }).textContent).toContain(shoppingDate("2026-09-27"));
+  expect(screen.getByRole("navigation", { name: "Saved lists" }).textContent).toContain(shoppingDate("2026-09-27"));
 });
 
 it("keeps an unchanged preview open after a tab-return refresh", async () => {
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
+  openPlanner();
   fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   expect(await screen.findByText("Review the list change")).toBeTruthy();
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
@@ -222,6 +236,7 @@ it("ignores a late plan acceptance after the account switches", async () => {
   mocks.accept.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   render(<ShoppingRoot />);
   expect(await screen.findByRole("heading", { name: "Shopping" })).toBeTruthy();
+  openPlanner();
   fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
   fireEvent.click(await screen.findByRole("button", { name: "Accept plan and list" }));
   await waitFor(() => expect(mocks.accept).toHaveBeenCalledOnce());
@@ -230,7 +245,7 @@ it("ignores a late plan acceptance after the account switches", async () => {
   markAccountReady(bindAccount("44444444-4444-4444-8444-444444444444"));
   expect(await screen.findByRole("button", { name: "Start an empty list" })).toBeTruthy();
   await act(async () => { finish({ period: oldPeriod, lines: [] }); });
-  expect(screen.queryByRole("combobox", { name: "Open shopping list" })).toBeNull();
+  expect(screen.queryByText(/List for/)).toBeNull();
   expect(screen.getByRole("button", { name: "Start an empty list" })).toBeTruthy();
   expect(screen.queryByText(/Plan accepted/)).toBeNull();
 });

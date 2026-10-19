@@ -403,6 +403,7 @@ export async function previewShopping(client: SupabaseClient, userId: string,
     .map((line) => line.identity!);
   const preview = planShoppingPeriod({ period, slots: slots.filter((slot) =>
     !eaten.has(`${slot.localDate}:${slot.slotId}`)), kept, candidates: catalog.candidates,
+    ...(input.excludeRecipeIds?.length ? { excludeRecipeIds: input.excludeRecipeIds } : {}),
     basket: input.basket, pins, aggregate: { pantry, existingLines: existing?.lines,
       identityFor }, existingPurchaseWindows: existing?.purchaseWindows });
   const { lines: proposedLines, retained } = preserveEditedLines(existing?.lines ?? [],

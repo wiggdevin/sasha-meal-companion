@@ -1,17 +1,41 @@
 /**
- * Saved-list management on the phone: rename and delete a shopping period (UI makeover W0 stub).
- * The signatures are frozen; both throw until the routes land.
+ * Saved-list management on the phone: rename and delete a shopping period (UI makeover W7,
+ * docs/plans/2026-10-19-ui-makeover.md §7.2). Both go through the period routes with the
+ * commit deadline (`accountFetch`'s budget), on the revision the caller last saw; a repeat with the same `requestId`
+ * after a lost answer is answered as done.
  */
+import { accountFetch, accountHandle, accountJson } from "@/lib/device/account";
+import { ShoppingRequestFailed, ShoppingStaleRevision } from "@/lib/shopping-client";
 import type { ShoppingPeriod } from "@/lib/shopping/types";
 
+function periodPath(id: string): string {
+  return `/api/shopping/periods/${encodeURIComponent(id)}`;
+}
+
+async function send<T>(path: string, method: "PATCH" | "DELETE", value: unknown): Promise<T> {
+  const h = accountHandle();
+  const res = await accountFetch(h, path, { method, cache: "no-store",
+    headers: { "content-type": "application/json" }, body: JSON.stringify(value) },
+  { budget: "commit" });
+  if (!res.ok) {
+    if (res.status === 409) throw new ShoppingStaleRevision();
+    throw new ShoppingRequestFailed(res.status === 404 ? "This list is gone. Refresh your lists."
+      : `That didn't save (${res.status}). Try again.`, res.status);
+  }
+  return accountJson<T>(h, res);
+}
+
 /** Renames a list (`null` clears its title), on the revision the caller last saw. */
-export async function renameShoppingPeriod(_id: string, _title: string | null,
-  _expectedRevision: number, _requestId: string): Promise<ShoppingPeriod> {
-  throw new Error("not_implemented");
+export async function renameShoppingPeriod(id: string, title: string | null,
+  expectedRevision: number, requestId: string): Promise<ShoppingPeriod> {
+  const trimmed = title === null ? null : title.trim() || null;
+  const answer = await send<{ period: ShoppingPeriod }>(periodPath(id), "PATCH",
+    { expectedRevision, requestId, patch: { title: trimmed } });
+  return answer.period;
 }
 
 /** Deletes a list, on the revision the caller last saw. */
-export async function deleteShoppingPeriod(_id: string, _expectedRevision: number,
-  _requestId: string): Promise<void> {
-  throw new Error("not_implemented");
+export async function deleteShoppingPeriod(id: string, expectedRevision: number,
+  requestId: string): Promise<void> {
+  await send<{ deleted: true }>(periodPath(id), "DELETE", { expectedRevision, requestId });
 }

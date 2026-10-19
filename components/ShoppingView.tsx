@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import Disclosure from "@/components/ui/Disclosure";
 import ShoppingControls from "@/components/ShoppingControls";
 import BuildListSlot from "@/components/shopping/BuildListSlot";
+import PickList from "@/components/shopping/PickList";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
 import ShoppingList from "@/components/ShoppingList";
 import ShoppingPreview, { type ShoppingPreviewData } from "@/components/ShoppingPreview";
@@ -53,15 +54,13 @@ function reveal(element: HTMLElement | null) {
 
 export default function ShoppingView({ period, lines, pantry = [], initialDraft, actions,
   purchaseWindows = [], invalidateRevision = 0, onDraftChange,
-  storeNotes = "", onStoreNotesChange, favorites = [], switcher, emptyList, planNotice,
+  storeNotes = "", onStoreNotesChange, switcher, emptyList, planNotice,
   onPantryPhoto }: {
   period: ShoppingPeriod | null; lines: ShoppingLine[]; pantry?: PantryItem[]; initialDraft: ShoppingDraft;
   purchaseWindows?: ShoppingPurchaseWindow[];
   actions: ShoppingViewActions; invalidateRevision?: number;
   onDraftChange?: (draft: ShoppingDraft) => void;
   storeNotes?: string; onStoreNotesChange?: (value: string) => void;
-  /** Favorites names, for one-tap adds. */
-  favorites?: string[];
   switcher?: ReactNode;
   emptyList?: ReactNode;
   /** Shown first in the planner: the food-rule review that a plan needs before it can preview. */
@@ -127,11 +126,11 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
   const planLines = lines.filter((line) => line.origin === "plan");
   const windowed = monthly && purchaseWindows.length > 0;
   return <div ref={topRef} className="flex flex-col gap-4" aria-label="Shopping">
+    <h1 className="m-0 text-xl font-semibold">Shopping</h1>
     <BuildListSlot periodId={period?.id ?? null} />
-    <header><h1 className="m-0 text-xl font-semibold">Shopping</h1>
-      <p className="ground-muted mb-0 text-sm">Your list for the store, filled from your meal plan or by hand.</p></header>
-    <ShoppingList title={period ? dateRange(period) : "This week"} lines={lines} favorites={favorites}
-      switcher={switcher} empty={emptyList} showChecks={!windowed}
+    {switcher}
+    <ShoppingList title={period ? dateRange(period) : "This week"} lines={lines}
+      empty={emptyList} showChecks={!windowed}
       weekChecked={(line) => currentWindowChecked(line.id, purchaseWindows, today)}
       selectedKeys={(line) => line.identity ? selectedKeys.has(identityKey(line.identity)) : false}
       onSelectedChange={(line, selected) => {
@@ -141,7 +140,6 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
           : current.filter((item) => identityKey(item) !== key)); setPreview(null);
       }}
       actions={{
-        addItems: async (names) => { await actions.addItems(names); setPreview(null); },
         setChecked: (line, checked) => actions.patchLine(line, { checked }),
         removeLine: async (line) => { await actions.removeLine(line); setPreview(null); },
         patchLine: async (line, patch) => { await actions.patchLine(line, patch); setPreview(null); },
@@ -170,13 +168,18 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
     {monthly && period && <p className="ground-muted m-0 text-sm">{windowed
       ? "Tick plan items off week by week above; the list covers the full period."
       : "Buy amounts and ticks cover the whole month. Week-by-week amounts aren't ready yet."}</p>}
-    <Disclosure title={planLines.length ? "Re-plan meals and update this list" : "Plan meals to fill this list"}
-      count={planLines.length ? `${planLines.length} from your plan` : undefined}
-      defaultOpen={lines.length === 0}>
+    <section className="shell" aria-label="Pick from your foods"><div className="surface flex flex-col gap-3 p-4">
+      <h2 className="m-0 text-lg font-semibold">Pick from your foods</h2>
+      <PickList lines={lines}
+        onAdd={async (names) => { await actions.addItems(names); setPreview(null); }}
+        onRemove={async (line) => { await actions.removeLine(line); setPreview(null); }} />
+    </div></section>
+    <Disclosure title="More options"
+      count={planLines.length ? `${planLines.length} from your plan` : undefined}>
       <div className="flex flex-col gap-4">
         {planNotice}
-        <p className="ground-muted m-0 text-sm">The planner picks recipes for the meals you choose, adds up what they need,
-          and leaves out what you already have.</p>
+        <p className="ground-muted m-0 text-sm">Plan meals for a period: the planner picks recipes, adds up what they need,
+          and leaves out what you already have. Nearby store search is in Have AI build my list.</p>
         <ShoppingControls storeNotes={storeNotes} onStoreNotesChange={onStoreNotesChange}
           draft={draft} onChange={(next) => { onDraftChange?.(next); setDraft(next); setPreview(null); }}
           onPreview={() => void prepare()} busy={busy} />
@@ -198,8 +201,9 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
         }} />}
       {error && <Notice tone="error" title={error} />}
     </div>
-    {pantry.length > 0 && <Disclosure title="Have already" count={pantry.length}>
-      <ul className="m-0 flex list-none flex-col p-0 text-sm">{pantry.map((item) => <li key={item.id}
+    <Disclosure title="Have already" count={pantry.length || undefined}>
+      {pantry.length === 0 && <p className="ground-muted m-0 text-sm">Nothing in your pantry yet.</p>}
+      {pantry.length > 0 && <ul className="m-0 flex list-none flex-col p-0 text-sm">{pantry.map((item) => <li key={item.id}
         className="flex min-h-11 items-center justify-between gap-2">
         <span className="flex min-w-0 flex-col gap-1 py-1">
           <span>{item.name} · {item.confirmedGrams === null ? "quantity not confirmed" : `${item.confirmedGrams} g`}</span>
@@ -208,15 +212,13 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
           disabled={removing.has(item.id)} aria-busy={removing.has(item.id) || undefined}
           onClick={() => void removePantry(item)}
           className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted"><X size={16} aria-hidden="true" /></button>}
-      </li>)}</ul>
+      </li>)}</ul>}
       {pantryError && <Notice tone="error" title={pantryError} />}
-    </Disclosure>}
-    {/* One instance regardless of pantry.length, which the capture flow itself changes (via
-        onPantryPhoto -> the caller's setPantry) the moment a confirm lands -- mounting it inside
-        a `pantry.length > 0` branch would unmount and remount it on exactly that transition,
-        losing the "done" summary it was about to show (verified). */}
-    {onPantryPhoto && <PantryPhotoCapture onConfirmed={onPantryPhoto} />}
-    {planLines.length > 0 && <p className="ground-muted m-0 text-sm">Prices aren&apos;t available yet, so the list has no total. A budget guides the plan; it isn&apos;t a checkout price.</p>}
+      {/* The disclosure body stays mounted while closed, so the capture keeps its state across
+          the confirm that changes pantry.length (via onPantryPhoto -> the caller's setPantry). */}
+      {onPantryPhoto && <PantryPhotoCapture onConfirmed={onPantryPhoto} />}
+    </Disclosure>
+    <p className="ground-muted m-0 text-sm">Store prices aren&apos;t available yet.</p>
     <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
   </div>;
 }
