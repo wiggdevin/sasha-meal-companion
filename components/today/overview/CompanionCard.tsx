@@ -87,19 +87,24 @@ export default function CompanionCard({ data, mascot, active, onHide, preview }:
       water: data.water ? { cups: data.water.cups, goal: data.water.goal } : undefined }, hour, data.when, cheer, mascot)
     : { mood: "content", vitality: null, line: `${name} is here with you.` };
   // Folding the row (or leaving the face) puts the pond away: it opens on the stage again.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!active && !preview) setPond(false);
+  }, [active, preview]);
   const shownPond = pond && open && targets !== null;
   const toggle = () => { setOpen((was) => !was); setPond(false); };
 
   return <CardFrame size="sm" as="section" aria-label={name}>
     <button type="button" className={`tap ${styles.row}`} aria-expanded={open}
-      aria-controls={`${id}-panel`} aria-label={`${name}: ${MOOD_WORD[pet.mood]}. ${open ? "Close" : "Open"}`}
+      aria-controls={open ? `${id}-panel` : undefined} aria-describedby={`${id}-line`}
+      aria-label={`${name}: ${MOOD_WORD[pet.mood]}. ${open ? "Close" : "Open"}`}
       onClick={toggle}>
       <span className={styles.figure} data-mood={pet.mood}>
         <SproutFigure mascot={mascot} mood={pet.mood} size={40} breathe={false} shadow={false} />
       </span>
       <span className={styles.words}>
         <span className={`text-body font-semibold text-charcoal ${styles.name}`}>{name}</span>
-        <span className={`text-caption text-muted ${styles.line}`}>{pet.line}</span>
+        <span id={`${id}-line`} className={`text-caption text-muted ${styles.line}`}>{pet.line}</span>
       </span>
       {care.shop && <span className={`text-caption ${styles.seeds}`} data-testid="companion-seeds">
         {`Seeds ${care.shop.state.balance.toLocaleString("en-US")}`}

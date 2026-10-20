@@ -14,10 +14,9 @@ import Card from "./Card";
 import SettingsSection from "./Section";
 import styles from "./CompanionSection.module.css";
 import { CAPTION } from "./settings-styles";
-import { useSettingsWrite } from "./use-settings-write";
+import { SETTINGS_WRITE_FAILED, useSettingsWrite } from "./use-settings-write";
 
-type Choice = { kind: "choose"; mascot: MascotKey; seq: number; h: AccountHandle | null }
-  | { kind: "show"; mascot: MascotKey; shown: boolean; h: AccountHandle | null };
+type Choice = { mascot: MascotKey; seq: number; h: AccountHandle | null };
 
 /**
  * Settings › Your companion (owner, 2026-10-07: "Choose a mascot"; CONTRACT MASCOT #8). The picker
@@ -38,7 +37,6 @@ export default function CompanionSection() {
   const latest = useRef(0);
   const hidden = useHiddenCompanions();
   const { feedback, write } = useSettingsWrite((choice: Choice) => {
-    if (choice.kind === "show") return setCompanionShown(choice.mascot, choice.shown, { h: choice.h });
     const { mascot, seq, h } = choice;
     return enqueueCompanionWrite(async () => {
       try {
@@ -57,11 +55,15 @@ export default function CompanionSection() {
   const choose = (mascot: MascotKey) => {
     const seq = ++latest.current;
     setPending(mascot);
-    write({ kind: "choose", mascot, seq, h: currentAccountOrNull() });
+    write({ mascot, seq, h: currentAccountOrNull() });
   };
   const selected = pending ?? stored;
   const name = MASCOTS[selected].name;
   const shown = !hidden.includes(selected);
+  // Show/Hide changes the phone at the tap (so a second tap reads the new state) and waits its turn
+  // on the companion write queue behind any choice still being saved.
+  const toggleShown = () => void feedback.run(() => setCompanionShown(selected, !shown),
+    { kind: "commit", failureMessage: SETTINGS_WRITE_FAILED });
   return <SettingsSection title="Your companion">
     <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />
     <Card feedback={feedback.phase}>
@@ -72,7 +74,7 @@ export default function CompanionSection() {
       <div className={styles.showRow}>
         <span className="text-body text-charcoal">{`Show ${name} on Today`}</span>
         <Button variant="secondary" size="sm" role="switch" aria-checked={shown} aria-label={`Show ${name} on Today`}
-          className="shrink-0" onClick={() => write({ kind: "show", mascot: selected, shown: !shown, h: currentAccountOrNull() })}>
+          className="shrink-0" onClick={toggleShown}>
           {shown ? "On" : "Off"}
         </Button>
       </div>

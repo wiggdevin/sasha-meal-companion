@@ -120,8 +120,10 @@ export default function CareLayer({ active, notesAt = "top", care: given, modalA
   }, [open]);
   // The well folded or moved off today: whatever was open leaves.
   useEffect(() => {
+    // The exits never finish once this layer unmounts: clear their flags too, so the modal lets go
+    // of the rest of the page (nothing stays inert).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!active) { setShopOpen(false); setAward(null); }
+    if (!active) { setShopOpen(false); setAward(null); setShopLeaving(false); setAwardLeaving(false); }
   }, [active]);
 
   if (!active) return null;

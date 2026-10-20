@@ -46,10 +46,16 @@ describe("the phone's side of the column", () => {
     expect(settingsProfileFromRow({}).companionsHidden).toBeUndefined();
   });
 
-  it("omits the field unless the write names it, and never sends null", () => {
+  it("never sends the list from a whole-profile save: a stale copy would undo another phone's choice", () => {
     expect(settingsProfileToRow({} as never)).not.toHaveProperty("companions_hidden");
-    expect(settingsProfileToRow({ companionsHidden: [] } as never).companions_hidden).toEqual([]);
-    expect(settingsProfileToRow({ companionsHidden: ["peapod"] } as never).companions_hidden).toEqual(["peapod"]);
+    expect(settingsProfileToRow({ companionsHidden: [] } as never)).not.toHaveProperty("companions_hidden");
+    expect(settingsProfileToRow({ companionsHidden: ["peapod"] } as never)).not.toHaveProperty("companions_hidden");
+  });
+
+  it("keeps a key as the database counts it: 40 characters, not 40 UTF-16 units", () => {
+    const wide = "🌱".repeat(21);
+    const long = "🌱".repeat(41);
+    expect(settingsProfileFromRow({ companions_hidden: [wide, long] }).companionsHidden).toEqual([wide]);
   });
 });
 

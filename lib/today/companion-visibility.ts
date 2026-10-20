@@ -1,11 +1,12 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { syncProfileSettings } from "@/lib/coach/apply-profile";
 import { assertCurrent, currentAccountOrNull, type AccountHandle } from "@/lib/device/account";
-import { companionKeysOf, storedCompanionKeysOf, type MascotKey } from "@/lib/profile/mascot";
+import { COMPANIONS_HIDDEN_CAP, companionKeysOf, storedCompanionKeysOf, type MascotKey } from "@/lib/profile/mascot";
 import { loadStore, saveStoreFor } from "@/lib/store";
 import { SYNCED_EVENT } from "@/lib/sync/client";
+import { announceQueued, mutateUserSettings, USER_SETTINGS_KEY } from "@/lib/sync/outbox";
+import { opKind, SETTINGS_ENTITY } from "@/lib/sync/settings-intents";
 
 /**
  * Which companions the account shows on Today (UI makeover W3, docs/plans/2026-10-19-ui-makeover.md
@@ -70,27 +71,57 @@ function saveHidden(h: AccountHandle, change: (hidden: string[]) => string[]): v
   window.dispatchEvent(new Event(COMPANION_VISIBILITY_EVENT));
 }
 
+/** Thrown when hiding would pass the database's cap of 8 hidden keys: the hide is refused, never
+ *  silently dropped. */
+export class CompanionsHiddenFull extends Error {
+  constructor() { super("companions_hidden_full"); this.name = "CompanionsHiddenFull"; }
+}
+
+/**
+ * The one writer of `companions_hidden`: this key's change laid onto the account's mirrored row,
+ * every other key (a newer companion this phone does not know included) kept. The settings intent
+ * records it as a set delta, so a replay after another phone's change moves only this key. Tells
+ * the sync loop there is something to send.
+ */
+export async function writeCompanionShown(h: AccountHandle, key: MascotKey, shown: boolean): Promise<void> {
+  await mutateUserSettings(h, (row) => {
+    const rev = typeof row.rev === "number" ? row.rev : null;
+    const { rev: _rev, user_id: _userId, ...stored } = row;
+    void _rev; void _userId;
+    const next = withCompanionShown(storedCompanionKeysOf(row.companions_hidden), key, shown);
+    if (next.length > COMPANIONS_HIDDEN_CAP) throw new CompanionsHiddenFull();
+    const payload = { ...stored, companions_hidden: next };
+    return {
+      row: { ...row, ...payload },
+      op: { op_id: crypto.randomUUID(), entity: SETTINGS_ENTITY, entity_id: USER_SETTINGS_KEY,
+        kind: opKind(rev), base_rev: rev, payload, client_ts: new Date().toISOString() },
+      result: undefined,
+    };
+  });
+  announceQueued();
+}
+
 /**
  * Shows or hides one companion for the signed-in account. The phone changes at once; the write is
- * queued behind any other companion write and sent as the one `companionsHidden` field. If it fails,
- * only this key goes back (a later tap on another companion stands), and the error is thrown for
- * the caller's feedback. A write is bound to the account signed in at the tap: after a switch it is
- * neither sent nor rolled back into the next account.
+ * queued behind any other companion write and applies only this key, on the mirrored row as it is
+ * when its turn comes (a pull in between is kept). If it fails, only this key goes back (a later
+ * tap on another companion stands), and the error is thrown for the caller's feedback. A write is
+ * bound to the account signed in at the tap: after a switch it is neither sent nor rolled back into
+ * the next account.
  */
 export async function setCompanionShown(key: MascotKey, shown: boolean, deps: {
-  h?: AccountHandle | null; sync?: typeof syncProfileSettings;
+  h?: AccountHandle | null; write?: typeof writeCompanionShown;
 } = {}): Promise<void> {
   const h = deps.h === undefined ? currentAccountOrNull() : deps.h;
-  const sync = deps.sync ?? syncProfileSettings;
+  const write = deps.write ?? writeCompanionShown;
   if (!h) throw new Error("No account is signed in.");
   assertCurrent(h);
-  const before = !hiddenCompanions(loadStore().settings).includes(key);
+  const before = !storedCompanionKeysOf(loadStore().settings.companionsHidden).includes(key);
   saveHidden(h, (hidden) => withCompanionShown(hidden, key, shown));
   await enqueueCompanionWrite(async () => {
     try {
       assertCurrent(h);
-      const settings = loadStore().settings;
-      await sync({ ...settings, companionsHidden: storedCompanionKeysOf(settings.companionsHidden) }, h, ["companionsHidden"]);
+      await write(h, key, shown);
     } catch (error) {
       try {
         assertCurrent(h);
@@ -98,5 +129,7 @@ export async function setCompanionShown(key: MascotKey, shown: boolean, deps: {
       } catch { /* another account is signed in now: nothing of this one is touched */ }
       throw error;
     }
+    // A pull that landed while this waited its turn may have put the old list back on the phone.
+    try { assertCurrent(h); saveHidden(h, (hidden) => withCompanionShown(hidden, key, shown)); } catch { /* switched */ }
   });
 }

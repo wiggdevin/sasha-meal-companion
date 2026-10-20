@@ -58,7 +58,7 @@ export type ProfileSettings = Omit<Pick<Settings,
   /** Omitted (or explicitly undefined): keep the stored mascot. There is no "clear" value --
    *  the column itself never clears to null either, a choice always replaces the prior one. */
   mascot?: MascotKey;
-  /** Omitted: keep the stored list. `[]`: show every companion. Unknown keys are kept as stored. */
+  /** Read from the row only (unknown keys kept as stored); written by lib/today/companion-visibility.ts. */
   companionsHidden?: string[];
   };
 
@@ -192,8 +192,8 @@ export function settingsProfileFromRow(row: UserSettingsProfileRow): ProfileSett
     // leniently -- an older client or a value the server has not learned yet falls back to
     // Sprout rather than reading as an error.
     mascot: mascotKeyOf(row.mascot),
-    // NOT NULL on the server (default '{}'); a key this phone does not know is dropped, never
-    // turned into Sprout. A row from before the column reads as nothing hidden.
+    // NOT NULL on the server (default '{}'); a key this phone does not know is kept as stored
+    // (never turned into Sprout). A row from before the column reads as nothing hidden.
     ...(owns(row, "companions_hidden") ? { companionsHidden: storedCompanionKeysOf(row.companions_hidden) } : {}),
   };
 }
@@ -228,9 +228,9 @@ export function settingsProfileToRow(settings: ProfileSettings): UserSettingsPro
     // Omitted or explicitly undefined: keep the stored mascot (the column never clears to null
     // either way, so there is no separate "clear" case to send, unlike cuisines/countryCode).
     ...(settings.mascot !== undefined ? { mascot: mascotKeyOf(settings.mascot) } : {}),
-    // Omitted: keep the stored list. Never null (the server refuses it); unknown keys never sent.
-    ...(settings.companionsHidden !== undefined
-      ? { companions_hidden: storedCompanionKeysOf(settings.companionsHidden) } : {}),
+    // `companions_hidden` is never sent from here: a whole-profile save (onboarding, Edit profile)
+    // would carry a stale list over another phone's choice. Its one writer is
+    // lib/today/companion-visibility.ts, one key at a time.
   };
 }
 

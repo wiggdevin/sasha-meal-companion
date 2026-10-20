@@ -44,10 +44,14 @@ export function companionKeysOf(value: unknown): MascotKey[] {
   return Array.isArray(value) ? [...new Set(value.filter(isMascotKey))] : [];
 }
 
-/** A hidden-companions list as stored, every key the database accepts kept (1–40 characters, once,
- *  in order, at most 8), so a phone that does not know a newer companion never drops it on a write. */
+/** The database's cap on the hidden-companions list (`companions_hidden_valid`). */
+export const COMPANIONS_HIDDEN_CAP = 8;
+
+/** A hidden-companions list as stored, every key the database accepts kept (1–40 characters counted
+ *  as the database counts them, once, in order, at most 8), so a phone that does not know a newer
+ *  companion never drops it on a write. */
 export function storedCompanionKeysOf(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  const keys = value.filter((k): k is string => typeof k === "string" && k.length >= 1 && k.length <= 40);
-  return [...new Set(keys)].slice(0, 8);
+  const keys = value.filter((k): k is string => typeof k === "string" && [...k].length >= 1 && [...k].length <= 40);
+  return [...new Set(keys)].slice(0, COMPANIONS_HIDDEN_CAP);
 }
