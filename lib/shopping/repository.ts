@@ -76,7 +76,10 @@ export type PantryDraft = Omit<PantryItem, "id" | "userId" | "confirmedAt" | "re
 export async function listPeriods(client: SupabaseClient, userId: string,
   start?: string, end?: string): Promise<ShoppingPeriod[]> {
   let query = client.from("shopping_periods").select("*").eq("user_id", userId)
-    .is("deleted_at", null).order("start_date", { ascending: false }).limit(52);
+    .is("deleted_at", null).order("start_date", { ascending: false })
+    // The same order as lib/shopping/current.ts `compareLists`, so the 52 kept are the same lists.
+    .order("updated_at", { ascending: false }).limit(52);
+  // A range keeps the lists that overlap it: ending on or after its start, starting on or before its end.
   if (start) query = query.gte("end_date", start);
   if (end) query = query.lte("start_date", end);
   const result = await query;
@@ -188,7 +191,13 @@ export async function patchPeriod(client: SupabaseClient, userId: string, id: st
     .eq("id", id).eq("user_id", userId).maybeSingle();
   if (current.error) issue(current.error);
   if (!current.data || current.data.deleted_at) absent();
-  if (current.data.last_request_id === requestId) return period(current.data as Db);
+  // A repeat of a request whose answer was lost: the row still carries what it asked for. The rev
+  // may have moved on since (lines added); a reused id with other values is stale, never a success.
+  if (current.data.last_request_id === requestId) {
+    const stored = period(current.data as Db) as unknown as Record<string, unknown>;
+    const asked = Object.entries(patch).filter(([, value]) => value !== undefined);
+    if (asked.every(([key, value]) => canonical(stored[key]) === canonical(value))) return stored as unknown as ShoppingPeriod;
+  }
   stale();
 }
 
@@ -269,6 +278,8 @@ export async function patchLine(client: SupabaseClient, userId: string, periodId
     if (value !== undefined) p[fields[key]] = value;
   }
   if (remove) p.deleted_at = new Date().toISOString();
+  // A deleted list's lines are gone with it: no edit or removal, as `createLine` refuses a new one.
+  await livePeriod(client, userId, periodId);
   const result = await client.from("shopping_lines").update(p)
     .eq("id", id).eq("user_id", userId).eq("period_id", periodId)
     .eq("rev", expectedRevision).is("deleted_at", null).select("*").maybeSingle();
@@ -278,8 +289,21 @@ export async function patchLine(client: SupabaseClient, userId: string, periodId
     .eq("id", id).eq("user_id", userId).eq("period_id", periodId).maybeSingle();
   if (current.error) issue(current.error);
   if (!current.data) absent();
-  if (current.data.last_request_id === requestId) return line(current.data as Db);
+  if (current.data.deleted_at) {
+    // Only the removal itself replays on a removed line; any other edit of it is not found.
+    if (remove && current.data.last_request_id === requestId) return line(current.data as Db);
+    absent();
+  }
+  if (!remove && current.data.last_request_id === requestId) return line(current.data as Db);
   stale();
+}
+
+/** Throws 404 unless the list exists for this account and is not deleted. */
+async function livePeriod(client: SupabaseClient, userId: string, periodId: string): Promise<void> {
+  const result = await client.from("shopping_periods").select("id")
+    .eq("id", periodId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
+  if (result.error) issue(result.error);
+  if (!result.data) absent();
 }
 
 export async function listPantry(client: SupabaseClient, userId: string): Promise<PantryItem[]> {

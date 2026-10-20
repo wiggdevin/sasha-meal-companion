@@ -4,14 +4,14 @@
  */
 import { describe, expect, it } from "vitest";
 import { readTasteHistory } from "@/lib/server/taste-history";
-import { A, REF, TODAY, tasteDb, tasteTables } from "@/tests/helpers/taste-fixture";
+import { A, LIST_A, REF, TODAY, tasteDb, tasteTables } from "@/tests/helpers/taste-fixture";
 import type { Row } from "@/tests/helpers/occasion-fake-db";
 
 function tables(zone: string | null, updatedAt: string): Record<string, Row[]> {
   return {
     ...tasteTables(),
     user_settings: zone ? [{ user_id: A, time_zone: zone }] : [],
-    shopping_lines: [{ user_id: A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
+    shopping_lines: [{ user_id: A, period_id: LIST_A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
       deleted_at: null, rev: 1, updated_at: updatedAt }],
   };
 }

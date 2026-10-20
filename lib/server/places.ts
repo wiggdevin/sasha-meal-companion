@@ -8,14 +8,19 @@ import "server-only";
  * - Every call names the app and its production address in `User-Agent` (Nominatim's usage
  *   policy). Without `VERCEL_PROJECT_PRODUCTION_URL` there is no honest User-Agent, so nothing is
  *   sent at all: 503 `places_unavailable`, never an anonymous call.
- * - A geocode always names its country (ISO 3166 alpha-2): free text goes as `q` +
- *   `countrycodes`, a postal code as the structured `postalcode` + `country`. No country, no call —
+ * - A geocode always names its country (ISO 3166 alpha-2) as `countrycodes`, the filter that takes
+ *   a code: free text goes as `q`, a postal code as the structured `postalcode` (the structured
+ *   `country` field matches a country's name, so "GB" alone could miss). No country, no call —
  *   the map never centres on a guess.
  * - The point comes back rounded to 2 decimals (about 1 km), and the store search rounds the point
  *   it is given the same way before it leaves.
- * - One global `places:nominatim` limit of 1 request a second (Nominatim's policy is per
- *   application, not per user), and one global `places:overpass` limit of 2 a second (Overpass
- *   gives each address a few slots), each waited out once, then 503.
+ * - Nominatim's policy is an absolute maximum of 1 request a second for the whole application. A
+ *   fixed window alone lets two calls through milliseconds apart across its boundary, so the global
+ *   `places:nominatim` limit is 1 per 2-second window AND a call may only go out in the first
+ *   0.9 s of its window: any two calls are then at least 1.1 s apart. A refusal, or a slot won
+ *   too late in its window, waits for the next window once, then 503. One global
+ *   `places:overpass` limit of 2 a second (Overpass gives each address a few slots) is waited
+ *   out once the same way.
  * - Budgets: 6 s for the geocoder; 9 s for the store search including its one wider retry, under
  *   the phone's 12 s `places` deadline.
  * - Logs carry the upstream status only, never the query, the area or a coordinate.
@@ -60,6 +65,8 @@ export type PlacesDeps = {
   overpassMs?: number;
   /** Tests: the wait before the one retry of a refused global limit. */
   sleep?: (ms: number) => Promise<void>;
+  /** Tests: the clock the Nominatim send window reads. */
+  now?: () => number;
   /** The answer cache; the shared one by default, none when a test brings its own fetch. */
   cache?: PlacesCache | null;
 };
@@ -123,11 +130,10 @@ export function geocodeUrl(q: string, country: string): string {
   const params = new URLSearchParams({ format: "jsonv2", limit: "1", addressdetails: "0" });
   if (isPostalCode(q, country)) {
     params.set("postalcode", q.trim());
-    params.set("country", country);
   } else {
     params.set("q", q.trim());
-    params.set("countrycodes", country.toLowerCase());
   }
+  params.set("countrycodes", country.toLowerCase());
   return `${NOMINATIM_ORIGIN}/search?${params.toString()}`;
 }
 
@@ -146,18 +152,31 @@ function shortLabel(displayName: string | undefined, fallback: string): string {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** Nominatim's window (2 s) and the part of it a call may go out in (see the header). */
+export const NOMINATIM_WINDOW_S = 2;
+export const NOMINATIM_SEND_BEFORE_MS = 900;
+
 /** A global upstream limit for the whole app, waited out once, then 503. */
-async function appSlot(service: "nominatim" | "overpass", limit: number,
-  sleep: (ms: number) => Promise<void>): Promise<void> {
+async function appSlot(service: "nominatim" | "overpass", sleep: (ms: number) => Promise<void>,
+  now: () => number = Date.now): Promise<void> {
+  const windowMs = service === "nominatim" ? NOMINATIM_WINDOW_S * 1_000 : 1_000;
+  const untilNext = () => windowMs - (now() % windowMs);
   for (let attempt = 0; ; attempt += 1) {
     try {
       // Literal keys, so the limiter call-site review can read them.
-      if (service === "nominatim") await enforceRateLimit("places:nominatim", limit, 1);
-      else await enforceRateLimit("places:overpass", limit, 1);
-      return;
+      if (service === "nominatim") await enforceRateLimit("places:nominatim", 1, NOMINATIM_WINDOW_S);
+      else await enforceRateLimit("places:overpass", 2, 1);
+      // A Nominatim slot won late in its window is not used: the next window's call could follow it
+      // within milliseconds. Nobody else holds this window's slot, so waiting for the next is safe.
+      if (service === "overpass" || windowMs - untilNext() < NOMINATIM_SEND_BEFORE_MS) return;
+      if (attempt > 0) {
+        console.warn(`[places] ${service} late in its window (app limit)`);
+        throw new PlacesUnavailable();
+      }
+      await sleep(untilNext());
     } catch (error) {
       if (error instanceof HttpError && error.status === 429 && attempt === 0) {
-        await sleep(1_000);
+        await sleep(untilNext());
         continue;
       }
       if (error instanceof HttpError && error.status === 429) {
@@ -218,7 +237,7 @@ export async function geocodePlace(q: string, country: string, deps: PlacesDeps 
   const cached = cache?.get<GeocodeResult | "none">(cacheKey);
   if (cached === "none") throw notFound();
   if (cached) return cached;
-  await appSlot("nominatim", 1, deps.sleep ?? wait);
+  await appSlot("nominatim", deps.sleep ?? wait, deps.now);
   const budget = deadline(deps.nominatimMs ?? NOMINATIM_BUDGET_MS);
   let body: unknown;
   try {
@@ -245,10 +264,17 @@ export async function geocodePlace(q: string, country: string, deps: PlacesDeps 
   return place;
 }
 
+/**
+ * How many elements Overpass may return. It truncates in object-id order, not by distance, so the
+ * cap is set well above any real 8 km count of named grocery stores: the 25 nearest are then picked
+ * here from the whole set. At about 300 bytes an element, a full answer stays near 120 KB.
+ */
+export const OVERPASS_OUT_MAX = 400;
+
 /** The Overpass QL for named grocery stores within `radius` metres of a point (exported for tests). */
 export function storesQuery(lat: number, lon: number, radius: number): string {
   const shops = GROCERY_SHOPS.join("|");
-  return `[out:json][timeout:8];nwr["shop"~"^(${shops})$"]["name"](around:${radius},${lat},${lon});out center 80;`;
+  return `[out:json][timeout:8];nwr["shop"~"^(${shops})$"]["name"](around:${radius},${lat},${lon});out center ${OVERPASS_OUT_MAX};`;
 }
 
 const OverpassBody = z.object({
@@ -328,7 +354,7 @@ export async function nearbyStores(latIn: number, lonIn: number, deps: PlacesDep
   const budgetMs = deps.overpassMs ?? OVERPASS_BUDGET_MS;
   const startedAt = Date.now();
   const budget = deadline(budgetMs);
-  const ask = async (radius: number) => { await appSlot("overpass", 2, sleep); return storesFrom(await upstream("overpass", fetcher,
+  const ask = async (radius: number) => { await appSlot("overpass", sleep); return storesFrom(await upstream("overpass", fetcher,
     `${OVERPASS_ORIGIN}/api/interpreter`, {
       method: "POST",
       headers: { "user-agent": agent, accept: "application/json",

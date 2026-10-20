@@ -10,7 +10,7 @@ import { H_HALF_LIFE_DAYS, M_HALF_LIFE_DAYS, tasteProfile, type TasteResult } fr
 import { admitHistory } from "@/lib/server/taste-admission";
 import { readTasteHistory } from "@/lib/server/taste-history";
 import {
-  A, FOOD, NOW, REF, TODAY, catRef, day, tasteDb, tastePorts, tasteTables, type FixturePorts,
+  A, FOOD, LIST_A, NOW, REF, TODAY, catRef, day, tasteDb, tastePorts, tasteTables, type FixturePorts,
 } from "@/tests/helpers/taste-fixture";
 import type { Row } from "@/tests/helpers/occasion-fake-db";
 
@@ -89,7 +89,7 @@ function addRow(tables: Record<string, Row[]>, ports: FixturePorts, source: Sour
       { name: KIWI, qty: 100, unit: "g", role: "carb", macros: {}, ...fields }] } } });
   } else if (source === "shopping") {
     const absent = Object.values(fields).every((value) => value === null);
-    tables.shopping_lines.push({ user_id: A, origin: "manual", name: KIWI, deleted_at: null, rev: 1,
+    tables.shopping_lines.push({ user_id: A, period_id: LIST_A, origin: "manual", name: KIWI, deleted_at: null, rev: 1,
       updated_at: `${date}T10:00:00.000Z`, identity: absent ? null : fields });
   } else {
     ports.mixedInputs = [...ports.mixedInputs, { ...fields, gramsPerGram: 0.1 }];

@@ -10,7 +10,7 @@ import { favorableResolver } from "@/lib/server/taste-favor";
 import { favorPorts } from "@/tests/helpers/favor-fakes";
 import { ID_BATCH } from "@/lib/server/date-chunks";
 import {
-  A, B, NOW, REF, TODAY, day, tasteDb, tastePorts, tasteTables, type FixturePorts,
+  A, B, LIST_A, NOW, REF, TODAY, day, tasteDb, tastePorts, tasteTables, type FixturePorts,
 } from "@/tests/helpers/taste-fixture";
 import type { Row } from "@/tests/helpers/occasion-fake-db";
 
@@ -80,7 +80,7 @@ describe("W3 acceptance 1: a fixed history gives exact deduplicated H, Q and M (
 
   it("Q dates a choice by its creation: an edit never revives an old line", async () => {
     // Created 200 days ago (outside the window) and edited today: rev 2, updated_at today.
-    tables.shopping_lines.push({ user_id: A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
+    tables.shopping_lines.push({ user_id: A, period_id: LIST_A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
       deleted_at: null, rev: 2, updated_at: `${TODAY}T09:00:00.000Z` });
     expect(item(await read(), "u:banana")!.q).toBe(1);
   });
@@ -92,8 +92,7 @@ describe("W3 acceptance 1: a fixed history gives exact deduplicated H, Q and M (
   });
 
   it("Q drops the lines of a deleted list (the list is deleted, its lines are not)", async () => {
-    for (const line of tables.shopping_lines) if (line.name === "Bananas") line.period_id = "list-gone";
-    tables.shopping_periods = [{ id: "list-gone", user_id: A, deleted_at: "2026-10-01T00:00:00Z" }];
+    for (const list of tables.shopping_periods) if (list.id === LIST_A) list.deleted_at = "2026-10-01T00:00:00Z";
     expect(item(await read(), "u:banana")?.provenance.choices.shopping_manual ?? 0).toBe(0);
   });
 });

@@ -6,7 +6,9 @@
  * - PATCH `title: null` clears it; a patch that omits `title` keeps it.
  * - DELETE soft-deletes on the revision the caller saw: a repeat with the same request id is done,
  *   a stale revision is 409, a list that is gone or another account's is 404; the body is strict.
- * - GET never lists a deleted list.
+ * - A PATCH repeated with the same request id replays only when the list still holds what it asked.
+ * - GET never lists a deleted list, and keeps the newest of lists starting the same day first.
+ * - A line of a deleted list cannot be edited or removed; only a removal replays on a removed line.
  * - Without recipe access every handler is the pilot 404.
  *
  * The real repository runs against an in-memory `shopping_periods` table; the session comes from a
@@ -28,6 +30,8 @@ vi.mock("@/lib/server/shopping-rule-marks", () => ({
 import { GET as listRoute, POST as createRoute } from "@/app/api/shopping/periods/route";
 import { DELETE as deleteRoute, GET as getRoute, PATCH as patchRoute }
   from "@/app/api/shopping/periods/[id]/route";
+import { DELETE as deleteLineRoute, PATCH as patchLineRoute }
+  from "@/app/api/shopping/periods/[id]/lines/[lineId]/route";
 
 const USER = "00000000-0000-4000-8000-0000000000a1";
 const OTHER = "00000000-0000-4000-8000-0000000000b2";
@@ -42,7 +46,7 @@ function memoryClient(tables: Record<string, Row[]>, inserts: Row[]): SupabaseCl
     const filters: Filter[] = [];
     let op: "select" | "insert" | "update" = "select";
     let payload: Row = {};
-    let order: { column: string; ascending: boolean } | null = null;
+    const orders: { column: string; ascending: boolean }[] = [];
     let limit = Infinity;
     const run = (): { data: Row[] | null; error: { code: string; message: string } | null } => {
       if (op === "insert") {
@@ -61,10 +65,14 @@ function memoryClient(tables: Record<string, Row[]>, inserts: Row[]): SupabaseCl
         for (const row of matched) Object.assign(row, payload);
         return { data: matched.map((row) => ({ ...row })), error: null };
       }
-      const sorted = order ? [...matched].sort((a, b) => {
-        const sign = order!.ascending ? 1 : -1;
-        return String(a[order!.column]).localeCompare(String(b[order!.column])) * sign;
-      }) : matched;
+      const sorted = [...matched].sort((a, b) => {
+        for (const order of orders) {
+          const sign = order.ascending ? 1 : -1;
+          const cmp = String(a[order.column]).localeCompare(String(b[order.column])) * sign;
+          if (cmp) return cmp;
+        }
+        return 0;
+      });
       return { data: sorted.slice(0, limit).map((row) => ({ ...row })), error: null };
     };
     const query: Record<string, unknown> = {
@@ -76,7 +84,7 @@ function memoryClient(tables: Record<string, Row[]>, inserts: Row[]): SupabaseCl
       gte: (column: string, value: string) => { filters.push((row) => String(row[column]) >= value); return query; },
       lte: (column: string, value: string) => { filters.push((row) => String(row[column]) <= value); return query; },
       order: (column: string, options?: { ascending?: boolean }) => {
-        order = { column, ascending: options?.ascending ?? true }; return query;
+        orders.push({ column, ascending: options?.ascending ?? true }); return query;
       },
       limit: (n: number) => { limit = n; return query; },
       maybeSingle: async () => { const r = run(); return { data: r.data?.[0] ?? null, error: r.error }; },
@@ -182,6 +190,63 @@ describe("PATCH /api/shopping/periods/[id] title", () => {
   });
 });
 
+describe("PATCH /api/shopping/periods/[id] replay", () => {
+  function patchWith(id: string, expectedRevision: number, requestId: string, body: Record<string, unknown>) {
+    return patchRoute(json("PATCH", { expectedRevision, requestId, patch: body }, itemUrl(id)), ctx(id));
+  }
+  it("replays a lost answer even after the list moved on, and refuses the id with other values", async () => {
+    const period = await created();
+    const requestId = crypto.randomUUID();
+    expect((await patchWith(period.id, 1, requestId, { title: "Weekly shop" })).status).toBe(200);
+    // Something else moved the list on (an accept, a later edit) before the retry arrived.
+    tables.shopping_periods[0].rev = 5;
+    const retry = await patchWith(period.id, 1, requestId, { title: "Weekly shop" });
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).period).toMatchObject({ title: "Weekly shop" });
+    const reused = await patchWith(period.id, 1, requestId, { title: "Something else" });
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).error).toBe("stale_revision");
+    expect(tables.shopping_periods[0].title).toBe("Weekly shop");
+  });
+});
+
+describe("shopping lines on a deleted list", () => {
+  function addLine(periodId: string, over: Row = {}): Row {
+    const row: Row = { id: crypto.randomUUID(), period_id: periodId, user_id: USER, origin: "manual",
+      name: "Eggs", identity: null, category: "manual", need_grams: null, confirmed_stock_grams: null,
+      buy_grams: null, package_grams: null, purchase_conversion_status: "unknown", sources: [],
+      pinned: false, checked: false, note: null, rev: 1, last_request_id: null, deleted_at: null, ...over };
+    tables.shopping_lines.push(row);
+    return row;
+  }
+  const lineUrl = (periodId: string, lineId: string) => `${itemUrl(periodId)}/lines/${lineId}`;
+  const lineCtx = (id: string, lineId: string) => ({ params: Promise.resolve({ id, lineId }) });
+  const editLine = (periodId: string, lineId: string, requestId = crypto.randomUUID()) => patchLineRoute(
+    json("PATCH", { expectedRevision: 1, requestId, patch: { checked: true } }, lineUrl(periodId, lineId)),
+    lineCtx(periodId, lineId));
+  const dropLine = (periodId: string, lineId: string, requestId = crypto.randomUUID()) => deleteLineRoute(
+    json("DELETE", { expectedRevision: 1, requestId }, lineUrl(periodId, lineId)), lineCtx(periodId, lineId));
+
+  it("refuses to edit or remove a line once its list is deleted (404, untouched)", async () => {
+    const period = await created();
+    const row = addLine(period.id);
+    expect((await remove(period.id, 1, crypto.randomUUID())).status).toBe(200);
+    expect((await editLine(period.id, String(row.id))).status).toBe(404);
+    expect((await dropLine(period.id, String(row.id))).status).toBe(404);
+    expect(row).toMatchObject({ checked: false, deleted_at: null, rev: 1 });
+  });
+
+  it("replays only the removal itself on a removed line; an edit reusing its id is 404", async () => {
+    const period = await created();
+    const row = addLine(period.id);
+    const requestId = crypto.randomUUID();
+    expect((await dropLine(period.id, String(row.id), requestId)).status).toBe(200);
+    expect((await dropLine(period.id, String(row.id), requestId)).status).toBe(200);
+    expect((await editLine(period.id, String(row.id), requestId)).status).toBe(404);
+    expect(row.checked).toBe(false);
+  });
+});
+
 describe("DELETE /api/shopping/periods/[id]", () => {
   it("soft-deletes on the revision the caller saw, behind the item limiter, no-store", async () => {
     const period = await created();
@@ -258,6 +323,16 @@ describe("GET /api/shopping/periods", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     const { periods } = await response.json() as { periods: { id: string; title: string | null }[] };
     expect(periods.map((period) => [period.id, period.title])).toEqual([[kept.id, "Kept"]]);
+  });
+
+  it("orders lists that start the same day newest-updated first", async () => {
+    const older = await created({ ...draft, title: "Older" });
+    const newer = await created({ ...draft, title: "Newer" });
+    tables.shopping_periods.find((row) => row.id === older.id)!.updated_at = "2026-10-19T08:00:00.000Z";
+    tables.shopping_periods.find((row) => row.id === newer.id)!.updated_at = "2026-10-19T09:00:00.000Z";
+    const { periods } = await (await listRoute(new Request("http://test/api/shopping/periods"))).json() as
+      { periods: { id: string }[] };
+    expect(periods.map((period) => period.id)).toEqual([newer.id, older.id]);
   });
 });
 
