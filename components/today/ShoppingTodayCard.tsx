@@ -14,7 +14,8 @@ import type { RuleMark as RuleMarkValue } from "@/lib/types";
 
 /** What is left to buy on the list that covers `today`, or null when there is nothing to show. */
 export async function openShoppingItems(today: string): Promise<ShoppingLine[]> {
-  const periods = await listShoppingPeriods();
+  // Only the lists that cover today, so later lists can never crowd today's out of the 52 kept.
+  const periods = await listShoppingPeriods(today, today);
   const covering = currentShoppingPeriod(periods, today);
   if (!covering) return [];
   const { lines, purchaseWindows = [] } = await getShoppingPeriod(covering.id);

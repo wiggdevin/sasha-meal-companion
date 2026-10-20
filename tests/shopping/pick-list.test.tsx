@@ -61,6 +61,13 @@ describe("pick sources", () => {
     expect(plan.every((row) => row.onList && row.removable === null)).toBe(true);
   });
 
+  it("offers a starred food that is not Favored, after starred Favorites, and never an Avoid one", () => {
+    const { favorites } = pickSources({ foods, starred: (item) => item.id === "eggs", view: view(["eggs", "rice"]),
+      taste: [], lines: [], starredRows: [{ name: "Oat milk, unsweetened" }, { name: "Peanut butter" }, { name: "Eggs" }, { name: " " }] });
+    expect(favorites.map((row) => [row.name, row.source])).toEqual([
+      ["Eggs", "starred"], ["Oat milk, unsweetened", "starred"], ["Rice", "favorite"]]);
+  });
+
   it("groups by aisle in the store's order", () => {
     const { favorites } = pickSources({ foods, starred: () => false, view: view(["eggs", "rice"]), taste: [], lines: [] });
     // Rice was updated last, so it leads Favorites; by aisle, protein comes before grains.

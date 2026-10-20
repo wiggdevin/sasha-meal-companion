@@ -142,12 +142,13 @@ it("never writes to a second account's list when the account switches part-way (
     }));
     await expect(addToCurrentShoppingList(["eggs"], "2026-10-02", "America/Denver"))
       .rejects.toBeInstanceOf(AccountChanged);
-    expect(calls).toEqual([{ url: "/api/shopping/periods", account: TEST_USER }]);
+    // Only lists that cover today are read (the route's overlap filter), never the newest 52 of all time.
+    expect(calls).toEqual([{ url: "/api/shopping/periods?start=2026-10-02&end=2026-10-02", account: TEST_USER }]);
   });
 
 it("treats a line refused for an account change as an account change, not an item to retry", async () => {
   vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
-    if (url === "/api/shopping/periods" && !init.method)
+    if (url.startsWith("/api/shopping/periods?") && !init.method)
       return new Response(JSON.stringify({ periods: [{ id: "p1", startDate: "2026-10-01",
         endDate: "2026-10-07", revision: 1 }] }), { status: 200 });
     unbindAccount(); bindAccount("other-user");
@@ -160,7 +161,7 @@ it("treats a line refused for an account change as an account change, not an ite
 
 it("marks a failed add as uncertain only when the route gave no answer (W020)", async () => {
   vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
-    if (url === "/api/shopping/periods" && !init.method)
+    if (url.startsWith("/api/shopping/periods?") && !init.method)
       return new Response(JSON.stringify({ periods: [{ id: "p1", startDate: "2026-10-01",
         endDate: "2026-10-07", revision: 1 }] }), { status: 200 });
     const name = (JSON.parse(String(init.body)) as { line: { name: string } }).line.name;

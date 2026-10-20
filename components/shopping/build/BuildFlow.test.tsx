@@ -11,6 +11,7 @@ const fx = vi.hoisted(() => ({
   rename: vi.fn(),
   addLine: vi.fn(),
   preview: vi.fn(),
+  create: vi.fn(),
 }));
 const account = { userId: "u1", epoch: 1 };
 
@@ -23,7 +24,9 @@ vi.mock("@/lib/device/account", () => ({
 vi.mock("@/lib/store", () => ({ loadStore: () => ({ foods: fx.foods, settings: fx.settings }) }));
 vi.mock("@/lib/favorites-client", () => ({ listFavorites: async () => [{ kind: "food", id: "r9", name: "Greek yogurt", sort: 1 }] }));
 vi.mock("@/lib/foods/taste-client", () => ({ loadTaste: async () => ({ status: "ok", items: [{ name: "Bananas" }] }) }));
-vi.mock("@/lib/recipes-client", () => ({ listRecipes: async () => [{ id: "rec1", name: "Dal", items: [{ food_ref_id: "ref-lentils" }] }] }));
+vi.mock("@/lib/recipes-client", () => ({ listRecipes: async () => [{ id: "rec1", name: "Dal",
+  items: [{ food_ref_id: "ref-lentils" }, { food_ref_id: "ref-unknown" }, { food_revision_id: 7 }] }] }));
+vi.mock("@/lib/db/catalog-cache", () => ({ getRevision: async (id: number) => id === 7 ? { description: "Cumin" } : undefined }));
 vi.mock("@/lib/sync/idb", () => ({ allRows: async () => [{ id: "m1", name: "Rice bowl", items: [{ name: "Rice" }] }] }));
 vi.mock("@/lib/foods/prefs-client", () => ({ readPrefRefCache: () => ({ lentils: { userRefId: "ref-lentils" } }) }));
 vi.mock("@/lib/foods/eligible-client", () => ({ loadEligibleLocalFoodIds: async () => { throw new Error("offline"); } }));
@@ -34,14 +37,14 @@ vi.mock("@/lib/shopping/build-rank-client", () => ({
 }));
 vi.mock("@/lib/shopping-client", () => ({
   listPantry: async () => [{ name: "Oats" }],
-  getShoppingPeriod: async () => ({ period: null, lines: [{ name: "Milk" }] }),
+  createShoppingPeriod: (...args: unknown[]) => fx.create(...args),
   previewShopping: (...args: unknown[]) => fx.preview(...args),
   acceptShopping: (...args: unknown[]) => fx.accept(...args),
   addManualShoppingLine: (...args: unknown[]) => fx.addLine(...args),
 }));
 vi.mock("@/lib/shopping/list-client", () => ({ renameShoppingPeriod: (...args: unknown[]) => fx.rename(...args) }));
 
-import BuildListCard from "@/components/shopping/BuildListCard";
+import BuildListCard, { listLocale } from "@/components/shopping/BuildListCard";
 
 function food(id: string, name: string, status: Food["status"]): Food {
   return { id, name, role: "protein", unit: "g", perUnit: { protein: 1, carbs: 0, fat: 0 }, status,
@@ -60,11 +63,12 @@ beforeEach(() => {
   fx.accept.mockReset().mockResolvedValue({ period: { id: "period-1", revision: 1 }, lines: [] });
   fx.rename.mockReset().mockResolvedValue({ id: "period-1", revision: 2 });
   fx.addLine.mockReset().mockResolvedValue({});
+  fx.create.mockReset().mockResolvedValue({ id: "period-9", revision: 1 });
 });
 afterEach(cleanup);
 
 async function openFlow() {
-  render(<BuildListCard periodId="period-0" />);
+  render(<BuildListCard />);
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Start" })); });
 }
 const click = async (name: string | RegExp) => {
@@ -73,7 +77,7 @@ const click = async (name: string | RegExp) => {
 
 describe("BuildListCard", () => {
   it("collapsed with Start: one olive card, its title and one line", () => {
-    const { container } = render(<BuildListCard periodId={null} />);
+    const { container } = render(<BuildListCard />);
     expect(screen.getByRole("heading", { name: "Have AI build my list" })).toBeTruthy();
     expect(screen.getByText("Pick foods and meals, yes or no.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
@@ -105,16 +109,17 @@ describe("BuildListCard", () => {
     window.addEventListener("recipe-plan-accepted", onSaved);
     await openFlow();
     await click("Skip");
-    // Avoid, pantry and already-listed foods are never offered.
+    // Avoid and pantry foods are never offered. The build makes its own list, so no open list's
+    // lines are taken off the deck; a recipe ingredient named only in the catalog cache is kept.
     const deck = screen.getByRole("group", { name: "Foods for your list" });
-    expect(within(deck).getByText("1 of 6")).toBeTruthy();
+    expect(within(deck).getByText("1 of 8")).toBeTruthy();
     expect(screen.getByText("In your usual order")).toBeTruthy();
     expect(screen.queryByText("Peanuts")).toBeNull();
     expect(within(deck).getByRole("heading", { name: "Eggs" })).toBeTruthy();
     await click("Yes to Eggs");
     await click("No to Lentils");
     await click("Yes to the rest");
-    expect(screen.getByText("5 of 6 foods on your list.")).toBeTruthy();
+    expect(screen.getByText("7 of 8 foods on your list.")).toBeTruthy();
     await click("Next: meals");
     expect(fx.preview).toHaveBeenCalledTimes(1);
     expect(fx.preview.mock.calls[0][0].draft.mealCoverage).toEqual(["meal-1", "meal-2", "meal-3"]);
@@ -128,14 +133,16 @@ describe("BuildListCard", () => {
     await click("Yes to Pasta");
     await click("Next: stores");
     await click("Skip");
-    expect(screen.getByText("5 items · 2 meals")).toBeTruthy();
+    expect(screen.getByText("7 items · 2 meals")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("List name"), { target: { value: "Sunday shop" } });
     expect(fx.accept).not.toHaveBeenCalled();
     await click("Save list");
     expect(fx.accept).toHaveBeenCalledTimes(1);
-    expect(fx.accept).toHaveBeenCalledWith("p2", expect.any(String));
-    expect(fx.rename).toHaveBeenCalledWith("period-1", "Sunday shop", 1, expect.any(String));
-    expect(fx.addLine).toHaveBeenCalledTimes(5);
+    // Every write is bound to the account the save started under.
+    expect(fx.accept).toHaveBeenCalledWith("p2", expect.any(String), account);
+    expect(fx.rename).toHaveBeenCalledWith("period-1", "Sunday shop", 1, expect.any(String), account);
+    expect(fx.addLine).toHaveBeenCalledWith("period-1", expect.any(String), expect.any(String), account);
+    expect(fx.addLine).toHaveBeenCalledTimes(7);
     expect(events).toEqual(["recipe-plan-accepted:", "shopping-list-saved:period-1"]);
     expect(screen.getByText("List saved. It's open below.")).toBeTruthy();
     window.removeEventListener("shopping-list-saved", onSaved);
@@ -159,6 +166,66 @@ describe("BuildListCard", () => {
     expect(screen.getByText("List saved. It's open below.")).toBeTruthy();
   });
 
+  it("announces a list saved part-way only when the flow is closed, and Close waits for the save", async () => {
+    const events: string[] = [];
+    const onSaved = (event: Event) => events.push(event.type);
+    window.addEventListener("shopping-list-saved", onSaved);
+    let finish: () => void = () => {};
+    fx.addLine.mockImplementation(() => new Promise((_resolve, reject) => { finish = () => reject(new Error("offline")); }));
+    await openFlow();
+    await click("Skip");
+    await click("Yes to the rest");
+    await click("Next: meals");
+    await click("Yes to the rest");
+    await click("Next: stores");
+    await click("Skip");
+    await click("Save list");
+    expect((screen.getByRole("button", { name: "Close without saving" }) as HTMLButtonElement).disabled).toBe(true);
+    fx.addLine.mockRejectedValue(new Error("offline"));
+    await act(async () => { finish(); });
+    expect(screen.getByText("Your list is saved, but a few things did not finish.")).toBeTruthy();
+    expect(events).toEqual([]);
+    await click("Close");
+    expect(events).toEqual(["shopping-list-saved"]);
+    window.removeEventListener("shopping-list-saved", onSaved);
+  });
+
+  it("saves just the foods when the meals cannot be planned", async () => {
+    fx.preview.mockRejectedValue(new Error("No recipes fit these days."));
+    await openFlow();
+    await click("Skip");
+    await click("Yes to the rest");
+    await click("Next: meals");
+    expect(screen.getByText("Meals can't be planned for these days.")).toBeTruthy();
+    expect(screen.getByText("8 foods go on the list.")).toBeTruthy();
+    await click("Save just your foods");
+    await click("Skip");
+    expect(screen.getByText("8 items · no meals")).toBeTruthy();
+    await click("Save list");
+    expect(fx.accept).not.toHaveBeenCalled();
+    expect(fx.create).toHaveBeenCalledWith(expect.objectContaining({ title: "Weekly shop" }), expect.any(String), account);
+    expect(fx.addLine).toHaveBeenCalledTimes(8);
+    expect(fx.rename).not.toHaveBeenCalled();
+  });
+
+  it("offers a change of days or meals when the meals cannot be planned", async () => {
+    fx.preview.mockRejectedValueOnce(new Error("No recipes fit these days."));
+    await openFlow();
+    await click("Skip");
+    await click("Yes to the rest");
+    await click("Next: meals");
+    await click("Change days or meals");
+    await click("Plan these days");
+    expect(fx.preview).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole("button", { name: "Yes to Shakshuka" })).toBeTruthy();
+  });
+
+  it("says how many recipe ingredients could not be named", async () => {
+    await openFlow();
+    await click("Skip");
+    expect(screen.getByText("1 recipe ingredient could not be named on this phone, so it is not shown.")).toBeTruthy();
+  });
+
   it("shows AI ranked only when Jev ranked the deck", async () => {
     fx.ranked = true;
     await openFlow();
@@ -171,10 +238,20 @@ describe("BuildListCard", () => {
     await openFlow();
     await click("Skip");
     await click("Yes to Eggs");
-    expect(screen.getByText("2 of 6")).toBeTruthy();
+    expect(screen.getByText("2 of 8")).toBeTruthy();
     await click("Back");
-    expect(screen.getByText("1 of 6")).toBeTruthy();
+    expect(screen.getByText("1 of 8")).toBeTruthy();
     await click("Back");
     expect(screen.getByText("Step 1 of 5 · Budget")).toBeTruthy();
+  });
+});
+
+describe("listLocale", () => {
+  afterEach(() => window.localStorage.clear());
+  it("reads only the Shopping area, cut to 80 characters", () => {
+    window.localStorage.setItem("shopping-build-area:u1", "Mission District");
+    expect(listLocale("u1")).toBeNull();
+    window.localStorage.setItem("shopping-location:u1", ` ${"a".repeat(120)} `);
+    expect(listLocale("u1")).toBe("a".repeat(80));
   });
 });

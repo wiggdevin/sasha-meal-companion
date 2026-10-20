@@ -13,7 +13,7 @@ vi.mock("@/lib/device/account", async (original) => {
   return { ...real, accountFetch: spies.accountFetch };
 });
 
-import { bindAccount, unbindAccount } from "@/lib/device/account";
+import { accountHandle, bindAccount, unbindAccount } from "@/lib/device/account";
 import { TEST_USER } from "@/tests/helpers/account";
 import { deleteShoppingPeriod, renameShoppingPeriod } from "@/lib/shopping/list-client";
 import { ShoppingRequestFailed, ShoppingStaleRevision } from "@/lib/shopping-client";
@@ -47,6 +47,13 @@ describe("renameShoppingPeriod", () => {
     expect(body).toEqual({ expectedRevision: 3, requestId: REQUEST, patch: { title: "Weekly shop" } });
     expect(spies.accountFetch).toHaveBeenCalledTimes(1);
     expect(spies.accountFetch.mock.calls[0][3]).toEqual({ budget: "commit" });
+  });
+
+  it("sends on the handle it was given, not the one bound at call time", async () => {
+    stub(200, { period: { id: PERIOD, title: "x", revision: 2 } });
+    const h = accountHandle();
+    await renameShoppingPeriod(PERIOD, "x", 1, REQUEST, h);
+    expect(spies.accountFetch.mock.calls[0][0]).toBe(h);
   });
 
   it("sends null for a blank title and for null", async () => {

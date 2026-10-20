@@ -10,11 +10,16 @@
  *   (lib/shopping/build-candidates.ts builds and caps them).
  * - Meals: the planner's preview, one card per planned meal. The No answers are excluded in one
  *   re-preview (`excludeRecipeIds`) and only the replacements are walked again; after
- *   `MAX_MEAL_ROUNDS` re-previews the only way on is "Keep these".
+ *   `MAX_MEAL_ROUNDS` re-previews the only way on is "Keep these". The planner takes no pinned
+ *   slots, so a recipe the user said Yes to anywhere is never excluded: a No on its repeat stays.
+ *   A preview the planner refuses (a meal eaten today, saved edits, food rules, no fitting
+ *   recipe) leaves two ways on: change the days or meals, or "Save just your foods".
+ * - A budget change after a preview drops that preview: the list saved is the plan shown.
  * - Stores: optional, at most `MAX_STORES` picks.
  * - Save: `runSave` accepts the preview (which creates the list), titles it, then adds every Yes
  *   ingredient as its own line, each with its own request id; it can be run again with the same
- *   progress to finish a save that stopped part-way, never making a second list.
+ *   progress to finish a save that stopped part-way, never making a second list. "Save just your
+ *   foods" creates the list from the draft instead (same request-id rules), with no meals.
  */
 import { candidateKey, type BuildCandidate } from "@/lib/shopping/build-candidates";
 import type { PlaceStore, ShoppingDraft, ShoppingPreviewInput } from "@/lib/shopping/contracts";
@@ -32,6 +37,8 @@ export const MAX_MEAL_ROUNDS = 2;
 export const MAX_STORES = 5;
 export const DEFAULT_TITLE = "Weekly shop";
 export const TITLE_MAX = 60;
+/** The planner previews at most this many days after the first (lib/shopping/preview-contract.ts). */
+export const MAX_PREVIEW_SPAN_DAYS = 30;
 
 export type MealCard = {
   /** date|slot|recipe: one planned meal. */
@@ -53,6 +60,8 @@ export type BuildState = {
     status: "loading" | "ready";
     leftOutByRules: number;
     total: number;
+    /** Saved-recipe ingredients this phone could not name, so they are not in the deck. */
+    unnamed: number;
     provenance: Provenance;
   };
   meals: Deck<MealCard> & {
@@ -62,6 +71,8 @@ export type BuildState = {
     excluded: string[];
     rounds: number;
     kept: boolean;
+    /** "Save just your foods": no meals, the list is created from the draft. */
+    skipped: boolean;
     /** Bumped for every preview the component should run. */
     request: number;
   };
@@ -74,7 +85,8 @@ export type BuildAction =
   | { type: "next" }
   | { type: "skip" }
   | { type: "back" }
-  | { type: "deck-loaded"; cards: BuildCandidate[]; leftOutByRules: number; total: number; provenance: Provenance }
+  | { type: "deck-loaded"; cards: BuildCandidate[]; leftOutByRules: number; total: number; unnamed?: number;
+    provenance: Provenance }
   | { type: "answer"; answer: Answer }
   | { type: "yes-to-rest" }
   | { type: "preview-loaded"; request: number; previewId: string; cards: MealCard[] }
@@ -82,6 +94,7 @@ export type BuildAction =
   | { type: "retry-preview" }
   | { type: "swap-no-meals" }
   | { type: "keep-these" }
+  | { type: "foods-only" }
   | { type: "toggle-store"; store: PlaceStore }
   | { type: "title"; title: string }
   | { type: "edit-plan"; draft: ShoppingDraft };
@@ -90,13 +103,17 @@ export function initialBuildState(draft: ShoppingDraft): BuildState {
   return {
     step: "budget",
     draft,
-    ingredients: { status: "loading", cards: [], index: 0, answers: {}, leftOutByRules: 0, total: 0,
+    ingredients: { status: "loading", cards: [], index: 0, answers: {}, leftOutByRules: 0, total: 0, unnamed: 0,
       provenance: { ai: false, source: "app" } },
-    meals: { status: "idle", error: null, previewId: null, cards: [], index: 0, answers: {}, excluded: [],
-      rounds: 0, kept: false, request: 0 },
+    meals: idleMeals(0),
     stores: [],
     title: DEFAULT_TITLE,
   };
+}
+
+function idleMeals(request: number): BuildState["meals"] {
+  return { status: "idle", error: null, previewId: null, cards: [], index: 0, answers: {}, excluded: [],
+    rounds: 0, kept: false, skipped: false, request };
 }
 
 // ------------------------------------------------------------------ selectors
@@ -119,14 +136,27 @@ export function yesIngredients(state: BuildState): BuildCandidate[] {
 export function noMeals(state: BuildState): MealCard[] {
   return state.meals.cards.filter((card) => state.meals.answers[card.key] === "no");
 }
+/** The recipes a swap may drop: said No, and not said Yes in any other slot (no slot is pinned). */
+export function swappableRecipeIds(state: BuildState): string[] {
+  const kept = new Set(state.meals.cards.filter((card) => state.meals.answers[card.key] === "yes")
+    .map((card) => card.recipeId));
+  return [...new Set(noMeals(state).map((card) => card.recipeId))].filter((id) => !kept.has(id));
+}
 export function canSwapMeals(state: BuildState): boolean {
-  return state.meals.status === "ready" && deckDone(state.meals) && noMeals(state).length > 0
+  return state.meals.status === "ready" && deckDone(state.meals) && swappableRecipeIds(state).length > 0
     && state.meals.rounds < MAX_MEAL_ROUNDS;
 }
 /** The meals step may move on: every card answered and either all Yes or "Keep these" chosen. */
 export function mealsSettled(state: BuildState): boolean {
+  if (state.meals.skipped) return true;
   return state.meals.status === "ready" && deckDone(state.meals)
     && (noMeals(state).length === 0 || state.meals.kept);
+}
+/** Why the days cannot be previewed, or null (the draft rules plus the planner's 30-day span). */
+export function planDraftProblem(draft: ShoppingDraft): string | null {
+  const span = (Date.parse(`${draft.endDate}T00:00:00Z`) - Date.parse(`${draft.startDate}T00:00:00Z`)) / 86_400_000;
+  if (Number.isFinite(span) && span > MAX_PREVIEW_SPAN_DAYS) return `Pick ${MAX_PREVIEW_SPAN_DAYS + 1} days or fewer.`;
+  return null;
 }
 export function previewInput(state: BuildState): ShoppingPreviewInput {
   return { draft: state.draft, basket: [],
@@ -143,7 +173,7 @@ function plural(count: number, one: string, many: string): string {
 /** "18 items · 9 meals · 2 stores": what Save will write. */
 export function saveSummary(state: BuildState): string {
   const parts = [plural(yesIngredients(state).length, "item", "items"),
-    plural(state.meals.cards.length, "meal", "meals")];
+    state.meals.skipped ? "no meals" : plural(state.meals.cards.length, "meal", "meals")];
   if (state.stores.length) parts.push(plural(state.stores.length, "store", "stores"));
   return parts.join(" · ");
 }
@@ -180,8 +210,7 @@ function startPreview(state: BuildState, patch: Partial<BuildState["meals"]> = {
 export function buildReducer(state: BuildState, action: BuildAction): BuildState {
   switch (action.type) {
     case "budget":
-      return { ...state, draft: { ...state.draft, budgetAmount: action.amount,
-        currency: action.amount === null ? null : action.currency } };
+      return budgeted(state, action.amount, action.amount === null ? null : action.currency);
     case "next": {
       if (state.step === "budget") return { ...state, step: "ingredients" };
       if (state.step === "ingredients") {
@@ -194,9 +223,7 @@ export function buildReducer(state: BuildState, action: BuildAction): BuildState
       return state;
     }
     case "skip":
-      if (state.step === "budget") {
-        return { ...state, step: "ingredients", draft: { ...state.draft, budgetAmount: null, currency: null } };
-      }
+      if (state.step === "budget") return { ...budgeted(state, null, null), step: "ingredients" };
       if (state.step === "stores") return { ...state, step: "save", stores: [] };
       return state;
     case "back": {
@@ -210,7 +237,8 @@ export function buildReducer(state: BuildState, action: BuildAction): BuildState
     }
     case "deck-loaded":
       return { ...state, ingredients: { status: "ready", cards: action.cards.slice(0, 30), index: 0,
-        answers: {}, leftOutByRules: action.leftOutByRules, total: action.total, provenance: action.provenance } };
+        answers: {}, leftOutByRules: action.leftOutByRules, total: action.total, unnamed: action.unnamed ?? 0,
+        provenance: action.provenance } };
     case "answer":
       if (state.step === "ingredients") return { ...state, ingredients: { ...state.ingredients, ...answer(state.ingredients, action.answer) } };
       if (state.step === "meals" && state.meals.status === "ready") {
@@ -240,12 +268,17 @@ export function buildReducer(state: BuildState, action: BuildAction): BuildState
       return state.meals.status === "error" ? startPreview(state) : state;
     case "swap-no-meals": {
       if (!canSwapMeals(state)) return state;
-      const excluded = [...new Set([...state.meals.excluded, ...noMeals(state).map((card) => card.recipeId)])];
+      const excluded = [...new Set([...state.meals.excluded, ...swappableRecipeIds(state)])];
       return startPreview(state, { excluded, rounds: state.meals.rounds + 1 });
     }
     case "keep-these":
       if (state.meals.status !== "ready" || !deckDone(state.meals)) return state;
       return { ...state, step: "stores", meals: { ...state.meals, kept: true } };
+    case "foods-only":
+      // Only from a preview the planner refused: the list keeps the foods and plans no meals.
+      if (state.step !== "meals" || state.meals.status !== "error") return state;
+      return { ...state, step: "stores", meals: { ...idleMeals(state.meals.request), status: "error",
+        error: state.meals.error, skipped: true } };
     case "toggle-store": {
       const on = state.stores.some((store) => store.id === action.store.id);
       if (on) return { ...state, stores: state.stores.filter((store) => store.id !== action.store.id) };
@@ -256,8 +289,16 @@ export function buildReducer(state: BuildState, action: BuildAction): BuildState
       return { ...state, title: action.title.slice(0, TITLE_MAX) };
     case "edit-plan":
       return startPreview({ ...state, step: "meals", draft: action.draft },
-        { previewId: null, cards: [], index: 0, answers: {}, excluded: [], rounds: 0, kept: false });
+        { previewId: null, cards: [], index: 0, answers: {}, excluded: [], rounds: 0, kept: false, skipped: false });
   }
+}
+
+/** A new budget drops any preview made under the old one; the meals are planned again on the way. */
+function budgeted(state: BuildState, amount: number | null, currency: string | null): BuildState {
+  const draft = { ...state.draft, budgetAmount: amount, currency };
+  const same = state.draft.budgetAmount === amount && state.draft.currency === currency;
+  if (same || state.meals.status === "idle") return { ...state, draft };
+  return { ...state, draft, meals: idleMeals(state.meals.request + 1) };
 }
 
 // ------------------------------------------------------------------ the one write
@@ -265,6 +306,8 @@ export function buildReducer(state: BuildState, action: BuildAction): BuildState
 export type SavedPeriod = { id: string; revision: number };
 export type SaveDeps = {
   accept: (previewId: string, requestId: string) => Promise<{ period: SavedPeriod | null; lines: { name: string }[] }>;
+  /** "Save just your foods": a new list from the draft (its title included), no meals. */
+  create: (draft: ShoppingDraft, requestId: string) => Promise<SavedPeriod>;
   rename: (id: string, title: string | null, expectedRevision: number, requestId: string) => Promise<SavedPeriod>;
   addLine: (periodId: string, name: string, requestId: string) => Promise<unknown>;
   newId: () => string;
@@ -279,15 +322,18 @@ export type SaveProgress = {
   /** Ingredient keys saved, or already on the list the accept made. */
   added: string[];
 };
-export type SavePlan = { previewId: string; title: string | null; items: { key: string; name: string }[] };
+export type SavePlan = { title: string | null; items: { key: string; name: string }[] }
+  & ({ previewId: string; draft?: undefined } | { previewId?: undefined; draft: ShoppingDraft });
 export type SaveResult =
   | { status: "done"; progress: SaveProgress }
   | { status: "partial"; progress: SaveProgress; failed: string[] };
 
 export function savePlan(state: BuildState): SavePlan | null {
+  const items = yesIngredients(state).map((card) => ({ key: card.key, name: card.name }));
+  const title = cleanTitle(state.title);
+  if (state.meals.skipped) return { draft: { ...state.draft, title }, title, items };
   if (!state.meals.previewId) return null;
-  return { previewId: state.meals.previewId, title: cleanTitle(state.title),
-    items: yesIngredients(state).map((card) => ({ key: card.key, name: card.name })) };
+  return { previewId: state.meals.previewId, title, items };
 }
 export function newSaveProgress(newId: () => string): SaveProgress {
   return { acceptRequestId: newId(), renameRequestId: newId(), lineRequestIds: {}, period: null,
@@ -301,7 +347,13 @@ export function newSaveProgress(newId: () => string): SaveProgress {
  */
 export async function runSave(plan: SavePlan, start: SaveProgress, deps: SaveDeps): Promise<SaveResult> {
   const progress: SaveProgress = { ...start, lineRequestIds: { ...start.lineRequestIds }, added: [...start.added] };
-  if (!progress.period) {
+  if (!progress.period && plan.draft) {
+    // The create carries the title, so there is no rename; a retry sends the same request id.
+    const created = await deps.create(plan.draft, progress.acceptRequestId);
+    progress.period = { id: created.id, revision: created.revision };
+    progress.titled = true;
+  }
+  if (!progress.period && plan.previewId) {
     const accepted = await deps.accept(plan.previewId, progress.acceptRequestId);
     if (!accepted.period) throw new Error("The list did not save. Try again.");
     progress.period = { id: accepted.period.id, revision: accepted.period.revision };
@@ -309,6 +361,7 @@ export async function runSave(plan: SavePlan, start: SaveProgress, deps: SaveDep
     progress.added.push(...plan.items.filter((item) => onList.has(item.key)).map((item) => item.key));
   }
   const period = progress.period;
+  if (!period) throw new Error("The list did not save. Try again.");
   const failed: string[] = [];
   if (!progress.titled) {
     if (!plan.title) progress.titled = true;

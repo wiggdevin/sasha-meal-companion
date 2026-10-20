@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
 import Field from "@/components/ui/Field";
@@ -100,6 +100,10 @@ export default function StepStores({ accountId, countryCode, picked, onToggle, o
   const [country, setCountry] = useState<string | null>(countryCode);
   const [phase, setPhase] = useState<Phase>({ kind: "area" });
   const [error, setError] = useState<string | null>(null);
+  // Each search takes a ticket; an answer for an older ticket (or after the step closed) is dropped.
+  const seq = useRef(0);
+  useEffect(() => () => { seq.current += 1; }, []);
+  const ticket = () => { seq.current += 1; const mine = seq.current; return () => mine === seq.current; };
   const countries = countryCode && !(COUNTRIES as readonly string[]).includes(countryCode)
     ? [countryCode, ...COUNTRIES] : [...COUNTRIES];
 
@@ -108,7 +112,9 @@ export default function StepStores({ accountId, countryCode, picked, onToggle, o
     if (!country) { setError("Pick your country first."); return; }
     setError(null);
     setPhase({ kind: "busy", text: "Finding that place…" });
+    const current = ticket();
     const answer = await places.geocode(area, country);
+    if (!current()) return;
     if (answer.status === "ok") { saveArea(accountId, area); setPhase({ kind: "confirm", place: answer.place }); }
     else if (answer.status === "unavailable") setPhase({ kind: "unavailable" });
     else {
@@ -120,13 +126,17 @@ export default function StepStores({ accountId, countryCode, picked, onToggle, o
   async function locate() {
     setError(null);
     setPhase({ kind: "busy", text: "Finding where you are…" });
+    const current = ticket();
     const spot = await places.locate();
+    if (!current()) return;
     if (!spot) { setPhase({ kind: "area" }); setError("Your location isn't available. Type an area instead."); return; }
     setPhase({ kind: "confirm", place: { ...spot, label: "your location" } });
   }
   async function loadStores(place: GeocodeResult) {
     setPhase({ kind: "busy", text: "Finding stores nearby…" });
+    const current = ticket();
     const answer = await places.stores(place.lat, place.lon);
+    if (!current()) return;
     if (answer.status === "ok") {
       setPhase({ kind: "map", place, stores: answer.stores });
       // Last time's picks, by name, when the same stores turn up again.
@@ -167,7 +177,7 @@ export default function StepStores({ accountId, countryCode, picked, onToggle, o
         <p className="m-0 text-body text-charcoal">Near {phase.place.label}. Is this right?</p>
         {error && <p role="alert" className="m-0 text-caption text-alert">{error}</p>}
         <div className="flex flex-wrap gap-2">
-          <Button variant="tertiary" onClick={() => { setPhase({ kind: "area" }); setError(null); }}>Change</Button>
+          <Button variant="tertiary" onClick={() => { seq.current += 1; setPhase({ kind: "area" }); setError(null); }}>Change</Button>
           <Button variant="primary" onClick={() => { setError(null); void loadStores(phase.place); }}>Yes, show stores</Button>
         </div>
       </>}

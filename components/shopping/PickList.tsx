@@ -12,7 +12,9 @@ import { loadEligibleLocalFoodIds } from "@/lib/foods/eligible-client";
 import { currentEligibleView } from "@/lib/foods/rule-marks";
 import { loadTaste } from "@/lib/foods/taste-client";
 import { groupByAisle } from "@/lib/foods/aisle";
-import { byAisle, pickSources, type PickItem, type PickTasteRow } from "@/lib/shopping/pick-sources";
+import { byAisle, pickSources, type PickItem, type PickStarRow, type PickTasteRow } from "@/lib/shopping/pick-sources";
+import { FAVORITES_CHANGED_EVENT } from "@/lib/favorites";
+import { listFavorites } from "@/lib/favorites-client";
 import { planQuickAdd } from "@/lib/shopping/quick-add";
 import type { ShoppingLine } from "@/lib/shopping/types";
 import { loadStore } from "@/lib/store";
@@ -33,6 +35,7 @@ export default function PickList({ lines, onAdd, onRemove }: {
   const [foods, setFoods] = useState(() => loadStore().foods);
   const [verified, setVerified] = useState<ReadonlySet<string> | undefined>(undefined);
   const [taste, setTaste] = useState<PickTasteRow[]>([]);
+  const [starRows, setStarRows] = useState<PickStarRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -51,16 +54,24 @@ export default function PickList({ lines, onAdd, onRemove }: {
       void loadTaste({ account }).then((answer) => {
         if (live && isCurrent(account)) setTaste(answer.status === "ok" ? [...answer.items] : []);
       });
+      void listFavorites().then((rows) => {
+        if (live && isCurrent(account)) setStarRows(rows.filter((row) => row.kind === "food").map((row) => ({ name: row.name })));
+      }).catch(() => { if (live && isCurrent(account)) setStarRows([]); });
     };
     read();
     window.addEventListener(SYNCED_EVENT, read);
+    window.addEventListener(FAVORITES_CHANGED_EVENT, read);
     const ready = onAccountReady(read);
-    const gone = onAccountGone(() => { setFoods({}); setVerified(undefined); setTaste([]); });
-    return () => { live = false; window.removeEventListener(SYNCED_EVENT, read); ready(); gone(); };
+    const gone = onAccountGone(() => { setFoods({}); setVerified(undefined); setTaste([]); setStarRows([]); });
+    return () => {
+      live = false;
+      window.removeEventListener(SYNCED_EVENT, read); window.removeEventListener(FAVORITES_CHANGED_EVENT, read);
+      ready(); gone();
+    };
   }, []);
 
   const view = useMemo(() => currentEligibleView(foods, loadStore().settings, verified), [foods, verified]);
-  const { favorites, often } = pickSources({ foods, starred: stars.isStarred, taste, view, lines });
+  const { favorites, often } = pickSources({ foods, starred: stars.isStarred, starredRows: starRows, taste, view, lines });
   const plan = planQuickAdd(text, lines);
 
   async function toggle(item: PickItem) {

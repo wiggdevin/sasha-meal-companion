@@ -1,6 +1,7 @@
 /**
  * What Shopping's "Pick from your foods" offers (UI makeover W7, docs/plans/2026-10-19-ui-makeover.md
- * §7.1 item 4): the account's Favorites (Favored foods, starred first) and its Often eaten foods,
+ * §7.1 item 4): the account's Favorites (Favored and starred foods, starred first, a starred food
+ * counting even when it is not Favored) and its Often eaten foods,
  * each grouped by aisle, each with its mark under the current food rules. Pure; no I/O.
  *
  * - A food on Avoid, or a taste row that shares its name with one, is never offered.
@@ -36,6 +37,10 @@ export type PickItem = {
   removable: ShoppingLine | null;
 };
 
+/** A starred food as the favourites store lists it (lib/favorites.ts `FavoriteRow`, kind "food"):
+ *  a catalog food or an account food that is not Favored still counts as a pick. */
+export type PickStarRow = { name: string };
+
 /** The minimal taste row this module reads (lib/foods/taste-client.ts `TasteRow`). */
 export type PickTasteRow = { key: string; name: string; days180: number };
 
@@ -43,10 +48,12 @@ export const pickKey = (name: string) => name.trim().toLocaleLowerCase().replace
 /** A line and a food match with or without a plural "s" ("Egg" is on the list as "Eggs"). */
 const matchKey = (name: string) => pickKey(name).replace(/(\w{2,}[^s])s$/, "$1");
 
-export function pickSources({ foods, starred, taste, view, lines }: {
+export function pickSources({ foods, starred, starredRows = [], taste, view, lines }: {
   foods: Readonly<Record<string, Food>>;
   /** Whether a food carries a star (components/MyFoods.favorites.ts `isStarred`). */
   starred: (food: Food) => boolean;
+  /** Every starred food by name, Favored or not (a scanned catalog food, a neutral food). */
+  starredRows?: readonly PickStarRow[];
   taste: readonly PickTasteRow[];
   view: EligibleView | undefined;
   lines: readonly ShoppingLine[];
@@ -77,10 +84,20 @@ export function pickSources({ foods, starred, taste, view, lines }: {
     .map((food) => ({ food, star: starred(food) }))
     .sort((a, b) => Number(b.star) - Number(a.star) || b.food.updatedAt.localeCompare(a.food.updatedAt)
       || a.food.name.localeCompare(b.food.name));
-  const favorites = eats.flatMap(({ food, star }) => {
+  const fromEats = ({ food, star }: { food: Food; star: boolean }) => {
     const row = item(food.name, star ? "starred" : "favorite", food.role);
     return row ? [row] : [];
+  };
+  // Starred first: starred Favored foods, then any other starred food, then the rest of Favored
+  // (built in that order, so a name listed twice keeps its first place).
+  const starredEats = eats.filter((row) => row.star).flatMap(fromEats);
+  const starredOther = starredRows.flatMap((star) => {
+    if (!star.name.trim()) return [];
+    const own = all.find((food) => food.status !== "avoid" && sameBaseName(food.name, star.name));
+    const row = item(star.name, "starred", own?.role ?? null);
+    return row ? [row] : [];
   });
+  const favorites = [...starredEats, ...starredOther, ...eats.filter((row) => !row.star).flatMap(fromEats)];
   const often = taste.flatMap((row) => {
     const own = all.find((food) => food.status === "eats" && sameBaseName(food.name, row.name));
     const next = item(row.name, "often", own?.role ?? null);

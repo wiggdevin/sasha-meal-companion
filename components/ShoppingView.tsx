@@ -54,7 +54,7 @@ function reveal(element: HTMLElement | null) {
 
 export default function ShoppingView({ period, lines, pantry = [], initialDraft, actions,
   purchaseWindows = [], invalidateRevision = 0, onDraftChange,
-  storeNotes = "", onStoreNotesChange, switcher, emptyList, planNotice,
+  storeNotes = "", onStoreNotesChange, switcher, emptyList, planNotice, heading = true, buildSlot,
   onPantryPhoto }: {
   period: ShoppingPeriod | null; lines: ShoppingLine[]; pantry?: PantryItem[]; initialDraft: ShoppingDraft;
   purchaseWindows?: ShoppingPurchaseWindow[];
@@ -62,6 +62,10 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
   onDraftChange?: (draft: ShoppingDraft) => void;
   storeNotes?: string; onStoreNotesChange?: (value: string) => void;
   switcher?: ReactNode;
+  /** False when the page around it already says "Shopping" (ShoppingRoot). */
+  heading?: boolean;
+  /** "Have AI build my list"; ShoppingRoot mounts it itself (null here) so it outlives a list switch. */
+  buildSlot?: ReactNode;
   emptyList?: ReactNode;
   /** Shown first in the planner: the food-rule review that a plan needs before it can preview. */
   planNotice?: ReactNode;
@@ -126,8 +130,8 @@ export default function ShoppingView({ period, lines, pantry = [], initialDraft,
   const planLines = lines.filter((line) => line.origin === "plan");
   const windowed = monthly && purchaseWindows.length > 0;
   return <div ref={topRef} className="flex flex-col gap-4" aria-label="Shopping">
-    <h1 className="m-0 text-xl font-semibold">Shopping</h1>
-    <BuildListSlot periodId={period?.id ?? null} />
+    {heading && <h1 className="m-0 text-xl font-semibold">Shopping</h1>}
+    {buildSlot === undefined ? <BuildListSlot periodId={period?.id ?? null} /> : buildSlot}
     {switcher}
     <ShoppingList title={period ? dateRange(period) : "This week"} lines={lines}
       empty={emptyList} showChecks={!windowed}

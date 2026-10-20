@@ -8,7 +8,7 @@ import Chip from "@/components/ui/Chip";
 import ConfirmSheet from "@/components/ui/ConfirmSheet";
 import DateField from "@/components/ui/DateField";
 import Notice from "@/components/ui/Notice";
-import { compactRange, cycleOrder, listName, newListDates, type NewListSpan } from "@/lib/shopping/saved-lists";
+import { compactRange, cycleOrder, listName, newListDates, newListProblem, type NewListSpan } from "@/lib/shopping/saved-lists";
 import type { ShoppingPeriod } from "@/lib/shopping/types";
 
 type ListRow = Pick<ShoppingPeriod, "id" | "title" | "startDate" | "endDate" | "updatedAt">;
@@ -46,7 +46,8 @@ export default function SavedListsSheet({ periods, currentId, today, onClose, on
   const [error, setError] = useState<string | null>(null);
   const titleId = useId();
   const dates = newListDates(span, today, custom);
-  const datesOk = dates.startDate && dates.endDate && dates.startDate <= dates.endDate;
+  const datesProblem = newListProblem(dates);
+  const datesOk = datesProblem === null;
 
   async function run(work: () => Promise<void>) {
     setBusy(true); setError(null);
@@ -86,7 +87,7 @@ export default function SavedListsSheet({ periods, currentId, today, onClose, on
               <DateField label="Through" value={custom.endDate} today={today} min={custom.startDate}
                 onChange={(value) => value && setCustom((current) => ({ ...current, endDate: value }))} />
             </div> : <p className="m-0 text-tiny text-muted">{compactRange(dates.startDate, dates.endDate)}</p>}
-            {!datesOk && <p className="m-0 text-tiny text-muted">Through must be on or after From.</p>}
+            {datesProblem && <p className="m-0 text-tiny text-muted">{datesProblem}</p>}
             <div className="flex gap-2">
               <Button type="submit" variant="primary" disabled={!datesOk || busy}
                 status={busy ? "pending" : undefined}>Start list</Button>

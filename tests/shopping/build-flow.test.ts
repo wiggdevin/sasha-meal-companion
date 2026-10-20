@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildCandidates } from "@/lib/shopping/build-candidates";
 import { buildReducer, canSwapMeals, initialBuildState, MAX_MEAL_ROUNDS, newSaveProgress, previewInput,
-  runSave, savePlan, saveSummary, type BuildAction, type BuildState, type MealCard,
+  planDraftProblem, runSave, savePlan, saveSummary, swappableRecipeIds, type BuildAction, type BuildState, type MealCard,
   type SaveDeps } from "@/lib/shopping/build-flow";
-import { defaultShoppingDraft } from "@/lib/shopping/contracts";
+import { defaultShoppingDraft, type ShoppingDraft } from "@/lib/shopping/contracts";
 
 const draft = { ...defaultShoppingDraft("2026-10-20", "UTC"), mealCoverage: ["meal-1", "meal-3"] };
 const run = (state: BuildState, ...actions: BuildAction[]) => actions.reduce(buildReducer, state);
@@ -89,6 +89,51 @@ describe("the build flow reducer", () => {
       .toBe(state);
   });
 
+  it("keeps a recipe said Yes in one slot out of the swap, even when said No in another", () => {
+    let state = atMeals(withDeck(["A"]), [meal("d1", "meal-1", "r1"), meal("d2", "meal-1", "r1"), meal("d2", "meal-3", "r2")]);
+    state = run(state, { type: "answer", answer: "yes" }, { type: "answer", answer: "no" }, { type: "answer", answer: "no" });
+    expect(swappableRecipeIds(state)).toEqual(["r2"]);
+    state = run(state, { type: "swap-no-meals" });
+    expect(previewInput(state).excludeRecipeIds).toEqual(["r2"]);
+  });
+
+  it("offers no swap when every No recipe is also a Yes elsewhere", () => {
+    const state = run(atMeals(withDeck(["A"]), [meal("d1", "meal-1", "r1"), meal("d2", "meal-1", "r1")]),
+      { type: "answer", answer: "yes" }, { type: "answer", answer: "no" });
+    expect(canSwapMeals(state)).toBe(false);
+  });
+
+  it("plans the meals again after a budget change", () => {
+    let state = atMeals(withDeck(["A"]), [meal("d", "meal-1", "r1")]);
+    const request = state.meals.request;
+    state = run(state, { type: "budget", amount: 50, currency: "USD" });
+    expect(state.meals.status).toBe("idle");
+    expect(state.meals.previewId).toBeNull();
+    expect(state.meals.request).toBe(request + 1);
+    // The same budget again keeps the preview.
+    const kept = atMeals(withDeck(["A"]), [meal("d", "meal-1", "r1")]);
+    expect(run(kept, { type: "budget", amount: null, currency: null }).meals.previewId).toBe("p1");
+  });
+
+  it("saves just the foods when the planner refuses the days", () => {
+    let state = run(withDeck(["A", "B"]), { type: "yes-to-rest" }, { type: "next" });
+    expect(run(state, { type: "foods-only" }).step).toBe("meals");
+    state = run(state, { type: "preview-failed", request: state.meals.request, message: "No recipes fit." });
+    state = run(state, { type: "foods-only" });
+    expect(state.step).toBe("stores");
+    state = run(state, { type: "skip" }, { type: "title", title: "Foods" });
+    expect(saveSummary(state)).toBe("2 items · no meals");
+    expect(savePlan(state)).toMatchObject({ title: "Foods", draft: { title: "Foods" } });
+    expect(savePlan(state)?.previewId).toBeUndefined();
+    const edited = run(state, { type: "edit-plan", draft: { ...draft, endDate: "2026-10-22" } });
+    expect(edited.meals).toMatchObject({ skipped: false, status: "loading" });
+  });
+
+  it("refuses more than 31 days for a preview", () => {
+    expect(planDraftProblem({ ...draft, endDate: "2026-11-19" })).toBeNull();
+    expect(planDraftProblem({ ...draft, endDate: "2026-11-20" })).toBe("Pick 31 days or fewer.");
+  });
+
   it("picks at most 5 stores", () => {
     let state = initialBuildState(draft);
     for (let index = 0; index < 7; index += 1) {
@@ -98,12 +143,13 @@ describe("the build flow reducer", () => {
   });
 
   it("makes no write before Save", async () => {
-    const deps: SaveDeps = { accept: vi.fn(), rename: vi.fn(), addLine: vi.fn(), newId: () => "id" };
+    const deps: SaveDeps = { accept: vi.fn(), create: vi.fn(), rename: vi.fn(), addLine: vi.fn(), newId: () => "id" };
     let state = atMeals(withDeck(["A", "B"]), [meal("d", "meal-1", "r1")]);
     state = run(state, { type: "yes-to-rest" }, { type: "next" }, { type: "skip" }, { type: "title", title: "Big shop" });
     expect(state.step).toBe("save");
     expect(saveSummary(state)).toBe("2 items · 1 meal");
     expect(deps.accept).not.toHaveBeenCalled();
+    expect(deps.create).not.toHaveBeenCalled();
     expect(deps.rename).not.toHaveBeenCalled();
     expect(deps.addLine).not.toHaveBeenCalled();
   });
@@ -119,6 +165,10 @@ describe("Save list", () => {
       accept: vi.fn(async (_preview: string, requestId: string) => {
         if (!periods.includes(requestId)) periods.push(requestId);
         return { period: { id: "period-1", revision: 1 }, lines: [{ name: "Rice" }] };
+      }),
+      create: vi.fn(async (_draft: ShoppingDraft, requestId: string) => {
+        if (!periods.includes(requestId)) periods.push(requestId);
+        return { id: "period-2", revision: 1 };
       }),
       rename: vi.fn(async (id: string, title: string | null) => { titles.set(id, title); return { id, revision: 2 }; }),
       addLine: vi.fn(async () => ({})),
@@ -171,6 +221,23 @@ describe("Save list", () => {
     await expect(runSave(plan, newSaveProgress(d.newId), d)).rejects.toThrow("stale");
     expect(d.rename).not.toHaveBeenCalled();
     expect(d.addLine).not.toHaveBeenCalled();
+  });
+
+  it("saves just the foods into one titled list with no rename, and a retry makes no second", async () => {
+    let fail = true;
+    const d = deps({ addLine: vi.fn(async () => { if (fail) throw new Error("offline"); return {}; }) });
+    const foods = { draft: { ...draft, title: "Big shop" }, title: "Big shop", items: plan.items };
+    const first = await runSave(foods, newSaveProgress(d.newId), d);
+    expect(first.status).toBe("partial");
+    expect(d.create).toHaveBeenCalledWith(foods.draft, first.progress.acceptRequestId);
+    expect(d.accept).not.toHaveBeenCalled();
+    expect(d.rename).not.toHaveBeenCalled();
+    fail = false;
+    const second = await runSave(foods, first.progress, d);
+    expect(second.status).toBe("done");
+    expect(d.create).toHaveBeenCalledTimes(1);
+    expect(d.periods).toHaveLength(1);
+    expect(d.addLine).toHaveBeenLastCalledWith("period-2", "Rice", expect.any(String));
   });
 
   it("builds its plan from the Yes foods only", () => {

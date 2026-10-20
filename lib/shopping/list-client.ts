@@ -27,10 +27,10 @@ async function send<T>(path: string, method: "PATCH" | "DELETE", value: unknown,
 
 /** Renames a list (`null` clears its title), on the revision the caller last saw. */
 export async function renameShoppingPeriod(id: string, title: string | null,
-  expectedRevision: number, requestId: string): Promise<ShoppingPeriod> {
+  expectedRevision: number, requestId: string, h?: AccountHandle): Promise<ShoppingPeriod> {
   const trimmed = title === null ? null : title.trim() || null;
   const answer = await send<{ period: ShoppingPeriod }>(periodPath(id), "PATCH",
-    { expectedRevision, requestId, patch: { title: trimmed } });
+    { expectedRevision, requestId, patch: { title: trimmed } }, h);
   return answer.period;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactRange, cycleOrder, listName, newListDates, progressLine, stepList } from "@/lib/shopping/saved-lists";
+import { compactRange, cycleOrder, listName, newListDates, newListProblem, progressLine, stepList } from "@/lib/shopping/saved-lists";
 
 const row = (id: string, startDate: string, updatedAt = "2026-10-01T00:00:00Z") =>
   ({ id, startDate, endDate: startDate, updatedAt, title: null });
@@ -34,5 +34,14 @@ describe("cycling saved lists", () => {
     expect(stepList(lists, "old", 1)).toBeNull();
     expect(stepList(lists, null, 1)?.id).toBe("new");
     expect(stepList([], null, 1)).toBeNull();
+  });
+});
+
+describe("new list dates", () => {
+  it("takes up to 366 days, the database's limit, and names what is wrong", () => {
+    expect(newListProblem({ startDate: "2026-10-20", endDate: "2027-10-21" })).toBeNull();
+    expect(newListProblem({ startDate: "2026-10-20", endDate: "2027-10-22" })).toBe("A list can cover a year at most.");
+    expect(newListProblem({ startDate: "2026-10-20", endDate: "2026-10-19" })).toBe("Through must be on or after From.");
+    expect(newListProblem({ startDate: "", endDate: "2026-10-19" })).toBe("Pick both dates.");
   });
 });

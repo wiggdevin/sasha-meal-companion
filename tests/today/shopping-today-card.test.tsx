@@ -26,6 +26,13 @@ it("shows what is still to buy on the list that covers today, linked to Shopping
   expect(screen.getByRole("link").getAttribute("href")).toBe("/foods#shopping");
 });
 
+it("reads only the lists that cover today", async () => {
+  const send = serve([period]);
+  render(<ShoppingTodayCard enabled today="2026-10-02" />);
+  await screen.findByText("2 to buy");
+  expect(send.mock.calls[0][0]).toBe("/api/shopping/periods?start=2026-10-02&end=2026-10-02");
+});
+
 it("stays silent when shopping is off, or no list covers today", async () => {
   const send = serve([]);
   const { container, rerender } = render(<ShoppingTodayCard enabled={false} today="2026-10-02" />);

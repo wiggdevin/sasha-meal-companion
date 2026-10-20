@@ -158,4 +158,30 @@ describe("the stores step", () => {
     expect(onToggle).toHaveBeenCalledWith(expect.objectContaining({ id: "s1" }));
     expect(JSON.parse(window.localStorage.getItem("shopping-picked-stores:u3") ?? "[]")).toEqual(["Store 1"]);
   });
+  it("drops a stores answer that lands after the step closed", async () => {
+    window.localStorage.setItem("shopping-picked-stores:u4", JSON.stringify(["Store 1"]));
+    const onToggle = vi.fn();
+    let answer: (value: { status: "ok"; stores: PlaceStore[] }) => void = () => {};
+    const port = places({ stores: vi.fn(() => new Promise<{ status: "ok"; stores: PlaceStore[] }>((resolve) => { answer = resolve; })) });
+    const view = render(<StepStores accountId="u4" countryCode="US" picked={[]} onToggle={onToggle} onNext={() => {}}
+      onSkip={() => {}} places={port} />);
+    fireEvent.change(screen.getByLabelText("ZIP code or area"), { target: { value: "94110" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find stores" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Yes, show stores" })); });
+    view.unmount();
+    await act(async () => { answer({ status: "ok", stores }); });
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("does not keep an area whose answer lands after the step closed", async () => {
+    let answer: (value: { status: "ok"; place: { lat: number; lon: number; label: string } }) => void = () => {};
+    const port = places({ geocode: vi.fn(() => new Promise((resolve) => { answer = resolve; })) as PlacesPort["geocode"] });
+    const view = render(<StepStores accountId="u5" countryCode="US" picked={[]} onToggle={() => {}} onNext={() => {}}
+      onSkip={() => {}} places={port} />);
+    fireEvent.change(screen.getByLabelText("ZIP code or area"), { target: { value: "10001" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find stores" })); });
+    view.unmount();
+    await act(async () => { answer({ status: "ok", place: { lat: 40.75, lon: -73.99, label: "Chelsea" } }); });
+    expect(window.localStorage.getItem("shopping-build-area:u5")).toBeNull();
+  });
 });

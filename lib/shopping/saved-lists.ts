@@ -61,6 +61,24 @@ export function newListDates(span: NewListSpan, today: string,
   return { startDate: today, endDate: shift(today, 6) };
 }
 
+/** The longest list the database takes: `end_date <= start_date + 366` (shopping_period_dates). */
+export const MAX_LIST_SPAN_DAYS = 366;
+
+/** Days from `start` to `end` (0 on the same day), or null for a date that does not parse. */
+export function listSpanDays(start: string, end: string): number | null {
+  if (!valid(start) || !valid(end)) return null;
+  return Math.round((Date.parse(`${end}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 86_400_000);
+}
+
+/** Why these dates cannot start a list, or null when they can. */
+export function newListProblem(dates: { startDate: string; endDate: string }): string | null {
+  const span = listSpanDays(dates.startDate, dates.endDate);
+  if (span === null) return "Pick both dates.";
+  if (span < 0) return "Through must be on or after From.";
+  if (span > MAX_LIST_SPAN_DAYS) return "A list can cover a year at most.";
+  return null;
+}
+
 /** "12 items · 3 in cart" for a list's lines. */
 export function progressLine(itemCount: number, checkedCount: number): string {
   if (itemCount === 0) return "No items yet";
