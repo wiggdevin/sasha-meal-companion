@@ -233,6 +233,8 @@ describe("diet_prefs inventory", () => {
     "components/ShoppingRoot.tsx": "reader",
     // Passes settings.dietPrefs to currentEligibleView to judge a heart's Favored marks.
     "lib/favorite-meals-client.ts": "reader",
+    // Reads diet_prefs.water (unit and goal mode) for the trends' water goal line.
+    "lib/trends/sources.ts": "reader",
   };
 
   function sources(dir: string): string[] {

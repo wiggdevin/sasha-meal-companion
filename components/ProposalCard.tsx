@@ -1,9 +1,12 @@
 "use client";
 
 /**
- * The proposal card on Today, while a pending proposal exists (spec "Client changes").
- * Olive alert shell copied from Main.dc.html:79–85. Both buttons are 44 px; offline they disable
- * with "Needs a connection", because an approval is never queued (§3.7, targets are never merged).
+ * The proposal card on Today and Body, while a pending proposal exists (spec "Client changes").
+ * One CardFrame (UI makeover §3.3): the delta sentence is its title, the rest days and "nothing
+ * changes" its one supporting line, Use these and Keep mine its two actions. A pending ring (the
+ * feedback-pending hue) marks it as waiting on a decision. Both buttons are 44 px; offline they
+ * disable with "Needs a connection", because an approval is never queued (§3.7, targets are never
+ * merged).
  */
 import { useEffect, useRef, useState } from "react";
 import { MacroLine } from "@/components/nutrition/MacroText";
@@ -11,18 +14,13 @@ import { decideProposalOnline } from "@/lib/estimator-client";
 import type { ProposalSummary, ProposedTargets } from "@/lib/api-types";
 import { proposalActivitySentence } from "@/lib/proposal";
 import ActionFeedbackToast, { COMMIT_FEEDBACK_MS, useActionFeedback } from "@/components/ui/ActionFeedback";
+import Button from "@/components/ui/Button";
+import CardFrame from "@/components/ui/CardFrame";
 
-const SHELL_CLASS = "rounded-[32px]";
-const SHELL: React.CSSProperties = {
-  padding: 1,
-  background: "var(--color-feedback-pending)",
-  boxShadow: "0 0 18px color-mix(in srgb, var(--color-feedback-pending) 24%, transparent), 0 12px 12px -6px rgba(0,0,0,0.05)",
-};
-const INNER_CLASS = "rounded-3xl";
-const INNER: React.CSSProperties = {
-  background: "var(--grad-panel)",
-  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)",
-  padding: "20px 22px",
+/** The waiting ring around the card: an outline in the pending hue and its soft glow. */
+const RING: React.CSSProperties = {
+  outline: "1px solid var(--color-feedback-pending)",
+  boxShadow: "0 0 18px color-mix(in srgb, var(--color-feedback-pending) 24%, transparent)",
 };
 
 const GENERIC_DECIDE_ERROR = "Couldn't save. Try again.";
@@ -79,45 +77,31 @@ export default function ProposalCard({ proposal, offline, asOf, onDecided, feedb
     } : {};
   };
 
+  const fine = [activitySentence, asOf ? `Saved on ${asOf}.` : null].filter(Boolean).join(" ");
+
   return (
-    <><div className={SHELL_CLASS} style={SHELL}>
-      <div style={INNER} className={`${INNER_CLASS} flex flex-col gap-3`}>
+    <><div className="rounded-3xl" style={RING}>
+      <CardFrame as="section" size="md" titleAs="h3" title={deltaSentence(proposal.proposed)}
+        footer={<>
+          <Button variant="primary" disabled={disabled} onClick={() => decide("approve")}
+            {...decisionFeedback("approve")}
+            className={activeDecision === "approve" ? feedback.controlPropsFor(decisionKey("approve")).className : ""}>
+            Use these
+          </Button>
+          <Button variant="tertiary" disabled={disabled} onClick={() => decide("reject")}
+            {...decisionFeedback("reject")}
+            className={activeDecision === "reject" ? feedback.controlPropsFor(decisionKey("reject")).className : ""}>
+            Keep mine
+          </Button>
+          {offline && <span className="text-tiny font-normal text-graphite">Needs a connection</span>}
+        </>}>
         <p className="m-0 text-caption font-normal text-charcoal">
-          {deltaSentence(proposal.proposed)}
-        </p>
-        <p className="m-0 text-tiny font-normal leading-body-sm text-graphite">
           Rest days <MacroLine label="word" values={{ kcal: proposal.proposed.kcalRest,
             protein: proposal.proposed.proteinG, carbs: proposal.proposed.carbG,
             fat: proposal.proposed.fatG }} />. Nothing changes until you tap.
-          {asOf ? ` Saved on ${asOf}.` : ""}
         </p>
-        {activitySentence && (
-          <p className="m-0 text-tiny font-normal leading-body-sm text-graphite">
-            {activitySentence}
-          </p>
-        )}
-
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <button type="button" disabled={disabled} onClick={() => decide("approve")}
-            {...decisionFeedback("approve")}
-            className={`tap h-11 rounded-xl bg-on-olive px-5 text-caption font-normal text-olive-shell-bottom disabled:opacity-40 ${
-              activeDecision === "approve" ? feedback.controlPropsFor(decisionKey("approve")).className : ""}`}>
-            Use these
-          </button>
-          <button type="button" disabled={disabled} onClick={() => decide("reject")}
-            {...decisionFeedback("reject")}
-            className={`tap h-11 rounded-xl bg-charcoal/20 px-5 text-caption font-normal text-charcoal disabled:opacity-40 ${
-              activeDecision === "reject" ? feedback.controlPropsFor(decisionKey("reject")).className : ""}`}>
-            Keep mine
-          </button>
-        </div>
-
-        {offline && (
-          <p className="m-0 text-tiny font-normal text-graphite">
-            Needs a connection
-          </p>
-        )}
-      </div>
+        {fine && <p className="m-0 text-tiny font-normal leading-body-sm text-graphite">{fine}</p>}
+      </CardFrame>
     </div>{!shared && <ActionFeedbackToast notice={feedback.notice} onDismiss={feedback.dismiss} />}</>
   );
 }

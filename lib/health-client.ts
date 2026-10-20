@@ -97,26 +97,35 @@ export function writeCachedDaily(
 /**
  * The account's daily rows, live or from its own cache. A response that arrives after the account
  * changed rejects with `AccountChanged` and is cached for nobody (audit plan r1 finding 2).
+ *
+ * `cache: false` (the Overview's week charts, UI makeover §4.1) reads a window of its own: it never
+ * writes the shared `health_daily` cache, so the Body card's window is never replaced by it, and on
+ * a 503 or a failed request it answers `response: null`, never the cached copy of another window.
  */
 export async function fetchDaily(
-  h: AccountHandle, from: string, to: string, opts: { fetchImpl?: typeof fetch } = {},
+  h: AccountHandle, from: string, to: string,
+  opts: { fetchImpl?: typeof fetch; cache?: boolean } = {},
 ): Promise<{
     response: DailyHealthResponse | null; fetchedAt: string | null;
     offline: boolean; disabled: boolean }> {
   try {
     const res = await accountFetch(h, `/api/health/daily?from=${from}&to=${to}`,
       { cache: "no-store" }, { fetchImpl: opts.fetchImpl });
+    const useCache = opts.cache !== false;
     if (res.status === 503) {
+      if (!useCache) return { response: null, fetchedAt: null, offline: false, disabled: true };
       const cached = readCachedDaily(h);
       return { response: cached?.response ?? null, fetchedAt: cached?.fetchedAt ?? null,
         offline: false, disabled: true };
     }
     if (!res.ok) throw new Error(`daily failed with ${res.status}`);
     const response = normalizeDays(await accountJson<DailyHealthResponse>(h, res));
-    writeCachedDaily(h, response);
+    if (useCache) writeCachedDaily(h, response);
+    else assertCurrent(h);
     return { response, fetchedAt: new Date().toISOString(), offline: false, disabled: false };
   } catch (e) {
     rethrowAccountChanged(e);
+    if (opts.cache === false) return { response: null, fetchedAt: null, offline: true, disabled: false };
     const cached = readCachedDaily(h);
     return { response: cached?.response ?? null, fetchedAt: cached?.fetchedAt ?? null,
       offline: true, disabled: false };

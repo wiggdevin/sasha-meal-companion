@@ -2,7 +2,7 @@
 @import "./design-tokens.css";
 
 /*
-  Sasha — theme "Harvest" (2026-10-01; DESIGN.md), from Devin's Premium Meal Card reference. An oat
+  Sasha — theme "Harvest" (2026-10-01; DESIGN.md), from the owner's Premium Meal Card reference. An oat
   stone ground with a matte grain, ivory cards, matte charcoal meal cards and dock, one olive primary
   with cream text and an inset bevel, beige trays, Fraunces over Plus Jakarta Sans. It follows "Fresh"
   and replaces "Motion" on feat/nutrition-look; Natural stays archived at
@@ -21,40 +21,40 @@
 
 @theme {
   /* ---- Neutrals ---- */
-  --color-paper: #e0dcd1; /* the oat ground; also the light text on an ink (charcoal) fill */
+  --color-paper: #dcd7cb; /* the oat ground; also the light text on an ink (charcoal) fill */
   --color-fog: #eae5d9; /* the beige tray: skeletons, tracks */
-  --color-graphite: #3f3e3a; /* secondary text */
-  --color-charcoal: #1d1d1c; /* primary ink text; the ink button fill */
-  --color-muted: #5e5c55;
-  --color-hairline: rgba(29, 29, 28, 0.1);
-  --color-scrim: rgba(29, 29, 28, 0.45); /* behind an open sheet */
+  --color-graphite: #302f2b; /* secondary text */
+  --color-charcoal: #141413; /* primary ink text; the ink button fill */
+  --color-muted: #4d4b45;
+  --color-hairline: rgba(20, 20, 19, 0.14);
+  --color-scrim: rgba(20, 20, 19, 0.5); /* behind an open sheet */
 
   /* ---- Actions ---- */
   --color-tangerine: #5b7f99; /* legacy names: slate data colour, never a fill */
   --color-signal: #5b7f99;
 
   /* ---- Macro + status (data colours) ---- */
-  --color-green: #c9a24e;
-  --color-sky: #8aa26e;
+  --color-green: #dca22a;
+  --color-sky: #86ac5c;
   --color-slate-ink: #46667d; /* recipe time facet glyph: the data slate, deepened for 3:1 on its wash */
   --color-rosewood-ink: #7d5048; /* recipe servings facet glyph */
-  --color-plum: #665682; /* coach plum as text: ≥ 4.5:1 on oat (DESIGN.md §Contrast) */
-  --color-amber: #7a5a10; /* the Dijon ink (DESIGN.md §Contrast) */
-  --color-alert: #a6382f; /* the red ink (DESIGN.md §Colors) */
+  --color-plum: #5e4888; /* coach plum as text: ≥ 4.5:1 on oat (DESIGN.md §Contrast) */
+  --color-amber: #745200; /* the Dijon ink (DESIGN.md §Contrast) */
+  --color-alert: #a42e22; /* the red ink (DESIGN.md §Colors) */
   --color-clay: var(--color-tertiary);
 
   /* ---- Role colours ---- */
   --color-on-primary: #e2dcd0; /* cream text and icons on the olive primary fill */
-  --color-icon: #6a685f; /* line icons in sheets */
+  --color-icon: #5a5851; /* line icons in sheets */
   --color-icon-off: #bdb7aa; /* an unset toggle icon (favourite off) */
-  --color-text-hint: #5e5c55; /* the quietest label on the ground, 4.9:1 */
-  --color-warning: #7a5a10; /* unverified / needs-a-look text */
-  --color-caution: #7a5a10; /* off-plan flags */
+  --color-text-hint: #4d4b45; /* the quietest label on the ground, 6.4:1 */
+  --color-warning: #745200; /* unverified / needs-a-look text */
+  --color-caution: #745200; /* off-plan flags */
   --color-feedback-pending: var(--color-warning);
   --color-feedback-failure: var(--color-alert);
   --color-feedback-change: #4f5343; /* olive: a change that holds (2026-10-04, was plum) */
-  --color-feedback-success: #7e9a62; /* sage: a commit that landed (the Button tick, a ring) */
-  --color-well-dark: #1d1d1c; /* the camera viewfinder well */
+  --color-feedback-success: var(--color-sage); /* sage: a commit that landed (the Button tick, a ring) */
+  --color-well-dark: #141413; /* the camera viewfinder well */
   --color-selected: #4f5343; /* a chosen chip (unit, weekday): the olive primary fill */
   --color-on-selected: #e2dcd0; /* its label */
   --color-selected-soft: rgba(79, 83, 67, 0.12); /* a chosen option card, text unchanged */
@@ -82,19 +82,32 @@
   --text-body: 16px;
   --text-subheading: 20px;
   --text-heading-sm: 20px;
-  --text-heading: 28px;
+  --text-heading: 32px;
   --text-display: 40px;
 
   /* Text roles: one utility sets the size, the weight and the tracking (a `font-*` or `tracking-*`
      utility beside it still wins). `text-title`: a card title. `text-overline`: tracked capitals
      over a group (add `uppercase`). Components use these instead of inline font styles
      (tests/design/inline-style.test.ts). */
-  --text-title: 20px;
+  --text-title: 22px;
+  --text-title--line-height: 28px;
   --text-title--font-weight: 600;
-  --text-title--letter-spacing: -0.01em;
+  --text-title--letter-spacing: -0.015em;
   --text-overline: 12px;
   --text-overline--font-weight: 500;
   --text-overline--letter-spacing: 0.2em;
+  /* Display numerals (Bold, 2026-10-19; DESIGN.md §Typography `numeral-*`): calorie and stat figures.
+     The size comes from design-tokens.css; these add its line height, weight and tracking so one
+     `text-numeral-xl|lg|md` sets the whole figure. Pair with `.numeral` (tabular, the text face). */
+  --text-numeral-xl--line-height: var(--leading-numeral-xl);
+  --text-numeral-xl--font-weight: var(--font-weight-numeral-xl);
+  --text-numeral-xl--letter-spacing: var(--tracking-numeral-xl);
+  --text-numeral-lg--line-height: var(--leading-numeral-lg);
+  --text-numeral-lg--font-weight: var(--font-weight-numeral-lg);
+  --text-numeral-lg--letter-spacing: var(--tracking-numeral-lg);
+  --text-numeral-md--line-height: var(--leading-numeral-md);
+  --text-numeral-md--font-weight: var(--font-weight-numeral-md);
+  --text-numeral-md--letter-spacing: var(--tracking-numeral-md);
 }
 
 /* The section hue as a colour utility (`text-section`, `border-section`), resolved where it is used
@@ -107,7 +120,7 @@
   /* Floating chrome that is not the dock (the update notice, toasts): ivory, lightly frosted. */
   --glass-bg: rgba(246, 242, 233, 0.92);
   --glass-blur: 16px;
-  --glass-border: rgba(29, 29, 28, 0.08);
+  --glass-border: rgba(20, 20, 19, 0.12);
   --highlight: rgba(255, 255, 255, 0.7); /* the inner top edge on a raised light surface */
 
   /* The reference's matte finish: fractal noise, drawn once as an inline SVG and laid at 3 %. */
@@ -120,30 +133,33 @@
      <html data-section>. Olive is the default (Today). */
   --section-rgb: 79 83 67;
   /* The ground's lighter top wash and lower-corner shade (Oat; the other grounds follow). */
-  --ground-lift-rgb: 236 232 222;
-  --ground-shade-rgb: 211 205 192;
+  --ground-lift-rgb: 233 229 219;
+  --ground-shade-rgb: 205 198 184;
   /* The overview orb (components/PhosphorOrb.tsx): an ivory sphere marbled in olive, sage and
      wheat, fixed so it reads the same on every tab. */
   --orb-core-rgb: 96 104 78;
   --orb-rim-rgb: 138 162 110;
   --orb-fire-rgb: 201 162 78;
 
-  --ink-rgb: 29 29 28; /* the hairline ring in card and button shadows: ink on light */
-  --on-olive-rgb: 29 29 28;
+  --ink-rgb: 20 20 19; /* the hairline ring in card and button shadows: ink on light */
+  --on-olive-rgb: 20 20 19;
   --charcoal-deep-rgb: 20 20 19;
   --primary-rgb: 79 83 67;
   --cream-rgb: 226 220 208;
   --grad-ink: linear-gradient(180deg, #565b49 0%, #474b3c 100%); /* primary fill: olive */
   /* Ivory card body. A literal copy of the --grad-card stops (the contrast tables parse literals). */
-  --grad-panel: linear-gradient(180deg, #fbf9f4 0%, #f6f2e9 100%);
+  --grad-panel: linear-gradient(180deg, #fefdf9 0%, #f9f6ee 100%);
   --grad-recess: linear-gradient(180deg, #eae5d9 0%, #ede8dd 100%); /* beige trays inside a card */
-  /* The card face, lifted (2026-10-19, UI makeover §3): at least 1.10:1 off every ground at every
-     stop, so a card never blends into what is behind it (DESIGN.md §Elevation, the contrast step). */
-  --grad-card: linear-gradient(180deg, #fbf9f4 0%, #f6f2e9 100%);
-  /* A card inside a card: one step down from the card, 1.10:1 or more at every stop, no shadow. */
-  --grad-card-inset: linear-gradient(180deg, #e9e4d8 0%, #e8e3d6 100%);
-  /* The edge of a nested card (E0): an ink hairline at 12 %. */
-  --hairline-card: rgb(var(--ink-rgb) / 0.12);
+  /* The card face, lifted (2026-10-19, UI makeover §3; brighter in Bold): at least 1.20:1 off every
+     ground at every stop, so a card never blends into what is behind it (DESIGN.md §Elevation). */
+  --grad-card: linear-gradient(180deg, #fefdf9 0%, #f9f6ee 100%);
+  /* A card inside a card: one clear step down from the card (1.20:1 or more at every stop), no shadow. */
+  --grad-card-inset: linear-gradient(180deg, #e7e1d4 0%, #e4ded0 100%);
+  /* The ink card (CardFrame tone="ink", Bold 2026-10-19) is --grad-matte; a card inside it steps DOWN
+     into the charcoal (1.10:1 or more at every stop), so cream text and the persimmon figure gain. */
+  --grad-card-ink-inset: linear-gradient(180deg, #0d0d0c 0%, #10100f 100%);
+  /* The edge of a nested card (E0): an ink hairline at 16 % (cream inside an ink card). */
+  --hairline-card: rgb(var(--ink-rgb) / 0.16);
   /* CardFrame sizes (components/ui/CardFrame.tsx): padding on the 4 px rhythm, radii on the scale. */
   --card-pad-sm: calc(var(--spacing) * 3);
   --card-pad-md: calc(var(--spacing) * 4);
@@ -151,10 +167,10 @@
   --card-radius-sm: 16px;
   --card-radius-md: 24px;
   --card-radius-lg: 32px;
-  --grad-sheet: linear-gradient(180deg, #f7f3ea 0%, #f2eee4 100%);
+  --grad-sheet: linear-gradient(180deg, #fcfaf5 0%, #f7f4ec 100%);
   --grad-matte: linear-gradient(180deg, #222220 0%, #1d1d1c 100%); /* the meal card and dock */
-  --grad-sheet-shell: linear-gradient(180deg, rgba(29, 29, 28, 0.12) 0%, rgba(29, 29, 28, 0.06) 50%,
-    rgba(29, 29, 28, 0.03) 100%);
+  --grad-sheet-shell: linear-gradient(180deg, rgba(20, 20, 19, 0.14) 0%, rgba(20, 20, 19, 0.07) 50%,
+    rgba(20, 20, 19, 0.03) 100%);
   --grad-bubble: linear-gradient(180deg, rgb(var(--section-rgb) / 0.12) 0%, rgb(var(--section-rgb) / 0.08) 100%); /* the coach's bubble */
   --grad-coach-composer-rim: linear-gradient(90deg, #4f5343 0%, #8aa26e 55%, #c9a24e 100%);
   --grad-coach-composer-fill: linear-gradient(180deg, #f7f3ea 0%, #f4f0e6 100%);
@@ -165,15 +181,16 @@
   --shadow-coach-menu: 0 24px 48px -24px rgba(29, 29, 28, 0.4), 0 0 0 1px rgba(29, 29, 28, 0.06);
   --grad-olive: linear-gradient(180deg, rgba(29, 29, 28, 0.12) 0%, rgba(29, 29, 28, 0.06) 50%,
     rgba(29, 29, 28, 0.03) 100%); /* the proposal card's hairline shell */
-  --grad-gold: linear-gradient(180deg, #e3c477 0%, #cfa038 100%); /* training-day tile: Dijon yellow */
+  --grad-gold: linear-gradient(180deg, #edc867 0%, #dca22a 100%); /* training-day tile: Dijon yellow */
   --grad-fab: linear-gradient(180deg, #565b49, #474b3c); /* coach button: olive, cream glyph */
   --grad-produce: radial-gradient(110% 90% at 15% 0%, rgba(138, 162, 110, 0.45) 0%, transparent 60%),
     radial-gradient(80% 70% at 100% 100%, rgba(201, 162, 78, 0.25) 0%, transparent 65%),
     linear-gradient(150deg, #4f5343 0%, #33352c 100%); /* olive artwork for an unknown dish */
-  --shadow-button: 0 1px 2px rgba(29, 29, 28, 0.06), 0 0 0 1px rgba(29, 29, 28, 0.12);
-  --shadow-card: 0 1px 2px rgba(29, 29, 28, 0.05), 0 16px 32px -22px rgba(60, 52, 36, 0.4);
-  --shadow-float: 0 2px 6px rgba(29, 29, 28, 0.08), 0 20px 40px -20px rgba(40, 36, 26, 0.5);
-  --shadow-hero: 0 2px 4px rgba(29, 29, 28, 0.1), 0 25px 50px -18px rgba(29, 29, 28, 0.45);
+  --shadow-button: 0 1px 2px rgba(20, 20, 19, 0.08), 0 0 0 1px rgba(20, 20, 19, 0.16);
+  --shadow-card: 0 1px 2px rgba(20, 20, 19, 0.1), 0 4px 10px -6px rgba(20, 20, 19, 0.12),
+    0 18px 34px -20px rgba(48, 40, 24, 0.55);
+  --shadow-float: 0 2px 6px rgba(20, 20, 19, 0.12), 0 22px 44px -18px rgba(32, 28, 18, 0.6);
+  --shadow-hero: 0 2px 4px rgba(20, 20, 19, 0.16), 0 26px 50px -16px rgba(20, 20, 19, 0.55);
 
   /* iOS safe areas */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -197,45 +214,45 @@
   color-scheme: light;
 }
 /* Section hues: headings, the eaten tint, the coach bubble. Muted, readable as text on oat. */
-[data-section="body"] { --section-rgb: 68 100 106; }
-[data-section="foods"] { --section-rgb: 142 74 66; }
-[data-section="coach"] { --section-rgb: 102 86 130; }
-[data-section="settings"] { --section-rgb: 94 92 85; }
+[data-section="body"] { --section-rgb: 63 95 101; }
+[data-section="foods"] { --section-rgb: 134 66 58; }
+[data-section="coach"] { --section-rgb: 94 72 136; }
+[data-section="settings"] { --section-rgb: 77 75 69; }
 [data-section="today"] { --section-rgb: 79 83 67; }
 
 /* The matte scope (DESIGN.md §Colors): inside the meal card and the dock the text roles turn cream,
    so components keep their class names. `.matte-reset` (the beige tray) maps them back to ink. */
 .matte {
-  --color-charcoal: #f3eee2;
-  --color-graphite: #d6d0c3;
-  --color-muted: #a8a7a2;
-  --color-text-primary: #f3eee2;
-  --color-text-secondary: #d6d0c3;
-  --color-text-muted: #a8a7a2;
-  --color-text-faint: #9a9993;
-  --color-text-hint: #a8a7a2;
+  --color-charcoal: #f7f3ea;
+  --color-graphite: #e0dbcf;
+  --color-muted: #bab8b0;
+  --color-text-primary: #f7f3ea;
+  --color-text-secondary: #e0dbcf;
+  --color-text-muted: #bab8b0;
+  --color-text-faint: #a9a79f;
+  --color-text-hint: #bab8b0;
   --color-on-olive: #e2dcd0;
-  --color-on-charcoal: #f3eee2;
-  --color-icon: #b1b2a9;
-  --color-hairline: rgba(255, 255, 255, 0.1);
-  --ink-rgb: 243 238 226;
+  --color-on-charcoal: #f7f3ea;
+  --color-icon: #c2c2b8;
+  --color-hairline: rgba(255, 255, 255, 0.14);
+  --ink-rgb: 247 243 234;
   color: var(--color-charcoal);
 }
 .matte-reset,
 .notice {
-  --color-charcoal: #1d1d1c;
-  --color-graphite: #3f3e3a;
-  --color-muted: #5e5c55;
-  --color-text-primary: #1d1d1c;
-  --color-text-secondary: #3f3e3a;
-  --color-text-muted: #5e5c55;
+  --color-charcoal: #141413;
+  --color-graphite: #302f2b;
+  --color-muted: #4d4b45;
+  --color-text-primary: #141413;
+  --color-text-secondary: #302f2b;
+  --color-text-muted: #4d4b45;
   --color-text-faint: #6a685f;
-  --color-text-hint: #5e5c55;
-  --color-on-olive: #1d1d1c;
-  --color-on-charcoal: #1d1d1c;
-  --color-icon: #6a685f;
-  --color-hairline: rgba(29, 29, 28, 0.1);
-  --ink-rgb: 29 29 28;
+  --color-text-hint: #4d4b45;
+  --color-on-olive: #141413;
+  --color-on-charcoal: #141413;
+  --color-icon: #5a5851;
+  --color-hairline: rgba(20, 20, 19, 0.14);
+  --ink-rgb: 20 20 19;
   color: var(--color-charcoal);
 }
 /* The matte grain over a charcoal surface. */
@@ -355,7 +372,7 @@ h1,
 .surface {
   border-radius: 24px;
   background: var(--grad-card);
-  border: 1px solid rgb(var(--ink-rgb) / 0.1);
+  border: 1px solid rgb(var(--ink-rgb) / 0.14);
 }
 
 /* CardFrame (components/ui/CardFrame.tsx, DESIGN.md §Elevation): one size class and one tone class
@@ -380,10 +397,27 @@ h1,
   box-shadow: var(--bevel);
   color: var(--color-on-primary);
 }
-/* A CardFrame inside a card is E0: the 12 % hairline and no drop (never a shadow inside a shadow). */
+/* Ink: the hero card (Bold, 2026-10-19). The matte charcoal face with the bevel; the `.matte` class
+   CardFrame adds beside it turns the text roles cream. On the ground its shell takes the hero drop. */
+.card-ink {
+  background: var(--grad-matte);
+  box-shadow: var(--bevel);
+}
+.shell:has(> .card-ink) { box-shadow: var(--shadow-hero); }
+/* A card inside an ink card steps down into the charcoal (E0), with a cream hairline at 16 %. */
+.card-ink-inset {
+  background: var(--grad-card-ink-inset);
+  border-color: rgb(var(--ink-rgb) / 0.16);
+  box-shadow: none;
+}
+/* A CardFrame inside a card is E0: the 16 % hairline and no drop (never a shadow inside a shadow). */
 .card-e0:not(.card-olive) {
   border-color: var(--hairline-card);
   box-shadow: none;
+}
+/* Inside an ink card the hairline is cream (the `.matte` scope's ink), so it reads on the charcoal. */
+.card-e0.matte:not(.card-olive) {
+  border-color: rgb(var(--ink-rgb) / 0.16);
 }
 
 /* Legacy nested cards (2026-10-19, UI makeover §3.4): a `.surface` inside a `.surface` takes the
@@ -397,6 +431,24 @@ html[data-card-step] .surface :where(.surface):not(.matte, .meal-card-in, .matte
 }
 html[data-card-step] .surface .surface :where(.surface):not(.matte, .meal-card-in, .matte-reset, .olive-panel, .card-olive) {
   background: var(--grad-card);
+}
+/* Inside an ink card the same legacy steps run in charcoal: down into the ink inset, then the ink
+   face again, so cream text (inherited from the `.matte` scope) never lands on an ivory step. */
+html[data-card-step] .surface.card-ink :where(.surface):not(.matte, .meal-card-in, .matte-reset, .olive-panel, .card-olive) {
+  background: var(--grad-card-ink-inset);
+  border-color: rgb(var(--ink-rgb) / 0.16);
+  box-shadow: none;
+}
+html[data-card-step] .surface.card-ink .surface :where(.surface):not(.matte, .meal-card-in, .matte-reset, .olive-panel, .card-olive) {
+  background: var(--grad-matte);
+}
+
+/* A display numeral (DESIGN.md §Typography `numeral-*`): the text face with tabular figures, so a
+   calorie or stat figure keeps its width as it counts. Size, weight and tracking: `text-numeral-*`. */
+.numeral {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .pill {
@@ -418,7 +470,7 @@ html[data-card-step] .surface .surface :where(.surface):not(.matte, .meal-card-i
 
 .meal-card-in {
   border-radius: 24px;
-  background: linear-gradient(180deg, rgb(var(--section-rgb) / 0.1) 0%, rgb(var(--section-rgb) / 0.05) 100%), #f6f2e9;
+  background: linear-gradient(180deg, rgb(var(--section-rgb) / 0.1) 0%, rgb(var(--section-rgb) / 0.05) 100%), #f9f6ee;
   border: 1px solid rgb(var(--section-rgb) / 0.22);
   overflow: hidden;
   display: flex;
@@ -427,8 +479,8 @@ html[data-card-step] .surface .surface :where(.surface):not(.matte, .meal-card-i
 /* Logged extra: a food logged on top of the plan. Ivory with a hairline. */
 .logged-card-in {
   border-radius: 24px;
-  background: #f6f2e9;
-  border: 1px solid rgb(var(--ink-rgb) / 0.07);
+  background: #f9f6ee;
+  border: 1px solid rgb(var(--ink-rgb) / 0.12);
   overflow: hidden;
   display: flex;
 }
@@ -968,7 +1020,7 @@ body[data-typing="field"] .sheet-popover-root {
   padding-bottom: var(--safe-bottom);
 }
 .sheet-popover-scrim {
-  background: rgba(29, 29, 28, 0.28); /* fixed ink: a sheet opened inside a matte card keeps it */
+  background: rgba(20, 20, 19, 0.34); /* fixed ink: a sheet opened inside a matte card keeps it */
 }
 /* A sheet opened from a meal card renders as its own rounded card right under that card
    (components/Sheet AttachedSheet), so the flow stays on the card and reads like the cards around
@@ -1031,9 +1083,9 @@ body[data-typing="field"] .sheet-popover-root {
 .toast.pill-in {
   background: var(--grad-matte);
   border-color: rgba(255, 255, 255, 0.06);
-  --color-charcoal: #f3eee2;
-  --color-text-primary: #f3eee2;
-  --color-muted: #a8a7a2;
+  --color-charcoal: #f7f3ea;
+  --color-text-primary: #f7f3ea;
+  --color-muted: #bab8b0;
   color: #e2dcd0;
   box-shadow: var(--bevel), var(--shadow-float);
 }
@@ -1131,48 +1183,48 @@ button,
 /* The selectable grounds (DESIGN.md §Grounds, lib/design/grounds.ts): only the bare page moves.
    Oat is the default above; <html data-ground> is written by components/GroundTheme.tsx. */
 html[data-ground="sage"] {
-  --color-paper: #e1e5d6;
-  --color-background: #e1e5d6;
-  --ground-lift-rgb: 237 240 228;
-  --ground-shade-rgb: 209 216 195;
+  --color-paper: #dce1d0;
+  --color-background: #dce1d0;
+  --ground-lift-rgb: 233 237 224;
+  --ground-shade-rgb: 205 212 190;
 }
 html[data-ground="clay"] {
-  --color-paper: #e9ddd2;
-  --color-background: #e9ddd2;
-  --ground-lift-rgb: 243 235 227;
-  --ground-shade-rgb: 220 205 191;
+  --color-paper: #e4d7cb;
+  --color-background: #e4d7cb;
+  --ground-lift-rgb: 239 231 222;
+  --ground-shade-rgb: 214 198 183;
 }
 html[data-ground="mist"] {
-  --color-paper: #dfe3e2;
-  --color-background: #dfe3e2;
-  --ground-lift-rgb: 235 238 238;
-  --ground-shade-rgb: 205 213 214;
+  --color-paper: #d9dedd;
+  --color-background: #d9dedd;
+  --ground-lift-rgb: 231 235 235;
+  --ground-shade-rgb: 200 208 209;
 }
 
 /* The picker's swatches: each draws its own ground, whatever ground is on now. */
 .ground-swatch-oat {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgb(236 232 222 / 0.9) 0%, transparent 70%),
-    radial-gradient(90% 90% at 100% 120%, rgb(211 205 192 / 0.6) 0%, transparent 70%),
-    #e0dcd1;
+    radial-gradient(120% 90% at 50% -20%, rgb(233 229 219 / 0.9) 0%, transparent 70%),
+    radial-gradient(90% 90% at 100% 120%, rgb(205 198 184 / 0.6) 0%, transparent 70%),
+    #dcd7cb;
 }
 .ground-swatch-sage {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgb(237 240 228 / 0.9) 0%, transparent 70%),
-    radial-gradient(90% 90% at 100% 120%, rgb(209 216 195 / 0.6) 0%, transparent 70%),
-    #e1e5d6;
+    radial-gradient(120% 90% at 50% -20%, rgb(233 237 224 / 0.9) 0%, transparent 70%),
+    radial-gradient(90% 90% at 100% 120%, rgb(205 212 190 / 0.6) 0%, transparent 70%),
+    #dce1d0;
 }
 .ground-swatch-clay {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgb(243 235 227 / 0.9) 0%, transparent 70%),
-    radial-gradient(90% 90% at 100% 120%, rgb(220 205 191 / 0.6) 0%, transparent 70%),
-    #e9ddd2;
+    radial-gradient(120% 90% at 50% -20%, rgb(239 231 222 / 0.9) 0%, transparent 70%),
+    radial-gradient(90% 90% at 100% 120%, rgb(214 198 183 / 0.6) 0%, transparent 70%),
+    #e4d7cb;
 }
 .ground-swatch-mist {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgb(235 238 238 / 0.9) 0%, transparent 70%),
-    radial-gradient(90% 90% at 100% 120%, rgb(205 213 214 / 0.6) 0%, transparent 70%),
-    #dfe3e2;
+    radial-gradient(120% 90% at 50% -20%, rgb(231 235 235 / 0.9) 0%, transparent 70%),
+    radial-gradient(90% 90% at 100% 120%, rgb(200 208 209 / 0.6) 0%, transparent 70%),
+    #d9dedd;
 }
 
 
@@ -1360,7 +1412,7 @@ a.btn:active,
 
 /* In-place dropdown (components/DayTypeMenu): an ivory menu, lifted. */
 .menu-glass {
-  background: #f6f2e9;
+  background: #f9f6ee;
   border: 1px solid rgb(var(--ink-rgb) / 0.08);
   border-radius: 24px;
   box-shadow: var(--shadow-float);

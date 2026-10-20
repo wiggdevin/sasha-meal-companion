@@ -14,8 +14,8 @@ import PlanComposer from "@/components/plan/PlanComposer";
 import PhotoResult from "@/components/plan/PhotoResult";
 import DocumentPlan from "@/components/plan/DocumentPlan";
 import WaterLiquid from "@/components/today/WaterLiquid";
-import TipTile from "@/components/today/TipTile";
-import { GALLERY_DOCUMENT_PLAN, GALLERY_MENU_RESULT, GALLERY_PLATE_RESULT, GALLERY_TIPS } from "@/app/design/gallery-fixtures";
+import CupSlot from "@/components/today/CupSlot";
+import { GALLERY_DOCUMENT_PLAN, GALLERY_MENU_RESULT, GALLERY_PLATE_RESULT } from "@/app/design/gallery-fixtures";
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -254,8 +254,13 @@ export default function DesignGallery() {
         </Surface>
       </Block>
 
-      <Block title="Tip tile">
-        <TipTile tips={GALLERY_TIPS} />
+      <Block title="Cup (CupSlot)">
+        <Surface className="flex flex-wrap gap-3 px-4 py-4">
+          <CupSlot water={{ cups: 0, goal: 8, unit: "cups" }} onAddCup={() => {}} onSetCups={() => {}} />
+          <CupSlot water={{ cups: 4, goal: 16, unit: "oz" }} onAddCup={() => {}} onSetCups={() => {}} />
+          <CupSlot water={{ cups: 9, goal: 8, unit: "cups" }} onAddCup={() => {}} onSetCups={() => {}} />
+          <CupSlot />
+        </Surface>
       </Block>
 
       <Block title="New colour tokens (orange-warm, sage, field)">

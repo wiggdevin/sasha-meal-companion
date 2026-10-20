@@ -33,7 +33,7 @@ the Body destination stays reserved even while its capability resolves, so prima
 
 | ID | Feature | Detail | Phase | Disposition | Source | Acceptance |
 |---|---|---|---|---|---|---|
-| F-001 | Morphing bottom navigation | Today · Coach · Body · Foods · Settings use one persistent five-destination glass dock. A selected non-coach destination reveals its label and expands into the white pill. On Coach, a glowing glass composer shares the row with a direct Today icon and an all-destinations control; voice and send stay inside the composer. Inactive destinations remain icon-only. The dock hides while the virtual keyboard is open; sign-in, onboarding and unknown routes show no app chrome. | 0 | exists | `components/AppChrome.tsx`, `components/TabBar.tsx`, `components/coach/CoachShell.tsx`; DESIGN.md | Today is one tap away on the coach route, and every other destination is available from the visible menu. The composer sends by keyboard or control, accepts voice dictation for review, and every target is at least 44 px. |
+| F-001 | Morphing bottom navigation | Today · Coach · Body · Foods · Settings use one persistent five-destination glass dock. Every destination keeps its label at every width (below 360 px the padding tightens, not the label), and the selected one expands into the pill. On Coach, a glowing glass composer shares the row with a direct Today icon and an all-destinations control; voice and send stay inside the composer. Every page shows its own visible title (`components/ui/PageTitle.tsx`). The dock hides while the virtual keyboard is open; sign-in, onboarding and unknown routes show no app chrome. | 0 | exists | `components/AppChrome.tsx`, `components/TabBar.tsx`, `components/coach/CoachShell.tsx`; DESIGN.md | Today is one tap away on the coach route, and every other destination is available from the visible menu. The composer sends by keyboard or control, accepts voice dictation for review, and every target is at least 44 px. |
 | F-002 | Day type derivation | Day type comes from the account's saved training weekdays; an empty schedule is rest-only. | 0 | exists | PRD §7.1, AGENTS.md | Each date shows the day type implied by the saved account schedule. |
 | F-003 | Deterministic meal rotation | Meal 1/2/3 come from the account's synced Eats foods, keyed deterministically to the date. | 0 | exists | AGENTS.md, PRD §8 | Loading the same date twice, on two devices, shows the same meals. |
 | F-004 | Fixed ritual slots | Coffee, pre-training carbs, Wednesday refuel shake, and optional hot chocolate come from a fixed slot library, not the rotating food pool. | 0 | exists | AGENTS.md | Every rest and training day shows its correct ritual slots per PRD §7.1's table. |
@@ -70,7 +70,7 @@ the Body destination stays reserved even while its capability resolves, so prima
 |---|---|---|---|---|---|---|
 | F-026 | Log a food | The + button's "Log a food" flow searches the food DB and records a serving and quantity as an extra. | 0 | exists | AGENTS.md | Logging a food from search adds one entry to that day's extras and counts in the rings. |
 | F-027 | Log a meal | "Log a meal" records a name, several foods, and a note as one combined entry (`items`). | 0 | exists | AGENTS.md | A logged meal with three foods appears as a single entry with all three items. |
-| F-028 | Log water (water dial) | Removed from the + button 2026-09-19. The water dial now lives in its own card beneath the separate calorie and macro trackers: a tap adds one, a hold opens a slider. | 0 | exists | AGENTS.md, DESIGN.md Progress trackers | Tapping the water dial once adds one cup (240ml) to that day's water total. |
+| F-028 | Log water (header cup) | Removed from the + button 2026-09-19. Since the 2026-10-19 makeover water is one cup control in the Day card's header (`CupSlot`): a tap adds one step in the account's unit, a hold and slide right scrubs a larger amount and writes once on release. | 0 | exists | AGENTS.md, DESIGN.md Day card | Tapping the cup once adds one cup (240ml) to that day's water total. |
 | F-029 | Off-plan food flagging | Logging a food that is gluten, dairy, or apple flags it in the entry rather than blocking the log. | 0 | exists | AGENTS.md | Logging a dairy item shows a visible flag on that entry without preventing the log. |
 | F-030 | Notes on entries and slots | Any logged extra or any plan slot can carry a note the user edits later. | 0 | exists | AGENTS.md | Adding a note to a plan slot persists it across reloads. |
 | F-031 | Gut check-in | A one-tap good/iffy/flare check-in records against the day and syncs as an account-owned `gut_log` row through `/api/sync/ops`. The coach reads it back through its own read registry; there is no MCP tool for it. | 0 | exists | PRD §9.1, AGENTS.md, `lib/coach/registry.ts` | Logging a gut check-in of "flare" stores it on that day's record and the coach's recent-gut-log read returns it. |
@@ -137,7 +137,7 @@ the Body destination stays reserved even while its capability resolves, so prima
 | F-062 | Barcode scanner with speed gate | `zxing-wasm` scans a barcode client-side and resolves it against the catalog, falling back to an OFF/FDC lookup on miss; the legacy `/scan` URL remains as a temporary server redirect to `/coach?open=scan`, and the three-package under-five-second gate remains. | 3 | exists | Chat-first A1; `lib/barcode/worker.ts`, `app/scan/page.tsx` | Visiting `/scan` redirects into Coach's scanner, where a packaged food resolves without manual search in under five seconds. |
 | F-063 | Recipes (versioned) | Recipes store an immutable per-serving nutrient snapshot computed at save time, with items referencing foods, quantities, and cook state. | 3 | exists | v2 §3.2; `lib/recipes-client.ts` | Editing a recipe's ingredients after saving does not change the nutrients of a previously logged serving of it. |
 | F-064 | Favorites | Foods, recipes, and meals can each be favorited with real foreign-key-backed tables and a sort order. | 3 | exists | v2 §3.2; `supabase/migrations/20260911000200_user_schema.sql` | A favorited food appears at the top of search results ahead of an unfavorited equivalent. |
-| F-065 | Water tracking (migrated) | Water logging writes to the dedicated `water_log` table, not the `days` jsonb blob. Its count and controls live in a compact Water card, separate from the week calendar and calorie/macro trackers. | 3 | exists | v2 §1, §3.3; T8 §1 | Logging water writes to `water_log`, not the `days` jsonb column, and the Water card reads `1 of 8 cups` after the first tap. |
+| F-065 | Water tracking (migrated) | Water logging writes to the dedicated `water_log` table, not the `days` jsonb blob. Its count and control live in the Day card header's cup, which names the amount for assistive tech. | 3 | exists | v2 §1, §3.3; T8 §1 | Logging water writes to `water_log`, not the `days` jsonb column, and the cup's name reads `1 of 8 cups` after the first tap. |
 
 ## AI-assisted logging (Phase 4)
 
@@ -314,6 +314,16 @@ MCP tools on top of what Phase 4 ships.
 - **"Programme complete" / day-counter framing** (e.g. "day 14 of 28") — rejected. There is no programme, only dates; a completion or countdown screen contradicts the core simplifying decision (PRD §1.1, §10).
 - **PRD-era exclusion of calorie search / barcode database** — the original PRD (2026-09-07) explicitly excluded a searchable food database and barcode scanning because "the user is not tracking, the user is following" (PRD §9, "Deliberately excluded"). The 2026-09-10 brief reverses this: it asks for a full nutrition tracker with USDA-backed search and a barcode scanner. That reversal is now the plan of record — see F-024 (exists, current food-db search), F-050–F-057 (Phase 1 catalog and search), and F-062 (Phase 3 barcode scanner).
 
+## Today Overview and weekly trends (2026-10-19)
+
+The Day card has two faces, Calendar and Overview; the Board is gone. Overview is a one-screen daily
+cockpit: calories left and the macros, meals done of planned and the next one, the rebalance line,
+one next step, then a companion row and a week row. The week row opens "Your week": line and bar
+charts over a week or a month for calories, protein, water, sleep, activity and weight, streaks (on
+plan, fully logged, water) and up to three plain insights. A day with no data is a gap, never 0; no
+target is drawn before the first revision; a streak never counts a partial day; an insight needs at
+least 7 days and 3 on each side, and none is built by a model. Details: AGENTS.md, DESIGN.md Day card.
+
 ## Today simplification (2026-09-15)
 
 The date picker now lives on Today as a swipeable week strip. Week and Coach do not occupy bottom-navigation tabs. One 56 px FAB on every primary route opens Coach directly; there is no quick-actions menu or double-tap, and Coach renders without the tab bar or FAB.
@@ -323,7 +333,7 @@ Calories and the three macro gauges share a compact card. Tap a meal card to edi
 ## Foods: Favorites, Avoids and Shopping (recipe pilot merged 2026-09-27)
 
 The Foods tab has Favorites, Avoids and Shopping for enabled pilot accounts. Its first tab
-is called Eats when the pilot is off. That first tab holds favorites, the user's foods, recipes (`/recipes` now redirects to `/foods#recipes`), and the what-to-eat reference.
+is called Eats when the pilot is off. That first tab is the Preferred shopping list and Often eaten, both grouped by aisle (`lib/foods/aisle.ts`); there is no "Your usual foods" list. Recipes (`/recipes` redirects to `/foods#recipes`) and the what-to-eat reference follow.
 Avoids: the allergen and category rules with their switches, the user's own "can't eat
 right now" list, and the user's conditions. The former FoodsReference and
 ConstraintsEditor components are gone — their content lives in `EatsReference`,

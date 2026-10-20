@@ -19,8 +19,7 @@ vi.mock("@/lib/resolve", () => ({
   },
 }));
 
-const { APP_TIPS, boardTips, isNewAccount, nextMeal, orderTips, tipIndexFor, weekSummary } = await import("@/lib/today/board");
-type TipContext = import("@/lib/today/board").TipContext;
+const { nextMeal, nextStep, weekSummary } = await import("@/lib/today/board");
 const { dayHeading } = await import("@/lib/today/calendar");
 
 function slot(partial: Partial<ResolvedSlot> & Pick<ResolvedSlot, "slot" | "time">): ResolvedSlot {
@@ -92,82 +91,32 @@ describe("weekSummary", () => {
   });
 });
 
-describe("tips", () => {
-  it("puts the coach's tips first and never repeats one", () => {
-    const tips = boardTips([{ id: "coach-1", source: "coach", text: "From the coach." }, APP_TIPS[0]]);
-    expect(tips[0].id).toBe("coach-1");
-    expect(new Set(tips.map((tip) => tip.id)).size).toBe(tips.length);
+describe("nextStep", () => {
+  const next = { slot: "meal-2" as const, label: "Meal 2", name: "Oats", time: "12:30", kcal: 400, protein: 30, image: null };
+
+  it("names one plain step for today, from what the face already shows", () => {
+    expect(nextStep({ when: "today", planned: 3, next, water: { cups: 2, goal: 8 } })).toBe("Tick each meal once you've had it.");
+    expect(nextStep({ when: "today", planned: 3, next, water: { cups: 0, goal: 8 } })).toBe("No water yet today. Tap the cup to log some.");
+    expect(nextStep({ when: "today", planned: 3, next: null })).toBe("Every meal is in. Mark the day fully logged when you're done.");
   });
 
-  it("rotates once a day", () => {
-    expect(tipIndexFor("2026-10-01", 6)).toBe(1);
-    expect(tipIndexFor("2026-10-06", 6)).toBe(0);
-    expect(tipIndexFor("2026-10-06", 0)).toBe(0);
+  it("never reads unread water as none", () => {
+    expect(nextStep({ when: "today", planned: 3, next })).toBe("Tick each meal once you've had it.");
+    expect(nextStep({ when: "today", planned: 3, next, water: { cups: 0, goal: 0 } })).toBe("Tick each meal once you've had it.");
   });
 
-  it("gives every app tip a glyph, a headline, a line, full steps and a demonstration", () => {
-    for (const tip of APP_TIPS) {
-      expect(tip.title.length).toBeGreaterThan(0);
-      expect(tip.text.length).toBeGreaterThan(0);
-      expect(tip.steps.length).toBeGreaterThanOrEqual(3);
-      expect(tip.glyph).toBeTruthy();
-      expect(tip.demo).toBeTruthy();
-    }
-    expect(new Set(APP_TIPS.map((tip) => tip.demo)).size).toBe(APP_TIPS.length);
-  });
-});
-
-describe("orderTips", () => {
-  // An old account on a rest day with water logged and every meal ticked: nothing is pressing.
-  const calm: TipContext = { date: "2026-10-06", today: "2026-10-06", water: { cups: 4, goal: 8 }, planned: 3,
-    open: false, firstOpenedAt: "2026-08-01T09:00:00Z", training: false };
-  const ids = (context: Partial<TipContext>, tips = boardTips()) => orderTips(tips, { ...calm, ...context }).map((tip) => tip.id);
-  const base = APP_TIPS.map((tip) => tip.id);
-
-  it("falls back to the list order, starting from the day's tip, and is stable", () => {
-    expect(ids({})).toEqual(base);
-    expect(ids({ date: "2026-10-01" })).toEqual([...base.slice(1), base[0]]);
-    expect(ids({ date: "2026-10-01" })).toEqual(ids({ date: "2026-10-01" }));
+  it("speaks to a past day, a future day and a day with nothing planned", () => {
+    expect(nextStep({ when: "past", planned: 3, next })).toBe("Tick the meals you had so this day counts.");
+    expect(nextStep({ when: "past", planned: 3, next: null })).toBe("Mark this day fully logged if nothing else went in.");
+    expect(nextStep({ when: "future", planned: 3, next })).toBe("Coming up. Tap a meal below to change it.");
+    expect(nextStep({ when: "future", planned: 0, next: null })).toBe("Nothing is planned for this day yet.");
+    expect(nextStep({ when: "today", planned: 0, next: null })).toBe("Nothing is planned. Tap + to log what you have.");
   });
 
-  it("puts the water tip first when no water is logged today, and only today", () => {
-    expect(ids({ water: { cups: 0, goal: 8 } })[0]).toBe("water");
-    // On a past day the water rests; the day's tip leads.
-    expect(ids({ water: { cups: 0, goal: 8 }, date: "2026-10-04" })[0]).toBe(base[4]);
-    // Water not read yet is not "none logged".
-    expect(ids({ water: null })[0]).toBe(base[0]);
-  });
-
-  it("leads with clearing a past day's unticked meals", () => {
-    expect(ids({ date: "2026-10-04", open: true })[0]).toBe("swipe");
-    expect(ids({ open: true })[0]).not.toBe("swipe");
-  });
-
-  it("walks a new account through the orb, the week and the month first", () => {
-    expect(ids({ firstOpenedAt: "2026-10-03T08:00:00Z" }).slice(0, 3)).toEqual(["orb", "scrub", "month"]);
-    expect(isNewAccount({ firstOpenedAt: "2026-09-30", today: "2026-10-06" })).toBe(true);
-    expect(isNewAccount({ firstOpenedAt: "2026-09-29", today: "2026-10-06" })).toBe(false);
-    expect(isNewAccount({ firstOpenedAt: "not a date", today: "2026-10-06" })).toBe(false);
-    expect(isNewAccount({ firstOpenedAt: null, today: "2026-10-06" })).toBe(false);
-  });
-
-  it("brings moving a meal's time forward on a training day with meals still open", () => {
-    expect(ids({ training: true, open: true })[0]).toBe("time");
-    expect(ids({ training: true, open: false })[0]).toBe(base[0]);
-  });
-
-  it("orders several pressing tips by how pressing they are, then by the list", () => {
-    const order = ids({ water: { cups: 0, goal: 8 }, firstOpenedAt: "2026-10-06", training: true, open: true });
-    expect(order.slice(0, 5)).toEqual(["water", "orb", "time", "scrub", "month"]);
-    expect(new Set(order).size).toBe(APP_TIPS.length);
-  });
-
-  it("keeps the coach's tips ahead of the app's resting ones, behind anything pressing", () => {
-    const coach = [{ id: "coach-1", source: "coach" as const, text: "From the coach." }];
-    expect(ids({}, boardTips(coach))[0]).toBe("coach-1");
-    expect(ids({ water: { cups: 0, goal: 8 } }, boardTips(coach)).slice(0, 2)).toEqual(["water", "coach-1"]);
-    const urgent = [{ ...coach[0], relevance: () => 9 }];
-    expect(ids({ water: { cups: 0, goal: 8 } }, boardTips(urgent))[0]).toBe("coach-1");
+  it("never tells anyone to eat", () => {
+    const lines = (["today", "past", "future"] as const).flatMap((when) => [0, 3].flatMap((planned) =>
+      [next, null].map((n) => nextStep({ when, planned, next: n, water: { cups: 0, goal: 8 } }))));
+    for (const line of lines) expect(line).not.toMatch(/\beat\b|\beat more\b|should/i);
   });
 });
 

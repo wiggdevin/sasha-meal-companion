@@ -273,19 +273,20 @@ export default function SlotCard({
     <InsetSheetHost>{attachment}</InsetSheetHost>
   </TrayFace>;
   if (slot.meal === null && variant !== "focus") {
-    // An unplanned slot that is not the focus: one line, one action (audit 2026-09-22).
+    // An unplanned slot that is not the focus: one line, one action (audit 2026-09-22). The small
+    // card frame (UI makeover §3.3: card-sm, 12 px padding, 16 px corners).
     return withActions(
       <div className={`shell min-w-0 w-full max-w-full ${styles.card} ${mealProps.className}`} {...cardProps}>
-        <div className="surface flex flex-col">
-          <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
+        <div className="surface card-sm card-ivory flex flex-col">
+          <div className="flex min-h-11 items-center justify-between gap-3">
             <span className="flex min-w-0 items-baseline gap-2">
-              <span className="truncate text-[16px] font-medium text-charcoal">{slot.label}</span>
+              <span className="truncate text-body font-semibold text-charcoal">{slot.label}</span>
               <span className="text-tiny tabular-nums text-muted">{formatTime(slot.time).toUpperCase()}</span>
             </span>
             {!attached && <Button ref={planButton} onClick={planEmpty}>Plan</Button>}
           </div>
-          {reasonLine("px-4 pb-3")}
-          <EmptyCardFlow open={attached}>{flowFace("px-4 pb-4")}</EmptyCardFlow>
+          {reasonLine("")}
+          <EmptyCardFlow open={attached}>{flowFace("")}</EmptyCardFlow>
         </div>
       </div>
     );
@@ -293,9 +294,9 @@ export default function SlotCard({
   if (slot.meal === null) {
     return withActions(
       <div className={`shell min-w-0 w-full max-w-full ${styles.card} ${mealProps.className}`} {...cardProps}>
-        <div className="surface flex flex-col gap-3 p-4">
+        <div className="surface card-md card-ivory flex flex-col">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[16px] font-medium text-charcoal">
+            <span className="text-body font-semibold text-charcoal">
               {focusLabel && <span data-meal-status={focusLabel.toLowerCase()} className="eyebrow mr-2 text-muted">{focusLabel}</span>}
               {slot.label}
             </span>

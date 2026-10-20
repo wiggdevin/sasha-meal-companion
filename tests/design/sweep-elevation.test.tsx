@@ -10,7 +10,8 @@ import type { LoggedFood } from "@/lib/types";
  * Elevation in the stream F2 sweep (DESIGN.md §Elevation & Depth, PRD U11, 2026-10-04): a card on the
  * oat ground is E1, and everything inside a card is E0 — never a shadow inside a shadow. A logged
  * extra stands on the ground, so its face is E1. CardFrame (UI makeover §3) carries the same rule:
- * raised on the ground in a `.shell`, nested at E0 with the 12 % hairline and no shadow. The Day
+ * raised on the ground in a `.shell`, nested at E0 with the 16 % hairline and no shadow; the ink hero
+ * card takes the hero drop on the ground and steps down into the charcoal inside it. The Day
  * card's board tiles live in tests/design/sweep-elevation-dayboard.test.tsx.
  */
 const ROOT = new URL("../../", import.meta.url).pathname;
@@ -60,11 +61,22 @@ describe("CardFrame elevation", () => {
     expect(inner).not.toContain("shell");
   });
 
-  it("the nested faces drop no shadow and draw the 12 % hairline", () => {
+  it("the nested faces drop no shadow and draw the 16 % hairline", () => {
     for (const selector of [".card-recess", ".card-e0:not(.card-olive)"]) {
       expect(rule(selector)).toMatch(/border-color: var\(--hairline-card\);/);
       expect(rule(selector)).toMatch(/box-shadow: none;/);
     }
-    expect(css).toMatch(/--hairline-card: rgb\(var\(--ink-rgb\) \/ 0\.12\);/);
+    expect(css).toMatch(/--hairline-card: rgb\(var\(--ink-rgb\) \/ 0\.16\);/);
+  });
+
+  it("the ink card stands on the ground with the hero drop; its inset is E0 in the matte scope", () => {
+    const markup = renderToStaticMarkup(<CardFrame tone="ink" title="Hero"><CardFrame title="Inner">x</CardFrame></CardFrame>);
+    expect(classesOf(markup, "shell")).toHaveLength(1);
+    const [outer, inner] = classesOf(markup, "surface");
+    expect(outer).toEqual(expect.arrayContaining(["card-ink", "matte"]));
+    expect(inner).toEqual(expect.arrayContaining(["card-ink-inset", "matte", "card-e0"]));
+    expect(rule(".shell:has(> .card-ink)")).toMatch(/box-shadow: var\(--shadow-hero\);/);
+    expect(rule(".card-ink-inset")).toMatch(/box-shadow: none;/);
+    expect(rule(".card-ink-inset")).toMatch(/background: var\(--grad-card-ink-inset\);/);
   });
 });

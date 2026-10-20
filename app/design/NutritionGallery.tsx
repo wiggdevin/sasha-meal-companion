@@ -11,7 +11,7 @@ import MacroIcon from "@/components/nutrition/MacroIcon";
 import RecipeFacets from "@/components/nutrition/RecipeFacets";
 import { MacroBars, MacroDonut, MacroGauge, MacroMeter, MacroSplit } from "@/components/nutrition/charts";
 import { MacroFigure, MacroLine, ProteinShort } from "@/components/nutrition/MacroText";
-import DayOverview from "@/components/today/DayOverview";
+import SummaryRow from "@/components/today/overview/SummaryRow";
 import { FullPanel } from "@/components/today/LiveWidgetPanels";
 import { MACROS, energySplit, type MacroValues } from "@/components/nutrition/spec";
 import type { DietFact } from "@/lib/recipes-hub/diet";
@@ -141,7 +141,7 @@ export default function NutritionGallery() {
         <span className="text-tiny"><ProteinShort gap={-12.4} /></span>
       </Card>
       <Card label="Overview · partly measured day">
-        <DayOverview data={{ targets: TARGETS, consumed: { kcal: 1951, protein: 120, carbs: 160, fat: 30 }, partial: true }} />
+        <SummaryRow targets={TARGETS} consumed={{ kcal: 1951, protein: 120, carbs: 160, fat: 30 }} partial />
       </Card>
       <Card label="Day widget · partly measured day">
         <div className="matte glass-floor p-2">

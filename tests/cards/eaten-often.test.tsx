@@ -60,7 +60,7 @@ it("renders nothing when there are no admitted foods", async () => {
   expect(container.firstChild).toBeNull();
 });
 
-it("shows the eligible-foods path's own rule-review copy on a 409", async () => {
+it("shows the eligible-foods path's rule review copy on a 409", async () => {
   loadTasteMock.mockResolvedValue({ status: "rule_review", message: TASTE_RULE_REVIEW_COPY });
   markAccountReady(bindAccount(USER_ID));
   render(<EatenOften />);
@@ -76,19 +76,29 @@ it("renders rows in the server's own order, with singular/plural day copy and an
   markAccountReady(bindAccount(USER_ID));
   render(<EatenOften />);
 
-  await screen.findByText("Eaten often");
-  expect(screen.getByText("From food logged in the last 6 months.")).toBeTruthy();
+  await screen.findByText("Often eaten");
+  expect(screen.getByText("From the last 6 months")).toBeTruthy();
   const metas = screen.getAllByText(/Eaten on/);
   expect(metas).toHaveLength(2);
-  expect(metas[0].textContent).toBe("Eaten on 1 day · Last: 3 Oct");
-  // en-GB abbreviates September to "Sept" (ICU), unlike the 3-letter months — same formatter
-  // components/ShoppingView.tsx's `dateRange` already uses, so this is the existing convention.
-  expect(metas[1].textContent).toBe("Eaten on 5 days · Last: 20 Sept");
+  expect(metas[0].textContent).toBe("Eaten on 1 day");
+  expect(metas[1].textContent).toBe("Eaten on 5 days");
   // Preserved server order: Apple (not estimated) before Rice (estimated) — never re-sorted.
   const apple = screen.getByText("Apple");
   const rice = screen.getByText("Rice");
   expect(apple.compareDocumentPosition(rice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.queryAllByText("Estimated")).toHaveLength(1);
+});
+
+it("renders grouped by aisle, each group under its own header", async () => {
+  loadTasteMock.mockResolvedValue({ status: "ok", items: [
+    row({ key: "u:r", name: "White rice, cooked" }),
+    row({ key: "u:a", name: "Acorn squash, baked" }),
+  ] });
+  markAccountReady(bindAccount(USER_ID));
+  const { container } = render(<EatenOften />);
+  await screen.findByText("Acorn squash, baked");
+  const groups = [...container.querySelectorAll("[data-aisle]")].map((node) => node.getAttribute("data-aisle"));
+  expect(groups).toEqual(["produce", "grains"]);
 });
 
 it("caps at six rows, then Show all N opens the rest on the shared Disclosure — no nested scroll", async () => {

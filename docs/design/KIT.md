@@ -124,9 +124,17 @@ fields; text ≥ 16 px; focus is the olive caret and a warmed hairline, never a 
 - Only the focus slot (now or next) shows the full card with both actions; every other unplanned
   slot is one row with one "Plan" action. A card with nothing in it is an `EmptyState` (icon, title,
   one line, one action), never an empty slab.
-- Titles: one screen title (40 px) at the top; section titles (20 px, section hue) only when a
-  screen holds more than one kind of thing; a card title (20 px) only when the card is not itself
-  the section. **Never a title that repeats the screen title** ("Foods" then "My foods").
+- Titles: one screen title at the top (`components/ui/PageTitle.tsx`, a 28 px `h1`, always visible);
+  section titles only when a screen holds more than one kind of thing; a card title only when the card
+  is not itself the section. **Never a title that repeats the screen title** ("Foods" then "My foods").
+- **One card rule (UI makeover, 2026-10-19, `components/ui/CardFrame.tsx`):** one title, at most one
+  supporting line, at most two actions. Sizes: `sm` 12 px padding (a row-like block), `md` 16 px
+  (default), `lg` 20 px (a lead card). Tones: `ivory`, `recess`, `olive` (a call to action) and `ink`
+  (the matte hero card, cream text). **Contrast step:** a card on the ground is raised (E1); one inside
+  it takes the inset step (E0: a shade down, a hairline, no shadow); one inside that is the card face
+  again; a third level throws in development. A card never repeats its parent's face, so it cannot
+  blend into the card behind it, and a light face never sits inside an `ink` card. Figures on a card
+  use the display numerals (`numeral text-numeral-xl|lg|md`).
 - Destructive actions on a meal card do not sit on the card's face any more: see §9 and §12's
   meal-card swipe tray.
 
@@ -186,11 +194,9 @@ started on a card stays on that card.
   focus. Tap → the editor. The calorie figure is its own target and never opens the editor. Drag
   along the timeline still reschedules (a preview time appears while held).
 - **Day strip:** horizontal scroll, snap per day; tap a day; the date picker on the title.
-- **Water (overview dial, board tile):** tap → one step (one cup, 8 oz or 237 ml); hold ~350 ms and
-  slide → a scrub bar that counts faster the farther the finger travels, writing once on release
-  (`lib/today/water-scrub.ts`, `components/today/WaterTile.tsx`, §12).
-- **Tip tile:** tap the tile (or its glyph) to grow it, in place, into the tip's full view; tap
-  again, or the close control, to shrink it back (§12, `components/today/tips/*`). No swipe.
+- **Water (the header cup):** tap → one step (one cup, 8 oz or 237 ml); hold ~350 ms and
+  slide right → a scrub bar that counts faster the farther the finger travels, writing once on release
+  (`lib/today/water-scrub.ts`, `components/today/CupSlot.tsx`). The only water control on Today.
 - **Plan composer "+":** tap grows an attach tab out of the pill's own edge, holding a camera and
   an attach button; a second tap, a chosen file, Escape, or a tap outside puts it away on the same
   spring reversed (§12, `components/plan/PlanComposer.tsx`).
@@ -211,9 +217,9 @@ the two files cannot drift against each other again. Scroll ownership (one scrol
 DESIGN.md §Layout. In short: four named
 springs (`smooth`, `snappy`, `bouncy`, `gentle`, `lib/design/motion.ts`) carry every state change;
 nothing changes state by appearing, it grows, slides or morphs; reduced motion turns every spring
-into an instant arrival. `components/today/useDayCardMotion.ts` holds the Day board's own timeline
-constants (`BOARD_MORPH`) for the tip and explainer in-place grow/shrink (§12) — new springs for a
-similar "grow in place" interaction belong there, not as one-off numbers in the component.
+into an instant arrival. The shared morph rule (frame on the gentle spring, content fading in and out
+around it) is `MORPH` in `lib/design/motion.ts`; new springs for a similar "grow in place"
+interaction belong there, not as one-off numbers in the component.
 
 ## 11. Copy
 
@@ -300,23 +306,10 @@ call or a device store)
   source and computed calories disagree by more than 10 % carries a small warning glyph. Reads from
   the catalog over the network, so the gallery does not mount it live; §2 already carries its tag
   colours.
-- **Tip tile and the in-place tip (`components/today/TipTile.tsx`, `components/today/tips/*`)** — a
-  tile that cycles the day's tips (app or coach-sourced) with a quote mark and a dot rail past
-  `MAX_DOTS` (7) tips; tapping it grows the tile, in place, into the tip's full view on the Day
-  board's own morph timeline (`useDayCardMotion.ts` `BOARD_MORPH`, shared with the explainer
-  player) — no pop-up, no portal, the other board tiles stay mounted underneath, inert, and fade
-  out rather than disappearing on the first frame. Closing runs the same timeline backwards.
-- **`WaterTile` / `WaterLiquid` (`components/today/WaterTile.tsx`,
-  `components/today/WaterLiquid.tsx`)** — §9 for the gesture. The liquid is two layered sine waves
-  over a pale blue-green fill (the water gauge hue leaned toward sage), with an idle swell, a level
-  that springs to each new amount and sloshes, small rising bubbles, and a surface that leans with
-  the phone (device-motion permission asked on the first tap, never on load). Reduced motion: still
-  and level. `WaterLiquid` alone (`level`, a `tilt` ref, `animate`) is pure SVG and safe to mount in
-  the gallery without the tile's scrub bar or device-motion wiring.
-- **The in-place explainer (`components/today/ExplainerPlayer.tsx`)** — the same grow-in-place
-  pattern as the tip tile, predating it: a poster pin on the board grows into a player filling the
-  board (a real video, or a captioned storyboard drawn in the app's own shapes), sharing
-  `useDayCardMotion.ts`'s `BOARD_MORPH` timeline.
+- **`WaterLiquid` (`components/today/WaterLiquid.tsx`)** — the liquid of the retired water tile, kept as
+  a pure SVG piece (`level`, a `tilt` ref, `animate`): two layered sine waves over a pale blue-green
+  fill, an idle swell, a level that springs to each new amount and sloshes. Reduced motion: still and
+  level. The Day card no longer mounts it; the header cup (§9) is the water control.
 - **Foods category cards (`components/MyFoods.tsx`, `components/MyFoods.list.tsx`, U14
   2026-10-04)** — each card ends in ONE footer row under a full-width hairline: "Show all N" on the
   left half, Add on the right, split by a hairline; Add alone while nothing is hidden. "Show all N"
@@ -464,6 +457,11 @@ no icons or images. Synthesised from Gemini 3.1 Pro, Gemini 3.8 Flash and GPT-6 
   hues are fills only (`bg-gauge-*`).
 
 ### 15.1 The glass well and Sprout (2026-10-06)
+
+> Status (2026-10-19): the Day card no longer shows the well, the island or Sprout (the Board, its
+> tiles, tips and explainers were removed with the Overview rebuilt as the daily cockpit). The pieces
+> below are still built and live in the `/design/well` gallery; the companion row on Overview is a
+> separate lane.
 
 Owner: the glass looks liquid and slightly 3D, the bed under it sunken, the pieces in it jelly, HD and
 vibrant, and a fuzzy pet lives there. Three design rounds with Kimi K3 and Gemini 3.1 Pro (art

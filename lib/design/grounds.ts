@@ -19,10 +19,10 @@ export type Ground = {
 };
 
 export const GROUNDS: readonly Ground[] = [
-  { id: "oat", label: "Oat", base: "#e0dcd1", lift: "#ece8de", shade: "#d3cdc0" },
-  { id: "sage", label: "Sage", base: "#e1e5d6", lift: "#edf0e4", shade: "#d1d8c3" },
-  { id: "clay", label: "Clay", base: "#e9ddd2", lift: "#f3ebe3", shade: "#dccdbf" },
-  { id: "mist", label: "Mist", base: "#dfe3e2", lift: "#ebeeee", shade: "#cdd5d6" },
+  { id: "oat", label: "Oat", base: "#dcd7cb", lift: "#e9e5db", shade: "#cdc6b8" },
+  { id: "sage", label: "Sage", base: "#dce1d0", lift: "#e9ede0", shade: "#cdd4be" },
+  { id: "clay", label: "Clay", base: "#e4d7cb", lift: "#efe7de", shade: "#d6c6b7" },
+  { id: "mist", label: "Mist", base: "#d9dedd", lift: "#e7ebeb", shade: "#c8d0d1" },
 ];
 
 export const DEFAULT_GROUND: GroundId = "oat";

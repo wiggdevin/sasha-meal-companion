@@ -24,12 +24,11 @@ describe("TabBar with NEXT_PUBLIC_COACH_ENABLED unset", () => {
     expect(markup.indexOf('href="/settings"')).toBeLessThan(markup.indexOf('data-dock-assistant="true"'));
   });
 
-  it("shows text only for the selected destination", () => {
-    expect(markup).toContain('aria-current="page"');
-    expect(markup).toContain(">Today</span>");
-    expect(markup).not.toContain(">Body</span>");
-    expect(markup).not.toContain(">Foods</span>");
-    expect(markup).not.toContain(">Settings</span>");
+  it("labels every destination and marks only the current one", () => {
+    for (const label of ["Today", "Body", "Foods", "Settings"]) {
+      expect(markup).toContain(`>${label}</span>`);
+    }
+    expect((markup.match(/aria-current="page"/g) ?? []).length).toBe(1);
   });
 });
 

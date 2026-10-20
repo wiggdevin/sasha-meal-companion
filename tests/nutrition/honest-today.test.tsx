@@ -1,7 +1,7 @@
 /**
  * Calculation audit #21, the UI half on Today: a day that holds a partly measured recipe serving
  * says "at least" of what was eaten and "at most" of what is left, everywhere it counts the day —
- * the Day card's live widget, the overview and its detail, the macro rings, the nutrients card and
+ * the Day card's live widget, the overview cockpit and its detail, the macro rings, the nutrients card and
  * the week. A whole day reads exactly as before. The words come from one helper
  * (lib/nutrition-display.ts), so the surfaces cannot drift apart.
  */
@@ -142,12 +142,13 @@ describe("the overview", () => {
     expect(nodes(false).slice(1, 4).map((node) => node.label)).toEqual(["Carbs", "Protein", "Fat"]);
   });
 
-  it("draws the bounded wells in the design gallery's overview", () => {
+  it("draws the bounded summary in the design gallery's overview", () => {
     const markup = renderToStaticMarkup(<NutritionGallery />);
     expect(markup).toContain("Overview · partly measured day");
-    // The overview's wells (2026-10-05): eaten and an overshoot "at least", in words before the figure.
-    expect(markup).toContain("at least 1,951 kcal eaten of 1,891");
+    // The cockpit's summary (UI makeover W2): an overshoot and what was eaten "at least", in words.
     expect(markup).toContain("at least 60 kcal over");
+    expect(markup).toContain("at least 1,951 of 1,891 kcal eaten");
+    expect(visible(markup)).toContain("at least kcal over");
   });
 
   it("says at least eaten and at most left in the chosen metric's detail", () => {

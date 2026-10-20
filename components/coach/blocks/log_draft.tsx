@@ -198,8 +198,9 @@ export default function LogDraftBlock({ block, ctx }: {
   }
 
   return (
-    <div className="shell rounded-2xl!">
-      <div className="surface flex flex-col gap-3 rounded-2xl!" style={{ padding: 14 }}>
+    // The small card frame (UI makeover §3.3: card-sm, 12 px padding, 16 px corners).
+    <div className="shell">
+      <div className="surface card-sm card-ivory flex flex-col">
         {/* One AI label per draft: a capture read is a model's; a barcode match is the app's and
             carries none. A legacy block with no provenance shows none either. */}
         {status !== "dismissed" && <AiLabel className="self-start"

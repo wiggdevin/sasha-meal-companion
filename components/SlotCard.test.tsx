@@ -91,9 +91,10 @@ describe("SlotCard completion colors", () => {
   });
 
   it.each(["focus", "standard"] as const)("sets the %s card's calorie number in the shared calorie colour", (variant) => {
-    // Owner, 2026-10-03: persimmon and a step bolder, inside the matte card (DESIGN.md §Colors).
+    // Owner, 2026-10-03: persimmon, inside the matte card (DESIGN.md §Colors); Bold 2026-10-19: the
+    // display numeral (DESIGN.md §Typography numeral-md).
     const markup = renderSlot(variant);
-    expect(markup).toMatch(/<strong class="kcal [^"]*font-medium[^"]*">500<\/strong>/);
+    expect(markup).toMatch(/<strong class="kcal numeral text-numeral-md[^"]*">500<\/strong>/);
     expect(markup).toMatch(/class="matte [^"]*"|class="[^"]* matte /);
     expect(markup).not.toContain("macro-kcal");
   });
