@@ -1,8 +1,9 @@
 "use client";
 /**
  * The card style system (UI makeover §3, DESIGN.md §Elevation, the contrast step): every CardFrame
- * size, the three levels nested the way the app nests them, and the three tones, on the real
- * ground. Static, no network and no device store.
+ * size, the three levels nested the way the app nests them, the four tones (the ink hero card and
+ * its own step down), and the display numerals, on the real ground. Static, no network and no
+ * device store.
  */
 import { useState } from "react";
 import CardFrame from "@/components/ui/CardFrame";
@@ -38,6 +39,26 @@ export default function CardsGallery() {
         <p className="m-0 text-caption">Primary fill with cream text.</p>
       </CardFrame>
       <CardFrame size="md" tone="recess" title="Recess" meta="The inset face, standing alone" />
+
+      <CardFrame size="lg" tone="ink" title="Ink" meta="The hero card: charcoal, cream text">
+        <p className="m-0 flex items-baseline gap-2">
+          <span className="numeral text-numeral-xl kcal">1,240</span>
+          <span className="text-caption text-muted">kcal left</span>
+        </p>
+        <CardFrame size="sm" title="Ink inset" meta="Inside an ink card: one step down into the charcoal">
+          <p className="m-0 flex items-baseline gap-2">
+            <span className="numeral text-numeral-md text-charcoal">96 g</span>
+            <span className="text-caption text-muted">protein left</span>
+          </p>
+        </CardFrame>
+      </CardFrame>
+      <CardFrame size="md" title="Numerals" meta="text-numeral-xl, lg and md, with .numeral">
+        <div className="flex items-baseline gap-4">
+          <span className="numeral text-numeral-xl kcal">1,860</span>
+          <span className="numeral text-numeral-lg text-charcoal">7</span>
+          <span className="numeral text-numeral-md text-graphite">64 oz</span>
+        </div>
+      </CardFrame>
       <CardFrame size="sm" title="Whole card is a button" meta={`Taps: ${taps}`}
         onClick={() => setTaps((n) => n + 1)} />
     </section>

@@ -143,6 +143,7 @@ export const SURFACES: Surface[] = [
   { id: ".matte-reset tray", scope: "light", shades: gradient("recess") },
   { id: "olive fill (primary)", scope: "olive", shades: [...gradient("ink"), token("primary")] },
   { id: "charcoal matte", scope: "matte", shades: [...matte, token("charcoal")] },
+  { id: "ink inset (a card inside CardFrame ink)", scope: "matte", shades: gradient("card-ink-inset") },
   { id: ".olive-panel in .matte", scope: "matte",
     shades: Object.values(SECTIONS).flatMap((hue) => matte.map((shade) => over(hue, PANEL_ALPHA, shade))) },
 ];
@@ -189,7 +190,7 @@ export const ROLES: Role[] = [
 /** A light role that is only for some light surfaces (DESIGN.md §Colors: faint is for ivory). */
 const ONLY_ON: Record<string, string[]> = {
   "text-text-faint": ["ivory card (.surface, sheets)", "field"],
-  ".matte .kcal / .macro-ink-kcal": ["charcoal matte"],
+  ".matte .kcal / .macro-ink-kcal": ["charcoal matte", "ink inset (a card inside CardFrame ink)"],
   ".matte .olive-panel .kcal": [".olive-panel in .matte"],
 };
 
@@ -289,7 +290,7 @@ export function forbiddenPairs(): Pair[] {
     ["gauge fat (.macro-fat, text-yellow) as text", "ivory card", "text", token("gauge-fat"), ivory,
       "use `text-yellow-ink` or `.macro-ink-fat`"],
     ["gauge protein (.macro-protein) as text", "charcoal matte", "text", token("gauge-protein"), matte,
-      "4.0:1 inside the meal card; `.macro-ink-protein` uses the lighter end"],
+      "3.9:1 inside the meal card; `.macro-ink-protein` uses the lighter end"],
     ["gauge calories as text", "ivory card", "text", token("gauge-calories"), ivory, "use `.kcal`"],
     ["slate (text-tertiary, text-signal)", "ivory card", "text", token("tertiary"), ivory, "a data accent, not text"],
     ["warm orange rim (text-orange-warm)", "ivory card", "text", token("orange-warm"), ivory, "rims only"],

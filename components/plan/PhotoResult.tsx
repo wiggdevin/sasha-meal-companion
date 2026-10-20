@@ -17,6 +17,7 @@ import KcalText from "@/components/ui/KcalText";
 import Notice from "@/components/ui/Notice";
 import Button from "@/components/ui/Button";
 import AiLabel from "@/components/ui/AiLabel";
+import { PLAN_CARD } from "@/components/plan/IdeaCard";
 import type { Provenance } from "@/lib/types";
 import { CARD_SECTION, MEAL_TITLE } from "@/lib/design/meal-type";
 
@@ -53,7 +54,7 @@ function PlateResult({ plate, label, busy, logging, onLog, provenance }: {
   const [factor, setFactor] = useState(1);
   const shown = scaleMacros(plate, factor);
   return <section aria-label={`Log this as ${label}?`}
-    className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-4">
+    className={PLAN_CARD}>
     <div className="flex flex-col gap-1">
       <div className="flex min-w-0 items-start justify-between gap-2">
         <h3 className={`m-0 min-w-0 ${CARD_SECTION}`}>Log this as {label}?</h3>

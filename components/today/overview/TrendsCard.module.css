@@ -1,0 +1,33 @@
+/* "Your week" in the Overview face (UI makeover §4.1). Layout only; colour comes from roles. */
+
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+.mini {
+  display: flex;
+  min-height: 44px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 12px;
+  padding: 4px;
+  text-align: left;
+}
+.mini[aria-expanded="true"] { background: rgb(var(--ink-rgb) / 0.05); }
+.mini:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.open { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+
+.streaks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.streak { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.insights { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.insight { display: flex; gap: 8px; align-items: baseline; }
+.insight::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  transform: translateY(-2px);
+}

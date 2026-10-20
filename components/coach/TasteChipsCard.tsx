@@ -361,8 +361,8 @@ export default function TasteChipsCard({ card, messageId, confirm = confirmTaste
     : "Want these in your taste preferences?";
 
   return <section aria-label="Suggested taste preferences" className="shell mx-3">
-    <div className="surface flex flex-col gap-3 rounded-2xl p-4">
-      <h3 className="m-0 text-caption font-medium text-charcoal">{title}</h3>
+    <div className="surface card-sm card-ivory flex flex-col">
+      <h3 className="m-0 text-caption font-semibold text-charcoal">{title}</h3>
       {changedElsewhere && <p className="m-0 text-tiny text-muted">
         These changed in your settings since, so there is nothing here to undo.
       </p>}

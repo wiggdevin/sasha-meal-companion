@@ -70,7 +70,7 @@ describe("DuplicateEntryCard", () => {
 
   it("open: shows both entries with time, foods and kcal, and named controls", async () => {
     await mount([GROUP]);
-    const card = await screen.findByRole("region", { name: "These look like the same meal" });
+    const card = await screen.findByRole("region", { name: "Logged twice?" });
     expect(card.textContent).toContain("Logged twice?");
     expect(card.textContent).toContain("12:31 pm");
     expect(card.textContent).toContain("12:38 pm");

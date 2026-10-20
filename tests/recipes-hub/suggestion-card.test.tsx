@@ -18,7 +18,7 @@ describe("SuggestionCard", () => {
     render(<SuggestionCard name="Mystery bowl" image={null} values={values} onOpen={() => {}} />);
     const card = screen.getByRole("button", { name: /Mystery bowl/ }).closest("[data-recipe-card]")!;
     expect(card.querySelector("img")).toBeNull();
-    expect(card.querySelector('[data-suggestion-photo="art"]')?.className).toMatch(/\bh-28\b/);
+    expect(card.querySelector('[data-suggestion-photo="art"]')?.className).toMatch(/\bh-24\b/);
   });
 
   it("puts calories over the three macros when it shows all four, and drops its shadow inside a card", () => {
@@ -30,6 +30,8 @@ describe("SuggestionCard", () => {
     expect(card.textContent).toContain("522");
     expect(card.textContent).toMatch(/56g\s*P/);
     expect(card.className).not.toMatch(/\bshell\b/);
+    // Nested, it takes the inset step with the card hairline, so it stands off the card behind it.
+    expect(card.className).toMatch(/--grad-card-inset/);
   });
 
   it("describes a meal by its portions and a recipe by its foods", () => {

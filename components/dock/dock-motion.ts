@@ -7,7 +7,6 @@ export const BUBBLE = 64;
 export const SPLIT = 10;
 export const PAD = 6;
 export const TAB_GAP = 4;
-export const ACTIVE_WEIGHT = 1.8;
 /** Height the ask field grows to when its attach tray is out. */
 export const TRAY_OPEN = 136;
 /** The dock's own lift off the safe-area bottom (TabBar's `nav`); shared with CoachShell so its

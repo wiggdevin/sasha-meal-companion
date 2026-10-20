@@ -24,8 +24,9 @@ export default function CoachSuggestion({
 }: { suggestion: Suggestion; onLog?: () => void }) {
   const blocked = suggestion.verdict === "blocked";
   return (
-    <div className="shell rounded-2xl!">
-      <div className="surface flex items-center gap-3 rounded-2xl! px-3.5 py-3">
+    // A list row on the small card frame (UI makeover §3.3: card-sm, 12 px padding, 16 px corners).
+    <div className="shell">
+      <div className="surface card-sm card-ivory flex flex-row items-center">
         <span className={`min-w-0 flex-1 truncate text-caption font-normal ${blocked ? "text-muted line-through" : "text-charcoal"}`}>
           {suggestion.name}
           {suggestion.grams !== null && (

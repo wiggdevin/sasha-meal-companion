@@ -163,7 +163,7 @@ export default function DayCompleteControl({ date, today, readDay = getDay,
             </AnimatePresence>
           </span>
           <span className="flex min-w-0 flex-col gap-0.5">
-            <span id={labelId} className="text-[16px] font-medium text-charcoal">
+            <span id={labelId} className="text-body font-semibold text-charcoal">
               {dayCompleteLabel(date, today)}</span>
             {/* Graphite, not muted: on the oat ground muted ink measures about 4.4:1 at 12 px. */}
             <span id={hintId} className="text-tiny font-normal text-graphite">{DAY_COMPLETE_HINT}</span>

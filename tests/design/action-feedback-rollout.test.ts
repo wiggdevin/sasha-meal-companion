@@ -116,7 +116,7 @@ describe("the outcome roles", () => {
     expect(globals).toMatch(/--color-feedback-pending: var\(--color-warning\)/);
     expect(globals).toMatch(/--color-feedback-failure: var\(--color-alert\)/);
     expect(globals).toMatch(/--color-feedback-change: #4f5343/);
-    expect(globals).toMatch(/--color-feedback-success: #7e9a62/);
+    expect(globals).toMatch(/--color-feedback-success: var\(--color-sage\)/);
     const css = source("components/ui/ActionFeedback.module.css");
     expect(css).toMatch(/\[data-feedback-state="pending"\][^}]*--color-feedback-pending/);
     expect(css).toMatch(/\[data-feedback-state="changed"\][^}]*--color-feedback-change/);

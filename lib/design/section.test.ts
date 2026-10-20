@@ -15,10 +15,10 @@ describe("sectionFor", () => {
     expect(sectionFor("/settings/targets")).toBe("settings");
   });
 
-  it("folds recipes and scan into foods, week and onboarding into settings", () => {
+  it("folds recipes and scan into foods, onboarding into settings and week into today", () => {
     expect(sectionFor("/recipes")).toBe("foods");
     expect(sectionFor("/scan")).toBe("foods");
-    expect(sectionFor("/week")).toBe("settings");
+    expect(sectionFor("/week")).toBe("today");
     expect(sectionFor("/onboarding")).toBe("settings");
   });
 

@@ -5,9 +5,8 @@ import { motion, useReducedMotionConfig } from "motion/react";
 import FaceSwitch, { DAY_FACES, type DayFace } from "@/components/today/FaceSwitch";
 import CalendarFace from "@/components/today/CalendarFace";
 import CupSlot from "@/components/today/CupSlot";
-import OverviewFace from "@/components/today/overview/OverviewFace";
+import OverviewFace, { type CockpitData } from "@/components/today/overview/OverviewFace";
 import { CardToneContext } from "@/components/ui/CardFrame";
-import type { OverviewData } from "@/components/today/overview/types";
 import { useFacesHeight } from "@/components/today/useDayCardMotion";
 import { FADES, INSTANT, SWAP } from "@/lib/design/motion";
 import { selectionHaptic } from "@/lib/haptics";
@@ -18,8 +17,9 @@ const DAY_CARD_TONE = { depth: 0, face: "raised" } as const;
 type Props = {
   /** The week strip (components/TodayDayStrip.tsx), which also grows the month. */
   calendar: ReactNode;
-  /** Everything the card shows about the viewed day (components/today/overview/types.ts). */
-  overview: OverviewData;
+  /** Everything the card shows about the viewed day (components/today/overview/types.ts), plus the
+   *  cockpit's eaten count (components/today/overview/OverviewFace.tsx). */
+  overview: CockpitData;
 };
 
 /** The face every load opens on. The face is never stored. */

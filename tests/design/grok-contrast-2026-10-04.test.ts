@@ -189,13 +189,22 @@ describe("Grok audit 2026-10-04: InstallPrompt and ProposalCard paint --grad-pan
     expect(worst(GRAPHITE, gradCard)).toBeGreaterThanOrEqual(MIN.text);
   });
 
-  it("ProposalCard.tsx's inner panel style is var(--grad-panel), with text-charcoal/text-graphite body text", () => {
-    expect(PROPOSAL_CARD).toMatch(/background:\s*"var\(--grad-panel\)"/);
+  /**
+   * 2026-10-19 (UI makeover card sweep): ProposalCard stopped painting its own `--grad-panel` inner
+   * style and became one ivory CardFrame (the raised face, `.card-ivory`, `--grad-card`) inside a
+   * pending-hue outline. The rule this claim is about holds the same way: an ivory face, never the
+   * matte gradient, scope or the ink tone, with ink text roles that pass on it.
+   */
+  it("ProposalCard.tsx is an ivory CardFrame (--grad-card), with text-charcoal/text-graphite body text", () => {
+    expect(PROPOSAL_CARD).toMatch(/<CardFrame\b/);
+    expect(PROPOSAL_CARD).not.toMatch(/tone="(ink|olive)"/);
     expect(PROPOSAL_CARD).not.toMatch(/--grad-matte|\bmatte\b/);
     expect(PROPOSAL_CARD).toMatch(/text-caption font-normal text-charcoal/); // body
-    expect(PROPOSAL_CARD).toMatch(/text-tiny font-normal leading-body-sm text-graphite/); // detail lines
+    expect(PROPOSAL_CARD).toMatch(/text-tiny font-normal leading-body-sm text-graphite/); // detail line
+    const gradCard = gradientStops("card");
+    expect(worst(CHARCOAL, gradCard)).toBeGreaterThanOrEqual(MIN.text);
+    expect(worst(GRAPHITE, gradCard)).toBeGreaterThanOrEqual(MIN.text);
     expect(worst(CHARCOAL, gradPanel)).toBeGreaterThanOrEqual(MIN.text);
-    expect(worst(GRAPHITE, gradPanel)).toBeGreaterThanOrEqual(MIN.text);
   });
 });
 

@@ -66,7 +66,7 @@ function CardPhoto({ src, open, transition }: { src: string | null; open: boolea
   const image = src ? getImageProps({ src, alt: "", width: 736, height: Math.round(736 / mealArtAspect(src)),
     sizes: "(max-width: 640px) 90vw, 400px" }).props : null;
   return <motion.span layout aria-hidden="true" data-suggestion-photo={src ? "photo" : "art"}
-    className={`relative w-full ${open ? "h-44" : "h-28"} ${photo.clip}`} style={{ borderRadius: 16 }}
+    className={`relative w-full ${open ? "h-44" : "h-24"} ${photo.clip}`} style={{ borderRadius: 16 }}
     transition={transition}>
     {image && <motion.img layout src={image.src} srcSet={image.srcSet} sizes={image.sizes} alt=""
       decoding="async" loading="lazy" className={photo.cover} style={{ ["--a" as string]: mealArtAspect(src!) }}
@@ -87,7 +87,8 @@ function CardPhoto({ src, open, transition }: { src: string | null; open: boolea
  * (text never stretches), the photo becomes a hero, a close × sits over its top-right corner, and `detail`
  * fades in once the card has room; closing fades the detail out first, then the card shrinks back.
  *
- * `nested` drops the card's own shadow (inside another card, E0).
+ * `nested` drops the card's own shadow and takes the inset step (inside another card, E0: one shade
+ * down with the card hairline, DESIGN.md §Elevation), so it never blends into the card behind it.
  */
 const FIGURE_LINE = "min-w-0 max-w-full";
 
@@ -108,7 +109,7 @@ const SuggestionCard = forwardRef<HTMLDivElement, SuggestionCardData & {
     role={open ? "group" : undefined} aria-label={open ? name : undefined} tabIndex={open ? -1 : undefined}
     onKeyDown={open ? (event) => { if (event.key === "Escape") { event.stopPropagation(); onClose?.(); } } : undefined}
     style={{ borderRadius: 24 }}
-    className={`${nested ? "" : "shell"} relative flex w-full flex-col gap-2 border border-hairline bg-surface p-2 pb-3 text-left outline-none ${
+    className={`${nested ? "border-[color:var(--hairline-card)] [background:var(--grad-card-inset)]" : "shell border-hairline bg-surface"} relative flex w-full flex-col gap-2 border p-2 pb-3 text-left outline-none ${
       open ? "" : "tap"}`.trim()}>
     {!open && onOpen && <button ref={buttonRef} type="button" aria-expanded={false}
       aria-labelledby={`${id}-name ${id}-about ${id}-figures`} onClick={onOpen} {...buttonProps}
@@ -120,7 +121,7 @@ const SuggestionCard = forwardRef<HTMLDivElement, SuggestionCardData & {
     {/* The × sits over the photo, top right (owner, 2026-10-05), on every suggestion card. */}
     {open && onClose && <CloseButton onPhoto onClick={onClose} label={`Close ${name}`}
       className="absolute top-4 right-4 z-20" />}
-    <span className="flex min-w-0 flex-1 flex-col gap-1.5 px-2">
+    <span className="flex min-w-0 flex-1 flex-col gap-1 px-2">
       <motion.span {...glide} className="flex min-w-0 items-start justify-between gap-2">
         <span id={`${id}-name`} className={`min-w-0 ${open ? MEAL_TITLE.standard : `line-clamp-2 ${MEAL_TITLE.compact}`}`}>{name}</span>
       </motion.span>

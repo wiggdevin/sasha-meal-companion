@@ -82,8 +82,8 @@ export default function DietaryProfileProposalBlock({
   return (
     <><div className={`meal-card ml-4 ${feedback.controlProps.className}`} data-block-id={block.id}
       data-feedback-state={feedback.controlProps["data-feedback-state"]} style={pendingStyle}>
-      <div className="meal-card-in flex-col gap-3 p-4">
-        <h3 className="m-0 text-caption font-normal text-on-charcoal">{block.label}</h3>
+      <div className="meal-card-in flex-col gap-2 p-3">
+        <h3 className="m-0 text-caption font-semibold text-on-charcoal">{block.label}</h3>
         {block.do.length > 0 && <p className={`m-0 ${CAPTION}`}>{`Do: ${block.do.join(" ")}`}</p>}
         {block.dont.length > 0
           && <p className={`m-0 ${CAPTION}`}>{`Don’t: ${block.dont.join(" ")}`}</p>}

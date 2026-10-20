@@ -77,7 +77,8 @@ describe("the /design gallery", () => {
     render(<DesignPage />);
     const cards = screen.getByRole("region", { name: "Cards" });
     for (const size of ["sm", "md", "lg"]) expect(cards.querySelector(`.card-${size}`)).toBeTruthy();
-    for (const tone of ["ivory", "recess", "olive"]) expect(cards.querySelector(`.card-${tone}`)).toBeTruthy();
+    for (const tone of ["ivory", "recess", "olive", "ink", "ink-inset"]) expect(cards.querySelector(`.card-${tone}`)).toBeTruthy();
+    for (const size of ["xl", "lg", "md"]) expect(cards.querySelector(`.numeral.text-numeral-${size}`)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Card again" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Whole card is a button" }));
     expect(screen.getByText("Taps: 1")).toBeTruthy();

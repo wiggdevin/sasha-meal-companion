@@ -38,12 +38,12 @@ function expectNoChrome(markup: string): void {
 }
 
 describe("AppChrome route allowlist", () => {
-  it.each(["/", "/body", "/body/history", "/foods", "/foods/recipes", "/coach", "/coach/thread/1", "/settings", "/settings/profile"])(
+  it.each(["/", "/body", "/body/history", "/foods", "/foods/recipes", "/coach", "/coach/thread/1", "/settings", "/settings/profile", "/week"])(
     "shows the persistent dock on %s",
     (pathname) => expectChrome(renderChrome(pathname)),
   );
 
-  it.each(["/sign-in", "/sign-in/help", "/onboarding", "/onboarding/profile", "/week", "/foodstuff"])(
+  it.each(["/sign-in", "/sign-in/help", "/onboarding", "/onboarding/profile", "/foodstuff"])(
     "shows no app chrome on %s",
     (pathname) => expectNoChrome(renderChrome(pathname)),
   );

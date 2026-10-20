@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 /**
  * FluidVoice A04/A05/T09: a food row opens its edit sheet on tap; a left swipe reveals Remove and a
- * full swipe applies the durable neutral-membership operation, on role groups and Other foods
- * alike. Short, vertical and cancelled swipes write nothing. A star tap never reveals Remove (U13).
+ * full swipe applies the durable neutral-membership operation, on the favorites card. Short, vertical and cancelled swipes write nothing. A star tap never reveals Remove (U13).
  * Every category card ends with one footer row: "Show all N" left, Add right, or Add alone (U14).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -84,13 +83,7 @@ function swipe(row: HTMLElement, dx: number, dy = 0) {
   fireEvent.pointerUp(row, { pointerType: "touch", pointerId: 1, clientX: 300 + dx, clientY: 100 + dy });
 }
 
-/** A row in the closed "Other foods" Disclosure is hidden until that section is opened. */
-const rowOf = (name: string) => {
-  const row = screen.queryByRole("button", { name: `Edit ${name}` });
-  if (row) return row;
-  fireEvent.click(screen.getByRole("button", { name: /^Other foods/ }));
-  return screen.getByRole("button", { name: `Edit ${name}` });
-};
+const rowOf = (name: string) => screen.getByRole("button", { name: `Edit ${name}` });
 const removeOf = (name: RegExp) => screen.getByRole("button", { name });
 
 describe("foodRowSwipeDecision", () => {
@@ -147,30 +140,9 @@ describe("a food row", () => {
     expect(seeded.foods.oats).toMatchObject({ status: "neutral", note: "fine in the morning" });
   });
 
-  it("gives Other foods the same edit and swipe behavior", async () => {
-    render(<EatsFoods />);
-    fireEvent.click(rowOf("Rice"));
-    expect(await screen.findByRole("button", { name: "Add to Favorites" })).toBeTruthy();
-    cleanup();
-    render(<EatsFoods />);
-    swipe(rowOf("Rice"), -100);
-    await act(async () => {});
-    const clear = screen.getByRole("button", { name: "Remove Rice from Other foods" });
-    expect(clear.textContent).toBe("Remove");
-    expect(clear.getAttribute("data-revealed")).toBe("true");
-    swipe(rowOf("Rice"), -200);
-    await act(async () => {});
-    expect(membership.set).toHaveBeenCalledTimes(1);
-    expect(membership.set.mock.calls[0].slice(0, 2)).toEqual(["Rice", null]);
-    expect(seeded.foods.rice).toMatchObject({ status: "neutral", note: "hurt on 9/12" });
-    // Already neutral: the row and its note stay in Other foods after the idempotent clear.
-    expect(rowOf("Rice")).toBeTruthy();
-    expect(screen.getByText("hurt on 9/12")).toBeTruthy();
-  });
-
   it("offers a visible 44 px Remove without any gesture", async () => {
     render(<EatsFoods />);
-    const toggle = screen.getByRole("button", { name: "Edit Carbs list" });
+    const toggle = screen.getByRole("button", { name: "Edit favorites list" });
     expect(toggle.className).toContain("min-h-11");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
@@ -183,39 +155,28 @@ describe("a food row", () => {
   });
 });
 
-describe("category cards", () => {
-  it("end in one footer row: Add alone while nothing is hidden, on every role group and Other", () => {
+describe("the favorites card", () => {
+  it("ends in one footer row with Add alone while nothing is hidden", () => {
     const { container } = render(<EatsFoods />);
     const footers = [...container.querySelectorAll<HTMLElement>("[data-list-footer]")];
-    const adds = footers.map((footer) => footer.querySelector<HTMLElement>("[data-category-add]")!);
-    expect(adds.map((node) => node.getAttribute("aria-label"))).toEqual([
-      "Add protein food", "Add carbs food", "Add fats food", "Add another food"]);
-    for (const [index, footer] of footers.entries()) {
-      expect(footer.getAttribute("data-split")).toBe("false");
-      expect(footer.className).toMatch(/border-t/);
-      expect(footer.lastElementChild).toBe(adds[index]);
-      expect(adds[index].textContent).toBe("Add");
-      expect(adds[index].className).toMatch(/justify-center/);
-    }
+    expect(footers).toHaveLength(1);
+    const add = footers[0].querySelector<HTMLElement>("[data-category-add]")!;
+    expect(add.getAttribute("aria-label")).toBe("Add a favorite food");
+    expect(footers[0].getAttribute("data-split")).toBe("false");
+    expect(footers[0].lastElementChild).toBe(add);
     expect(container.querySelector("[data-show-all]")).toBeNull();
   });
 
-  it("splits the footer once a card hides rows: Show all N on the left, Add on the right", () => {
+  it("caps an aisle at six rows with Show all N, and keeps the one card Add", () => {
     seed(...Array.from({ length: 8 }, (_, index) =>
       food({ id: `oat-${index}`, name: `Oat ${index}` })));
     const { container } = render(<EatsFoods />);
-    const carbs = screen.getByRole("button", { name: "Add carbs food" }).closest<HTMLElement>("[data-list-footer]")!;
-    expect(carbs.getAttribute("data-split")).toBe("true");
-    const [left, right] = [...carbs.children] as HTMLElement[];
-    expect(left.hasAttribute("data-show-all")).toBe(true);
-    expect(left.textContent).toContain("Show all 8");
-    expect(right.getAttribute("aria-label")).toBe("Add carbs food");
-    // One footer row per card: nothing else under the rows, and no second Add.
-    expect(container.querySelectorAll("[data-show-all]")).toHaveLength(1);
-    expect(container.querySelectorAll('[data-category-add][aria-label="Add carbs food"]')).toHaveLength(1);
-    fireEvent.click(left);
-    expect(left.getAttribute("aria-expanded")).toBe("true");
-    expect(left.textContent).toContain("Show fewer");
+    const toggle = container.querySelector<HTMLElement>("[data-show-all]")!;
+    expect(toggle.textContent).toContain("Show all 8");
+    expect(container.querySelectorAll('[data-category-add][aria-label="Add a favorite food"]')).toHaveLength(1);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle.textContent).toContain("Show fewer");
   });
 
   it("uses the same footer on the Avoid list", () => {
@@ -316,44 +277,6 @@ describe("Eats membership feedback", () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 
-  it("clears marks on a neutral row with no synced row, without Undo, keeping the row and its note", async () => {
-    render(<EatsFoods />);
-    swipe(rowOf("Rice"), -200);
-    await act(async () => {});
-    const status = screen.getByRole("status");
-    expect(status.textContent).toContain("Marks cleared for Rice.");
-    expect(within(status).queryByRole("button", { name: "Undo" })).toBeNull();
-    expect(seeded.foods.rice).toMatchObject({ status: "neutral", note: "hurt on 9/12" });
-    swipe(rowOf("Rice"), -200);
-    await act(async () => {});
-    expect(membership.set).toHaveBeenCalledTimes(2);
-    expect(membership.set.mock.calls.map((call) => call.slice(0, 2)))
-      .toEqual([["Rice", null], ["Rice", null]]);
-    expect(rowOf("Rice")).toBeTruthy();
-  });
-
-  it("hides a synced Other row with Undo, writing no membership", async () => {
-    hide.can.mockImplementationOnce(async () => true);
-    hide.hide.mockImplementationOnce(async () => {
-      const { rice: _rice, ...rest } = seeded.foods; seeded.foods = rest; return true;
-    });
-    render(<EatsFoods />);
-    swipe(rowOf("Rice"), -200);
-    await act(async () => {});
-    const status = screen.getByRole("status");
-    expect(status.textContent).toContain("Rice removed from Other foods.");
-    expect(hide.hide).toHaveBeenCalledTimes(1);
-    expect(membership.set).not.toHaveBeenCalled();
-    expect(screen.queryByText("hurt on 9/12")).toBeNull();
-    hide.unhide.mockImplementationOnce(async () => {
-      seeded.foods = { ...seeded.foods, rice: food({ id: "rice", name: "Rice", status: "neutral", note: "hurt on 9/12" }) };
-      return true;
-    });
-    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Undo" })); });
-    expect(hide.unhide).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("hurt on 9/12")).toBeTruthy();
-  });
-
   it("confirms a sheet status change with Undo that restores the earlier membership", async () => {
     render(<EatsFoods />);
     fireEvent.click(rowOf("Oats"));
@@ -373,10 +296,6 @@ describe("Eats membership feedback", () => {
     swipe(rowOf("Oats"), -200, 8);
     await act(async () => {});
     expect(seeded.foods.oats.status).toBe("neutral");
-    // The newer move, made while the first write is still in flight: back onto Eats from its sheet.
-    fireEvent.click(rowOf("Oats"));
-    fireEvent.click(await screen.findByRole("button", { name: "Add to Favorites" }));
-    expect(seeded.foods.oats.status).toBe("eats");
     // A later local edit of the same food (another screen's write), still in the store.
     seeded.foods = { ...seeded.foods, oats: { ...seeded.foods.oats, status: "avoid" } };
     await act(async () => { failFirst(new Error("offline")); });

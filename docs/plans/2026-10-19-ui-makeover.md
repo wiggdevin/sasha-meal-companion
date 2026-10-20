@@ -361,3 +361,20 @@ Moves every remaining card onto `CardFrame` sizes and the one-title, one-line, t
 | 8 | Close-out | after all |
 
 All eight build threads can start the moment W0 merges; the order above is only the merge order.
+
+---
+
+## 11. Goal brief (2026-10-19, after the owner's Q&A) — binding
+
+The owner picked four goals in the project chat: Overview = **Daily cockpit**, Graphs = **Trends + insights**, Shopping = **AI + store map**, Style = **Bold & modern**. Done means everything below is merged to main and live at phone width; the two migration PRs (W3, W7) stop at ready for the Mac session.
+
+**Goal.** On a phone, the Overview tab is a daily cockpit: one screen at 390 × 844 with no scrolling shows today's calories left, the cup, the meals (done / next), the companion row and the next step. Every card is smaller and clearly separated from the card behind it.
+
+Changes to the workstreams:
+- **WS Bold style (new, Opus, no migration; merges before W6).** High contrast, dark-friendly cards, bigger numbers, punchy accents, across the whole app through tokens and roles (a theme change edits token values and roles only). Owns `DESIGN.md` (frontmatter regenerated with the Design MD CLI 0.3.0 into `app/design-tokens.css`, never hand-edited), `app/globals.css`, `app/layout.tsx`, `lib/design/{theme-color,grounds,ground-pref,ground-boot}.ts`, `components/ui/*` except `MealNutritionDivider` and `MealPhoto` (W6), plus `CardFrame` (adds an `ink` tone: the matte charcoal face with cream text, for hero cards), `app/design/{page,CardsGallery}.tsx`, and `tests/design/*` except the files other workstreams name. Every existing contrast and grain test stays green; ratios recomputed, never loosened.
+- **W2** builds the cockpit: summary row with the big calorie numeral, the cup, meal progress, next meal and next step, sized so the whole face fits 390 × 844 above the dock with the companion row (W3) and the trends row (W4) collapsed. Graphs are one tap away, not the lead.
+- **W4** adds goal progress, streaks (days on plan, days fully logged, water goal met) and up to three plain-language insights computed in code from data the phone already has (for example "You eat more after short sleep"), each shown only when the data supports it (minimum days, stated in the line), never a medical claim, never a model call. No full analytics screen.
+- **W6** folds the Bold style into the card sweep (uses the WS tokens and the `ink` tone where a card leads its screen).
+- **W7/W8** unchanged: no paid services, no ordering, still behind the pilot list; autopilot weekly lists are out of scope.
+
+Run order with at most three builders at once: WS, W1, W4 → W5, W2, W7 → W6 (after WS merges), W3, W8 → Close-out.
