@@ -15,7 +15,8 @@ function revision(id: number): CachedRevision {
   return {
     revision_id: id, catalog_food_id: id * 10, description: "Apple & blueberry pouch",
     brand: "Ella's Kitchen", source: "off", version_label: "off-2026-09-19",
-    per_100g: { energy_kcal: 60, iron: null }, portions: [], cached_at: "2026-09-19T12:00:00.000Z",
+    // Cached now: a fixed date ages past the retention window and is evicted on write.
+    per_100g: { energy_kcal: 60, iron: null }, portions: [], cached_at: new Date().toISOString(),
   };
 }
 
