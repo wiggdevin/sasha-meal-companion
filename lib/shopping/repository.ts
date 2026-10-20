@@ -78,7 +78,7 @@ export async function listPeriods(client: SupabaseClient, userId: string,
   let query = client.from("shopping_periods").select("*").eq("user_id", userId)
     .is("deleted_at", null).order("start_date", { ascending: false })
     // The same order as lib/shopping/current.ts `compareLists`, so the 52 kept are the same lists.
-    .order("updated_at", { ascending: false }).limit(52);
+    .order("updated_at", { ascending: false }).order("id").limit(52);
   // A range keeps the lists that overlap it: ending on or after its start, starting on or before its end.
   if (start) query = query.gte("end_date", start);
   if (end) query = query.lte("start_date", end);

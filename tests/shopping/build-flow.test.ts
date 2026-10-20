@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildCandidates } from "@/lib/shopping/build-candidates";
 import { buildReducer, canSwapMeals, initialBuildState, MAX_MEAL_ROUNDS, newSaveProgress, previewInput,
-  planDraftProblem, runSave, savePlan, saveSummary, swappableRecipeIds, type BuildAction, type BuildState, type MealCard,
+  planDraftProblem, runSave, SAVE_TARGET_CHANGED, savePlan, saveSummary, saveTarget, swappableRecipeIds, type BuildAction, type BuildState, type MealCard,
   type SaveDeps } from "@/lib/shopping/build-flow";
 import { defaultShoppingDraft, type ShoppingDraft } from "@/lib/shopping/contracts";
 
@@ -129,6 +129,17 @@ describe("the build flow reducer", () => {
     expect(edited.meals).toMatchObject({ skipped: false, status: "loading" });
   });
 
+  it("plans meals again after Try again, even once foods-only was chosen", () => {
+    let state = run(withDeck(["A"]), { type: "yes-to-rest" }, { type: "next" });
+    state = run(state, { type: "preview-failed", request: state.meals.request, message: "Offline." },
+      { type: "foods-only" }, { type: "back" });
+    state = run(state, { type: "retry-preview" });
+    expect(state.meals).toMatchObject({ skipped: false, status: "loading" });
+    state = run(state, { type: "preview-loaded", request: state.meals.request, previewId: "p9",
+      cards: [meal("2026-10-20", "meal-1", "r1")] });
+    expect(savePlan(state)).toMatchObject({ previewId: "p9" });
+  });
+
   it("refuses more than 31 days for a preview", () => {
     expect(planDraftProblem({ ...draft, endDate: "2026-11-19" })).toBeNull();
     expect(planDraftProblem({ ...draft, endDate: "2026-11-20" })).toBe("Pick 31 days or fewer.");
@@ -214,6 +225,18 @@ describe("Save list", () => {
     const ids = (d.rename as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[3]);
     expect(ids).toHaveLength(2);
     expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("refuses another plan under a request id whose first answer was lost", async () => {
+    const d = deps();
+    const foods = { draft: { ...draft, title: "Big shop" }, title: "Big shop", items: plan.items };
+    // The foods-only create was sent and its answer lost; the planner then plans meals instead.
+    const start = { ...newSaveProgress(d.newId), sentFor: saveTarget(foods) };
+    await expect(runSave(plan, start, d)).rejects.toThrow(SAVE_TARGET_CHANGED);
+    expect(d.accept).not.toHaveBeenCalled();
+    expect(d.create).not.toHaveBeenCalled();
+    // The same plan again is a plain retry.
+    expect((await runSave(foods, start, d)).status).toBe("done");
   });
 
   it("writes nothing more when the accept fails", async () => {

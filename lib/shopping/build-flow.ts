@@ -203,7 +203,8 @@ function previous(step: BuildStep): BuildStep {
 }
 
 function startPreview(state: BuildState, patch: Partial<BuildState["meals"]> = {}): BuildState {
-  return { ...state, meals: { ...state.meals, ...patch, status: "loading", error: null,
+  // A new preview is a meal plan again, never the foods-only list chosen after a refusal.
+  return { ...state, meals: { ...state.meals, skipped: false, ...patch, status: "loading", error: null,
     request: state.meals.request + 1 } };
 }
 
@@ -321,6 +322,8 @@ export type SaveProgress = {
   titled: boolean;
   /** Ingredient keys saved, or already on the list the accept made. */
   added: string[];
+  /** What the request id was first sent for (`saveTarget`), set before the first try. */
+  sentFor?: string;
 };
 export type SavePlan = { title: string | null; items: { key: string; name: string }[] }
   & ({ previewId: string; draft?: undefined } | { previewId?: undefined; draft: ShoppingDraft });
@@ -335,6 +338,12 @@ export function savePlan(state: BuildState): SavePlan | null {
   if (!state.meals.previewId) return null;
   return { previewId: state.meals.previewId, title, items };
 }
+/** The list a save makes: the foods-only create, or the accept of one preview. A create and an
+ *  accept, or two previews, are told apart by different tables, so one request id never covers both. */
+export function saveTarget(plan: SavePlan): string {
+  return plan.draft ? "draft" : `preview:${plan.previewId}`;
+}
+export const SAVE_TARGET_CHANGED = "Your list may have saved on the last try. Close this and check your lists before saving again.";
 export function newSaveProgress(newId: () => string): SaveProgress {
   return { acceptRequestId: newId(), renameRequestId: newId(), lineRequestIds: {}, period: null,
     titled: false, added: [] };
@@ -347,6 +356,12 @@ export function newSaveProgress(newId: () => string): SaveProgress {
  */
 export async function runSave(plan: SavePlan, start: SaveProgress, deps: SaveDeps): Promise<SaveResult> {
   const progress: SaveProgress = { ...start, lineRequestIds: { ...start.lineRequestIds }, added: [...start.added] };
+  // A try whose answer was lost may have made a list; another plan under the same id would make a
+  // second one, so it is refused until the planner checks.
+  if (!progress.period && progress.sentFor && progress.sentFor !== saveTarget(plan)) {
+    throw new Error(SAVE_TARGET_CHANGED);
+  }
+  progress.sentFor ??= saveTarget(plan);
   if (!progress.period && plan.draft) {
     // The create carries the title, so there is no rename; a retry sends the same request id.
     const created = await deps.create(plan.draft, progress.acceptRequestId);

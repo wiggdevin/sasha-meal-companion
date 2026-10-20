@@ -164,16 +164,23 @@ async function appSlot(service: "nominatim" | "overpass", sleep: (ms: number) =>
   for (let attempt = 0; ; attempt += 1) {
     try {
       // Literal keys, so the limiter call-site review can read them.
-      if (service === "nominatim") await enforceRateLimit("places:nominatim", 1, NOMINATIM_WINDOW_S);
-      else await enforceRateLimit("places:overpass", 2, 1);
+      let resetAt: number | null | undefined;
+      if (service === "nominatim") resetAt = await enforceRateLimit("places:nominatim", 1, NOMINATIM_WINDOW_S);
+      else resetAt = await enforceRateLimit("places:overpass", 2, 1);
+      if (service === "overpass") return;
+      // Where this call sits in the window the slot was granted in. The window is the limiter's
+      // (its end on the database clock), so a grant at the very end of one window is seen as late
+      // here even when the answer reaches this instance after the window has turned.
+      const position = typeof resetAt === "number" ? now() - (resetAt - windowMs) : windowMs - untilNext();
+      const wait = typeof resetAt === "number" ? Math.max(0, resetAt - now()) : untilNext();
       // A Nominatim slot won late in its window is not used: the next window's call could follow it
       // within milliseconds. Nobody else holds this window's slot, so waiting for the next is safe.
-      if (service === "overpass" || windowMs - untilNext() < NOMINATIM_SEND_BEFORE_MS) return;
+      if (position >= 0 && position < NOMINATIM_SEND_BEFORE_MS) return;
       if (attempt > 0) {
         console.warn(`[places] ${service} late in its window (app limit)`);
         throw new PlacesUnavailable();
       }
-      await sleep(untilNext());
+      await sleep(wait);
     } catch (error) {
       if (error instanceof HttpError && error.status === 429 && attempt === 0) {
         await sleep(untilNext());

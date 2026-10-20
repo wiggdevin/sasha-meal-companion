@@ -5,7 +5,7 @@ import AutoHeight from "@/components/ui/AutoHeight";
 import Button from "@/components/ui/Button";
 import CloseButton from "@/components/ui/CloseButton";
 import Notice from "@/components/ui/Notice";
-import { BUILD_STEPS, buildReducer, initialBuildState, newSaveProgress, previewInput, runSave, savePlan,
+import { BUILD_STEPS, buildReducer, initialBuildState, newSaveProgress, previewInput, runSave, savePlan, saveTarget,
   STEP_LABEL, type MealCard, type SaveDeps, type SaveProgress } from "@/lib/shopping/build-flow";
 import type { BuildCandidate } from "@/lib/shopping/build-candidates";
 import type { ShoppingDraft, ShoppingPreviewInput } from "@/lib/shopping/contracts";
@@ -39,9 +39,8 @@ export const RECIPE_PLAN_ACCEPTED_EVENT = "recipe-plan-accepted";
  * always plain, Back on every step after the first, and Close, which drops everything. Nothing is
  * written until Save list.
  *
- * Only a finished save opens the new list on Shopping (`shopping-list-saved`): opening it remounts
- * this flow, so a save that stopped part-way keeps the flow and "Finish saving", and its list opens
- * when the flow is closed. Close is off while a save is in flight.
+ * Only a finished save opens the new list on Shopping (`shopping-list-saved`), so a save that
+ * stopped part-way keeps the flow and "Finish saving", and its list opens when the flow is closed. Close is off while a save is in flight.
  */
 export default function BuildFlow({ accountId, countryCode, mealCount, initialDraft, ports, onClose, onSaved }: {
   accountId: string;
@@ -95,7 +94,9 @@ export default function BuildFlow({ accountId, countryCode, mealCount, initialDr
     const plan = savePlan(state);
     if (!plan) { setSaveStatus({ kind: "error", message: "Plan the meals first." }); return; }
     const deps = portsRef.current.save;
-    const start = progress.current ?? newSaveProgress(deps.newId);
+    const fresh = progress.current ?? newSaveProgress(deps.newId);
+    // Recorded before the first send, so a failure whose answer was lost still knows its plan.
+    const start = fresh.period || fresh.sentFor ? fresh : { ...fresh, sentFor: saveTarget(plan) };
     progress.current = start;
     setSaveStatus({ kind: "saving" });
     try {
@@ -112,7 +113,7 @@ export default function BuildFlow({ accountId, countryCode, mealCount, initialDr
     }
   }
 
-  /** Tells Shopping a list was saved, which opens it (and remounts this flow). */
+  /** Tells Shopping a list was saved, which opens it. */
   function announce(periodId: string) {
     window.dispatchEvent(new Event(RECIPE_PLAN_ACCEPTED_EVENT));
     window.dispatchEvent(new CustomEvent(LIST_SAVED_EVENT, { detail: { periodId } }));

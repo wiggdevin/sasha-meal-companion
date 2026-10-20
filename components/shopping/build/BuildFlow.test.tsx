@@ -196,7 +196,7 @@ describe("BuildListCard", () => {
     await click("Skip");
     await click("Yes to the rest");
     await click("Next: meals");
-    expect(screen.getByText("Meals can't be planned for these days.")).toBeTruthy();
+    expect(screen.getByText("Meals couldn't be planned.")).toBeTruthy();
     expect(screen.getByText("8 foods go on the list.")).toBeTruthy();
     await click("Save just your foods");
     await click("Skip");

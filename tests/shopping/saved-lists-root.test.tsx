@@ -68,13 +68,21 @@ async function deleteFromSheet(name: string) {
 const openListName = () => screen.getByRole("navigation", { name: "Saved lists" }).textContent ?? "";
 
 it("sends a delete left on the device by a reload, and keeps that list hidden", async () => {
-  window.localStorage.setItem(pendingKey(), JSON.stringify([{ id: B.id, revision: 3, requestId: "req-1", at: Date.now() }]));
+  window.localStorage.setItem(pendingKey(), JSON.stringify([{ id: B.id, revision: 3, requestId: "req-1", at: Date.now() - 60_000 }]));
   mocks.deletePeriod.mockImplementation(async (id: string) => { rows = rows.filter((row) => row.id !== id); });
   render(<ShoppingRoot />);
   await waitFor(() => expect(mocks.deletePeriod).toHaveBeenCalledWith(B.id, 3, "req-1", expect.anything()));
   await waitFor(() => expect(pending()).toEqual([]));
   fireEvent.click(await screen.findByRole("button", { name: /Open your saved lists/ }));
   expect(screen.queryByRole("button", { name: "Delete Party" })).toBeNull();
+});
+
+it("leaves a delete still inside another tab's Undo to that tab", async () => {
+  window.localStorage.setItem(pendingKey(), JSON.stringify([{ id: B.id, revision: 3, requestId: "req-1", at: Date.now() - 1_000 }]));
+  render(<ShoppingRoot />);
+  await screen.findByRole("navigation", { name: "Saved lists" });
+  expect(mocks.deletePeriod).not.toHaveBeenCalled();
+  expect(pending().map((row: { id: string }) => row.id)).toEqual([B.id]);
 });
 
 it("keeps a delete on the device until the server answers, and keeps it after a dropped connection", async () => {
@@ -91,7 +99,7 @@ it("keeps a delete on the device until the server answers, and keeps it after a 
 
 it("forgets a delete the server refused for a stale revision and brings the list back", async () => {
   mocks.deletePeriod.mockRejectedValue(new mocks.Stale("changed"));
-  window.localStorage.setItem(pendingKey(), JSON.stringify([{ id: B.id, revision: 2, requestId: "req-2", at: Date.now() }]));
+  window.localStorage.setItem(pendingKey(), JSON.stringify([{ id: B.id, revision: 2, requestId: "req-2", at: Date.now() - 60_000 }]));
   render(<ShoppingRoot />);
   expect(await screen.findByText("A list was not deleted. It is back in your lists.")).toBeTruthy();
   expect(pending()).toEqual([]);

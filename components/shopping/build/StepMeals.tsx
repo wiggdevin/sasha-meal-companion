@@ -45,7 +45,7 @@ export default function StepMeals({ state, dispatch, mealCount }: {
     const foods = yesIngredients(state).length;
     return (
       <div className="flex flex-col gap-3">
-        <Notice tone="attention" title="Meals can't be planned for these days.">{meals.error}</Notice>
+        <Notice tone="attention" title="Meals couldn't be planned.">{meals.error}</Notice>
         {editing ? (
           <PlanDaysEditor draft={state.draft} mealCount={mealCount} onCancel={() => setEditing(false)}
             onPlan={(draft) => { setEditing(false); dispatch({ type: "edit-plan", draft }); }} />

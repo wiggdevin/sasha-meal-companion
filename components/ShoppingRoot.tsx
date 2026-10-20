@@ -52,6 +52,8 @@ function draftFromPeriod(period: ShoppingPeriod): ShoppingDraft {
 /** How long a deleted list waits for its Undo before the delete is sent. */
 /* A second past the Undo toast (ActionFeedback's 5 s), so Undo is never on screen after the send. */
 const DELETE_HOLD_MS = 6_000;
+/** Another tab may still be holding a delete for its Undo: entries this young are left to it. */
+const DELETE_HOLD_MARGIN_MS = 4_000;
 /** A pending delete older than this is dropped rather than sent: the list comes back. */
 const PENDING_DELETE_MAX_MS = 7 * 86_400_000;
 /** A list delete not yet confirmed by the server, kept on the device so a reload, a closed tab or
@@ -64,7 +66,7 @@ function readPendingDeletes(userId: string): PendingDelete[] {
     if (!Array.isArray(rows)) return [];
     return rows.filter((row): row is PendingDelete => typeof row?.id === "string" && Number.isInteger(row?.revision)
       && typeof row?.requestId === "string" && typeof row?.at === "number"
-      && Date.now() - row.at < PENDING_DELETE_MAX_MS).slice(0, 50);
+      && Date.now() - row.at < PENDING_DELETE_MAX_MS).slice(-50);
   } catch { return []; }
 }
 function writePendingDeletes(userId: string, rows: PendingDelete[]): void {
@@ -200,7 +202,8 @@ export default function ShoppingRoot() {
         if (cause instanceof AccountChanged || cause instanceof AccountNotBound) return;
         const status = cause instanceof ShoppingRequestFailed ? cause.status : null;
         const final = cause instanceof ShoppingStaleRevision
-          || (status !== null && status >= 400 && status < 500 && status !== 408 && status !== 429);
+          // A 401 is a lapsed session, not an answer about the list: it waits for the next sign-in.
+          || (status !== null && status >= 400 && status < 500 && ![401, 408, 429].includes(status));
         if (!final) return;
         forgetPendingDelete(account.userId, entry.id);
         if (status === 404) return;
@@ -214,10 +217,12 @@ export default function ShoppingRoot() {
       })
       .finally(() => sending.current.delete(entry.id));
   }, [refresh]);
-  /** Sends every delete left on the device whose Undo is over (one held on screen waits its turn). */
+  /** Sends every delete left on the device whose Undo is over. One held on screen waits its turn,
+   *  and so does one still inside its Undo in another tab (the device's entries are shared). */
   const flushDeletes = useCallback((account: AccountHandle) => {
     for (const entry of readPendingDeletes(account.userId)) {
-      if (!held.current.has(entry.id)) sendDelete(account, entry, "A list");
+      if (held.current.has(entry.id) || Date.now() - entry.at < DELETE_HOLD_MS + DELETE_HOLD_MARGIN_MS) continue;
+      sendDelete(account, entry, "A list");
     }
   }, [sendDelete]);
   /** Sends the deletes still waiting on their Undo now (leaving Shopping, or the page going away). */

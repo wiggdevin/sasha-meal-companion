@@ -161,6 +161,20 @@ describe("geocodePlace", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("reads lateness from the limiter's window, so a grant at the end of one window is late here", async () => {
+    // Granted at 1.98 s of the window ending at 2_002_000 (database clock); the answer reaches
+    // this instance 20 ms after that window turned, which its own clock would call "early".
+    limiter.enforce.mockResolvedValueOnce(2_002_000).mockResolvedValueOnce(2_004_000);
+    const times = [2_002_020, 2_002_020, 2_002_030];
+    const now = () => times.length > 1 ? times.shift()! : times[0];
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const fetch = vi.fn().mockResolvedValue(json(HIT));
+    await geocodePlace(AREA, "US", { fetch, env: ENV, sleep, now });
+    expect(sleep).toHaveBeenCalledWith(0);
+    expect(limiter.enforce).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("answers 503 without calling when both slots come late", async () => {
     const fetch = vi.fn().mockResolvedValue(json(HIT));
     const error = await refusal(geocodePlace(AREA, "US", { fetch, env: ENV,
