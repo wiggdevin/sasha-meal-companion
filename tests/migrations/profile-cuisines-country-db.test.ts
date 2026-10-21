@@ -28,12 +28,15 @@ const LATER = ["20261220090000_taste_chip_receipts", "20261220090100_coach_undo_
  * mid-match and refuse as only partly patched.
  */
 const MASCOT = ["20261225090000_user_settings_mascot", "20261225090010_user_settings_mascot_validate"];
+/** UI makeover W3 patches the mascot patch's own text, so it comes off before the mascot does. */
+const COMPANIONS = ["20270107090000_user_settings_companions_hidden",
+  "20270107090100_user_settings_companions_hidden_validate"];
 const up = (name: string) => read(`supabase/migrations/${name}.sql`);
 const down = (name: string) => read(`supabase/migrations/down/${name}.down.sql`);
 const laterDown = () => [...LATER].reverse().map(down);
 const laterUp = () => LATER.map(up);
-const mascotDown = () => [...MASCOT].reverse().map(down);
-const mascotUp = () => MASCOT.map(up);
+const mascotDown = () => [...[...COMPANIONS].reverse().map(down), ...[...MASCOT].reverse().map(down)];
+const mascotUp = () => [...MASCOT.map(up), ...COMPANIONS.map(up)];
 
 describe("profile_cuisines_country migrations (static)", () => {
   it("are live-safe: lock and statement timeouts, a constant default, checks added NOT VALID then validated", () => {

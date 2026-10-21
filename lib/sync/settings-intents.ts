@@ -63,7 +63,12 @@ export type SettingsIntent = { key: string; value: unknown; sub?: string[]; delt
  */
 export const SUBKEYED: ReadonlySet<string> = new Set(["diet_prefs"]);
 /** The set-valued fields the server writes key by key, with the database's caps. */
-export const SET_CAPS = { cuisines: 6, tasteDislikes: 50 } as const;
+export const SET_CAPS = { cuisines: 6, tasteDislikes: 50, companionsHidden: 8 } as const;
+/** Set-valued columns an edit replays as a delta onto the server's list, with their caps. The UI
+ *  makeover's `companions_hidden` (W3) goes key by key too, so two phones hiding different
+ *  companions never undo each other. */
+const SET_COLUMNS: ReadonlyMap<string, number> = new Map([
+  ["cuisines", SET_CAPS.cuisines], ["companions_hidden", SET_CAPS.companionsHidden]]);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,6 +115,10 @@ function editIntent(key: string, before: unknown, after: unknown): SettingsInten
   if (key === "cuisines" && isStringArray(before) && isStringArray(after)) {
     return { key, value: after, delta: deltaOf(before, after) };
   }
+  // A row from before the column has no list yet: nothing hidden.
+  if (key === "companions_hidden" && (before === undefined || isStringArray(before)) && isStringArray(after)) {
+    return { key, value: after, delta: deltaOf(before ?? [], after) };
+  }
   if (SUBKEYED.has(key) && isPlainObject(before) && isPlainObject(after)) {
     const sub = changedSubKeys(before, after);
     if (key === "diet_prefs" && sub.includes("taste") && has(after, "taste")) {
@@ -124,7 +133,8 @@ function editIntent(key: string, before: unknown, after: unknown): SettingsInten
 
 /** An intent's value laid onto the value the payload holds so far: whole, by sub-key, or by delta. */
 function applyIntent(current: unknown, intent: SettingsIntent): unknown {
-  if (intent.key === "cuisines" && intent.delta) return applyDelta(current, intent.delta, SET_CAPS.cuisines);
+  const cap = SET_COLUMNS.get(intent.key);
+  if (cap !== undefined && intent.delta) return applyDelta(current, intent.delta, cap);
   if (!intent.sub || !isPlainObject(intent.value)) return intent.value;
   const next: Record<string, unknown> = isPlainObject(current) ? { ...current } : {};
   for (const key of intent.sub) {
@@ -146,7 +156,7 @@ function applyIntent(current: unknown, intent: SettingsIntent): unknown {
  */
 function composeIntents(earlier: SettingsIntent, later: SettingsIntent): SettingsIntent {
   const { key, value } = later;
-  if (key === "cuisines") {
+  if (SET_COLUMNS.has(key)) {
     return earlier.delta && later.delta ? { key, value, delta: composeDelta(earlier.delta, later.delta) } : { key, value };
   }
   if (!earlier.sub || !later.sub) return { key, value };

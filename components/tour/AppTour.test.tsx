@@ -35,6 +35,16 @@ describe("AppTour", () => {
     expect(onClose).toHaveBeenCalledWith("done");
   }, 15_000);
 
+  it("draws the companion as the guide, and no figure when the account hid it", () => {
+    const { unmount } = render(<MotionConfig reducedMotion="always"><AppTour onClose={vi.fn()} mascot="blueberry" /></MotionConfig>);
+    expect(screen.getByText(/^Blu shows you · 1 of /)).toBeTruthy();
+    expect(document.querySelector("[data-pose]")).toBeTruthy();
+    unmount();
+    render(<MotionConfig reducedMotion="always"><AppTour onClose={vi.fn()} mascot="blueberry" guide={false} /></MotionConfig>);
+    expect(screen.getByText(/^Quick tour · 1 of /)).toBeTruthy();
+    expect(document.querySelector("[data-pose]")).toBeNull();
+  });
+
   it("teaches the card's taps and gestures in words", () => {
     renderTour();
     next();

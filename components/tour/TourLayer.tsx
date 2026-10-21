@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import AppTour, { type TourCloseReason } from "@/components/tour/AppTour";
 import { useMascot } from "@/components/today/island/well-pet";
+import { useCompanionShown } from "@/lib/today/companion-visibility";
 
 /** An overview that fails to draw closes itself: the screen under it carries on. */
 class TourBoundary extends Component<{ onError: () => void; children: ReactNode }, { failed: boolean }> {
@@ -29,11 +30,13 @@ export default function TourLayer({ opening, onClose }: {
   onClose: (reason: TourCloseReason | "error") => void;
 }) {
   const mascot = useMascot();
+  // A hidden companion stands in no tour (UI makeover W3).
+  const guide = useCompanionShown(mascot);
   if (typeof document === "undefined") return null;
   return createPortal(<MotionConfig reducedMotion="user">
     <AnimatePresence>
       {opening && <TourBoundary key={opening.seq} onError={() => onClose("error")}>
-        <AppTour origin={opening.origin} returnFocusTo={opening.returnFocusTo} mascot={mascot} onClose={onClose} />
+        <AppTour origin={opening.origin} returnFocusTo={opening.returnFocusTo} mascot={mascot} guide={guide} onClose={onClose} />
       </TourBoundary>}
     </AnimatePresence>
   </MotionConfig>, document.body);

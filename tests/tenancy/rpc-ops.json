@@ -10,6 +10,7 @@
   "catalog_expand_query(text)": { "class": "catalog", "reason": "Reads the shared synonym table only." },
   "catalog_search(text,text,text,integer)": { "class": "account", "externalTest": "tests/search/cross-user.test.ts::never leaks A's log count or Eats status into B's search" },
   "catalog_search_doc(text,text,text)": { "class": "pure", "reason": "Builds a tsvector from its arguments; reads no table." },
+  "companions_hidden_valid(text[])": { "class": "pure", "reason": "UI makeover W3: validates user_settings.companions_hidden for a check constraint; reads no table." },
   "compute_item_snapshot(uuid,numeric)": { "class": "account", "case": "compute_item_snapshot" },
   "compute_unit_snapshot(jsonb,numeric)": { "class": "catalog", "reason": "Multiplies a caller-sent per-unit map by qty, reading only the shared catalog_nutrients table." },
   "custom_food_rules_valid(jsonb)": { "class": "pure", "reason": "Validates only the supplied custom-rule JSON shape and reads no table." },

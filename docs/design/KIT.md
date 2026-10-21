@@ -429,7 +429,7 @@ Rules (`tests/design/meal-type.test.ts` holds them):
 9. **Fill the space.** A card sits on its panel, not inside a recessed tray around a carousel: an
    opened suggestion card fills the panel's width.
 
-## 15. Liquid glass and the live widget (`app/globals.css` glass classes, `components/today/LiveWidget.tsx`)
+## 15. Liquid glass and the live widget (`app/globals.css` glass classes; the widget itself was retired by the UI makeover W3)
 
 Owner, 2026-10-05: the calendar's dark foot becomes a live widget seen "through a liquid glass", with
 the readings as 3D pieces on a black floor under the glass; the Overview is rebuilt the same way, with
@@ -467,7 +467,7 @@ Owner: the glass looks liquid and slightly 3D, the bed under it sunken, the piec
 vibrant, and a fuzzy pet lives there. Three design rounds with Kimi K3 and Gemini 3.1 Pro (art
 direction) and GPT-6 Sol (code and Safari review). Gallery: `/design/well` (dev only).
 
-- **Stack, bottom to top** (`components/today/island/Well.module.css`): the recess carved into the
+- **Stack, bottom to top** (the retired `components/today/island/Well.module.css`, in git history): the recess carved into the
   ivory card (overhang shadow, far-lip catch light, a chisel highlight outside) → the liquid
   (charcoal-olive, an olive light pool on the floor, 14 % overlay grain, two slow neutral caustics,
   transform-only) → the jelly pieces and Sprout → the lid (rim, sheen, one hot spot that drifts as the

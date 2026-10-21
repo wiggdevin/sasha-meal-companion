@@ -54,6 +54,18 @@ describe("the algebra", () => {
     expect(payloadOf({ cuisines: ["italian", "korean", "japanese"] }, [removal]).cuisines).toEqual(["korean", "japanese"]);
   });
 
+  it("a companion hidden on this phone replays key by key over another phone's choice (UI makeover W3)", () => {
+    const [intent] = foldEdit({ companions_hidden: ["dragon"] }, [], { companions_hidden: ["dragon", "sprout"] });
+    expect(intent).toEqual({ key: "companions_hidden", value: ["dragon", "sprout"], delta: { add: ["sprout"], remove: [] } });
+    expect(payloadOf({ companions_hidden: ["dragon", "peapod"] }, [intent]).companions_hidden)
+      .toEqual(["dragon", "peapod", "sprout"]);
+    // A row from before the column, then a Show that composes with the earlier Hide.
+    const [first] = foldEdit({}, [], { companions_hidden: ["sprout"] });
+    const [both] = foldEdit({ companions_hidden: ["sprout"] }, [first], { companions_hidden: [] });
+    expect(both.delta).toEqual({ add: [], remove: ["sprout"] });
+    expect(payloadOf({ companions_hidden: ["peapod", "sprout"] }, [both]).companions_hidden).toEqual(["peapod"]);
+  });
+
   it("a replay never passes the caps: 6 cuisines, 50 dislikes", () => {
     const [intent] = foldEdit({ cuisines: [] }, [], { cuisines: ["african", "caribbean"] });
     const full = ["american", "italian", "korean", "chinese", "japanese"];

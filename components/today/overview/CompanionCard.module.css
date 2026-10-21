@@ -1,0 +1,92 @@
+/* The companion row in the Overview face (CompanionCard.tsx; UI makeover §5). Collapsed it is one
+   64 px row on the inset card step; open, a matte charcoal stage (the meal card's face, cream text)
+   and one row of actions. Only transform and opacity animate; the panel's height is DisclosurePanel's. */
+
+/* The row fills the card: it takes back the card's 12 px padding, so the whole 64 px is the target. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% + 2 * var(--card-pad-sm));
+  min-height: 64px;
+  margin: calc(-1 * var(--card-pad-sm));
+  padding: 12px 14px 12px 12px;
+  border-radius: inherit;
+  text-align: left;
+}
+.row:focus-visible {
+  outline: 2px solid var(--color-focus, currentColor);
+  outline-offset: -2px;
+}
+
+.figure {
+  --pet-tint: var(--color-gauge-water);
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--pet-tint) 30%, transparent), transparent);
+}
+.figure[data-mood="joyful"] { --pet-tint: var(--color-gauge-carbs); }
+.figure[data-mood="sleepy"] { --pet-tint: var(--color-gauge-protein); }
+
+.words {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.name,
+.line {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* "Seeds 12": a small tag, only when the care read answered. */
+.seeds {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-hairline);
+  font-variant-numeric: tabular-nums;
+}
+
+.open {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+}
+
+/* The stage: the matte charcoal face, so the companion and its light read at full contrast. The care
+   layer (Seeds chip, messages) lies over it. */
+.stage {
+  position: relative;
+  min-height: 160px;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 10px 12px 52px;
+  background: var(--grad-matte);
+}
+.stage[data-pond] {
+  padding: 0 12px 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hide {
+  min-height: 44px;
+  padding: 0 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -39,3 +39,21 @@
   background: radial-gradient(80% 60% at 50% 35%, color-mix(in oklab, var(--color-gauge-water) 18%, var(--color-charcoal-deep)),
     var(--color-charcoal-deep));
 }
+/* The companion row's stage is small: the shop opens as a sheet over the whole screen there, and
+   the award player over a dimmed screen (CareLayer `modalAt="screen"`). */
+.panel[data-screen] {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 80;
+  /* A definite height: the shop's try-on stage is a flex child that needs one to show. */
+  height: min(560px, 85dvh);
+  overflow-y: auto;
+  border-radius: 24px 24px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: auto;
+}
