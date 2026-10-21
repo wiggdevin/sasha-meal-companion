@@ -37,11 +37,13 @@ function originOffset(origin: DOMRect | null | undefined): { x: number; y: numbe
  * whatever had it before. Reduced motion: nothing moves or fades — the sheet and its scrim simply appear and every demo is a
  * still frame.
  */
-export default function AppTour({ onClose, origin, mascot = "sprout", returnFocusTo }: {
+export default function AppTour({ onClose, origin, mascot = "sprout", guide = true, returnFocusTo }: {
   onClose: (reason: TourCloseReason) => void;
   /** The box the sheet grows out of (the companion in the well). */
   origin?: DOMRect | null;
   mascot?: MascotKey;
+  /** False when the account hid its companion: no figure, and the tour speaks for itself. */
+  guide?: boolean;
   /** Focus goes here on close when nothing else held it before (a tap on iOS focuses nothing). */
   returnFocusTo?: HTMLElement | null;
 }) {
@@ -116,9 +118,9 @@ export default function AppTour({ onClose, origin, mascot = "sprout", returnFocu
               transition={reduce ? INSTANT : { x: slide, opacity: { duration: 0.2 } }}>
               <TourDemo kind={current.id} reduce={reduce} />
               <div className="flex items-center gap-3">
-                <SproutFigure className={styles.guide} mascot={mascot} mood={current.pose} size={56} />
+                {guide && <SproutFigure className={styles.guide} mascot={mascot} mood={current.pose} size={56} />}
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-overline uppercase text-muted">{`${name} shows you · ${step + 1} of ${TOUR_STEPS.length}`}</span>
+                  <span className="text-overline uppercase text-muted">{`${guide ? `${name} shows you` : "Quick tour"} · ${step + 1} of ${TOUR_STEPS.length}`}</span>
                   <h2 id={titleId} className="m-0 font-display text-heading font-light leading-none tracking-display-md text-charcoal">
                     {current.title}
                   </h2>

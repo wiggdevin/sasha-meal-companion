@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import AwardPlayer from "@/components/today/care/AwardPlayer";
 import CareNotes, { nextNote } from "@/components/today/care/CareNotes";
@@ -9,7 +10,7 @@ import type { Award } from "@/components/today/care/awards";
 import { equipCareItem, markAccoladesSeen, markCareMessage, offeredItems, purchaseCareItem } from "@/components/today/care/care-api";
 import { seeds } from "@/components/today/care/shop/shop-state";
 import { unlockAudio } from "@/components/today/care/sound";
-import { useCare } from "@/components/today/care/useCare";
+import { useCare, type CareData } from "@/components/today/care/useCare";
 import { FADES, INSTANT } from "@/lib/design/motion";
 import { localIsoDate } from "@/lib/settings/date";
 import { named } from "@/components/today/island/mascots";
@@ -69,7 +70,7 @@ function useModal(box: RefObject<HTMLElement | null>, open: boolean, homes: RefO
 }
 
 /**
- * Seeds, the shop and Sprout's messages in the open well on today (owner, 2026-10-07; the care
+ * Seeds, the shop and Sprout's messages on the companion's open stage on today (owner, 2026-10-07; the care
  * backend, #5). A small Seeds chip sits in the card's lower corner and opens the shop over the well;
  * the newest message drops in at the top (an award offers Watch, which plays it and marks it seen);
  * Escape or Close puts the shop away and hands focus back to the chip. The shop and the award
@@ -77,14 +78,20 @@ function useModal(box: RefObject<HTMLElement | null>, open: boolean, homes: RefO
  * fold, swipe or long-press the card). Nothing shows until the server
  * answers, and nothing at all when it cannot: a failed read is quiet, never a guessed balance.
  */
-export default function CareLayer({ active, notesAt = "top" }: {
+export default function CareLayer({ active, notesAt = "top", care: given, modalAt = "card" }: {
   active: boolean;
+  /** Where the shop and the award player open: over this layer's box, or over the whole screen
+   *  (the companion row's stage is too small to hold them). */
+  modalAt?: "card" | "screen";
+  /** The owner's own care read (the companion row reads it once for its Seeds tag and this layer). */
+  care?: CareData;
   /** Where messages drop in: "bottom" in a view whose top strip holds its own controls (water). */
   notesAt?: "top" | "bottom";
 }) {
   const reduce = useReducedMotionConfig() ?? false;
   const mascot = useMascot();
-  const care = useCare(active);
+  const own = useCare(given ? false : active);
+  const care = given ?? own;
   const [shopOpen, setShopOpen] = useState(false);
   const [award, setAward] = useState<{ award: Award; message: string } | null>(null);
   const chip = useRef<HTMLButtonElement | null>(null);
@@ -113,12 +120,18 @@ export default function CareLayer({ active, notesAt = "top" }: {
   }, [open]);
   // The well folded or moved off today: whatever was open leaves.
   useEffect(() => {
+    // The exits never finish once this layer unmounts: clear their flags too, so the modal lets go
+    // of the rest of the page (nothing stays inert).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!active) { setShopOpen(false); setAward(null); }
+    if (!active) { setShopOpen(false); setAward(null); setShopLeaving(false); setAwardLeaving(false); }
   }, [active]);
 
   if (!active) return null;
   const shop = care.shop;
+  // Over the whole screen the shop and the award go to the body: the Day card's faces animate a
+  // filter, and a filtered ancestor would hold a fixed sheet inside the face and clip it.
+  const atScreen = modalAt === "screen" && typeof document !== "undefined";
+  const lift = (node: ReactNode) => atScreen ? createPortal(node, document.body) : node;
   return <div ref={root} className={styles.layer} tabIndex={-1}
     onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
     {!open && !award && <CareNotes note={note} mascot={mascot} place={notesAt}
@@ -142,15 +155,15 @@ export default function CareLayer({ active, notesAt = "top" }: {
       </svg>
       <span>{shop.state.balance.toLocaleString("en-US")}</span>
     </button>}
-    <AnimatePresence onExitComplete={() => setShopLeaving(false)}>
+    {lift(<AnimatePresence onExitComplete={() => setShopLeaving(false)}>
       {shop && open && <motion.div ref={panel} key="shop" role="dialog" aria-modal="true" aria-label={named("Sprout's shop", mascot)} tabIndex={-1}
-        className={`matte ${styles.panel}`}
+        className={`matte ${styles.panel}`} data-screen={modalAt === "screen" || undefined}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduce ? INSTANT : FADES.base}>
         <CareShop state={shop.state} today={localIsoDate(new Date())} rules={SERVER} items={offeredItems(shop.prices)}
           onChange={(next) => care.setShop({ ...shop, state: next })} onRefresh={care.refresh} onClose={closeShop} />
       </motion.div>}
-    </AnimatePresence>
-    <div ref={awardBox}>
+    </AnimatePresence>)}
+    {lift(<div ref={awardBox} className={atScreen && (award || awardLeaving) ? styles.screen : undefined}>
     <AnimatePresence onExitComplete={() => setAwardLeaving(false)}>
       {award && <AwardPlayer key={award.message} award={award.award} modal onClose={() => {
         void markAccoladesSeen([award.award.key]);
@@ -159,6 +172,6 @@ export default function CareLayer({ active, notesAt = "top" }: {
         setAwardLeaving(true);
       }} />}
     </AnimatePresence>
-    </div>
+    </div>)}
   </div>;
 }

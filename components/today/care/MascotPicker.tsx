@@ -16,9 +16,11 @@ const HELLO_MS = 1600;
  * companion keeps every Seed and item (the server's `user_settings.mascot` is only which one draws).
  * The choice is said in a polite live region; reduced motion swaps without the hop or the wave.
  */
-export default function MascotPicker({ value, onChange }: {
+export default function MascotPicker({ value, onChange, hidden = [] }: {
   value: MascotKey;
   onChange: (next: MascotKey) => void;
+  /** Companions the account hid from Today: each tile carries a "Hidden" tag. */
+  hidden?: readonly MascotKey[];
 }) {
   const reduce = useReducedMotionConfig() ?? false;
   const [hello, setHello] = useState(0);
@@ -51,6 +53,7 @@ export default function MascotPicker({ value, onChange }: {
           <SproutFigure mascot={key} mood="content" size={64} breathe={false} shadow={false}
             className={styles.tileArt} />
           <span className={styles.tileName}>{MASCOTS[key].name}</span>
+          {hidden.includes(key) && <span className={styles.tileHidden}><span className="sr-only">, </span>Hidden</span>}
         </button>
       </li>)}
     </ul>

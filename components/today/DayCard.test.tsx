@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import DayCard from "./DayCard";
 import type { OverviewData } from "./overview/types";
@@ -21,7 +21,6 @@ const week: WeekSummary = {
 // Motion measures and restores the scroll position; jsdom has neither.
 beforeEach(() => {
   window.scrollTo = () => {}; Element.prototype.scrollIntoView = vi.fn();
-  // The widget remembers its panels and whether it was open; every test starts from the defaults.
   localStorage.clear();
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -50,8 +49,6 @@ const tab = (name: "Calendar" | "Overview") => screen.getByRole("tab", { name })
 const panel = (name: "Calendar" | "Overview") => document.getElementById(tab(name).getAttribute("aria-controls")!)!;
 const tabNames = () => screen.getAllByRole("tab").map((item) => item.textContent);
 const header = () => document.querySelector<HTMLElement>('section[aria-label="Day"] header')!;
-/** The live widget's one toggle: its name is the current panel's headline. */
-const widget = () => screen.getByRole("button", { name: /^Calories left, 1 of 3\./ });
 const toCalendar = () => fireEvent.click(tab("Calendar"));
 
 describe("DayCard · overview", () => {
@@ -81,72 +78,21 @@ describe("DayCard · overview", () => {
 });
 
 describe("DayCard · calendar", () => {
-  it("holds the week and the live widget once the calendar is chosen", () => {
+  it("holds the week and the day's one line once the calendar is chosen; the companion is not here", () => {
     mount();
     toCalendar();
     expect(tab("Calendar").getAttribute("aria-selected")).toBe("true");
     expect(panel("Calendar").getAttribute("aria-hidden")).toBeNull();
     expect(panel("Overview").getAttribute("aria-hidden")).toBe("true");
     expect(panel("Calendar").textContent).toContain("Week calendar");
-    expect(within(panel("Calendar")).getByRole("region", { name: "Day widget" })).toBeTruthy();
+    expect(panel("Calendar").textContent).toContain("800 kcal left · Next 10:30");
+    expect(within(panel("Calendar")).queryByRole("region", { name: "Day widget" })).toBeNull();
   });
 
-  it("collapsed, the widget says only the calories left; open, one showcase with no title, arrow or pager", () => {
-    mount();
-    toCalendar();
-    expect(widget().textContent).toContain("800 kcal left of 2,000");
-    expect(widget().getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(widget());
-    const toggle = screen.getByRole("button", { name: /^Calories, protein, carbs and fat, 1 of 2\. Fold the widget/ });
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    const fuel = screen.getByRole("group", { name: "Calories, protein, carbs and fat, 1 of 2" });
-    expect(screen.queryByRole("group", { name: "Panels" })).toBeNull();
-    expect(fuel.textContent).not.toContain("Calories left");
-    const protein = within(fuel).getByRole("button", { name: "Protein: 60 grams left. Show details" });
-    expect(within(fuel).getByRole("button", { name: "Carbs: 120 grams left. Show details" })).toBeTruthy();
-    expect(within(fuel).getByRole("button", { name: "Fat: 40 grams left. Show details" })).toBeTruthy();
-    fireEvent.click(protein);
-    expect(protein.getAttribute("aria-pressed")).toBe("true");
-    expect(fuel.textContent).toContain("g protein left");
-    fireEvent.click(within(fuel).getByRole("button", { name: "Protein: 60 grams left. Back to all three" }));
-    expect(protein.getAttribute("aria-pressed")).toBe("false");
-  });
-
-  it("moves between the widget's panels with the arrow keys", () => {
-    mount();
-    toCalendar();
-    fireEvent.keyDown(widget(), { key: "ArrowRight" });
-    expect(screen.getByRole("button", { name: /^Protein, carbs and fat, 2 of 3/ })).toBeTruthy();
-    fireEvent.keyDown(screen.getByRole("button", { name: /^Protein, carbs and fat, 2 of 3/ }), { key: "ArrowLeft" });
-    expect(widget()).toBeTruthy();
-  });
-
-  it("keeps over-target amounts truthful in the widget, in words", () => {
+  it("keeps over-target amounts truthful in the day's line, in words", () => {
     mount({ consumed: { kcal: 2250, protein: 165, carbs: 80, fat: 30 } });
     toCalendar();
-    expect(widget().textContent).toContain("250 kcal over 2,000");
-    fireEvent.keyDown(widget(), { key: "ArrowRight" });
-    expect(screen.getByRole("button", { name: /^Protein, carbs and fat/ }).textContent).toContain("15 grams protein over");
-  });
-
-  it("Phase 19 R2: joins the widget and selects it, closed, once its tone turns to nudge (D3, W116)", async () => {
-    const onOpenSlot = vi.fn();
-    const { rerender } = mount({ onOpenSlot, rebalance: { show: false } });
-    toCalendar();
-    rerender(card({ onOpenSlot, rebalance: {
-      show: true, state: "under", tone: "nudge", copyKey: "under",
-      numbers: { targetKcal: 2000, recordedKcal: 500, leftKcal: 1500, plannedKcal: 1800,
-        intake: { status: "complete", estimatedSlots: 0, unknownSlots: 0, unknownItems: 0, unknownEntries: 0, partial: false },
-        proteinTargetG: 120, proteinConsumedG: 25 },
-      cards: [{ slot: "meal-2", label: "Lunch", time: "12:30", kcal: 600, status: "missed", highlight: true }],
-    } }));
-    const toggle = () => panel("Calendar").querySelector("[data-widget-toggle]");
-    await waitFor(() => expect(toggle()?.textContent).toContain("Rebalance my day"));
-    expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(toggle()!);
-    await waitFor(() => expect(toggle()?.getAttribute("aria-expanded")).toBe("true"));
-    fireEvent.click(within(panel("Calendar")).getByRole("button", { name: "View meal" }));
-    expect(onOpenSlot).toHaveBeenCalledWith("meal-2");
+    expect(panel("Calendar").textContent).toContain("250 kcal over");
   });
 });
 

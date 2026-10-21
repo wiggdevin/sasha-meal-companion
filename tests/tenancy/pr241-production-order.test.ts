@@ -45,6 +45,9 @@ const PROFILE_SYNC = "20261217090200_profile_sync_cuisines_country";
  */
 const MASCOT = "20261225090000_user_settings_mascot";
 const MASCOT_VALIDATE = "20261225090010_user_settings_mascot_validate";
+/** UI makeover W3: patches the mascot patch's own text, so it comes off before the mascot does. */
+const COMPANIONS = "20270107090000_user_settings_companions_hidden";
+const COMPANIONS_VALIDATE = "20270107090100_user_settings_companions_hidden_validate";
 
 const INTERNALS = [
   "_sync_current(uuid, text, text)",
@@ -89,10 +92,13 @@ function appliedState() {
       + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)) > 0);",
     "select 'mascot:' || (position('mascot' in pg_get_functiondef("
       + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)) > 0);",
+    "select 'companions:' || (position('companions_hidden' in pg_get_functiondef("
+      + "'public._sync_upsert(uuid,text,text,jsonb,integer)'::regprocedure)) > 0);",
   ].join("\n")).split("\n");
   const flag = (key: string) => out.includes(`${key}:true`);
   return { bodyFat: flag("body_fat"), rateGoals: flag("rate_goals"), mealLayout: flag("meal_layout"), guard: flag("guard"),
-    sameOwner: flag("same_owner"), profileSync: flag("profile_sync"), mascot: flag("mascot") };
+    sameOwner: flag("same_owner"), profileSync: flag("profile_sync"), mascot: flag("mascot"),
+    companions: flag("companions") };
 }
 
 describe.skipIf(!(HAS_DB && HAS_BRANCH))("PR #241 applied in production order, after PR #249 and #250", () => {
@@ -104,6 +110,8 @@ describe.skipIf(!(HAS_DB && HAS_BRANCH))("PR #241 applied in production order, a
     const stepBack = [
       // A later layout patch extends the same sync branch. Remove it before replaying the older
       // anchored migrations; the outer transaction restores the installed schema on rollback.
+      state.companions ? down(COMPANIONS_VALIDATE) : "",
+      state.companions ? down(COMPANIONS) : "",
       state.mascot ? down(MASCOT_VALIDATE) : "",
       state.mascot ? down(MASCOT) : "",
       state.profileSync ? down(PROFILE_SYNC) : "",
@@ -232,6 +240,8 @@ describe.skipIf(!(HAS_DB && HAS_BRANCH))("PR #241 applied in production order, a
     const out = runSql([
       "begin;",
       "set local app.allow_down_data_loss = 'on';",
+      state.companions ? down(COMPANIONS_VALIDATE) : "",
+      state.companions ? down(COMPANIONS) : "",
       state.mascot ? down(MASCOT_VALIDATE) : "",
       state.mascot ? down(MASCOT) : "",
       state.profileSync ? down(PROFILE_SYNC) : "",

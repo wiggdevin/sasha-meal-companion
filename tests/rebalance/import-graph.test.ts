@@ -32,7 +32,6 @@ const DEEP_ENTRIES = [
 const SHALLOW_ENTRIES = [
   "components/today/RebalancePanel.tsx",
   "components/today/RebalancePanelFace.tsx",
-  "lib/today/rebalance-widget.ts",
   "lib/today/open-slot-card.ts",
 ];
 

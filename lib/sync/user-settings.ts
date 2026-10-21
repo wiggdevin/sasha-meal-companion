@@ -3,7 +3,7 @@ import { BODY_FAT_SOURCES, type ActivityLevel, type BodyFatSource, type DietPref
 import { isoDay } from "../profile/energy";
 import { waterPrefsFrom, type WaterPrefs } from "../water-prefs";
 import { cuisinesFrom, parseCountryCode, parseCuisines, type CuisineKey } from "../profile/cuisines";
-import { mascotKeyOf, type MascotKey } from "../profile/mascot";
+import { storedCompanionKeysOf, mascotKeyOf, type MascotKey } from "../profile/mascot";
 import { tasteToStore, type TastePrefs } from "../profile/taste";
 
 export const COOKING_EFFORTS = ["none", "minimal", "full"] as const;
@@ -40,6 +40,8 @@ export type UserSettingsProfileRow = {
   /** UI-NEEDS MASCOT. NOT NULL on the server, default 'sprout': omitted or null both keep the
    *  stored value (20261225090000), so the wire never clears it either. */
   mascot?: string | null;
+  /** UI makeover W3. NOT NULL on the server, default '{}': omitted keeps, [] clears, null is refused. */
+  companions_hidden?: string[];
 };
 
 export type ProfileSettings = Omit<Pick<Settings,
@@ -56,6 +58,8 @@ export type ProfileSettings = Omit<Pick<Settings,
   /** Omitted (or explicitly undefined): keep the stored mascot. There is no "clear" value --
    *  the column itself never clears to null either, a choice always replaces the prior one. */
   mascot?: MascotKey;
+  /** Read from the row only (unknown keys kept as stored); written by lib/today/companion-visibility.ts. */
+  companionsHidden?: string[];
   };
 
 /** A stored source outside the enum reads as unverified; so does a date `isoDay` refuses. */
@@ -188,6 +192,9 @@ export function settingsProfileFromRow(row: UserSettingsProfileRow): ProfileSett
     // leniently -- an older client or a value the server has not learned yet falls back to
     // Sprout rather than reading as an error.
     mascot: mascotKeyOf(row.mascot),
+    // NOT NULL on the server (default '{}'); a key this phone does not know is kept as stored
+    // (never turned into Sprout). A row from before the column reads as nothing hidden.
+    ...(owns(row, "companions_hidden") ? { companionsHidden: storedCompanionKeysOf(row.companions_hidden) } : {}),
   };
 }
 
@@ -221,6 +228,9 @@ export function settingsProfileToRow(settings: ProfileSettings): UserSettingsPro
     // Omitted or explicitly undefined: keep the stored mascot (the column never clears to null
     // either way, so there is no separate "clear" case to send, unlike cuisines/countryCode).
     ...(settings.mascot !== undefined ? { mascot: mascotKeyOf(settings.mascot) } : {}),
+    // `companions_hidden` is never sent from here: a whole-profile save (onboarding, Edit profile)
+    // would carry a stale list over another phone's choice. Its one writer is
+    // lib/today/companion-visibility.ts, one key at a time.
   };
 }
 

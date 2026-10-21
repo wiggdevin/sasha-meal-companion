@@ -34,15 +34,29 @@ vi.mock("@/lib/coach/apply-profile", () => ({
     if (sync.fail) throw new Error("offline");
   },
 }));
+// Show/Hide writes the mirrored settings row itself (lib/today/companion-visibility.ts).
+const mirror = vi.hoisted(() => ({ row: { rev: 3 } as Record<string, unknown>, ops: [] as { payload: Record<string, unknown> }[], fail: false }));
+vi.mock("@/lib/sync/outbox", async (original) => ({
+  ...(await original<typeof import("@/lib/sync/outbox")>()),
+  announceQueued: () => {},
+  mutateUserSettings: async (_h: unknown, mutate: (row: Record<string, unknown>) => { row: Record<string, unknown>; op: { payload: Record<string, unknown> } }) => {
+    if (mirror.fail) throw new Error("offline");
+    const { row, op } = mutate(mirror.row);
+    mirror.row = row; mirror.ops.push(op);
+  },
+}));
 vi.mock("@/components/settings/use-settings-write", () => ({
+  SETTINGS_WRITE_FAILED: "Couldn't save that change.",
   useSettingsWrite: (send: (p: unknown) => Promise<unknown>) => ({
-    feedback: { phase: undefined, notice: null, dismiss: () => {} },
+    feedback: { phase: undefined, notice: null, dismiss: () => {},
+      run: (task: () => Promise<unknown>) => task().catch(() => {}) },
     write: (p: unknown) => { void send(p).catch(() => {}); },
   }),
 }));
 
 beforeEach(() => {
   store.settings = { mascot: "sprout" }; sync.calls = []; sync.fail = false; sync.gate = null;
+  mirror.row = { rev: 3 }; mirror.ops = []; mirror.fail = false;
   account.current = { userId: "a", epoch: 1 };
 });
 afterEach(cleanup);
@@ -141,5 +155,30 @@ describe("Settings › Your companion", () => {
     expect(sync.calls).toHaveLength(1);
     expect(sync.calls[0][1]).toEqual({ userId: "a", epoch: 1 });
     expect(store.settings.mascot).toBe("sprout");
+  });
+
+  it("the switch hides the companion on Today at the tap, written key by key on the mirrored row", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    const toggle = screen.getByRole("switch", { name: "Show Sprout on Today" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    mirror.row = { rev: 3, companions_hidden: ["dragon"] };
+    await act(async () => { fireEvent.click(toggle); });
+    expect(mirror.ops.at(-1)?.payload.companions_hidden).toEqual(["dragon", "sprout"]);
+    expect(sync.calls).toHaveLength(0);
+    expect(store.settings.companionsHidden).toEqual(["sprout"]);
+    expect(screen.getByRole("switch", { name: "Show Sprout on Today" }).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("a hidden companion carries a Hidden tag, and a failed Show puts the switch back", async () => {
+    const { default: CompanionSection } = await import("@/components/settings/CompanionSection");
+    store.settings = { mascot: "sprout", companionsHidden: ["blueberry", "sprout"] };
+    mirror.fail = true;
+    render(<MotionConfig reducedMotion="always"><CompanionSection /></MotionConfig>);
+    expect(screen.getByRole("button", { name: /^Blu\W*Hidden$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Sprout\W*Hidden$/ })).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("switch", { name: "Show Sprout on Today" })); });
+    expect(store.settings.companionsHidden).toEqual(["blueberry", "sprout"]);
+    expect(screen.getByRole("switch", { name: "Show Sprout on Today" }).getAttribute("aria-checked")).toBe("false");
   });
 });
