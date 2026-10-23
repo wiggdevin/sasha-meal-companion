@@ -18,7 +18,7 @@
 import type { Part } from "@google/genai";
 import type { PurposeOf } from "@/lib/ai/call-registry";
 import { deepFreeze } from "@/lib/ai/freeze";
-import type { NoulQuestion, ScoreQuestion } from "@/lib/ai/jev-types";
+import { score, type NoulQuestion, type ScoreQuestion } from "@/lib/ai/jev-types";
 import { intentQuestions } from "@/lib/coach/intent-questions";
 import { ROLE_QUESTION, type NutrientBucket } from "@/lib/coach/role-advice";
 import { questionsFor } from "@/lib/coach/suggest-questions";
@@ -314,4 +314,43 @@ export function pairPlausibilityPayload(input: { items: readonly PairItem[] }) {
     questions[item.id] = pairItemQuestion(item.id);
   }
   return jev("pair_plausibility", { items }, questions);
+}
+
+/** UI makeover W8: at most this many foods go to one `shopping-build-rank` call (the deck's cap). */
+export const SHOPPING_RANK_MAX = 30;
+
+/** The one fixed question per food of `shopping-build-rank`; ids are `buy_<index>`. */
+function shoppingRankQuestion(index: number): ScoreQuestion {
+  return score(`Rate state.foods[${index}].name as an item for this week's grocery list. Judge only `
+    + "the food itself: how much of a staple it is that people buy every week, compared with "
+    + "something bought now and then.", [
+    "rarely bought: a once-in-a-while or specialty item",
+    "bought now and then",
+    "a weekly staple most people who eat it buy every week",
+  ]);
+}
+
+/**
+ * `shopping-build-rank` (D1, UI makeover W8 §7.3): the Ingredients deck's candidate food names,
+ * each under an opaque positional id (`f0`, `f1`, …) the builder mints — never the caller's own id.
+ * Nothing else: no budget, place, country, profile, rule, note or health field, and no stored
+ * taste. One fixed staple question per food; Jev's answers may only reorder the deck. OD12: while
+ * the health gate is on, a name the local check does not clear (a brand, a custom food's own text)
+ * goes as "a food"; with the gate off it is sent as typed and the payload is marked health-bearing.
+ */
+export function shoppingRankPayload(input: { names: readonly string[] }) {
+  if (input.names.length < 1 || input.names.length > SHOPPING_RANK_MAX) {
+    throw new Error(`shopping-build-rank takes 1 to ${SHOPPING_RANK_MAX} food names`);
+  }
+  const gate = jevHealthGateOn();
+  let uncleared = false;
+  const foods = input.names.map((raw, index) => {
+    const name = String(raw).trim().slice(0, 160);
+    const cleared = name !== "" && jevTextCleared(name);
+    if (!cleared && name !== "") uncleared = true;
+    return { id: `f${index}`, name: cleared || !gate ? (name || "a food") : "a food" };
+  });
+  const questions: Record<string, ScoreQuestion> = Object.fromEntries(
+    foods.map((_, index) => [`buy_${index}`, shoppingRankQuestion(index)]));
+  return jev("shopping-build-rank", { foods }, questions, uncleared && !gate);
 }

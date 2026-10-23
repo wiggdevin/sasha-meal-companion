@@ -21,12 +21,12 @@ describe("enforceRateLimit", () => {
   it("starts a fresh window once the old one expires", async () => {
     for (let i = 0; i < 3; i += 1) await enforceRateLimit("mcp:t1", 3, 60);
     vi.advanceTimersByTime(60_000);
-    await expect(enforceRateLimit("mcp:t1", 3, 60)).resolves.toBeUndefined();
+    await expect(enforceRateLimit("mcp:t1", 3, 60)).resolves.toEqual(expect.any(Number));
   });
 
   it("counts each key on its own", async () => {
     for (let i = 0; i < 3; i += 1) await enforceRateLimit("mcp:t1", 3, 60);
-    await expect(enforceRateLimit("mcp:t2", 3, 60)).resolves.toBeUndefined();
+    await expect(enforceRateLimit("mcp:t2", 3, 60)).resolves.toEqual(expect.any(Number));
   });
 
   it("says how long the caller must wait", async () => {

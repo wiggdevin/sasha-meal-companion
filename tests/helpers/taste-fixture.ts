@@ -15,6 +15,9 @@ import type { MixedDishInput } from "@/lib/server/taste-history";
 
 export const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 export const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+/** Each account's one live shopping list. */
+export const LIST_A = "a1a1a1a1-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+export const LIST_B = "b1b1b1b1-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 export const TODAY = "2026-10-06";
 
 /** Row ids are uuids, as in the database: the reader never sends a malformed id to a query. */
@@ -134,16 +137,21 @@ export function tasteTables(): Record<string, Row[]> {
         { name: "Salt", grams: null }])),
       selection(B, 15, "meal-2", "rev-1", 1, recipeLines([{ name: "B secret stew", grams: 400 }])),
     ],
+    // Every line sits on a live list; a line counts only while its list is live.
+    shopping_periods: [
+      { id: LIST_A, user_id: A, deleted_at: null },
+      { id: LIST_B, user_id: B, deleted_at: null },
+    ],
     shopping_lines: [
-      { user_id: A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 }, deleted_at: null, rev: 1,
+      { user_id: A, period_id: LIST_A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 }, deleted_at: null, rev: 1,
         updated_at: `${day(3)}T10:00:00.000Z` },
-      { user_id: A, origin: "manual", name: "Greek yogurt, plain", identity: null, deleted_at: null, rev: 1,
+      { user_id: A, period_id: LIST_A, origin: "manual", name: "Greek yogurt, plain", identity: null, deleted_at: null, rev: 1,
         updated_at: `${day(2)}T10:00:00.000Z` },
-      { user_id: A, origin: "plan", name: "Bananas", identity: { foodRefId: REF.c902 }, deleted_at: null, rev: 1,
+      { user_id: A, period_id: LIST_A, origin: "plan", name: "Bananas", identity: { foodRefId: REF.c902 }, deleted_at: null, rev: 1,
         updated_at: `${day(1)}T10:00:00.000Z` },
-      { user_id: A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
+      { user_id: A, period_id: LIST_A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
         deleted_at: "2026-10-01T00:00:00Z", rev: 2, updated_at: `${day(1)}T10:00:00.000Z` },
-      { user_id: B, origin: "manual", name: "B secret stew", identity: null, deleted_at: null, rev: 1,
+      { user_id: B, period_id: LIST_B, origin: "manual", name: "B secret stew", identity: null, deleted_at: null, rev: 1,
         updated_at: `${day(1)}T10:00:00.000Z` },
     ],
     user_food_prefs: [

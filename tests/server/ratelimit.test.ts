@@ -64,7 +64,7 @@ describe("enforceRateLimit", () => {
   it("fails open only when asked, with a logged warning", async () => {
     setRateLimitStore(failing);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    await expect(enforceRateLimit("reads:u1", 5, 60, "fail_open")).resolves.toBeUndefined();
+    await expect(enforceRateLimit("reads:u1", 5, 60, "fail_open")).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("fail open"), expect.objectContaining({
       key_prefix: "reads" }));
   });

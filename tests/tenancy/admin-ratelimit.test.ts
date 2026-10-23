@@ -32,7 +32,7 @@ describe.skipIf(!HAS_BRANCH || !HAS_DB)("admin entry: lib/server/ratelimit (cana
     await enforceRateLimit(key(b), 2, 60);
     await enforceRateLimit(key(b), 2, 60);
     await expect(enforceRateLimit(key(b), 2, 60)).rejects.toMatchObject({ status: 429 });
-    await expect(enforceRateLimit(key(a), 2, 60)).resolves.toBeUndefined();
+    await expect(enforceRateLimit(key(a), 2, 60)).resolves.toEqual(expect.any(Number));
   });
 
   it("a refused key is answered from memory but every allowed hit is counted by the database", async () => {

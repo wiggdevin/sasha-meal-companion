@@ -1,0 +1,40 @@
+/* "Have AI build my list" (UI makeover §7.3). Tokens and roles only (DESIGN.md); layout lives in
+   utility classes on the markup, this file holds what utilities cannot say. */
+
+/* The step rail: five short bars, the current one filled, so "where am I" reads at a glance. */
+.rail {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.railStep {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--hairline-card);
+}
+.railDone {
+  background: var(--color-sage);
+}
+.railCurrent {
+  background: var(--color-primary);
+}
+
+/* One deck card: tall enough to read at arm's length, never taller than its words need. */
+.deckCard {
+  min-height: 112px;
+  justify-content: center;
+}
+
+/* Yes / No are 52 px (size="lg"), side by side, each half the row. */
+.answers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+}

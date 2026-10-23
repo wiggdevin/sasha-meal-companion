@@ -92,6 +92,11 @@ it("lets the browser reach Supabase (https and realtime) and nothing else off-or
   const p = directives(pagePolicy("n", { supabaseUrl: "https://abc.supabase.co/" }));
   expect(p.get("connect-src")).toEqual(["'self'", "https://abc.supabase.co", "wss://abc.supabase.co"]);
   expect(p.get("img-src")).toContain("https://abc.supabase.co");
+  // UI makeover W8: the store map's tiles are the one other image origin; connect-src is unchanged.
+  expect(p.get("img-src")).toEqual(["'self'", "blob:", "data:", "https://abc.supabase.co",
+    "https://tile.openstreetmap.org"]);
+  expect(directives(pagePolicy("n")).get("img-src")).toEqual(["'self'", "blob:", "data:",
+    "https://tile.openstreetmap.org"]);
   for (const values of p.values()) expect(values).not.toContain("*");
   expect(directives(pagePolicy("n", { supabaseUrl: "not a url" })).get("connect-src")).toEqual(["'self'"]);
 });

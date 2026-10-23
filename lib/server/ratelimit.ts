@@ -116,7 +116,7 @@ function tooMany(resetAt: number, now: number): RetryableHttpError {
 export async function enforceRateLimit(
   key: string, limit: number, windowSeconds: number,
   failure: LimiterFailurePolicy = DEFAULT_FAILURE_POLICY,
-): Promise<void> {
+): Promise<number | null> {
   const now = Date.now();
   const known = refused.get(key);
   if (known !== undefined) {
@@ -131,7 +131,7 @@ export async function enforceRateLimit(
       console.warn("rate limiter unavailable; allowing the request (fail open)", {
         key_prefix: key.split(":")[0], error: cause instanceof Error ? cause.message : String(cause),
       });
-      return;
+      return null;
     }
     throw new RetryableHttpError(503, "rate_limit_unavailable",
       `Busy right now. Try again in ${UNAVAILABLE_RETRY_SECONDS} s.`, UNAVAILABLE_RETRY_SECONDS,
@@ -142,6 +142,8 @@ export async function enforceRateLimit(
     sweep(now);
     throw tooMany(hit.resetAt, now);
   }
+  // The window's end on the store's clock, for a caller that must place itself inside the window.
+  return hit.resetAt;
 }
 
 /** Windows of `enforceInstanceRateLimit`, in this process only. */

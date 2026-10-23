@@ -24,8 +24,8 @@ const actions = () => ({ preview: vi.fn(), patchLine: vi.fn().mockResolvedValue(
   refresh: vi.fn().mockResolvedValue(undefined) });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); unbindAccount(); });
 
-/** The planner controls sit in the shared Disclosure, closed while the list has lines. */
-const openPlan = () => fireEvent.click(screen.getByRole("button", { name: /Re-plan meals and update this list/ }));
+/** The planner controls sit in the closed "More options" disclosure (UI makeover W7 §7.1 item 5). */
+const openPlan = () => fireEvent.click(screen.getByRole("button", { name: /More options/ }));
 
 describe("shopping UI", () => {
   it("starts with a seven-day range and keeps effort, variety, and budget separate", () => {
@@ -47,6 +47,7 @@ describe("shopping UI", () => {
     const a = actions();
     a.preview.mockResolvedValue({ period, lines: [], issues: [], unmetPins: [], accept: vi.fn() });
     render(<ShoppingView period={null} lines={[]} initialDraft={draft} actions={a} />);
+    openPlan();
     fireEvent.change(screen.getByLabelText("Budget (optional)"), { target: { value: "40" } });
     expect((screen.getByRole("button", { name: "Preview changes" }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Preview changes" }));
@@ -63,6 +64,7 @@ describe("shopping UI", () => {
     Object.defineProperty(navigator, "geolocation", { configurable: true,
       value: { getCurrentPosition } });
     render(<ShoppingView period={null} lines={[]} initialDraft={draft} actions={actions()} />);
+    openPlan();
     expect(getCurrentPosition).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     expect(getCurrentPosition).toHaveBeenCalledOnce();
@@ -74,12 +76,14 @@ describe("shopping UI", () => {
     const a = actions();
     const january = defaultShoppingDraft("2027-01-31", "America/Denver");
     render(<ShoppingView period={null} lines={[]} initialDraft={january} actions={a} />);
+    openPlan();
     fireEvent.click(screen.getByRole("button", { name: "Month" }));
     expect((screen.getByLabelText("Through") as HTMLInputElement).value).toBe("2027-02-27");
   });
 
   it("picks From in the app's date sheet and keeps the seven-day range", async () => {
     render(<ShoppingView period={null} lines={[]} initialDraft={draft} actions={actions()} />);
+    openPlan();
     fireEvent.click(screen.getByLabelText("From"));
     const sheet = screen.getByRole("dialog", { name: "From" });
     fireEvent.click(within(sheet).getByRole("button", { name: "Next month" }));
@@ -96,6 +100,7 @@ describe("shopping UI", () => {
     a.preview.mockResolvedValue({ period, lines: [], issues: [], unmetPins: [], accept: vi.fn() });
     const savedDraft = { ...draft, mealCoverage: ["meal-3", "meal-5"] };
     render(<ShoppingView period={null} lines={[]} initialDraft={savedDraft} actions={a} />);
+    openPlan();
     expect((screen.getByRole("button", { name: "Dinner" }) as HTMLButtonElement).getAttribute("aria-pressed"))
       .toBe("true");
     expect((screen.getByRole("button", { name: "Meal 5" }) as HTMLButtonElement).getAttribute("aria-pressed"))
@@ -111,6 +116,7 @@ describe("shopping UI", () => {
   it("allows no meal slots but disables preview until one is selected", () => {
     const a = actions();
     render(<ShoppingView period={null} lines={[]} initialDraft={{ ...draft, mealCoverage: ["dinner"] }} actions={a} />);
+    openPlan();
     fireEvent.click(screen.getByRole("button", { name: "Dinner" }));
     expect((screen.getByRole("button", { name: "Preview changes" }) as HTMLButtonElement).disabled)
       .toBe(true);
@@ -167,17 +173,18 @@ describe("shopping UI", () => {
   it("parses several typed items into one addItems call, naming the toast for the count", async () => {
     const a = actions();
     render(<ShoppingView period={period} lines={[]} initialDraft={draft} actions={a} />);
-    fireEvent.change(screen.getByLabelText("Add items"), { target: { value: "Soap, Rice" } });
+    openPlan();
+    fireEvent.change(screen.getByLabelText("Add something else"), { target: { value: "Soap, Rice" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(a.addItems).toHaveBeenCalledWith(["Soap", "Rice"]));
     expect(await screen.findByText("2 items added.")).toBeTruthy();
-    expect((screen.getByLabelText("Add items") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Add something else") as HTMLInputElement).value).toBe("");
   });
 
   it("skips an item already on the list when quick-adding", async () => {
     const a = actions();
     render(<ShoppingView period={period} lines={[line({ name: "Beans" })]} initialDraft={draft} actions={a} />);
-    fireEvent.change(screen.getByLabelText("Add items"), { target: { value: "Beans, Rice" } });
+    fireEvent.change(screen.getByLabelText("Add something else"), { target: { value: "Beans, Rice" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(a.addItems).toHaveBeenCalledWith(["Rice"]));
     expect(await screen.findByText("Rice added.")).toBeTruthy();
@@ -187,7 +194,8 @@ describe("shopping UI", () => {
     const a = actions();
     a.addItems.mockRejectedValue(new Error("Those items did not save. Try again."));
     render(<ShoppingView period={period} lines={[]} initialDraft={draft} actions={a} />);
-    const input = screen.getByLabelText("Add items") as HTMLInputElement;
+    openPlan();
+    const input = screen.getByLabelText("Add something else") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "Soap" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Those items did not save. Try again.")).toBeTruthy();
@@ -199,7 +207,8 @@ describe("shopping UI", () => {
     let resolveAdd!: () => void;
     a.addItems.mockReturnValue(new Promise<void>((resolve) => { resolveAdd = resolve; }));
     render(<ShoppingView period={period} lines={[]} initialDraft={draft} actions={a} />);
-    const input = screen.getByLabelText("Add items") as HTMLInputElement;
+    openPlan();
+    const input = screen.getByLabelText("Add something else") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "Soap" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(a.addItems).toHaveBeenCalledWith(["Soap"]));
@@ -408,10 +417,11 @@ describe("shopping UI", () => {
   it("confirms a single item only after the add callback resolves", async () => {
     const a = actions();
     render(<ShoppingView period={period} lines={[]} initialDraft={draft} actions={a} />);
-    fireEvent.change(screen.getByLabelText("Add items"), { target: { value: "Soap" } });
+    openPlan();
+    fireEvent.change(screen.getByLabelText("Add something else"), { target: { value: "Soap" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(a.addItems).toHaveBeenCalledWith(["Soap"]));
     expect(await screen.findByText("Soap added.")).toBeTruthy();
-    expect((screen.getByLabelText("Add items") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Add something else") as HTMLInputElement).value).toBe("");
   });
 });

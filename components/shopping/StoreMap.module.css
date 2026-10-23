@@ -1,0 +1,109 @@
+/* The store map (UI makeover §7.4). Tokens and roles only; Leaflet's own sheet is imported by
+   StoreMap.tsx and only overridden here. */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--card-radius-sm);
+  border: 1px solid var(--hairline-card);
+  background: var(--grad-card-inset);
+}
+
+.map {
+  height: 240px;
+  width: 100%;
+  /* Leaflet paints its own grey under unloaded tiles; the inset face reads calmer. */
+  background: var(--grad-card-inset);
+}
+
+/* A marker is a 44 px hit area around a smaller pin. */
+.marker {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 0;
+}
+.pin {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-card);
+  border: 2px solid var(--color-primary);
+  font-weight: 700;
+}
+.pinPicked {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* "Use two fingers to move the map": shown over the map after a one-finger drag on a phone. */
+.hint {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  background: var(--color-scrim);
+  color: var(--color-on-charcoal);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-spring-smooth) var(--ease-spring-smooth);
+}
+.hintOn {
+  opacity: 1;
+}
+
+/* "© OpenStreetMap contributors", always on the map's face. */
+.attribution {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  padding: 2px 8px;
+  border-top-left-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline-card);
+  text-align: left;
+  color: inherit;
+}
+.row:disabled {
+  opacity: 0.5;
+}
+.check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-primary);
+  color: var(--color-on-primary);
+}
+.checkOn {
+  background: var(--color-primary);
+}

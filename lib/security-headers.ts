@@ -71,8 +71,13 @@ function supabaseOrigins(url: string | undefined): string[] {
  * `'wasm-unsafe-eval'` keeps WebAssembly compiling on the page (the barcode decoder runs in a
  * worker under its own policy today); `'unsafe-eval'` is development only (React's dev stacks). Styles stay `'unsafe-inline'`: the app's motion and layout write inline style attributes,
  * which a nonce cannot cover. Everything the browser fetches is this origin or Supabase; model calls
- * go through our own API routes.
+ * go through our own API routes. The one other image origin is the OpenStreetMap tile server for the
+ * Shopping build flow's store map (UI makeover W8); geocoding and store search go through our own
+ * routes, so `connect-src` is unchanged.
  */
+/** The store map's tile origin (UI makeover W8 §7.4): images only, never `connect-src`. */
+export const OSM_TILES = "https://tile.openstreetmap.org";
+
 export function pagePolicy(nonce: string, opts: { dev?: boolean; supabaseUrl?: string } = {}): string {
   const supabase = supabaseOrigins(opts.supabaseUrl);
   const https = supabase.filter((o) => o.startsWith("http"));
@@ -80,7 +85,7 @@ export function pagePolicy(nonce: string, opts: { dev?: boolean; supabaseUrl?: s
     ["default-src", ["'self'"]],
     ["script-src", ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", "'wasm-unsafe-eval'", ...(opts.dev ? ["'unsafe-eval'"] : [])]],
     ["style-src", ["'self'", "'unsafe-inline'"]],
-    ["img-src", ["'self'", "blob:", "data:", ...https]],
+    ["img-src", ["'self'", "blob:", "data:", ...https, OSM_TILES]],
     ["media-src", ["'self'", "blob:", "data:"]],
     ["font-src", ["'self'", "data:"]],
     ["connect-src", ["'self'", ...supabase]],

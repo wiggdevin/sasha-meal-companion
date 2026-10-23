@@ -34,7 +34,7 @@ function stubRoutes(switchOn: (call: Call, index: number) => boolean,
     if (switchOn(call, calls.length - 1)) { unbindAccount(); bindAccount("other-user"); }
     const answer = (name?: string): Response => {
       if (url === "/api/recipes/access") return json({ enabled: true });
-      if (url === "/api/shopping/periods") return json({ periods: [PERIOD] });
+      if (url.split("?")[0] === "/api/shopping/periods") return json({ periods: [PERIOD] });
       if (url.endsWith("/lines") && call.method === "POST") {
         const sent = JSON.parse(String(init.body)) as { requestId: string; line: { name: string } };
         live.set(sent.requestId, sent.line.name);
@@ -62,7 +62,7 @@ it("rejects with no write when the account switches during the access check", as
 });
 
 it("rejects with no write when the account switches while the list is read", async () => {
-  const calls = stubRoutes((call) => call.url === "/api/shopping/periods");
+  const calls = stubRoutes((call) => call.url.startsWith("/api/shopping/periods?"));
   await expect(applyAddToShoppingList(action, ctx)).rejects.toBeInstanceOf(AccountChanged);
   expect(calls.filter((call) => call.method !== "GET")).toEqual([]);
   expect(calls.every((call) => call.account === TEST_USER)).toBe(true);
@@ -83,8 +83,8 @@ it("writes nothing more, and rolls nothing back, once the account switches durin
 
 it("rejects, with no rollback, when the list read fails after the account switched", async () => {
   // The read rejects, so accountFetch never runs its post-answer check: the apply still must.
-  const calls = stubRoutes((call) => call.url === "/api/shopping/periods",
-    (call) => call.url === "/api/shopping/periods");
+  const calls = stubRoutes((call) => call.url.startsWith("/api/shopping/periods?"),
+    (call) => call.url.startsWith("/api/shopping/periods?"));
   await expect(applyAddToShoppingList(action, ctx)).rejects.toBeInstanceOf(AccountChanged);
   expect(calls.filter((call) => call.method !== "GET")).toEqual([]);
   expect(calls.every((call) => call.account === TEST_USER)).toBe(true);

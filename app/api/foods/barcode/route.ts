@@ -45,8 +45,9 @@ export async function POST(req: Request): Promise<Response> {
     const { userId, client } = await requireUser(req);
     await enforceRateLimit(`barcode:${userId}`, 120, WINDOW_SECONDS);
     const body = await readJson(req, Body, MAX_BODY_BYTES);
-    const onOutbound = (): Promise<void> =>
-      enforceRateLimit(`barcode:out:${userId}`, 20, WINDOW_SECONDS);
+    const onOutbound = async (): Promise<void> => {
+      await enforceRateLimit(`barcode:out:${userId}`, 20, WINDOW_SECONDS);
+    };
     const answer = await resolveBarcode(client, adminClient(), userId, body, {
       onOutbound,
       // after() runs once the response is sent, so the 90-day refresh never sits on the hot path.

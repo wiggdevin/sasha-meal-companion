@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
-import GlassSelect from "@/components/ui/GlassSelect";
+import BuildListSlot from "@/components/shopping/BuildListSlot";
+import SavedListSwitcher from "@/components/shopping/SavedListSwitcher";
+import SavedListsSheet from "@/components/shopping/SavedListsSheet";
 import ActionFeedbackToast, { useActionFeedback } from "@/components/ui/ActionFeedback";
 import ShoppingView from "@/components/ShoppingView";
 import RuleReviewCard from "@/components/RuleReviewCard";
@@ -11,17 +13,20 @@ import { defaultShoppingDraft, draftProblem, type ShoppingDraft } from "@/compon
 import type { ShoppingPreviewData } from "@/components/ShoppingPreview";
 import type { ShoppingViewActions, ShoppingPreviewInput } from "@/components/ShoppingView";
 import type { ShoppingLinePatch } from "@/components/ShoppingLineCard";
-import { accountHandle, assertCurrent, currentAccountOrNull, onAccountGone, onAccountReady,
-  type AccountHandle } from "@/lib/device/account";
+import { AccountChanged, AccountNotBound, accountHandle, assertCurrent, currentAccountOrNull, onAccountGone,
+  onAccountReady, type AccountHandle } from "@/lib/device/account";
 import { loadStore } from "@/lib/store";
 import { cookingEffortFromDietPrefs } from "@/lib/sync/user-settings";
 import { acceptShopping, addManualShoppingLine, confirmPantryForLine, createShoppingPeriod, deleteShoppingLine,
   getShoppingPeriod, listPantry, listShoppingPeriods, patchShoppingLine, patchShoppingPurchaseWindow,
-  previewShopping, removePantryItem, ShoppingStaleRevision, type ShoppingSnapshot } from "@/lib/shopping-client";
+  previewShopping, removePantryItem, ShoppingRequestFailed, ShoppingStaleRevision,
+  type ShoppingSnapshot } from "@/lib/shopping-client";
 import type { PantryItem, ShoppingLine, ShoppingPeriod } from "@/lib/shopping/types";
 import Notice from "@/components/ui/Notice";
 import { ruleMarkKey } from "@/lib/rule-mark";
-import { shoppingRange } from "@/lib/shopping/labels";
+import { currentShoppingPeriod } from "@/lib/shopping/current";
+import { deleteShoppingPeriod, renameShoppingPeriod } from "@/lib/shopping/list-client";
+import { cycleOrder, listName, stepList } from "@/lib/shopping/saved-lists";
 import type { RuleMark as RuleMarkValue } from "@/lib/types";
 
 function dateInZone(timezone: string): string {
@@ -42,8 +47,42 @@ function draftFromPeriod(period: ShoppingPeriod): ShoppingDraft {
     timezone: period.timezone, people: period.people, mealCoverage: period.mealCoverage,
     mode: period.mode, effort: period.effort, maxActiveMinutes: period.maxActiveMinutes,
     variety: period.variety, budgetAmount: period.budgetAmount, currency: period.currency,
-    locale: period.locale, lockMode: period.lockMode };
+    locale: period.locale, lockMode: period.lockMode, title: period.title ?? null };
 }
+/** How long a deleted list waits for its Undo before the delete is sent. */
+/* A second past the Undo toast (ActionFeedback's 5 s), so Undo is never on screen after the send. */
+const DELETE_HOLD_MS = 6_000;
+/** Another tab may still be holding a delete for its Undo: entries this young are left to it. */
+const DELETE_HOLD_MARGIN_MS = 4_000;
+/** A pending delete older than this is dropped rather than sent: the list comes back. */
+const PENDING_DELETE_MAX_MS = 7 * 86_400_000;
+/** A list delete not yet confirmed by the server, kept on the device so a reload, a closed tab or
+ *  an account switch never loses it: it is sent again on the next open, and the list stays hidden. */
+type PendingDelete = { id: string; revision: number; requestId: string; at: number };
+function pendingKey(userId: string): string { return `shopping-pending-deletes:${userId}`; }
+function readPendingDeletes(userId: string): PendingDelete[] {
+  try {
+    const rows: unknown = JSON.parse(window.localStorage.getItem(pendingKey(userId)) ?? "[]");
+    if (!Array.isArray(rows)) return [];
+    return rows.filter((row): row is PendingDelete => typeof row?.id === "string" && Number.isInteger(row?.revision)
+      && typeof row?.requestId === "string" && typeof row?.at === "number"
+      && Date.now() - row.at < PENDING_DELETE_MAX_MS).slice(-50);
+  } catch { return []; }
+}
+function writePendingDeletes(userId: string, rows: PendingDelete[]): void {
+  try {
+    if (rows.length) window.localStorage.setItem(pendingKey(userId), JSON.stringify(rows));
+    else window.localStorage.removeItem(pendingKey(userId));
+  } catch { /* Storage blocked: the delete still waits in memory for its Undo. */ }
+}
+function rememberPendingDelete(userId: string, entry: PendingDelete): void {
+  writePendingDeletes(userId, [...readPendingDeletes(userId).filter((row) => row.id !== entry.id), entry]);
+}
+function forgetPendingDelete(userId: string, id: string): void {
+  writePendingDeletes(userId, readPendingDeletes(userId).filter((row) => row.id !== id));
+}
+/** Fired by "Have AI build my list" when it saves a list, so the switcher opens it. */
+export const SHOPPING_LIST_SAVED_EVENT = "shopping-list-saved";
 function locationKey(userId: string): string { return `shopping-location:${userId}`; }
 function storesKey(userId: string): string { return `shopping-stores:${userId}`; }
 function savedLocation(userId: string): string | null {
@@ -99,6 +138,8 @@ export default function ShoppingRoot() {
   const selectedId = useRef<string | null>(null);
   const hasSelection = useRef(false);
   const blankRequestId = useRef<string | null>(null);
+  /** The new-list request in flight or last refused, so a retry of the same list reuses its id. */
+  const createRequest = useRef<{ key: string; id: string } | null>(null);
   const refreshSerial = useRef(0);
   const fingerprint = useRef<string | null>(null);
   const blankSaveSerial = useRef(0);
@@ -112,6 +153,14 @@ export default function ShoppingRoot() {
   /** The list the view was opened on. A list this view just started keeps its key, so the toast
    *  that says so survives (only switching lists remounts the view). */
   const [viewKey, setViewKey] = useState("new");
+  const [listsOpen, setListsOpen] = useState(false);
+  /** Lists deleted on screen whose delete waits out its Undo: id → its timer and its send. */
+  const held = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; send: () => void }>());
+  /** Ids whose delete was sent and not yet answered: a flush never sends one twice at once. */
+  const sending = useRef(new Set<string>());
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const listFeedback = useActionFeedback();
 
   const refresh = useCallback(async (account: AccountHandle, chooseId?: string | null) => {
     const serial = ++refreshSerial.current;
@@ -119,10 +168,11 @@ export default function ShoppingRoot() {
       const seed = { ...initialDraft(), locale: savedLocation(account.userId) };
       const [periods, stock] = await Promise.all([listShoppingPeriods(), listPantry()]);
       if (serial !== refreshSerial.current) return;
-      const period = chooseId === null ? null : periods.find((row) => row.id === (chooseId ?? selectedId.current))
+      const pending = new Set(readPendingDeletes(account.userId).map((row) => row.id));
+      const live = periods.filter((row) => !held.current.has(row.id) && !pending.has(row.id));
+      const period = chooseId === null ? null : live.find((row) => row.id === (chooseId ?? selectedId.current))
         ?? (chooseId === undefined && !hasSelection.current
-          ? periods.find((row) => row.startDate <= seed.startDate && row.endDate >= seed.startDate)
-            ?? periods[0] : null);
+          ? currentShoppingPeriod(live, seed.startDate) ?? cycleOrder(live)[0] ?? null : null);
       if (chooseId && !period) throw new Error("That saved list is no longer available. Refresh and choose another.");
       const next = period ? await getShoppingPeriod(period.id) : { period: null, lines: [] };
       if (serial !== refreshSerial.current) return;
@@ -134,12 +184,51 @@ export default function ShoppingRoot() {
       fingerprint.current = nextFingerprint;
       selectedId.current = next.period?.id ?? null;
       hasSelection.current = true;
-      setPeriods(periods); setSnapshot(next); setPantry(stock);
+      setPeriods(live); setSnapshot(next); setPantry(stock);
       setDraft((current) => changed || !current ? next.period ? draftFromPeriod(next.period) : seed : current);
       setStatus("ready"); setError(null);
     } catch (cause) {
       if (serial === refreshSerial.current) throw cause;
     }
+  }, []);
+  /** Sends one delete. A final answer forgets it (a 404 means it is already gone); a transient
+   *  failure or an account switch keeps it on the device for the next flush. */
+  const sendDelete = useCallback((account: AccountHandle, entry: PendingDelete, name: string) => {
+    if (sending.current.has(entry.id)) return;
+    sending.current.add(entry.id);
+    void deleteShoppingPeriod(entry.id, entry.revision, entry.requestId, account)
+      .then(() => forgetPendingDelete(account.userId, entry.id))
+      .catch((cause) => {
+        if (cause instanceof AccountChanged || cause instanceof AccountNotBound) return;
+        const status = cause instanceof ShoppingRequestFailed ? cause.status : null;
+        const final = cause instanceof ShoppingStaleRevision
+          // A 401 is a lapsed session, not an answer about the list: it waits for the next sign-in.
+          || (status !== null && status >= 400 && status < 500 && ![401, 408, 429].includes(status));
+        if (!final) return;
+        forgetPendingDelete(account.userId, entry.id);
+        if (status === 404) return;
+        if (!mounted.current || currentAccountOrNull()?.epoch !== account.epoch) return;
+        // After the refresh, which clears the error line when it lands.
+        void refresh(account).catch(() => undefined).finally(() => {
+          if (mounted.current && currentAccountOrNull()?.epoch === account.epoch) {
+            setError(`${name} was not deleted. It is back in your lists.`);
+          }
+        });
+      })
+      .finally(() => sending.current.delete(entry.id));
+  }, [refresh]);
+  /** Sends every delete left on the device whose Undo is over. One held on screen waits its turn,
+   *  and so does one still inside its Undo in another tab (the device's entries are shared). */
+  const flushDeletes = useCallback((account: AccountHandle) => {
+    for (const entry of readPendingDeletes(account.userId)) {
+      if (held.current.has(entry.id) || Date.now() - entry.at < DELETE_HOLD_MS + DELETE_HOLD_MARGIN_MS) continue;
+      sendDelete(account, entry, "A list");
+    }
+  }, [sendDelete]);
+  /** Sends the deletes still waiting on their Undo now (leaving Shopping, or the page going away). */
+  const sendHeld = useCallback(() => {
+    for (const { timer, send } of [...held.current.values()]) { clearTimeout(timer); send(); }
+    held.current.clear();
   }, []);
   useEffect(() => {
     const ready = onAccountReady((account) => {
@@ -149,6 +238,8 @@ export default function ShoppingRoot() {
       selectedId.current = null;
       hasSelection.current = false;
       blankRequestId.current = null;
+      createRequest.current = null;
+      flushDeletes(account);
       setOwner(account); setSnapshot({ period: null, lines: [] }); setPeriods([]); setPantry([]); setViewKey("new");
       setStoreNotes(savedStores(account.userId));
       setDraft(null); setBlankBusy(false); setStatus("loading");
@@ -158,22 +249,28 @@ export default function ShoppingRoot() {
       });
     });
     const gone = onAccountGone(() => {
+      // A delete still waiting on its Undo stays on the device and is sent when that account
+      // opens Shopping again: sending now would go out under no account.
+      for (const { timer } of held.current.values()) clearTimeout(timer);
+      held.current.clear();
       refreshSerial.current += 1;
       fingerprint.current = null;
       blankSaveSerial.current += 1;
       selectedId.current = null;
       hasSelection.current = false;
       blankRequestId.current = null;
+      createRequest.current = null;
       setOwner(null); setSnapshot({ period: null, lines: [] }); setPeriods([]); setPantry([]); setViewKey("new");
       setDraft(null); setStoreNotes(""); setBlankBusy(false);
       setStatus("loading"); setError(null);
     });
     return () => { ready(); gone(); };
-  }, [refresh]);
+  }, [refresh, flushDeletes]);
   useEffect(() => {
     const onReturn = () => {
       if (document.visibilityState !== "visible") return;
       const account = currentAccountOrNull();
+      if (account) flushDeletes(account);
       if (account) void refresh(account).catch((cause) => {
         if (currentAccountOrNull()?.epoch === account.epoch)
           setError(cause instanceof Error ? cause.message : "Shopping could not refresh.");
@@ -181,6 +278,26 @@ export default function ShoppingRoot() {
     };
     document.addEventListener("visibilitychange", onReturn);
     return () => document.removeEventListener("visibilitychange", onReturn);
+  }, [refresh, flushDeletes]);
+
+  useEffect(() => {
+    // Leaving Shopping, or the page going away, sends any delete still waiting on its Undo. Each is
+    // also on the device already, so a send the page closes on is retried at the next open.
+    window.addEventListener("pagehide", sendHeld);
+    return () => { window.removeEventListener("pagehide", sendHeld); sendHeld(); };
+  }, [sendHeld]);
+  useEffect(() => {
+    const onSaved = (event: Event) => {
+      const id = (event as CustomEvent<{ periodId?: unknown }>).detail?.periodId;
+      const account = currentAccountOrNull();
+      if (!account || typeof id !== "string") return;
+      void refresh(account, id).catch((cause) => {
+        if (currentAccountOrNull()?.epoch === account.epoch)
+          setError(cause instanceof Error ? cause.message : "Your new list could not open yet.");
+      });
+    };
+    window.addEventListener(SHOPPING_LIST_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(SHOPPING_LIST_SAVED_EVENT, onSaved);
   }, [refresh]);
 
   async function update() { await refresh(accountHandle()); }
@@ -225,6 +342,72 @@ export default function ShoppingRoot() {
         setError("List saved. Its latest contents could not reload yet. Use Retry to refresh.");
       }
     } finally { if (saveSerial === blankSaveSerial.current) setBlankBusy(false); }
+  }
+  async function openList(account: AccountHandle, id: string | null) {
+    await refresh(account, id).catch((cause) => {
+      if (currentAccountOrNull()?.epoch === account.epoch)
+        setError(cause instanceof Error ? cause.message : "Could not open this list.");
+    });
+  }
+  async function createList(title: string | null, dates: { startDate: string; endDate: string }) {
+    const account = accountHandle();
+    const fresh = initialDraft();
+    const base = draft ?? fresh;
+    // The planner's people and meals carry over only when they could start a list.
+    const usable = draftProblem({ ...base, ...dates }) === null;
+    const next = { ...base, ...dates, title, lockMode: "none" as const,
+      people: usable ? base.people : fresh.people, mealCoverage: usable ? base.mealCoverage : fresh.mealCoverage };
+    // A retry of the same list (an answer that was lost) reuses its request id: one list, never two.
+    const key = JSON.stringify([title, dates.startDate, dates.endDate]);
+    const requestId = createRequest.current?.key === key ? createRequest.current.id : crypto.randomUUID();
+    createRequest.current = { key, id: requestId };
+    const saved = await createShoppingPeriod(next, requestId);
+    assertCurrent(account);
+    createRequest.current = null;
+    setPeriods((current) => [saved, ...current.filter((row) => row.id !== saved.id)]);
+    await openList(account, saved.id);
+  }
+  async function renameList(id: string, title: string | null) {
+    const account = accountHandle();
+    const row = periods.find((item) => item.id === id);
+    if (!row) throw new Error("That list is gone. Refresh your lists.");
+    const saved = await renameShoppingPeriod(id, title, row.revision, crypto.randomUUID())
+      .catch((cause) => recoverStaleEdit(account, cause));
+    assertCurrent(account);
+    setPeriods((current) => current.map((item) => item.id === id ? saved : item));
+    setSnapshot((current) => current.period?.id === id ? { ...current, period: saved } : current);
+    if (selectedId.current === id) setDraft((current) => current ? { ...current, title: saved.title ?? null } : current);
+  }
+  /** Hides the list at once and sends the delete after the Undo toast closes (Undo sends nothing).
+   *  The delete is kept on the device first, so a reload or a closed page inside the hold still sends it. */
+  function deleteList(id: string) {
+    const account = accountHandle();
+    const row = periods.find((item) => item.id === id);
+    if (!row) return;
+    const entry: PendingDelete = { id, revision: row.revision, requestId: crypto.randomUUID(), at: Date.now() };
+    rememberPendingDelete(account.userId, entry);
+    const send = () => { held.current.delete(id); sendDelete(account, entry, listName(row)); };
+    held.current.set(id, { timer: setTimeout(send, DELETE_HOLD_MS), send });
+    const rest = periods.filter((item) => item.id !== id);
+    setPeriods(rest);
+    const wasOpen = snapshot.period?.id === id;
+    if (wasOpen) {
+      // `selectedId` keeps the deleted id, so whatever opens next (another list, or none) is a
+      // change: the view and its draft start fresh instead of keeping the deleted list's dates.
+      hasSelection.current = false;
+      void openList(account, currentShoppingPeriod(rest, initialDraft().startDate)?.id ?? cycleOrder(rest)[0]?.id ?? null);
+    }
+    listFeedback.notify({ tone: "success", message: `${listName(row)} deleted.`, action: { label: "Undo", action: () => {
+      const hold = held.current.get(id);
+      if (!hold) { setError(`${listName(row)} was already deleted.`); return; }
+      clearTimeout(hold.timer);
+      held.current.delete(id);
+      forgetPendingDelete(account.userId, id);
+      if (currentAccountOrNull()?.epoch !== account.epoch) return;
+      // Back in the lists; only the list that was open is opened again.
+      if (wasOpen) void openList(account, id);
+      else void refresh(account).catch(() => setPeriods((current) => cycleOrder([row, ...current.filter((item) => item.id !== id)])));
+    } } });
   }
   const actions: ShoppingViewActions = {
     preview: async (input: ShoppingPreviewInput): Promise<ShoppingPreviewData> => {
@@ -321,11 +504,15 @@ export default function ShoppingRoot() {
       setStatus("error"); setError(cause instanceof Error ? cause.message : "Shopping could not load.");
     });
   } }} />;
-  return <>
+  return <div className="flex flex-col gap-4">
+    <h1 className="m-0 text-xl font-semibold">Shopping</h1>
     {error && <Notice tone="error" title={error} action={{ label: "Retry", onClick: () => {
       void update().catch((cause) => setError(cause instanceof Error ? cause.message : "Shopping could not refresh."));
     } }} />}
-    <ShoppingView key={`${owner.epoch}:${viewKey}`} period={snapshot.period} lines={snapshot.lines}
+    {/* Outside the keyed view: opening the list it just saved must not unmount the build flow. */}
+    <BuildListSlot key={owner.epoch} periodId={snapshot.period?.id ?? null} />
+    <ShoppingView key={`${owner.epoch}:${viewKey}`} heading={false} buildSlot={null}
+      period={snapshot.period} lines={snapshot.lines}
       pantry={pantry} purchaseWindows={snapshot.purchaseWindows ?? []}
       initialDraft={draft ?? initialDraft()} actions={actions}
       storeNotes={storeNotes} onStoreNotesChange={(value) => {
@@ -336,18 +523,15 @@ export default function ShoppingRoot() {
       invalidateRevision={invalidateRevision}
       onPantryPhoto={(items) => setPantry((current) =>
         [...current.filter((row) => !items.some((item) => item.id === row.id)), ...items])}
-      favorites={Object.values(loadStore().foods).filter((food) => food.status === "eats")
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((food) => food.name)}
-      switcher={periods.length > 0 ? <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-48 flex-1"><GlassSelect aria-label="Open shopping list"
-          value={snapshot.period?.id ?? "new"}
-          onChange={(id) => { void refresh(owner, id === "new" ? null : id).catch((cause) =>
-            setError(cause instanceof Error ? cause.message : "Could not open this list.")); }}
-          options={[{ value: "new", label: "New list" }, ...periods.map((row) => ({
-            value: row.id, label: shoppingRange(row.startDate, row.endDate) }))]} /></div>
-        <Button onClick={() => { void refresh(owner, null).catch((cause) =>
-          setError(cause instanceof Error ? cause.message : "Could not start a new list.")); }}>New list</Button>
-      </div> : null}
+      switcher={<SavedListSwitcher period={snapshot.period} count={periods.length}
+        itemCount={snapshot.lines.length} checkedCount={snapshot.lines.filter((line) => line.checked).length}
+        onOpenLists={() => setListsOpen(true)}
+        hasNewer={stepList(periods, snapshot.period?.id ?? null, -1) !== null && snapshot.period !== null}
+        hasOlder={stepList(periods, snapshot.period?.id ?? null, 1) !== null}
+        onStep={(step) => {
+          const next = stepList(periods, snapshot.period?.id ?? null, step);
+          if (next) void openList(owner, next.id);
+        }} />}
       planNotice={<><RuleReviewCard /><ShoppingFocusToggle /></>}
       emptyList={<div className="flex flex-col items-start gap-2">
         <Notice tone="neutral" title={<>{periods.length === 0 ? "No saved lists yet. " : ""}Add items above,
@@ -357,5 +541,10 @@ export default function ShoppingRoot() {
           disabled={blankBusy || !draft || draftProblem(draft, { needMeals: false }) !== null}
           onSave={saveBlankList} />
       </div>} />
-  </>;
+    {listsOpen && <SavedListsSheet periods={periods} currentId={snapshot.period?.id ?? null}
+      today={initialDraft().startDate} onClose={() => setListsOpen(false)}
+      onOpen={(id) => void openList(owner, id)} onCreate={createList} onRename={renameList}
+      onDelete={deleteList} />}
+    <ActionFeedbackToast notice={listFeedback.notice} onDismiss={listFeedback.dismiss} />
+  </div>;
 }

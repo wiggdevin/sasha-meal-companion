@@ -38,7 +38,9 @@ export const recipePlanBody = z.object({ previewId: id, requestId,
   acceptApproximate: z.boolean() }).strict();
 export const shoppingPreviewBody = z.object({ periodId: id.optional(),
   expectedRevision: z.number().int().positive().optional(), draft: periodDraft,
-  basket: z.array(identity).max(100) }).strict()
+  basket: z.array(identity).max(100),
+  // UI makeover W7: recipes the meal walk said No to; the planner only drops them.
+  excludeRecipeIds: z.array(id).max(50).optional() }).strict()
   .refine((value) => Boolean(value.periodId) === (value.expectedRevision !== undefined));
 export const shoppingAcceptBody = z.object({ previewId: id, requestId }).strict();
 

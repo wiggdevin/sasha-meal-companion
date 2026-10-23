@@ -7,16 +7,16 @@
 import type { IngredientIdentity, ShoppingPeriod } from "@/lib/shopping/types";
 
 /**
- * The planner's editable period fields. `title` is optional and nothing sets it yet; the period
- * routes' draft schema is not strict, so an unknown key would be stripped, never refused.
+ * The planner's editable period fields. `title` is optional (1-60 characters, null untitled);
+ * the period routes store it, the preview's strict draft never carries it.
  */
 export type ShoppingDraft = Pick<ShoppingPeriod, "startDate" | "endDate" | "timezone" | "people" |
   "mealCoverage" | "mode" | "effort" | "maxActiveMinutes" | "variety" |
   "budgetAmount" | "currency" | "locale" | "lockMode"> & { title?: string | null };
 
 /**
- * What a preview is asked for. `excludeRecipeIds` is optional and not sent yet:
- * `previewShopping` forwards only `draft` and `basket`.
+ * What a preview is asked for. `excludeRecipeIds` (optional) names recipes the planner drops
+ * before scoring; `previewShopping` sends it only when it is non-empty.
  */
 export type ShoppingPreviewInput = {
   draft: ShoppingDraft;

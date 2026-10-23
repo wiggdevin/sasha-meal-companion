@@ -4,6 +4,8 @@ export const date = z.iso.date();
 export const id = z.uuid();
 export const requestId = z.uuid();
 export const revision = z.number().int().positive();
+/** A list's name: trimmed, 1-60 characters; null is an untitled list (migration 20270107090200). */
+export const periodTitle = z.string().trim().min(1).max(60).nullable();
 export const identity = z.object({ foodRefId: z.uuid().nullable(), foodDbId: z.string().max(120).nullable().optional(),
   catalogFoodRevisionId: z.number().int().positive().nullable(),
   purchaseState: z.enum(["raw", "cooked", "ready_to_eat", "as_purchased"]),
@@ -20,6 +22,7 @@ const periodFields = z.object({
   budgetAmount: z.number().nonnegative().nullable(),
   currency: z.string().length(3).nullable(), locale: z.string().max(80).nullable(),
   lockMode: z.enum(["none", "ingredients", "available_quantities"]),
+  title: periodTitle.optional(),
 });
 export const periodDraft = periodFields.refine((row) => row.startDate <= row.endDate,
   "End date precedes start date");

@@ -16,12 +16,12 @@ function line(over: Partial<ShoppingLine> = {}): ShoppingLine {
 }
 
 function actions(over: Partial<ShoppingListActions> = {}): ShoppingListActions {
-  return { addItems: vi.fn(async () => {}), setChecked: vi.fn(async () => {}), removeLine: vi.fn(async () => {}),
+  return { setChecked: vi.fn(async () => {}), removeLine: vi.fn(async () => {}),
     patchLine: vi.fn(async () => {}), confirmPantry: vi.fn(async () => {}), ...over };
 }
 
 const list = (lines: ShoppingLine[], a: ShoppingListActions) =>
-  <ShoppingList title="This week" lines={lines} favorites={[]} actions={a} />;
+  <ShoppingList title="This week" lines={lines} actions={a} />;
 const summary = () => screen.getByText(/in cart · This week/).textContent;
 
 afterEach(cleanup);

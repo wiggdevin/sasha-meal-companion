@@ -38,6 +38,8 @@ function period(row: Db): ShoppingPeriod {
     variety: row.variety as ShoppingPeriod["variety"],
     budgetAmount: number(row.budget_amount), currency: row.currency as string | null,
     locale: row.locale as string | null, lockMode: row.lock_mode as ShoppingPeriod["lockMode"],
+    title: typeof row.title === "string" ? row.title : null,
+    ...(typeof row.updated_at === "string" ? { updatedAt: row.updated_at } : {}),
     planRevision: Number(row.plan_revision), revision: Number(row.rev) };
 }
 function line(row: Db): ShoppingLine {
@@ -66,14 +68,18 @@ function purchaseWindow(row: Db): ShoppingPurchaseWindow {
     note: row.note as string | null, revision: Number(row.rev) };
 }
 
-export type PeriodDraft = Omit<ShoppingPeriod, "id" | "userId" | "planRevision" | "revision">;
+export type PeriodDraft = Omit<ShoppingPeriod, "id" | "userId" | "planRevision" | "revision" | "title" | "updatedAt">
+  & { title?: string | null };
 export type LineDraft = Omit<ShoppingLine, "id" | "periodId" | "revision" | "ruleMark">;
 export type PantryDraft = Omit<PantryItem, "id" | "userId" | "confirmedAt" | "revision" | "ruleMark" | "source">;
 
 export async function listPeriods(client: SupabaseClient, userId: string,
   start?: string, end?: string): Promise<ShoppingPeriod[]> {
   let query = client.from("shopping_periods").select("*").eq("user_id", userId)
-    .is("deleted_at", null).order("start_date", { ascending: false }).limit(52);
+    .is("deleted_at", null).order("start_date", { ascending: false })
+    // The same order as lib/shopping/current.ts `compareLists`, so the 52 kept are the same lists.
+    .order("updated_at", { ascending: false }).order("id").limit(52);
+  // A range keeps the lists that overlap it: ending on or after its start, starting on or before its end.
   if (start) query = query.gte("end_date", start);
   if (end) query = query.lte("start_date", end);
   const result = await query;
@@ -93,6 +99,7 @@ export async function createPeriod(client: SupabaseClient, userId: string,
     effort: draft.effort, max_active_minutes: draft.maxActiveMinutes,
     variety: draft.variety, budget_amount: draft.budgetAmount,
     currency: draft.currency, locale: draft.locale, lock_mode: draft.lockMode,
+    ...(draft.title !== undefined ? { title: draft.title } : {}),
     request_id: requestId }).select("*").single();
   if (insert.error) {
     if (insert.error.code === "23505") {
@@ -154,7 +161,7 @@ export async function patchPurchaseWindow(client: SupabaseClient, userId: string
 
 export type PeriodPatch = Partial<Pick<ShoppingPeriod, "startDate" | "endDate" | "timezone" |
   "people" | "mealCoverage" | "mode" | "effort" | "maxActiveMinutes" | "variety" |
-  "budgetAmount" | "currency" | "locale" | "lockMode" | "planRevision">>;
+  "budgetAmount" | "currency" | "locale" | "lockMode" | "planRevision" | "title">>;
 
 export async function patchPeriod(client: SupabaseClient, userId: string, id: string,
   expectedRevision: number, requestId: string, patch: PeriodPatch): Promise<ShoppingPeriod> {
@@ -174,6 +181,7 @@ export async function patchPeriod(client: SupabaseClient, userId: string, id: st
   if (patch.locale !== undefined) p.locale = patch.locale;
   if (patch.lockMode !== undefined) p.lock_mode = patch.lockMode;
   if (patch.planRevision !== undefined) p.plan_revision = patch.planRevision;
+  if (patch.title !== undefined) p.title = patch.title;
   const result = await client.from("shopping_periods").update(p)
     .eq("id", id).eq("user_id", userId).eq("rev", expectedRevision)
     .is("deleted_at", null).select("*").maybeSingle();
@@ -183,7 +191,38 @@ export async function patchPeriod(client: SupabaseClient, userId: string, id: st
     .eq("id", id).eq("user_id", userId).maybeSingle();
   if (current.error) issue(current.error);
   if (!current.data || current.data.deleted_at) absent();
-  if (current.data.last_request_id === requestId) return period(current.data as Db);
+  // A repeat of a request whose answer was lost: the row still carries what it asked for. The rev
+  // may have moved on since (lines added); a reused id with other values is stale, never a success.
+  if (current.data.last_request_id === requestId) {
+    const stored = period(current.data as Db) as unknown as Record<string, unknown>;
+    const asked = Object.entries(patch).filter(([, value]) => value !== undefined);
+    if (asked.every(([key, value]) => canonical(stored[key]) === canonical(value))) return stored as unknown as ShoppingPeriod;
+  }
+  stale();
+}
+
+/**
+ * Deletes a list (soft: `deleted_at`), on the revision the caller last saw. A repeat of the same
+ * request after it landed answers as done; a stale revision is 409. Accepted meal selections are
+ * kept: they belong to dates, not lists.
+ */
+export async function deletePeriod(client: SupabaseClient, userId: string, id: string,
+  expectedRevision: number, requestId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const result = await client.from("shopping_periods").update({ deleted_at: now,
+    rev: expectedRevision + 1, last_request_id: requestId, updated_at: now })
+    .eq("id", id).eq("user_id", userId).eq("rev", expectedRevision)
+    .is("deleted_at", null).select("id").maybeSingle();
+  if (result.error) issue(result.error);
+  if (result.data) return;
+  const current = await client.from("shopping_periods").select("id,deleted_at,last_request_id")
+    .eq("id", id).eq("user_id", userId).maybeSingle();
+  if (current.error) issue(current.error);
+  if (!current.data) absent();
+  if (current.data.deleted_at) {
+    if (current.data.last_request_id === requestId) return;
+    absent();
+  }
   stale();
 }
 
@@ -239,6 +278,8 @@ export async function patchLine(client: SupabaseClient, userId: string, periodId
     if (value !== undefined) p[fields[key]] = value;
   }
   if (remove) p.deleted_at = new Date().toISOString();
+  // A deleted list's lines are gone with it: no edit or removal, as `createLine` refuses a new one.
+  await livePeriod(client, userId, periodId);
   const result = await client.from("shopping_lines").update(p)
     .eq("id", id).eq("user_id", userId).eq("period_id", periodId)
     .eq("rev", expectedRevision).is("deleted_at", null).select("*").maybeSingle();
@@ -248,8 +289,21 @@ export async function patchLine(client: SupabaseClient, userId: string, periodId
     .eq("id", id).eq("user_id", userId).eq("period_id", periodId).maybeSingle();
   if (current.error) issue(current.error);
   if (!current.data) absent();
-  if (current.data.last_request_id === requestId) return line(current.data as Db);
+  if (current.data.deleted_at) {
+    // Only the removal itself replays on a removed line; any other edit of it is not found.
+    if (remove && current.data.last_request_id === requestId) return line(current.data as Db);
+    absent();
+  }
+  if (!remove && current.data.last_request_id === requestId) return line(current.data as Db);
   stale();
+}
+
+/** Throws 404 unless the list exists for this account and is not deleted. */
+async function livePeriod(client: SupabaseClient, userId: string, periodId: string): Promise<void> {
+  const result = await client.from("shopping_periods").select("id")
+    .eq("id", periodId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
+  if (result.error) issue(result.error);
+  if (!result.data) absent();
 }
 
 export async function listPantry(client: SupabaseClient, userId: string): Promise<PantryItem[]> {

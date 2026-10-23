@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { favoriteChips, listAsText, parseQuickAdd } from "@/lib/shopping/quick-add";
+import { boughtName, listAsText, parseQuickAdd } from "@/lib/shopping/quick-add";
 import type { ShoppingLine } from "@/lib/shopping/types";
 
 const line = (over: Partial<ShoppingLine> & { name: string }): ShoppingLine => ({
@@ -29,20 +29,10 @@ describe("parseQuickAdd", () => {
   });
 });
 
-describe("favoriteChips", () => {
-  it("offers Favorites not already on the list, in their order, at most eight", () => {
-    const names = ["Eggs, large", "Avocado", "Banana", "A", "B", "C", "D", "E", "F", "G"];
-    const chips = favoriteChips(names, [line({ name: "avocado" })]);
-    expect(chips[0]).toBe("Eggs");
-    expect(chips).not.toContain("Avocado");
-    expect(chips).toHaveLength(8);
-  });
-});
-
-describe("favoriteChips names", () => {
-  it("offers what you buy, not how it is cooked: one chip per food", () => {
-    expect(favoriteChips(["Sirloin steak, cooked", "Canned salmon, drained", "Banana, medium", "Banana, raw",
-      "Fat, beef tallow", "Avocado, Hass, peeled, raw", "Sweet potato, peeled & cooked"], []))
+describe("boughtName", () => {
+  it("names what you buy, not how it is cooked", () => {
+    expect(["Sirloin steak, cooked", "Canned salmon, drained", "Banana, medium", "Fat, beef tallow",
+      "Avocado, Hass, peeled, raw", "Sweet potato, peeled & cooked"].map(boughtName))
       .toEqual(["Sirloin steak", "Canned salmon", "Banana", "Fat, beef tallow", "Avocado, Hass", "Sweet potato"]);
   });
 });

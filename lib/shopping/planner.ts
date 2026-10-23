@@ -33,6 +33,11 @@ export type PlannerInput = {
   /** Accepted selections: they buy their ingredients but take no candidate choice. */
   kept?: readonly KeptSlot[];
   candidates: readonly RecipeCandidate[];
+  /**
+   * Recipe ids the user said No to (the "Have AI build my list" meal walk). They are dropped from
+   * `candidates` before any score; this only removes, never admits. Absent or empty: unchanged.
+   */
+  excludeRecipeIds?: readonly string[];
   basket: readonly IngredientIdentity[];
   pins: readonly IngredientIdentity[];
   aggregate: AggregateOptions;
@@ -226,6 +231,9 @@ export function planShoppingPeriod(input: PlannerInput): PlanPreview {
   }
   const reasons = new Set<string>();
   const proteinShort: string[] = [];
+  const excluded = new Set(input.excludeRecipeIds ?? []);
+  const candidates = excluded.size
+    ? input.candidates.filter((candidate) => !excluded.has(candidate.recipeId)) : input.candidates;
   for (const slot of slots) {
     if (slot.localDate < input.period.startDate || slot.localDate > input.period.endDate) {
       throw new RangeError("Plan slot is outside the shopping period");
@@ -234,7 +242,7 @@ export function planShoppingPeriod(input: PlannerInput): PlanPreview {
     const slotReasons = new Set<string>();
     const baselinePrice = aggregateShopping(input.period, chosen, input.aggregate)
       .price.estimatedCheckoutAmount;
-    for (const candidate of input.candidates) {
+    for (const candidate of candidates) {
       const identities = ingredientsOf(candidate, input.aggregate.identityFor);
       const hard = hardReason(input, candidate, identities);
       if (hard) { slotReasons.add(hard); continue; }

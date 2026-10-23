@@ -7,7 +7,7 @@
  *   open.
  * - `"fail_open"` appears only inside a GET handler (cheap reads of the caller's own data).
  * - No call site uses a static key (one row shared by every caller) except the cron jobs'
- *   deliberately global `jobs:*` keys.
+ *   deliberately global `jobs:*` keys and the reviewed exceptions in REVIEWED_STATIC_KEYS.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -23,6 +23,8 @@ const EXPENSIVE = [
   "app/api/plan/inspire/route.ts", "app/api/plan/document/route.ts", "app/api/plan/ideas/route.ts", "app/api/media/sign/route.ts",
   "app/api/export/route.ts", "app/api/foods/barcode/route.ts", "app/api/foods/facets/warm/route.ts",
   "app/api/health/ingest/route.ts", "app/api/sync/ops/route.ts", "app/api/log/commit/route.ts",
+  // UI makeover W8: the Shopping build flow's Jev ordering.
+  "app/api/shopping/build/rank/route.ts",
 ];
 
 /**
@@ -37,6 +39,19 @@ const SINGLE_READ_GETS: Record<string, string> = {
   "app/api/proposals/route.ts GET": "target_proposals by user_id (index user_id, week_start)",
   "app/api/sync/changes/route.ts GET": "sync_changes: change_log by its (user_id, seq) primary key, <= 500 rows",
   "app/api/warm/route.ts GET": "no database read",
+};
+
+/**
+ * Static keys outside the cron jobs, each reviewed: one shared row is the point of the limit.
+ * Keyed by `<file> <key>`.
+ */
+const REVIEWED_STATIC_KEYS: Record<string, string> = {
+  // UI makeover W8 §7.4: Nominatim's usage policy allows the whole application one request a
+  // second, whoever asks, so the limit is global by design. The per-account limits
+  // (`places-geocode:<uid>`) sit in front of it in the route.
+  "lib/server/places.ts \"places:nominatim\"": "OpenStreetMap Nominatim's one-request-a-second policy",
+  // Overpass gives each calling address a few slots; Vercel's egress addresses are shared.
+  "lib/server/places.ts \"places:overpass\"": "Overpass API's per-address slot limit",
 };
 
 function sourceFiles(dir: string): string[] {
@@ -213,7 +228,11 @@ describe("rate-limit call-site inventory (scale S2)", () => {
 
   it("uses no static key except the cron jobs' deliberately global ones", () => {
     const isStatic = (key: string) => (key.startsWith("\"") || key.startsWith("`")) && !key.includes("${");
-    const statics = sites.filter((s) => isStatic(s.key)).map((s) => `${s.file}:${s.line} ${s.key}`);
+    const reviewed = sites.filter((s) => isStatic(s.key) && `${s.file} ${s.key}` in REVIEWED_STATIC_KEYS);
+    // Every reviewed exception still exists, exactly once, as written.
+    expect(reviewed.map((s) => `${s.file} ${s.key}`).sort()).toEqual(Object.keys(REVIEWED_STATIC_KEYS).sort());
+    const statics = sites.filter((s) => isStatic(s.key) && !reviewed.includes(s))
+      .map((s) => `${s.file}:${s.line} ${s.key}`);
     expect(statics.filter((s) => !/ ["`]jobs:[a-z-]+["`]$/.test(s))).toEqual([]);
     expect(statics.every((s) => s.startsWith("app/api/jobs/"))).toBe(true);
   });

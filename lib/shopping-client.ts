@@ -8,6 +8,7 @@ import { identityKey } from "@/lib/shopping/aggregate";
 import type { ShoppingPreviewResult } from "@/lib/shopping/preview-contract";
 import { withRuleMark, withRuleMarks } from "@/lib/shopping/rule-mark-wire";
 import { refreshShoppingFocus } from "@/lib/shopping/focus-client";
+import { currentShoppingPeriod } from "@/lib/shopping/current";
 
 export type ShoppingSnapshot = { period: ShoppingPeriod | null; lines: ShoppingLine[];
   purchaseWindows?: ShoppingPurchaseWindow[] };
@@ -81,18 +82,25 @@ export async function listShoppingPeriods(startDate?: string, endDate?: string,
   const result = await shoppingRequest<{ periods: ShoppingPeriod[] }>(`/api/shopping/periods${query}`, {}, "search", account);
   return result.periods;
 }
+/** The preview's draft is strict and carries no title (a list's name is saved on the period). */
+function previewDraft(draft: ShoppingDraft): Omit<ShoppingDraft, "title"> {
+  const { title: _title, ...rest } = draft;
+  return rest;
+}
 export async function previewShopping(input: ShoppingPreviewInput,
-  period: ShoppingPeriod | null): Promise<ShoppingPreviewResult> {
+  period: ShoppingPeriod | null, account?: AccountHandle): Promise<ShoppingPreviewResult> {
   const result = await shoppingRequest<ShoppingPreviewResult>("/api/shopping/preview", {
     method: "POST", ...body({ ...(period ? { periodId: period.id,
-      expectedRevision: period.revision } : {}), draft: input.draft, basket: input.basket }),
-  }, "commit");
+      expectedRevision: period.revision } : {}), draft: previewDraft(input.draft), basket: input.basket,
+      ...(input.excludeRecipeIds?.length ? { excludeRecipeIds: input.excludeRecipeIds } : {}) }),
+  }, "commit", account);
   return { ...result, lines: withRuleMarks(result.lines) };
 }
-export async function acceptShopping(previewId: string, requestId: string): Promise<ShoppingSnapshot> {
+export async function acceptShopping(previewId: string, requestId: string,
+  account?: AccountHandle): Promise<ShoppingSnapshot> {
   return markSnapshot(await shoppingRequest<ShoppingSnapshot>("/api/shopping/accept", {
     method: "POST", ...body({ previewId, requestId }),
-  }, "commit"));
+  }, "commit", account));
 }
 export async function getShoppingPeriod(periodId: string): Promise<ShoppingSnapshot> {
   return markSnapshot(await shoppingRequest<ShoppingSnapshot>(periodPath(periodId), {}, "search"));
@@ -179,8 +187,9 @@ export async function addToCurrentShoppingList(names: readonly string[], today: 
   timezone: string, requestIds: readonly string[] = names.map(() => crypto.randomUUID()),
   account: AccountHandle = accountHandle(),
 ): Promise<{ lines: ShoppingLine[]; failed: string[]; uncertain: string[] }> {
-  const periods = await listShoppingPeriods(undefined, undefined, account);
-  const covering = periods.find((row) => row.startDate <= today && row.endDate >= today);
+  // Only the lists that cover today: an unbounded read keeps 52, and future lists could crowd it out.
+  const periods = await listShoppingPeriods(today, today, account);
+  const covering = currentShoppingPeriod(periods, today);
   const period = covering
     ?? await createShoppingPeriod(defaultShoppingDraft(today, timezone), crypto.randomUUID(), account);
   // Every item on its own (DeepSeek audit round 7): one failed add must not hide the lines that

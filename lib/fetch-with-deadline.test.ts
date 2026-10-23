@@ -27,6 +27,8 @@ describe("the deadline table", () => {
       accountDelete: 65_000,
       // The advisory check before "Day fully logged" (lib/day-completeness-client.ts), W142.
       nudge: 4_000,
+      // The build flow's store search and its deck ordering (UI makeover W8).
+      places: 12_000, rank: 5_000,
     });
   });
 });

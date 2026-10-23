@@ -10,7 +10,7 @@ import { favorableResolver } from "@/lib/server/taste-favor";
 import { favorPorts } from "@/tests/helpers/favor-fakes";
 import { ID_BATCH } from "@/lib/server/date-chunks";
 import {
-  A, B, NOW, REF, TODAY, day, tasteDb, tastePorts, tasteTables, type FixturePorts,
+  A, B, LIST_A, NOW, REF, TODAY, day, tasteDb, tastePorts, tasteTables, type FixturePorts,
 } from "@/tests/helpers/taste-fixture";
 import type { Row } from "@/tests/helpers/occasion-fake-db";
 
@@ -80,7 +80,7 @@ describe("W3 acceptance 1: a fixed history gives exact deduplicated H, Q and M (
 
   it("Q dates a choice by its creation: an edit never revives an old line", async () => {
     // Created 200 days ago (outside the window) and edited today: rev 2, updated_at today.
-    tables.shopping_lines.push({ user_id: A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
+    tables.shopping_lines.push({ user_id: A, period_id: LIST_A, origin: "manual", name: "Bananas", identity: { foodRefId: REF.c902 },
       deleted_at: null, rev: 2, updated_at: `${TODAY}T09:00:00.000Z` });
     expect(item(await read(), "u:banana")!.q).toBe(1);
   });
@@ -89,6 +89,11 @@ describe("W3 acceptance 1: a fixed history gives exact deduplicated H, Q and M (
     const banana = item(await read(), "u:banana")!;
     expect(banana.q).toBe(1);
     expect(banana.provenance.choices.shopping_manual).toBe(1);
+  });
+
+  it("Q drops the lines of a deleted list (the list is deleted, its lines are not)", async () => {
+    for (const list of tables.shopping_periods) if (list.id === LIST_A) list.deleted_at = "2026-10-01T00:00:00Z";
+    expect(item(await read(), "u:banana")?.provenance.choices.shopping_manual ?? 0).toBe(0);
   });
 });
 
@@ -131,8 +136,8 @@ describe("W3 acceptance 3: another account's rows never appear", () => {
   it("every read of an account-owned table carries the explicit user_id filter", async () => {
     const db = tasteDb(tables);
     await accountTaste(db.client, A, TODAY, ports, NOW);
-    const owned = ["log_entries", "plan_days", "recipe_plan_selections", "shopping_lines", "user_food_prefs",
-      "user_foods"];
+    const owned = ["log_entries", "plan_days", "recipe_plan_selections", "shopping_lines", "shopping_periods",
+      "user_food_prefs", "user_foods"];
     const reads = db.queries.filter((q) => owned.includes(q.table));
     expect(new Set(reads.map((q) => q.table))).toEqual(new Set(owned));
     for (const q of reads) expect(q.filters).toContain("eq:user_id");

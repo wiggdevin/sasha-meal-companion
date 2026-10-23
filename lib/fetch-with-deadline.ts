@@ -15,7 +15,8 @@
 /** The kinds of call spec §2 gives a deadline to. One name per hop the user waits on. */
 export type Budget =
   "sign" | "upload" | "propose" | "barcode" | "commit" | "coach" | "search" | "timings"
-  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn" | "accountDelete" | "nudge";
+  | "transcribe" | "prefs" | "undo" | "ideas" | "signIn" | "accountDelete" | "nudge" | "places"
+  | "rank";
 
 /**
  * Spec §2's table, in milliseconds: how long one call of each kind may take before the client
@@ -69,6 +70,17 @@ export const DEADLINES: Record<Budget, number> = {
   accountDelete: 65_000,
   /** W142: the advisory check before "Day fully logged". The server's Jev deadline is 2.5 s. */
   nudge: 4_000,
+  /**
+   * UI makeover W8: the build flow's store search (POST /api/shopping/places/{geocode,stores}). The
+   * server's own budgets sit under it (6 s for the geocoder, 9 s for the store search including its
+   * one wider retry), so the server's "Store search isn't available right now" line is the one read.
+   */
+  places: 12_000,
+  /**
+   * UI makeover W8: the Ingredients deck's ordering (POST /api/shopping/build/rank). Advisory: past
+   * this the deck keeps its plain order.
+   */
+  rank: 5_000,
 };
 
 /** The deadline promise's own "nothing to report": settled so the race lets go of it. */
