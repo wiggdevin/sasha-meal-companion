@@ -116,7 +116,7 @@ export default function CareNotes({ note, mascot = "sprout", place = "top", onWa
     <AnimatePresence mode="popLayout" initial={false}>
       {note && <motion.div key={note.id} className={styles.note} data-type={note.type}
         initial={reduce ? { opacity: 0 } : { opacity: 0, y: -40, scaleY: 0.9 }}
-        animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scaleY: [0.9, 1.04, 1] }}
+        animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scaleY: 1 }}
         exit={reduce ? { opacity: 0 } : { opacity: 0, y: -30, transition: FADES.quick }}
         transition={reduce ? INSTANT : SPRINGS.bouncy}>
         <NoteBody note={note} mascot={mascot} onWatch={onWatch} onDismiss={() => onDismiss(note.id)} />
