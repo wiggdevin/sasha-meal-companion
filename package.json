@@ -21,7 +21,7 @@
     "timings:ai": "tsx scripts/ai-calls-timings.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.30.0",
+    "@google/genai": "^2.31.0",
     "@modelcontextprotocol/server": "^2.3.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
@@ -29,7 +29,7 @@
     "leaflet": "1.9.4",
     "lucide-react": "^1.60.0",
     "mcp-handler": "^2.3.0",
-    "motion": "^14.4.0",
+    "motion": "^14.6.0",
     "next": "16.4.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
